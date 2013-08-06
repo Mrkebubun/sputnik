@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pepsi</title>
+    <script src="autobahn.min.js"></script>
+    <script src="underscore.js"></script>
+    <!-- optionally, you can use AutobahnJS with jQuery Deferreds ..
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script> -->
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
+    <script src="qrcode.js"></script>
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="pepsiCola.css" rel="stylesheet" media="screen">
+    <link rel="stylesheet" type="text/css" href="css/dc.css"/>
+    <link href="nvd3/nv.d3.css" rel="stylesheet" type="text/css">
+
+
+    <style>
+
+    </style>
+
+
+</head>
+<body>
+
+<ul class="nav nav-tabs navbar" id="tabs">
+    <li> <a href="#PennyArcadeTab" class="offset1" id="PennyArcade" data-toggle="tab"></a> </li>
+    <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Markets<b class="caret"></b></a>
+        <ul class="dropdown-menu"><div id="tree" style="width:600px"></div></ul>
+    </li>
+    <li> <a href="#TradeTab" id="Trade" data-toggle="tab">Trade</a> </li>
+    <li> <a href="#AccountTab" id="Account" data-toggle="tab">Account</a> </li>
+    <li> <a href="#AboutTab" id="About" data-toggle="tab">About</a> </li>
+
+
+    <li><input type="text" class="search-query" placeholder="Search"></li>
+
+
+    <!-- modal triggers -->
+    <li class="pull-right"> <a id="loginButton" href="#myModal" role="button" data-toggle="modal">Login</a> </li>
+    <li class="pull-right"> <a id="registration" href="#registerModal" role="button" data-toggle="modal">Register </a> </li>
+    <li class="pull-right"> <a href="#" id="logoutButton" style="display:none;">Logout</a> </li>
+    <li class="pull-right"> <a href="#" id="loginStatus" style="display:none;"></a> </li>
+</ul>
+
+
+
+<div class="tab-content">
+    <div class="tab-pane active" id="PennyArcadeTab"> <!--item 1 contains the splash page-->
+        <p class="muted">Welcome...</p>
+    </div> <!-- End item one-->
+
+
+
+
+<div class="tab-pane" id="TradeTab">     <!--  item 2 contains a single market and the control panel-->
+
+
+
+    <div class="container"><!--interior container-->
+        <h2 class="" id="currentMarket"></h2> <h3 class="muted" id="currentTicker"></h3>
+
+        <div class="container span9">
+            <!--<div id="chart1">-->
+                <!--<svg style="height: 500px;"></svg>-->
+            <!--</div>-->
+
+            <div id="monthly-move-chart"></div>
+            <div id="monthly-volume-chart"></div>
+
+
+            <div class="row">
+                <div class="span4 offset1">
+                    <table id="orderBookBuys" class="table table-bordered table-striped table-condensed">
+                        <!--position info--> </table>
+                </div>
+
+                <div class="span4"><!--interior container-->
+                    <table id="orderBookSells" class="table table-bordered table-striped table-condensed">
+                        <!--position info--> </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <form class='form span4 offset1 text-center'>
+    <div class="control-group">
+                        <div class="controls">
+                            <div class="input-prepend">
+                                <span class="add-on">#</span>
+                                <input id="qbuy" type="text" placeholder="quantity" value=0>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="controls">
+                            <div class="input-prepend">
+                                <span class="add-on contract_unit"></span>
+                                <input id="pbuy" type="text" placeholder="price">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="controls">
+                            <button id="buyButton" class="btn btn-success pull-right btn-block" type="button">Buy <i
+                                    class="icon-thumbs-up"></i></button>
+                        </div>
+                    </div>
+                </form>
+                <!--End of Left control-->
+
+                <form class='form span4 text-center'>
+
+
+                    <div class="control-group">
+                        <div class="controls">
+                            <div class="input-prepend">
+                                <span class="add-on">#</span>
+                                <input id="qsell" type="text" placeholder="quantity" value=0>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="control-group">
+                        <div class="controls">
+                            <div class="input-prepend">
+                                <span class="add-on contract_unit"></span>
+                                <input id="psell" type="text" placeholder="price">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="controls">
+                            <button id="sellButton" class="btn btn-danger btn-block" type="button">Sell <i
+                                    class="icon-thumbs-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <!-- end of right control-->
+                <!--</div>  end of control panel div-->
+            </div>
+
+            <div class="row">
+                <hr>
+
+
+                <div class="tabbable"> <!-- Only required for left/right tabs -->
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a href="#position" data-toggle="tab">Position</a></li>
+                        <li><a href="#description" data-toggle="tab">Description</a></li>
+                        <li><a href="#chat" data-toggle="tab">Chat</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="position">
+                            <p>Cash</p>
+                            <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
+                            <p>Position</p>
+                            <table id="market_position_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
+                            <p>Open Orders</p>
+                            <table id="market_order_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
+                        </div>
+                        <div class="tab-pane" id="description">
+                            <p id="descriptionText">blah blah</p>
+                        </div>
+                        <div class="tab-pane" id="chat">
+                            <div class="input-append">
+                                <input class="span6" id="chatBox" type="text">
+                                <button id="chatButton" class="btn" type="button">Chat!</button>
+                            </div>
+                            <textarea readonly id="chatArea" cols="160" rows="10" class="span9"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--class="row span10"-->
+        </div>
+        <!--class="container span10"-->
+
+        <div class="container span3 pull-right">
+            <table id="tradeHistory" class="table table-bordered table-condensed">
+                <!--position info--> </table>
+        </div>
+    </div>
+
+</div>
+    <!-- end item 2-->
+
+
+    <div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
+        <div class="container"> <!-- position info-->
+            <h2>Balance</h2>
+            <table id="account_cash_table" class="table table-bordered table-striped table-condensed">
+                <!--position info--> </table>
+            <h2>Positions</h2>
+            <table id="account_positions_table" class="table table-bordered table-striped table-condensed">
+                <!--position info--> </table>
+            <h2>Open Orders</h2>
+            <table id="openOrders" class="table table-bordered table-condensed table-striped"> <!--position info--> </table>
+        </div>
+        <!-- end of position info-->
+    </div>  <!-- end of item 4 -->
+
+    <div id="AboutTab" class="tab-pane"> <!-- item 4 account info contains position and balance info--> </div>
+
+</div> <!-- end tab-content-->
+
+
+&nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
+<div id="processingModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
+     aria-hidden="true"> <!-- Modal -->
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="processingLabel">Processing</h3>
+    </div>
+
+    <div class="modal-body">
+        <div class="progress progress-striped active">
+            <div class="bar" style="width: 100%;"></div>
+        </div>
+    </div>
+    <!--end modal-body-->
+    <div class="modal-footer">
+        <button id="processingDismissButton" class="btn btn-large pull-right btn-info" data-dismiss="modal"
+                aria-hidden="true">OK
+        </button>
+        <!--type="button"-->
+    </div>
+</div>
+<!-- end Modal -->
+
+<div id="depositModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
+     aria-hidden="true"> <!-- Modal -->
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="processingLabel">Deposit Address</h3>
+    </div>
+
+    <div class="modal-body">
+        <legend><a id="deposit_address"></a></legend>
+        <div id="qrcode"></div>
+    </div>
+    <!--end modal-body-->
+    <div class="modal-footer">
+        <button  id="newAddressButton" class="btn btn-large"
+                aria-hidden="true">New Address
+        </button>
+        <button  class="btn btn-large" data-dismiss="modal"
+                aria-hidden="true">Close
+        </button>
+        <!--type="button"-->
+    </div>
+</div>
+<!-- end Modal -->
+
+<div id="withdrawModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
+     aria-hidden="true"> <!-- Modal -->
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="processingLabel">Withdraw</h3>
+    </div>
+
+    <div class="modal-body">
+        <form class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="withdrawAddress" autofocus>Send to Address</label>
+
+                <div class="controls">
+                    <input type="text" id="withdrawAddress" placeholder="Address">
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="withdrawAmount">Amount</label>
+
+                <div class="controls">
+                    <input type="text" id="withdrawAmount" placeholder="0.0">
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+    <!--end modal-body-->
+    <div class="modal-footer">
+
+        <button  class="btn btn-large " data-dismiss="modal"
+                aria-hidden="true">Cancel
+        </button>
+        <button  class="btn btn-large btn-primary" onclick='withdraw()' data-dismiss="modal"
+                aria-hidden="true">Send!
+        </button>
+        <!--type="button"-->
+    </div>
+</div>
+<!-- end Modal -->
+
+&nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
+<div id="myModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <!-- Modal -->
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="myModalLabel">Login</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="login" autofocus>Login</label>
+
+                <div class="controls">
+                    <input type="text" id="login" placeholder="Login">
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="password">Password</label>
+
+                <div class="controls">
+                    <input type="password" id="password" placeholder="Password">
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+    <!--end modal-body-->
+
+    <div class="modal-footer">
+        <button class="btn btn-large pull-left" data-dismiss="modal" aria-hidden="true">Close</button>
+        <button onclick="do_login(login.value, password.value);" data-dismiss="modal" class="btn btn-success btn-large"
+                type="button" id='login_button'> login <i class="icon-lock"></i></button>
+
+        <!--type="button"-->
+    </div>
+</div>
+<!-- end Modal -->
+
+<!-- Register modal -->
+<div id="registerModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+     aria-hidden="true"> <!-- Modal -->
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="myModalLabel">Register</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="login">Login</label>
+
+                <div class="controls">
+                    <input type="text" id="registerLogin" placeholder="Login">
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="password">Password</label>
+
+                <div class="controls">
+                    <input type="password" id="registerPassword" placeholder="Password">
+                </div>
+            </div>
+
+
+            <div class="control-group">
+                <label class="control-label" for="email">Email</label>
+
+                <div class="controls">
+                    <input type="email" id="registerEmail" placeholder="name@mail.com">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="bitMessage">Bit Message</label>
+
+                <div class="controls">
+                    <input type="email" id="registerBitMessage" placeholder="bit message">
+                </div>
+            </div>
+
+
+            <div class="control-group">
+                <div class="controls">
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+    <!--end modal-body-->
+
+    <div class="modal-footer">
+        <button class="btn btn-large pull-left" data-dismiss="modal" aria-hidden="true">Close</button>
+        <button id="registerButton" data-dismiss="modal" class="btn btn-success btn-large" type="button"> Register <i
+                class="icon-lock"></i></button>
+    </div>
+</div>
+<!-- end Modal -->
+
+
+<!-- end container -->
+
+
+<!-- Le javascript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="bootstrap/js/jquery.js"></script>
+<script src="bootstrap/js/bootstrap-transition.js"></script>
+<script src="bootstrap/js/bootstrap-alert.js"></script>
+<script src="bootstrap/js/bootstrap-modal.js"></script>
+<script src="bootstrap/js/bootstrap-dropdown.js"></script>
+<script src="bootstrap/js/bootstrap-scrollspy.js"></script>
+<script src="bootstrap/js/bootstrap-tab.js"></script>
+<script src="bootstrap/js/bootstrap-tooltip.js"></script>
+<script src="bootstrap/js/bootstrap-popover.js"></script>
+<script src="bootstrap/js/bootstrap-button.js"></script>
+<script src="bootstrap/js/bootstrap-collapse.js"></script>
+<script src="bootstrap/js/bootstrap-carousel.js"></script>
+<script src="bootstrap/js/bootstrap-typeahead.js"></script>
+
+
+<script src="lib/d3.v3.js"></script>
+<script src="crossfilter/crossfilter.js"></script>
+<script src="dc/dc.js"></script>
+<script type="text/javascript" src="pepsiCola.js"></script>
+<script type="text/javascript" src="rpc.js"></script>
+
+
+<!--<script src="lib/d3.v3.js"></script>-->
+<script src="nv.d3.js"></script>
+<script src="nvd3/tooltip.js"></script>
+<script src="nvd3/utils.js"></script>
+<script src="nvd3/models/legend.js"></script>
+<script src="nvd3/models/axis.js"></script>
+<script src="nvd3/models/scatter.js"></script>
+<script src="nvd3/models/line.js"></script>
+<script src="nvd3/models/lineChart.js"></script>
+
+
+</body>
+</html>
