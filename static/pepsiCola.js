@@ -92,6 +92,9 @@ function onEvent(topicUri, event) {
 
 function onTrade(topicUri, event) {
     console.log('in onTrade', SITE_TICKER, topicUri, event);
+	now = new Date().toLocaleTimeString();
+	updateTradeTable([now, event['price'], event['quantity'] ]);
+	//TRADE_HISTORY.push(event['price']
 
 //    if (SITE_TICKER in JSON.parse(event)) {
 //        console.log('got event');
@@ -355,14 +358,28 @@ function displayPrice(price, denominator, tick_size, contract_type) {
     return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
 
 }
+
+function updateTradeTable(trade) {
+	var direction = '';
+
+	if (trade[1] > TRADE_HISTORY[0][1]) {
+		direction = 'success';
+	} else if (trade[1] < TRADE_HISTORY[0][1]) {
+		direction = 'error';
+	} else {
+		direction = 'neutral';
+	}
+
+	$('#tradeHistory tr:first').after("<tr class=" + direction + ">" +
+		"<td>" + displayPrice(trade[1], markets[SITE_TICKER]['denominator'], markets[SITE_TICKER]['tick_size'], markets[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
+		"<td>" + trade[2] + "</td>" +
+		"<td>" + trade[0] + "</td>" +
+		"</tr>");
+
+	TRADE_HISTORY.unshift(trade);
+}
+
 function tradeTable(trades, fullsize) {
-
-//    if (fullsize) {
-//        length = trades.length;
-//    } else {
-//        length = 25;
-//    }
-
     var length = fullsize ? trades.length : 25;
     $('#tradeHistory').empty()
         .append('<tr><th>Price <p class=\'contract_unit\'></p> </th><th>Vol.</th><th>Time</th></tr>');
