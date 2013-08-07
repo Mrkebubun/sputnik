@@ -7,10 +7,11 @@ import models
 import os
 
 db_session = db.Session()
+BASE = os.getcwd()
 
 for contract in db_session.query(models.Contract).filter_by(active=True):
     print [contract.ticker, contract.id]
-    os.system('python /home/arthurb/code/matching_engine/engine.py %s %d &' % (contract.ticker, contract.id))
+    os.system('python %s/engine.py %s %d &' % (BASE, contract.ticker, contract.id))
 
 while True:
     time.sleep(10)
