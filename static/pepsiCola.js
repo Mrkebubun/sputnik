@@ -698,10 +698,18 @@ $("#login").keypress(function (e) {
         $('#login_button').click();
     }
 });
+
 $("#password").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
         $('#login_button').click();
+    }
+});
+
+$("#chatBox").keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        $('#chatButton').click();
     }
 });
 
