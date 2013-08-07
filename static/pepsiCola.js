@@ -16,6 +16,7 @@ var base_uri = "http://example.com/";
 
 var myTopic = base_uri + "topics/mytopic1";
 var chat_URI = base_uri + "user/chat";
+var trade_URI = base_uri + "trades#";
 
 
 window.onload = function () {
@@ -46,7 +47,7 @@ function onSafePrice(uri, event) {
 
 function onConnect() {
     console.log("Connected!")
-    session.subscribe("http://example.com/simple", onEvent);
+    //session.subscribe("http://example.com/simple", onEvent);
 
     /*for testing:*/
     do_login('a', 'a');
@@ -55,7 +56,7 @@ function onConnect() {
 
 function onAuth(permissions) {
     ab.log("authenticated!", JSON.stringify(permissions));
-    session.subscribe(myTopic, onEvent);
+    //session.subscribe(myTopic, onEvent);
     logged_in = true;
 
 
@@ -67,6 +68,9 @@ function onAuth(permissions) {
     $('#registeration').hide();
 
     session.subscribe(chat_URI, onChat);
+
+	subToTradeStream(16);
+	subToTradeStream(17);
 
     getMarkets();
     getSafePrices();
@@ -82,8 +86,25 @@ function onEvent(topicUri, event) {
         console.log('got event');
         //todo: find where needed
         orderBook(SITE_TICKER);
-        getTradeHistory(SITE_TICKER);
+        //getTradeHistory(SITE_TICKER);
     }
+}
+
+function onTrade(topicUri, event) {
+    console.log('in onTrade', SITE_TICKER, topicUri, event);
+
+//    if (SITE_TICKER in JSON.parse(event)) {
+//        console.log('got event');
+//        //todo: find where needed
+//        orderBook(SITE_TICKER);
+//        getTradeHistory(SITE_TICKER);
+//    }
+
+}
+
+function subToTradeStream(ticker) {   
+	console.log(trade_URI+ticker ,onTrade);
+	session.subscribe(trade_URI+ticker ,onTrade);
 }
 
 function sendChat(message) {

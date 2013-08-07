@@ -495,10 +495,11 @@ class PepsiColaServerFactory(WampServerFactory):
         """
 
         for key, value in json.loads(message).iteritems():
+            logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value)) 
             if key == 'book_update':
                 self.all_books.update(value)
                 self.dispatch("http://example.com/simple", json.dumps(value))
-                logging.info("Sent:    ", message)
+                logging.info("Sent:    %", message)
 
             elif key == 'safe_price':
                 self.safe_prices.update(value)
