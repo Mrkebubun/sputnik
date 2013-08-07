@@ -3,11 +3,6 @@ var session = null;
 
 var base_uri = "http://example.com/";
 
-//var myTopic = base_uri + "topics/mytopic1";
-//var chat_URI = base_uri + "user/chat";
-//var trades_URI = base_uri + "trades";
-//var fills_URI = base_uri + "user/fills";
-
 var safe_price_URI = base_uri + "safe_price";
 var get_safe_prices_URI = base_uri + "procedures/get_safe_prices";
 var place_order_URI = base_uri + "procedures/place_order";
@@ -92,14 +87,6 @@ function getTradeHistory(ticker) {
             tradeTable(TRADE_HISTORY, false);
         })
 }
-
-//function dc_graph(ticker) {
-//    var now = new Date();
-//    var then = new Date(now.getTime());
-//    then.setDate(now.getDate() - 7);
-//
-//    session.call(get_trade_history_URI, ticker, 7 * 24 * 3600).then(build_trade_graph);
-//}
 
 function placeOrder(order) {
     notifications.processing(order);

@@ -17,83 +17,10 @@ var base_uri = "http://example.com/";
 var myTopic = base_uri + "topics/mytopic1";
 var chat_URI = base_uri + "user/chat";
 
-//var get_trade_history_URI = base_uri + "procedures/get_trade_history";
-//var trades_URI = base_uri + "trades";
-//var fills_URI = base_uri + "user/fills";
-//var safe_price_URI = base_uri + "safe_price";
-//var get_safe_prices_URI = base_uri + "procedures/get_safe_prices";
-//var place_order_URI = base_uri + "procedures/place_order";
-//var markets_URI = base_uri + "procedures/list_markets";
-//var positions_URI = base_uri + "procedures/get_positions";
-//var get_order_book_URI = base_uri + "procedures/get_order_book";
-//var make_account_URI = base_uri + "procedures/make_account";
-//var get_open_orders_URI = base_uri + "procedures/get_open_orders";
-//var cancel_order_URI = base_uri + "procedures/cancel_order";
-//
-//var get_new_address_URI = base_uri + "procedures/get_new_address";
-//var get_current_address_URI = base_uri + "procedures/get_current_address";
-//var withdraw_URI = base_uri + "procedures/withdraw";
 
 window.onload = function () {
     connect();
 };
-
-
-//// connect to Autobahn.ws
-//function connect() {
-//    //ws -> wss
-//    var wsuri;// = "wss://" + host + ":9000";
-//    if (window.location.protocol === "file:") {
-//        //wsuri = "wss://localhost:9000";
-//        wsuri = "ws://localhost:9000";
-//    } else {
-//        //wsuri = "wss://" + window.location.hostname + ":9000";
-//        wsuri = "ws://" + window.location.hostname + ":9000";
-//    }
-//    ab.connect(wsuri,
-//        function (sess) {
-//            session = sess;
-//            ab.log("connected to " + wsuri);
-//            onConnect();
-//        },
-//
-//        function (code, reason, detail) {
-//            session = null;
-//            switch (code) {
-//                case ab.CONNECTION_UNSUPPORTED:
-//                    window.location = "http://autobahn.ws/unsupportedbrowser";
-//                    break;
-//                case ab.CONNECTION_CLOSED:
-//                    window.location.reload();
-//                    break;
-//                default:
-//                    ab.log(code, reason, detail);
-//                    break;
-//            }
-//        },
-//
-//        {'maxRetries': 60, 'retryDelay': 1000}
-//    );
-//}
-
-//function do_login(login, password) {
-//    session.authreq(login /*, extra*/).then(function (challenge) {
-//
-//        var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
-//        // direct sign or AJAX to 3rd party
-//        var signature = session.authsign(challenge, secret);
-//
-//        session.auth(signature).then(onAuth, ab.log);
-//    }, function (err) {
-//        alert('bad login');
-//    });
-//}
-
-
-//function logout() {
-//    session.close();
-//    logged_in = false;
-//}
 
 function onChat(channelURI, msg) {
     // console.log("Received chat message in channel " + channelURI + ":" + msg);
@@ -172,125 +99,6 @@ function setSiteTicker(ticker) {
 //    session.subscribe(safe_price_URI+'#'+SITE_TICKER, onSafePrice);
     $('.contract_unit').text(markets[SITE_TICKER]['contract_type'] == 'futures' ? '฿' : '%');
 }
-
-
-//function getTradeHistory(ticker) {
-//    var contract_unit = ' ฿';
-//    var now = new Date();
-//    var then = new Date(now.getTime());
-//
-//    then.setDate(now.getDate() - 7);
-//
-//    session.call(get_trade_history_URI, SITE_TICKER, 7 * 24 * 3600).then(
-//        function (trades) {
-//            TRADE_HISTORY = trades.reverse();
-//            tradeTable(TRADE_HISTORY, false);
-//        })
-//}
-//
-//function placeOrder(order) {
-//    processing(order)
-//    console.log('inside placeOrder', order);
-//    session.call(place_order_URI, order).then(
-//        function (order_status) {
-//            console.log('place order returns:', order_status);
-//            dismiss_processing(order_status)
-//            if (order_status == false) {
-//                orderError();
-//            }
-//        }
-//    );
-//}
-
-//function cancelOrder(order_id) {
-//    session.call(cancel_order_URI, order_id).then(
-//        function (res) {
-//            console.log(res);
-//
-//            $('#cancel_order_row_' + order_id).addClass('warning');
-//            $('#cancel_button_' + order_id).attr('disabled', 'disabled')
-//                .removeClass('btn-danger');
-//            //todo: this is disgusting, change that.  Agreed.
-//            setTimeout(getOpenOrders, 1000);
-//        })
-//}
-
-//function getPositions() {
-//    session.call(positions_URI).then(
-//        function (positions) {
-//
-//            SITE_POSITIONS = positions;
-//
-//            var cash_positions = Object()
-//            var contract_positions = Object()
-//            for (var key in positions)
-//                if (positions[key]['position'] != 0)
-//                    (positions[key]['contract_type'] == 'cash' ? cash_positions : contract_positions)[key] = positions[key];
-//
-//            displayPositions(true, contract_positions);
-//            displayPositions(false, contract_positions);
-//            displayCash(true, cash_positions);
-//            displayCash(false, cash_positions);
-//        });
-//}
-
-
-//function orderBook(ticker) {
-//    session.call(get_order_book_URI, ticker).then(
-//        function (book) {
-//            var buyBook = [];
-//            var sellBook = [];
-//
-//            var denominator = markets[ticker]['denominator'];
-//            var tick_size = markets[ticker]['tick_size'];
-//            var contract_type = markets[ticker]['contract_type'];
-//            //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
-//
-//            for (var i = 0; i < book.length; i++) {
-//                var price = Number(book[i]['price']);
-//                var quantity = book[i]['quantity'];
-//                ((book[i]['order_side'] == 0) ? buyBook : sellBook).push([price , quantity]);
-//            }
-//
-//            buyBook = stackBook(buyBook);
-//            sellBook = stackBook(sellBook);
-//
-////            for (var i = 0; i < sellBook.length; i++)
-////                sellBook[i].reverse();
-//            sellBook.reverse();
-//
-//            graphTable(buyBook, "buy", false);
-//            graphTable(sellBook, "sell", false);
-//        }
-//    );
-//}
-
-
-//function withdraw() {
-//    session.call(withdraw_URI, 'BTC', withdrawAddress.value, Math.round(100000000 * Number(withdrawAmount.value))).then(
-//        function (res) {
-//            console.log(res);
-//        }
-//    )
-//}
-
-//function getCurrentAddress() {
-//    session.call(get_current_address_URI).then(
-//        function (addr) {
-//            $('#deposit_address').attr('href', "bitcoin:" + addr).text(addr);
-//            $('#qrcode').empty();
-//            new QRCode(document.getElementById("qrcode"), "bitcoin:" + addr);
-//        }
-//    )
-//}
-//
-//function getNewAddress() {
-//    session.call(get_new_address_URI).then(
-//        function (addr) {
-//            console.log(addr);
-//        }
-//    )
-//}
 
 
 //currency functions
@@ -378,57 +186,6 @@ function calculateMargin(positions, open_orders, safe_prices) {
     //return [low_margin, high_margin];
 }
 
-
-//Rpc calls
-
-//function getOpenOrders() {
-//    console.log('Making getOpenOrders RPC call');
-//    session.call(get_open_orders_URI).then(
-//        function (orders) {
-//            console.log('Ended RPC call, drawing');
-//            OPEN_ORDERS = orders
-//            displayOrders(true, orders);
-//            displayOrders(false, orders);
-//        }
-//    );
-//}
-//
-//function getMarkets() {
-//    session.call(markets_URI).then(
-//        function (res) {
-//            tree(marketsToDisplayTree(res));
-//            markets = res;
-//
-//            // randomly select a defualt market
-//            var keys = [];
-//            for (key in markets) {
-//                keys.push(key)
-//            }
-//            setSiteTicker(keys[Math.floor((keys.length + 1) * Math.random())]);
-//
-//            for (key in markets)
-//                if (markets[key].contract_type == 'futures')
-//                    session.subscribe(safe_price_URI + '#' + key, onSafePrice);
-//        });
-//}
-//
-//function getSafePrices() {
-//    session.call(get_safe_prices_URI, []).then(
-//        function (res) {
-//            SAFE_PRICES = res;
-//        }
-//    );
-//}
-//
-//function makeAccount(name, psswd, email, bitmsg) {
-//    var psswdHsh = ab.deriveKey(psswd, {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000});
-//    console.log(psswdHsh);
-//    session.call(make_account_URI, name, psswdHsh, email, bitmsg).then(
-//        function (res) {
-//            console.log(res)
-//        })
-//}
-
 //charting functions:
 function decimalPlacesNeeded(denominator) {
     var factor_five = 0;
@@ -470,14 +227,6 @@ function stackBook(book) {
 
     return newBook;
 }
-
-//function dc_graph(ticker) {
-//    var now = new Date();
-//    var then = new Date(now.getTime());
-//    then.setDate(now.getDate() - 7);
-//
-//    session.call(get_trade_history_URI, ticker, 7 * 24 * 3600).then(build_trade_graph);
-//}
 
 function build_trade_graph(trades) {
     var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;
@@ -567,7 +316,6 @@ function build_trade_graph(trades) {
     dc.renderAll();
 
 }
-
 
 function displayPrice(price, denominator, tick_size, contract_type) {
     var contract_unit = '฿';
@@ -698,7 +446,7 @@ function displayOrders(show_all_tickers, orders) {
 
             if (show_all_tickers || ticker == SITE_TICKER) { // if this SITE_TICKER is to be shown
 
-                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "'>" + ticker  + "</td>" : "") // don't show ticker unless needed
+                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "' style='vertical-align:middle' >" + ticker  + "</td>" : "") // don't show ticker unless needed
 //                var margin_td = (show_all_tickers ? "<td rowspan='" + length + "'>" + margins[ticker][1] / 1e8 + "</td>" : "") // don't show ticker unless needed
                 var printed_ticker;
                 _.each(contract_group, function (order) {
