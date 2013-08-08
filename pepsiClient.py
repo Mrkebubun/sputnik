@@ -7,6 +7,9 @@ from twisted.internet import reactor, ssl
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
 
+base_uri = "http://example.com/"
+trade_URI = base_uri + "trades#"
+order_book_URI = base_uri + "order_book"
 
 class TradingBot(WampCraClientProtocol):
     """
@@ -52,6 +55,24 @@ class TradingBot(WampCraClientProtocol):
     def onAuthError(self, e):
         uri, desc, details = e.value.args
         print "Authentication Error!", uri, desc, details
+
+    def subToOrderBook(self):
+       self.subscribe(order_book_URI, self.onOrderBook) 
+
+    def subToTradeStream(self,ticker):
+       self.subscribe(order_book_URI + str(ticker), self.onOrderBook) 
+
+    def onOrderBook(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "Event", topicUri, event
+
+    def onOrderBook(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "Event", topicUri, event
 
     def getNewAddress(self):
         d = self.call(self.base_URI + "get_new_address")
