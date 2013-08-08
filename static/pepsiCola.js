@@ -463,20 +463,36 @@ function graphTable(table, side, fullsize) {
 //    } else {
 //        length = 10;
 //    }
-    var length = fullsize ? trades.length : 10;
+    var length = fullsize ? table.length : 10;
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
+
+	var denominator = markets[SITE_TICKER]['denominator'];
+	var contract_type = markets[SITE_TICKER]['contract_type'];
+	var tick_size = markets[SITE_TICKER]['tick_size'];
+0
     $(id).empty();
+	
+	if (side =='buy') {
+		$('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+		$('#qsell').val(table[table.length - 1][0]);
+	} else {
+		$('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+		$('#qbuy').val(table[table.length - 1][0]);
+	}
 
     for (var i = 0; i < Math.max(table.length, length); i++) {
-        var denominator = markets[SITE_TICKER]['denominator'];
-        var contract_type = markets[SITE_TICKER]['contract_type'];
-        var tick_size = markets[SITE_TICKER]['tick_size'];
 
         if (i < table.length) {
             var price_cell = "<td>" + displayPrice(table[i][1], denominator, tick_size, contract_type) + "</td>";
             var quantity_cell = "<td>" + table[i][0] + "</td>";
             var row_string = (side == 'buy' ? quantity_cell + price_cell : price_cell + quantity_cell);
-            $(id).prepend("<tr>" + row_string + "</tr>");
+            $(id).prepend("<tr id='" + side + "_" + i + "'>" + 
+							row_string + "</tr>");
+
+			// highlight user's orders
+			if (_.contains(_.pluck(OPEN_ORDERS,table[i][1] ))){
+				$('#' + side + '_' + i).addClass("info");
+			}
         }
         else {
             $(id).append("<tr><td> - </td><td> - </td></tr>");
@@ -562,21 +578,24 @@ function displayCash(display_account_page, positions) {
         .append("<tr>" +
             "<th>Currency</th>" +
             "<th>Position</th>" +
-            "<th>Low Margin</th>" +
+            //"<th>Low Margin</th>" +
             "<th>Reserved in Margin</th>" +
-            "<th class='shrink'>Withdraw/Deposit</th>" + "</tr>");
+            "<th>Withdraw</th>" +
+			"<th>Deposit</th>" + "</tr>");
 
     for (var key in positions) {
         $(element).append("<tr>" +
             "<td>" + positions[key]['ticker'] + "</td>" + // don't show ticker unless needed
             "<td>" + (positions[key]['position'] / 1e8) + "</td>" +
-            "<td>" + margins['total'][0] / 1e8 + "</td>" +
+            //"<td>" + margins['total'][0] / 1e8 + "</td>" +
             "<td>" + margins['total'][1] / 1e8 + "</td>" +
-            "<td class='shrink'>" +
-            "<button onclick='withdrawModal()' class='btn ' type='button'>" +
+            "<td>" +
+            "<button onclick='withdrawModal()' class='btn btn-block' type='button'>" +
             " <i class='icon-minus-sign'/>" +
             "</button>" +
-            "<button onclick='deposit()' class='btn ' type='button'>" +
+            "</td>" +
+            "<td>" +
+            "<button onclick='deposit()' class='btn btn-block' type='button'>" +
             " <i class='icon-plus-sign'/>" +
             "</button>" +
             "</td>" +
@@ -590,16 +609,27 @@ function displayPositions(show_all_tickers, positions) {
     $(element).empty()
         .append("<tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
-            "<th>Position</th><th>Low Margin</th><th>Reserved in Margin</th></tr>");
+            "<th>Position</th>" +
+			//<th>Low Margin</th>
+			"<th>Reserved in Margin</th></tr>");
     for (var key in positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) // if this ticker is to be shown
             var ticker = positions[key]['ticker']
+		console.log(ticker);
+		console.log(ticker == SITE_TICKER);
+		console.log(element);
         $(element).append("<tr>" +
             (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
             "<td>" + positions[key]['position'] + "</td>" +
-            "<td>" + margins[ticker][1] / 1e8 + "</td>" +
+            //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
             "<td>" + margins[ticker][0] / 1e8 + "</td>" +
             "</tr>");
+			console.log("<tr>" +
+            (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
+            "<td>" + positions[key]['position'] + "</td>" +
+            //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
+            "<td>" + margins[ticker][0] / 1e8 + "</td>" +
+            "</tr>")
     }
 }
 
@@ -696,9 +726,9 @@ $('#Trade').click(function () {
     $('#descriptionText').html(markets[SITE_TICKER]['full_description']);
 
     getTradeHistory(SITE_TICKER);
-    orderBook(SITE_TICKER);
     getOpenOrders();
     getPositions();
+    orderBook(SITE_TICKER);
     //dc_graph(SITE_TICKER);
 
     if (!logged_in) {
