@@ -8,6 +8,8 @@ var SITE_POSITIONS = [];
 var TRADE_HISTORY = [];
 var MAX_CHAT_LINES = 100;
 var OPEN_ORDERS = [];
+var ORDER_BOOK; //Global variable will be useful when depth graph is built.
+
 var CHAT_MESSAGES = [];
 var SAFE_PRICES = Object();
 
@@ -17,6 +19,7 @@ var base_uri = "http://example.com/";
 var myTopic = base_uri + "topics/mytopic1";
 var chat_URI = base_uri + "user/chat";
 var trade_URI = base_uri + "trades#";
+var order_book_URI = base_uri + "order_book";
 
 
 window.onload = function () {
@@ -71,6 +74,7 @@ function onAuth(permissions) {
 
 	subToTradeStream(16);
 	subToTradeStream(17);
+	subToOrderBook();
 
     getMarkets();
     getSafePrices();
@@ -88,6 +92,12 @@ function onEvent(topicUri, event) {
         orderBook(SITE_TICKER);
         //getTradeHistory(SITE_TICKER);
     }
+}
+
+function onBookUpdate(topicUri, event) {
+    console.log('in onBookUpdate', SITE_TICKER, topicUri, event);
+	ORDER_BOOK = JSON.parse(event);
+	updateOrderBook(ORDER_BOOK);
 }
 
 function onTrade(topicUri, event) {
@@ -108,6 +118,11 @@ function onTrade(topicUri, event) {
 function subToTradeStream(ticker) {   
 	console.log(trade_URI+ticker ,onTrade);
 	session.subscribe(trade_URI+ticker ,onTrade);
+}
+
+function subToOrderBook() {   
+	console.log(order_book_URI, onBookUpdate);
+	session.subscribe(order_book_URI, onBookUpdate);
 }
 
 function sendChat(message) {
@@ -357,6 +372,32 @@ function displayPrice(price, denominator, tick_size, contract_type) {
      */
     return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
 
+}
+function updateOrderBook(book) {
+	for (key in book){
+			book = book[key];	
+            var buyBook = [];
+            var sellBook = [];
+
+            var denominator = markets[key]['denominator'];
+            var tick_size = markets[key]['tick_size'];
+            var contract_type = markets[key]['contract_type'];
+            //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
+
+            for (var i = 0; i < book.length; i++) {
+                var price = Number(book[i]['price']);
+                var quantity = book[i]['quantity'];
+                ((book[i]['order_side'] == 0) ? buyBook : sellBook).push([price , quantity]);
+            }
+
+            buyBook = stackBook(buyBook);
+            sellBook = stackBook(sellBook);
+
+            sellBook.reverse();
+
+            graphTable(buyBook, "buy", false);
+            graphTable(sellBook, "sell", false);
+	}
 }
 
 function updateTradeTable(trade) {
