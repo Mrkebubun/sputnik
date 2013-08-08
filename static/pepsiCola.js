@@ -44,7 +44,6 @@ function onChat(channelURI, msg) {
 
 function onSafePrice(uri, event) {
     var ticker = uri.split('#')[1];
-    //console.log('safe price for ' + uri + ' is ' + event);
     SAFE_PRICES[ticker] = event;
 }
 
@@ -525,7 +524,7 @@ function displayOrders(show_all_tickers, orders) {
 
             if (show_all_tickers || ticker == SITE_TICKER) { // if this SITE_TICKER is to be shown
 
-                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "' style='vertical-align:middle' >" + ticker  + "</td>" : "") // don't show ticker unless needed
+                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "' style='vertical-align:middle' onclick='switchToTrade(\""+ ticker +"\")'>" + ticker  + "</td>" : "") // don't show ticker unless needed
 //                var margin_td = (show_all_tickers ? "<td rowspan='" + length + "'>" + margins[ticker][1] / 1e8 + "</td>" : "") // don't show ticker unless needed
                 var printed_ticker;
                 _.each(contract_group, function (order) {
@@ -596,7 +595,7 @@ function displayPositions(show_all_tickers, positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) // if this ticker is to be shown
             var ticker = positions[key]['ticker']
         $(element).append("<tr>" +
-            (show_all_tickers ? "<td>" + ticker + "</td>" : "") + // don't show ticker unless needed
+            (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
             "<td>" + positions[key]['position'] + "</td>" +
             "<td>" + margins[ticker][1] / 1e8 + "</td>" +
             "<td>" + margins[ticker][0] / 1e8 + "</td>" +
@@ -792,3 +791,7 @@ $("#chatBox").keypress(function (e) {
     }
 });
 
+function switchToTrade (ticker) {
+	setSiteTicker(ticker);
+	$('#Trade').click();
+}
