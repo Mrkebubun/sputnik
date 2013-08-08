@@ -17,7 +17,9 @@ var SAFE_PRICES = Object();
 var base_uri = "http://example.com/";
 
 var myTopic = base_uri + "topics/mytopic1";
+
 var chat_URI = base_uri + "user/chat";
+var fills_URI = base_uri + "user/fills#";
 var trade_URI = base_uri + "trades#";
 var order_book_URI = base_uri + "order_book";
 
@@ -74,6 +76,7 @@ function onAuth(permissions) {
 	subToTradeStream(16);
 	subToTradeStream(17);
 	subToOrderBook();
+	subToFills(8);
 
     getMarkets();
     getSafePrices();
@@ -99,6 +102,13 @@ function onBookUpdate(topicUri, event) {
 	updateOrderBook(ORDER_BOOK);
 }
 
+function onFill(topicUri, event) {
+    console.log('in onFill', SITE_TICKER, topicUri, event);
+    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
+    //reload position tableS
+    //make some sort of notification to user
+}
+
 function onTrade(topicUri, event) {
     console.log('in onTrade', SITE_TICKER, topicUri, event);
 	now = new Date().toLocaleTimeString();
@@ -114,6 +124,9 @@ function onTrade(topicUri, event) {
 
 }
 
+
+//subscribe functions (may want to put intial rpc call in them as well)
+
 function subToTradeStream(ticker) {   
 	console.log(trade_URI+ticker ,onTrade);
 	session.subscribe(trade_URI+ticker ,onTrade);
@@ -122,6 +135,11 @@ function subToTradeStream(ticker) {
 function subToOrderBook() {   
 	console.log(order_book_URI, onBookUpdate);
 	session.subscribe(order_book_URI, onBookUpdate);
+}
+
+function subToFills(id) {   
+	console.log(fills_URI + id, onFill);
+	session.subscribe(fills_URI + id, onFill);
 }
 
 function sendChat(message) {
@@ -469,16 +487,18 @@ function graphTable(table, side, fullsize) {
 	var denominator = markets[SITE_TICKER]['denominator'];
 	var contract_type = markets[SITE_TICKER]['contract_type'];
 	var tick_size = markets[SITE_TICKER]['tick_size'];
-0
+
     $(id).empty();
 	
-	if (side =='buy') {
-		$('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-		$('#qsell').val(table[table.length - 1][0]);
-	} else {
-		$('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-		$('#qbuy').val(table[table.length - 1][0]);
-	}
+    if (table.length >0) {
+        if (side =='buy') {
+            $('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+            $('#qsell').val(table[table.length - 1][0]);
+        } else {
+            $('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+            $('#qbuy').val(table[table.length - 1][0]);
+        }
+    }
 
     for (var i = 0; i < Math.max(table.length, length); i++) {
 

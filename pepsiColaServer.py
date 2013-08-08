@@ -511,6 +511,7 @@ class PepsiColaServerFactory(WampServerFactory):
 
             elif key == 'fill':
                 self.dispatch("http://example.com/user/fills#%s" % value[0], value[1])
+                print "http://example.com/user/fills#%s" % value[0], value[1]
 
 
 if __name__ == '__main__':
