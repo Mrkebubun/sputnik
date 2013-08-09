@@ -42,6 +42,57 @@ def engine_listener_loop(param):
         message = socket.recv()
         reactor.callFromThread(callback, message)
 
+class OpenOrderSubscriptionHandler:
+    """
+    Handler for subscription to the feed of a user's open orders
+    :param user_id: id of the user
+    """
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+    @exportSub("open_orders", prefixMatch=True)
+    def subscribe(self, topicUriPrefix, topicUriSuffix):
+        """
+        handles the subscription to the open_orders feed
+        :param topicUriPrefix: prefix of the URI
+        :param topicUriSuffix:suffix part, "open_orders#user_id"
+        """
+        try:
+            user_id = int(topicUriSuffix.split('#')[-1])
+            return self.user_id == user_id
+        except:
+            return False
+
+    @exportPub("open_orders", prefixMatch=True)
+    def publish(self, topicUriPrefix, topicUriSuffix, event):
+        return None
+
+class CancelSubscriptionHandler:
+    """
+    Handler for subscription to the feed of cancels
+    :param user_id: id of the user
+    """
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+    @exportSub("cancels", prefixMatch=True)
+    def subscribe(self, topicUriPrefix, topicUriSuffix):
+        """
+        handles the subscription to the cancel feed
+        :param topicUriPrefix: prefix of the URI
+        :param topicUriSuffix:suffix part, "cancels#user_id"
+        """
+        try:
+            user_id = int(topicUriSuffix.split('#')[-1])
+            return self.user_id == user_id
+        except:
+            return False
+
+    @exportPub("cancels", prefixMatch=True)
+    def publish(self, topicUriPrefix, topicUriSuffix, event):
+        return None
 
 class FillSubscriptionHandler:
     """
@@ -181,7 +232,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
 
         self.fillSubscriptionHandler = FillSubscriptionHandler(self.user.id)
+        self.cancelSubscriptionHandler = CancelSubscriptionHandler(self.user.id)
+        self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(self.user.id)
+
         self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
+        self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
+        self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span):
@@ -500,7 +556,7 @@ class PepsiColaServerFactory(WampServerFactory):
             if key == 'book_update':
                 self.all_books.update(value)
                 self.dispatch("http://example.com/order_book", json.dumps(value))
-                logging.info("Sent:    %", message)
+                #logging.info("Sent:    %", message)
 
             elif key == 'safe_price':
                 self.safe_prices.update(value)
@@ -513,6 +569,16 @@ class PepsiColaServerFactory(WampServerFactory):
                 self.dispatch("http://example.com/user/fills#%s" % value[0], value[1])
                 print "http://example.com/user/fills#%s" % value[0], value[1]
 
+            elif key == 'cancel':
+                self.dispatch("http://example.com/user/cancels#%s" % value[0], value[1])
+                print "http://example.com/user/cancels#%s" % value[0], value[1]
+
+            elif key == 'open_orders':
+                '''
+                note: this should be a private per user channel
+                '''
+                self.dispatch("http://example.com/user/open_orders#%s" % value[0], value[1])
+                print "http://example.com/user/open_orders#%s" % value[0], value[1]
 
 if __name__ == '__main__':
 

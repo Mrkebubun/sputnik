@@ -251,7 +251,10 @@ while True:
 
             o.cancel()
             del all_orders[order.order_id]
+
+            #now publish new book and cancelled order (isn't 262 redundant with 269?)
             publisher.send_json({contract_name: [o.__dict__ for o in all_orders.values()]})
+            publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             logging.warning("we currently don't have a way of telling the cancel failed")
@@ -286,8 +289,15 @@ while True:
         book[other_side][order.price].append(order)
         all_orders[order.order_id] = order
         update_best(other_side)
+        # publish the user's open order to their personal channel
+        publisher.send_json({'open_orders': [order.user,{'order': order.order_id,
+                                                         'quantity':order.quantity,
+                                                         'price':order.price,
+                                                         'side': order.order_side,
+                                                         'ticker':contract_name,
+                                                         'contract_id':contract_id}]}) 
 
-    # done placing the order, publish the order book
+    # done placing the order, publish the order book 
     logging.info(pretty_print_book())
     publish_order_book()
 

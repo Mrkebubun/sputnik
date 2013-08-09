@@ -109,7 +109,7 @@ function cancelOrder(order_id) {
             $('#cancel_button_' + order_id).attr('disabled', 'disabled')
                 .removeClass('btn-danger');
             //todo: this is disgusting, change that.  Agreed.
-            setTimeout(getOpenOrders, 1000);
+            //setTimeout(getOpenOrders, 1000);
         })
 }
 
@@ -159,7 +159,7 @@ function orderBook(ticker) {
 //                sellBook[i].reverse();
             sellBook.reverse();
 
-			console.log('buybook',buyBook[0]);
+			//console.log('buybook',buyBook[0]);
             graphTable(buyBook, "buy", false);
             graphTable(sellBook, "sell", false);
         }
