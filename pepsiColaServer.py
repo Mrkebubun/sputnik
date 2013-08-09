@@ -151,6 +151,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.user = None
         WampCraServerProtocol.connectionMade(self)
 
+        # build a dictionary to enforce minimum tick size on orders
+        self.tick_sizes = {}
+        for contract in self.db_session.query(models.Contract).all():
+            self.tick_sizes[contract.ticker] = contract.tick_size
+
     def connectionLost(self, reason):
         """
         triggered when the connection is lost
@@ -464,7 +469,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                      "side": {"type": "number"}
                  }})
 
-        order["price"] = int(order["price"])
+        # enforce minimum tick_size for prices:
+        tick_size = self.tick_sizes[order["ticker"]]
+        order["price"] = int((order["price"]/tick_size)*tick_size)
+
         order["quantity"] = int(order["quantity"])
         order['user_id'] = self.user.id
 
