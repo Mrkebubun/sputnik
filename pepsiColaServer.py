@@ -179,6 +179,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("http://example.com/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
+        self.registerForPubSub("http://example.com/usr/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+                               prefixMatch=True)
+
+        self.registerForPubSub("http://example.com/usr/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+                               prefixMatch=True)
+
+        self.registerForPubSub("http://example.com/usr/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+                               prefixMatch=True)
+
         self.registerForPubSub("http://example.com/order_book", pubsub=WampCraServerProtocol.SUBSCRIBE)
 
         # noinspection PyTypeChecker

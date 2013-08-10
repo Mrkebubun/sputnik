@@ -260,6 +260,7 @@ while True:
             logging.warning("we currently don't have a way of telling the cancel failed")
 
         logging.info(pretty_print_book())
+        publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
         publish_order_book()
         continue
 

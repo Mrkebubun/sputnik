@@ -56,12 +56,12 @@ class TickerBot(TradingBot):
 
     def action(self):
         print 'sleeping'
-        time.sleep(np.random.poisson(450))
+        time.sleep(np.random.poisson(1))
         path = random.randint(0, 2)
         print path
         if path == 0:
             print 'sleeping'
-            time.sleep(10)
+            time.sleep(1)
             self.action()
         elif path == 1:
             self.getOrderBook('USD.13.7.31', self.collectBook)

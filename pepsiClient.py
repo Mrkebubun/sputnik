@@ -11,6 +11,10 @@ base_uri = "http://example.com/"
 trade_URI = base_uri + "trades#"
 order_book_URI = base_uri + "order_book"
 
+fills_URI = base_uri + "user/fills#";
+cancels_URI = base_uri + "user/cancels#";
+open_orders_URI = base_uri + "user/open_orders#";
+
 class TradingBot(WampCraClientProtocol):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
@@ -22,6 +26,15 @@ class TradingBot(WampCraClientProtocol):
         self.user = 'a'
         self.psswd = 'a'
 
+    def action(self):
+        '''
+        overwrite me
+        '''
+        return True
+
+    """
+    reactive events - on* 
+    """
 
     def onSessionOpen(self):
         ## "authenticate" as anonymous
@@ -36,18 +49,25 @@ class TradingBot(WampCraClientProtocol):
 
         d.addCallbacks(self.onAuthSuccess, self.onAuthError)
 
-
     def onClose(self, wasClean, code, reason):
         reactor.stop()
 
-    def action(self):
-        '''
-        overwrite me
-        '''
-        return True
-
     def onAuthSuccess(self, permissions):
         print "Authentication Success!", permissions
+
+        self.subToTradeStream(16)
+        self.subToTradeStream(17)
+        self.subOpenOrders(8)
+        self.subOpenOrders(16)
+        self.subOpenOrders(17)
+        self.subCancels(8)
+        self.subCancels(16)
+        self.subCancels(17)
+        self.subFills(8)
+        self.subFills(16)
+        self.subFills(17)
+        self.subToOrderBook()
+
         self.action()
         #self.publish("http://example.com/topics/mytopic1", "Hello, world!")
         #self.sendClose()
@@ -56,23 +76,68 @@ class TradingBot(WampCraClientProtocol):
         uri, desc, details = e.value.args
         print "Authentication Error!", uri, desc, details
 
+    def onOrderBook(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onOrderBook"
+        print "Event", topicUri, event
+
+    def onTrade(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onTrade"
+        print "Event", topicUri, event
+
+    def onOpenOrder(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onOpenOrder"
+        print "Event", topicUri, event
+
+    def onCancel(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onCancel"
+        print "Event", topicUri, event
+
+    def onFill(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onFill"
+        print "Event", topicUri, event
+
+    """
+    Subscriptions
+    """
+    def subOpenOrders(self,ticker):
+       self.subscribe(open_orders_URI + str(ticker), self.onOpenOrder) 
+       print 'subscribed to: ',open_orders_URI 
+
+    def subCancels(self,ticker):
+       self.subscribe(cancels_URI + str(ticker), self.onCancel) 
+       print 'subscribed to: ', cancels_URI
+
+    def subFills(self,ticker):
+       self.subscribe(fills_URI + str(ticker), self.onFill) 
+       print 'subscribed to: ', fills_URI
+
     def subToOrderBook(self):
        self.subscribe(order_book_URI, self.onOrderBook) 
+       print order_book_URI
 
     def subToTradeStream(self,ticker):
-       self.subscribe(order_book_URI + str(ticker), self.onOrderBook) 
+       self.subscribe(trade_URI + str(ticker), self.onTrade) 
+       print trade_URI + str(ticker)
 
-    def onOrderBook(self, topicUri, event):
-        """
-        overwrite me
-        """
-        print "Event", topicUri, event
 
-    def onOrderBook(self, topicUri, event):
-        """
-        overwrite me
-        """
-        print "Event", topicUri, event
+    """
+    RPC calls
+    """
 
     def getNewAddress(self):
         d = self.call(self.base_URI + "get_new_address")
