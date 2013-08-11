@@ -141,9 +141,9 @@ function orderBook(ticker) {
             var buyBook = [];
             var sellBook = [];
 
-            var denominator = markets[ticker]['denominator'];
-            var tick_size = markets[ticker]['tick_size'];
-            var contract_type = markets[ticker]['contract_type'];
+            var denominator = MARKETS[ticker]['denominator'];
+            var tick_size = MARKETS[ticker]['tick_size'];
+            var contract_type = MARKETS[ticker]['contract_type'];
             //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
 
             for (var i = 0; i < book.length; i++) {
@@ -208,17 +208,17 @@ function getMarkets() {
     session.call(markets_URI).then(
         function (res) {
             tree(marketsToDisplayTree(res));
-            markets = res;
+            MARKETS = res;
 
             // randomly select a defualt market
             var keys = [];
-            for (key in markets) {
+            for (key in MARKETS) {
                 keys.push(key)
             }
             setSiteTicker(keys[Math.floor((keys.length + 1) * Math.random())]);
 
-            for (key in markets)
-                if (markets[key].contract_type == 'futures')
+            for (key in MARKETS)
+                if (MARKETS[key].contract_type == 'futures')
                     session.subscribe(safe_price_URI + '#' + key, onSafePrice);
         });
 }

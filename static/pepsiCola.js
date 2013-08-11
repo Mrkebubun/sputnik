@@ -2,7 +2,7 @@
 var session = null;
 var logged_in = false;
 
-var markets;
+var MARKETS;
 var SITE_TICKER = 'ERROR';
 var TRADE_HISTORY = [];
 var MAX_CHAT_LINES = 100;
@@ -72,8 +72,20 @@ function onAuth(permissions) {
     $('#loginStatus').text('logged in as ' + login.value);
 
     $('#loginButton').hide();
-    $('#registeration').hide();
+    $('#registration').hide();
 
+    // Initialize for user.  Maybe move the call for markets to before auth?
+    //make this chain correctly...or better yet, make it publish upon connection
+    //via serverside
+
+    getMarkets();
+    //getSafePrices(Object.keys(MARKETS));
+    getSafePrices();
+    getOpenOrders();
+    getPositions();
+
+
+    //possible to subscribe to chat, but not pub before auth?
     session.subscribe(chat_URI, onChat);
 
     // obviously need to un hardcode this...
@@ -85,11 +97,6 @@ function onAuth(permissions) {
 	subToCancels(8);
     subToOpenOrders(8);
 
-    getMarkets();
-    // make this chain correctly...
-    getSafePrices(Object.keys(markets));
-    getOpenOrders();
-    getPositions();
 
 }
 
@@ -113,7 +120,7 @@ function onBookUpdate(topicUri, event) {
 
 function onFill(topicUri, event) {
     //must get rid of safe price rpc!
-    getSafePrices(Object.keys(markets));
+    getSafePrices(Object.keys(MARKETS));
 
 
     console.log('in onFill', SITE_TICKER, topicUri, event);
@@ -129,7 +136,7 @@ function onFill(topicUri, event) {
 
 function onOpenOrder(topicUri, event) {
     //must get rid of safe price rpc!
-    getSafePrices(Object.keys(markets));
+    getSafePrices(Object.keys(MARKETS));
 
     console.log('in onOpenOrder', SITE_TICKER, topicUri, event);
 
@@ -143,8 +150,10 @@ function onOpenOrder(topicUri, event) {
 
     sendChat('placed order: '+JSON.stringify(event) );
 
-    displayPositions(false,SITE_POSITIONS);
-    displayPositions(true,SITE_POSITIONS);
+//    displayPositions(false,SITE_POSITIONS);
+//    displayPositions(true,SITE_POSITIONS);
+//      replace with 
+    getPositions();
     displayOrders(false,OPEN_ORDERS);
     displayOrders(true,OPEN_ORDERS);
 }
@@ -165,7 +174,7 @@ function onCancel(topicUri, event) {
 
 function onTrade(topicUri, event) {
     //must get rid of safe price rpc!
-    getSafePrices(Object.keys(markets));
+    getSafePrices(Object.keys(MARKETS));
 
 
     console.log('in onTrade', SITE_TICKER, topicUri, event);
@@ -226,7 +235,7 @@ function setSiteTicker(ticker) {
 
     SITE_TICKER = ticker;
 //    session.subscribe(safe_price_URI+'#'+SITE_TICKER, onSafePrice);
-    $('.contract_unit').text(markets[SITE_TICKER]['contract_type'] == 'futures' ? '฿' : '%');
+    $('.contract_unit').text(MARKETS[SITE_TICKER]['contract_type'] == 'futures' ? '฿' : '%');
 }
 
 
@@ -255,7 +264,7 @@ function calculateMargin(positions, open_orders, safe_prices) {
         /*todo:temporary hack, resolve this more cleanly...
          what happens if we have positions in an inactive market?
          */
-        if (!(position.ticker in markets))
+        if (!(position.ticker in MARKETS))
             continue;
 
         var max_position = position.position;
@@ -270,24 +279,24 @@ function calculateMargin(positions, open_orders, safe_prices) {
             }
         }
 
-        if (markets[position.ticker].contract_type == 'futures') {
+        if (MARKETS[position.ticker].contract_type == 'futures') {
             var safe_price = safe_prices[position.ticker];
-            var low_max = Math.abs(max_position) * markets[position.ticker].margin_low * safe_price / 100 +
+            var low_max = Math.abs(max_position) * MARKETS[position.ticker].margin_low * safe_price / 100 +
                 max_position * (position.reference_price - safe_price);
-            var low_min = Math.abs(min_position) * markets[position.ticker].margin_low * safe_price / 100 +
+            var low_min = Math.abs(min_position) * MARKETS[position.ticker].margin_low * safe_price / 100 +
                 min_position * (position.reference_price - safe_price);
-            var high_max = Math.abs(max_position) * markets[position.ticker].margin_high * safe_price / 100 +
+            var high_max = Math.abs(max_position) * MARKETS[position.ticker].margin_high * safe_price / 100 +
                 max_position * (position.reference_price - safe_price);
-            var high_min = Math.abs(min_position) * markets[position.ticker].margin_high * safe_price / 100 +
+            var high_min = Math.abs(min_position) * MARKETS[position.ticker].margin_high * safe_price / 100 +
                 min_position * (position.reference_price - safe_price);
 
             high_margin += Math.max(high_max, high_min);
             low_margin += Math.max(low_max, low_min);
             margins[position.ticker] = [Math.max(high_max, high_min), Math.max(low_max, low_min)];
         }
-        if (markets[position.ticker].contract_type == 'prediction') {
+        if (MARKETS[position.ticker].contract_type == 'prediction') {
 
-            var payoff = markets[position.ticker].final_payoff;
+            var payoff = MARKETS[position.ticker].final_payoff;
             var max_spent = 0;
             var max_received = 0;
 
@@ -366,7 +375,7 @@ function build_trade_graph(trades) {
         data.push(
             {
                 'date': parseDate(trades[i][0].split('.')[0]),
-                'price': trades[i][1] / markets[SITE_TICKER]['denominator'],
+                'price': trades[i][1] / MARKETS[SITE_TICKER]['denominator'],
                 'quantity': trades[i][2]
             });
     }
@@ -469,9 +478,9 @@ function updateOrderBook(book) {
             var buyBook = [];
             var sellBook = [];
 
-            var denominator = markets[key]['denominator'];
-            var tick_size = markets[key]['tick_size'];
-            var contract_type = markets[key]['contract_type'];
+            var denominator = MARKETS[key]['denominator'];
+            var tick_size = MARKETS[key]['tick_size'];
+            var contract_type = MARKETS[key]['contract_type'];
             //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
 
             for (var i = 0; i < book.length; i++) {
@@ -502,7 +511,7 @@ function updateTradeTable(trade) {
 	}
 
 	$('#tradeHistory tr:first').after("<tr class=" + direction + ">" +
-		"<td>" + displayPrice(trade[1], markets[SITE_TICKER]['denominator'], markets[SITE_TICKER]['tick_size'], markets[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
+		"<td>" + displayPrice(trade[1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
 		"<td>" + trade[2] + "</td>" +
 		"<td>" + trade[0] + "</td>" +
 		"</tr>");
@@ -527,7 +536,7 @@ function tradeTable(trades, fullsize) {
         }
 
         $('#tradeHistory').append("<tr class=" + direction + ">" +
-            "<td>" + displayPrice(trades[i][1], markets[SITE_TICKER]['denominator'], markets[SITE_TICKER]['tick_size'], markets[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
+            "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
             "<td>" + trades[i][2] + "</td>" +
             "<td>" + new Date(trades[i][0]).toLocaleTimeString() + "</td>" +
             "</tr>");
@@ -557,9 +566,9 @@ function graphTable(table, side, fullsize) {
     var length = fullsize ? table.length : 10;
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
 
-	var denominator = markets[SITE_TICKER]['denominator'];
-	var contract_type = markets[SITE_TICKER]['contract_type'];
-	var tick_size = markets[SITE_TICKER]['tick_size'];
+	var denominator = MARKETS[SITE_TICKER]['denominator'];
+	var contract_type = MARKETS[SITE_TICKER]['contract_type'];
+	var tick_size = MARKETS[SITE_TICKER]['tick_size'];
 
     $(id).empty();
 	
@@ -640,9 +649,9 @@ function displayOrders(show_all_tickers, orders) {
                     var quantity = order['quantity'];
                     var price = displayPrice(
                         order['price'],
-                        markets[order['ticker']]['denominator'],
-                        markets[order['ticker']]['tick_size'],
-                        markets[order['ticker']]['contract_type']);
+                        MARKETS[order['ticker']]['denominator'],
+                        MARKETS[order['ticker']]['tick_size'],
+                        MARKETS[order['ticker']]['contract_type']);
 
 
                     $(element).append("<tr id='cancel_order_row_" + order['order_id'] + "'>" +
@@ -823,9 +832,9 @@ notifications.dismiss_processing = function (msg) {
 
 
 $('#Trade').click(function () {
-    $('#currentMarket').html(markets[SITE_TICKER]['description']);
+    $('#currentMarket').html(MARKETS[SITE_TICKER]['description']);
     $('#currentTicker').html(SITE_TICKER);
-    $('#descriptionText').html(markets[SITE_TICKER]['full_description']);
+    $('#descriptionText').html(MARKETS[SITE_TICKER]['full_description']);
 
     getTradeHistory(SITE_TICKER);
     getOpenOrders();
@@ -867,9 +876,9 @@ function orderButton(q, p, s) {
     var price_entered = Number(p);
     ord['ticker'] = SITE_TICKER;
     ord['quantity'] = parseInt(q);
-    var tick_size = markets[SITE_TICKER]['tick_size'];
-    var percentage_adjustment = (markets[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
-    ord['price'] = Math.round((markets[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
+    var tick_size = MARKETS[SITE_TICKER]['tick_size'];
+    var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
+    ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
     ord['side'] = s;
     placeOrder(ord);
 }
