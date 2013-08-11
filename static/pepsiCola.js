@@ -22,6 +22,7 @@ var fills_URI = base_uri + "user/fills#";
 var cancels_URI = base_uri + "user/cancels#";
 var open_orders_URI = base_uri + "user/open_orders#";
 var trade_URI = base_uri + "trades#";
+var safe_prices_URI = base_uri + "safe_prices#";
 var order_book_URI = base_uri + "order_book";
 
 
@@ -48,6 +49,7 @@ function onChat(channelURI, msg) {
 function onSafePrice(uri, event) {
     var ticker = uri.split('#')[1];
     SAFE_PRICES[ticker] = event;
+    console.log(SAFE_PRICES)
 }
 
 function onConnect() {
@@ -77,6 +79,7 @@ function onAuth(permissions) {
     // obviously need to un hardcode this...
 	subToTradeStream(16);
 	subToTradeStream(17);
+	subToSafePrice('USD.13.7.31');
 	subToOrderBook();
 	subToFills(8);
 	subToCancels(8);
@@ -185,6 +188,11 @@ function onTrade(topicUri, event) {
 function subToTradeStream(ticker) {   
 	console.log(trade_URI+ticker ,onTrade);
 	session.subscribe(trade_URI+ticker ,onTrade);
+}
+
+function subToSafePrice(ticker) {   
+	console.log(safe_prices_URI+ticker ,onSafePrice);
+	session.subscribe(safe_prices_URI+ticker ,onSafePrice);
 }
 
 function subToOrderBook() {   

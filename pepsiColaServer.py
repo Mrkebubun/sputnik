@@ -42,6 +42,32 @@ def engine_listener_loop(param):
         message = socket.recv()
         reactor.callFromThread(callback, message)
 
+class SafePriceSubscriptionHandler:
+    """
+    Handler for subscription to the feed of a user's safePrice
+    :param user_id: id of the user
+    """
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
+    @exportSub("safe_prices", prefixMatch=True)
+    def subscribe(self, topicUriPrefix, topicUriSuffix):
+        """
+        handles the subscription to the open_orders feed
+        :param topicUriPrefix: prefix of the URI
+        :param topicUriSuffix:suffix part, "open_orders#user_id"
+        """
+        try:
+            user_id = int(topicUriSuffix.split('#')[-1])
+            return self.user_id == user_id
+        except:
+            return False
+
+    @exportPub("safe_prices", prefixMatch=True)
+    def publish(self, topicUriPrefix, topicUriSuffix, event):
+        return None
+
 class OpenOrderSubscriptionHandler:
     """
     Handler for subscription to the feed of a user's open orders
@@ -173,7 +199,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         logging.info("in session open")
         ## register a single, fixed URI as PubSub topic
 
-        self.registerForPubSub("http://example.com/safe_price#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub("http://example.com/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
         self.registerForPubSub("http://example.com/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
@@ -248,10 +274,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.fillSubscriptionHandler = FillSubscriptionHandler(self.user.id)
         self.cancelSubscriptionHandler = CancelSubscriptionHandler(self.user.id)
         self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(self.user.id)
+        self.safePriceSubscriptionHandler = SafePriceSubscriptionHandler(self.user.id)
 
         self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
+        self.registerHandlerForPubSub(self.safePriceSubscriptionHandler, baseUri="http://example.com/")
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span):
@@ -577,7 +605,7 @@ class PepsiColaServerFactory(WampServerFactory):
 
             elif key == 'safe_price':
                 self.safe_prices.update(value)
-                self.dispatch("http://example.com/safe_price#%s" % value.keys()[0], value.values()[0])
+                self.dispatch("http://example.com/safe_prices#%s" % value.keys()[0], value.values()[0])
 
             elif key == 'trade':
                 self.dispatch("http://example.com/trades#%s" % value['contract'], value)

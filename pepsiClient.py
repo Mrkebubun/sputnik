@@ -9,6 +9,7 @@ from autobahn.wamp import WampClientFactory, WampCraClientProtocol
 
 base_uri = "http://example.com/"
 trade_URI = base_uri + "trades#"
+safe_price_URI = base_uri + "safe_prices#"
 order_book_URI = base_uri + "order_book"
 
 fills_URI = base_uri + "user/fills#";
@@ -66,6 +67,10 @@ class TradingBot(WampCraClientProtocol):
         self.subFills(8)
         self.subFills(16)
         self.subFills(17)
+        self.subToSafePrices('USD.13.7.31')
+        self.subToSafePrices(8)
+        self.subToSafePrices(16)
+        self.subToSafePrices(17)
         self.subToOrderBook()
 
         self.action()
@@ -88,6 +93,13 @@ class TradingBot(WampCraClientProtocol):
         overwrite me
         """
         print "in onTrade"
+        print "Event", topicUri, event
+
+    def onSafePrice(self, topicUri, event):
+        """
+        overwrite me
+        """
+        print "in onSafePriceg"
         print "Event", topicUri, event
 
     def onOpenOrder(self, topicUri, event):
@@ -133,6 +145,10 @@ class TradingBot(WampCraClientProtocol):
     def subToTradeStream(self,ticker):
        self.subscribe(trade_URI + str(ticker), self.onTrade) 
        print trade_URI + str(ticker)
+
+    def subToSafePrices(self,ticker):
+       self.subscribe(safe_price_URI + str(ticker), self.onSafePrice) 
+       print safe_price_URI + str(ticker)
 
 
     """
