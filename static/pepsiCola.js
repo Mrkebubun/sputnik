@@ -713,11 +713,12 @@ function displayPositions(show_all_tickers, positions) {
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>Position</th>" +
 			//<th>Low Margin</th>
-			"<th>Reserved in Margin</th></tr>");
+			"<th>Reserved for Margin</th></tr>");
 
     // remove cash and old inactive positions
     positions = _.reject(positions, function (contract) {return contract['contract_type'] =='cash';});
-    positions = _.filter(positions, function (contract) {return contract['ticker'] in Object.keys(margins);});
+    // using the underscore library function _.indexOf() as IE doesn't support the standard Array.indexOf().  Haven't actually checked - Just hoping.
+    positions = _.filter(positions, function (contract) {return _.indexOf(Object.keys(margins), contract['ticker'])>-1;});
 
     for (var key in positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) {// if this ticker is to be shown
