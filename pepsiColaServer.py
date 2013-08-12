@@ -214,7 +214,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("http://example.com/usr/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
-        self.registerForPubSub("http://example.com/order_book", pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("http://example.com/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+                               prefixMatch=True)
 
         # noinspection PyTypeChecker
         self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
@@ -600,7 +601,8 @@ class PepsiColaServerFactory(WampServerFactory):
             logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value)) 
             if key == 'book_update':
                 self.all_books.update(value)
-                self.dispatch("http://example.com/order_book", json.dumps(value))
+                print "http://example.com/order_book#%s"% value.keys()[0] 
+                self.dispatch("http://example.com/order_book#%s"% value.keys()[0], json.dumps(value))
                 #logging.info("Sent:    %", message)
 
             elif key == 'safe_price':

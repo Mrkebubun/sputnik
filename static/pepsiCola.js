@@ -23,7 +23,7 @@ var cancels_URI = base_uri + "user/cancels#";
 var open_orders_URI = base_uri + "user/open_orders#";
 var trade_URI = base_uri + "trades#";
 var safe_prices_URI = base_uri + "safe_prices#";
-var order_book_URI = base_uri + "order_book";
+var order_book_URI = base_uri + "order_book#";
 
 
 window.onload = function () {
@@ -89,13 +89,15 @@ function onAuth(permissions) {
     session.subscribe(chat_URI, onChat);
 
     // obviously need to un hardcode this...
-	subToTradeStream(16);
-	subToTradeStream(17);
-	subToSafePrice('USD.13.7.31');
-	subToOrderBook();
-	subToFills(8);
-	subToCancels(8);
-    subToOpenOrders(8);
+    //	subToTradeStream(16);
+    //	subToTradeStream(17);
+    //	subToSafePrice('USD.13.7.31');
+    //	subToOrderBook('USD.13.7.31');
+    //	subToFills(8);
+    //	subToCancels(8);
+    //    subToOpenOrders(8);
+
+    switchToTrade ('USD.13.7.31')
 
 
 }
@@ -204,9 +206,9 @@ function subToSafePrice(ticker) {
 	session.subscribe(safe_prices_URI+ticker ,onSafePrice);
 }
 
-function subToOrderBook() {   
-	console.log(order_book_URI, onBookUpdate);
-	session.subscribe(order_book_URI, onBookUpdate);
+function subToOrderBook(ticker) {   
+	console.log(order_book_URI+ticker, onBookUpdate);
+	session.subscribe(order_book_URI+ticker, onBookUpdate);
 }
 
 function subToOpenOrders(id) {   
@@ -804,8 +806,9 @@ function tree(datafunction) {
                     },
                     click: function (d) {
                         if (d.action) {
-                            setSiteTicker(d.action);
-                            $('#Trade').click();
+                            switchToTrade(d.action);
+                            //setSiteTicker(d.action);
+                            //$('#Trade').click();
                         }
                     }
                 }
@@ -933,7 +936,39 @@ $("#chatBox").keypress(function (e) {
     }
 });
 
-function switchToTrade (ticker) {
-	setSiteTicker(ticker);
+function switchToTrade (new_ticker) {
+
+    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+
+	try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
+        catch(err){console.log(err);}
+	try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
+        catch(err){console.log(err);}
+    //new
+    try{session.unsubscribe(cancels_URI + id, onCancel);}
+        catch(err){console.log(err);}
+    try{session.unsubscribe(fills_URI + id, onFill);}
+        catch(err){console.log(err);}
+    try{ session.unsubscribe(open_orders_URI + id, onOpenOrder);}
+        catch(err){console.log(err);}
+    try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
+        catch(err){console.log(err);}
+
+	setSiteTicker(new_ticker);
+
+    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+
+	try{session.subscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
+        catch(err){console.log(err);}
+	try{session.subscribe(trade_URI+SITE_TICKER,onTrade);}
+        catch(err){console.log(err);}
+    try{session.subscribe(cancels_URI + id, onCancel);}
+        catch(err){console.log(err);}
+    try{session.subscribe(fills_URI + id, onFill);}
+        catch(err){console.log(err);}
+    try{ session.subscribe(open_orders_URI + id, onOpenOrder);}
+        catch(err){console.log(err);}
+    try{ session.subscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
+        catch(err){console.log(err);}
 	$('#Trade').click();
 }

@@ -10,7 +10,7 @@ from autobahn.wamp import WampClientFactory, WampCraClientProtocol
 base_uri = "http://example.com/"
 trade_URI = base_uri + "trades#"
 safe_price_URI = base_uri + "safe_prices#"
-order_book_URI = base_uri + "order_book"
+order_book_URI = base_uri + "order_book#"
 
 fills_URI = base_uri + "user/fills#";
 cancels_URI = base_uri + "user/cancels#";
@@ -71,7 +71,7 @@ class TradingBot(WampCraClientProtocol):
         self.subToSafePrices(8)
         self.subToSafePrices(16)
         self.subToSafePrices(17)
-        self.subToOrderBook()
+        self.subToOrderBook('USD.13.7.31')
 
         self.action()
         #self.publish("http://example.com/topics/mytopic1", "Hello, world!")
@@ -138,8 +138,8 @@ class TradingBot(WampCraClientProtocol):
        self.subscribe(fills_URI + str(ticker), self.onFill) 
        print 'subscribed to: ', fills_URI
 
-    def subToOrderBook(self):
-       self.subscribe(order_book_URI, self.onOrderBook) 
+    def subToOrderBook(self,ticker):
+       self.subscribe(order_book_URI + str(ticker), self.onOrderBook) 
        print order_book_URI
 
     def subToTradeStream(self,ticker):
