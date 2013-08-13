@@ -219,12 +219,12 @@ def cancel_order(details):
     :return:
     """
 
+    print 'accountant received', details
     order_id = details['order_id']
     user_id = details['user_id']
     try:
         # sanitize inputs:
         order_id = int(order_id)
-
         # try db query
         order = db_session.query(models.Order).filter_by(id=order_id).one()
         if order.user_id != user_id:
@@ -232,6 +232,7 @@ def cancel_order(details):
 
         m_e_order = order.to_matching_engine_order()
         m_e_order['is_a_cancellation'] = True
+        print 'output accountant', m_e_order
         engine_sockets[order.contract_id].send(json.dumps(m_e_order))
         return True
 

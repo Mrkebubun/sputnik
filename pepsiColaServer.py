@@ -537,9 +537,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param order_id: order_id of the order
         """
         # sanitize inputs:
+        print 'received order_id', order_id
         validate(order_id, {"type": "number"})
+        print 'received order_id', order_id
         order_id = int(order_id)
-
+        print 'formatted order_id', order_id
+        print 'output from server', str({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}})
         self.accountant.send_json({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}})
 
 

@@ -100,12 +100,12 @@ function placeOrder(order) {
     );
 }
 
-function cancelOrder(order_id) {
-    session.call(cancel_order_URI, order_id).then(
+function cancelOrder(cancel) {
+    session.call(cancel_order_URI, cancel).then(
         function (res) {
+            console.log(cancel);
             console.log(res);
-
-            $('#cancel_order_row_' + order_id).addClass('warning');
+            $('#cancel_order_row_' + cancel).addClass('warning');
             $('#cancel_button_' + order_id).attr('disabled', 'disabled')
                 .removeClass('btn-danger');
             //todo: this is disgusting, change that.  Agreed.

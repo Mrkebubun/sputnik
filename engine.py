@@ -248,7 +248,7 @@ while True:
                 del book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]
 
             update_best(other_side)
-
+            
             o.cancel()
             del all_orders[order.order_id]
 
@@ -260,7 +260,8 @@ while True:
             logging.warning("we currently don't have a way of telling the cancel failed")
 
         logging.info(pretty_print_book())
-        publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+        #change o to order in the following:
+        publisher.send_json({'cancel': [order.user, {'order': order.order_id}]}) #
         publish_order_book()
         continue
 

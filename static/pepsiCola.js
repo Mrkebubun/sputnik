@@ -135,8 +135,8 @@ function onFill(topicUri, event) {
     console.log('in onFill', SITE_TICKER, topicUri, event);
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
     //sendChat('filled order: '+JSON.stringify(event) );
-    displayPositions(false,OPEN_ORDERS);
-    displayPositions(true,OPEN_ORDERS);
+    displayPositions(false,SITE_POSITIONS);
+    displayPositions(true,SITE_POSITIONS);
     displayOrders(false,OPEN_ORDERS);
     displayOrders(true,OPEN_ORDERS);
     //reload position tableS
@@ -170,11 +170,15 @@ function onOpenOrder(topicUri, event) {
 function onCancel(topicUri, event) {
     console.log('in onCancel', SITE_TICKER, topicUri, event);
 
+    console.log(event);
+    console.log('before', OPEN_ORDERS)
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
+    console.log('after', OPEN_ORDERS)
 
     sendChat('cancelled order: '+JSON.stringify(event) );
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
+    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
     displayOrders(false,OPEN_ORDERS);
     displayOrders(true,OPEN_ORDERS);
     //reload position tableS
