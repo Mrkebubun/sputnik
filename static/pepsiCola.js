@@ -84,6 +84,13 @@ function onAuth(permissions) {
     getOpenOrders();
     getPositions();
 
+    var user_id = 8;
+    try{session.subscribe(cancels_URI + user_id, onCancel);}
+        catch(err){console.log(err);}
+    try{session.subscribe(fills_URI + user_id, onFill);}
+        catch(err){console.log(err);}
+    try{ session.subscribe(open_orders_URI + user_id, onOpenOrder);}
+        catch(err){console.log(err);}
 
     //possible to subscribe to chat, but not pub before auth?
     session.subscribe(chat_URI, onChat);
@@ -944,15 +951,17 @@ function switchToTrade (new_ticker) {
         catch(err){console.log(err);}
 	try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
         catch(err){console.log(err);}
-    //new
-    try{session.unsubscribe(cancels_URI + id, onCancel);}
-        catch(err){console.log(err);}
-    try{session.unsubscribe(fills_URI + id, onFill);}
-        catch(err){console.log(err);}
-    try{ session.unsubscribe(open_orders_URI + id, onOpenOrder);}
-        catch(err){console.log(err);}
     try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
         catch(err){console.log(err);}
+
+    /*
+    try{session.unsubscribe(cancels_URI + user_id, onCancel);}
+        catch(err){console.log(err);}
+    try{session.unsubscribe(fills_URI + user_id, onFill);}
+        catch(err){console.log(err);}
+    try{ session.unsubscribe(open_orders_URI + user_id, onOpenOrder);}
+        catch(err){console.log(err);}
+    */
 
 	setSiteTicker(new_ticker);
 
@@ -962,13 +971,8 @@ function switchToTrade (new_ticker) {
         catch(err){console.log(err);}
 	try{session.subscribe(trade_URI+SITE_TICKER,onTrade);}
         catch(err){console.log(err);}
-    try{session.subscribe(cancels_URI + id, onCancel);}
-        catch(err){console.log(err);}
-    try{session.subscribe(fills_URI + id, onFill);}
-        catch(err){console.log(err);}
-    try{ session.subscribe(open_orders_URI + id, onOpenOrder);}
-        catch(err){console.log(err);}
     try{ session.subscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
         catch(err){console.log(err);}
+
 	$('#Trade').click();
 }
