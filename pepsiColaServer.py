@@ -7,6 +7,7 @@ import json
 import logging
 import sys
 import datetime
+import time
 from sqlalchemy import and_
 from jsonschema import validate
 import zmq
@@ -181,6 +182,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.tick_sizes = {}
         for contract in self.db_session.query(models.Contract).all():
             self.tick_sizes[contract.ticker] = contract.tick_size
+
+        #limit user trolling
+        self.troll_throttle = time.time()
+        print 'initial troll'
+        print time.time()
+        print self.troll_throttle
 
     def connectionLost(self, reason):
         """
@@ -568,11 +575,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if type(event) not in [str, unicode]:
                 logging.warning("but the event type isn't a string, that's way uncool so no")
                 return None
-            else:
+            elif len(event)>0:
                 message = cgi.escape(event)
                 if len(message) > 128:
                     message = message[:128] + u"[\u2026]"
                 chat_log.info('%s:%s' % (self.user.nickname, message))
+                    
+                #pause message rate if necessary
+                time_span = time.time() - self.troll_throttle
+                print time_span
+                if time_span < 3:
+                    time.sleep(time_span)
+                    print 'sleeping'
+                self.troll_throttle = time.time()
+                print self.troll_throttle
 
                 return [cgi.escape(self.user.nickname), message]
 

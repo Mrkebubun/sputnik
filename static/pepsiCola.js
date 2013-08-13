@@ -57,7 +57,7 @@ function onConnect() {
     //session.subscribe("http://example.com/simple", onEvent);
 
     /*for testing:*/
-    do_login('a', 'a');
+    //do_login('a', 'a');
     console.log('subscribed')
 }
 
@@ -904,6 +904,7 @@ $('#buyButton').click(function () {
 
 $('#chatButton').click(function () {
     sendChat(chatBox.value);
+    $('#chatBox').val('');
 });
 
 $('#newAddressButton').click(function () {
