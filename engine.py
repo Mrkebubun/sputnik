@@ -254,14 +254,14 @@ while True:
 
             #now publish new book and cancelled order (isn't 262 redundant with 269?)
             publisher.send_json({contract_name: [o.__dict__ for o in all_orders.values()]})
-            publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+            #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+            #change o to order in the following:
+            publisher.send_json({'cancel': [order.user, {'order': order.order_id}]}) #
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             logging.warning("we currently don't have a way of telling the cancel failed")
 
         logging.info(pretty_print_book())
-        #change o to order in the following:
-        publisher.send_json({'cancel': [order.user, {'order': order.order_id}]}) #
         publish_order_book()
         continue
 
