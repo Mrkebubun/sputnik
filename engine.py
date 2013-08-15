@@ -193,7 +193,7 @@ db_session.commit()
 
 # will automatically pull order from requests
 connector = context.socket(zmq.PULL)
-connector.bind('tcp://0.0.0.0:%d' % CONNECTOR_PORT)
+connector.bind('tcp://localhost:%d' % CONNECTOR_PORT)
 
 # publishes book updates
 publisher = context.socket(zmq.PUSH)
