@@ -197,11 +197,11 @@ connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
 
 # publishes book updates
 publisher = context.socket(zmq.PUSH)
-publisher.connect('tcp://localhost:%d' % PUBLISHER_PORT)
+publisher.connect('tcp://127.0.0.1:%d' % PUBLISHER_PORT)
 
 # push to the accountant
 accountant = context.socket(zmq.PUSH)
-accountant.connect('tcp://localhost:%d' % ACCOUNTANT_PORT)
+accountant.connect('tcp://127.0.0.1:%d' % ACCOUNTANT_PORT)
 
 all_orders = {}
 
