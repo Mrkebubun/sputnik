@@ -58,11 +58,12 @@ function onConnect() {
 
     /*for testing:*/
     //do_login('a', 'a');
-    console.log('subscribed')
+    //console.log('subscribed')
 }
 
 function onAuth(permissions) {
     ab.log("authenticated!", JSON.stringify(permissions));
+    console.log('permissions (want the uris):',permissions);
     //session.subscribe(myTopic, onEvent);
     logged_in = true;
 
@@ -84,7 +85,14 @@ function onAuth(permissions) {
     getOpenOrders();
     getPositions();
 
-    var user_id = 8;
+    /*
+    the gleaning of the user_id from the permissions and then manual 
+    subscription process is very hacky.  Hope to make it more clean later.
+    */
+    var user_id;
+    user_id = _.pluck(permissions.pubsub, 'uri')[1].split('#')[1]
+    console.log(cancels_URI + user_id );
+
     try{session.subscribe(cancels_URI + user_id, onCancel);}
         catch(err){console.log(err);}
     try{session.subscribe(fills_URI + user_id, onFill);}

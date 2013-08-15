@@ -185,9 +185,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #limit user trolling
         self.troll_throttle = time.time()
-        print 'initial troll'
-        print time.time()
-        print self.troll_throttle
 
     def connectionLost(self, reason):
         """
@@ -244,9 +241,25 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param authExtra: extra information, like a HMAC
         :return: the permissions associated with that user
         """
-        return {'permissions': {'pubsub': [], 'rpc': []},
+        user_id = self.db_session.query(models.User).filter_by(nickname=authKey).one().id
+        return {'permissions': {'pubsub': [{'uri':'http://example.com/safe_price#%s' %  'USD.13.7.31',
+                                            'prefix':True,
+                                            'pub':False,
+                                            'sub':True},
+                                            {'uri':'http://example.com/user/open_orders#%s' % user_id,
+                                            'prefix':True,
+                                            'pub':False,
+                                            'sub':True},
+                                            {'uri':'http://example.com/user/fills#%s' % user_id,
+                                            'prefix':True,
+                                            'pub':False,
+                                            'sub':True},
+                                            {'uri':'http://example.com/user/cancels#%s' % user_id,
+                                            'prefix':True,
+                                            'pub':False,
+                                            'sub':True} ], 'rpc': []},
                 'authextra': self.AUTH_EXTRA,
-                'some_extra_value': 42}
+                'some_extra_value': user_id}
 
     def getAuthSecret(self, authKey):
         """
