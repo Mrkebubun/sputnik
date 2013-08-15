@@ -613,7 +613,12 @@ function graphTable(table, side, fullsize) {
 							row_string + "</tr>");
 
 			// highlight user's orders
-			if (_.contains(_.pluck(OPEN_ORDERS,table[i][1] ))){
+            console.log('highlight user orders');
+            console.log(table[i][1]);
+            console.log(OPEN_ORDERS);
+            console.log(_.pluck(OPEN_ORDERS,table[i][1] ))
+            console.log(_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] ));
+			if (_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] )){
 				$('#' + side + '_' + i).addClass("info");
 			}
         }
