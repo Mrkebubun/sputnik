@@ -32,3 +32,33 @@
 {
 background-color: #f9f9f9;
 }
+
+
+.footer {
+      width:100%;
+      margin: 0 auto;
+      position: fixed;
+      left: 0; bottom: 0; 
+      z-index:999;
+}
+
+.chatText {
+    width:100%;
+    margin: auto;
+}
+
+.input-append {
+    width:100%;
+}
+
+.chatInput {
+    width:93%;
+    bottom:0;
+}
+
+.push {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+}
+

@@ -929,6 +929,24 @@ $('#newAddressButton').click(function () {
     getCurrentAddress();
 });
 
+$('#chatFooterButton').click(function () {
+    $('.footer').collapse('toggle');
+    $('input#chatBox.chatInput').focus();
+    $('#chatFooterButton').hide();
+});
+
+$('#minimizeChat').click(function () {
+    $('#chatFooterButton').show();
+    $('.footer').collapse('toggle');
+});
+
+$("input#chatBox.chatInput").keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        $('#chatButton').click();
+    }
+});
+
 //modals
 
 $('#myModal').on('shown', function () {
@@ -954,12 +972,6 @@ $("#password").keypress(function (e) {
     }
 });
 
-$("#chatBox").keypress(function (e) {
-    var code = (e.keyCode ? e.keyCode : e.which);
-    if (code == 13) {
-        $('#chatButton').click();
-    }
-});
 
 function switchToTrade (new_ticker) {
 

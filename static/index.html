@@ -23,6 +23,7 @@
 </head>
 <body>
 
+
 <ul class="nav nav-tabs navbar" id="tabs">
     <li> <a href="#PennyArcadeTab" class="offset1" id="PennyArcade" data-toggle="tab"></a> </li>
     <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Markets<b class="caret"></b></a>
@@ -146,7 +147,6 @@
                     <ul class="nav nav-tabs">
                         <li class="active"><a href="#position" data-toggle="tab">Position</a></li>
                         <li><a href="#description" data-toggle="tab">Description</a></li>
-                        <li><a href="#chat" data-toggle="tab">Chat</a></li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane active" id="position">
@@ -161,13 +161,6 @@
                         </div>
                         <div class="tab-pane" id="description">
                             <p id="descriptionText">blah blah</p>
-                        </div>
-                        <div class="tab-pane" id="chat">
-                            <div class="input-append">
-                                <input class="span6" id="chatBox" type="text">
-                                <button id="chatButton" class="btn" type="button">Chat!</button>
-                            </div>
-                            <textarea readonly id="chatArea" cols="160" rows="10" class="span9"></textarea>
                         </div>
                     </div>
                 </div>
@@ -397,6 +390,15 @@
 </div>
 <!-- end Modal -->
 
+<div class="footer collapse">
+    <button id="minimizeChat" class="btn" style="position:absolute; top:-10; right:0;"> <i class="icon-chevron-down"></i> </button>
+    <textarea readonly id="chatArea" class="chatText" cols="460" rows="10" ></textarea>
+        <div  class="input-append">
+            <input id="chatBox" class="chatInput" type="text">
+            <button id="chatButton" class="btn" type="button">Send</button>
+        </div>
+    <button id="chatFooterButton" class="btn push" type="button" > <i class="icon-chevron-up"></i> Chat  </button>
+</div>
 
 <!-- end container -->
 

@@ -582,6 +582,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param topicUriSuffix: suffix part, in this case always "general"
         :param event: event being published, a json object
         """
+        print 'string?',event
         logging.info("client wants to publish to %s%s" % (topicUriPrefix, topicUriSuffix))
         if not self.user:
             logging.info("he's not logged in though, so no")
