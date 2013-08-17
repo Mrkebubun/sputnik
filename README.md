@@ -1,7 +1,4 @@
 sputnik
 =======
 
-Keep track of things to do here:
-
-* write sample API client
-
+Describe the project here. Explain how it works. Show example of running the service.
