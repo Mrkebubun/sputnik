@@ -57,10 +57,11 @@ function connect() {
 
 function do_login(login, password) {
     session.authreq(login /*, extra*/).then(function (challenge) {
-
+        console.log('challenge', JSON.parse(challenge).authextra);
         var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
         // direct sign or AJAX to 3rd party
         var signature = session.authsign(challenge, secret);
+        console.log(signature)
 
         session.auth(signature).then(onAuth, ab.log);
     }, function (err) {
@@ -232,7 +233,12 @@ function getSafePrices() {
 }
 
 function makeAccount(name, psswd, email, bitmsg) {
-    var psswdHsh = ab.deriveKey(psswd, {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000});
+
+    var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
+    AUTHEXTRA['salt'] = Math.random().toString(36).slice(2);
+    //
+
+    var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
     console.log(psswdHsh);
     session.call(make_account_URI, name, psswdHsh, email, bitmsg).then(
         function (res) {
