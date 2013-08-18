@@ -114,6 +114,7 @@ class User(db.Base):
 
     id = Column(Integer, primary_key=True)
     password_hash = Column(String, nullable=False)
+    salt = Column(String)
     nickname = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True)
     bitmessage = Column(String, unique=True)
@@ -122,8 +123,9 @@ class User(db.Base):
     login_allowed = Column(Boolean, server_default="false", nullable=False)
 
 
-    def __init__(self, password_hash, nickname, email, bitmessage):
+    def __init__(self, password_hash, salt, nickname, email, bitmessage):
         self.password_hash = password_hash
+        self.salt = salt
         self.nickname = nickname
         self.email = email
         self.bitmessage = bitmessage

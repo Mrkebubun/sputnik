@@ -417,7 +417,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 for x in self.db_session.query(models.Position).filter_by(user=self.user)}
 
     @exportRpc("make_account")
-    def make_account(self, name, password_hash, email, bitmessage):
+    def make_account(self, name, password_hash, salt, email, bitmessage):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, nickname of the user
@@ -430,11 +430,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         validate(name, {"type": "string"})
         validate(password_hash, {"type": "string"})
+        validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
         validate(bitmessage, {"type": "string"})
 
         try:
-            user = models.User(password_hash, name, email, bitmessage)
+            user = models.User(password_hash, salt, name, email, bitmessage)
+            #also store random salt
+            #need to do a db migration
+            print salt
             btc = self.db_session.query(models.Contract).filter_by(ticker='BTC').one()
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0

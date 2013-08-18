@@ -235,12 +235,14 @@ function getSafePrices() {
 function makeAccount(name, psswd, email, bitmsg) {
 
     var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
-    AUTHEXTRA['salt'] = Math.random().toString(36).slice(2);
-    //
+
+    //is this a horrible way to generate a randome salt?
+    var salt = Math.random().toString(36).slice(2);
+    AUTHEXTRA['salt'] = salt;
 
     var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
     console.log(psswdHsh);
-    session.call(make_account_URI, name, psswdHsh, email, bitmsg).then(
+    session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
             console.log(res)
         })
