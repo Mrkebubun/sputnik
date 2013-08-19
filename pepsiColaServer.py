@@ -30,6 +30,7 @@ ENGINE_HOST = "localhost"
 ACCOUNTANT_HOST = "localhost"
 ACCOUNTANT_PORT = 3342
 
+GLOBAL_SALT ='KRVlLgsQAOxJWK11yNms'
 
 def engine_listener_loop(param):
     """
@@ -241,7 +242,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param authExtra: extra information, like a HMAC
         :return: the permissions associated with that user
         """
-        user_id = self.db_session.query(models.User).filter_by(nickname=authKey).one().id
+        print 'getAuthPermissions'
+        print self.AUTH_EXTRA
+        try:
+            user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
+            user_id = user.id
+            self.AUTH_EXTRA['salt'] = user.salt
+        except Exception:
+            #return a fake salt so attackers can't distinguish usernames by null returns
+            #will need to anonymize the permissions better, or just convert user_id -> nicknames
+            #also need to make all login failures look uniform to client..
+            user_id = 0 
+            self.AUTH_EXTRA['salt'] = os.urandom(3).encode('hex')[:-1]
+
+        print self.AUTH_EXTRA
         return {'permissions': {'pubsub': [{'uri':'http://example.com/safe_price#%s' %  'USD.13.7.31',
                                             'prefix':True,
                                             'pub':False,
@@ -258,8 +272,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                             'prefix':True,
                                             'pub':False,
                                             'sub':True} ], 'rpc': []},
-                'authextra': self.AUTH_EXTRA,
-                'some_extra_value': user_id}
+                'authextra': self.AUTH_EXTRA}
 
     def getAuthSecret(self, authKey):
         """
