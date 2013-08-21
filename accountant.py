@@ -313,7 +313,6 @@ def deposit_cash(details):
         db_session.rollback()
         return False
 
-
 engine_sockets = {i.id: context.socket(zmq.constants.PUSH)
                   for i in db_session.query(models.Contract).filter_by(active=True)}
 

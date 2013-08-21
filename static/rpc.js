@@ -163,6 +163,7 @@ function orderBook(ticker) {
 			//console.log('buybook',buyBook[0]);
             graphTable(buyBook, "buy", false);
             graphTable(sellBook, "sell", false);
+            suggestOrder()
         }
     );
 }

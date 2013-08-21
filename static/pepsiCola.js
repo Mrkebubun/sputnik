@@ -2,6 +2,7 @@
 var session = null;
 var logged_in = false;
 
+var QBUY, QSELL, PBUY, PSELL;
 var MARKETS;
 var SITE_TICKER = 'ERROR';
 var TRADE_HISTORY = [];
@@ -54,6 +55,7 @@ function onSafePrice(uri, event) {
 
 function onConnect() {
     console.log("Connected!")
+    getMarkets();
     //session.subscribe("http://example.com/simple", onEvent);
 
     /*for testing:*/
@@ -79,7 +81,6 @@ function onAuth(permissions) {
     //make this chain correctly...or better yet, make it publish upon connection
     //via serverside
 
-    getMarkets();
     //getSafePrices(Object.keys(MARKETS));
     getSafePrices();
     getOpenOrders();
@@ -164,8 +165,9 @@ function onOpenOrder(topicUri, event) {
                           'ticker':   event['ticker']};
     console.log(new_open_order);
     OPEN_ORDERS.push(new_open_order);
-
-    sendChat('placed order: '+JSON.stringify(event) );
+    
+    // publish to seperate feed, not chat.
+    //sendChat('placed order: '+JSON.stringify(event) );
 
 //    displayPositions(false,SITE_POSITIONS);
 //    displayPositions(true,SITE_POSITIONS);
@@ -183,7 +185,8 @@ function onCancel(topicUri, event) {
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
     console.log('after', OPEN_ORDERS)
 
-    sendChat('cancelled order: '+JSON.stringify(event) );
+    // publish to seperate feed, not chat.
+    //sendChat('cancelled order: '+JSON.stringify(event) );
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
@@ -578,6 +581,13 @@ function tradeTable(trades, fullsize) {
     });
 }
 
+function suggestOrder() {
+        $('#psell').val(PSELL);
+        $('#qsell').val(QSELL);
+        $('#pbuy').val(PBUY);
+        $('#qbuy').val(QBUY);
+};
+
 function graphTable(table, side, fullsize) {
 //    if (fullsize) {
 //        length = trades.length;
@@ -595,11 +605,15 @@ function graphTable(table, side, fullsize) {
 	
     if (table.length >0) {
         if (side =='buy') {
-            $('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-            $('#qsell').val(table[table.length - 1][0]);
+            //$('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+            //$('#qsell').val(table[table.length - 1][0]);
+            PSELL = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
+            QSELL = table[table.length - 1][0];
         } else {
-            $('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-            $('#qbuy').val(table[table.length - 1][0]);
+            //$('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
+            //$('#qbuy').val(table[table.length - 1][0]);
+            PBUY = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
+            QBUY = table[table.length - 1][0];
         }
     }
 
@@ -613,11 +627,13 @@ function graphTable(table, side, fullsize) {
 							row_string + "</tr>");
 
 			// highlight user's orders
+            /*
             console.log('highlight user orders');
             console.log(table[i][1]);
             console.log(OPEN_ORDERS);
             console.log(_.pluck(OPEN_ORDERS,table[i][1] ))
             console.log(_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] ));
+            */
 			if (_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] )){
 				$('#' + side + '_' + i).addClass("info");
 			}
@@ -865,14 +881,14 @@ $('#Trade').click(function () {
     $('#descriptionText').html(MARKETS[SITE_TICKER]['full_description']);
 
     getTradeHistory(SITE_TICKER);
-    getOpenOrders();
-    getPositions();
     orderBook(SITE_TICKER);
-    //dc_graph(SITE_TICKER);
 
-    if (!logged_in) {
-        $('#loginButton').click()
+    if (logged_in) {
+        getOpenOrders();
+        getPositions();
     }
+    //suggestOrder();
+
 });
 
 $('#Account').click(function () {
@@ -900,15 +916,19 @@ $('#registerButton').click(function () {
 
 
 function orderButton(q, p, s) {
-    var ord = {};
-    var price_entered = Number(p);
-    ord['ticker'] = SITE_TICKER;
-    ord['quantity'] = parseInt(q);
-    var tick_size = MARKETS[SITE_TICKER]['tick_size'];
-    var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
-    ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
-    ord['side'] = s;
-    placeOrder(ord);
+    if (!logged_in) {
+        $('#loginButton').click()
+    } else {
+        var ord = {};
+        var price_entered = Number(p);
+        ord['ticker'] = SITE_TICKER;
+        ord['quantity'] = parseInt(q);
+        var tick_size = MARKETS[SITE_TICKER]['tick_size'];
+        var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
+        ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
+        ord['side'] = s;
+        placeOrder(ord);
+    }
 }
 
 $('#sellButton').click(function () {
@@ -975,14 +995,17 @@ $("#password").keypress(function (e) {
 
 function switchToTrade (new_ticker) {
 
+    //need to fix this hardcoding
     id = SITE_TICKER=='USD.13.7.31'?17:16; 
 
-	try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
-        catch(err){console.log(err);}
-	try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
-        catch(err){console.log(err);}
-    try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
-        catch(err){console.log(err);}
+    if (logged_in) {
+        try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
+            catch(err){console.log(err);}
+        try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
+            catch(err){console.log(err);}
+        try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
+            catch(err){console.log(err);}
+    }
 
     /*
     try{session.unsubscribe(cancels_URI + user_id, onCancel);}

@@ -44,6 +44,7 @@ def engine_listener_loop(param):
         message = socket.recv()
         reactor.callFromThread(callback, message)
 
+#maybe delete the safe price subscription handler...
 class SafePriceSubscriptionHandler:
     """
     Handler for subscription to the feed of a user's safePrice
@@ -154,11 +155,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
     """
 
-    AUTH_EXTRA = {'salt': "RANDOM SALT", 'keylen': 32, 'iterations': 1000}
-
     def __init__(self):
         pass
 
+    # doesn't seem to affect the random salt value... but login doesn't work with this line deleted.
+    AUTH_EXTRA = {'salt': "SALT", 'keylen': 32, 'iterations': 1000}
     #PERMISSIONS = {'pubsub': [{'uri': 'http://example.com/simple/',
     #                           'prefix': True,
     #                           'pub': True,
@@ -206,27 +207,24 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub("http://example.com/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
+        # hardcode :(
+        self.safePriceSubscriptionHandler = SafePriceSubscriptionHandler(0)     # self.user.id)
+        self.registerHandlerForPubSub(self.safePriceSubscriptionHandler, baseUri="http://example.com/")
 
         self.registerForPubSub("http://example.com/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-
-        self.registerForPubSub("http://example.com/usr/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-
-        self.registerForPubSub("http://example.com/usr/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-
-        self.registerForPubSub("http://example.com/usr/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-
         self.registerForPubSub("http://example.com/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-
-        # noinspection PyTypeChecker
-        self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
-
-        # noinspection PyTypeChecker
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.make_account])
+        self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.list_markets])
+        self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_trade_history])
+        self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_order_book])
+
+        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
+        self.registerForPubSub("http://example.com/usr/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/usr/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/usr/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
 
         # override global client auth options
         self.clientAuthTimeout = 0
@@ -281,9 +279,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         does not exist
         """
         #todo, understand how this deferred actually works
-        d = defer.Deferred()
-        d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
-        return d
+        #d = defer.Deferred()
+        #d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
+        return self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
 
     # noinspection PyMethodOverriding
     def onAuthenticated(self, authKey, perms):
@@ -308,12 +306,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.fillSubscriptionHandler = FillSubscriptionHandler(self.user.id)
         self.cancelSubscriptionHandler = CancelSubscriptionHandler(self.user.id)
         self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(self.user.id)
-        self.safePriceSubscriptionHandler = SafePriceSubscriptionHandler(self.user.id)
 
         self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
-        self.registerHandlerForPubSub(self.safePriceSubscriptionHandler, baseUri="http://example.com/")
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span):
@@ -449,9 +445,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         try:
             user = models.User(password_hash, salt, name, email, bitmessage)
-            #also store random salt
-            #need to do a db migration
-            print salt
             btc = self.db_session.query(models.Contract).filter_by(ticker='BTC').one()
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0

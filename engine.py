@@ -305,11 +305,3 @@ while True:
     logging.info(pretty_print_book())
     publish_order_book()
 
-
-
-
-
-
-
-
-

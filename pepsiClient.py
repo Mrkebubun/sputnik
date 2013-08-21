@@ -24,8 +24,8 @@ class TradingBot(WampCraClientProtocol):
 
     def __init__(self):
         self.base_URI = "http://example.com/procedures/"
-        self.user = 'a'
-        self.psswd = 'a'
+        self.user = 'new'
+        self.psswd = 'new'
 
     def action(self):
         '''
