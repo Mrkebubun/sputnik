@@ -222,6 +222,7 @@ function getMarkets() {
             for (key in MARKETS)
                 if (MARKETS[key].contract_type == 'futures')
                     session.subscribe(safe_price_URI + '#' + key, onSafePrice);
+            welcome (MARKETS);
         });
 }
 

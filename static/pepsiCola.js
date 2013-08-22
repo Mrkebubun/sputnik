@@ -57,7 +57,6 @@ function onConnect() {
     console.log("Connected!")
     getMarkets();
     //session.subscribe("http://example.com/simple", onEvent);
-
     /*for testing:*/
     //do_login('a', 'a');
     //console.log('subscribed')
@@ -822,6 +821,26 @@ function marketsToDisplayTree(markets) {
     displayMarket['values'].push(myMarkets);
 
     return [displayMarket];
+}
+
+function welcome (MARKETS) {
+    var markets = MARKETS;
+
+        $('#welcome').append("<thead><tr>" +
+            "<th>Active Markets</th>" +
+            "<th>Description</th>" +
+            "</tr></thead>");
+
+    for (row in markets) {
+
+        console.log("<tr>" + "<td>"+ row + "</td>" + "<td>" + markets[row]['description'] + "</td>" + "</tr>");
+        $('#welcome').append("<tr onclick='switchToTrade(\""+ row +"\")' >" +
+            "<td>"+ row + "</td>" +
+            "<td>" + markets[row]['description'] + "</td>" +
+            "</tr>");
+
+    }
+
 }
 
 function tree(datafunction) {
