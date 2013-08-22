@@ -63,11 +63,19 @@ function do_login(login, password) {
         var signature = session.authsign(challenge, secret);
         console.log(signature)
 
-        session.auth(signature).then(onAuth, ab.log);
+        session.auth(signature).then(onAuth, failed_login);//ab.log);
+        console.log('end of do_login');
     }, function (err) {
-        alert('bad login');
+        failed_login('bad login');
     });
 }
+
+function failed_login(err) {
+    $('.modal-backdrop').removeAttr('class','in')
+    $('#login_error').attr('class','alert')
+                     .text('Login error, please try again.')
+    $('#loginButton').click();
+};
 
 function logout() {
     session.close();

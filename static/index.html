@@ -25,7 +25,8 @@
 
 
 <ul class="nav nav-tabs navbar" id="tabs">
-    <li> <a href="#PennyArcadeTab" class="offset1" id="PennyArcade" data-toggle="tab"></a> </li>
+    <li> <a href="#PennyArcadeTab"  id="PennyArcade" data-toggle="tab">Penny Arcade</a> </li>
+
     <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Markets<b class="caret"></b></a>
         <ul class="dropdown-menu"><div id="tree" style="width:600px"></div></ul>
     </li>
@@ -47,7 +48,8 @@
 
 
 <div class="tab-content">
-    <div class="tab-pane active" id="PennyArcadeTab"> <!--item 1 contains the splash page-->
+    <div class="tab-pane active" id="PennyArcadeTab" > <!--item 1 contains the splash page-->
+            <img src="sputnik.jpg" class="pull-right"></img>
             <table id="welcome" class="centered table table-striped table-bordered table-hover" > </table>
     </div> <!-- End item one-->
 
@@ -297,6 +299,7 @@
         <h3 id="myModalLabel">Login</h3>
     </div>
     <div class="modal-body">
+        <div id="login_error"></div>
         <form class="form-horizontal">
             <div class="control-group">
                 <label class="control-label" for="login" autofocus>Login</label>
