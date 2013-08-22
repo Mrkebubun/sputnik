@@ -71,7 +71,11 @@ function do_login(login, password) {
 }
 
 function failed_login(err) {
-    $('.modal-backdrop').removeAttr('class','in')
+    /*bootstrap gets stuck if if two modals are called in succession, so force
+    the removal of shaded background with the following line */
+    $('.modal-backdrop').removeAttr('class','in') 
+
+    //add a notification of failed login to login error modal then restart modal
     $('#login_error').attr('class','alert')
                      .text('Login error, please try again.')
     $('#loginButton').click();

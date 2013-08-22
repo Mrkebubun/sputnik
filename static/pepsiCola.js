@@ -979,6 +979,11 @@ $('#minimizeChat').click(function () {
     $('.footer').collapse('toggle');
 });
 
+$('#PennyArcade').click(function () {
+    //remove the outline of a tab
+    $('li.active').removeAttr('class','active');
+});
+
 $("input#chatBox.chatInput").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
