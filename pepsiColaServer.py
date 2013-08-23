@@ -222,10 +222,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_chat_history])
 
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("http://example.com/usr/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/usr/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/usr/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
         self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
+
+        self.registerForPubSub("http://example.com/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
 
         # override global client auth options
         self.clientAuthTimeout = 0
@@ -500,7 +502,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         # rpc call:
         with open('chat.log') as f:
-            return f.read().split('\n')[-11:-1]
+            return f.read().split('\n')[-31:-1]
 
 
     @exportRpc("get_order_book")

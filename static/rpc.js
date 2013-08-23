@@ -106,9 +106,7 @@ function getChatHistory() {
     session.call(get_chat_history_URI).then(
         function(chats) {
             for (chat in chats){
-                console.log(CHAT_MESSAGES);
                 CHAT_MESSAGES.push(chats[chat]);
-                console.log(CHAT_MESSAGES);
             }
 
             $('#chatArea').html(CHAT_MESSAGES.join('\n'));

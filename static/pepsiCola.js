@@ -56,6 +56,8 @@ function onSafePrice(uri, event) {
 function onConnect() {
     console.log("Connected!")
     getMarkets();
+    getChatHistory();
+    session.subscribe(chat_URI, onChat);
     //session.subscribe("http://example.com/simple", onEvent);
     /*for testing:*/
     //do_login('a', 'a');
@@ -112,7 +114,8 @@ function onAuth(permissions) {
     //	subToCancels(8);
     //    subToOpenOrders(8);
 
-    switchToTrade ('USD.13.7.31')
+    //no longer necessary to switch to trade immediatealy as we have asplash screen.
+    //switchToTrade ('USD.13.7.31')
 
 
 }
