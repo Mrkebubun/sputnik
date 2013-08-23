@@ -219,6 +219,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.list_markets])
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_trade_history])
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_order_book])
+        self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_chat_history])
 
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
         self.registerForPubSub("http://example.com/usr/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
@@ -489,6 +490,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 p_c = self.db_session.query(models.PredictionContract).filter_by(contract=c).one()
                 result[c.ticker]['final_payoff'] = p_c.final_payoff
         return result
+
+    @exportRpc("get_chat_history")
+    def get_chat_history(self):
+        """
+        rpc use to load the last n lines of the chat box
+        :param ticker: ticker of the book we want
+        :return: the book
+        """
+        # rpc call:
+        with open('chat.log') as f:
+            return f.read().split('\n')[-11:-1]
+
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):

@@ -2,6 +2,7 @@ var session = null;
 
 
 var base_uri = "http://example.com/";
+var get_chat_history_URI = base_uri + "procedures/get_chat_history";
 
 var safe_price_URI = base_uri + "safe_price";
 var get_safe_prices_URI = base_uri + "procedures/get_safe_prices";
@@ -98,6 +99,20 @@ function getTradeHistory(ticker) {
             build_trade_graph(trades);
             TRADE_HISTORY = trades.reverse();
             tradeTable(TRADE_HISTORY, false);
+        })
+}
+
+function getChatHistory() {
+    session.call(get_chat_history_URI).then(
+        function(chats) {
+            for (chat in chats){
+                console.log(CHAT_MESSAGES);
+                CHAT_MESSAGES.push(chats[chat]);
+                console.log(CHAT_MESSAGES);
+            }
+
+            $('#chatArea').html(CHAT_MESSAGES.join('\n'));
+            $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
         })
 }
 
