@@ -828,6 +828,7 @@ function marketsToDisplayTree(markets) {
 
 function welcome (MARKETS) {
     var markets = MARKETS;
+    $('#welcome').empty()
 
         $('#welcome').append("<thead><tr>" +
             "<th>Active Markets</th>" +
@@ -982,9 +983,15 @@ $('#minimizeChat').click(function () {
     $('.footer').collapse('toggle');
 });
 
+$('.modal').on('hidden', function() {
+    console.log('in on hidden');
+    $('#PennyArcade').click();
+})
+
 $('#PennyArcade').click(function () {
     //remove the outline of a tab
     $('li.active').removeAttr('class','active');
+    welcome (MARKETS)
 });
 
 $("input#chatBox.chatInput").keypress(function (e) {
