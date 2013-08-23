@@ -983,9 +983,11 @@ $('#minimizeChat').click(function () {
     $('.footer').collapse('toggle');
 });
 
-$('.modal').on('hidden', function() {
-    console.log('in on hidden');
-    $('#PennyArcade').click();
+$('.global-modal').on('hidden', function() {
+    //the global-modal class consists of: 'myModal' (login) and 'registerModal'
+    if (!logged_in)
+        $('#PennyArcade').click();
+
 })
 
 $('#PennyArcade').click(function () {
