@@ -81,3 +81,7 @@ background-color: #f9f9f9;
     top: 25%;
     right: 0;
 }
+
+ .adjustRight {
+    padding-left:40px;
+}
