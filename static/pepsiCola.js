@@ -11,6 +11,8 @@ var SITE_POSITIONS = [];
 var OPEN_ORDERS = [];
 var ORDER_BOOK; //Global variable will be useful when depth graph is built.
 
+var ORDER_BOOK_VIEW_SIZE = false;
+
 var CHAT_MESSAGES = [];
 var SAFE_PRICES = Object();
 
@@ -135,7 +137,7 @@ function onBookUpdate(topicUri, event) {
     console.log('in onBookUpdate');
     //console.log('in onBookUpdate', SITE_TICKER, topicUri, event);
 	ORDER_BOOK = JSON.parse(event);
-	updateOrderBook(ORDER_BOOK);
+	updateOrderBook(ORDER_BOOK,ORDER_BOOK_VIEW_SIZE);
 }
 
 function onFill(topicUri, event) {
@@ -378,7 +380,7 @@ function stackBook(book) {
     var price = book[0][0];
     var quantity = book[0][1];
 
-    for (var i = 1; i < Math.min(book.length, 10); i++) {
+    for (var i = 1; i < book.length; i++) {
         if (book[i][0] == price) {
             quantity += book[i][1];
         } else {
@@ -498,7 +500,7 @@ function displayPrice(price, denominator, tick_size, contract_type) {
     return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
 
 }
-function updateOrderBook(book) {
+function updateOrderBook(book, full_size) {
 	for (key in book){
 			book = book[key];	
             var buyBook = [];
@@ -515,13 +517,20 @@ function updateOrderBook(book) {
                 ((book[i]['order_side'] == 0) ? buyBook : sellBook).push([price , quantity]);
             }
 
+            console.log(buyBook);
             buyBook = stackBook(buyBook);
             sellBook = stackBook(sellBook);
 
             sellBook.reverse();
-
-            graphTable(buyBook, "buy", false);
-            graphTable(sellBook, "sell", false);
+           /*
+           if(!full_size){
+                buyBook = buyBook.slice(0,10)
+                sellBook = sellBook.slice(0,10)
+           }
+           */
+            console.log(buyBook);
+            graphTable(buyBook, "buy", ORDER_BOOK_VIEW_SIZE);
+            graphTable(sellBook, "sell", ORDER_BOOK_VIEW_SIZE);
 	}
 }
 
@@ -570,8 +579,8 @@ function tradeTable(trades, fullsize) {
 
     $('#tradeHistory').append(
         fullsize ?
-            '<tr><td colspan="3"><button id="lessTrades" class="btn btn-block btn-info"><i class="icon-chevron-up"/></button></td></tr>' :
-            '<tr><td colspan="3"><button id="moreTrades" class="btn btn-block btn-info"><i class="icon-chevron-down"/></button></td></tr>'
+            '<tr><td colspan="3"><button id="lessTrades" class="btn btn-block"><i class="icon-chevron-up"/></button></td></tr>' :
+            '<tr><td colspan="3"><button id="moreTrades" class="btn btn-block"><i class="icon-chevron-down"/></button></td></tr>'
     );
 
     $('#lessTrades').click(function () {
@@ -597,6 +606,9 @@ function graphTable(table, side, fullsize) {
 //        length = 10;
 //    }
     var length = fullsize ? table.length : 10;
+    console.log('in graphTable');
+    console.log(fullsize);
+    console.log(length);
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
 
 	var denominator = MARKETS[SITE_TICKER]['denominator'];
@@ -605,27 +617,25 @@ function graphTable(table, side, fullsize) {
 
     $(id).empty();
 	
+    // update the suggested buy/sell orders:
     if (table.length >0) {
         if (side =='buy') {
-            //$('#psell').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-            //$('#qsell').val(table[table.length - 1][0]);
             PSELL = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
             QSELL = table[table.length - 1][0];
         } else {
-            //$('#pbuy').val(displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0]);
-            //$('#qbuy').val(table[table.length - 1][0]);
             PBUY = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
             QBUY = table[table.length - 1][0];
         }
     }
 
-    for (var i = 0; i < Math.max(table.length, length); i++) {
-
+    for (var i = 0; i < Math.max(10,length); i++) {
         if (i < table.length) {
-            var price_cell = "<td>" + displayPrice(table[i][1], denominator, tick_size, contract_type) + "</td>";
-            var quantity_cell = "<td>" + table[i][0] + "</td>";
+            //ugly reversing of table.. meh, it's working..
+            var j = table.length - i -1;
+            var price_cell = "<td>" + displayPrice(table[j][1], denominator, tick_size, contract_type) + "</td>";
+            var quantity_cell = "<td>" + table[j][0] + "</td>";
             var row_string = (side == 'buy' ? quantity_cell + price_cell : price_cell + quantity_cell);
-            $(id).prepend("<tr id='" + side + "_" + i + "'>" + 
+            $(id).append("<tr id='" + side + "_" + i + "'>" + 
 							row_string + "</tr>");
 
 			// highlight user's orders
@@ -636,7 +646,7 @@ function graphTable(table, side, fullsize) {
             console.log(_.pluck(OPEN_ORDERS,table[i][1] ))
             console.log(_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] ));
             */
-			if (_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] )){
+			if (_.contains(_.pluck(OPEN_ORDERS,'price'),table[j][1] )){
 				$('#' + side + '_' + i).addClass("info");
 			}
         }
@@ -654,16 +664,20 @@ function graphTable(table, side, fullsize) {
 
     $(id).append(
         fullsize ?
-            '<tr><td colspan="2"><button  class="lessOrderBook btn btn-block btn-info"><i class="icon-chevron-up"/></button></td></tr>' :
-            '<tr><td colspan="2"><button  class="moreOrderBook btn btn-block btn-info"><i class="icon-chevron-down"/></button></td></tr>'
+            '<tr><td colspan="2"><button  class="lessOrderBook btn btn-block"><i class="icon-chevron-up"/></button></td></tr>' :
+            '<tr><td colspan="2"><button  class="moreOrderBook btn btn-block"><i class="icon-chevron-down"/></button></td></tr>'
     );
 
     $('.lessOrderBook').click(function () {
         console.log('less');
+        ORDER_BOOK_VIEW_SIZE = false;
+        updateOrderBook(ORDER_BOOK,ORDER_BOOK_VIEW_SIZE);
     });
 
     $('.moreOrderBook').click(function () {
         console.log('more');
+        ORDER_BOOK_VIEW_SIZE = true;
+        updateOrderBook(ORDER_BOOK,ORDER_BOOK_VIEW_SIZE);
     });
 }
 
@@ -887,6 +901,43 @@ function tree(datafunction) {
 }
 
 
+function switchToTrade (new_ticker) {
+
+    //need to fix this hardcoding
+    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+
+    if (logged_in) {
+        try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
+            catch(err){console.log(err);}
+        try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
+            catch(err){console.log(err);}
+        try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
+            catch(err){console.log(err);}
+    }
+
+    /*
+    try{session.unsubscribe(cancels_URI + user_id, onCancel);}
+        catch(err){console.log(err);}
+    try{session.unsubscribe(fills_URI + user_id, onFill);}
+        catch(err){console.log(err);}
+    try{ session.unsubscribe(open_orders_URI + user_id, onOpenOrder);}
+        catch(err){console.log(err);}
+    */
+
+	setSiteTicker(new_ticker);
+
+    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+
+	try{session.subscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
+        catch(err){console.log(err);}
+	try{session.subscribe(trade_URI+SITE_TICKER,onTrade);}
+        catch(err){console.log(err);}
+    try{ session.subscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
+        catch(err){console.log(err);}
+
+	$('#Trade').click();
+}
+
 //Notification messages
 var notifications = new Object();
 
@@ -1031,40 +1082,3 @@ $("#password").keypress(function (e) {
     }
 });
 
-
-function switchToTrade (new_ticker) {
-
-    //need to fix this hardcoding
-    id = SITE_TICKER=='USD.13.7.31'?17:16; 
-
-    if (logged_in) {
-        try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
-            catch(err){console.log(err);}
-        try{session.unsubscribe(trade_URI+SITE_TICKER,onTrade);}
-            catch(err){console.log(err);}
-        try{ session.unsubscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
-            catch(err){console.log(err);}
-    }
-
-    /*
-    try{session.unsubscribe(cancels_URI + user_id, onCancel);}
-        catch(err){console.log(err);}
-    try{session.unsubscribe(fills_URI + user_id, onFill);}
-        catch(err){console.log(err);}
-    try{ session.unsubscribe(open_orders_URI + user_id, onOpenOrder);}
-        catch(err){console.log(err);}
-    */
-
-	setSiteTicker(new_ticker);
-
-    id = SITE_TICKER=='USD.13.7.31'?17:16; 
-
-	try{session.subscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
-        catch(err){console.log(err);}
-	try{session.subscribe(trade_URI+SITE_TICKER,onTrade);}
-        catch(err){console.log(err);}
-    try{ session.subscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
-        catch(err){console.log(err);}
-
-	$('#Trade').click();
-}
