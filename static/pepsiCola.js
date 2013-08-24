@@ -665,7 +665,12 @@ function graphTable(table, side, fullsize) {
             console.log(_.pluck(OPEN_ORDERS,table[i][1] ))
             console.log(_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] ));
             */
-			if (_.contains(_.pluck(OPEN_ORDERS,'price'),table[j][1] )){
+			if (_.contains(
+                            _.pluck(
+                                    _.filter(OPEN_ORDERS, function (order){return order['ticker']==SITE_TICKER;})
+                                    ,'price')
+                            ,table[j][1] )
+               ) {
 				$('#' + side + '_' + i).addClass("info");
 			}
         }
