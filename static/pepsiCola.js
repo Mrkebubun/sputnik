@@ -60,6 +60,9 @@ function onConnect() {
     getMarkets();
     getChatHistory();
     session.subscribe(chat_URI, onChat);
+
+    var scalingFactor = $(window).height()/$(window).width();
+    $('.centertop').css('width',parseInt(100*scalingFactor*0.55) + '%');
     //session.subscribe("http://example.com/simple", onEvent);
     /*for testing:*/
     //do_login('a', 'a');
