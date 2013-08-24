@@ -673,7 +673,7 @@ function displayOrders(show_all_tickers, orders) {
     $(element).empty()
         .append("<tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
-            "<th>Quantity</th>" +
+            "<th>"+ (show_all_tickers?"Quantity":"#") +"</th>" +
             "<th>Price</th>" +
             "<th>Buy/Sell</th>" +
             "<th>Cancel</th>" +
@@ -696,19 +696,15 @@ function displayOrders(show_all_tickers, orders) {
                         MARKETS[order['ticker']]['denominator'],
                         MARKETS[order['ticker']]['tick_size'],
                         MARKETS[order['ticker']]['contract_type']);
-
-
+                       
                     $(element).append("<tr id='cancel_order_row_" + order['order_id'] + "'>" +
 
                         (printed_ticker?'':ticker_td) +
                         "<td>" + quantity + "</td>" +
-                        "<td>" + price + "</td>" +
+                        "<td nowrap>" + price + "</td>" +
                         "<td>" + order['side'] + "</td>" +
                         "<td>" +
-//                        (printed_ticker?'':margin_td) +
-                        "<button id='cancel_button_" + order['order_id'] + "' class='btn btn-block btn-danger' type='button' onclick='cancelOrder(" + order['order_id'] + ")'>" +
-                        "cancel <i class='icon-trash'/>" +
-                        "</button>" +
+                        "<button id='cancel_button_" + order['order_id'] + "' class='btn btn-block btn-danger' type='button' onclick='cancelOrder(" + order['order_id'] + ")'>" + (show_all_tickers?'cancel':'') + "<i class='icon-trash'/></button>" +
                         "</td>" +
                         "</tr>");
                     printed_ticker = true;
@@ -726,15 +722,17 @@ function displayCash(display_account_page, positions) {
             "<th>Position</th>" +
             //"<th>Low Margin</th>" +
             "<th>Reserved in Margin</th>" +
-            "<th>Withdraw</th>" +
-			"<th>Deposit</th>" + "</tr>");
+            (display_account_page ?  "<th>Withdraw</th><th>Deposit</th>":"")
+            + "</tr>");
 
     for (var key in positions) {
         $(element).append("<tr>" +
-            "<td>" + positions[key]['ticker'] + "</td>" + // don't show ticker unless needed
+            "<td>" + positions[key]['ticker'] + "</td>" + 
             "<td>" + (positions[key]['position'] / 1e8) + "</td>" +
             //"<td>" + margins['total'][0] / 1e8 + "</td>" +
             "<td>" + margins['total'][1] / 1e8 + "</td>" +
+            
+            (display_account_page?
             "<td>" +
             "<button onclick='withdrawModal()' class='btn btn-block' type='button'>" +
             " <i class='icon-minus-sign'/>" +
@@ -744,8 +742,11 @@ function displayCash(display_account_page, positions) {
             "<button onclick='deposit()' class='btn btn-block' type='button'>" +
             " <i class='icon-plus-sign'/>" +
             "</button>" +
-            "</td>" +
-            "</tr>");
+            "</td>" 
+            : "")
+
+
+            + "</tr>");
     }
 }
 
@@ -767,10 +768,12 @@ function displayPositions(show_all_tickers, positions) {
     for (var key in positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) {// if this ticker is to be shown
             var ticker = positions[key]['ticker'];//(typeof positions[key]['ticker'] =='number')?SITE_POSITIONS[ticker]['ticker']:positions[key]['ticker']
+            /*
             console.log('the key',key);
             console.log('the position array', positions);
             console.log('omfg fuck you ticker',ticker);
             console.log('margins',margins);
+            */
     //		console.log(ticker == SITE_TICKER);
     //		console.log(element);
             $(element).append("<tr>" +

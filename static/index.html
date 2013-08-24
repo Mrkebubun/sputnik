@@ -59,8 +59,22 @@
 <div class="tab-pane" id="TradeTab">     <!--  item 2 contains a single market and the control panel-->
 
 
+<div class="container-fluid offset1 span3">  <!-- make this dissappear on tablets, phones and smaller displays-->
+                            <h3> Description </h3>
+                            <p id="descriptionText">blah blah</p>
 
-    <div class="container"><!--interior container-->
+                            <h3>Cash</h3>
+                            <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
+                            <h3>Position</h3>
+                            <table id="market_position_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
+                            <h3>Open Orders</h3>
+                            <table id="market_order_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
+
+</div>
+
+    <div class="container-fluid span12"><!--interior container-->
         <h2 class="" id="currentMarket"></h2> <h3 class="muted" id="currentTicker"></h3>
 
         <div class="container span9">
@@ -141,33 +155,8 @@
                 <!--</div>  end of control panel div-->
             </div>
 
-            <div class="row">
-                <hr>
 
 
-                <div class="tabbable"> <!-- Only required for left/right tabs -->
-                    <ul class="nav nav-tabs">
-                        <li class="active"><a href="#position" data-toggle="tab">Position</a></li>
-                        <li><a href="#description" data-toggle="tab">Description</a></li>
-                    </ul>
-                    <div class="tab-content">
-                        <div class="tab-pane active" id="position">
-                            <p>Cash</p>
-                            <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
-                            <p>Position</p>
-                            <table id="market_position_table"
-                                   class="table table-bordered table-striped table-condensed"></table>
-                            <p>Open Orders</p>
-                            <table id="market_order_table"
-                                   class="table table-bordered table-striped table-condensed"></table>
-                        </div>
-                        <div class="tab-pane" id="description">
-                            <p id="descriptionText">blah blah</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!--class="row span10"-->
         </div>
         <!--class="container span10"-->
 
