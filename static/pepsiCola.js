@@ -544,9 +544,9 @@ function updateTradeTable(trade) {
 		direction = 'success';
 	} else if (trade[1] < TRADE_HISTORY[0][1]) {
 		direction = 'error';
-	} else {
+	} /*else {
 		direction = 'neutral';
-	}
+	}*/
 
 	$('#tradeHistory tr:first').after("<tr class=" + direction + ">" +
 		"<td>" + displayPrice(trade[1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
@@ -554,31 +554,47 @@ function updateTradeTable(trade) {
 		"<td>" + trade[0] + "</td>" +
 		"</tr>");
 
-	TRADE_HISTORY.unshift(trade);
+	TRADE_HISTORY.push(trade);  //vs. unshift() ...?
 }
 
 function tradeTable(trades, fullsize) {
+    console.log('in tradeTable');
+
     var length = fullsize ? trades.length : 25;
     $('#tradeHistory').empty()
-        .append('<tr><th>Price <p class=\'contract_unit\'></p> </th><th>Vol.</th><th>Time</th></tr>');
 
-    for (var i = 0; i < Math.min(trades.length - 1, length); i++) {
-        var direction = '';
+    var direction = 'neutral';
+    if (!fullsize) {trades = trades.slice(0,25)};
 
-        if (trades[i][1] > trades[i + 1][1]) {
+    trades.reverse();   /*trades.reverse is called again after the for loop.
+                         trying to get the order right.*/
+
+    for (var i = 1; i < trades.length; i++) {
+        console.log(direction);
+        console.log(i);
+        console.log(trades[i]);
+
+        console.log(trades[i][1] , trades[i - 1][1]);
+        if (trades[i][1] > trades[i - 1][1]) {
             direction = 'success';
-        } else if (trades[i][1] < trades[i + 1][1]) {
+        } else if (trades[i][1] < trades[i - 1][1]) {
             direction = 'error';
-        } else {
+        } /*else {
             direction = 'neutral';
-        }
+        }*/
 
-        $('#tradeHistory').append("<tr class=" + direction + ">" +
+
+        console.log(direction);
+        $('#tradeHistory').prepend("<tr class=" + direction + ">" +
             "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
             "<td>" + trades[i][2] + "</td>" +
             "<td>" + new Date(trades[i][0]).toLocaleTimeString() + "</td>" +
             "</tr>");
     }
+    trades.reverse();
+
+
+    $('#tradeHistory').prepend('<tr><th>Price <p class=\'contract_unit\'></p> </th><th>Vol.</th><th>Time</th></tr>');
 
     $('#tradeHistory').append(
         fullsize ?
