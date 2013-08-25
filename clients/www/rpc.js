@@ -150,8 +150,13 @@ function getPositions() {
             var open_tickers = _.pluck(OPEN_ORDERS,'ticker')
 
             for (var key in positions)
+                if(positions[key]['contract_type'] == 'cash')  {
+                    cash_positions[key] = positions[key];
+                }else{
                 if (positions[key]['position'] != 0 || _.contains(open_tickers, positions[key]['ticker']))
-                    (positions[key]['contract_type'] == 'cash' ? cash_positions : contract_positions)[key] = positions[key];
+                    contract_positions[key] = positions[key];
+                }
+
 
             console.log('contract positions after',contract_positions);
             displayCash(true, cash_positions);
