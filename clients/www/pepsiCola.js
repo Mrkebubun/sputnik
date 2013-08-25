@@ -1114,3 +1114,17 @@ $("#password").keypress(function (e) {
     }
 });
 
+// responsive stuff
+
+function controlPanelDisplay () {
+    if ( $(window).width() < 1904) {
+        $('#leftControlPanel').hide()
+    } else {
+        $('#leftControlPanel').show()
+    }
+
+}
+
+$(window).load(controlPanelDisplay);
+
+$(window).resize(controlPanelDisplay);
