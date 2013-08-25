@@ -1,0 +1,87 @@
+/*svg.bar {*/
+	/*display: inline-block;*/
+	/*width: 20px;*/
+	/*height: 75px;*/
+	/*background-color: teal;*/
+	/*margin-right: 2px;*/
+/*}*/
+
+/*.axis path,*/
+/*.axis line {*/
+  /*fill: none;*/
+  /*stroke: #000;*/
+  /*shape-rendering: crispEdges;*/
+/*}*/
+
+/*.x.axis path {*/
+  /*display: none;*/
+/*}*/
+
+/*.line {*/
+  /*fill: none;*/
+  /*stroke: steelblue;*/
+  /*stroke-width: 1.5px;*/
+/*}*/
+
+#monthly-volume-chart g.y
+{
+    display: none;
+}
+
+.neutral
+{
+background-color: #f9f9f9;
+}
+
+
+.footer {
+      width:100%;
+      margin: 0 auto;
+      position: fixed;
+      left: 0; bottom: 0; 
+      z-index:999;
+}
+
+.chatText {
+    width:100%;
+    margin: auto;
+}
+
+.input-append {
+    width:100%;
+}
+
+.chatInput {
+    width:93%;
+    bottom:0;
+}
+
+.push {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+}
+
+.centered {
+    margin: auto;
+    position: absolute;
+    top: 30%; left: 0; bottom: 0; right: 0;
+    width:50%;
+
+}
+
+ .center {
+    margin-left:auto;
+    margin-right:auto;
+    width:70%;
+    background-color:#b0e0e6;
+}
+
+ .centertop {
+    top: 25%;
+    right: 0;
+}
+
+ .adjustRight {
+    padding-left:40px;
+}
