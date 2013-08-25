@@ -120,7 +120,7 @@ class User(db.Base):
     bitmessage = Column(String, unique=True)
     jabber = Column(String, unique=True)
     margin = Column(BigInteger, default=0)
-    login_allowed = Column(Boolean, server_default="false", nullable=False)
+    #login_allowed = Column(Boolean, server_default="false", nullable=False)
 
 
     def __init__(self, password_hash, salt, nickname, email, bitmessage):
