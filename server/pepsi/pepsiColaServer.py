@@ -722,7 +722,7 @@ if __name__ == '__main__':
 
     # used to serve the static web page.
     # in practice, it can be served from an apache server instead
-    web_dir = File("./static")
+    web_dir = File("../../clients/www")
 
     # uncomment for SSL
     #if USE_SSL:
