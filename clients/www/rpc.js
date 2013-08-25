@@ -124,6 +124,7 @@ function placeOrder(order) {
             }
         }
     );
+    
 }
 
 function cancelOrder(cancel) {

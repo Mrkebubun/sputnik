@@ -1034,10 +1034,18 @@ function orderButton(q, p, s) {
 
 $('#sellButton').click(function () {
     orderButton(qsell.value, psell.value, 1);
+    if (qsell.value.length ==0 ) {
+       $('#processingModal').modal('hide');
+       alert('Quantity must be non-zero');
+    } 
 });
 
 $('#buyButton').click(function () {
     orderButton(qbuy.value, pbuy.value, 0);
+    if (qbuy.value.length ==0 ) {
+       $('#processingModal').modal('hide');
+       alert('Quantity must be non-zero');
+    } 
 });
 
 $('#chatButton').click(function () {
