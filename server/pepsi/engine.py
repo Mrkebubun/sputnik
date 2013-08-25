@@ -6,7 +6,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import database as db
 import models
 
-PUBLISHER_PORT = 6666
+PUBLISHER_PORT = 10000
 
 db_session = db.Session()
 

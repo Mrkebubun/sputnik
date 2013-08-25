@@ -703,7 +703,7 @@ if __name__ == '__main__':
 
     context = zmq.Context()
     socket = context.socket(zmq.constants.PULL)
-    socket.bind('tcp://0.0.0.0:6666')
+    socket.bind('tcp://0.0.0.0:10000')
 
     USE_SSL = False
 
