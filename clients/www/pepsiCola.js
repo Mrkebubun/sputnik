@@ -869,7 +869,7 @@ function welcome (MARKETS) {
     var markets = MARKETS;
     $('#welcome').empty()
         $('#welcome').append("<thead><tr>" +
-            "<th>Active Markets</th>" +
+            "<th>Most Active Markets</th>" +
             "<th>Description</th>" +
             "</tr></thead>");
 
