@@ -250,12 +250,12 @@ function getMarkets() {
             for (key in MARKETS) {
                 keys.push(key)
             }
-            setSiteTicker(keys[Math.floor((keys.length + 1) * Math.random())]);
+            setSiteTicker(keys[Math.floor((keys.length) * Math.random())]);
 
             for (key in MARKETS)
                 if (MARKETS[key].contract_type == 'futures')
                     session.subscribe(safe_price_URI + '#' + key, onSafePrice);
-            console.log(MARKETS);
+            console.log(SITE_TICKER);
         });
 }
 
