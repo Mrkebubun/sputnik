@@ -1129,10 +1129,30 @@ function controlPanelDisplay () {
 
 }
 
-$(window).load(controlPanelDisplay);
-$(window).resize(controlPanelDisplay);
+//$(window).load(controlPanelDisplay);
+//$(window).resize(controlPanelDisplay);
 $(window).resize(welcome(MARKETS));
 
 
 // onload
+
+function tradeLayout () {
+    $('#centerPanel').css('float','top')
+                     .css('position','absolute')
+                     .css('left','20%')
+                     .css('width','55%');
+
+    $('#tradeHistory').css('width','15%')
+                      .css('position','relative')
+                      .css('float','right')
+                      .css('float','top');
+
+    $('#leftControlPanel').css('width','15%')
+                          .css('z-index','-1')
+                          .css('float','top');
+
+
+}
+
+$(window).load(tradeLayout);
 

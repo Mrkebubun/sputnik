@@ -54,41 +54,25 @@
             <img id="splash" src="sputnik.jpg" class="pull-right" style="display:none;"></img>
     </div> <!-- End item one-->
 
+    <div class="tab-pane" id="TradeTab">     <!--  item 2 contains a single market and the control panel-->
+
+      <table id="tradeHistory" class="table table-bordered table-condensed"></table>
 
 
 
-<div class="tab-pane" id="TradeTab">     <!--  item 2 contains a single market and the control panel-->
-
-<div class="center"> <!-- for horizontal centering -->
-<div id="leftControlPanel" class="container-fluid span3">  <!-- make this dissappear on tablets, phones and smaller displays-->
-                            <h3> Description </h3>
-                            <p id="descriptionText">blah blah</p>
-
-                            <h3>Cash</h3>
-                            <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
-                            <h3>Position</h3>
-                            <table id="market_position_table"
-                                   class="table table-bordered table-striped table-condensed"></table>
-                            <h3>Open Orders</h3>
-                            <table id="market_order_table"
-                                   class="table table-bordered table-striped table-condensed"></table>
-
-</div>
-
-    <div class="container-fluid span12"><!--interior container-->
-        <h2 class="" id="currentMarket"></h2> <h3 class="muted" id="currentTicker"></h3>
-
-        <div class="container span9">
+    <div id="centerPanel"><!--interior container-->
+               <h2 id="currentMarket"></h2>
+               <h3 class="muted" id="currentTicker"></h3>
+        <div id ="tradeHistoryCharts">
             <!--<div id="chart1">-->
                 <!--<svg style="height: 500px;"></svg>-->
             <!--</div>-->
-
             <div id="monthly-move-chart"></div>
             <div id="monthly-volume-chart"></div>
+        </div>
 
-            <div class="row">
                 <form class='form span4 adjustRight text-center'>
-    <div class="control-group">
+                <div class="control-group">
                         <div class="controls">
                             <div class="input-prepend">
                                 <span class="add-on">#</span>
@@ -113,8 +97,6 @@
                 <!--End of Left control-->
 
                 <form class='form span4 text-center'>
-
-
                     <div class="control-group">
                         <div class="controls">
                             <div class="input-prepend">
@@ -123,8 +105,6 @@
                             </div>
                         </div>
                     </div>
-
-
                     <div class="control-group">
                         <div class="controls">
                             <div class="input-prepend">
@@ -140,11 +120,6 @@
                     </div>
                 </form>
                 <!-- end of right control-->
-                <!--</div>  end of control panel div-->
-            </div>
-
-
-            <div class="row">
                 <div class="span4 adjustRight">
                     <table id="orderBookBuys" class="table table-bordered table-striped table-condensed">
                         <!--position info--> </table>
@@ -156,21 +131,24 @@
                 </div>
             </div>
 
+        <div id="leftControlPanel">  <!-- make this dissappear on tablets, phones and smaller displays-->
+                            <h3> Description </h3>
+                            <p id="descriptionText">blah blah</p>
 
+                            <h3>Cash</h3>
+                            <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
+                            <h3>Position</h3>
+                            <table id="market_position_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
+                            <h3>Open Orders</h3>
+                            <table id="market_order_table"
+                                   class="table table-bordered table-striped table-condensed"></table>
 
         </div>
-        <!--class="container span10"-->
+    </div> <!--class="container span10"-->
 
-        <div class="container span3 pull-right">
-            <table id="tradeHistory" class="table table-bordered table-condensed">
-                <!--position info--> </table>
-        </div>
-    </div>
 
-</div>
 
-</div> <!-- for horizontal centering -->
-    <!-- end item 2-->
 
 
     <div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
