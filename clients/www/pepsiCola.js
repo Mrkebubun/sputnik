@@ -61,8 +61,6 @@ function onConnect() {
     getChatHistory();
     session.subscribe(chat_URI, onChat);
 
-    var scalingFactor = $(window).height()/$(window).width();
-    $('.centertop').css('width',parseInt(100*scalingFactor*0.55) + '%');
     //session.subscribe("http://example.com/simple", onEvent);
     /*for testing:*/
     //do_login('a', 'a');
@@ -870,7 +868,6 @@ function marketsToDisplayTree(markets) {
 function welcome (MARKETS) {
     var markets = MARKETS;
     $('#welcome').empty()
-
         $('#welcome').append("<thead><tr>" +
             "<th>Active Markets</th>" +
             "<th>Description</th>" +
@@ -886,6 +883,13 @@ function welcome (MARKETS) {
 
     }
 
+    var scalingFactor = $(window).height()/$(window).width();
+    $('#splash').css('z-index','-1')
+                .css('width',parseInt(100*scalingFactor*0.55) + '%')
+                .css('position','absolute')
+                .css('top', '15%')
+                .css('right', '5%')
+                .show();
 }
 
 function tree(datafunction) {
@@ -1126,5 +1130,9 @@ function controlPanelDisplay () {
 }
 
 $(window).load(controlPanelDisplay);
-
 $(window).resize(controlPanelDisplay);
+$(window).resize(welcome(MARKETS));
+
+
+// onload
+

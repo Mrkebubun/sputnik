@@ -243,6 +243,8 @@ function getMarkets() {
             tree(marketsToDisplayTree(res));
             MARKETS = res;
 
+            welcome (MARKETS);
+
             // randomly select a defualt market
             var keys = [];
             for (key in MARKETS) {
@@ -253,7 +255,7 @@ function getMarkets() {
             for (key in MARKETS)
                 if (MARKETS[key].contract_type == 'futures')
                     session.subscribe(safe_price_URI + '#' + key, onSafePrice);
-            welcome (MARKETS);
+            console.log(MARKETS);
         });
 }
 

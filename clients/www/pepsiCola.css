@@ -65,8 +65,8 @@ background-color: #f9f9f9;
 .centered {
     margin: auto;
     position: absolute;
-    top: 30%; left: 0; bottom: 0; right: 0;
-    width:50%;
+    top: 0; left: 0; bottom: 0; right: 0;
+    width:75%;
 
 }
 
@@ -74,12 +74,16 @@ background-color: #f9f9f9;
     margin-left:auto;
     margin-right:auto;
     width:70%;
-    background-color:#b0e0e6;
 }
 
  .centertop {
     top: 25%;
     right: 0;
+}
+
+.icon {
+    padding-left:20px;
+    padding-top:20px;
 }
 
  .adjustRight {
