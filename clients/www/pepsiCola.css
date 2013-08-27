@@ -63,10 +63,26 @@ background-color: #f9f9f9;
 }
 
 .centered {
-    margin: auto;
     position: absolute;
-    top: 0; left: 0; bottom: 0; right: 0;
-    width:75%;
+    top: 150px; left: 50%;
+    margin-left:-350px;
+    width:700px;
+
+}
+
+.left-centered {
+    position: absolute;
+    top: 150px; left: 50%;
+    margin-left:-560px;
+    width:200px;
+
+}
+
+.right-centered {
+    position: absolute;
+    top: 150px; left: 50%;
+    margin-left:350px;
+    width:200px;
 
 }
 

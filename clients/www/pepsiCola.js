@@ -1121,7 +1121,7 @@ $("#password").keypress(function (e) {
 // responsive stuff
 
 function controlPanelDisplay () {
-    if ( $(window).width() < 1904) {
+    if ( $(window).width() < 1111) {
         $('#leftControlPanel').hide()
     } else {
         $('#leftControlPanel').show()
@@ -1132,27 +1132,9 @@ function controlPanelDisplay () {
 //$(window).load(controlPanelDisplay);
 //$(window).resize(controlPanelDisplay);
 $(window).resize(welcome(MARKETS));
+//$(window).resize(tradeLayout());
 
 
 // onload
 
-function tradeLayout () {
-    $('#centerPanel').css('float','top')
-                     .css('position','absolute')
-                     .css('left','20%')
-                     .css('width','55%');
-
-    $('#tradeHistory').css('width','15%')
-                      .css('position','relative')
-                      .css('float','right')
-                      .css('float','top');
-
-    $('#leftControlPanel').css('width','15%')
-                          .css('z-index','-1')
-                          .css('float','top');
-
-
-}
-
-$(window).load(tradeLayout);
 
