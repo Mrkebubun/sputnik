@@ -147,7 +147,6 @@ class FillSubscriptionHandler:
     def publish(self, topicUriPrefix, topicUriSuffix, event):
         return None
 
-
 class PepsiColaServerProtocol(WampCraServerProtocol):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
@@ -163,6 +162,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     #                           'sub': True}],
     #               'rpc': [{'uri': 'http://example.com/procedures/place_order',
     #                        'call': True}]}
+
+    def limit(func):
+        lastTimeCalled = [0.0]
+        def kick(self,*arg, **args):
+            print 'limiting....'
+            elapsed = time.clock() - lastTimeCalled[0]
+
+            if (elapsed < RATE_LIMIT):
+                self.count += 1
+
+            lastTimeCalled[0] = time.clock()
+
+            print self.count 
+            if self.count > 30:
+                WampCraServerProtocol.dropConnection(self)
+            return func(self,*arg, **args)
+        return kick
 
     def connectionMade(self):
         """
@@ -233,40 +249,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # call base class method
         WampCraServerProtocol.onSessionOpen(self)
-
-    def bootClient(f):
-        def deco(self):
-            WampCraServerProtocol.dropConnection(self)
-            f(self)
-        return deco
-
-    def rateLimit(RATE_LIMIT, violations):
-        violations = [violations]
-        minInterval = float(RATE_LIMIT) #seconds per query
-        def decorate(func):
-            lastTimeCalled = [0.0]
-            def rateLimitedFunction(*args, **kargs):
-                elapsed = time.clock() - lastTimeCalled[0]
-                if (elapsed > minInterval):
-                    print 'no throttle'
-                    lastTimeCalled[0] = time.clock()
-
-                    #slowly decrease violation count for following rules
-                    if elapsed > 10 * minInterval:
-                        violations[0] -= 1
-                elif violations[0] >100:
-                    self.bootClient()
-                    print ['6 hour ban']
-                    #self.dropConnection()
-                else:
-                    # punish chronic violators proportionate to their crime:
-                    #time.sleep(1)#max(1,violations[0] - 30))
-                    violations[0] += 1 
-                    print ['please limit to a single query ever %s seconds' % RATE_LIMIT]
-                return func(*args, **kargs)
-            print 'total violations %s' % violations[0]
-            return rateLimitedFunction
-        return decorate
 
     def getAuthPermissions(self, authKey, authExtra):
         """
@@ -347,6 +329,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
 
     @exportRpc("get_trade_history")
+    @limit
     def get_trade_history(self, ticker, time_span):
         """
         Gets a list of trades between two dates
@@ -371,6 +354,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                     models.Trade.timestamp >= from_dt, models.Trade.timestamp < to_dt))]
 
     @exportRpc("get_new_address")
+    @limit
     def get_new_address(self):
         """
         assigns a new deposit address to a user and returns the address
@@ -398,6 +382,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return ""
 
     @exportRpc("get_current_address")
+    @limit
     def get_current_address(self):
         """
         RPC call to obtain the current address associated with a particular user
@@ -414,6 +399,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("withdraw")
+    @limit
     def withdraw(self, currency, address, amount):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -448,6 +434,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_positions")
+    @limit
     def get_positions(self):
         """
         Returns the user's positions
@@ -461,6 +448,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 for x in self.db_session.query(models.Position).filter_by(user=self.user)}
 
     @exportRpc("make_account")
+    @limit
     def make_account(self, name, password_hash, salt, email, bitmessage):
         """
         creates a new user account based on a name and a password_hash
@@ -500,6 +488,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("list_markets")
+    @limit
     def list_markets(self):
         """
         Lists markets available for trading
@@ -526,6 +515,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return result
 
     @exportRpc("get_chat_history")
+    @limit
     def get_chat_history(self):
         """
         rpc use to load the last n lines of the chat box
@@ -538,6 +528,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_order_book")
+    @limit
     def get_order_book(self, ticker):
         """
         rpc used to get the cached order book
@@ -554,6 +545,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return []
 
     @exportRpc("get_open_orders")
+    @limit
     def get_open_orders(self):
         """
         gets open orders
@@ -569,7 +561,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     
     @exportRpc("place_order")
-    @rateLimit(RATE_LIMIT,0)
+    @limit
     def place_order(self, order):
         """
         Places an order on the engine
@@ -598,7 +590,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'place_order', self.count
 
     @exportRpc("get_safe_prices")
-    @rateLimit(RATE_LIMIT,0)
+    @limit
     def get_safe_prices(self, array_of_tickers):
         validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
         if array_of_tickers:
@@ -606,7 +598,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return self.factory.safe_prices
 
     @exportRpc("cancel_order")
-    @rateLimit(RATE_LIMIT,0)
+    @limit
     def cancel_order(self, order_id):
         """
         Cancels a specific order
