@@ -23,14 +23,12 @@ from autobahn.wamp import exportRpc, \
 import database as db
 import models
 
-
+RATE_LIMIT = 0.5
 MAX_TICKER_LENGTH = 100
 WEB_SOCKET_PORT = 9000
 ENGINE_HOST = "localhost"
 ACCOUNTANT_HOST = "localhost"
 ACCOUNTANT_PORT = 3342
-
-GLOBAL_SALT ='KRVlLgsQAOxJWK11yNms'
 
 def engine_listener_loop(param):
     """
@@ -154,7 +152,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
     """
-
     def __init__(self):
         pass
 
@@ -187,6 +184,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #limit user trolling
         self.troll_throttle = time.time()
+        self.count = 0
 
     def connectionLost(self, reason):
         """
@@ -235,6 +233,40 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # call base class method
         WampCraServerProtocol.onSessionOpen(self)
+
+    def bootClient(f):
+        def deco(self):
+            WampCraServerProtocol.dropConnection(self)
+            f(self)
+        return deco
+
+    def rateLimit(RATE_LIMIT, violations):
+        violations = [violations]
+        minInterval = float(RATE_LIMIT) #seconds per query
+        def decorate(func):
+            lastTimeCalled = [0.0]
+            def rateLimitedFunction(*args, **kargs):
+                elapsed = time.clock() - lastTimeCalled[0]
+                if (elapsed > minInterval):
+                    print 'no throttle'
+                    lastTimeCalled[0] = time.clock()
+
+                    #slowly decrease violation count for following rules
+                    if elapsed > 10 * minInterval:
+                        violations[0] -= 1
+                elif violations[0] >100:
+                    self.bootClient()
+                    print ['6 hour ban']
+                    #self.dropConnection()
+                else:
+                    # punish chronic violators proportionate to their crime:
+                    #time.sleep(1)#max(1,violations[0] - 30))
+                    violations[0] += 1 
+                    print ['please limit to a single query ever %s seconds' % RATE_LIMIT]
+                return func(*args, **kargs)
+            print 'total violations %s' % violations[0]
+            return rateLimitedFunction
+        return decorate
 
     def getAuthPermissions(self, authKey, authExtra):
         """
@@ -535,7 +567,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             for order in self.db_session.query(models.Order).filter_by(
                 user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
 
+    
     @exportRpc("place_order")
+    @rateLimit(RATE_LIMIT,0)
     def place_order(self, order):
         """
         Places an order on the engine
@@ -560,8 +594,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order['user_id'] = self.user.id
 
         self.accountant.send_json({'place_order': order})
+        self.count += 1
+        print 'place_order', self.count
 
     @exportRpc("get_safe_prices")
+    @rateLimit(RATE_LIMIT,0)
     def get_safe_prices(self, array_of_tickers):
         validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
         if array_of_tickers:
@@ -569,6 +606,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return self.factory.safe_prices
 
     @exportRpc("cancel_order")
+    @rateLimit(RATE_LIMIT,0)
     def cancel_order(self, order_id):
         """
         Cancels a specific order
@@ -582,6 +620,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}})
         self.accountant.send_json({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}})
+        self.count += 1
+        print 'cancel_order', self.count
 
 
     @exportSub("chat")
@@ -719,6 +759,8 @@ if __name__ == '__main__':
 
     factory.protocol = PepsiColaServerProtocol
     listenWS(factory, contextFactory)
+
+    factory.setProtocolOptions(maxMessagePayloadSize=1000) # trying to prevent excessively large messages -> http://autobahn.ws/python/reference 
 
     # used to serve the static web page.
     # in practice, it can be served from an apache server instead
