@@ -34,16 +34,25 @@
     <li> <a href="#AccountTab" id="Account" data-toggle="tab">Account</a> </li>
     <li> <a href="#AboutTab" id="About" data-toggle="tab">About</a> </li>
 
-
     <!--<li><input type="text" class="search-query" placeholder="Search"></li>-->
 
 
     <!-- modal triggers -->
     <li class="pull-right"> <a id="loginButton" href="#myModal" role="button" data-toggle="modal">Login</a> </li>
     <li class="pull-right"> <a id="registration" href="#registerModal" role="button" data-toggle="modal">Register </a> </li>
-    <li class="pull-right"> <a href="#" id="logoutButton" style="display:none;">Logout</a> </li>
-    <li class="pull-right"> <a href="#" id="loginStatus" style="display:none;"></a> </li>
+
+    <div id="loggedInMenu" class="dropdown pull-right" style="display:none;padding-right:2%;">
+      <a class="dropdown-toggle" id="dLabel" role="button" data-toggle="dropdown" data-target="#" href="/page.html">
+        Dropdown
+       <b class="caret"></b>
+      </a>
+      <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+    <li role="presentation"><a role="menuitem" href="#" onclick="$('#Account').click()" >Account</a>  </li>
+    <li role="presentation"><a role="menuitem" href="#" id="logoutButton" >Logout</a> </li>
+      </ul>
+    </div>
 </ul>
+
 
 
 

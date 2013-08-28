@@ -74,9 +74,8 @@ function onAuth(permissions) {
     logged_in = true;
 
 
-    $('#logoutButton').show();
-    $('#loginStatus').show();
-    $('#loginStatus').text('logged in as ' + login.value);
+    $('#loggedInMenu').show();
+    $('#dLabel').text('logged in as ' + login.value);
 
     $('#loginButton').hide();
     $('#registration').hide();
@@ -1005,10 +1004,11 @@ $('#Account').click(function () {
 });
 
 $('#logoutButton').click(function () {
-    logout();
 
-    $('#loginstatus').hide();
-    $('#logoutButton').hide();
+    $('#loggedInMenu').hide();
+    $('#dLabel').text('');
+
+    logout();
 
     $('#loginButton').show();
     $('#registeration').show()
