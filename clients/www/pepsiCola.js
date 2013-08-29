@@ -34,7 +34,6 @@ window.onload = function () {
 };
 
 function onChat(channelURI, msg) {
-    // console.log("Received chat message in channel " + channelURI + ":" + msg);
     var user = msg[0];
     var message = msg[1];
     CHAT_MESSAGES.push('&lt;' + user + '&gt; ' + message)
@@ -52,7 +51,6 @@ function onChat(channelURI, msg) {
 function onSafePrice(uri, event) {
     var ticker = uri.split('#')[1];
     SAFE_PRICES[ticker] = event;
-    console.log(SAFE_PRICES)
 }
 
 function onConnect() {
@@ -60,17 +58,10 @@ function onConnect() {
     getMarkets();
     getChatHistory();
     session.subscribe(chat_URI, onChat);
-
-    //session.subscribe("http://example.com/simple", onEvent);
-    /*for testing:*/
-    //do_login('a', 'a');
-    //console.log('subscribed')
 }
 
 function onAuth(permissions) {
     ab.log("authenticated!", JSON.stringify(permissions));
-    console.log('permissions (want the uris):',permissions);
-    //session.subscribe(myTopic, onEvent);
     logged_in = true;
 
 
@@ -106,20 +97,6 @@ function onAuth(permissions) {
 
     //possible to subscribe to chat, but not pub before auth?
     session.subscribe(chat_URI, onChat);
-
-    // obviously need to un hardcode this...
-    //	subToTradeStream(16);
-    //	subToTradeStream(17);
-    //	subToSafePrice('USD.13.7.31');
-    //	subToOrderBook('USD.13.7.31');
-    //	subToFills(8);
-    //	subToCancels(8);
-    //    subToOpenOrders(8);
-
-    //no longer necessary to switch to trade immediatealy as we have asplash screen.
-    //switchToTrade ('USD.13.7.31')
-
-
 }
 
 function onEvent(topicUri, event) {
@@ -135,19 +112,17 @@ function onEvent(topicUri, event) {
 
 function onBookUpdate(topicUri, event) {
     console.log('in onBookUpdate');
-    //console.log('in onBookUpdate', SITE_TICKER, topicUri, event);
 	ORDER_BOOK = JSON.parse(event);
 	updateOrderBook(ORDER_BOOK,ORDER_BOOK_VIEW_SIZE);
 }
 
 function onFill(topicUri, event) {
     //must get rid of safe price rpc!
+    console.log('in onFill', SITE_TICKER, topicUri, event);
+
     getSafePrices(Object.keys(MARKETS));
 
-
-    console.log('in onFill', SITE_TICKER, topicUri, event);
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
-    //sendChat('filled order: '+JSON.stringify(event) );
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
     displayOrders(false,OPEN_ORDERS);
@@ -158,21 +133,18 @@ function onFill(topicUri, event) {
 
 function onOpenOrder(topicUri, event) {
     //must get rid of safe price rpc!
+    console.log('in onOpenOrder', SITE_TICKER, topicUri, event);
+
     getSafePrices(Object.keys(MARKETS));
 
-    console.log('in onOpenOrder', SITE_TICKER, topicUri, event);
 
     var new_open_order = {'order_id': event['order'],
                           'price':    event['price'],
                           'quantity': event['quantity'],
                           'side':     event['side']==0?'BUY':'SELL',
                           'ticker':   event['ticker']};
-    console.log(new_open_order);
     OPEN_ORDERS.push(new_open_order);
     
-    // publish to seperate feed, not chat.
-    //sendChat('placed order: '+JSON.stringify(event) );
-
 //    displayPositions(false,SITE_POSITIONS);
 //    displayPositions(true,SITE_POSITIONS);
 //      replace with 
@@ -184,13 +156,8 @@ function onOpenOrder(topicUri, event) {
 function onCancel(topicUri, event) {
     console.log('in onCancel', SITE_TICKER, topicUri, event);
 
-    console.log(event);
-    console.log('before', OPEN_ORDERS)
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
-    console.log('after', OPEN_ORDERS)
 
-    // publish to seperate feed, not chat.
-    //sendChat('cancelled order: '+JSON.stringify(event) );
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
@@ -202,23 +169,13 @@ function onCancel(topicUri, event) {
 
 function onTrade(topicUri, event) {
     //must get rid of safe price rpc!
+    console.log('in onTrade', SITE_TICKER, topicUri, event);
+
     getSafePrices(Object.keys(MARKETS));
 
-
-    console.log('in onTrade', SITE_TICKER, topicUri, event);
 	now = new Date().toLocaleTimeString();
 	updateTradeTable([now, event['price'], event['quantity'] ]);
-	//TRADE_HISTORY.push(event['price']
-
-//    if (SITE_TICKER in JSON.parse(event)) {
-//        console.log('got event');
-//        //todo: find where needed
-//        orderBook(SITE_TICKER);
-//        getTradeHistory(SITE_TICKER);
-//    }
-
 }
-
 
 //subscribe functions (may want to put intial rpc call in them as well)
 
@@ -257,15 +214,9 @@ function sendChat(message) {
 }
 
 function setSiteTicker(ticker) {
-//    try{
-//        session.unsubscribe(safe_price_URI+"#"+SITE_TICKER);
-//    } catch(e) {}
-
     SITE_TICKER = ticker;
-//    session.subscribe(safe_price_URI+'#'+SITE_TICKER, onSafePrice);
     $('.contract_unit').text(MARKETS[SITE_TICKER]['contract_type'] == 'futures' ? '฿' : '%');
 }
-
 
 //currency functions
 
@@ -492,11 +443,6 @@ function displayPrice(price, denominator, tick_size, contract_type) {
     }
     var dp = decimalPlacesNeeded(denominator / ( percentage_adjustment * tick_size));
 
-    /*
-     console.log(contract_type) ;
-     console.log(price) ;
-     console.log( ((price * percentage_adjustment)/ denominator ).toFixed(dp)+ ' ' + contract_unit);
-     */
     return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
 
 }
@@ -509,7 +455,6 @@ function updateOrderBook(book, full_size) {
             var denominator = MARKETS[key]['denominator'];
             var tick_size = MARKETS[key]['tick_size'];
             var contract_type = MARKETS[key]['contract_type'];
-            //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
 
             for (var i = 0; i < book.length; i++) {
                 var price = Number(book[i]['price']);
@@ -517,18 +462,11 @@ function updateOrderBook(book, full_size) {
                 ((book[i]['order_side'] == 0) ? buyBook : sellBook).push([price , quantity]);
             }
 
-            console.log(buyBook);
             buyBook = stackBook(buyBook);
             sellBook = stackBook(sellBook);
 
             sellBook.reverse();
-           /*
-           if(!full_size){
-                buyBook = buyBook.slice(0,10)
-                sellBook = sellBook.slice(0,10)
-           }
-           */
-            console.log(buyBook);
+
             graphTable(buyBook, "buy", ORDER_BOOK_VIEW_SIZE);
             graphTable(sellBook, "sell", ORDER_BOOK_VIEW_SIZE);
 	}
@@ -567,21 +505,12 @@ function tradeTable(trades, fullsize) {
                          trying to get the order right.*/
 
     for (var i = 1; i < trades.length; i++) {
-        console.log(direction);
-        console.log(i);
-        console.log(trades[i]);
-
-        console.log(trades[i][1] , trades[i - 1][1]);
         if (trades[i][1] > trades[i - 1][1]) {
             direction = 'success';
         } else if (trades[i][1] < trades[i - 1][1]) {
             direction = 'error';
-        } /*else {
-            direction = 'neutral';
-        }*/
+        } 
 
-
-        console.log(direction);
         $('#tradeHistory').prepend("<tr class=" + direction + ">" +
             "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
             "<td>" + trades[i][2] + "</td>" +
@@ -622,9 +551,6 @@ function graphTable(table, side, fullsize) {
 //        length = 10;
 //    }
     var length = fullsize ? table.length : 10;
-    console.log('in graphTable');
-    console.log(fullsize);
-    console.log(length);
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
 
 	var denominator = MARKETS[SITE_TICKER]['denominator'];
@@ -655,13 +581,6 @@ function graphTable(table, side, fullsize) {
 							row_string + "</tr>");
 
 			// highlight user's orders
-            /*
-            console.log('highlight user orders');
-            console.log(table[i][1]);
-            console.log(OPEN_ORDERS);
-            console.log(_.pluck(OPEN_ORDERS,table[i][1] ))
-            console.log(_.contains(_.pluck(OPEN_ORDERS,'price'),table[i][1] ));
-            */
 			if (_.contains(
                             _.pluck(
                                     _.filter(OPEN_ORDERS, function (order){return order['ticker']==SITE_TICKER;})
@@ -803,26 +722,12 @@ function displayPositions(show_all_tickers, positions) {
     for (var key in positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) {// if this ticker is to be shown
             var ticker = positions[key]['ticker'];//(typeof positions[key]['ticker'] =='number')?SITE_POSITIONS[ticker]['ticker']:positions[key]['ticker']
-            /*
-            console.log('the key',key);
-            console.log('the position array', positions);
-            console.log('omfg fuck you ticker',ticker);
-            console.log('margins',margins);
-            */
-    //		console.log(ticker == SITE_TICKER);
-    //		console.log(element);
             $(element).append("<tr>" +
                 (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
                 "<td>" + positions[key]['position'] + "</td>" +
                 //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
                 "<td>" + margins[ticker][0] / 1e8 + "</td>" +
                 "</tr>");
-    //			console.log("<tr>" +
-    //            (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
-    //            "<td>" + positions[key]['position'] + "</td>" +
-    //            //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
-    //            "<td>" + margins[ticker][0] / 1e8 + "</td>" +
-    //            "</tr>")
             }
     }
 }
@@ -907,8 +812,6 @@ function welcome (MARKETS) {
             "</tr></thead>");
 
     for (row in markets) {
-
-        console.log("<tr>" + "<td>"+ row + "</td>" + "<td>" + markets[row]['description'] + "</td>" + "</tr>");
         $('#welcome').append("<tr onclick='switchToTrade(\""+ row +"\")' >" +
             "<td>"+ row + "</td>" +
             "<td>" + markets[row]['description'] + "</td>" +
@@ -1051,7 +954,6 @@ $('#logoutButton').click(function () {
 });
 
 $('#registerButton').click(function () {
-    console.log(registerPassword.value);
     makeAccount(registerLogin.value, registerPassword.value, registerEmail.value, registerBitMessage.value);
 });
 
