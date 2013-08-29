@@ -1072,49 +1072,38 @@ function orderButton(q, p, s) {
     }
 }
 
-$('#sellButton').click(function () {
+function checkOrder(side) {
+    var price    = (side == 'buy' ? pbuy.value : psell.value);
+    var quantity = (side == 'buy' ? qbuy.value : qsell.value);
 
-    if (qsell.value.length ==0 ) {
+    if (quantity.length ==0 ) {
        $('#processingModal').modal('hide');
        alert('Quantity must be non-zero');
-       return false
-    } 
-
-    if (isNaN(qsell.value) || isNaN(psell.value) ){
+       return false;
+    } else if (isNaN(quantity) || isNaN(price) ){
        $('#processingModal').modal('hide');
        alert('Please only enter numbers');
-       return false
-    } 
-    
-    if (psell.value * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
+       return false;
+    } else if (parseFloat(price) * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
        $('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
-       return false
+       return false;
+    } else {
+        return true;
     }
+}
 
-    orderButton(qsell.value, psell.value, 1);
+$('#sellButton').click(function () {
+
+    if (checkOrder('sell')){
+        orderButton(qsell.value, psell.value, 1);
+    }
 });
 
 $('#buyButton').click(function () {
-    if (qbuy.value.length ==0 ) {
-       $('#processingModal').modal('hide');
-       alert('Quantity must be non-zero');
-       return false
-    } 
-
-    if (isNaN(qbuy.value) || isNaN(pbuy.value) ){
-       $('#processingModal').modal('hide');
-       alert('Please only enter numbers');
-       return false
-    } 
-    
-    if (pbuy.value * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
-       $('#processingModal').modal('hide');
-       alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
-       return false
+    if (checkOrder('buy')){
+        orderButton(qbuy.value, pbuy.value, 0);
     }
-
-    orderButton(qbuy.value, pbuy.value, 0);
 });
 
 $('#chatButton').click(function () {

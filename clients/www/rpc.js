@@ -38,6 +38,8 @@ function connect() {
         },
 
         function (code, reason, detail) {
+            alert('disconnected!!!');
+            logout();
             session = null;
             switch (code) {
                 case ab.CONNECTION_UNSUPPORTED:
@@ -85,6 +87,12 @@ function failed_login(err) {
 function logout() {
     session.close();
     logged_in = false;
+    $('#loggedInMenu').hide();
+    $('#dLabel').text('');
+
+    $('#loginButton').show();
+    $('#registration').show();
+    $('#PennyArcade').click();
 }
 
 function getTradeHistory(ticker) {
