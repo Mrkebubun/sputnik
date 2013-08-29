@@ -240,7 +240,7 @@ function getOpenOrders() {
 function getMarkets() {
     session.call(markets_URI).then(
         function (res) {
-            tree(marketsToDisplayTree(res));
+            newMarketsToDisplay(res);
             MARKETS = res;
 
             welcome (MARKETS);

@@ -827,6 +827,39 @@ function displayPositions(show_all_tickers, positions) {
     }
 }
 
+
+function newMarketsToDisplay(markets) {
+
+    markets = _.pairs(markets);    
+
+    var predictions = _.filter(markets, function(item) { return item[1]["contract_type"] == "prediction";});
+    var futures = _.filter(markets, function(item) { return item[1]["contract_type"] == "futures";});
+    
+    var pList = [];
+    for (market in predictions){
+        pList.push("<li><a onclick='switchToTrade(\"" + predictions[market][0] + "\")' href='#'> <small style='padding-right:1em;'>" +  predictions[market][0] + "</small>"+predictions[market][1]['description'] + "</a></li>")
+    }
+
+    var fList = [];
+    for (market in futures){
+        fList.push("<li><a onclick='switchToTrade(\"" + futures[market][0] + "\")' href='#'><small style='padding-right:1em;'>" +  futures[market][0] + "</small>"+futures[market][1]['description'] + "</a></li>")
+    }
+
+    $('#tabs').prepend(
+   ' <li class="dropdown offset1">' +
+        '<a class="dropdown-toggle" data-toggle="dropdown" href="#"> Markets <b class="caret"></b> </a>' +
+                '<ul class="dropdown-menu ">' + 
+                                            '<li class="nav-header">Predictions</li>' +
+                                                pList.join('') +
+                                           '<li class="nav-header">Futures</li>' +
+                                                fList.join('') +
+                '</ul>' +
+    '</li>'
+
+                      );
+}
+
+/*
 function marketsToDisplayTree(markets) {
     var displayMarket = {};
     displayMarket['key'] = 'Markets';
@@ -863,6 +896,7 @@ function marketsToDisplayTree(markets) {
 
     return [displayMarket];
 }
+*/
 
 function welcome (MARKETS) {
     var markets = MARKETS;
@@ -891,6 +925,7 @@ function welcome (MARKETS) {
                 .show();
 }
 
+/*
 function tree(datafunction) {
     nv.addGraph(function () {
         var chart = nv.models.indentedTree()
@@ -926,6 +961,7 @@ function tree(datafunction) {
         return chart;
     });
 }
+*/
 
 
 function switchToTrade (new_ticker) {
