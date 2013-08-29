@@ -245,6 +245,9 @@
                     <dd> Let X the price of the asset, Y be the lot size of the futures contract (namely the quantity of the asset represented by a single contract),  and Z the percent required for margin:</dd>
                     <dd>Purchasing n contracts requires at least X*Y*Z bitcoins in margin.</dd>
                     <dd>Margin is required as soon as you place an order, even if it does not immediately fill or is yet to be filled by a counter party's order. Margin is returned if the order is cancelled before it is filled.</dd>
+                    <dd>Margin is adjusted <strong>continuously</strong> according to the <em>Safe Price</em>.</dd>
+                    <dd>Let S be the <em>Safe Price</em>, then the required margin is: .....</dd>
+                    <dd>The <em>Safe Price</em> is computed as follows.... </dd>
                     </blockquote>
 
                 </p>
@@ -257,10 +260,29 @@
                 c.f. <a href="http://en.wikipedia.org/wiki/Futures_contract">Wikipedia</a>
         </dl>
 <hr>
-<p>Contact:</h3>
+<h3>Security:</h3>
+<dl>
+    <dt>Authentication</dt>
+        <dd> Authentication is challenge-response over TLS (modern name for SSL).  Passwords are randomly salted.  Two Factor authentication.</dd>
+    <dt>Cold Wallet</dt>
+        <dd> 90% of the funds are stored offline in a cold wallet. If the hot wallet is compromised, we will take cover all losses.</dd>
+</dl>
+
+<hr>
+<h3>FAQ:</h3>
+<dl>
+    <dt>Are you really Satoshi Nakamoto?</dt>
+        <dd> Yes. </dd>
+</dl>
+<hr>
+<h3>Contact:</h3>
 <address>
   <strong>Satoshi Nakamoto</strong><br>
-  <a href="mailto:#">satoshi@sputnik.com</a>
+  <a href="mailto:#">satoshi@sputnik.com</a><br>
+
+
+<a href="https://twitter.com/satoshinakamoto" class="twitter-follow-button" data-show-count="false">Follow @satoshinakamoto</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
 </address> 
   <pre>
 -----BEGIN PGP PUBLIC KEY BLOCK-----
