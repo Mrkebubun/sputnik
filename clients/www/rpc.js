@@ -85,7 +85,6 @@ function failed_login(err) {
 };
 
 function logout() {
-    session.close();
     logged_in = false;
     $('#loggedInMenu').hide();
     $('#dLabel').text('');
@@ -138,8 +137,6 @@ function placeOrder(order) {
 function cancelOrder(cancel) {
     session.call(cancel_order_URI, cancel).then(
         function (res) {
-            console.log(cancel);
-            console.log(res);
             $('#cancel_order_row_' + cancel).addClass('warning');
             $('#cancel_button_' + order_id).attr('disabled', 'disabled')
                 .removeClass('btn-danger');
@@ -167,7 +164,6 @@ function getPositions() {
                 }
 
 
-            console.log('contract positions after',contract_positions);
             displayCash(true, cash_positions);
             displayCash(false, cash_positions);
             displayPositions(true, contract_positions);
@@ -178,6 +174,7 @@ function getPositions() {
 function orderBook(ticker) {
     session.call(get_order_book_URI, ticker).then(
         function (book) {
+            ORDER_BOOK = book;
             var buyBook = [];
             var sellBook = [];
 
@@ -195,11 +192,8 @@ function orderBook(ticker) {
             buyBook = stackBook(buyBook);
             sellBook = stackBook(sellBook);
 
-//            for (var i = 0; i < sellBook.length; i++)
-//                sellBook[i].reverse();
             sellBook.reverse();
 
-			//console.log('buybook',buyBook[0]);
             graphTable(buyBook, "buy", false);
             graphTable(sellBook, "sell", false);
             suggestOrder()
@@ -246,6 +240,7 @@ function getOpenOrders() {
 }
 
 function getMarkets() {
+    console.log('in getMarkets');
     session.call(markets_URI).then(
         function (res) {
             newMarketsToDisplay(res);

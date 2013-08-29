@@ -95,6 +95,7 @@ function onAuth(permissions) {
     try{ session.subscribe(open_orders_URI + user_id, onOpenOrder);}
         catch(err){console.log(err);}
 
+    switchBookSub (SITE_TICKER);
     //possible to subscribe to chat, but not pub before auth?
     session.subscribe(chat_URI, onChat);
 }
@@ -446,7 +447,9 @@ function displayPrice(price, denominator, tick_size, contract_type) {
     return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
 
 }
+
 function updateOrderBook(book, full_size) {
+    console.log('in updateOrderBook');
 	for (key in book){
 			book = book[key];	
             var buyBook = [];
@@ -545,11 +548,6 @@ function suggestOrder() {
 };
 
 function graphTable(table, side, fullsize) {
-//    if (fullsize) {
-//        length = trades.length;
-//    } else {
-//        length = 10;
-//    }
     var length = fullsize ? table.length : 10;
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
 
@@ -868,7 +866,12 @@ function tree(datafunction) {
 
 
 function switchToTrade (new_ticker) {
+    console.log('in switchToTrade');
+    switchBookSub(new_ticker);
+	$('#Trade').click();
+}
 
+function switchBookSub (ticker) {
     //need to fix this hardcoding
     id = SITE_TICKER=='USD.13.7.31'?17:16; 
 
@@ -890,7 +893,7 @@ function switchToTrade (new_ticker) {
         catch(err){console.log(err);}
     */
 
-	setSiteTicker(new_ticker);
+	setSiteTicker(ticker);
 
     id = SITE_TICKER=='USD.13.7.31'?17:16; 
 
@@ -901,7 +904,6 @@ function switchToTrade (new_ticker) {
     try{ session.subscribe(safe_prices_URI+SITE_TICKER ,onSafePrice);}
         catch(err){console.log(err);}
 
-	$('#Trade').click();
 }
 
 //Notification messages
