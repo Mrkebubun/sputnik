@@ -1073,40 +1073,48 @@ function orderButton(q, p, s) {
 }
 
 $('#sellButton').click(function () {
-    orderButton(qsell.value, psell.value, 1);
 
     if (qsell.value.length ==0 ) {
        $('#processingModal').modal('hide');
        alert('Quantity must be non-zero');
+       return false
     } 
 
-    if (isNaN(parseFloat(qsell.value)) || isNaN(parseFloat(psell.value)) ){
+    if (isNaN(qsell.value) || isNaN(psell.value) ){
        $('#processingModal').modal('hide');
        alert('Please only enter numbers');
+       return false
     } 
     
     if (psell.value * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
        $('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
+       return false
     }
+
+    orderButton(qsell.value, psell.value, 1);
 });
 
 $('#buyButton').click(function () {
-    orderButton(qbuy.value, pbuy.value, 0);
     if (qbuy.value.length ==0 ) {
        $('#processingModal').modal('hide');
        alert('Quantity must be non-zero');
+       return false
     } 
 
-    if (isNaN(parseFloat(qbuy.value)) || isNaN(parseFloat(pbuy.value)) ){
+    if (isNaN(qbuy.value) || isNaN(pbuy.value) ){
        $('#processingModal').modal('hide');
        alert('Please only enter numbers');
+       return false
     } 
     
     if (pbuy.value * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
        $('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
+       return false
     }
+
+    orderButton(qbuy.value, pbuy.value, 0);
 });
 
 $('#chatButton').click(function () {
