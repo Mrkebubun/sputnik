@@ -73,6 +73,7 @@
             <!--<div id="chart1">-->
                 <!--<svg style="height: 500px;"></svg>-->
             <!--</div>-->
+            <small style="position:absolute; right:50px;">Trade History & Volume</small>
             <div id="monthly-move-chart"></div>
             <div id="monthly-volume-chart"></div>
         </div>
@@ -195,15 +196,20 @@
                     <dd> The cost of a prediction and the potential payout depends on the price the order is filled at and whether it is a buy or a sell.</dd>
                 </p>
                 <p><dt>Formally:</dt>
+
                     <blockquote>
                     <dd> Let Y be the size of a prediction contract and X% the price of the prediction:
                     <dd> If it is a <em class="text-success">buy</em>, the cost is X% of Y and the payout is (100-X)% of Y,</dd>
                     <dd> If it is a <em class="text-error">sell</em>, the cost is (1-X)% of Y and the payout is X% of Y,</dd>
+                    <dd> The cost of the prediction is deducted soon as you place an order, even if it does not immediately fill or is yet to be filled by a counter party's order. The bitcoins are returned if the order is cancelled before it is filled.</dd>
                     </blockquote>
 
                     <dd> This payout scheme makes the expected value of a prediction zero if the price is accurate.</dd>
                 </p>
+                <p><dt>Example:</dt>
+                </p>
 
+                <hr>
                 <p>Prediction markets can be used to gauge the probability of a future event, hedge against an 
                 undesirable event, or generate profit for a savy speculator.</p>
 
@@ -234,12 +240,18 @@
                     <dd> The initial cost of a future is the margin.  As the margin fluctuates, money will be taken or returned from your account to maintain the new margin.</dd>
                 </p>
                 <p><dt>Formally:</dt>
+
                     <blockquote>
-                    <dd> Let Y be the size of a futures contract and X the price of the prediction:
+                    <dd> Let X the price of the asset, Y be the lot size of the futures contract (namely the quantity of the asset represented by a single contract),  and Z the percent required for margin:</dd>
+                    <dd>Purchasing n contracts requires at least X*Y*Z bitcoins in margin.</dd>
+                    <dd>Margin is required as soon as you place an order, even if it does not immediately fill or is yet to be filled by a counter party's order. Margin is returned if the order is cancelled before it is filled.</dd>
                     </blockquote>
 
                 </p>
+                <p><dt>Example:</dt>
+                </p>
 
+                <hr>
                 <p>Futures can be used to hedge against price fluctuations, or make a leveraged bet on the rise or fall of an assets price.</p>
 
                 c.f. <a href="http://en.wikipedia.org/wiki/Futures_contract">Wikipedia</a>
