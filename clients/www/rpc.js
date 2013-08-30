@@ -54,7 +54,7 @@ function connect() {
             }
         },
 
-        {'maxRetries': 60, 'retryDelay': 1000}
+        {'maxRetries': 5, 'retryDelay': 1000}
     );
 }
 
@@ -92,6 +92,13 @@ function logout() {
     $('#loginButton').show();
     $('#registration').show();
     $('#PennyArcade').click();
+    
+    //clear user data:
+    $('.table').empty()
+    SITE_POSITIONS = [];
+    OPEN_ORDERS = [];
+    console.log(OPEN_ORDERS);
+    //need to unsubscribe from everything.
 }
 
 function getTradeHistory(ticker) {
@@ -105,7 +112,7 @@ function getTradeHistory(ticker) {
         function (trades) {
             build_trade_graph(trades);
             TRADE_HISTORY = trades.reverse();
-            tradeTable(TRADE_HISTORY, false);
+            tradeTable(TRADE_HISTORY, true);
         })
 }
 
@@ -172,6 +179,7 @@ function getPositions() {
 }
 
 function orderBook(ticker) {
+    console.log('in orderBook');
     session.call(get_order_book_URI, ticker).then(
         function (book) {
             ORDER_BOOK = book;
@@ -194,8 +202,8 @@ function orderBook(ticker) {
 
             sellBook.reverse();
 
-            graphTable(buyBook, "buy", false);
-            graphTable(sellBook, "sell", false);
+            graphTable(buyBook, "buy",true);// ORDER_BOOK_VIEW_SIZE);
+            graphTable(sellBook, "sell",true);//ORDER_BOOK_VIEW_SIZE);
             suggestOrder()
         }
     );

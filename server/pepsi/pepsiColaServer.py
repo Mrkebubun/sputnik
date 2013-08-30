@@ -177,6 +177,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             print self.count 
             if self.count > 30:
                 WampCraServerProtocol.dropConnection(self)
+                WampCraServerProtocol.connectionLost(self, 'rate limit exceeded')
             return func(self,*arg, **args)
         return kick
 
@@ -235,11 +236,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_order_book])
         self.registerForRpc(self, 'http://example.com/procedures/', methods=[PepsiColaServerProtocol.get_chat_history])
 
-        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("http://example.com/user/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/user/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
 
         self.registerForPubSub("http://example.com/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
 
@@ -327,6 +323,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
+
+        # moved from onSessionOpen
+        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
+        self.registerForPubSub("http://example.com/user/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
 
     @exportRpc("get_trade_history")
     @limit

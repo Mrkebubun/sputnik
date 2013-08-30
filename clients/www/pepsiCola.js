@@ -470,8 +470,8 @@ function updateOrderBook(book, full_size) {
 
             sellBook.reverse();
 
-            graphTable(buyBook, "buy", ORDER_BOOK_VIEW_SIZE);
-            graphTable(sellBook, "sell", ORDER_BOOK_VIEW_SIZE);
+            graphTable(buyBook, "buy",true);// ORDER_BOOK_VIEW_SIZE);
+            graphTable(sellBook, "sell",true);//ORDER_BOOK_VIEW_SIZE);
 	}
 }
 
@@ -548,6 +548,8 @@ function suggestOrder() {
 };
 
 function graphTable(table, side, fullsize) {
+    console.log('in graphTable');
+    console.log(fullsize);
     var length = fullsize ? table.length : 10;
     var id = (side == 'buy') ? '#orderBookBuys' : '#orderBookSells';
 
