@@ -58,6 +58,9 @@ function onConnect() {
     getMarkets();
     getChatHistory();
     session.subscribe(chat_URI, onChat);
+
+    //load the active markets for search typeahead.
+    $('#search').typeahead({source : _.keys(MARKETS)});
 }
 
 function onAuth(permissions) {
@@ -1096,5 +1099,4 @@ $(window).resize(welcome(MARKETS));
 
 
 // onload
-
 
