@@ -254,7 +254,11 @@ function getMarkets() {
             newMarketsToDisplay(res);
             MARKETS = res;
 
+            //load up the splash page
             welcome (MARKETS);
+
+            //load the active markets for search typeahead.
+            $('#search').typeahead({source : _.keys(MARKETS)});
 
             // randomly select a defualt market
             var keys = [];
