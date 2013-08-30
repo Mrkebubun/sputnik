@@ -175,7 +175,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             lastTimeCalled[0] = time.clock()
 
             print self.count 
-            if self.count > 30:
+            if self.count > 100:
                 WampCraServerProtocol.dropConnection(self)
                 WampCraServerProtocol.connectionLost(self, 'rate limit exceeded')
             return func(self,*arg, **args)

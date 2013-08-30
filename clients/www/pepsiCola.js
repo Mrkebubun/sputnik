@@ -1047,6 +1047,33 @@ $('#PennyArcade').click(function () {
     welcome (MARKETS)
 });
 
+$("#searchButton").click(function () {
+    if (search.value =='BTC.13.7.12.gt.70'){
+        $('#USD').hide();
+        $('#searchPlaceHolder').hide()
+        $('#BTC').show();
+    } else if (search.value =='USD.13.7.31'){
+        $('#BTC').hide();
+        $('#searchPlaceHolder').hide()
+        $('#USD').show();
+    } else {
+        $('#BTC').hide();
+        $('#USD').hide();
+        $('#searchPlaceHolder').show()
+    }
+});
+
+$('#suggestContractButton').click(function () {
+    $('#suggestionModal').modal('show');
+});
+
+$("input#search").keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        $('#searchButton').click();
+    }
+});
+
 $("input#chatBox.chatInput").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
@@ -1078,6 +1105,7 @@ $("#password").keypress(function (e) {
         $('#login_button').click();
     }
 });
+
 
 // responsive stuff
 
