@@ -283,21 +283,25 @@
     <div class="modal-body">
        <form>
     <fieldset>
-    <label>Contract Name</label>
-    <input type="text" placeholder="Type something…">
+    <label>Contract Name:</label>
+        <input type="text" placeholder="Type something…">
+    <label>Contract Type:</label>
+        <input type="text" placeholder="Type something…">
+    <label>Tick Size:</label>
+        <input type="text" placeholder="Type something…">
+    <label>Margin (if a future):</label>
+        <input type="text" placeholder="Type something…">
+    <label>Close Date:</label>
+        <input type="text" placeholder="Type something…">
     <span class="help-block">Example block-level help text here.</span>
-    <label>Contract Type</label>
-    <input type="text" placeholder="Type something…">
-    <span class="help-block">Example block-level help text here.</span>
-    <label class="checkbox">
-    <input type="checkbox"> Check me out
-    <button type="submit" class="btn">Submit</button>
     </fieldset>
     </form> 
     </div>
     <!--end modal-body-->
     <div class="modal-footer">
-        <button id="" class="btn btn-large pull-right btn-info" data-dismiss="modal" aria-hidden="true">Submit </button>
+        <button class="btn btn-large " data-dismiss="modal" aria-hidden="true">Cancel </button>
+        <!--type="button"-->
+        <button id="submitSuggestion" class="btn btn-large pull-right btn-info" data-dismiss="modal" aria-hidden="true">Submit </button>
         <!--type="button"-->
     </div>
 </div>
@@ -319,8 +323,7 @@
                 <p><dt>Margin Required</dt>
                     <dd>30%</dd>
                 </p>
-                <p><dt>Example:</dt>
-                </p>
+            <button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
 
             <hr>
             <p class="lead">Minining Difficulty </p>
@@ -338,9 +341,8 @@
                 <p><dt>Margin Required</dt>
                     <dd>30%</dd>
                 </p>
-                <p><dt>Example:</dt>
-                </p>
 
+            <button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
             <hr>
             </div>
 
