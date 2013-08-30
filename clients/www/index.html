@@ -78,12 +78,12 @@
             <div id="monthly-volume-chart"></div>
         </div>
 
-                <form class='form span4 adjustRight text-center'>
+                <form class='form centerCenterLeft'>
                 <div class="control-group">
                         <div class="controls">
                             <div class="input-prepend">
                                 <span class="add-on">#</span>
-                                <input id="qbuy" type="text" placeholder="quantity" value=0>
+                                <input id="qbuy" class="input-custom-size" type="text" placeholder="quantity" value=0>
                             </div>
                         </div>
                     </div>
@@ -91,24 +91,24 @@
                         <div class="controls">
                             <div class="input-prepend">
                                 <span class="add-on contract_unit"></span>
-                                <input id="pbuy" type="text" placeholder="price">
+                                <input id="pbuy" class="input-custom-size" type="text" placeholder="price">
                             </div>
                         </div>
                     </div>
                     <div class="control-group">
                         <div class="controls">
-                            <button id="buyButton" class="btn btn-success pull-right btn-block" type="button">Buy</button>
+                            <button id="buyButton" class="btn btn-success btn-block" type="button">Buy</button>
                         </div>
                     </div>
                 </form>
                 <!--End of Left control-->
 
-                <form class='form span4 text-center'>
+                <form class='form text-center centerCenterRight'>
                     <div class="control-group">
                         <div class="controls">
                             <div class="input-prepend">
                                 <span class="add-on">#</span>
-                                <input id="qsell" type="text" placeholder="quantity" value=0>
+                                <input id="qsell" class="input-custom-size" type="text" placeholder="quantity" value=0>
                             </div>
                         </div>
                     </div>
@@ -116,7 +116,7 @@
                         <div class="controls">
                             <div class="input-prepend">
                                 <span class="add-on contract_unit"></span>
-                                <input id="psell" type="text" placeholder="price">
+                                <input id="psell" class="input-custom-size" type="text" placeholder="price">
                             </div>
                         </div>
                     </div>
@@ -127,16 +127,12 @@
                     </div>
                 </form>
                 <!-- end of right control-->
-                <div class="span4 adjustRight">
-                    <table id="orderBookBuys" class="table table-bordered table-striped table-condensed">
-                        <!--position info--> </table>
-                </div>
+                    <div class="centerCenterLeftLower">
+                    <table id="orderBookBuys" class="table table-bordered table-striped table-condensed"> <!--position info--> </table> </div>
+                    <div class="centerCenterRightLower">
+                    <table id="orderBookSells" class="table table-bordered table-striped table-condensed"> <!--position info--> </table> </div>
 
-                <div class="span4"><!--interior container-->
-                    <table id="orderBookSells" class="table table-bordered table-striped table-condensed">
-                        <!--position info--> </table>
                 </div>
-            </div>
 
         <div id="leftControlPanel" class="left-centered">  <!-- make this dissappear on tablets, phones and smaller displays-->
                             <h3> Description </h3>

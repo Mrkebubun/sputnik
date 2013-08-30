@@ -73,7 +73,7 @@ background-color: #f9f9f9;
 .left-centered {
     position: absolute;
     top: 150px; left: 50%;
-    margin-left:-560px;
+    margin-left:-600px;
     width:200px;
 
 }
@@ -83,7 +83,6 @@ background-color: #f9f9f9;
     top: 150px; left: 50%;
     margin-left:350px;
     width:200px;
-
 }
 
  .center {
@@ -104,4 +103,36 @@ background-color: #f9f9f9;
 
  .adjustRight {
     padding-left:40px;
+}
+
+.centerCenterRight {
+    position: absolute;
+    top: 390px; left: 50%;
+    margin-left:5px;
+    width:300px;
+}
+
+.input-custom-size {
+    width:260px;
+}
+
+.centerCenterLeft {
+    position: absolute;
+    top: 390px; right: 50%;
+    margin-right:5px;
+    width:300px;
+}
+
+.centerCenterRightLower {
+    position: absolute;
+    top: 550px; left: 50%;
+    margin-left:5px;
+    width:300px;
+}
+
+.centerCenterLeftLower {
+    position: absolute;
+    top: 550px; right: 50%;
+    margin-right:5px;
+    width:300px;
 }
