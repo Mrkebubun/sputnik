@@ -13,7 +13,7 @@ ENGINE_HOST = "localhost"
 
 context = zmq.Context()
 connector = context.socket(zmq.constants.PULL)
-connector.bind('tcp://0.0.0.0:%d' % ACCOUNTANT_PORT)
+connector.bind('tcp://127.0.0.1:%d' % ACCOUNTANT_PORT)
 
 db_session = db.Session()
 
@@ -345,9 +345,4 @@ while True:
 
         else:
             logging.warning("unknown request type: %s", request_type)
-
-
-
-
-
 
