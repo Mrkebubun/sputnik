@@ -10,7 +10,6 @@ import datetime
 import time
 from sqlalchemy import and_
 from jsonschema import validate
-import zmq
 from twisted.python import log
 from twisted.internet import reactor, defer, ssl
 from twisted.web.server import Site
@@ -19,6 +18,11 @@ from autobahn.websocket import listenWS
 from autobahn.wamp import exportRpc, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
+
+import zmq
+from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
+
+zf = ZmqFactory()
 
 import database as db
 import models
@@ -29,18 +33,6 @@ WEB_SOCKET_PORT = 9000
 ENGINE_HOST = "localhost"
 ACCOUNTANT_HOST = "localhost"
 ACCOUNTANT_PORT = 3342
-
-def engine_listener_loop(param):
-    """
-    This loop runs in its own separate thread, receives updates from the matching engine and passes them
-    back through a callback to the factory
-    :param param: a pair with the callback function first and the socket to receive from second
-    """
-    callback, socket = param
-
-    while True:
-        message = socket.recv()
-        reactor.callFromThread(callback, message)
 
 #maybe delete the safe price subscription handler...
 class SafePriceSubscriptionHandler:
@@ -173,7 +165,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             lastTimeCalled[0] = time.clock()
 
-            print self.count 
             if self.count > 100:
                 WampCraServerProtocol.dropConnection(self)
                 WampCraServerProtocol.connectionLost(self, 'rate limit exceeded')
@@ -187,8 +178,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         self.db_session = db.Session()
 
-        self.accountant = context.socket(zmq.constants.PUSH)
-        self.accountant.connect('tcp://%s:%s' % (ACCOUNTANT_HOST, ACCOUNTANT_PORT))
+        endpoint = ZmqEndpoint("connect",
+                'tcp://%s:%s' % (ACCOUNTANT_HOST, ACCOUNTANT_PORT))
+        self.accountant = ZmqPushConnection(zf, endpoint)
 
         self.user = None
         WampCraServerProtocol.connectionMade(self)
@@ -587,7 +579,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order["quantity"] = int(order["quantity"])
         order['user_id'] = self.user.id
 
-        self.accountant.send_json({'place_order': order})
+        self.accountant.push(json.dumps({'place_order': order}))
         self.count += 1
         print 'place_order', self.count
 
@@ -675,12 +667,13 @@ class PepsiColaServerFactory(WampServerFactory):
     currently connected clients.
     """
 
-    def __init__(self, url, socket, debugWamp=False, debugCodePaths=False):
+    def __init__(self, url, debugWamp=False, debugCodePaths=False):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
         self.safe_prices = {}
-        # noinspection PyUnresolvedReferences
-        reactor.callInThread(engine_listener_loop, (self.dispatcher, socket))
+        endpoint = ZmqEndpoint("bind", "tcp://127.0.0.1:10000")
+        self.receiver = ZmqPullConnection(zf, endpoint)
+        self.receiver.onPull = self.dispatcher
 
     def dispatcher(self, message):
         """
@@ -735,20 +728,16 @@ if __name__ == '__main__':
     else:
         debug = False
 
-    context = zmq.Context()
-    socket = context.socket(zmq.constants.PULL)
-    socket.bind('tcp://0.0.0.0:10000')
-
     USE_SSL = False
 
     contextFactory = None
     if USE_SSL:
-        factory = PepsiColaServerFactory("wss://localhost:%d" % WEB_SOCKET_PORT, socket, debugWamp=debug,
+        factory = PepsiColaServerFactory("wss://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
                                          debugCodePaths=debug)
         contextFactory = ssl.DefaultOpenSSLContextFactory('keys/pepsicola.key', 'keys/pepsicola.crt')
 
     else:
-        factory = PepsiColaServerFactory("ws://localhost:%d" % WEB_SOCKET_PORT, socket, debugWamp=debug,
+        factory = PepsiColaServerFactory("ws://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
                                          debugCodePaths=debug)
 
     factory.protocol = PepsiColaServerProtocol
