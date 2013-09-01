@@ -38,7 +38,7 @@ function connect() {
         },
 
         function (code, reason, detail) {
-            alert('disconnected!!!');
+            //alert('disconnected!!!');
             logout();
             session = null;
             switch (code) {
