@@ -27,6 +27,11 @@
      <a href="#PennyArcadeTab"  id="PennyArcade" data-toggle="tab"><img src="sputnik.gif" width="100" height="50" class="icon"></img></a> 
 <ul class="nav nav-tabs navbar" id="tabs">
 
+   <li class="dropdown offset1">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#"> Markets <b class="caret"></b> </a> 
+                <ul id="marketsDropDown" class="dropdown-menu ">
+                </ul> </li>
+
     <li> <a href="#TradeTab" id="Trade" data-toggle="tab">Trade</a> </li>
     <li> <a href="#AccountTab" id="Account" data-toggle="tab">Account</a> </li>
     <li> <a href="#ContractsTab" id="Contracts" data-toggle="tab">Contracts</a> </li>
@@ -139,8 +144,11 @@
                 </div>
 
         <div id="leftControlPanel" class="left-centered">  <!-- make this dissappear on tablets, phones and smaller displays-->
+
+                            <!--
                             <h3> Description </h3>
                             <p id="descriptionText">blah blah</p>
+                            -->
 
                             <h3>Cash</h3>
                             <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
@@ -174,8 +182,11 @@
 
 
     <div id="ContractsTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
+    <div class="center" >
 
-            <div class="center" >
+<!-- wait till production server is running to implement -->
+
+<!--
             <form class="form-search">
             <div class="input-append">
             <input id="search" autocomplete="off" type="text" data-provide="typeahead" class="search-query span8" placeholder="Search">  <button id="searchButton" class="btn btn-info" type="submit">Search</button>
@@ -228,130 +239,9 @@
                 <hr>
             </div>
             </blockquote>
-            <h3> All Contracts:</h3>
-            <hr>
-            <p class="lead">BTC.13.7.31</p>
-            <small>future</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
 
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
+-->
 
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-                <p><dt>Example:</dt>
-                </p>
-
-            <hr>
-            <p class="lead">USD.13.7.31</p>
-            <small>prediction</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
-
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-                <p><dt>Example:</dt>
-                </p>
-
-                <hr>
-
-
-            <h3> Suggested Contracts: 
-            <button id="suggestContractButton" class="btn btn-success pull-right">Suggest a Contract</button>
-            </h3>
-<div id="suggestionModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="">Suggest a contract:</h3>
-    </div>
-
-    <div class="modal-body">
-       <form>
-    <fieldset>
-    <label>Contract Name:</label>
-        <input type="text" placeholder="Type something…">
-    <label>Contract Type:</label>
-        <input type="text" placeholder="Type something…">
-    <label>Tick Size:</label>
-        <input type="text" placeholder="Type something…">
-    <label>Margin (if a future):</label>
-        <input type="text" placeholder="Type something…">
-    <label>Close Date:</label>
-        <input type="text" placeholder="Type something…">
-    <span class="help-block">Example block-level help text here.</span>
-    </fieldset>
-    </form> 
-    </div>
-    <!--end modal-body-->
-    <div class="modal-footer">
-        <button class="btn btn-large " data-dismiss="modal" aria-hidden="true">Cancel </button>
-        <!--type="button"-->
-        <button id="submitSuggestion" class="btn btn-large pull-right btn-info" data-dismiss="modal" aria-hidden="true">Submit </button>
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-            <hr>
-            <p class="lead">Bitoin VIX</p>
-            <small>future</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
-
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-            <button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
-
-            <hr>
-            <p class="lead">Minining Difficulty </p>
-            <small>future</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
-
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-
-            <button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
-            <hr>
-            </div>
-
-
-    </div>
-
-    <div id="AboutTab" class="tab-pane"> <!-- item 4 account info contains position and balance info--> 
-        <div class="container">
-        <p class="lead"><em>Sputnik</em> is a predictions market and futures trading platform.</p>
         <dl>
             <h3>Predictions</h3>
             <hr>
@@ -436,6 +326,135 @@
 
                 c.f. <a href="http://en.wikipedia.org/wiki/Futures_contract">Wikipedia</a>
         </dl>
+            <h3> Individual Contracts:</h3>
+            <hr>
+            <p class="lead">BTC.13.7.31</p>
+            <small>future</small>
+                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
+
+                <p><dt>Close Date</dt>
+                    <dd>July 31, 2013.  12:00 UTC</dd>
+                    <dd>The 24 Vwap of BitStamp</dd>
+                </p>
+
+                <p><dt>Tick Size</dt>
+                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
+                </p>
+                <p><dt>Margin Required</dt>
+                    <dd>30%</dd>
+                </p>
+                <p><dt>Example:</dt>
+                </p>
+
+            <hr>
+            <p class="lead">USD.13.7.31</p>
+            <small>prediction</small>
+                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
+
+                <p><dt>Close Date</dt>
+                    <dd>July 31, 2013.  12:00 UTC</dd>
+                    <dd>The 24 Vwap of BitStamp</dd>
+                </p>
+
+                <p><dt>Tick Size</dt>
+                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
+                </p>
+                <p><dt>Margin Required</dt>
+                    <dd>30%</dd>
+                </p>
+                <p><dt>Example:</dt>
+                </p>
+
+                <hr>
+
+
+
+<!-- wait till production server running -->
+<!--
+            <h3> Suggested Contracts: 
+            <button id="suggestContractButton" class="btn btn-success pull-right">Suggest a Contract</button>
+            </h3>
+
+<div id="suggestionModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel" aria-hidden="true"> 
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="">Suggest a contract:</h3>
+    </div>
+    <div class="modal-body">
+    <form>
+        <fieldset>
+        <label>Contract Name:</label>
+            <input type="text" placeholder="Type something…">
+        <label>Contract Type:</label>
+            <input type="text" placeholder="Type something…">
+        <label>Tick Size:</label>
+            <input type="text" placeholder="Type something…">
+        <label>Margin (if a future):</label>
+            <input type="text" placeholder="Type something…">
+        <label>Close Date:</label>
+            <input type="text" placeholder="Type something…">
+        <span class="help-block">Example block-level help text here.</span>
+        </fieldset>
+    </form> 
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-large " data-dismiss="modal" aria-hidden="true">Cancel </button> 
+        <button id="submitSuggestion" class="btn btn-large pull-right btn-info" data-dismiss="modal" aria-hidden="true">Submit </button>  </div>
+    </div> 
+</div>
+
+
+
+<hr>
+<p class="lead">Bitoin VIX</p>
+<small>future</small>
+    <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
+
+    <p><dt>Close Date</dt>
+        <dd>July 31, 2013.  12:00 UTC</dd>
+        <dd>The 24 Vwap of BitStamp</dd>
+    </p>
+
+    <p><dt>Tick Size</dt>
+        <dd>100000 Satoshis, or .001 Bitcoins.</dd>
+    </p>
+    <p><dt>Margin Required</dt>
+        <dd>30%</dd>
+    </p>
+<button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
+
+<hr>
+<p class="lead">Minining Difficulty </p>
+<small>future</small>
+    <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
+
+    <p><dt>Close Date</dt>
+        <dd>July 31, 2013.  12:00 UTC</dd>
+        <dd>The 24 Vwap of BitStamp</dd>
+    </p>
+
+    <p><dt>Tick Size</dt>
+        <dd>100000 Satoshis, or .001 Bitcoins.</dd>
+    </p>
+    <p><dt>Margin Required</dt>
+        <dd>30%</dd>
+    </p>
+
+<button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
+<hr>
+-->
+
+    </div><!--end of center-->
+    </div><!--end of Contracts Tab-->
+
+
+
+
+
+
+    <div id="AboutTab" class="tab-pane"> <!-- item 4 account info contains position and balance info--> 
+        <div class="container">
+        <p class="lead"><em>Sputnik</em> is a predictions market and futures trading platform.</p>
 <hr>
 <h3>Security:</h3>
 <dl>

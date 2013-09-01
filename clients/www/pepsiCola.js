@@ -751,18 +751,7 @@ function newMarketsToDisplay(markets) {
         fList.push("<li><a onclick='switchToTrade(\"" + futures[market][0] + "\")' href='#'><small style='padding-right:1em;'>" +  futures[market][0] + "</small>"+futures[market][1]['description'] + "</a></li>")
     }
 
-    $('#tabs').prepend(
-   ' <li class="dropdown offset1">' +
-        '<a class="dropdown-toggle" data-toggle="dropdown" href="#"> Markets <b class="caret"></b> </a>' +
-                '<ul class="dropdown-menu ">' + 
-                                            '<li class="nav-header">Predictions</li>' +
-                                                pList.join('') +
-                                           '<li class="nav-header">Futures</li>' +
-                                                fList.join('') +
-                '</ul>' +
-    '</li>'
-
-                      );
+    $('#marketsDropDown').html( '<li class="nav-header">Predictions</li>' + pList.join('') + '<li class="nav-header">Futures</li>' + fList.join('') );
 }
 
 /*

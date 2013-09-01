@@ -166,7 +166,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def limit(func):
         lastTimeCalled = [0.0]
         def kick(self,*arg, **args):
-            print 'limiting....'
             elapsed = time.clock() - lastTimeCalled[0]
 
             if (elapsed < RATE_LIMIT):
