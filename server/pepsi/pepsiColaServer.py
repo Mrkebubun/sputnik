@@ -681,8 +681,9 @@ class PepsiColaServerFactory(WampServerFactory):
         :rtype : NoneType
         :param message: message do be sent
         """
-
-        for key, value in json.loads(message).iteritems():
+   
+        # TODO: check if message is multipart
+        for key, value in json.loads(message[0]).iteritems():
             logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value)) 
             if key == 'book_update':
                 self.all_books.update(value)
