@@ -42,6 +42,7 @@ function connect() {
 
         function (code, reason, detail) {
             //alert('disconnected!!!');
+            $('#loggedOut').modal('show');
             logout();
             session = null;
             switch (code) {
