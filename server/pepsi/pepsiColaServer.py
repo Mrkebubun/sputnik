@@ -34,7 +34,7 @@ import models
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
+    help="config file", default="../config/sputnik.ini")
 (options, args) = parser.parse_args()
 
 from ConfigParser import SafeConfigParser
@@ -757,7 +757,7 @@ class PepsiColaServerFactory(WampServerFactory):
                 print "http://example.com/user/open_orders#%s" % value[0], value[1]
 
 if __name__ == '__main__':
-
+    
     logging.basicConfig(level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
