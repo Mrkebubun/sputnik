@@ -34,7 +34,7 @@ import models
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
+    help="config file", default="../config/sputnik.ini")
 (options, args) = parser.parse_args()
 
 from ConfigParser import SafeConfigParser
@@ -43,7 +43,6 @@ config.read(options.filename)
 
 RATE_LIMIT = 0.5
 MAX_TICKER_LENGTH = 100
-WEB_SOCKET_PORT = 9000
 
 #maybe delete the safe price subscription handler...
 class SafePriceSubscriptionHandler:
@@ -561,7 +560,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the book
         """
         # rpc call:
-        with open('chat.log') as f:
+        with open(config.get("webserver", "chat_log")) as f:
             return f.read().split('\n')[-31:-1]
 
 
@@ -758,11 +757,11 @@ class PepsiColaServerFactory(WampServerFactory):
                 print "http://example.com/user/open_orders#%s" % value[0], value[1]
 
 if __name__ == '__main__':
-
+    
     logging.basicConfig(level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
-    chat_log_handler = logging.FileHandler(filename='chat.log')
+    chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
     chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
     chat_log_handler.setFormatter(chat_log_formatter)
     chat_log.addHandler(chat_log_handler)
@@ -777,16 +776,16 @@ if __name__ == '__main__':
 
     contextFactory = None
     if USE_SSL:
-        factory = PepsiColaServerFactory("wss://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
+        factory = PepsiColaServerFactory("wss://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
         contextFactory = ssl.DefaultOpenSSLContextFactory('keys/pepsicola.key', 'keys/pepsicola.crt')
 
     else:
-        factory = PepsiColaServerFactory("ws://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
+        factory = PepsiColaServerFactory("ws://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
 
     factory.protocol = PepsiColaServerProtocol
-    listenWS(factory, contextFactory)
+    listenWS(factory, contextFactory, interface=config.get("webserver", "ws_interface"))
 
     factory.setProtocolOptions(maxMessagePayloadSize=1000) # trying to prevent excessively large messages -> http://autobahn.ws/python/reference 
 
@@ -801,9 +800,10 @@ if __name__ == '__main__':
     web = Site(web_dir)
 
     if USE_SSL:
-        reactor.listenSSL(8080, web, contextFactory)
+        reactor.listenSSL(8080, web, contextFactory, interface=config.get("webserver", "www_interface"))
     else:
-        reactor.listenTCP(8080, web)
+        reactor.listenTCP(8080, web, interface=config.get("webserver", "www_interface"))
 
     # noinspection PyUnresolvedReferences
     reactor.run()
+
