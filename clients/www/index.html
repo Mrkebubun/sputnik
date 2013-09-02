@@ -176,8 +176,32 @@
                 <!--position info--> </table>
             <h3>Open Orders</h3>
             <table id="openOrders" class="table table-bordered table-condensed table-striped"> <!--position info--> </table>
+
+
+            <h3>Two Factor Authentication</h3>
+            <button id="enableTwoFactor" class="btn btn-primary">Enable Two Factor Authentication</button>
+
+    <div id="twoFactorModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
+         aria-hidden="true"> <!-- Modal -->
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3 id="processingLabel">Deposit Address</h3>
         </div>
-        <!-- end of position info-->
+
+        <div class="modal-body">
+            <legend>Scan this QR code with Google authenticator</legend>
+                <div id="twoFactor"></div>
+        </div>
+        <!--end modal-body-->
+        <div class="modal-footer">
+            <button  class="btn btn-large" data-dismiss="modal"
+                    aria-hidden="true">Cancel
+            </button>
+            <!--type="button"-->
+        </div>
+    </div>
+    <!-- end Modal -->
+        </div>
     </div>  <!-- end of item 4 -->
 
 
@@ -655,6 +679,14 @@ TJEDFtH90mLdLSJPbhWdxyxUAvbmz9wfeURrNSPe7dKD
 
                 <div class="controls">
                     <input type="password" id="password" placeholder="Password">
+                </div>
+
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="password">Two Factor Authentication</label>
+
+                <div class="controls">
+                    <input type="password" id="otp" placeholder="Two Factor">
                 </div>
             </div>
             <div class="control-group">

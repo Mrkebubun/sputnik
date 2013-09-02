@@ -1050,6 +1050,11 @@ $("#searchButton").click(function () {
         $('#USD').hide();
         $('#searchPlaceHolder').show()
     }
+})
+
+$('#enableTwoFactor').click(function () {
+    new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example");
+    $('#twoFactorModal').modal('show');
 });
 
 $('#suggestContractButton').click(function () {
@@ -1095,17 +1100,15 @@ $("#password").keypress(function (e) {
     }
 });
 
-
-// responsive stuff
-
-function controlPanelDisplay () {
+/*
+$(window).resize(
     if ( $(window).width() < 1111) {
         $('#leftControlPanel').hide()
     } else {
         $('#leftControlPanel').show()
     }
-
-}
+})
+*/
 
 //$(window).load(controlPanelDisplay);
 //$(window).resize(controlPanelDisplay);

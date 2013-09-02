@@ -61,8 +61,11 @@ function connect() {
 function do_login(login, password) {
     session.authreq(login /*, extra*/).then(function (challenge) {
         console.log('challenge', JSON.parse(challenge).authextra);
-        var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
+        console.log( ab.deriveKey(password, JSON.parse(challenge).authextra));
+        var secret = otp.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
+        console.log(secret);
         // direct sign or AJAX to 3rd party
+        console.log( session.authsign(challenge, secret) );
         var signature = session.authsign(challenge, secret);
         console.log(signature)
 
@@ -227,6 +230,7 @@ function getCurrentAddress() {
     )
 }
 
+
 function getNewAddress() {
     session.call(get_new_address_URI).then(
         function (addr) {
@@ -291,7 +295,7 @@ function makeAccount(name, psswd, email, bitmsg) {
     AUTHEXTRA['salt'] = salt;
 
     var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
-    console.log(psswdHsh);
+
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
             console.log(res)

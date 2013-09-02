@@ -8,6 +8,7 @@ import logging
 import sys
 import datetime
 import time
+import onetimepass as otp
 from sqlalchemy import and_
 from jsonschema import validate
 from twisted.python import log
@@ -285,7 +286,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #todo, understand how this deferred actually works
         #d = defer.Deferred()
         #d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
-        return self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+        return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
 
     # noinspection PyMethodOverriding
     def onAuthenticated(self, authKey, perms):
