@@ -62,7 +62,8 @@ function do_login(login, password) {
     session.authreq(login /*, extra*/).then(function (challenge) {
         console.log('challenge', JSON.parse(challenge).authextra);
         console.log( ab.deriveKey(password, JSON.parse(challenge).authextra));
-        var secret = otp.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
+        //var secret = otp.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
+        var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
         console.log(secret);
         // direct sign or AJAX to 3rd party
         console.log( session.authsign(challenge, secret) );
