@@ -43,7 +43,6 @@ config.read(options.filename)
 
 RATE_LIMIT = 0.5
 MAX_TICKER_LENGTH = 100
-WEB_SOCKET_PORT = 9000
 
 #maybe delete the safe price subscription handler...
 class SafePriceSubscriptionHandler:
@@ -777,16 +776,16 @@ if __name__ == '__main__':
 
     contextFactory = None
     if USE_SSL:
-        factory = PepsiColaServerFactory("wss://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
+        factory = PepsiColaServerFactory("wss://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
         contextFactory = ssl.DefaultOpenSSLContextFactory('keys/pepsicola.key', 'keys/pepsicola.crt')
 
     else:
-        factory = PepsiColaServerFactory("ws://localhost:%d" % WEB_SOCKET_PORT, debugWamp=debug,
+        factory = PepsiColaServerFactory("ws://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
 
     factory.protocol = PepsiColaServerProtocol
-    listenWS(factory, contextFactory)
+    listenWS(factory, contextFactory, interface=config.get("webserver", "ws_interface"))
 
     factory.setProtocolOptions(maxMessagePayloadSize=1000) # trying to prevent excessively large messages -> http://autobahn.ws/python/reference 
 
@@ -801,9 +800,10 @@ if __name__ == '__main__':
     web = Site(web_dir)
 
     if USE_SSL:
-        reactor.listenSSL(8080, web, contextFactory)
+        reactor.listenSSL(8080, web, contextFactory, interface=config.get("webserver", "www_interface"))
     else:
-        reactor.listenTCP(8080, web)
+        reactor.listenTCP(8080, web, interface=config.get("webserver", "www_interface"))
 
     # noinspection PyUnresolvedReferences
     reactor.run()
+
