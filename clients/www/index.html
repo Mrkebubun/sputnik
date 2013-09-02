@@ -181,21 +181,28 @@
             <h3>Two Factor Authentication</h3>
             <button id="enableTwoFactor" class="btn btn-primary">Enable Two Factor Authentication</button>
 
-    <div id="twoFactorModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
+    <div id="twoFactorModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="twoFactor"
          aria-hidden="true"> <!-- Modal -->
         <div class="modal-header">
+            <h3>Enable Two Factor:</h3>
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-            <h3 id="processingLabel">Deposit Address</h3>
         </div>
 
         <div class="modal-body">
-            <legend>Scan this QR code with Google authenticator</legend>
                 <div id="twoFactor"></div>
+                <hr>
+                        <p> Enter the otp number here to enable two factor:</p>
+                        <div class="controls">
+                                <input id="registerTwoFactor" class="input-custom-size" type="text" placeholder="123456" >
+                        </div>
         </div>
         <!--end modal-body-->
         <div class="modal-footer">
             <button  class="btn btn-large" data-dismiss="modal"
                     aria-hidden="true">Cancel
+            </button>
+            <button  class="btn btn-large btn-success" data-dismiss="modal"
+                    aria-hidden="true">Submit
             </button>
             <!--type="button"-->
         </div>

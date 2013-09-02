@@ -16,6 +16,7 @@ var get_open_orders_URI = base_uri + "procedures/get_open_orders";
 var cancel_order_URI = base_uri + "procedures/cancel_order";
 
 var get_new_address_URI = base_uri + "procedures/get_new_address";
+var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
@@ -236,6 +237,16 @@ function getNewAddress() {
     session.call(get_new_address_URI).then(
         function (addr) {
             console.log(addr);
+        }
+    )
+}
+
+function registerTwoFactor(secret,confirmation) {
+    notifications.processing('confirmation');
+    session.call(register_two_factor_URI, secret, confirmation).then(
+        function (res) {
+            notifications.dismiss_processing(res)
+            console.log(res);
         }
     )
 }

@@ -1057,6 +1057,10 @@ $('#enableTwoFactor').click(function () {
     $('#twoFactorModal').modal('show');
 });
 
+$('#enableTwoFactor').click(function(){
+    registerTwoFactor('JBSWY3DPEHPK3PXP', parseInt($('#registerTwoFactor').val()));
+});
+
 $('#suggestContractButton').click(function () {
     $('#suggestionModal').modal('show');
 });

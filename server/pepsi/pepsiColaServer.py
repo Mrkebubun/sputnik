@@ -333,6 +333,28 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
         self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
 
+    @exportRpc("register_two_factor")
+    @limit
+    def register_two_factor(self, secret, confirmation):
+        """
+        registers two factor authentication for an account
+        :param secret: secret to store
+        :param confirmation: trial run of secret
+        """
+        # sanitize input
+        secret_schema = {"type": "string"}
+        validate(secret, secret_schema)
+        confirmation_schema = {"type": "number"}
+        validate(confirmation, confirmation_schema)
+        secret = 'JBSWY3DPEHPK3PXP'
+        test = otp.get_totp('JBSWY3DPEHPK3PXP')
+        print secret, confirmation, test
+
+        if confirmation == test:
+            return True
+        else:
+            return False    
+
     @exportRpc("get_trade_history")
     @limit
     def get_trade_history(self, ticker, time_span):
