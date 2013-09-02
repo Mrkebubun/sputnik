@@ -48,8 +48,11 @@ class SafePricePublisher(object):
         self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * last_trade['quantity'] * last_trade['price']
 
 
-        safe_price = self.ema_price_volume / self.ema_volume
-        logging.info('Woo, new safe price %f' % safe_price)
+        #round float for safe price. sub satoshi granularity is unneccessary and
+        #leads to js rounding errors:
+
+        safe_price = int(self.ema_price_volume / self.ema_volume)
+        logging.info('Woo, new safe price %d' % safe_price)
         accountant.send_json({'safe_price': {contract_name: safe_price}})
         publisher.send_json({'safe_price': {contract_name: safe_price}})
 

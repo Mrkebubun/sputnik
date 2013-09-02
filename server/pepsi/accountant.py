@@ -330,10 +330,13 @@ for contract_id, socket in engine_sockets.iteritems():
 
 safe_prices = {}
 for c in db_session.query(models.Contract):
+    # this should be refined at some point for a better
+    # initial safe value
     try:
         last_trade = db_session.query(models.Trade).filter_by(contract=c).order_by(
             models.Trade.timestamp.desc()).first()
-        safe_prices[c.ticker] = last_trade.price
+        #round to an int for safe prices
+        safe_prices[c.ticker] = int(last_trade.price)
     except:
         logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % c.ticker)
         safe_prices[c.ticker] = 42
