@@ -944,7 +944,7 @@ $('#logoutButton').click(function () {
     logout();
 
     $('#loginButton').show();
-    $('#registeration').show()
+    $('#registration').show()
 });
 
 $('#registerButton').click(function () {
@@ -1053,7 +1053,6 @@ $("#searchButton").click(function () {
 })
 
 $('#enableTwoFactor').click(function () {
-    $('#twoFactor').empty();
     getNewTwoFactor();
     $('#twoFactorModal').modal('show');
 });

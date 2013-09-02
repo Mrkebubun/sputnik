@@ -15,9 +15,10 @@ var make_account_URI = base_uri + "procedures/make_account";
 var get_open_orders_URI = base_uri + "procedures/get_open_orders";
 var cancel_order_URI = base_uri + "procedures/cancel_order";
 
-var get_new_address_URI = base_uri + "procedures/get_new_address";
 var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
+
+var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
@@ -322,5 +323,7 @@ function makeAccount(name, psswd, email, bitmsg) {
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
             console.log(res)
+            login.value = registerLogin.value;
+            do_login(registerLogin.value, registerPassword.value) ;
         })
 }
