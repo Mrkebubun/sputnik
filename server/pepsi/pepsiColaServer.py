@@ -560,7 +560,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the book
         """
         # rpc call:
-        with open('chat.log') as f:
+        with open(config.get("webserver", "chat_log")) as f:
             return f.read().split('\n')[-31:-1]
 
 
@@ -761,7 +761,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
-    chat_log_handler = logging.FileHandler(filename='chat.log')
+    chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
     chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
     chat_log_handler.setFormatter(chat_log_formatter)
     chat_log.addHandler(chat_log_handler)
