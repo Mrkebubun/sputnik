@@ -1053,11 +1053,12 @@ $("#searchButton").click(function () {
 })
 
 $('#enableTwoFactor').click(function () {
-    new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example");
+    $('#twoFactor').empty();
+    getNewTwoFactor();
     $('#twoFactorModal').modal('show');
 });
 
-$('#enableTwoFactor').click(function(){
+$('#submitTwoFactor').click(function(){
     registerTwoFactor('JBSWY3DPEHPK3PXP', parseInt($('#registerTwoFactor').val()));
 });
 

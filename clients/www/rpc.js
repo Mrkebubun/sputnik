@@ -17,6 +17,7 @@ var cancel_order_URI = base_uri + "procedures/cancel_order";
 
 var get_new_address_URI = base_uri + "procedures/get_new_address";
 var register_two_factor_URI= base_uri + "procedures/register_two_factor";
+var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
@@ -249,6 +250,16 @@ function registerTwoFactor(secret,confirmation) {
             console.log(res);
         }
     )
+}
+
+function getNewTwoFactor() {
+    session.call(get_new_two_factor_URI).then(
+        function(secret) {
+            console.log(secret);
+            console.log("otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example")
+            //$('#twoFactor').empty();
+            new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example");
+        })
 }
 
 function getOpenOrders() {

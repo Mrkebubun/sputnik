@@ -11,6 +11,7 @@ import sys
 import datetime
 import time
 import onetimepass as otp
+import os
 from sqlalchemy import and_
 from jsonschema import validate
 from twisted.python import log
@@ -332,6 +333,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("http://example.com/user/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
         self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
         self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
+
+    @exportRpc("get_new_two_factor")
+    @limit
+    def get_new_two_factor(self):
+        """
+        prepares new two factor authentication for an account
+        """
+        new = otp.base64.b32encode(os.urandom(10))
+        print new
+        return new
 
     @exportRpc("register_two_factor")
     @limit
