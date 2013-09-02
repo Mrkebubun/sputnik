@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 
 __author__ = 'satosushi'
@@ -8,12 +10,19 @@ import models
 import database as db
 import logging
 
-ACCOUNTANT_PORT = 3342
-ENGINE_HOST = "localhost"
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+from ConfigParser import SafeConfigParser
+config = SafeConfigParser()
+config.read(options.filename)
 
 context = zmq.Context()
 connector = context.socket(zmq.constants.PULL)
-connector.bind('tcp://127.0.0.1:%d' % ACCOUNTANT_PORT)
+connector.bind(config.get("accountant", "zmq_address"))
 
 db_session = db.Session()
 

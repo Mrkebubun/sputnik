@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Main websocket server, accepts RPC and subscription requests from clients. It's the backbone of the project,
 facilitating all communications between the client, the database and the matching engine.
@@ -28,12 +30,19 @@ zf = ZmqFactory()
 import database as db
 import models
 
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+from ConfigParser import SafeConfigParser
+config = SafeConfigParser()
+config.read(options.filename)
+
 RATE_LIMIT = 0.5
 MAX_TICKER_LENGTH = 100
 WEB_SOCKET_PORT = 9000
-ENGINE_HOST = "localhost"
-ACCOUNTANT_HOST = "localhost"
-ACCOUNTANT_PORT = 3342
 
 #maybe delete the safe price subscription handler...
 class SafePriceSubscriptionHandler:
@@ -180,7 +189,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.db_session = db.Session()
 
         endpoint = ZmqEndpoint("connect",
-                'tcp://%s:%s' % (ACCOUNTANT_HOST, ACCOUNTANT_PORT))
+                config.get("accountant", "zmq_address"))
         self.accountant = ZmqPushConnection(zf, endpoint)
 
         self.user = None
@@ -673,7 +682,7 @@ class PepsiColaServerFactory(WampServerFactory):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
         self.safe_prices = {}
-        endpoint = ZmqEndpoint("bind", "tcp://127.0.0.1:10000")
+        endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher
 

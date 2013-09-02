@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import logging
 
@@ -6,7 +8,15 @@ from sqlalchemy.orm.exc import NoResultFound
 import database as db
 import models
 
-PUBLISHER_PORT = 10000
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+from ConfigParser import SafeConfigParser
+config = SafeConfigParser()
+config.read(options.filename)
 
 db_session = db.Session()
 
@@ -174,13 +184,11 @@ def update_best(side):
 
 
 # yuck
-contract_name = sys.argv[1]
-contract_id = int(sys.argv[2])
+contract_name = args[0]
+contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).one().id
 
 # set the port based on the contract id
 CONNECTOR_PORT = 4200 + contract_id
-ACCOUNTANT_PORT = 3342
-
 
 
 # first cancel all old pending orders
@@ -197,11 +205,11 @@ connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
 
 # publishes book updates
 publisher = context.socket(zmq.PUSH)
-publisher.connect('tcp://127.0.0.1:%d' % PUBLISHER_PORT)
+publisher.connect(config.get("webserver", "zmq_address"))
 
 # push to the accountant
 accountant = context.socket(zmq.PUSH)
-accountant.connect('tcp://127.0.0.1:%d' % ACCOUNTANT_PORT)
+accountant.connect(config.get("accountant", "zmq_address"))
 
 all_orders = {}
 
