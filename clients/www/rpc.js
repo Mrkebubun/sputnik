@@ -15,6 +15,9 @@ var make_account_URI = base_uri + "procedures/make_account";
 var get_open_orders_URI = base_uri + "procedures/get_open_orders";
 var cancel_order_URI = base_uri + "procedures/cancel_order";
 
+var register_two_factor_URI= base_uri + "procedures/register_two_factor";
+var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
+
 var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
@@ -240,6 +243,26 @@ function getNewAddress() {
     )
 }
 
+function registerTwoFactor(secret,confirmation) {
+    notifications.processing('confirmation');
+    session.call(register_two_factor_URI, secret, confirmation).then(
+        function (res) {
+            notifications.dismiss_processing(res)
+            console.log(res);
+        }
+    )
+}
+
+function getNewTwoFactor() {
+    session.call(get_new_two_factor_URI).then(
+        function(secret) {
+            console.log(secret);
+            console.log("otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example")
+            //$('#twoFactor').empty();
+            new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example");
+        })
+}
+
 function getOpenOrders() {
     console.log('Making getOpenOrders RPC call');
     session.call(get_open_orders_URI).then(
@@ -300,5 +323,7 @@ function makeAccount(name, psswd, email, bitmsg) {
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
             console.log(res)
+            login.value = registerLogin.value;
+            do_login(registerLogin.value, registerPassword.value) ;
         })
 }

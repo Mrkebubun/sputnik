@@ -944,7 +944,7 @@ $('#logoutButton').click(function () {
     logout();
 
     $('#loginButton').show();
-    $('#registeration').show()
+    $('#registration').show()
 });
 
 $('#registerButton').click(function () {
@@ -1053,8 +1053,12 @@ $("#searchButton").click(function () {
 })
 
 $('#enableTwoFactor').click(function () {
-    new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example");
+    getNewTwoFactor();
     $('#twoFactorModal').modal('show');
+});
+
+$('#submitTwoFactor').click(function(){
+    registerTwoFactor('JBSWY3DPEHPK3PXP', parseInt($('#registerTwoFactor').val()));
 });
 
 $('#suggestContractButton').click(function () {
