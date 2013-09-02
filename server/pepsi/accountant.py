@@ -326,7 +326,7 @@ engine_sockets = {i.id: context.socket(zmq.constants.PUSH)
                   for i in db_session.query(models.Contract).filter_by(active=True)}
 
 for contract_id, socket in engine_sockets.iteritems():
-    socket.connect('tcp://%s:%d' % (ENGINE_HOST, 4200 + contract_id))
+    socket.connect('tcp://%s:%d' % ("localhost", 4200 + contract_id))
 
 safe_prices = {}
 for c in db_session.query(models.Contract):
