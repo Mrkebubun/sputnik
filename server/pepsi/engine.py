@@ -37,8 +37,11 @@ class SafePricePublisher(object):
         self.ema_price_volume = 0
         self.ema_volume = 0
         self.decay = 0.9
+
         #make safe price equal to last recorded trade...
         self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
+        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        publisher.send_json({'safe_price': {contract_name: self.safe_price}})
 
     def onTrade(self, last_trade):
         '''
@@ -54,9 +57,9 @@ class SafePricePublisher(object):
         #leads to js rounding errors:
 
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
-        logging.info('Woo, new safe price %d' % safe_price)
-        accountant.send_json({'safe_price': {contract_name: safe_price}})
-        publisher.send_json({'safe_price': {contract_name: safe_price}})
+        logging.info('Woo, new safe price %d' % self.safe_price)
+        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        publisher.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
     """
