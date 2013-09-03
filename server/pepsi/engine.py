@@ -37,6 +37,8 @@ class SafePricePublisher(object):
         self.ema_price_volume = 0
         self.ema_volume = 0
         self.decay = 0.9
+        #make safe price equal to last recorded trade...
+        self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
 
     def onTrade(self, last_trade):
         '''
@@ -51,7 +53,7 @@ class SafePricePublisher(object):
         #round float for safe price. sub satoshi granularity is unneccessary and
         #leads to js rounding errors:
 
-        safe_price = int(self.ema_price_volume / self.ema_volume)
+        self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % safe_price)
         accountant.send_json({'safe_price': {contract_name: safe_price}})
         publisher.send_json({'safe_price': {contract_name: safe_price}})
