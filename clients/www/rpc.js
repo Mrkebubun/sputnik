@@ -58,7 +58,7 @@ function connect() {
             }
         },
 
-        {'maxRetries': 5, 'retryDelay': 1000}
+        {'maxRetries': 1, 'retryDelay': 1000}
     );
 }
 

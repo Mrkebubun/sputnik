@@ -989,8 +989,8 @@ function checkOrder(side) {
     }
 }
 
-$('#sellButton').click(function () {
 
+$('#sellButton').click(function () {
     if (checkOrder('sell')){
         orderButton(qsell.value, psell.value, 1);
     }
