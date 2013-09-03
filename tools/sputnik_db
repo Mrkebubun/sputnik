@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+    "../server"))
+
+from pepsi import database, models
+
+if len(sys.argv) < 2:
+    print "usage: %s create|delete" % sys.argv[0]
+    sys.exit(1)
+
+command = sys.argv[1]
+
+if command == "create":
+    if len(sys.argv) < 3:
+        print "usage: %s create database|user" % sys.argv[0]
+        sys.exit(1)
+    argument = sys.argv[2]
+    if argument == "database":
+        database.Base.metadata.create_all(db.engine)
+    elif argument == "user":
+        print "Not implemented."
+elif command == "delete":
+    print "Not implemented."
+else:
+    print "Command not found."
+
