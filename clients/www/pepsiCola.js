@@ -626,14 +626,14 @@ function displayOrders(show_all_tickers, orders) {
     var element = show_all_tickers ? '#openOrders' : '#market_order_table';
 //    var margins = calculateMargin(SITE_POSITIONS, OPEN_ORDERS, SAFE_PRICES);
     $(element).empty()
-        .append("<tr>" +
+        .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>"+ (show_all_tickers?"Quantity":"#") +"</th>" +
             "<th>Price</th>" +
             "<th>Buy/Sell</th>" +
             "<th>Cancel</th>" +
 //            "<th>Reserved</th>" +
-            "</tr>");
+            "</tr></thead><tbody>");
 
     _.each(_.groupBy(OPEN_ORDERS, function (orders) {return orders['ticker'];}),
         function (contract_group, ticker) {
@@ -665,6 +665,7 @@ function displayOrders(show_all_tickers, orders) {
                     printed_ticker = true;
                 });
             }
+        $(element).append("</thead>");
        });
 }
 
@@ -709,11 +710,11 @@ function displayPositions(show_all_tickers, positions) {
     var element = show_all_tickers ? '#account_positions_table' : '#market_position_table';
     var margins = calculateMargin(SITE_POSITIONS, OPEN_ORDERS, SAFE_PRICES);
     $(element).empty()
-        .append("<tr>" +
+        .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>Position</th>" +
 			//<th>Low Margin</th>
-			"<th>Reserved for Margin</th></tr>");
+			"<th>Reserved for Margin</th></tr></thead><tbody>");
 
     // remove cash and old inactive positions
     positions = _.reject(positions, function (contract) {return contract['contract_type'] =='cash';});
@@ -731,6 +732,7 @@ function displayPositions(show_all_tickers, positions) {
                 "</tr>");
             }
     }
+    $(element).append("</tbody>");
 }
 
 
