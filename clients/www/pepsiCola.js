@@ -73,6 +73,9 @@ function onAuth(permissions) {
 
     $('#loginButton').hide();
     $('#registration').hide();
+    
+    //hacky fix of modal backdrop not being dismissed when authentication is preceded by failed login attempt
+    $('.modal').modal('hide');
 
     // Initialize for user.  Maybe move the call for markets to before auth?
     //make this chain correctly...or better yet, make it publish upon connection
@@ -912,7 +915,8 @@ notifications.processing = function (msg) {
     $('#processingModal').modal('show');
 };
 notifications.dismiss_processing = function (msg) {
-    $('#processingModal').modal('hide');
+    $('.modal').modal('hide');
+    //$('#processingModal').modal('hide');
 };
 
 
@@ -977,15 +981,18 @@ function checkOrder(side) {
     var quantity = (side == 'buy' ? qbuy.value : qsell.value);
 
     if (quantity.length ==0 ) {
-       $('#processingModal').modal('hide');
+        $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('Quantity must be non-zero');
        return false;
     } else if (isNaN(quantity) || isNaN(price) ){
-       $('#processingModal').modal('hide');
+        $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('Please only enter numbers');
        return false;
     } else if (parseFloat(price) * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
-       $('#processingModal').modal('hide');
+       $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
        return false;
     } else {
