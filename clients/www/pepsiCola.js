@@ -36,7 +36,9 @@ window.onload = function () {
 function onChat(channelURI, msg) {
     var user = msg[0];
     var message = msg[1];
-    CHAT_MESSAGES.push('&lt;' + user + '&gt; ' + message)
+    //CHAT_MESSAGES.push('&lt;' + user + '&gt; ' + message)
+    // switched to colon to make uniformly formatted chats and chat history
+    CHAT_MESSAGES.push(user +':' + message)
     if (CHAT_MESSAGES.length > MAX_CHAT_LINES)
         CHAT_MESSAGES.shift();
 

@@ -560,8 +560,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the book
         """
         # rpc call:
+        lastThirty = []
+
         with open(config.get("webserver", "chat_log")) as f:
-            return f.read().split('\n')[-31:-1]
+            for line in f.read().split('\n')[-31:-1]:
+                #strip the date and time from the line:
+                lastThirty.append(line.split()[2])
+
+        return lastThirty
 
 
     @exportRpc("get_order_book")
