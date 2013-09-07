@@ -766,7 +766,7 @@ if __name__ == '__main__':
     chat_log_handler.setFormatter(chat_log_formatter)
     chat_log.addHandler(chat_log_handler)
 
-    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
+    if config.getboolean("webserver", "debug") or len(sys.argv) > 1 and sys.argv[1] == 'debug':
         log.startLogging(sys.stdout)
         debug = True
     else:
