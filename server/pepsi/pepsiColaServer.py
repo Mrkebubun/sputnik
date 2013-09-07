@@ -511,7 +511,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             new_address = self.db_session.query(models.Addresses).filter_by(active=False, user=None).first()
             new_address.active = True
-            new_address.user = self.user
+            new_address.user = user
 
             self.db_session.add(new_address)
             self.db_session.add(user)
@@ -560,8 +560,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the book
         """
         # rpc call:
+        lastThirty = []
+
         with open(config.get("webserver", "chat_log")) as f:
-            return f.read().split('\n')[-31:-1]
+            for line in f.read().split('\n')[-31:-1]:
+                #strip the date and time from the line:
+                lastThirty.append(line.split()[2])
+
+        return lastThirty
 
 
     @exportRpc("get_order_book")

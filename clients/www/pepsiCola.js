@@ -36,7 +36,9 @@ window.onload = function () {
 function onChat(channelURI, msg) {
     var user = msg[0];
     var message = msg[1];
-    CHAT_MESSAGES.push('&lt;' + user + '&gt; ' + message)
+    //CHAT_MESSAGES.push('&lt;' + user + '&gt; ' + message)
+    // switched to colon to make uniformly formatted chats and chat history
+    CHAT_MESSAGES.push(user +':' + message)
     if (CHAT_MESSAGES.length > MAX_CHAT_LINES)
         CHAT_MESSAGES.shift();
 
@@ -71,6 +73,9 @@ function onAuth(permissions) {
 
     $('#loginButton').hide();
     $('#registration').hide();
+    
+    //hacky fix of modal backdrop not being dismissed when authentication is preceded by failed login attempt
+    $('.modal').modal('hide');
 
     // Initialize for user.  Maybe move the call for markets to before auth?
     //make this chain correctly...or better yet, make it publish upon connection
@@ -626,14 +631,14 @@ function displayOrders(show_all_tickers, orders) {
     var element = show_all_tickers ? '#openOrders' : '#market_order_table';
 //    var margins = calculateMargin(SITE_POSITIONS, OPEN_ORDERS, SAFE_PRICES);
     $(element).empty()
-        .append("<tr>" +
+        .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>"+ (show_all_tickers?"Quantity":"#") +"</th>" +
             "<th>Price</th>" +
             "<th>Buy/Sell</th>" +
             "<th>Cancel</th>" +
 //            "<th>Reserved</th>" +
-            "</tr>");
+            "</tr></thead><tbody>");
 
     _.each(_.groupBy(OPEN_ORDERS, function (orders) {return orders['ticker'];}),
         function (contract_group, ticker) {
@@ -665,6 +670,7 @@ function displayOrders(show_all_tickers, orders) {
                     printed_ticker = true;
                 });
             }
+        $(element).append("</thead>");
        });
 }
 
@@ -709,11 +715,11 @@ function displayPositions(show_all_tickers, positions) {
     var element = show_all_tickers ? '#account_positions_table' : '#market_position_table';
     var margins = calculateMargin(SITE_POSITIONS, OPEN_ORDERS, SAFE_PRICES);
     $(element).empty()
-        .append("<tr>" +
+        .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>Position</th>" +
 			//<th>Low Margin</th>
-			"<th>Reserved for Margin</th></tr>");
+			"<th>Reserved for Margin</th></tr></thead><tbody>");
 
     // remove cash and old inactive positions
     positions = _.reject(positions, function (contract) {return contract['contract_type'] =='cash';});
@@ -731,6 +737,7 @@ function displayPositions(show_all_tickers, positions) {
                 "</tr>");
             }
     }
+    $(element).append("</tbody>");
 }
 
 
@@ -908,7 +915,8 @@ notifications.processing = function (msg) {
     $('#processingModal').modal('show');
 };
 notifications.dismiss_processing = function (msg) {
-    $('#processingModal').modal('hide');
+    $('.modal').modal('hide');
+    //$('#processingModal').modal('hide');
 };
 
 
@@ -973,15 +981,18 @@ function checkOrder(side) {
     var quantity = (side == 'buy' ? qbuy.value : qsell.value);
 
     if (quantity.length ==0 ) {
-       $('#processingModal').modal('hide');
+        $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('Quantity must be non-zero');
        return false;
     } else if (isNaN(quantity) || isNaN(price) ){
-       $('#processingModal').modal('hide');
+        $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('Please only enter numbers');
        return false;
     } else if (parseFloat(price) * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
-       $('#processingModal').modal('hide');
+       $('.modal').modal('hide');
+       //$('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
        return false;
     } else {
