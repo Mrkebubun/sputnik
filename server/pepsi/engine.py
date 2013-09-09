@@ -39,7 +39,10 @@ class SafePricePublisher(object):
         self.decay = 0.9
 
         #make safe price equal to last recorded trade...
-        self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
+        try:
+            self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
+        except IndexError:
+            self.safe_price = 42
         accountant.send_json({'safe_price': {contract_name: self.safe_price}})
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
 
@@ -193,6 +196,9 @@ def update_best(side):
 
 # yuck
 contract_name = args[0]
+
+print 'contract name:   ',contract_name
+
 contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).one().id
 
 # set the port based on the contract id
