@@ -299,7 +299,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #d = defer.Deferred()
         #d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
         #return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
-        return  self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+        try:
+            password_hash = self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+        except Exception as e:
+            password_hash = ''
+        return password_hash
 
     # noinspection PyMethodOverriding
     def onAuthenticated(self, authKey, perms):
@@ -422,7 +426,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return new_address.address
 
 
-        except   Exception as e:
+        except  Exception as e:
             self.db_session.rollback()
             logging.warning("we did not manage to assign a new address to a user, something's wrong")
             return ""

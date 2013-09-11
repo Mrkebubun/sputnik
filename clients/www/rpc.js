@@ -70,6 +70,7 @@ function do_login(login, password) {
         var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
         console.log(secret);
         // direct sign or AJAX to 3rd party
+        console.log(challenge);
         console.log( session.authsign(challenge, secret) );
         var signature = session.authsign(challenge, secret);
         console.log(signature)
