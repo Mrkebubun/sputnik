@@ -73,9 +73,10 @@ class Order(object):
     def __repr__(self):
         return self.__dict__.__repr__()
 
-    def __init__(self, user, contract, quantity, price, order_side, order_id, is_a_cancellation=False):
+    def __init__(self, user_id, nickname, contract, quantity, price, order_side, order_id, is_a_cancellation=False):
         self.order_id = order_id
-        self.user = user
+        self.user_id = user_id
+        self.nickname = nickname
         self.contract = contract
         self.quantity = quantity
         self.price = price
@@ -154,14 +155,16 @@ class Order(object):
             signed_qty = (1 - 2 * o.order_side) * qty
             accountant.send_json({
                 'trade': {
-                    'user': o.user,
+                    'nickname': o.nickname,
+                    'user_id':o.user_id,
                     'contract': o.contract,
                     'signed_qty': signed_qty,
                     'price': matching_price,
                     'contract_type': db_orders[0].contract.contract_type
                 }
             })
-            publisher.send_json({'fill': [o.user, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
+            publisher.send_json({'fill': [o.nickname, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
+            print 'test 1:  ',str({'fill': [o.nickname, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
 
     def better(self, price):
         return (self.price - price) * (2 * self.order_side - 1) <= 0
@@ -251,7 +254,7 @@ def pretty_print_book():
 safe_price_publisher = SafePricePublisher()
 
 while True:
-    order = Order(None, None, None, None, None, None)
+    order = Order(None, None, None, None, None, None, None)
     order.__dict__.update(connector.recv_json())
     logging.info("received order, id=%d, order=%s" % (order.order_id, order))
 
@@ -274,13 +277,14 @@ while True:
             o.cancel()
             del all_orders[order.order_id]
             #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
-            #change o to order in the following:
+            #user.nicknamechange o to order in the following:
             print 'o.order_id:  ', o.order_id
             print 'order.order_id:  ', order.order_id
             print [oxox.__dict__ for oxox in all_orders.values()]
             print 'o.order_id:  ', o.order_id
             print 'order.order_id:  ', order.order_id
-            publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+            print 'test 2:  ',str({'cancel': [o.nickname, {'order': o.order_id}]}) 
+            publisher.send_json({'cancel': [o.nickname, {'order': o.order_id}]}) 
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             logging.warning("we currently don't have a way of telling the cancel failed")
@@ -316,7 +320,13 @@ while True:
         all_orders[order.order_id] = order
         update_best(other_side)
         # publish the user's open order to their personal channel
-        publisher.send_json({'open_orders': [order.user,{'order': order.order_id,
+        publisher.send_json({'open_orders': [order.nickname,{'order': order.order_id,
+                                                         'quantity':order.quantity,
+                                                         'price':order.price,
+                                                         'side': order.order_side,
+                                                         'ticker':contract_name,
+                                                         'contract_id':contract_id}]}) 
+        print 'test 3:  ',str({'open_orders': [order.nickname,{'order': order.order_id,
                                                          'quantity':order.quantity,
                                                          'price':order.price,
                                                          'side': order.order_side,

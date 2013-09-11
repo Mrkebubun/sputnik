@@ -12,6 +12,8 @@ import datetime
 import time
 import onetimepass as otp
 import os
+import md5
+
 from sqlalchemy import and_
 from jsonschema import validate
 from twisted.python import log
@@ -261,26 +263,27 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             user_id = user.id
             self.AUTH_EXTRA['salt'] = user.salt
         except Exception:
-            #return a fake salt so attackers can't distinguish usernames by null returns
-            #will need to anonymize the permissions better, or just convert user_id -> nicknames
-            #also need to make all login failures look uniform to client..
             user_id = 0 
-            self.AUTH_EXTRA['salt'] = os.urandom(3).encode('hex')[:-1]
+
+            #self.AUTH_EXTRA['salt'] = os.urandom(3).encode('hex')[:-1]
+            fakeSalt = md5.md5('authKey')
+            self.AUTH_EXTRA['salt'] = fakeSalt.hexdigest()[:5]
+
 
         print self.AUTH_EXTRA
         return {'permissions': {'pubsub': [{'uri':'http://example.com/safe_price#%s' %  'USD.13.7.31',
                                             'prefix':True,
                                             'pub':False,
                                             'sub':True},
-                                            {'uri':'http://example.com/user/open_orders#%s' % user_id,
+                                            {'uri':'http://example.com/user/open_orders#%s' % authKey,
                                             'prefix':True,
                                             'pub':False,
                                             'sub':True},
-                                            {'uri':'http://example.com/user/fills#%s' % user_id,
+                                            {'uri':'http://example.com/user/fills#%s' % authKey,
                                             'prefix':True,
                                             'pub':False,
                                             'sub':True},
-                                            {'uri':'http://example.com/user/cancels#%s' % user_id,
+                                            {'uri':'http://example.com/user/cancels#%s' % authKey,
                                             'prefix':True,
                                             'pub':False,
                                             'sub':True} ], 'rpc': []},
@@ -318,9 +321,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #todo: what if the users logs in from different location? To keep an eye on.
         self.user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
 
+        self.fillSubscriptionHandler = FillSubscriptionHandler(authKey)
+        self.cancelSubscriptionHandler = CancelSubscriptionHandler(authKey)
+        self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(authKey)
+
+        '''
         self.fillSubscriptionHandler = FillSubscriptionHandler(self.user.id)
         self.cancelSubscriptionHandler = CancelSubscriptionHandler(self.user.id)
         self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(self.user.id)
+        '''
 
         self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
         self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
@@ -627,6 +636,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         order["quantity"] = int(order["quantity"])
         order['user_id'] = self.user.id
+        order['nickname'] = self.user.nickname
 
         self.accountant.push(json.dumps({'place_order': order}))
         self.count += 1
@@ -653,8 +663,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}})
-        self.accountant.push(json.dumps({'cancel_order': {'order_id': order_id, 'user_id': self.user.id}}))
+        print 'output from server', str({'cancel_order': {'order_id': order_id, 'user_id': self.user.id, 'nickname':self.user.nickname}})
+        self.accountant.push(json.dumps({'cancel_order': {'order_id': order_id, 'user_id': self.user.id, 'nickname':self.user.nickname}}))
         self.count += 1
         print 'cancel_order', self.count
 

@@ -187,9 +187,10 @@ def process_trade(trade):
     takes in a trade and updates the database to reflect that the trade happened
     :param trade: the trade
     """
+    print trade
     if trade['contract_type'] == 'futures':
-        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user']).one()
-        future_position = create_or_get_position(trade['user'], trade['contract'], trade['price'])
+        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
+        future_position = create_or_get_position(trade['user_id'], trade['contract'], trade['price'])
 
         #mark to current price as if everything had been entered at that price and profit had been realized
         cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
@@ -205,8 +206,8 @@ def process_trade(trade):
         db_session.merge(cash_position)
 
     elif request_details['contract_type'] == 'prediction':
-        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user']).one()
-        prediction_position = create_or_get_position(trade['user'], trade['contract'], 0)
+        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
+        prediction_position = create_or_get_position(trade['user_id'], trade['contract'], 0)
 
         cash_position.position -= trade['signed_qty'] * trade['price']
         prediction_position.position += trade['signed_qty']
@@ -231,9 +232,11 @@ def cancel_order(details):
     print 'accountant received', details
     order_id = details['order_id']
     user_id = details['user_id']
+    nickname = details['nickname']
     try:
         # sanitize inputs:
         order_id = int(order_id)
+        nickname = str(nickname)
         # try db query
         order = db_session.query(models.Order).filter_by(id=order_id).one()
         if order.user_id != user_id:

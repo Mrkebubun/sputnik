@@ -94,12 +94,22 @@ function onAuth(permissions) {
     user_id = _.pluck(permissions.pubsub, 'uri')[1].split('#')[1]
     console.log(cancels_URI + user_id );
 
+    // switched user_id for login.value
+    try{session.subscribe(cancels_URI + login.value, onCancel);}
+        catch(err){console.log(err);}
+    try{session.subscribe(fills_URI + login.value, onFill);}
+        catch(err){console.log(err);}
+    try{ session.subscribe(open_orders_URI + login.value, onOpenOrder);}
+        catch(err){console.log(err);}
+
+    /*
     try{session.subscribe(cancels_URI + user_id, onCancel);}
         catch(err){console.log(err);}
     try{session.subscribe(fills_URI + user_id, onFill);}
         catch(err){console.log(err);}
     try{ session.subscribe(open_orders_URI + user_id, onOpenOrder);}
         catch(err){console.log(err);}
+    */
 
     switchBookSub (SITE_TICKER);
     //possible to subscribe to chat, but not pub before auth?

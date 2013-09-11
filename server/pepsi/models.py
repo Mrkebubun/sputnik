@@ -85,7 +85,7 @@ class Order(db.Base):
     timestamp = Column(DateTime)
 
     def to_matching_engine_order(self):
-        return {'order_id': self.id, 'user': self.user_id, 'contract': self.contract_id, 'quantity': self.quantity,
+        return {'order_id': self.id, 'user_id': self.user_id,'nickname':self.user.nickname, 'contract': self.contract_id, 'quantity': self.quantity,
                 'price': self.price, 'order_side': (0 if self.side == "BUY" else 1), 'is_a_cancellation': False}
 
 
