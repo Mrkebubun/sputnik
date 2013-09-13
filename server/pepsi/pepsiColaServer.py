@@ -157,7 +157,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             user_id = 0 
 
             #self.AUTH_EXTRA['salt'] = os.urandom(3).encode('hex')[:-1]
-            fakeSalt = md5.md5('authKey')
+            fakeSalt = md5.md5(authKey)
             self.AUTH_EXTRA['salt'] = fakeSalt.hexdigest()[:5]
 
 
