@@ -1,7 +1,7 @@
 #! /usr/bin/python2.7
-
-import models
-import database as db
+import augmentPythonPath
+import sputnik.server.pepsi.models as models
+import sputnik.server.pepsi.database as db
 
 db_session = db.Session()
 
