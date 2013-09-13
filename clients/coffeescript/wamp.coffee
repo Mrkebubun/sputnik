@@ -17,22 +17,29 @@ class Client extends events.EventEmitter
 
     URI_WAMP_PROCEDURE: "http://api.wamp.ws/procedure#"
 
-    constructor: (@uri, @debug=true) ->
+    constructor: (@uri, @debug=false, @closeOnError=false) ->
         @state = "wait"
         @calls = {}
         @socket = new WebSocket @uri, protocol: "wamp"
-        @socket.on "error", @error
-        @socket.on "message", @message
+        @socket.on "error", @onError
+        @socket.on "message", @onMessage
+        @socket.on "close", @onClose
 
-    message: (m, flags) =>
+    onMessage: (m, flags) =>
+        if flags.binary?
+            return @error "Protocol error: received binary data."
+        
         if @debug
             console.log "WAMP RX: ", m
+
         if @state is "closed"
             return
+
         try
             tokens = JSON.parse m
         catch e
             return @error "Protocol error: received malformed JSON data."
+
         if not Array.isArray tokens
             return @error "Procotol error: received data is not an array."
         if tokens.length == 0
@@ -43,6 +50,7 @@ class Client extends events.EventEmitter
                 return @error "Procotol error: did not receive a welcome."
             if tokens.length isnt 4
                 return @error "Procotol error: malformed welcome message."
+
             [type, @sessionId, @protocolVersion, @serverIdent] = tokens
             @state = "open"
             return @emit "open"
@@ -52,32 +60,48 @@ class Client extends events.EventEmitter
                 if tokens.length isnt 3
                     return @error "Protocol error: malformed result."
                 [type, id, result] = tokens
-                @calls[id].resolve result
+                deferred = @calls[id]
                 delete @calls[id]
+                deferred.resolve result
+
             when @TYPE_ID_CALLERROR
                 if tokens.length < 4
                     return @error "Protocol error: malformed error."
                 [type, id, uri, desc, details] = tokens
-                @calls[id].reject uri, desc, details
+                deferred = @calls[id]
                 delete @calls[id]
+                deferred.reject [uri, desc, details]
+
             when @TYPE_ID_EVENT
                 if tokens.length isnt 3
                     return @error "Protocol error: malformed event."
                 [type, uri, event] = tokens
                 @emit "event", uri, event
+
             else
                 @error "Procotol error: unrecognized message type."
 
     send: (m) =>
+        wire = JSON.stringify m
         if @debug
-            console.log "WAMP TX: ", m
-        @socket.send JSON.stringify(m), @error
+            console.log "WAMP TX: ", wire
+        @socket.send wire, @error
 
-    error: (e) =>
+    close: () => @socket.close()
+
+    @error: (e) => @onError e
+
+    onClose: () =>
+        @state = "closed"
+        @emit "close"
+
+    onError: (e) =>
         if not e?
             return
-        @state = "closed"
-        @socket.close()
+
+        if @closeOnError
+            @socket.close()
+
         @emit "error", e
 
     prefix: (prefix, uri) =>
@@ -95,7 +119,7 @@ class Client extends events.EventEmitter
     unsubscribe: (uri) =>
         @send [@TYPE_ID_UNSUBSCRIBE, uri]
 
-    publish: (uri, event=null, exclude, eligible) =>
+    publish: (uri, event=null, exclude=null, eligible=null) =>
         if eligible?
             exclude = exclude or []
             @send [@TYPE_ID_PUBLISH, uri, event, exclude, eligible]
@@ -123,13 +147,14 @@ class Client extends events.EventEmitter
         hmac = crypto.HMAC crypto.SHA256, challenge, authSecret, asBytes: true
         sig =  Buffer(hmac).toString "base64"
         reply = @call @URI_WAMP_PROCEDURE + "auth", sig
-        d.resolve reply
+        promise.when reply, d.resolve, d.reject
 
-    authenticate: (authKey, authExtra, authSecret) =>
+    authenticate: (authKey, authSecret, authExtra=null) =>
         d = promise.defer()
         reply = @call @URI_WAMP_PROCEDURE + "authreq", authKey, authExtra
         reply.addCallback (challenge) => @handleAuth challenge, authSecret, d
         reply.addErrback @error
+        return d.promise
         
 module.exports = Client: Client
 
