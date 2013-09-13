@@ -46,111 +46,6 @@ config.read(options.filename)
 RATE_LIMIT = 0.5
 MAX_TICKER_LENGTH = 100
 
-#maybe delete the safe price subscription handler...
-class SafePriceSubscriptionHandler:
-    """
-    Handler for subscription to the feed of a user's safePrice
-    :param user_id: id of the user
-    """
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-
-    @exportSub("safe_prices", prefixMatch=True)
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
-        """
-        handles the subscription to the open_orders feed
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, "open_orders#user_id"
-        """
-        try:
-            user_id = int(topicUriSuffix.split('#')[-1])
-            return self.user_id == user_id
-        except:
-            return False
-
-    @exportPub("safe_prices", prefixMatch=True)
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
-        return None
-
-class OpenOrderSubscriptionHandler:
-    """
-    Handler for subscription to the feed of a user's open orders
-    :param user_id: id of the user
-    """
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-
-    @exportSub("open_orders", prefixMatch=True)
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
-        """
-        handles the subscription to the open_orders feed
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, "open_orders#user_id"
-        """
-        try:
-            user_id = int(topicUriSuffix.split('#')[-1])
-            return self.user_id == user_id
-        except:
-            return False
-
-    @exportPub("open_orders", prefixMatch=True)
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
-        return None
-
-class CancelSubscriptionHandler:
-    """
-    Handler for subscription to the feed of cancels
-    :param user_id: id of the user
-    """
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-
-    @exportSub("cancels", prefixMatch=True)
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
-        """
-        handles the subscription to the cancel feed
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, "cancels#user_id"
-        """
-        try:
-            user_id = int(topicUriSuffix.split('#')[-1])
-            return self.user_id == user_id
-        except:
-            return False
-
-    @exportPub("cancels", prefixMatch=True)
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
-        return None
-
-class FillSubscriptionHandler:
-    """
-    Handler for subscription to the feed of fills
-    :param user_id: id of the user
-    """
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-
-    @exportSub("fills", prefixMatch=True)
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
-        """
-        handles the subscription to the fill feed
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, "fills#user_id"
-        """
-        try:
-            user_id = int(topicUriSuffix.split('#')[-1])
-            return self.user_id == user_id
-        except:
-            return False
-
-    @exportPub("fills", prefixMatch=True)
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
-        return None
-
 class PepsiColaServerProtocol(WampCraServerProtocol):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
@@ -225,10 +120,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub("http://example.com/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        # hardcode :(
-        self.safePriceSubscriptionHandler = SafePriceSubscriptionHandler(0)     # self.user.id)
-        self.registerHandlerForPubSub(self.safePriceSubscriptionHandler, baseUri="http://example.com/")
-
         self.registerForPubSub("http://example.com/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
         self.registerForPubSub("http://example.com/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
@@ -324,20 +215,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sets the user in the session... I'm not certain it's a 100% safe to store it like this
         #todo: what if the users logs in from different location? To keep an eye on.
         self.user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
-
-        self.fillSubscriptionHandler = FillSubscriptionHandler(authKey)
-        self.cancelSubscriptionHandler = CancelSubscriptionHandler(authKey)
-        self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(authKey)
-
-        '''
-        self.fillSubscriptionHandler = FillSubscriptionHandler(self.user.id)
-        self.cancelSubscriptionHandler = CancelSubscriptionHandler(self.user.id)
-        self.openOrderSubscriptionHandler = OpenOrderSubscriptionHandler(self.user.id)
-        '''
-
-        self.registerHandlerForPubSub(self.fillSubscriptionHandler, baseUri="http://example.com/user/")
-        self.registerHandlerForPubSub(self.cancelSubscriptionHandler, baseUri="http://example.com/user/")
-        self.registerHandlerForPubSub(self.openOrderSubscriptionHandler, baseUri="http://example.com/user/")
 
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
