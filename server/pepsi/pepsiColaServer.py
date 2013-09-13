@@ -218,9 +218,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("http://example.com/user/cancels#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/user/fills#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
-        self.registerForPubSub("http://example.com/user/open_orders#", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
+        self.registerForPubSub("http://example.com/user/cancels#" + authKey, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("http://example.com/user/fills#" + authKey, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("http://example.com/user/open_orders#" + authKey, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri="http://example.com/user/")
 
     @exportRpc("get_new_two_factor")
