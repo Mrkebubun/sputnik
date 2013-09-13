@@ -18,9 +18,14 @@ var cancel_order_URI = base_uri + "procedures/cancel_order";
 var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
 
+var change_password_URI = base_uri + "procedures/change_password";
 var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
+
+var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 10000};
+
+
 
 // connect to Autobahn.ws
 function connect() {
@@ -64,6 +69,7 @@ function connect() {
 
 function do_login(login, password) {
     session.authreq(login /*, extra*/).then(function (challenge) {
+        AUTHEXTRA = JSON.parse(challenge).authextra
         console.log('challenge', JSON.parse(challenge).authextra);
         console.log( ab.deriveKey(password, JSON.parse(challenge).authextra));
         //var secret = otp.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
@@ -106,6 +112,7 @@ function logout() {
     $('.table').empty()
     SITE_POSITIONS = [];
     OPEN_ORDERS = [];
+    AUTHEXTRA = {};
     console.log(OPEN_ORDERS);
     //need to unsubscribe from everything.
 }
@@ -237,6 +244,16 @@ function getCurrentAddress() {
     )
 }
 
+function change_password(old_password, new_password) {
+    old_password_hash = ab.deriveKey(old_password,AUTHEXTRA);
+    new_password_hash = ab.deriveKey(new_password,AUTHEXTRA);
+    console.log(old_password_hash);
+    session.call(change_password_URI,old_password_hash, new_password_hash).then(
+        function (res) {
+            console.log(res);
+        }
+    )
+}
 
 function getNewAddress() {
     session.call(get_new_address_URI).then(
@@ -315,7 +332,6 @@ function getSafePrices() {
 
 function makeAccount(name, psswd, email, bitmsg) {
 
-    var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 
     //is this a horrible way to generate a randome salt?
     var salt = Math.random().toString(36).slice(2);

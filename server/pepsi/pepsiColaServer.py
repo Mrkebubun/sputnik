@@ -374,6 +374,32 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                 "contract_type": x.contract.contract_type}
                 for x in self.db_session.query(models.Position).filter_by(user=self.user)}
 
+    @exportRpc("change_password")
+    @limit
+    def change_password(self, old_password_hash, new_password_hash):
+        """
+        Changes a users password.  Leaves salt and two factor untouched.
+        :param old_password_hash: current password
+        :param new_password_hash: new password
+        """
+
+        # sanitize
+        validate(old_password_hash, {"type": "string"})
+        validate(new_password_hash, {"type": "string"})
+
+        if old_password_hash == self.user.password_hash :
+            try:
+                self.user.password_hash = new_password_hash
+                self.db_session.add(self.user)
+                self.db_session.commit()
+
+                return True
+            except Exception as e:
+                self.db_session.rollback()
+                return False
+        else:
+            return False
+
     @exportRpc("make_account")
     @limit
     def make_account(self, name, password_hash, salt, email, bitmessage):

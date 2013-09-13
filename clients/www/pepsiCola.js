@@ -28,7 +28,6 @@ var trade_URI = base_uri + "trades#";
 var safe_prices_URI = base_uri + "safe_prices#";
 var order_book_URI = base_uri + "order_book#";
 
-
 window.onload = function () {
     connect();
 };
