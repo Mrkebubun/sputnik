@@ -250,7 +250,13 @@ function change_password(old_password, new_password) {
     console.log(old_password_hash);
     session.call(change_password_URI,old_password_hash, new_password_hash).then(
         function (res) {
-            console.log(res);
+            if (res) {
+                alert('success!'); 
+                $('.modal').modal('hide');
+            } else {
+                alert('password reset failed');
+            }
+
         }
     )
 }

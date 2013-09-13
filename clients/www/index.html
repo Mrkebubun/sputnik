@@ -176,9 +176,41 @@
             <table id="openOrders" class="table table-hover table-bordered table-condensed table-striped"> <!--position info--> </table>
 
 
-            <h3>Two Factor Authentication</h3>
+            <h3>Security:</h3>
+            <button id="changePassword" class="btn">Change Password</button>
             <button id="enableTwoFactor" class="btn btn-primary">Enable Two Factor Authentication</button>
 
+    <div id="changePasswordModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="changePassw"
+         aria-hidden="true"> <!-- Modal -->
+        <div class="modal-header">
+            <h3>Enable Two Factor:</h3>
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+        </div>
+
+        <div class="modal-body">
+                <div id="changePass"></div>
+                <hr>
+                        <div class="controls">
+                                <p>Current:</p>
+                                <input id="old_password" class="input-custom-size" type="password" placeholder="old" >
+                                <p>New Password:</p>
+                                <input id="new_password" class="input-custom-size" type="password" placeholder="new" >
+                                <p>Confirm New Password:</p>
+                                <input id="new_password_confirm" class="input-custom-size" type="password" placeholder="new" >
+                        </div>
+        </div>
+        <!--end modal-body-->
+        <div class="modal-footer">
+            <button  class="btn btn-large" data-dismiss="modal"
+                    aria-hidden="true">Cancel
+            </button>
+            <button  id="submitPasswordChange" class="btn btn-large btn-success" data-dismiss="modal"
+                    aria-hidden="true">Change
+            </button>
+            <!--type="button"-->
+        </div>
+    </div>
+    <!-- end Modal -->
     <div id="twoFactorModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="twoFactor"
          aria-hidden="true"> <!-- Modal -->
         <div class="modal-header">

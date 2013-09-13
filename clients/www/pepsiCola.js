@@ -1077,6 +1077,19 @@ $('#enableTwoFactor').click(function () {
     $('#twoFactorModal').modal('show');
 });
 
+$('#changePassword').click(function () {
+    $('#changePasswordModal').modal('show');
+});
+
+$('#submitPasswordChange').click(function () {
+    console.log('button clicked');
+    if (new_password.value == new_password_confirm.value){
+        change_password(old_password.value, new_password.value);
+    } else {
+        alert("new password doesn't match confirmation");
+    }
+});
+
 $('#submitTwoFactor').click(function(){
     registerTwoFactor('JBSWY3DPEHPK3PXP', parseInt($('#registerTwoFactor').val()));
 });
