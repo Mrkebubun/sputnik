@@ -295,7 +295,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 addr.active = False
                 self.db_session.add(addr)
 
-            new_address = self.db_session.query(models.Addresses).filter_by(active=False, user=None).first()
+            new_address = self.db_session.query(models.Addresses).filter_by(active=True,user=None).first()
             new_address.active = True
             new_address.user = self.user
             self.db_session.add(new_address)

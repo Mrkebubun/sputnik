@@ -1,11 +1,9 @@
+#!/usr/bin/env python
 SECONDS_TO_SLEEP = 1
 MINIMUM_CONFIRMATIONS = 0
 TESTNET = True
 COLD_WALLET_ADDRESS = "bleh"  #make this a multisig?
-ACCOUNTANT_PORT = 3342
-
-
-__author__ = 'satosushi'
+ACCOUNTANT_PORT = 4432
 
 import zmq
 import models
@@ -15,18 +13,31 @@ import bitcoinrpc
 import time
 
 
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+from ConfigParser import SafeConfigParser
+config = SafeConfigParser()
+config.read(options.filename)
+
+logging.basicConfig(level=logging.DEBUG)
+
+
 if TESTNET:
     conn = bitcoinrpc.connect_to_remote('bitcoinrpc','E39Vf7y6S8sRAW2YrDqaLJxtPRWekyVw4E6Sv3z8R4N8',port=18332)
 else:
     raise NotImplementedError()
     #return bitcoinrpc.connect_to_local()
 
-logging.basicConfig(level=logging.DEBUG)
 
 # push to the accountant
 context = zmq.Context()
 accountant = context.socket(zmq.PUSH)
-accountant.connect('tcp://localhost:%d' % ACCOUNTANT_PORT)
+#accountant.connect('tcp://localhost:%d' % ACCOUNTANT_PORT)
+accountant.connect(config.get("accountant","zmq_address"))
 
 #query the active addresses
 db_session = db.Session()
