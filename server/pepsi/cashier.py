@@ -28,6 +28,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 if TESTNET:
     conn = bitcoinrpc.connect_to_remote('bitcoinrpc','E39Vf7y6S8sRAW2YrDqaLJxtPRWekyVw4E6Sv3z8R4N8',port=18332)
+    logging.info('conntecting to bitcoin client')
 else:
     raise NotImplementedError()
     #return bitcoinrpc.connect_to_local()
@@ -50,6 +51,7 @@ def notify_accountant(address, total_received):
                         })
 
 def check_for_deposits():
+    logging.info('checking for deposits')
     confirmed_deposits = conn.listreceivedbyaddress(MINIMUM_CONFIRMATIONS)
 
     total_received = {row.address: int(row.amount * int(1e8)) for row in confirmed_deposits}
@@ -81,7 +83,6 @@ def notify_pending_withdrawal():
 
 blockchain_time = 0
 while True:
-    print int(time.time())%100
     if blockchain_time < conn.getinfo().blocks:
         check_for_deposits()
         #check_for_withdrawals()

@@ -25,8 +25,9 @@ class Contract(db.Base):
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
 
-    def __init__(self, ticker, description, full_description, contract_type, active=True):
+    def __init__(self, ticker, description, full_description, tick_size, denominator, contract_type, active=True):
         self.ticker, self.description, self.full_description = ticker, description, full_description
+        self.tick_size, self.denominator = tick_size, 
         self.contract_type, self.active = contract_type, active
 
 class FuturesContract(db.Base):
