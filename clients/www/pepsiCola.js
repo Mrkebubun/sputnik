@@ -491,6 +491,8 @@ function updateOrderBook(book, full_size) {
 }
 
 function updateTradeTable(trade) {
+    console.log('recieved trade');
+    console.log(trade);
 	var direction = '';
 
 	if (trade[1] > TRADE_HISTORY[0][1]) {
@@ -500,6 +502,7 @@ function updateTradeTable(trade) {
 	} /*else {
 		direction = 'neutral';
 	}*/
+
 
 	$('#tradeHistory tr:first').after("<tr class=" + direction + ">" +
 		"<td>" + displayPrice(trade[1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed

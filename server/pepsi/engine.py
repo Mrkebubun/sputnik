@@ -149,7 +149,7 @@ class Order(object):
         #end db code
 
         safe_price_publisher.onTrade({'price': matching_price, 'quantity': qty})
-        publisher.send_json({'trade': {'contract': self.contract, 'quantity': qty, 'price': matching_price}})
+        publisher.send_json({'trade': {'ticker': contract_name, 'quantity': qty, 'price': matching_price}})
 
         for o in [self, other_order]:
             signed_qty = (1 - 2 * o.order_side) * qty

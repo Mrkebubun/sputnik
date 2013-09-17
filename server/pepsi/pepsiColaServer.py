@@ -277,8 +277,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
         return [[trade.timestamp.isoformat(), trade.price, trade.quantity] for trade in
-                self.db_session.query(models.Trade).join(models.Contract).filter_by(ticker=ticker).filter(and_(
-                    models.Trade.timestamp >= from_dt, models.Trade.timestamp < to_dt))]
+                self.db_session.query(models.Trade).join(models.Contract).filter_by(ticker=ticker)] #.filter(and_( models.Trade.timestamp >= from_dt, models.Trade.timestamp < to_dt))]
 
     @exportRpc("get_new_address")
     @limit
@@ -662,7 +661,9 @@ class PepsiColaServerFactory(WampServerFactory):
                 self.dispatch("http://example.com/safe_prices#%s" % value.keys()[0], value.values()[0])
 
             elif key == 'trade':
-                self.dispatch("http://example.com/trades#%s" % value['contract'], value)
+                self.dispatch("http://example.com/trades#%s" % value['ticker'], value)
+                print 'search'
+                print value
 
             elif key == 'fill':
                 self.dispatch("http://example.com/user/fills#%s" % value[0], value[1])
