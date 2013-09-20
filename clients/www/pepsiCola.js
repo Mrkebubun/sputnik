@@ -730,6 +730,7 @@ function displayPositions(show_all_tickers, positions) {
         .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>Position</th>" +
+            "<th>Reference Price</th>" +
 			//<th>Low Margin</th>
 			"<th>Reserved for Margin</th></tr></thead><tbody>");
 
@@ -744,6 +745,7 @@ function displayPositions(show_all_tickers, positions) {
             $(element).append("<tr>" +
                 (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
                 "<td>" + positions[key]['position'] + "</td>" +
+                "<td>" + (positions[key]['reference_price'] / 1e8) + "</td>" +
                 //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
                 "<td>" + margins[ticker][0] / 1e8 + "</td>" +
                 "</tr>");
