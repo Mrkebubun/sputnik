@@ -94,6 +94,12 @@ def calculate_margin(user_id, order_id=None):
 
             SAFE_PRICE = safe_prices[position.contract.ticker]
 
+            logging.info(low_margin)
+            print 'max position:',max_position
+            print 'futures_contract.margin_low :',futures_contract.margin_low
+            print 'SAFE_PRICE :',SAFE_PRICE
+            print 'position.reference_price :',position.reference_price
+            print position
             low_max = abs(max_position) * futures_contract.margin_low * SAFE_PRICE / 100 + max_position * (
                 position.reference_price - SAFE_PRICE)
             low_min = abs(min_position) * futures_contract.margin_low * SAFE_PRICE / 100 + min_position * (
@@ -102,6 +108,8 @@ def calculate_margin(user_id, order_id=None):
                 position.reference_price - SAFE_PRICE)
             high_min = abs(min_position) * futures_contract.margin_high * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
+            logging.info( low_max)
+            logging.info( low_min)
 
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
@@ -192,9 +200,25 @@ def process_trade(trade):
         cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
         future_position = create_or_get_position(trade['user_id'], trade['contract'], trade['price'])
 
-        #mark to current price as if everything had been entered at that price and profit had been realized
-        cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
-        future_position.reference_price = trade['price']
+        # credit profit or loss made by price movement.  Only credit the positions that are cancelled out.
+        if future_position.position * trade['signed_qty'] < 0 :
+            cash_position.position += (trade['price'] - future_position.reference_price) *  future_position.position if ( abs(future_position.position) < abs(trade['signed_qty']) ) else trade['signed_qty']
+        
+        #The following if/else statement is doing:
+        ''' Set the reference price to 0, if the trade leaves the position at 0.
+            Set the reference price to a weighted average of the old position with the trade position if there is no cancellation - this let's us treat the entire position as a single order.
+            Set the reference price to the trade price if the position reverese direction as a result of a trade.  Other wise keep it the same.
+        '''
+        if future_position.reference_price + trade['signed_qty'] == 0 :
+            future_position.reference_price = 0 
+        elif future_position.position * trade['signed_qty']>0 :
+            present_position = db_session.query(models.Position).filter_by(contract = future_position.contract, user = future_position.user).one()
+            new_total = future_position.position + trade['signed_qty']
+            new_reference_price = float(future_position.position * future_position.reference_price + trade['price'] * trade['signed_qty'])/new_total #rounding error, should be able to ignore.. at least until we start dealing with people wagering millions of these lots or a satoshi becomes valuable.. we can credit an account with a n satoshis, where n is the number of futures lots every time this happens if anyone feels strongly about this. yes.  this is way over 80 chars. <3
+            future_position.reference_price = new_reference_price
+        elif future_position.position * trade['signed_qty']<0 :
+            future_position.reference_price = future_position.reference_price if ( abs(future_position.position) > abs(trade['signed_qty']) ) else trade['price']
+
 
         #note that even though we're transferring money to the account, this money may not be withdrawable
         #because the margin will raise depending on the distance of the price to the safe price
@@ -244,7 +268,6 @@ def cancel_order(details):
 
         m_e_order = order.to_matching_engine_order()
         m_e_order['is_a_cancellation'] = True
-        print 'output accountant', m_e_order
         engine_sockets[order.contract_id].send(json.dumps(m_e_order))
         return True
 
