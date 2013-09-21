@@ -191,58 +191,42 @@ def check_and_issue_margin_call(user_id):
 
 
 def process_trade(trade):
-    """
-    takes in a trade and updates the database to reflect that the trade happened
-    :param trade: the trade
-    """
-    print trade
-    if trade['contract_type'] == 'futures':
-        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
-        future_position = create_or_get_position(trade['user_id'], trade['contract'], trade['price'])
-
-        # credit profit or loss made by price movement.  Only credit the positions that are cancelled out.
-        if future_position.position * trade['signed_qty'] < 0 :
-            cash_position.position += (trade['price'] - future_position.reference_price) *  future_position.position if ( abs(future_position.position) < abs(trade['signed_qty']) ) else trade['signed_qty']
-        
-        #The following if/else statement is doing:
-        ''' Set the reference price to 0, if the trade leaves the position at 0.
-            Set the reference price to a weighted average of the old position with the trade position if there is no cancellation - this let's us treat the entire position as a single order.
-            Set the reference price to the trade price if the position reverese direction as a result of a trade.  Other wise keep it the same.
-        '''
-        if future_position.reference_price + trade['signed_qty'] == 0 :
-            future_position.reference_price = 0 
-        elif future_position.position * trade['signed_qty']>0 :
-            present_position = db_session.query(models.Position).filter_by(contract = future_position.contract, user = future_position.user).one()
-            new_total = future_position.position + trade['signed_qty']
-            new_reference_price = float(future_position.position * future_position.reference_price + trade['price'] * trade['signed_qty'])/new_total #rounding error, should be able to ignore.. at least until we start dealing with people wagering millions of these lots or a satoshi becomes valuable.. we can credit an account with a n satoshis, where n is the number of futures lots every time this happens if anyone feels strongly about this. yes.  this is way over 80 chars. <3
-            future_position.reference_price = new_reference_price
-        elif future_position.position * trade['signed_qty']<0 :
-            future_position.reference_price = future_position.reference_price if ( abs(future_position.position) > abs(trade['signed_qty']) ) else trade['price']
-
-
-        #note that even though we're transferring money to the account, this money may not be withdrawable
-        #because the margin will raise depending on the distance of the price to the safe price
-
-        # then change the quantity
-        future_position.position += trade['signed_qty']
-
-        db_session.merge(future_position)
-        db_session.merge(cash_position)
-
-    elif request_details['contract_type'] == 'prediction':
-        cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
-        prediction_position = create_or_get_position(trade['user_id'], trade['contract'], 0)
-
-        cash_position.position -= trade['signed_qty'] * trade['price']
-        prediction_position.position += trade['signed_qty']
-
-        db_session.merge(prediction_position)
-        db_session.merge(cash_position)
-
-    else:
-        logging.error("unknown contract type")
-
-    db_session.commit()
+     """
+     takes in a trade and updates the database to reflect that the trade happened
+     :param trade: the trade
+     """
+     print trade
+     if trade['contract_type'] == 'futures':
+         cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
+         future_position = create_or_get_position(trade['user_id'], trade['contract'], trade['price'])
+ 
+         #mark to current price as if everything had been entered at that price and profit had been realized
+         cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
+         future_position.reference_price = trade['price']
+ 
+         #note that even though we're transferring money to the account, this money may not be withdrawable
+         #because the margin will raise depending on the distance of the price to the safe price
+ 
+         # then change the quantity
+         future_position.position += trade['signed_qty']
+ 
+         db_session.merge(future_position)
+         db_session.merge(cash_position)
+ 
+     elif request_details['contract_type'] == 'prediction':
+         cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
+         prediction_position = create_or_get_position(trade['user_id'], trade['contract'], 0)
+ 
+         cash_position.position -= trade['signed_qty'] * trade['price']
+         prediction_position.position += trade['signed_qty']
+ 
+         db_session.merge(prediction_position)
+         db_session.merge(cash_position)
+ 
+     else:
+         logging.error("unknown contract type")
+ 
+     db_session.commit()
 
 
 def cancel_order(details):
