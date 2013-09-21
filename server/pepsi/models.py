@@ -116,7 +116,7 @@ class User(db.Base):
     id = Column(Integer, primary_key=True)
     password_hash = Column(String, nullable=False)
     salt = Column(String)
-    #two_factor = Column(String)
+    two_factor = Column(String)
     nickname = Column(String, unique=True, nullable=False)
     email = Column(String, unique=True)
     bitmessage = Column(String, unique=True)
@@ -128,7 +128,6 @@ class User(db.Base):
     def __init__(self, password_hash, salt, nickname, email, bitmessage):
         self.password_hash = password_hash
         self.salt = salt
-#self.two_factor = .... initialize to empty string or None?
         self.nickname = nickname
         self.email = email
         self.bitmessage = bitmessage
