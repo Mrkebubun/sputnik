@@ -136,6 +136,7 @@ function onFill(topicUri, event) {
     //must get rid of safe price rpc!
     console.log('in onFill', SITE_TICKER, topicUri, event);
 
+    getPositions(SITE_TICKER);
     getSafePrices(Object.keys(MARKETS));
 
     OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
