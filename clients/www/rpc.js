@@ -72,8 +72,9 @@ function do_login(login, password) {
         AUTHEXTRA = JSON.parse(challenge).authextra
         console.log('challenge', JSON.parse(challenge).authextra);
         console.log( ab.deriveKey(password, JSON.parse(challenge).authextra));
-        //var secret = otp.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
-        var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
+        console.log(two_factor.value);
+        var secret = two_factor.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
+        //var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
         console.log(secret);
         // direct sign or AJAX to 3rd party
         console.log(challenge);

@@ -149,6 +149,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         print 'getAuthPermissions'
         print self.AUTH_EXTRA
+
         try:
             user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
             user_id = user.id
@@ -188,12 +189,26 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         #todo, understand how this deferred actually works
         #d = defer.Deferred()
+
+        # this is where we want to call otp.get_totp ... append to start of hashed password.
         #d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
+
+
+        #implement this now:
         #return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+        #do a db mibrations and make obama's otp = secret.  See what happens
+        
+        secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
+        test = otp.get_totp(secret)
         try:
-            password_hash = self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+            #password_hash = self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+            #this works now...
+            password_hash = str(test) + self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
         except Exception as e:
+            logging.info(e)
             password_hash = ''
+
+        logging.info("returning password hash %s" % password_hash)
         return password_hash
 
     # noinspection PyMethodOverriding
@@ -246,10 +261,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(secret, secret_schema)
         confirmation_schema = {"type": "number"}
         validate(confirmation, confirmation_schema)
-        secret = 'JBSWY3DPEHPK3PXP'
-        test = otp.get_totp('JBSWY3DPEHPK3PXP')
-        print secret, confirmation, test
 
+        #there should be a db query here, or maybe we can just refernce self.user..
+        secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
+        test = otp.get_totp(secret)
+
+        #compare server totp to client side totp:
         if confirmation == test:
             return True
         else:
