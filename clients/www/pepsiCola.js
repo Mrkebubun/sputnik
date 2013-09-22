@@ -562,11 +562,14 @@ function tradeTable(trades, fullsize) {
 
     $('#tradeHistory').prepend('<tr><th>Price <p class=\'contract_unit\'></p> </th><th>Vol.</th><th>Time</th></tr>');
 
+    //Removing table size variance buttons
+    /*
     $('#tradeHistory').append(
         fullsize ?
             '<tr><td colspan="3"><button id="lessTrades" class="btn btn-block"><i class="icon-chevron-up"/></button></td></tr>' :
             '<tr><td colspan="3"><button id="moreTrades" class="btn btn-block"><i class="icon-chevron-down"/></button></td></tr>'
     );
+    */
 
     $('#lessTrades').click(function () {
         tradeTable(TRADE_HISTORY, false);
@@ -639,11 +642,14 @@ function graphTable(table, side, fullsize) {
 
     $(id).prepend("<tr>" + (side == 'buy' ? volume_header + price_header : price_header + volume_header) + "</tr>");
 
+    //removing size variability
+    /*
     $(id).append(
         fullsize ?
             '<tr><td colspan="2"><button  class="lessOrderBook btn btn-block"><i class="icon-chevron-up"/></button></td></tr>' :
             '<tr><td colspan="2"><button  class="moreOrderBook btn btn-block"><i class="icon-chevron-down"/></button></td></tr>'
     );
+    */
 
     $('.lessOrderBook').click(function () {
         console.log('less');
