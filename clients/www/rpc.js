@@ -96,7 +96,7 @@ function failed_login(err) {
 
     //add a notification of failed login to login error modal then restart modal
     $('#login_error').attr('class','alert')
-                     .text('Login error, please try again.')
+                     .text('Login error, please try again.');
     $('#loginButton').click();
 };
 

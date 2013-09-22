@@ -1100,7 +1100,7 @@ $('#enableTwoFactor').click(function () {
     if (!TWO_FACTOR_ON) {
         getNewTwoFactor();
     }  
-    $('#registerTwoFactor').
+    $('#registerTwoFactor').prop('value','');
     $('#twoFactorModal').modal('show');
 });
 
@@ -1136,6 +1136,14 @@ $("input#search").keypress(function (e) {
     }
 });
 
+$('#registerTwoFactor').keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        $('#submitTwoFactor').click();
+    }
+});
+
+
 $("input#chatBox.chatInput").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
@@ -1162,6 +1170,13 @@ $("#login").keypress(function (e) {
 });
 
 $("#password").keypress(function (e) {
+    var code = (e.keyCode ? e.keyCode : e.which);
+    if (code == 13) {
+        $('#login_button').click();
+    }
+});
+
+$("#two_factor").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
         $('#login_button').click();
