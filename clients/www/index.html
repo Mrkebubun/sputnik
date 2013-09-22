@@ -160,10 +160,6 @@
         </div>
     </div> <!--class="container span10"-->
 
-
-
-
-
     <div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
         <div class="container"> <!-- position info-->
             <h3>Balance</h3>
@@ -177,8 +173,11 @@
 
 
             <h3>Security:</h3>
+            <hr>
             <button id="changePassword" class="btn">Change Password</button>
-            <!-- <button id="enableTwoFactor" class="btn btn-primary">Enable Two Factor Authentication</button>-->
+
+            <label> Two Factor: </label>
+            <button id="enableTwoFactor" class="btn btn-success">Enable</button>
 
     <div id="changePasswordModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="changePassw"
          aria-hidden="true"> <!-- Modal -->
@@ -221,7 +220,7 @@
         <div class="modal-body">
                 <div id="twoFactor"></div>
                 <hr>
-                        <p> Enter the otp number here to enable two factor:</p>
+                        <p id='twoFactorInstructions'> </p>
                         <div class="controls">
                                 <input id="registerTwoFactor" class="input-custom-size" type="text" placeholder="123456" >
                         </div>

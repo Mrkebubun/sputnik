@@ -190,22 +190,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #todo, understand how this deferred actually works
         #d = defer.Deferred()
 
-        # this is where we want to call otp.get_totp ... append to start of hashed password.
-        #d.callback(self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash)
-
-
         #implement this now:
         #return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
         #do a db mibrations and make obama's otp = secret.  See what happens
         
-        secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
-        test = otp.get_totp(secret)
         try:
-            #password_hash = self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
-            #this works now...
+            secret = self.db_session.query(models.User).filter_by(nickname=authKey).one().two_factor
+            test = otp.get_totp(secret)
+        except Exception as e:
+            secret = ''     
+            test = ''
+
+        try:
             password_hash = str(test) + self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
         except Exception as e:
-            logging.info(e)
+            logging.warning('exceptions, line 107: %s' %e)
             password_hash = ''
 
         logging.info("returning password hash %s" % password_hash)
@@ -245,30 +244,65 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         prepares new two factor authentication for an account
         """
         new = otp.base64.b32encode(os.urandom(10))
-        print new
+        self.user.two_factor = new
         return new
+
+
+    @exportRpc("disable_two_factor")
+    @limit
+    def disable_two_factor(self,confirmation):
+        """
+        disables two factor authentication for an account
+        """
+        secret = self.db_session.query(models.User).filter_by(nickname = self.user.nickname).one().two_factor
+        logging.info('in disable, got secret: %s' % secret)
+        totp = otp.get_totp(secret)
+
+        if confirmation == totp:
+            try:
+                logging.info(self.user)
+                self.user.two_factor = None
+                logging.info('should be None till added user')
+                logging.info(self.user.two_factor)
+                self.db_session.add(self.user)
+                logging.info('added user')
+                self.db_session.commit()
+                logging.info('commited')
+                return True
+            except:
+                self.db_session.rollBack()
+                return False
+
 
     @exportRpc("register_two_factor")
     @limit
-    def register_two_factor(self, secret, confirmation):
+    def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
         :param secret: secret to store
         :param confirmation: trial run of secret
         """
         # sanitize input
-        secret_schema = {"type": "string"}
-        validate(secret, secret_schema)
         confirmation_schema = {"type": "number"}
         validate(confirmation, confirmation_schema)
 
         #there should be a db query here, or maybe we can just refernce self.user..
-        secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
+        #secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
+
+        logging.info('two factor in register: %s' % self.user.two_factor)
+        secret = self.user.two_factor
         test = otp.get_totp(secret)
+        logging.info(test)
 
         #compare server totp to client side totp:
         if confirmation == test:
-            return True
+            try:
+                self.db_session.add(self.user)
+                self.db_session.commit()
+                return True
+            except Exception as e:
+                self.db_session.rollBack()
+                return False
         else:
             return False    
 
@@ -441,7 +475,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0
 
-            new_address = self.db_session.query(models.Addresses).filter_by(active=False, user=None).first()
+            new_address = self.db_session.query(models.Addresses).filter_by(active=True, user=None).first()
             new_address.active = True
             new_address.user = user
 

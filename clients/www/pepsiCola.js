@@ -15,6 +15,7 @@ var ORDER_BOOK_VIEW_SIZE = false;
 
 var CHAT_MESSAGES = [];
 var SAFE_PRICES = Object();
+var TWO_FACTOR_ON = false;
 
 var base_uri = "http://example.com/";
 
@@ -62,6 +63,30 @@ function onConnect() {
 
 }
 
+function twoFactorSetting(){
+    console.log(two_factor.value.length);
+    console.log(two_factor.value.length > 0);
+
+    if (two_factor.value.length > 0){
+        TWO_FACTOR_ON = true;
+    }
+
+    if (TWO_FACTOR_ON) {
+           $('#enableTwoFactor').removeClass('btn-success')
+                               .addClass('btn-danger')
+                               .text('Disable');
+           $('#twoFactor').hide();
+           $('#twoFactorInstructions').text('Enter your current otp number here disable two factor authentication:');
+    } else {
+           $('#enableTwoFactor').removeClass('btn-danger')
+                               .addClass('btn-success')
+                               .text('Enable');
+           $('#twoFactor').show();
+           $('#twoFactorInstructions').text('Enter the otp number here to enable two factor:');
+    }
+
+}
+
 function onAuth(permissions) {
     ab.log("authenticated!", JSON.stringify(permissions));
     logged_in = true;
@@ -85,6 +110,8 @@ function onAuth(permissions) {
     getOpenOrders();
     getPositions();
 
+    twoFactorSetting();
+
     /*
     the gleaning of the user_id from the permissions and then manual 
     subscription process is very hacky.  Hope to make it more clean later.
@@ -100,15 +127,6 @@ function onAuth(permissions) {
         catch(err){console.log(err);}
     try{ session.subscribe(open_orders_URI + login.value, onOpenOrder);}
         catch(err){console.log(err);}
-
-    /*
-    try{session.subscribe(cancels_URI + user_id, onCancel);}
-        catch(err){console.log(err);}
-    try{session.subscribe(fills_URI + user_id, onFill);}
-        catch(err){console.log(err);}
-    try{ session.subscribe(open_orders_URI + user_id, onOpenOrder);}
-        catch(err){console.log(err);}
-    */
 
     switchBookSub (SITE_TICKER);
     //possible to subscribe to chat, but not pub before auth?
@@ -1079,7 +1097,10 @@ $("#searchButton").click(function () {
 })
 
 $('#enableTwoFactor').click(function () {
-    getNewTwoFactor();
+    if (!TWO_FACTOR_ON) {
+        getNewTwoFactor();
+    }  
+    $('#registerTwoFactor').
     $('#twoFactorModal').modal('show');
 });
 
@@ -1097,7 +1118,11 @@ $('#submitPasswordChange').click(function () {
 });
 
 $('#submitTwoFactor').click(function(){
-    registerTwoFactor('JBSWY3DPEHPK3PXP', parseInt($('#registerTwoFactor').val()));
+    if(!TWO_FACTOR_ON){
+        registerTwoFactor( parseInt($('#registerTwoFactor').val()));
+    } else {
+       disableTwoFactor( parseInt($('#registerTwoFactor').val())); 
+    }
 });
 
 $('#suggestContractButton').click(function () {

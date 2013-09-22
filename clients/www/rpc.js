@@ -17,6 +17,7 @@ var cancel_order_URI = base_uri + "procedures/cancel_order";
 
 var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
+var disable_two_factor_URI= base_uri + "procedures/disable_two_factor";
 
 var change_password_URI = base_uri + "procedures/change_password";
 var get_new_address_URI = base_uri + "procedures/get_new_address";
@@ -115,6 +116,8 @@ function logout() {
     AUTHEXTRA = {};
     console.log(OPEN_ORDERS);
     //need to unsubscribe from everything.
+
+    session.close();
 }
 
 function getTradeHistory(ticker) {
@@ -269,23 +272,39 @@ function getNewAddress() {
     )
 }
 
-function registerTwoFactor(secret,confirmation) {
+function registerTwoFactor(confirmation) {
     notifications.processing('confirmation');
-    session.call(register_two_factor_URI, secret, confirmation).then(
+    session.call(register_two_factor_URI, confirmation).then(
         function (res) {
             notifications.dismiss_processing(res)
             console.log(res);
+            if (res) {
+              two_factor.value = 'enabled';
+              TWO_FACTOR_ON = true;
+              twoFactorSetting();
+            }
         }
     )
 }
 
+function disableTwoFactor(code) {
+    session.call(disable_two_factor_URI, code).then(
+        function(res) {
+            if(res){
+                console.log('disabled');
+                two_factor.value = '';
+                TWO_FACTOR_ON = false;
+                twoFactorSetting();
+            }
+        })
+}
 function getNewTwoFactor() {
     session.call(get_new_two_factor_URI).then(
         function(secret) {
             console.log(secret);
-            console.log("otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example")
-            //$('#twoFactor').empty();
-            new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Example:alice@google.com?secret=" + secret + "&issuer=Example");
+            console.log("otpauth://totp/Sputnik:" + login.value +  "?secret=" + secret + "&issuer=SputnikMKT")
+            $('#twoFactor').empty();
+            new QRCode(document.getElementById("twoFactor"), "otpauth://totp/Sputnik:" + login.value + "?secret=" + secret + "&issuer=SputnikMKT");
         })
 }
 
