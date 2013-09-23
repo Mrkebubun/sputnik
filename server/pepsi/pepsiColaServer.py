@@ -22,6 +22,7 @@ from twisted.web.server import Site
 from twisted.web.static import File
 from autobahn.websocket import listenWS
 from autobahn.wamp import exportRpc, \
+    WampCraProtocol, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
 
@@ -206,6 +207,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         except Exception as e:
             logging.warning('exceptions, line 107: %s' %e)
             password_hash = ''
+
+        #hash password again to interpolate str(test):
+        password_hash = WampCraProtocol.deriveKey(str(password_hash), {'salt': 'onetimepass', 'keylen': 32, 'iterations': 10})
 
         logging.info("returning password hash %s" % password_hash)
         return password_hash
