@@ -370,8 +370,11 @@ function makeAccount(name, psswd, email, bitmsg) {
     console.log('making session call for makeAccount');
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
-            console.log(res)
             login.value = registerLogin.value;
-            do_login(registerLogin.value, registerPassword.value) ;
+            if (res){
+                do_login(registerLogin.value, registerPassword.value);
+            } else {
+                alert('user name or email taken');
+            }
         })
 }

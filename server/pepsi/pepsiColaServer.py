@@ -476,7 +476,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         try:
             already_existing = self.db_session.query(models.User).filter_by(nickname=name).count() 
             if already_existing>0:
-                logging.info('throwing exception')
                 raise Exception('duplicate')
 
             user = models.User(password_hash, salt, name, email, bitmessage)
@@ -492,12 +491,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.db_session.add(user)
             self.db_session.add(btc_pos)
             self.db_session.commit()
-
-            return str({'result':'success'})
+            return True
 
         except Exception as e:
             self.db_session.rollback()
-            return str({'result':'fail','reason':e})
+            return False
 
 
 
