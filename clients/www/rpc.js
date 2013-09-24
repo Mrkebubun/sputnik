@@ -24,7 +24,7 @@ var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
-var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 10000};
+var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 5000};
 
 
 
@@ -361,14 +361,13 @@ function getSafePrices() {
 }
 
 function makeAccount(name, psswd, email, bitmsg) {
-
-
-    //is this a horrible way to generate a randome salt?
+    console.log('in make account');
     var salt = Math.random().toString(36).slice(2);
     AUTHEXTRA['salt'] = salt;
 
     var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
 
+    console.log('making session call for makeAccount');
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
             console.log(res)

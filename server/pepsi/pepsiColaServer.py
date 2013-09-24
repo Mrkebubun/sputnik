@@ -55,7 +55,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         pass
 
     # doesn't seem to affect the random salt value... but login doesn't work with this line deleted.
-    AUTH_EXTRA = {'salt': "SALT", 'keylen': 32, 'iterations': 1000}
+    AUTH_EXTRA = {'salt': "SALT", 'keylen': 32, 'iterations': 5000}
     #PERMISSIONS = {'pubsub': [{'uri': 'http://example.com/simple/',
     #                           'prefix': True,
     #                           'pub': True,
@@ -474,6 +474,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(bitmessage, {"type": "string"})
 
         try:
+            already_existing = self.db_session.query(models.User).filter_by(nickname=name).count() 
+            if already_existing>0:
+                logging.info('throwing exception')
+                raise Exception('duplicate')
+
             user = models.User(password_hash, salt, name, email, bitmessage)
             btc = self.db_session.query(models.Contract).filter_by(ticker='BTC').one()
             btc_pos = models.Position(user, btc)
@@ -488,10 +493,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.db_session.add(btc_pos)
             self.db_session.commit()
 
-            return True
+            return str({'result':'success'})
+
         except Exception as e:
             self.db_session.rollback()
-            raise e
+            return str({'result':'fail','reason':e})
+
 
 
     @exportRpc("list_markets")
