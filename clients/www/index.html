@@ -705,7 +705,7 @@ TJEDFtH90mLdLSJPbhWdxyxUAvbmz9wfeURrNSPe7dKD
         <button  class="btn btn-large " data-dismiss="modal"
                 aria-hidden="true">Cancel
         </button>
-        <button  class="btn btn-large btn-primary" onclick='withdraw()' data-dismiss="modal"
+        <button  class="btn btn-large btn-primary" id='withdrawButton' data-dismiss="modal"
                 aria-hidden="true">Send!
         </button>
         <!--type="button"-->
@@ -751,7 +751,7 @@ TJEDFtH90mLdLSJPbhWdxyxUAvbmz9wfeURrNSPe7dKD
 
     <div class="modal-footer">
         <button class="btn btn-large pull-left" data-dismiss="modal" aria-hidden="true">Close</button>
-        <button onclick="do_login(login.value, password.value);" data-dismiss="modal" class="btn btn-success btn-large"
+        <button id='do_login_button'  data-dismiss="modal" class="btn btn-success btn-large"
                 type="button" id='login_button'> login <i class="icon-lock"></i></button>
 
         <!--type="button"-->

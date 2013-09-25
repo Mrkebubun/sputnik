@@ -55,7 +55,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         pass
 
     # doesn't seem to affect the random salt value... but login doesn't work with this line deleted.
-    AUTH_EXTRA = {'salt': "SALT", 'keylen': 32, 'iterations': 5000}
+    AUTH_EXTRA = {'salt': "SALT", 'keylen': 32, 'iterations': 1000}
     #PERMISSIONS = {'pubsub': [{'uri': 'http://example.com/simple/',
     #                           'prefix': True,
     #                           'pub': True,

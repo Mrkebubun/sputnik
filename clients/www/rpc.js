@@ -24,7 +24,7 @@ var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
-var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 5000};
+var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 
 
 
@@ -93,6 +93,10 @@ function do_login(login, password) {
         failed_login('bad login');
     });
 }
+
+$('#do_login_button').click(function(){
+    do_login(login.value, password.value);
+});
 
 function failed_login(err) {
     /*bootstrap gets stuck if if two modals are called in succession, so force
@@ -240,6 +244,11 @@ function withdraw() {
         }
     )
 }
+
+$('#withdrawButton').click(function(){
+    withdraw();
+});
+
 
 function getCurrentAddress() {
     session.call(get_current_address_URI).then(

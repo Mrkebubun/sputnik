@@ -1171,21 +1171,21 @@ $('#registerModal').on('shown', function () {
 $("#login").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
-        $('#login_button').click();
+        $('#do_login_button').click();
     }
 });
 
 $("#password").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
-        $('#login_button').click();
+        $('#do_login_button').click();
     }
 });
 
 $("#two_factor").keypress(function (e) {
     var code = (e.keyCode ? e.keyCode : e.which);
     if (code == 13) {
-        $('#login_button').click();
+        $('#do_login_button').click();
     }
 });
 
