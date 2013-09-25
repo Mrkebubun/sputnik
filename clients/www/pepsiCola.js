@@ -683,7 +683,7 @@ function displayOrders(show_all_tickers, orders) {
 
             if (show_all_tickers || ticker == SITE_TICKER) { // if this SITE_TICKER is to be shown
 
-                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "' style='vertical-align:middle' onclick='switchToTrade(\""+ ticker +"\")'>" + ticker  + "</td>" : "") // don't show ticker unless needed
+                var ticker_td = (show_all_tickers ? "<td rowspan='" + length + "' style='vertical-align:middle' class='ordersDisplay'  id='"+ ticker +"'>" + ticker  + "</td>" : "") // don't show ticker unless needed
 //                var margin_td = (show_all_tickers ? "<td rowspan='" + length + "'>" + margins[ticker][1] / 1e8 + "</td>" : "") // don't show ticker unless needed
                 var printed_ticker;
                 _.each(contract_group, function (order) {
@@ -701,7 +701,7 @@ function displayOrders(show_all_tickers, orders) {
                         "<td nowrap>" + price + "</td>" +
                         "<td>" + order['side'] + "</td>" +
                         "<td>" +
-                        "<button id='cancel_button_" + order['order_id'] + "' class='btn btn-block btn-danger' type='button' onclick='cancelOrder(" + order['order_id'] + ")'>" + (show_all_tickers?'cancel':'') + "<i class='icon-trash'/></button>" +
+                        "<button id='cancel_button_" + order['order_id'] + "' class='cancelButtons btn btn-block btn-danger' type='button' >" + (show_all_tickers?'cancel':'') + "<i class='icon-trash'/></button>" +
                         "</td>" +
                         "</tr>");
                     printed_ticker = true;
@@ -709,6 +709,16 @@ function displayOrders(show_all_tickers, orders) {
             }
         $(element).append("</thead>");
        });
+
+       $('.cancelButtons').unbind()
+                          .click(function(e){
+                                cancelOrder(parseInt((e.currentTarget.id).split('_')[2]));
+                           });
+
+       $('.ordersDisplay').unbind('click')
+                          .click(function (e){
+                                switchToTrade(e.currentTarget.id);
+                          });
 }
 
 function displayCash(display_account_page, positions) {
@@ -732,12 +742,12 @@ function displayCash(display_account_page, positions) {
             
             (display_account_page?
             "<td>" +
-            "<button onclick='withdrawModal()' class='btn btn-block' type='button'>" +
+            "<button id='withdrawModalButton'  class='btn btn-block' type='button'>" +
             " <i class='icon-minus-sign'/>" +
             "</button>" +
             "</td>" +
             "<td>" +
-            "<button onclick='deposit()' class='btn btn-block' type='button'>" +
+            "<button id='depositButton' class='btn btn-block' type='button'>" +
             " <i class='icon-plus-sign'/>" +
             "</button>" +
             "</td>" 
@@ -746,6 +756,14 @@ function displayCash(display_account_page, positions) {
 
             + "</tr>");
     }
+
+    $('#depositButton').click(function(){
+        deposit()
+    });
+
+    $('#withdrawModalButton').click(function(){
+        withdrawModal()
+    });
 }
 
 function displayPositions(show_all_tickers, positions) {
@@ -768,7 +786,7 @@ function displayPositions(show_all_tickers, positions) {
         if (show_all_tickers || (positions[key]['ticker'] == SITE_TICKER)) {// if this ticker is to be shown
             var ticker = positions[key]['ticker'];//(typeof positions[key]['ticker'] =='number')?SITE_POSITIONS[ticker]['ticker']:positions[key]['ticker']
             $(element).append("<tr>" +
-                (show_all_tickers ? "<td onclick='switchToTrade(\""+ ticker +"\")' >" + ticker + "</td>" : "") + // don't show ticker unless needed
+                (show_all_tickers ? "<td class='positionDisplays' id='"+ ticker +"' >" + ticker + "</td>" : "") + // don't show ticker unless needed
                 "<td>" + positions[key]['position'] + "</td>" +
                 "<td>" + (positions[key]['reference_price'] / 1e8) + "</td>" +
                 //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
@@ -777,6 +795,11 @@ function displayPositions(show_all_tickers, positions) {
             }
     }
     $(element).append("</tbody>");
+
+    $('.positionDisplays').unbind();
+    $('.positionDisplays').click(function(e) {
+        switchToTrade(e.currentTarget.id);
+    });
 }
 
 
@@ -789,15 +812,20 @@ function newMarketsToDisplay(markets) {
     
     var pList = [];
     for (market in predictions){
-        pList.push("<li><a onclick='switchToTrade(\"" + predictions[market][0] + "\")' href='#'> <small style='padding-right:1em;'>" +  predictions[market][0] + "</small>"+predictions[market][1]['description'] + "</a></li>")
+        pList.push("<li><a class='newMarkets' id='" + predictions[market][0] + "' href='#'> <small style='padding-right:1em;'>" +  predictions[market][0] + "</small>"+predictions[market][1]['description'] + "</a></li>")
     }
 
     var fList = [];
     for (market in futures){
-        fList.push("<li><a onclick='switchToTrade(\"" + futures[market][0] + "\")' href='#'><small style='padding-right:1em;'>" +  futures[market][0] + "</small>"+futures[market][1]['description'] + "</a></li>")
+        fList.push("<li><a class='newMarkets' id='" + futures[market][0] + "' href='#'><small style='padding-right:1em;'>" +  futures[market][0] + "</small>"+futures[market][1]['description'] + "</a></li>")
     }
 
     $('#marketsDropDown').html( '<li class="nav-header">Predictions</li>' + pList.join('') + '<li class="nav-header">Futures</li>' + fList.join('') );
+
+    $('.newMarkets').unbind();
+    $('.newMarkets').click(function(e) {
+        switchToTrade(e.currentTarget.id);
+    });
 }
 
 /*
@@ -848,12 +876,17 @@ function welcome (MARKETS) {
             "</tr></thead>");
 
     for (row in markets) {
-        $('#welcome').append("<tr onclick='switchToTrade(\""+ row +"\")' >" +
+        $('#welcome').append("<tr class='splash' id='"+ row +"' >" +
             "<td>"+ row + "</td>" +
             "<td>" + markets[row]['description'] + "</td>" +
             "</tr>");
 
     }
+
+    $('.splash').unbind();
+    $('.splash').click(function(e) {
+        switchToTrade(e.target.parentNode.id);
+    });
 
     var scalingFactor = $(window).height()/$(window).width();
     $('#splash').css('z-index','-1')
