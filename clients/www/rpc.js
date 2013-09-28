@@ -116,7 +116,7 @@ function logout() {
 
     $('#loginButton').show();
     $('#registration').show();
-    $('#PennyArcade').click();
+    $('#Sputnik').click();
     
     //clear user data:
     $('.table').empty()

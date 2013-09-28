@@ -1,4 +1,3 @@
-/*var host = "cbnypao55fhrj24k.onion";*/
 var session = null;
 var logged_in = false;
 
@@ -1109,11 +1108,11 @@ $('#minimizeChat').click(function () {
 $('.global-modal').on('hidden', function() {
     //the global-modal class consists of: 'myModal' (login) and 'registerModal'
     if (!logged_in)
-        $('#PennyArcade').click();
+        $('#Sputnik').click();
 
 })
 
-$('#PennyArcade').click(function () {
+$('#Sputnik').click(function () {
     //remove the outline of a tab
     $('li.active').removeAttr('class','active');
     welcome (MARKETS)
