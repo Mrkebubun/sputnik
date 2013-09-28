@@ -16,7 +16,7 @@ var CHAT_MESSAGES = [];
 var SAFE_PRICES = Object();
 var TWO_FACTOR_ON = false;
 
-var base_uri = "http://example.com/";
+var base_uri = "https://example.com/";
 
 var myTopic = base_uri + "topics/mytopic1";
 

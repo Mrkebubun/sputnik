@@ -1,7 +1,7 @@
 var session = null;
 
 
-var base_uri = "http://example.com/";
+var base_uri = "https://example.com/";
 var get_chat_history_URI = base_uri + "procedures/get_chat_history";
 
 var safe_price_URI = base_uri + "safe_price";
@@ -32,12 +32,13 @@ var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 function connect() {
     //ws -> wss
     var wsuri;// = "wss://" + host + ":9000";
+
     if (window.location.protocol === "file:") {
-        //wsuri = "wss://localhost:9000";
-        wsuri = "ws://localhost:9000";
+        wsuri = "wss://localhost:9000";
+        //wsuri = "ws://localhost:9000";
     } else {
-        //wsuri = "wss://" + window.location.hostname + ":9000";
-        wsuri = "ws://" + window.location.hostname + ":9000";
+        wsuri = "wss://" + window.location.hostname + ":9000";
+        //wsuri = "ws://" + window.location.hostname + ":9000";
     }
     ab.connect(wsuri,
         function (sess) {
@@ -53,7 +54,7 @@ function connect() {
             session = null;
             switch (code) {
                 case ab.CONNECTION_UNSUPPORTED:
-                    window.location = "http://autobahn.ws/unsupportedbrowser";
+                    window.location = "https://autobahn.ws/unsupportedbrowser";
                     break;
                 case ab.CONNECTION_CLOSED:
                     window.location.reload();
