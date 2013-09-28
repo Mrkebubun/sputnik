@@ -10,7 +10,11 @@ exitcodes = 0
 user = www-data
 redirect_stderr = true
 stdout_logfile = /srv/sputnik/logs/%(program_name)s.log
-directory = /srv/sputnik/server/pepsi" >> /home/jonathan/sputnik/server/config/supervisor.conf
+directory = /srv/sputnik/server/pepsi" >> 
+
+/home/ 
+
+/sputnik/server/config/supervisor.conf
 
 echo "
 [program:engine_$1]
