@@ -1,7 +1,7 @@
 var session = null;
 
 
-var base_uri = "https://example.com/";
+var base_uri = "http://example.com/";
 var get_chat_history_URI = base_uri + "procedures/get_chat_history";
 
 var safe_price_URI = base_uri + "safe_price";
@@ -24,7 +24,7 @@ var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
-var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
+var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 10000};
 
 
 
@@ -32,13 +32,12 @@ var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 function connect() {
     //ws -> wss
     var wsuri;// = "wss://" + host + ":9000";
-
     if (window.location.protocol === "file:") {
-        wsuri = "wss://localhost:8080";
-        //wsuri = "ws://localhost:9000";
+        //wsuri = "wss://localhost:9000";
+        wsuri = "ws://localhost:9000";
     } else {
-        wsuri = "wss://" + window.location.hostname + ":8080";
-        //wsuri = "ws://" + window.location.hostname + ":9000";
+        //wsuri = "wss://" + window.location.hostname + ":9000";
+        wsuri = "ws://" + window.location.hostname + ":9000";
     }
     ab.connect(wsuri,
         function (sess) {
@@ -54,7 +53,7 @@ function connect() {
             session = null;
             switch (code) {
                 case ab.CONNECTION_UNSUPPORTED:
-                    window.location = "https://autobahn.ws/unsupportedbrowser";
+                    window.location = "http://autobahn.ws/unsupportedbrowser";
                     break;
                 case ab.CONNECTION_CLOSED:
                     window.location.reload();
@@ -95,10 +94,6 @@ function do_login(login, password) {
     });
 }
 
-$('#do_login_button').click(function(){
-    do_login(login.value, password.value);
-});
-
 function failed_login(err) {
     /*bootstrap gets stuck if if two modals are called in succession, so force
     the removal of shaded background with the following line */
@@ -117,7 +112,7 @@ function logout() {
 
     $('#loginButton').show();
     $('#registration').show();
-    $('#Sputnik').click();
+    $('#PennyArcade').click();
     
     //clear user data:
     $('.table').empty()
@@ -246,11 +241,6 @@ function withdraw() {
     )
 }
 
-$('#withdrawButton').click(function(){
-    withdraw();
-});
-
-
 function getCurrentAddress() {
     session.call(get_current_address_URI).then(
         function (addr) {
@@ -371,20 +361,18 @@ function getSafePrices() {
 }
 
 function makeAccount(name, psswd, email, bitmsg) {
-    console.log('in make account');
+
+
+    //is this a horrible way to generate a randome salt?
     var salt = Math.random().toString(36).slice(2);
     AUTHEXTRA['salt'] = salt;
 
     var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
 
-    console.log('making session call for makeAccount');
     session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
         function (res) {
+            console.log(res)
             login.value = registerLogin.value;
-            if (res){
-                do_login(registerLogin.value, registerPassword.value);
-            } else {
-                alert('user name or email taken');
-            }
+            do_login(registerLogin.value, registerPassword.value) ;
         })
 }
