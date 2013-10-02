@@ -760,12 +760,12 @@ if __name__ == '__main__':
 
     contextFactory = None
     if USE_SSL:
-        factory = PepsiColaServerFactory("wss://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
+        factory = PepsiColaServerFactory("wss://%s" % config.get("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
         contextFactory = ssl.DefaultOpenSSLContextFactory('keys/server.key', 'keys/server.crt')
 
     else:
-        factory = PepsiColaServerFactory("ws://localhost:%d" % config.getint("webserver", "ws_port"), debugWamp=debug,
+        factory = PepsiColaServerFactory("ws://%s" % config.getint("webserver", "ws_port"), debugWamp=debug,
                                          debugCodePaths=debug)
 
     factory.protocol = PepsiColaServerProtocol
@@ -778,6 +778,7 @@ if __name__ == '__main__':
     web_dir = File("../../clients/www")
 
     # uncomment for SSL
+    '''
     if USE_SSL:
         web_dir.contentTypes['.crt'] = 'application/x-x509-ca-cert'
 
@@ -789,5 +790,6 @@ if __name__ == '__main__':
         reactor.listenTCP(80, web, interface=config.get("webserver", "www_interface"))
 
     # noinspection PyUnresolvedReferences
+    '''
     reactor.run()
 
