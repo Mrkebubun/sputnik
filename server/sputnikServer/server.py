@@ -760,12 +760,12 @@ if __name__ == '__main__':
 
     contextFactory = None
     if USE_SSL:
-        factory = PepsiColaServerFactory("wss://%s" % config.get("webserver", "ws_port"), debugWamp=debug,
+        factory = PepsiColaServerFactory("wss://%s" % config.get("webserver", "ws_uri"), debugWamp=debug,
                                          debugCodePaths=debug)
         contextFactory = ssl.DefaultOpenSSLContextFactory('keys/server.key', 'keys/server.crt')
 
     else:
-        factory = PepsiColaServerFactory("ws://%s" % config.getint("webserver", "ws_port"), debugWamp=debug,
+        factory = PepsiColaServerFactory("ws://%s" % config.getint("webserver", "ws_uri"), debugWamp=debug,
                                          debugCodePaths=debug)
 
     factory.protocol = PepsiColaServerProtocol
