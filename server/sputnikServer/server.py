@@ -756,6 +756,9 @@ if __name__ == '__main__':
     else:
         debug = False
 
+    # IP address to listen on for all publicly visible services
+    interface = config.get("webserver", "interface")
+
     uri = "ws://"
     contextFactory = None
     if config.getboolean("webserver", "ssl"):
@@ -775,8 +778,16 @@ if __name__ == '__main__':
     # https://autobahn.ws/python/reference 
     factory.setProtocolOptions(maxMessagePayloadSize=1000)
    
-    interface = config.get("webserver", "ws_interface")
     listenWS(factory, contextFactory, interface=interface)
+
+    if config.getboolean("webserver", "www"):
+        web_dir = File("../../clients/www")
+        web = Site(web_dir)
+        port = config.getint("webserver", "www_port")
+        if config.getboolean("webserver", "ssl"):
+            reactor.listenSSL(port, web, contextFactory, interface=interface)
+        else:
+            reactor.listenTCP(port, web, interface=interface)
 
     reactor.run()
 
