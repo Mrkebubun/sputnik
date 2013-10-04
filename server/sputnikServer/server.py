@@ -750,46 +750,33 @@ if __name__ == '__main__':
     chat_log_handler.setFormatter(chat_log_formatter)
     chat_log.addHandler(chat_log_handler)
 
-    if config.getboolean("webserver", "debug") or len(sys.argv) > 1 and sys.argv[1] == 'debug':
+    if config.getboolean("webserver", "debug"):
         log.startLogging(sys.stdout)
         debug = True
     else:
         debug = False
 
-    USE_SSL = True
-
+    uri = "ws://"
     contextFactory = None
-    if USE_SSL:
-        factory = PepsiColaServerFactory("wss://%s" % config.get("webserver", "ws_uri"), debugWamp=debug,
-                                         debugCodePaths=debug)
-        contextFactory = ssl.DefaultOpenSSLContextFactory('keys/server.key', 'keys/server.crt')
+    if config.getboolean("webserver", "ssl"):
+        uri = "wss://"
+        key = config.get("webserver", "ssl_key")
+        certificate = config.get("webserver", "ssl_cert")
+        contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
 
-    else:
-        factory = PepsiColaServerFactory("ws://%s" % config.getint("webserver", "ws_uri"), debugWamp=debug,
-                                         debugCodePaths=debug)
+    address = config.get("webserver", "ws_address")
+    port = config.getint("webserver", "ws_port")
+    uri += "%s:%s/" % (address, port)
 
+    factory = PepsiColaServerFactory(uri, debugWamp=debug, debugCodePaths=debug)
     factory.protocol = PepsiColaServerProtocol
-    listenWS(factory, contextFactory, interface=config.get("webserver", "ws_interface"))
 
-    factory.setProtocolOptions(maxMessagePayloadSize=1000) # trying to prevent excessively large messages -> https://autobahn.ws/python/reference 
+    # prevent excessively large messages
+    # https://autobahn.ws/python/reference 
+    factory.setProtocolOptions(maxMessagePayloadSize=1000)
+   
+    interface = config.get("webserver", "ws_interface")
+    listenWS(factory, contextFactory, interface=interface)
 
-    # used to serve the static web page.
-    # in practice, it can be served from an apache server instead
-    web_dir = File("../../clients/www")
-
-    # uncomment for SSL
-    '''
-    if USE_SSL:
-        web_dir.contentTypes['.crt'] = 'application/x-x509-ca-cert'
-
-    web = Site(web_dir)
-
-    if USE_SSL:
-        reactor.listenSSL(443, web, contextFactory, interface=config.get("webserver", "www_interface"))
-    else:
-        reactor.listenTCP(80, web, interface=config.get("webserver", "www_interface"))
-
-    # noinspection PyUnresolvedReferences
-    '''
     reactor.run()
 
