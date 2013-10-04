@@ -764,7 +764,7 @@ if __name__ == '__main__':
     if config.getboolean("webserver", "ssl"):
         uri = "wss://"
         key = config.get("webserver", "ssl_key")
-        certificate = config.get("webserver", "ssl_cert")
+        cert = config.get("webserver", "ssl_cert")
         contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
 
     address = config.get("webserver", "ws_address")
