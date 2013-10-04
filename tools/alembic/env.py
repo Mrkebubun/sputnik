@@ -19,6 +19,8 @@ fileConfig(config.config_file_name)
 import sys,os
 sys.path.append(os.getcwd())
 
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../server/sputnikServer"))
+
 import database
 import models
 
