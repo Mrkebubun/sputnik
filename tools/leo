@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+import os
+import sys
+
+import shlex
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    "../server"))
+
+from sputnik import database, models
+
+class UserManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, username):
+        user = models.User(username, "")
+        session.add(user)
+
+    def delete(self, username):
+        user = session.query(models.User).filter_by(username=username).one()
+        session.delete(user)
+
+    def list(self):
+        users = session.query(models.User).all()
+        for user in users:
+            print user.username, user.email
+
+    def modify(self, username, field, value):
+        user = session.query(models.User).filter_by(username=username).one()
+        setattr(user, field, value)
+        session.merge(user)
+
+class ContractManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, ticker):
+        contract = models.Contract(ticker)
+        session.add(contract)
+
+    def delete(self, id):
+        contract = session.query(models.User).filter_by(id=id).one()
+        session.delete(user)
+
+    def list(self):
+        contracts = session.query(models.Contract).all()
+        for contract in contracts:
+            print contract.id, contract.ticker, contract.description
+
+    def modify(self, id, field, value):
+        contract = session.query(models.Contract).filter_by(id=id).one()
+        contract[field] = value
+        session.merge(contract)
+
+
+session = database.Session()
+users = UserManager(session)
+contracts = ContractManager(session)
+
+if len(sys.argv) == 1:
+    lines = sys.stdin.readlines()
+else:
+    lines = [" ".join(sys.argv[1:])]
+
+try:
+    for line in lines:
+        tokens = shlex.split(line)
+        if len(tokens) < 2:
+            continue
+        module = tokens[0]
+        command = tokens[1]
+        args = tokens[2:]
+        if module == "user":
+            module = users
+        elif module == "contract":
+            module = contracts
+        else:
+            continue
+        method = getattr(module, command)
+        method(*args)
+    session.commit()
+except Exception, e:
+    session.rollback()
+    raise e
+
