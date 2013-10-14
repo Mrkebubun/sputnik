@@ -517,13 +517,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                 "tick_size": c.tick_size}
 
             if c.contract_type == 'futures':
-                f_c = self.db_session.query(models.FuturesContract).filter_by(contract=c).one()
-                result[c.ticker]['margin_high'] = f_c.margin_high
-                result[c.ticker]['margin_low'] = f_c.margin_low
+                result[c.ticker]['margin_high'] = c.margin_high
+                result[c.ticker]['margin_low'] = c.margin_low
 
             if c.contract_type == 'prediction':
-                p_c = self.db_session.query(models.PredictionContract).filter_by(contract=c).one()
-                result[c.ticker]['final_payoff'] = p_c.final_payoff
+                result[c.ticker]['final_payoff'] = c.denominator
         return result
 
     @exportRpc("get_chat_history")

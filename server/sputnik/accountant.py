@@ -89,24 +89,25 @@ def calculate_margin(username, order_id=None):
         #     if potential_order['side'] == 1:
         #         min_position -= potential_order['quantity']
 
-        if position.contract.contract_type == 'futures':
-            futures_contract = db_session.query(models.FuturesContract).filter_by(contract=position.contract).one()
+        contract = position.contract
+
+        if contract.contract_type == 'futures':
 
             SAFE_PRICE = safe_prices[position.contract.ticker]
 
             logging.info(low_margin)
-            print 'max position:',max_position
-            print 'futures_contract.margin_low :',futures_contract.margin_low
-            print 'SAFE_PRICE :',SAFE_PRICE
-            print 'position.reference_price :',position.reference_price
+            print 'max position:', max_position
+            print 'contract.margin_low :', contract.margin_low
+            print 'SAFE_PRICE :', SAFE_PRICE
+            print 'position.reference_price :', position.reference_price
             print position
-            low_max = abs(max_position) * futures_contract.margin_low * SAFE_PRICE / 100 + max_position * (
+            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE / 100 + max_position * (
                 position.reference_price - SAFE_PRICE)
-            low_min = abs(min_position) * futures_contract.margin_low * SAFE_PRICE / 100 + min_position * (
+            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
-            high_max = abs(max_position) * futures_contract.margin_high * SAFE_PRICE / 100 + max_position * (
+            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE / 100 + max_position * (
                 position.reference_price - SAFE_PRICE)
-            high_min = abs(min_position) * futures_contract.margin_high * SAFE_PRICE / 100 + min_position * (
+            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
             logging.info( low_max)
             logging.info( low_min)
@@ -114,17 +115,16 @@ def calculate_margin(username, order_id=None):
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
 
-        if position.contract.contract_type == 'prediction':
-            payoff = db_session.query(models.PredictionContract).filter_by(
-                contract=position.contract).one().final_payoff
+        if contract.contract_type == 'prediction':
+            payoff = contract.denominator
 
             # case where all our buy orders are hit
             max_spent = sum(order.quantity_left * order.price for order in open_orders if
-                            order.contract == position.contract and order.side == 'BUY')
+                            order.contract == contract and order.side == 'BUY')
 
             # case where all out sell orders are hit
             max_received = sum(order.quantity_left * order.price for order in open_orders if
-                               order.contract == position.contract and order.side == 'SELL')
+                               order.contract == contract and order.side == 'SELL')
 
             # if potential_order and position.contract_id == potential_order['contract_id']:
             #     if potential_order['side'] == 0:

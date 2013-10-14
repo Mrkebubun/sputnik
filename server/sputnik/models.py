@@ -28,23 +28,10 @@ class Contract(db.Base):
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
 
-    def __init__(self, ticker, description, full_description, tick_size, denominator, contract_type, active=True):
+    def __init__(self, ticker, description="", full_description="", tick_size=1, denominator=1, contract_type="cash", active=True):
         self.ticker, self.description, self.full_description = ticker, description, full_description
         self.tick_size, self.denominator = tick_size, 
         self.contract_type, self.active = contract_type, active
-
-class FuturesContract(db.Base):
-    __table_args__ = {'extend_existing': True}
-    __tablename__ = 'futures'
-
-    id = Column(Integer, ForeignKey('contracts.id'), primary_key=True)
-    contract = relationship('Contract')
-
-
-    def __init__(self, contract, margin_high, margin_low):
-        self.contract = contract
-        self.margin_high = margin_high
-        self.margin_low = margin_low
 
 class Order(db.Base):
     __table_args__ = {'extend_existing': True}
