@@ -19,8 +19,11 @@ class Contract(db.Base):
     active = Column(Boolean, nullable=False, server_default="true")
     contract_type = Column(Enum('futures', 'prediction', 'cash', name='contract_types'), nullable=False)
     tick_size = Column(Integer, nullable=False, server_default="1")
-    image_url = Column(String)
     denominator = Column(BigInteger, server_default="1", nullable=False)
+    expiration = Column(DateTime)
+
+    margin_high = Column(Integer)
+    margin_low = Column(Integer)
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
@@ -37,33 +40,11 @@ class FuturesContract(db.Base):
     id = Column(Integer, ForeignKey('contracts.id'), primary_key=True)
     contract = relationship('Contract')
 
-    multiplier = Column(BigInteger, server_default="1")
-    open_interest = Column(Integer, server_default="0")
-    margin_high = Column(Integer)
-    margin_low = Column(Integer)
-    last_settlement = Column(Integer)
-    expiration = Column(DateTime)
 
     def __init__(self, contract, margin_high, margin_low):
         self.contract = contract
         self.margin_high = margin_high
         self.margin_low = margin_low
-        self.multiplier = contract.denominator
-
-class PredictionContract(db.Base):
-    __table_args__ = {'extend_existing': True}
-    __tablename__ = 'predictions'
-
-    id = Column(Integer, ForeignKey('contracts.id'), primary_key=True)
-    final_payoff = Column(Integer)
-    contract = relationship('Contract')
-
-    def __init__(self, contract):
-        self.contract = contract
-        self.final_payoff = contract.denominator
-
-    def __repr__(self):
-        print "<PredictionContract(%s,%d)>" % (self.contract, self.final_payoff)
 
 class Order(db.Base):
     __table_args__ = {'extend_existing': True}
@@ -73,7 +54,7 @@ class Order(db.Base):
     ORDER_REJECTED = -1
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
@@ -86,7 +67,7 @@ class Order(db.Base):
     timestamp = Column(DateTime)
 
     def to_matching_engine_order(self):
-        return {'order_id': self.id, 'user_id': self.user_id,'nickname':self.user.nickname, 'contract': self.contract_id, 'quantity': self.quantity,
+        return {'order_id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
                 'price': self.price, 'order_side': (0 if self.side == "BUY" else 1), 'is_a_cancellation': False}
 
 
@@ -100,42 +81,28 @@ class Order(db.Base):
         self.timestamp = datetime.utcnow()
         self.is_cancelled = False
 
-#class CancelOrder(db.Base):
-#    __tablename__ = 'cancel_order'
-#
-#    id = Column(Integer, primary_key=True, ForeignKey('orders.id'))
-#    order = relationship('Order')
-#
-#    def __init_ _(self, order):
-#        self.order = order
-
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = ({'extend_existing': True},)
 
-    id = Column(Integer, primary_key=True)
-    password_hash = Column(String, nullable=False)
-    salt = Column(String)
-    two_factor = Column(String)
-    nickname = Column(String, unique=True, nullable=False)
+    username = Column(String, primary_key=True)
+    password = Column(String, nullable=False)
+    totp = Column(String)
+    nickname = Column(String)
     email = Column(String, unique=True)
-    bitmessage = Column(String, unique=True)
-    jabber = Column(String, unique=True)
-    margin = Column(BigInteger, default=0)
-    #login_allowed = Column(Boolean, server_default="false", nullable=False)
+    allowed = Column(Boolean, server_default="true")
 
-
-    def __init__(self, password_hash, salt, nickname, email, bitmessage):
-        self.password_hash = password_hash
+    def __init__(self, username, password, nickname="anonymous", email=""):
+        self.username = username
+        self.password = password
         self.salt = salt
         self.nickname = nickname
         self.email = email
         self.bitmessage = bitmessage
-        self.margin = 0
 
     def __repr__(self):
         return "<User('%s','%s','%s')>" \
-               % (self.nickname, self.email, self.bitmessage)
+               % (self.username, self.email, self.bitmessage)
 
 
 class Addresses(db.Base):
@@ -148,7 +115,7 @@ class Addresses(db.Base):
                       {'extend_existing': True})
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', name='currency_types'), nullable=False)
     address = Column(String, nullable=False)
@@ -165,11 +132,11 @@ class Addresses(db.Base):
 class Position(db.Base):
     __tablename__ = 'positions'
 
-    __table_args__ = (schema.UniqueConstraint('user_id', 'contract_id'),
+    __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
                       {'extend_existing': True})
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
@@ -190,7 +157,7 @@ class Withdrawal(db.Base):
     __table_args__ = ({'extend_existing': True},)
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     address = Column(String, nullable=False)
     currency_id = Column(Integer, ForeignKey('contracts.id'))

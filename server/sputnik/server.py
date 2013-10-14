@@ -152,11 +152,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print self.AUTH_EXTRA
 
         try:
-            user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
-            user_id = user.id
+            user = self.db_session.query(models.User).filter_by(username=authKey).one()
+            username = user.username
             self.AUTH_EXTRA['salt'] = user.salt
         except Exception:
-            user_id = 0 
+            username = None 
 
             #self.AUTH_EXTRA['salt'] = os.urandom(3).encode('hex')[:-1]
             fakeSalt = md5.md5(authKey)
@@ -192,18 +192,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #d = defer.Deferred()
 
         #implement this now:
-        #return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+        #return str(otp.get_totp('JBSWY3DPEHPK3PXP'))+ self.db_session.query(models.User).filter_by(username=authKey).one().password_hash
         #do a db mibrations and make obama's otp = secret.  See what happens
         
         try:
-            secret = self.db_session.query(models.User).filter_by(nickname=authKey).one().two_factor
+            secret = self.db_session.query(models.User).filter_by(username=authKey).one().two_factor
             test = otp.get_totp(secret)
         except Exception as e:
             secret = ''     
             test = ''
 
         try:
-            password_hash = str(test) + self.db_session.query(models.User).filter_by(nickname=authKey).one().password_hash
+            password_hash = str(test) + self.db_session.query(models.User).filter_by(username=authKey).one().password_hash
         except Exception as e:
             logging.warning('exceptions, line 107: %s' %e)
             password_hash = ''
@@ -232,7 +232,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # sets the user in the session... I'm not certain it's a 100% safe to store it like this
         #todo: what if the users logs in from different location? To keep an eye on.
-        self.user = self.db_session.query(models.User).filter_by(nickname=authKey).one()
+        self.user = self.db_session.query(models.User).filter_by(username=authKey).one()
 
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
@@ -258,7 +258,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         disables two factor authentication for an account
         """
-        secret = self.db_session.query(models.User).filter_by(nickname = self.user.nickname).one().two_factor
+        secret = self.db_session.query(models.User).filter_by(username = self.user.username).one().two_factor
         logging.info('in disable, got secret: %s' % secret)
         totp = otp.get_totp(secret)
 
@@ -459,7 +459,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def make_account(self, name, password_hash, salt, email, bitmessage):
         """
         creates a new user account based on a name and a password_hash
-        :param name: login, nickname of the user
+        :param name: login, username of the user
         :param password_hash: hash of the password
         :param email: email address for the user
         :param bitmessage: bitmessage address for the user
@@ -474,7 +474,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(bitmessage, {"type": "string"})
 
         try:
-            already_existing = self.db_session.query(models.User).filter_by(nickname=name).count() 
+            already_existing = self.db_session.query(models.User).filter_by(username=name).count() 
             if already_existing>0:
                 raise Exception('duplicate')
 
@@ -601,8 +601,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order["price"] = int((order["price"]/tick_size)*tick_size)
 
         order["quantity"] = int(order["quantity"])
-        order['user_id'] = self.user.id
-        order['nickname'] = self.user.nickname
+        order['username'] = self.user.username
 
         self.accountant.push(json.dumps({'place_order': order}))
         self.count += 1
@@ -629,8 +628,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'order_id': order_id, 'user_id': self.user.id, 'nickname':self.user.nickname}})
-        self.accountant.push(json.dumps({'cancel_order': {'order_id': order_id, 'user_id': self.user.id, 'nickname':self.user.nickname}}))
+        print 'output from server', str({'cancel_order': {'order_id': order_id, 'username': self.user.username}})
+        self.accountant.push(json.dumps({'cancel_order': {'order_id': order_id, 'username': self.user.username}}))
         self.count += 1
         print 'cancel_order', self.count
 
@@ -644,7 +643,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         logging.info("client wants to subscribe to %s%s" % (topicUriPrefix, topicUriSuffix))
         if self.user:
-            logging.info("he's logged in as %s so we'll let him" % self.user.nickname)
+            logging.info("he's logged in as %s so we'll let him" % self.user.username)
             return True
         else:
             logging.info("but he's not logged in, so we won't let him")
@@ -664,7 +663,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             logging.info("he's not logged in though, so no")
             return None
         else:
-            logging.info("he's logged as %s in so that's cool" % self.user.nickname)
+            logging.info("he's logged as %s in so that's cool" % self.user.username)
             if type(event) not in [str, unicode]:
                 logging.warning("but the event type isn't a string, that's way uncool so no")
                 return None

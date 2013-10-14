@@ -47,7 +47,7 @@ def create_or_get_position(user, contract, ref_price):
     :return: the position object
     """
     try:
-        return db_session.query(models.Position).filter_by(user_id=user, contract_id=contract).one()
+        return db_session.query(models.Position).filter_by(username=user, contract_id=contract).one()
     except NoResultFound:
         user = db_session.query(models.User).filter_by(id=user).one()
         contract = db_session.query(models.Contract).filter_by(id=contract).one()
@@ -57,20 +57,20 @@ def create_or_get_position(user, contract, ref_price):
         return pos
 
 
-def calculate_margin(user_id, order_id=None):
+def calculate_margin(username, order_id=None):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
-    :param user_id: the user id
+    :param username: the username
     :return: low and high margin
     """
     low_margin = high_margin = 0
 
     # let's start with positions
     positions = {position.contract_id: position for position in
-                 db_session.query(models.Position).filter_by(user_id=user_id)}
+                 db_session.query(models.Position).filter_by(username=username)}
 
-    open_orders = db_session.query(models.Order).filter_by(user_id=user_id).filter(
+    open_orders = db_session.query(models.Order).filter_by(username=username).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
     if order_id:
@@ -143,16 +143,16 @@ def calculate_margin(user_id, order_id=None):
 
 
 #todo replace deleting rejected orders with marking them as rejected, using an enum
-def accept_order_if_possible(user_id, order_id):
+def accept_order_if_possible(username, order_id):
     """
     Checks the impact of an order on margin, and if said impact is acceptable, mark the order as accepted
     otherwise delete the order
-    :param user_id: id of the user
+    :param username: the username
     :param order_id: order we're considering accepting
     :return:
     """
-    low_margin, high_margin = calculate_margin(user_id, order_id)
-    cash_position = db_session.query(models.Position).filter_by(user_id=user_id, contract=btc).one()
+    low_margin, high_margin = calculate_margin(username, order_id)
+    cash_position = db_session.query(models.Position).filter_by(username=username, contract=btc).one()
 
     order = db_session.query(models.Order).get(order_id)
     logging.info(
@@ -171,23 +171,23 @@ def accept_order_if_possible(user_id, order_id):
         #todo: make actual margin calls here
 
 
-def check_and_issue_margin_call(user_id):
+def check_and_issue_margin_call(username):
     """
     Check if a naughty user is due for a margin call!
-    :param user_id: id of the potentially naughty user
+    :param username: username of the potentially naughty user
     """
-    low_margin, high_margin = calculate_margin(user_id)
-    cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=user_id).one()
+    low_margin, high_margin = calculate_margin(username)
+    cash_position = db_session.query(models.Position).filter_by(contract=btc, username=username).one()
 
     if cash_position < low_margin:
         #todo panic!
-        logging.warning("Here is where code should be to do something user %d's margin" % user_id)
+        logging.warning("Here is where code should be to do something user %d's margin" % username)
 
     elif cash_position < high_margin:
-        logging.warning("Here is where code should be to send user %d a margin call" % user_id)
+        logging.warning("Here is where code should be to send user %d a margin call" % username)
 
     else:
-        logging.info("user %d's margin is fine and dandy" % user_id)
+        logging.info("user %d's margin is fine and dandy" % username)
 
 
 def process_trade(trade):
@@ -197,8 +197,8 @@ def process_trade(trade):
      """
      print trade
      if trade['contract_type'] == 'futures':
-         cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
-         future_position = create_or_get_position(trade['user_id'], trade['contract'], trade['price'])
+         cash_position = db_session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
+         future_position = create_or_get_position(trade['username'], trade['contract'], trade['price'])
  
          #mark to current price as if everything had been entered at that price and profit had been realized
          cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
@@ -214,8 +214,8 @@ def process_trade(trade):
          db_session.merge(cash_position)
  
      elif request_details['contract_type'] == 'prediction':
-         cash_position = db_session.query(models.Position).filter_by(contract=btc, user_id=trade['user_id']).one()
-         prediction_position = create_or_get_position(trade['user_id'], trade['contract'], 0)
+         cash_position = db_session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
+         prediction_position = create_or_get_position(trade['username'], trade['contract'], 0)
  
          cash_position.position -= trade['signed_qty'] * trade['price']
          prediction_position.position += trade['signed_qty']
@@ -232,22 +232,20 @@ def process_trade(trade):
 def cancel_order(details):
     """
     Cancels an order by id
-    :param user_id:
+    :param username:
     :param order_id:
     :return:
     """
 
     print 'accountant received', details
     order_id = details['order_id']
-    user_id = details['user_id']
-    nickname = details['nickname']
+    username = details['username']
     try:
         # sanitize inputs:
         order_id = int(order_id)
-        nickname = str(nickname)
         # try db query
         order = db_session.query(models.Order).filter_by(id=order_id).one()
-        if order.user_id != user_id:
+        if order.username != username:
             return False
 
         m_e_order = order.to_matching_engine_order()
@@ -267,7 +265,7 @@ def place_order(order):
     """
     try:
 
-        user = db_session.query(models.User).get(order['user_id'])
+        user = db_session.query(models.User).get(order['username'])
         contract = db_session.query(models.Contract).filter_by(ticker=order['ticker']).one()
         # check that the price is an integer and within a valid range
 
@@ -310,7 +308,7 @@ def deposit_cash(details):
 
         #query for db objects we want to update
         total_deposited_at_address = db_session.query(models.Addresses).filter_by(address=address).one()
-        user_cash_position = db_session.query(models.Position).filter_by(user_id=total_deposited_at_address.user_id,contract=currency).one()
+        user_cash_position = db_session.query(models.Position).filter_by(username=total_deposited_at_address.username,contract=currency).one()
 
         #prepare cash deposit
         deposit = total_received - total_deposited_at_address.accounted_for
