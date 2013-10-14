@@ -30,7 +30,7 @@ class Contract(db.Base):
 
     def __init__(self, ticker, description="", full_description="", tick_size=1, denominator=1, contract_type="cash", active=True):
         self.ticker, self.description, self.full_description = ticker, description, full_description
-        self.tick_size, self.denominator = tick_size, 
+        self.tick_size, self.denominator = tick_size, denominator
         self.contract_type, self.active = contract_type, active
 
 class Order(db.Base):
@@ -82,14 +82,12 @@ class User(db.Base):
     def __init__(self, username, password, nickname="anonymous", email=""):
         self.username = username
         self.password = password
-        self.salt = salt
         self.nickname = nickname
         self.email = email
-        self.bitmessage = bitmessage
 
     def __repr__(self):
-        return "<User('%s','%s','%s')>" \
-               % (self.username, self.email, self.bitmessage)
+        return "<User('%s','%s')>" \
+               % (self.username, self.email)
 
 
 class Addresses(db.Base):
