@@ -11,6 +11,6 @@ from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
-engine = sqlalchemy.create_engine('postgresql://penny:XenqcadH!xWir@localhost/sputnik', echo=False)
+engine = sqlalchemy.create_engine('postgresql://www-data@/www-data', echo=False)
 Session = sqlalchemy.orm.sessionmaker(bind=engine)
 #session = Session()
