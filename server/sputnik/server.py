@@ -154,7 +154,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         try:
             user = self.db_session.query(models.User).filter_by(username=authKey).one()
             username = user.username
-            self.AUTH_EXTRA['salt'] = user.password[:32]
+            self.AUTH_EXTRA['salt'] = user.password.split(":")[0]
         except Exception:
             username = None 
 
@@ -203,7 +203,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             test = ''
 
         try:
-            password_hash = str(test) + self.db_session.query(models.User).filter_by(username=authKey).one().password[32:]
+            password_hash = str(test) + self.db_session.query(models.User).filter_by(username=authKey).one().password.split(":")[1]
         except Exception as e:
             logging.warning('exceptions, line 107: %s' %e)
             password_hash = ''
