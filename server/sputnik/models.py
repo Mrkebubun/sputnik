@@ -77,7 +77,9 @@ class User(db.Base):
     totp = Column(String)
     nickname = Column(String)
     email = Column(String, unique=True)
-    allowed = Column(Boolean, server_default="true")
+    active = Column(Boolean, server_default="true")
+
+    positions = relationship("Position", back_populates="user")
 
     def __init__(self, username, password, nickname="anonymous", email=""):
         self.username = username
@@ -122,7 +124,7 @@ class Position(db.Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
-    user = relationship('User')
+    user = relationship('User', back_populates="positions")
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
     position = Column(BigInteger)

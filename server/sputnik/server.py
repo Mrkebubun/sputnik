@@ -154,7 +154,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         try:
             user = self.db_session.query(models.User).filter_by(username=authKey).one()
             username = user.username
-            self.AUTH_EXTRA['salt'] = user.salt
+            self.AUTH_EXTRA['salt'] = user.password[:32]
         except Exception:
             username = None 
 
@@ -196,14 +196,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #do a db mibrations and make obama's otp = secret.  See what happens
         
         try:
-            secret = self.db_session.query(models.User).filter_by(username=authKey).one().two_factor
+            secret = self.db_session.query(models.User).filter_by(username=authKey).one().totp
             test = otp.get_totp(secret)
         except Exception as e:
             secret = ''     
             test = ''
 
         try:
-            password_hash = str(test) + self.db_session.query(models.User).filter_by(username=authKey).one().password_hash
+            password_hash = str(test) + self.db_session.query(models.User).filter_by(username=authKey).one().password[32:]
         except Exception as e:
             logging.warning('exceptions, line 107: %s' %e)
             password_hash = ''
@@ -456,13 +456,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("make_account")
     @limit
-    def make_account(self, name, password_hash, salt, email, bitmessage):
+    def make_account(self, name, password_hash, salt, email):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, username of the user
         :param password_hash: hash of the password
         :param email: email address for the user
-        :param bitmessage: bitmessage address for the user
 
         """
 
@@ -471,14 +470,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(password_hash, {"type": "string"})
         validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
-        validate(bitmessage, {"type": "string"})
 
         try:
             already_existing = self.db_session.query(models.User).filter_by(username=name).count() 
             if already_existing>0:
                 raise Exception('duplicate')
 
-            user = models.User(password_hash, salt, name, email, bitmessage)
+            user = models.User(name, salt + password, email)
             btc = self.db_session.query(models.Contract).filter_by(ticker='BTC').one()
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0
