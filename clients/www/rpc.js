@@ -76,10 +76,10 @@ function do_login(login, password) {
         console.log( ab.deriveKey(password, JSON.parse(challenge).authextra));
         console.log(two_factor.value);
 
-        var secret = two_factor.value + ab.deriveKey(password, JSON.parse(challenge).authextra);
+        var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
 
         //hash again to interpolate two_factor:
-        secret = ab.deriveKey(secret, {'iterations':10, 'keylen':32, 'salt':'onetimepass'})
+        secret = ab.deriveKey(secret, {'iterations':10, 'keylen':32, 'salt':two_factor.value})
 
         //var secret = ab.deriveKey(password, JSON.parse(challenge).authextra);
 
