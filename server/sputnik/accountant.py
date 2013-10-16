@@ -264,9 +264,13 @@ def place_order(order):
     :return: id of the order placed or -1 if failure
     """
     try:
-
         user = db_session.query(models.User).get(order['username'])
-        contract = db_session.query(models.Contract).filter_by(ticker=order['ticker']).one()
+        if "contract_id" in order:
+            contract = db_session.query(models.Contract).filter_by(id=order['contract_id']).one()
+        else:
+            contract = session.query(models.Contract).filter_by(
+                ticker=order["ticker"]).order_by(
+                        models.Contract.id.desc()).first()
         # check that the price is an integer and within a valid range
 
         # case of predictions
@@ -330,6 +334,35 @@ def deposit_cash(details):
         db_session.rollback()
         return False
 
+def clear_contract(details):
+    try:
+        contract = db_session.query(models.Contract).filter_by(
+                id=details["id"]).first()
+        # disable new orders on contract
+        contract.active = False
+        # cancel all pending orders
+        orders = db_session.query(models.Order).filter_by(
+                contract=contracti, is_cancelled=False).all()
+        for order in orders:
+            cancel_order({"username":order.username, "order_id":order.id})
+        # place orders on behalf of users
+        positions = db_session.query(models.Position).filter_by(
+                contract=contract).all()
+        for position in positions:
+            order = {}
+            order["username"] = position.username
+            order["contract_id"] = position.contract_id
+            if position.position > 0:
+                order["quantity"] = position.position
+                order["side"] = 0 # sell
+            elif position.position < 0:
+                order["quantity"] = -position.position
+                order["side"] = 1 # buy
+            order["price"] = details["price"]
+            place_order(order)
+    except:
+        db_session.rollback()
+
 engine_sockets = {i.id: context.socket(zmq.constants.PUSH)
                   for i in db_session.query(models.Contract).filter_by(active=True)}
 
@@ -349,6 +382,7 @@ for c in db_session.query(models.Contract):
         logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % c.ticker)
         safe_prices[c.ticker] = 42
 
+#TODO: make one zmq socket for each connecting service (webserver, engine, leo)
 while True:
     request = connector.recv_json()
     for request_type, request_details in request.iteritems():
@@ -362,7 +396,8 @@ while True:
             cancel_order(request_details)
         elif request_type == 'deposit_cash':
             deposit_cash(request_details)
-
+        elif request_type == 'clear':
+            clear_contract(request_details)
         else:
             logging.warning("unknown request type: %s", request_type)
 
