@@ -48,9 +48,9 @@ MAX_TICKER_LENGTH = 100
 
 
 def limit(func):
-    last_called = 0.0
+    last_called = [0.0]
     def kick(self, *arg, **args):
-        elapsed = time.clock() - last_called
+        elapsed = time.clock() - last_called[0]
 
         if (elapsed < self.RATE_LIMIT):
             self.count += 1
@@ -58,7 +58,7 @@ def limit(func):
             # forgive past floods
             self.count -= 1
 
-        last_called = time.clock()
+        last_called[0] = time.clock()
 
         if self.count > 100:
             WampCraServerProtocol.dropConnection(self)
