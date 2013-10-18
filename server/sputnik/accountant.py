@@ -266,11 +266,18 @@ def place_order(order):
     try:
         user = db_session.query(models.User).get(order['username'])
         if "contract_id" in order:
-            contract = db_session.query(models.Contract).filter_by(id=order['contract_id']).one()
+            contract = db_session.query(models.Contract).filter_by(id=order['contract_id']).first()
         else:
             contract = session.query(models.Contract).filter_by(
                 ticker=order["ticker"]).order_by(
                         models.Contract.id.desc()).first()
+
+        # check that the contract is active
+        if contract == None:
+            return False
+        if not contract.active:
+            return False
+
         # check that the price is an integer and within a valid range
 
         # case of predictions
@@ -360,6 +367,7 @@ def clear_contract(details):
                 order["side"] = 1 # buy
             order["price"] = details["price"]
             place_order(order)
+        db_session.commit()
     except:
         db_session.rollback()
 
