@@ -291,7 +291,7 @@ def place_order(order):
         session.add(o)
         session.commit()
 
-        if accept_order_if_possible(user.id, o.id):
+        if accept_order_if_possible(user.username, o.id):
             m_e_order = o.to_matching_engine_order()
             engine_sockets[o.contract_id].send(json.dumps(m_e_order))
         else:
