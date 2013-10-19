@@ -154,7 +154,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             user = self.session.query(models.User).filter_by(
                 username=authKey).first()
             salt, password_hash = user.password.split(":")
-            authextra = {'salt': salt, 'keylen': 32, 'iterations': 10000}
+            authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
         except Exception:
             # TODO: make this less predictable
             noise = md5.md5("super secret" + authKey + "even more secret")
