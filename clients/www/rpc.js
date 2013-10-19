@@ -371,7 +371,7 @@ function getSafePrices() {
     );
 }
 
-function makeAccount(name, psswd, email, bitmsg) {
+function makeAccount(name, psswd, email) {
     console.log('in make account');
     var salt = Math.random().toString(36).slice(2);
     AUTHEXTRA['salt'] = salt;
@@ -379,7 +379,7 @@ function makeAccount(name, psswd, email, bitmsg) {
     var psswdHsh = ab.deriveKey(psswd, AUTHEXTRA );
 
     console.log('making session call for makeAccount');
-    session.call(make_account_URI, name, psswdHsh, salt,  email, bitmsg).then(
+    session.call(make_account_URI, name, psswdHsh, salt,  email).then(
         function (res) {
             login.value = registerLogin.value;
             if (res){

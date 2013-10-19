@@ -1027,7 +1027,7 @@ $('#logoutButton').click(function () {
 });
 
 $('#registerButton').click(function () {
-    makeAccount(registerLogin.value, registerPassword.value, registerEmail.value, registerBitMessage.value);
+    makeAccount(registerLogin.value, registerPassword.value, registerEmail.value);
 });
 
 

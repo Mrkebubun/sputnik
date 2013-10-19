@@ -64,7 +64,7 @@ class AccountManager:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt":salt}
+        extra = {"salt":salt, "keylen":32, "iterations":1000}
         password = autobahn.wamp.WampCraProtocol.deriveKey(secret, extra)
         self.modify(username, "password", "%s:%s" % (salt, password))
 
