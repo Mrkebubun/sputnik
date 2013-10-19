@@ -297,42 +297,33 @@
         <dl>
             <h3>Predictions</h3>
             <hr>
-                <p>A prediction market allows users bet on whether a future event will come to pass.</p>
-
-                <p><dt>In short:</dt>
-                    <dd>    If you believe an event will come to pass, you should <em class="text-success">buy</em> a prediction.</dd>
-                    <dd>    If you believe an event will <em>not</em> come to pass, you should <em class="text-error">sell</em> a prediction instead.</dd>
+                <p>A prediction market allows its participants to trade in contracts offering a financial exposure to certain events. These prediction contracts represent a promise by the seller to pay a fixed amount to the buyer if certain events come to pass. These markets offer hedgers the opportunity to protect themselves against the risk of adverse events and give a competitive estimate of probabilities through the mechanism of price discovery. When </p>
+                
+                <p><dt>Simply speaking:</dt>
+                    <dd>If you believe an event will come to pass, you should <em class="text-success">buy</em> the corresponding contract.</dd>
+                    <dd>If you believe an event will <em>not</em> come to pass, you should <em class="text-error">sell</em> the contract instead.</dd>
+                    <dd>If you want to hedge yourself against the risk of a certain event coming to pass, you should <em class="text-succes">buy<en> the contract.</dd>
                 </p>
 
                 <p><dt>In detail:</dt>
-                    <dd>The price of a prediction is denominated as a percentage between 0 and 100.  Our site enforces a tick size of 1/10 of a percent to 
-                    avoid trivial front running of orders.</dd>
+                    <dd>The price of prediction contracts is quoted in percentage points, between 0% and 100%. The minimum tick-size is currently set to 0.1%, as a compromise between transaction costs and liquidity. This means the price will vary in increments of 0.1%.</dd>
 
-                    <dd>A user may place an order to buy or sell at any percentage they wish. 
-                    If there is an open order betting in the opposite direction already in the order book, the order will be filled at the price of open order. 
-                    Otherwise, the order will be placed into the order book till it is filled or the user cancels it.</dd>
+                    <dd>A user may place an order to buy or sell at any price they wish. If there is no matching buyer or seller at this price, this order will be placed in the order book, until it is filled by another order or cancelled by the user. If there is already a willing buyer or seller on the other side of the ordebook at the chosen price or better, the order will be matched and executed at this price. Fills may be partial or executed at various prices depending on the quantity required and the quantity available in the book. In any case, the execution price will always be the same or better than the price indicated in the order.</dd>
 
-                    <dd> The cost of a prediction and the potential payout depends on the price the order is filled at and whether it is a buy or a sell.</dd>
+                    <dd>The cost of a prediction and the potential profit or loss depends on the price the order is filled at and whether it is a buy or a sell.</dd>
                 </p>
                 <p><dt>Formally:</dt>
 
                     <blockquote>
-                    <dd> Let Y be the size of a prediction contract and X% the price of the prediction:
-                    <dd> If it is a <em class="text-success">buy</em>, the cost is X% of Y and the payout is (100-X)% of Y,</dd>
-                    <dd> If it is a <em class="text-error">sell</em>, the cost is (1-X)% of Y and the payout is X% of Y,</dd>
-                    <dd> The cost of the prediction is deducted soon as you place an order, even if it does not immediately fill or is yet to be filled by a counter party's order. The bitcoins are returned if the order is cancelled before it is filled.</dd>
+                    <dd>Let P be the specified payout of a prediction contract, be the size of a prediction contract and x% its sell or purchase price:
+                    <dd>In a <em class="text-success">buy</em>, the cost is x% of P, thus the potential profit is (100-x)% of P and the potential loss is x% of P.</dd>
+                    <dd>In a <em class="text-error">sell</em>, the cost is (100-x)% of P, thus the potential profit is x% of P and the potential loss is (100-x)% of P.</dd>
+                    <dd>When you are a net seller of the prediction, you will need to maintain an amount of margin P for each contract you sold, to guarantee your ability to cover the maximum possible loss.</dd>
                     </blockquote>
 
-                    <dd> This payout scheme makes the expected value of a prediction zero if the price is accurate.</dd>
+                    <dd>Note that if the market price reflects your estimated probability of the event happening, your expected profit and loss will be 0.</dd>
                 </p>
-                <p><dt>Example:</dt>
-                </p>
-
-                <hr>
-                <p>Prediction markets can be used to gauge the probability of a future event, hedge against an 
-                undesirable event, or generate profit for a savy speculator.</p>
-
-                c.f. <a href="http://en.wikipedia.org/wiki/Robin_Hanson">Robin Hanson</a>
+                
             <p></p>
             <h3>Futures</h3>
                 <hr>
@@ -519,18 +510,14 @@
 <hr>
 <h3>FAQ:</h3>
 <dl>
-    <dt>Are you really Satoshi Nakamoto?</dt>
+    <dt>This is awesome, is this for real!?</dt>
         <dd> Yes. </dd>
 </dl>
 <hr>
 <h3>Contact:</h3>
 <address>
-  <strong>Satoshi Nakamoto</strong><br>
-  <a href="mailto:#">satoshi@sputnik.com</a><br>
-
-
-<a href="https://twitter.com/satoshinakamoto" class="twitter-follow-button" data-show-count="false">Follow @satoshinakamoto</a>
-<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+  <strong>Sputnik staff</strong><br>
+  <a href="mailto:contact@sputnik.com">contact@sputnik.com</a><br>
 </address> 
   <pre>
 -----BEGIN PGP PUBLIC KEY BLOCK-----
