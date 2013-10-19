@@ -205,7 +205,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # password
             #
             # However, if this is discovered, someone can use it to sign
-            # messages and authenticate as any user
+            # messages and authenticate as a nonexistent user
             # TODO: patch autobahn to prevent this without having to leak
             # information about user existence
             return ":0xFA1CDA7A:"
@@ -215,7 +215,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # TODO: extra hashing is being done with a possibly empty salt
         # does this weaken the original derived key?
-        auth_secret = WampCraProtocol.deriveKey(secret,
+        if otp_num == "":
+            auth_secret  = secret
+        else:
+            auth_secret = WampCraProtocol.deriveKey(secret,
                  {'salt': otp_num, 'keylen': 32, 'iterations': 10})
 
         logging.info("returning auth secret: %s" % auth_secret)
