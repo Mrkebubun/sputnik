@@ -475,7 +475,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("make_account")
     @limit
-    def make_account(self, name, password_hash, salt, email):
+    def make_account(self, name, password, salt, email):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, username of the user
@@ -486,16 +486,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # sanitize
         validate(name, {"type": "string"})
-        validate(password_hash, {"type": "string"})
+        validate(password, {"type": "string"})
         validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
 
         try:
-            already_existing = self.session.query(models.User).filter_by(username=name).count() 
-            if already_existing>0:
+            existing = self.session.query(models.User).filter_by(
+                    username=name).first()
+            if existing != None:
                 raise Exception('duplicate')
 
-            user = models.User(name, salt + password, email)
+            user = models.User(name, salt + ":" + password, email)
             btc = self.session.query(models.Contract).filter_by(ticker='BTC').one()
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0
@@ -504,13 +505,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             new_address.active = True
             new_address.user = user
 
-            self.session.add(new_address)
+            self.session.merge(new_address)
             self.session.add(user)
             self.session.add(btc_pos)
             self.session.commit()
             return True
 
         except Exception as e:
+            print e
             self.session.rollback()
             return False
 

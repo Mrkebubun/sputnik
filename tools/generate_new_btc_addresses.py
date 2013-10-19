@@ -1,9 +1,12 @@
 from sqlalchemy.orm.exc import NoResultFound
-import models
-import database as db
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+    "../server"))
+
+from sputnik import database, models
 import bitcoinrpc
 
-db_session = db.Session()
+db_session = database.Session()
 TESTNET = True
 
 if TESTNET:
