@@ -385,7 +385,7 @@ function makeAccount(name, psswd, email) {
             if (res){
                 do_login(registerLogin.value, registerPassword.value);
             } else {
-                alert('user name or email taken');
+                alert('Username is taken.');
             }
         })
 }

@@ -76,7 +76,7 @@ class User(db.Base):
     password = Column(String, nullable=False)
     totp = Column(String)
     nickname = Column(String)
-    email = Column(String, unique=True)
+    email = Column(String)
     active = Column(Boolean, server_default="true")
 
     positions = relationship("Position", back_populates="user")
