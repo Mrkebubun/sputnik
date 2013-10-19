@@ -81,11 +81,11 @@ class User(db.Base):
 
     positions = relationship("Position", back_populates="user")
 
-    def __init__(self, username, password, nickname="anonymous", email=""):
+    def __init__(self, username, password, email="", nickname="anonymous"):
         self.username = username
         self.password = password
-        self.nickname = nickname
         self.email = email
+        self.nickname = nickname
 
     def __repr__(self):
         return "<User('%s','%s')>" \
