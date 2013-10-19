@@ -191,7 +191,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         try:
             user = self.session.query(models.User).filter_by(
-                username=authKey).last()
+                username=authKey).first()
+            if user == None:
+                raise Exception("No such user: %s" % authKey)
             salt, secret = user.password.split(":")
             try:
                 otp_num = otp.get_totp(user.totp)
