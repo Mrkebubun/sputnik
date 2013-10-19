@@ -135,8 +135,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("https://example.com/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE, prefixMatch=True)
 
         # override global client auth options
-        self.clientAuthTimeout = 30
-        self.clientAuthAllowAnonymous = False
+        self.clientAuthTimeout = 0
+        self.clientAuthAllowAnonymous = True
 
         # call base class method
         WampCraServerProtocol.onSessionOpen(self)
