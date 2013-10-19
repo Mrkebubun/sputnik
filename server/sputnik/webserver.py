@@ -501,7 +501,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             btc_pos = models.Position(user, btc)
             btc_pos.reference_price = 0
 
-            new_address = self.session.query(models.Addresses).filter_by(active=True, user=None).first()
+            new_address = self.session.query(models.Addresses).filter_by(
+                    active=False, user=None).first()
             new_address.active = True
             new_address.user = user
 
