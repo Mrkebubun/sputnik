@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.DEBUG)
 btc = session.query(models.Contract).filter_by(ticker='BTC').one()
 
 
-def create_or_get_position(user, contract, ref_price):
+def create_or_get_position(username, contract, ref_price):
     """
     returns the position in the database for a contract or creates it should it not exist
     :param user: the user
@@ -47,9 +47,9 @@ def create_or_get_position(user, contract, ref_price):
     :return: the position object
     """
     try:
-        return session.query(models.Position).filter_by(username=user, contract_id=contract).one()
+        return session.query(models.Position).filter_by(username=username, contract_id=contract).one()
     except NoResultFound:
-        user = session.query(models.User).filter_by(id=user).one()
+        user = session.query(models.User).filter_by(username=username).one()
         contract = session.query(models.Contract).filter_by(id=contract).one()
         pos = models.Position(user, contract)
         pos.reference_price = ref_price
