@@ -96,7 +96,7 @@ function onAuth(permissions) {
 
     $('#loginButton').hide();
     $('#registration').hide();
-    
+
     //hacky fix of modal backdrop not being dismissed when authentication is preceded by failed login attempt
     $('.modal').modal('hide');
 
@@ -112,7 +112,7 @@ function onAuth(permissions) {
     twoFactorSetting();
 
     /*
-    the gleaning of the user_id from the permissions and then manual 
+    the gleaning of the user_id from the permissions and then manual
     subscription process is very hacky.  Hope to make it more clean later.
     */
     var user_id;
@@ -178,10 +178,10 @@ function onOpenOrder(topicUri, event) {
                           'side':     event['side']==0?'BUY':'SELL',
                           'ticker':   event['ticker']};
     OPEN_ORDERS.push(new_open_order);
-    
+
 //    displayPositions(false,SITE_POSITIONS);
 //    displayPositions(true,SITE_POSITIONS);
-//      replace with 
+//      replace with
     getPositions();
     displayOrders(false,OPEN_ORDERS);
     displayOrders(true,OPEN_ORDERS);
@@ -213,32 +213,32 @@ function onTrade(topicUri, event) {
 
 //subscribe functions (may want to put intial rpc call in them as well)
 
-function subToTradeStream(ticker) {   
+function subToTradeStream(ticker) {
 	console.log(trade_URI+ticker ,onTrade);
 	session.subscribe(trade_URI+ticker ,onTrade);
 }
 
-function subToSafePrice(ticker) {   
+function subToSafePrice(ticker) {
 	console.log(safe_prices_URI+ticker ,onSafePrice);
 	session.subscribe(safe_prices_URI+ticker ,onSafePrice);
 }
 
-function subToOrderBook(ticker) {   
+function subToOrderBook(ticker) {
 	console.log(order_book_URI+ticker, onBookUpdate);
 	session.subscribe(order_book_URI+ticker, onBookUpdate);
 }
 
-function subToOpenOrders(id) {   
+function subToOpenOrders(id) {
 	console.log(open_orders_URI + id, onOpenOrder);
 	session.subscribe(open_orders_URI + id, onOpenOrder);
 }
 
-function subToFills(id) {   
+function subToFills(id) {
 	console.log(fills_URI + id, onFill);
 	session.subscribe(fills_URI + id, onFill);
 }
 
-function subToCancels(id) {   
+function subToCancels(id) {
 	console.log(cancels_URI + id, onCancel);
 	session.subscribe(cancels_URI + id, onCancel);
 }
@@ -484,7 +484,7 @@ function displayPrice(price, denominator, tick_size, contract_type) {
 function updateOrderBook(book, full_size) {
     console.log('in updateOrderBook');
 	for (key in book){
-			book = book[key];	
+			book = book[key];
             var buyBook = [];
             var sellBook = [];
 
@@ -548,7 +548,7 @@ function tradeTable(trades, fullsize) {
             direction = 'success';
         } else if (trades[i][1] < trades[i - 1][1]) {
             direction = 'error';
-        } 
+        }
 
         $('#tradeHistory').prepend("<tr class=" + direction + ">" +
             "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
@@ -597,7 +597,7 @@ function graphTable(table, side, fullsize) {
 	var tick_size = MARKETS[SITE_TICKER]['tick_size'];
 
     $(id).empty();
-	
+
     // update the suggested buy/sell orders:
     if (table.length >0) {
         if (side =='buy') {
@@ -616,7 +616,7 @@ function graphTable(table, side, fullsize) {
             var price_cell = "<td>" + displayPrice(table[j][1], denominator, tick_size, contract_type) + "</td>";
             var quantity_cell = "<td>" + table[j][0] + "</td>";
             var row_string = (side == 'buy' ? quantity_cell + price_cell : price_cell + quantity_cell);
-            $(id).append("<tr id='" + side + "_" + i + "'>" + 
+            $(id).append("<tr id='" + side + "_" + i + "'>" +
 							row_string + "</tr>");
 
 			// highlight user's orders
@@ -692,7 +692,7 @@ function displayOrders(show_all_tickers, orders) {
                         MARKETS[order['ticker']]['denominator'],
                         MARKETS[order['ticker']]['tick_size'],
                         MARKETS[order['ticker']]['contract_type']);
-                       
+
                     $(element).append("<tr id='cancel_order_row_" + order['order_id'] + "'>" +
 
                         (printed_ticker?'':ticker_td) +
@@ -734,11 +734,11 @@ function displayCash(display_account_page, positions) {
 
     for (var key in positions) {
         $(element).append("<tr>" +
-            "<td>" + positions[key]['ticker'] + "</td>" + 
+            "<td>" + positions[key]['ticker'] + "</td>" +
             "<td>" + (positions[key]['position'] / 1e8) + "</td>" +
             //"<td>" + margins['total'][0] / 1e8 + "</td>" +
             "<td>" + margins['total'][1] / 1e8 + "</td>" +
-            
+
             (display_account_page?
             "<td>" +
             "<button id='withdrawModalButton'  class='btn btn-block' type='button'>" +
@@ -749,7 +749,7 @@ function displayCash(display_account_page, positions) {
             "<button id='depositButton' class='btn btn-block' type='button'>" +
             " <i class='icon-plus-sign'/>" +
             "</button>" +
-            "</td>" 
+            "</td>"
             : "")
 
 
@@ -804,11 +804,11 @@ function displayPositions(show_all_tickers, positions) {
 
 function newMarketsToDisplay(markets) {
 
-    markets = _.pairs(markets);    
+    markets = _.pairs(markets);
 
     var predictions = _.filter(markets, function(item) { return item[1]["contract_type"] == "prediction";});
     var futures = _.filter(markets, function(item) { return item[1]["contract_type"] == "futures";});
-    
+
     var pList = [];
     for (market in predictions){
         pList.push("<li><a class='newMarkets' id='" + predictions[market][0] + "' href='#'> <small style='padding-right:1em;'>" +  predictions[market][0] + "</small>"+predictions[market][1]['description'] + "</a></li>")
@@ -943,7 +943,7 @@ function switchToTrade (new_ticker) {
 
 function switchBookSub (ticker) {
     //need to fix this hardcoding
-    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+    id = SITE_TICKER=='USD.13.7.31'?17:16;
 
     if (logged_in) {
         try{session.unsubscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
@@ -965,7 +965,7 @@ function switchBookSub (ticker) {
 
 	setSiteTicker(ticker);
 
-    id = SITE_TICKER=='USD.13.7.31'?17:16; 
+    id = SITE_TICKER=='USD.13.7.31'?17:16;
 
 	try{session.subscribe(order_book_URI+SITE_TICKER, onBookUpdate);}
         catch(err){console.log(err);}
@@ -1137,7 +1137,7 @@ $("#searchButton").click(function () {
 $('#enableTwoFactor').click(function () {
     if (!TWO_FACTOR_ON) {
         getNewTwoFactor();
-    }  
+    }
     $('#registerTwoFactor').prop('value','');
     $('#twoFactorModal').modal('show');
 });
@@ -1159,7 +1159,7 @@ $('#submitTwoFactor').click(function(){
     if(!TWO_FACTOR_ON){
         registerTwoFactor( parseInt($('#registerTwoFactor').val()));
     } else {
-       disableTwoFactor( parseInt($('#registerTwoFactor').val())); 
+       disableTwoFactor( parseInt($('#registerTwoFactor').val()));
     }
 });
 
@@ -1191,7 +1191,7 @@ $("input#chatBox.chatInput").keypress(function (e) {
 
 //modals
 
-$('#myModal').on('shown', function () {
+$('#loginModal').on('shown', function () {
     $('#login').focus();
 });
 
