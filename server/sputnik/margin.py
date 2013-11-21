@@ -5,6 +5,11 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+
+
+
+
+
 def calculate_margin(username, session, safe_prices, order_id=None):
     """
     calculates the low and high margin for a given user

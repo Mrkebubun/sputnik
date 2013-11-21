@@ -171,23 +171,7 @@ def accept_order_if_possible(username, order_id):
         #todo: make actual margin calls here
 
 
-def check_and_issue_margin_call(username):
-    """
-    Check if a naughty user is due for a margin call!
-    :param username: username of the potentially naughty user
-    """
-    low_margin, high_margin = calculate_margin(username)
-    cash_position = session.query(models.Position).filter_by(contract=btc, username=username).one()
 
-    if cash_position < low_margin:
-        #todo panic!
-        logging.warning("Here is where code should be to do something user %d's margin" % username)
-
-    elif cash_position < high_margin:
-        logging.warning("Here is where code should be to send user %d a margin call" % username)
-
-    else:
-        logging.info("user %d's margin is fine and dandy" % username)
 
 
 def process_trade(trade):
@@ -199,33 +183,33 @@ def process_trade(trade):
      if trade['contract_type'] == 'futures':
          cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
          future_position = create_or_get_position(trade['username'], trade['contract'], trade['price'])
- 
+
          #mark to current price as if everything had been entered at that price and profit had been realized
          cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
          future_position.reference_price = trade['price']
- 
+
          #note that even though we're transferring money to the account, this money may not be withdrawable
          #because the margin will raise depending on the distance of the price to the safe price
- 
+
          # then change the quantity
          future_position.position += trade['signed_qty']
- 
+
          session.merge(future_position)
          session.merge(cash_position)
- 
+
      elif request_details['contract_type'] == 'prediction':
          cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
          prediction_position = create_or_get_position(trade['username'], trade['contract'], 0)
- 
+
          cash_position.position -= trade['signed_qty'] * trade['price']
          prediction_position.position += trade['signed_qty']
- 
+
          session.merge(prediction_position)
          session.merge(cash_position)
- 
+
      else:
          logging.error("unknown contract type")
- 
+
      session.commit()
 
 
