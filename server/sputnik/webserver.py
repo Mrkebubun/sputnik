@@ -26,7 +26,6 @@ from autobahn.wamp import exportRpc, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
 
-import zmq
 from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 
 zf = ZmqFactory()
@@ -72,7 +71,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
     """
-    
+
     def __init__(self):
         pass
 
@@ -224,7 +223,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                  {'salt': otp_num, 'keylen': 32, 'iterations': 10})
 
         logging.info("returning auth secret: %s" % auth_secret)
-        return auth_secret 
+        return auth_secret
 
     # noinspection PyMethodOverriding
     def onAuthenticated(self, authKey, perms):
@@ -238,7 +237,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         endpoint = ZmqEndpoint("connect",
                 config.get("accountant", "zmq_address"))
         self.accountant = ZmqPushConnection(zf, endpoint)
-        
+
         self.troll_throttle = time.time()
 
         # based on what pub/sub we're permitted to register for, register to those
@@ -327,7 +326,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.session.rollBack()
                 return False
         else:
-            return False    
+            return False
 
     @exportRpc("get_trade_history")
     @limit
@@ -595,7 +594,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             for order in self.session.query(models.Order).filter_by(
                 user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
 
-    
+
     @exportRpc("place_order")
     @limit
     def place_order(self, order):
@@ -696,7 +695,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 if len(message) > 128:
                     message = message[:128] + u"[\u2026]"
                 chat_log.info('%s:%s' % (self.user.nickname, message))
-                    
+
                 #pause message rate if necessary
                 time_span = time.time() - self.troll_throttle
                 print time_span
@@ -729,13 +728,13 @@ class PepsiColaServerFactory(WampServerFactory):
         :rtype : NoneType
         :param message: message do be sent
         """
-   
+
         # TODO: check if message is multipart
         for key, value in json.loads(message[0]).iteritems():
-            logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value)) 
+            logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value))
             if key == 'book_update':
                 self.all_books.update(value)
-                print "https://example.com/order_book#%s"% value.keys()[0] 
+                print "https://example.com/order_book#%s"% value.keys()[0]
                 self.dispatch("https://example.com/order_book#%s"% value.keys()[0], json.dumps(value))
                 #logging.info("Sent:    %", message)
 
@@ -764,7 +763,7 @@ class PepsiColaServerFactory(WampServerFactory):
                 print "https://example.com/user/open_orders#%s" % value[0], value[1]
 
 if __name__ == '__main__':
-    
+
     logging.basicConfig(level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
@@ -798,9 +797,9 @@ if __name__ == '__main__':
     factory.protocol = PepsiColaServerProtocol
 
     # prevent excessively large messages
-    # https://autobahn.ws/python/reference 
+    # https://autobahn.ws/python/reference
     factory.setProtocolOptions(maxMessagePayloadSize=1000)
-   
+
     listenWS(factory, contextFactory, interface=interface)
 
     if config.getboolean("webserver", "www"):

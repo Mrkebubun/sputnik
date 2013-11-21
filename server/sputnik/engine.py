@@ -63,6 +63,7 @@ class SafePricePublisher(object):
         logging.info('Woo, new safe price %d' % self.safe_price)
         accountant.send_json({'safe_price': {contract_name: self.safe_price}})
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
+        safe_price_forwader.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
     """
@@ -226,6 +227,10 @@ publisher.connect(config.get("webserver", "zmq_address"))
 accountant = context.socket(zmq.PUSH)
 accountant.connect(config.get("accountant", "zmq_address"))
 
+# push to the safe price forwarder
+safe_price_forwarder = context.socket(zmq.PUB)
+safe_price_forwarder.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
+
 all_orders = {}
 
 
@@ -271,7 +276,7 @@ while True:
                 del book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]
 
             update_best(other_side)
-            
+
             o.cancel()
             del all_orders[order.order_id]
             #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
@@ -281,8 +286,8 @@ while True:
             print [oxox.__dict__ for oxox in all_orders.values()]
             print 'o.order_id:  ', o.order_id
             print 'order.order_id:  ', order.order_id
-            print 'test 2:  ',str({'cancel': [o.username, {'order': o.order_id}]}) 
-            publisher.send_json({'cancel': [o.username, {'order': o.order_id}]}) 
+            print 'test 2:  ',str({'cancel': [o.username, {'order': o.order_id}]})
+            publisher.send_json({'cancel': [o.username, {'order': o.order_id}]})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             logging.warning("we currently don't have a way of telling the cancel failed")
@@ -323,15 +328,15 @@ while True:
                                                          'price':order.price,
                                                          'side': order.order_side,
                                                          'ticker':contract_name,
-                                                         'contract_id':contract_id}]}) 
+                                                         'contract_id':contract_id}]})
         print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
                                                          'quantity':order.quantity,
                                                          'price':order.price,
                                                          'side': order.order_side,
                                                          'ticker':contract_name,
-                                                         'contract_id':contract_id}]}) 
+                                                         'contract_id':contract_id}]})
 
-    # done placing the order, publish the order book 
+    # done placing the order, publish the order book
     logging.info(pretty_print_book())
     publish_order_book()
 
