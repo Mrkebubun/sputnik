@@ -21,6 +21,7 @@ class Contract(db.Base):
     tick_size = Column(Integer, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
+    inverse_quotes = Column(Boolean, server_default="false", nullable=False)
 
     margin_high = Column(Integer)
     margin_low = Column(Integer)
