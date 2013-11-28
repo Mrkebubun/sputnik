@@ -45,6 +45,8 @@ class SafePricePublisher(object):
             self.safe_price = 42
         accountant.send_json({'safe_price': {contract_name: self.safe_price}})
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
+        safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
+
 
     def onTrade(self, last_trade):
         '''
@@ -63,7 +65,7 @@ class SafePricePublisher(object):
         logging.info('Woo, new safe price %d' % self.safe_price)
         accountant.send_json({'safe_price': {contract_name: self.safe_price}})
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
-        safe_price_forwader.send_json({'safe_price': {contract_name: self.safe_price}})
+        safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
     """
