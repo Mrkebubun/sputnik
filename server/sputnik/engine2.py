@@ -475,9 +475,11 @@ class WebserverNotifier(EngineListener):
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, engine, forwarder):
+    def __init__(self, engine, forwarder, accountant, webserver):
         self.engine = engine
         self.forwarder = forwarder
+        self.accountant = accountant
+        self.webserver = webserver
 
         self.ema_price_volume = 0
         self.ema_volume = 0
@@ -491,6 +493,10 @@ class SafePriceNotifier(EngineListener):
             self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
         except IndexError:
             self.safe_price = 42
+        
+        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.webserver..send_json({'safe_price': {engine.ticker: self.safe_price}})
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
@@ -498,6 +504,8 @@ class SafePriceNotifier(EngineListener):
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
 
@@ -528,7 +536,7 @@ engine = Engine(engine_socket, session, args[0])
 logger = LoggingListener(engine)
 webserver_notifier = WebserverNotifier(engine, webserver_socket)
 accountant_notifier = AccountantNotifier(engine, accountant_socket)
-safeprice_notifier = SafePriceNotifier(engine, forwarder_socket)
+safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
 
 engine.add_listener(logger)
 engine.add_listener(webserver_notifier)
