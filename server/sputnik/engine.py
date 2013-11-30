@@ -300,36 +300,36 @@ while True:
             logging.info(pretty_print_book())
             publish_order_book()
 
-    elif request_type == "cancel"
-        logging.info("this order is actually a cancellation!")
+        elif request_type == "cancel"
+            logging.info("this order is actually a cancellation!")
 
-        if order.order_id in all_orders:
-            o = all_orders[order.order_id]
-            book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price].remove(o)
-            # if list is now empty, get rid of it!
-            if not book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]:
-                del book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]
+            if order.order_id in all_orders:
+                o = all_orders[order.order_id]
+                book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price].remove(o)
+                # if list is now empty, get rid of it!
+                if not book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]:
+                    del book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]
 
-            update_best(other_side)
+                update_best(other_side)
 
-            o.cancel()
-            del all_orders[order.order_id]
-            #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
-            #user.usernamechange o to order in the following:
-            print 'o.order_id:  ', o.order_id
-            print 'order.order_id:  ', order.order_id
-            print [oxox.__dict__ for oxox in all_orders.values()]
-            print 'o.order_id:  ', o.order_id
-            print 'order.order_id:  ', order.order_id
-            print 'test 2:  ',str({'cancel': [o.username, {'order': o.order_id}]})
-            publisher.send_json({'cancel': [o.username, {'order': o.order_id}]})
+                o.cancel()
+                del all_orders[order.order_id]
+                #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+                #user.usernamechange o to order in the following:
+                print 'o.order_id:  ', o.order_id
+                print 'order.order_id:  ', order.order_id
+                print [oxox.__dict__ for oxox in all_orders.values()]
+                print 'o.order_id:  ', o.order_id
+                print 'order.order_id:  ', order.order_id
+                print 'test 2:  ',str({'cancel': [o.username, {'order': o.order_id}]})
+                publisher.send_json({'cancel': [o.username, {'order': o.order_id}]})
+            else:
+                logging.info("the order cannot be cancelled, it's already outside the book")
+                logging.warning("we currently don't have a way of telling the cancel failed")
+
+            logging.info(pretty_print_book())
+            publish_order_book()
+
         else:
-            logging.info("the order cannot be cancelled, it's already outside the book")
-            logging.warning("we currently don't have a way of telling the cancel failed")
-
-        logging.info(pretty_print_book())
-        publish_order_book()
-
-    else:
-        logging.warning("unknown request type: %s", request_type)
+            logging.warning("unknown request type: %s", request_type)
 
