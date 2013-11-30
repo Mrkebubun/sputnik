@@ -432,7 +432,7 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
 
     def on_trade_success(self, order, passive_order):
-        self.webserver.send_json({'trade': {'ticker': self.engine.contract_name, 'quantity': quantity, 'price': passive_order.price}})
+        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': passive_order.price}})
         self.webserver.send_json({'fill': [order.username, {'order': order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
         self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
         self.update_book()
