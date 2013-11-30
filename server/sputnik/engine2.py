@@ -155,11 +155,11 @@ class Engine:
         while order.quantity > 0:
 
             # If the other side has run out of orders, break.
-            if len(self.orderbook[OrderSide.other(order.side)]) == 0:
+            if len(self.orderbook[OrderSide.name(OrderSide.other(order.side))]) == 0:
                 break
 
             # Find the best counter-offer.
-            passive_order = self.orderbook[OrderSide.other(order.side)][0]
+            passive_order = self.orderbook[OrderSide.name(OrderSide.other(order.side))][0]
 
             # We may assume this order is the best offer on its side. If not,
             #   the following will automatically fail since it failed for
