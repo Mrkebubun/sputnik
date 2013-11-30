@@ -290,7 +290,7 @@ class Engine:
             except ValueError:
                 logging.warn("Received message cannot be decoded.")
             except Exception, e:
-                logging.critical("Critical error: " + e)
+                logging.critical("Critical error: %s", e)
                 sys.exit(1)
 
     def add_listener(self, listener):
