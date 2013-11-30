@@ -493,7 +493,7 @@ accountant_socket.connect(config.get("accountant", "zmq_address"))
 forwarder_socket = context.socket(zmq.PUB)
 forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
 
-engine = Engine(session, engine_socket, args[0])
+engine = Engine(engine_socket, session, args[0])
 
 logger = LoggingNotifier(engine)
 webserver_notifier = WebserverNotifier(engine, webserver_socket)
