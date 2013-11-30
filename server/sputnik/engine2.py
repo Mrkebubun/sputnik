@@ -244,7 +244,7 @@ class Engine:
 
     def cancel(self, id):
         # Check to make sure order has not already been filled.
-        if details.order_id not in self.ordermap:
+        if details.id not in self.ordermap:
             # Too late to cancel.
             logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
             self.notify_cancel_failed(id, "the order is no longer on the book")
@@ -288,7 +288,7 @@ class Engine:
                         self.process(order)
 
                     elif request_type == "cancel":
-                        self.cancel(details.order_id)
+                        self.cancel(details.id)
                             
                     elif request_type == "clear":
                         pass
@@ -433,8 +433,8 @@ class WebserverNotifier(EngineListener):
 
     def on_trade_success(self, order, passive_order):
         self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': passive_order.price}})
-        self.webserver.send_json({'fill': [order.username, {'order': order.order_id, 'quantity': order.quantity, 'price': passive_order.price}]})
-        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.order_id, 'quantity': order.quantity, 'price': passive_order.price}]})
+        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
+        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
         self.update_book()
 
     def on_queue_success(self, order):
