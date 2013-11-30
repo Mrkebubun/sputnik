@@ -496,7 +496,7 @@ class SafePriceNotifier(EngineListener):
         
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
         self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.webserver..send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
