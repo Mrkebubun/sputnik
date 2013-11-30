@@ -233,7 +233,6 @@ def cancel_order(details):
             return False
 
         m_e_order = order.to_matching_engine_order()
-        m_e_order['is_a_cancellation'] = True
         engine_sockets[order.contract_id].send(json.dumps({"cancel": m_e_order}))
         return True
 
