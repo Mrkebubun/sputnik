@@ -364,8 +364,6 @@ class LoggingListener:
     def on_init(self):
         self.ticker = self.engine.ticker
         self.contract_id = self.engine.contract_id
-
-    def on_init(self):
         logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
         logging.info("Listening for connections on port %d." % (4200 + self.contract_id))
 
@@ -446,7 +444,7 @@ class WebserverNotifier(EngineListener):
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, forwarder, engine):
+    def __init__(self, engine, forwarder):
         self.engine = engine
         self.forwarder = forwarder
 
