@@ -31,7 +31,8 @@ class OrderSide:
 
     @staticmethod
     def name(side):
-        if side == OrderSide.BUY:
+        # TODO: standardize naming
+        if side == OrderSide.BUY or side == 0:
             return "BUY"
         elif side == OrderSide.SELL:
             return "SELL"
