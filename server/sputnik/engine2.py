@@ -400,20 +400,20 @@ class LoggingListener:
 
     def print_order_book(self):
         logging.debug("Orderbook for %s:" % self.engine.ticker)
-        logging.debug("Bids                 Asks")
-        logging.debug("Vol. Price     Price Vol.")
+        logging.debug("Bids                   Asks")
+        logging.debug("Vol.  Price     Price  Vol.")
         length = max(len(self.engine.orderbook["Bid"]), len(self.engine.orderbook["Ask"]))
         for i in range(length):
             try:
                 ask = self.engine.orderbook["Ask"][i]
-                ask_str = "{:<5}{:<5}".format(ask.price, ask.quantity)
+                ask_str = "{:<5} {:<5}".format(ask.price, ask.quantity)
             except:
-                ask_str = "          "
+                ask_str = "           "
             try:
                 bid = self.engine.orderbook["Bid"][i]
-                bid_str = "{:>5}{:>5}".format(bid.price, bid.quantity)
+                bid_str = "{:>5} {:>5}".format(bid.price, bid.quantity)
             except:
-                bid_str = "          "
+                bid_str = "           "
             logging.debug("{}     {}".format(bid_str, ask_str))
 
 
