@@ -117,8 +117,11 @@ class Engine:
         self.orderbook = [[], []]
         self.ordermap = {}
 
+        self.socket = socket
         self.session = session
         self.ticker = ticker
+
+        self.listeners = []
 
         # Determine contract id
         try:
@@ -143,10 +146,6 @@ class Engine:
         except Exception, e:
             logging.critical("Cannot clear existing orders. %s" % e)
             raise e
-
-        self.socket = socket
-
-        self.notify_init()
     
     def process(self, order):
 
@@ -273,6 +272,8 @@ class Engine:
         return True
 
     def run(self):
+        self.notify_init()
+
         while True:
             try:
                 request = self.socket.recv_json()
