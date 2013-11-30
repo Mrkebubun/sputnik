@@ -244,7 +244,7 @@ class Engine:
 
     def cancel(self, id):
         # Check to make sure order has not already been filled.
-        if details.id not in self.ordermap:
+        if id not in self.ordermap:
             # Too late to cancel.
             logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
             self.notify_cancel_failed(id, "the order is no longer on the book")
