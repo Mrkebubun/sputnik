@@ -288,7 +288,7 @@ class Engine:
                         self.process(order)
 
                     elif request_type == "cancel":
-                        self.cancel(details.id)
+                        self.cancel(details["id"])
                             
                     elif request_type == "clear":
                         pass
