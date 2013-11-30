@@ -32,9 +32,9 @@ class OrderSide:
     @staticmethod
     def name(side):
         if side == OrderSide.BUY:
-            return "Buy"
+            return "Bid"
         elif side == OrderSide.SELL:
-            return "Sell"
+            return "Ask"
 
 
 class Order:
@@ -116,7 +116,7 @@ class EngineListener:
 
 class Engine:
     def __init__(self, socket, session, ticker):
-        self.orderbook = [[], []]
+        self.orderbook = {"Ask":[], "Bid":[]}
         self.ordermap = {}
 
         self.socket = socket
@@ -188,7 +188,7 @@ class Engine:
 
             # If the passive order is used up, remove it.
             if passive_order.quantity <= 0:
-                heapq.heappop(self.orderbook[passive_order.side])
+                heapq.heappop(self.orderbook[OrderSide.name(passive_order.side)])
                 del self.ordermap[passive_order.id]
 
             # Notify listeners.
@@ -198,7 +198,7 @@ class Engine:
         # If order is not completely filled, push remainer onto heap and make
         #   an entry in the map.
         if order.quantity > 0:
-            heapq.heappush(self.orderbook[order.side], order)
+            heapq.heappush(self.orderbook[OrderSide.name(order.side)], order)
             self.ordermap[order.id] = order
 
             # Notify listeners
@@ -259,8 +259,8 @@ class Engine:
 
         # Remove the order from the book.
         del self.ordermap[id]
-        self.orderbook[order.side].remove(order)
-        heapq.heapify(self.orderbook[order.side])
+        self.orderbook[OrderSide.name(order.side)].remove(order)
+        heapq.heapify(self.orderbook[OrderSide.name(order.side)])
 
         # Fetch the database object and cancel the order. If this fails, rollback.
         try:
@@ -406,15 +406,15 @@ class LoggingListener:
         logging.debug("Orderbook for %s:" % self.engine.ticker)
         logging.debug("Bids\t\t\t\t\t\tAsks")
         logging.debug("Vol\tPrice\t\t\t\tPrice\tVol")
-        length = max(len(self.engine.orderbook[0]), len(seld.engine.orderbook[1]))
+        length = max(len(self.engine.orderbook["Bid"]), len(seld.engine.orderbook["Ask"]))
         for i in range(length):
             try:
-                ask = self.engine.orderbook[0][i]
+                ask = self.engine.orderbook["Ask"][i]
                 ask_str = "%s\t%s" % (ask.price, ask.quantity)
             except:
                 ask_str = "\t\t\t"
             try:
-                bid = self.engine.orderbook[1][i]
+                bid = self.engine.orderbook["Bid"][i]
                 bid_str = "%s\t%s" % (bid.quantity, bid.price)
             except:
                 bid_str = "\t\t\t"
