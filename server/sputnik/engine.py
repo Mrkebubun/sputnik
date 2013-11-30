@@ -25,165 +25,6 @@ context = zmq.Context()
 
 logging.basicConfig(level=logging.DEBUG)
 
-class Engine(object):
-    def __init__(self):
-        super()
-
-        self.all_orders = {}
-        self.book = {'bid': {}, 'ask': {}}
-        self.best = {'bid': None, 'ask': None}
-
-        self.safe_price_publisher = SafePricePublisher()
- 
-    def cancel(self, order):
-        try:
-            db_order = db_session.query(models.Order).filter_by(id=order.id).one()
-        except:
-            logging.error("Unable to cancel order id=%s. Database object lookup error." % order.id)
-            return False
-
-        db_order.is_cancelled = True
-        self.session.merge(db_order)
-        self.session.commit()
-        logging.info("Order %d is cancelled." % order.id)
-        return True
-
-    def match(self, order1, order2):
-        pass
-
-    def run(self):
-        while True:
-            try:
-                request = self.connector.recv_json()
-                for request_type, details in request.iteritems():
-                    if request_type == "order":
-                        order = Order(**details)
-                        self.process_order(order)
-                    elif request_type == "cancel":
-                        self.process_cancel(details.order_id)
-                    elif request_type == "clear":
-                        pass
-                logging.info(self.pretty_print_book())
-            except ValueError:
-                logging.warn("Received message cannot be decoded.")
-            except Exception, e:
-                logging.error("Fatal error: " + e.__str__())
-                sys.exit(1)
-
-    def process_cancel(self, id):
-        logging.info("Received cancellation: id=%s." % id)
-
-        if order_id not in self.all_orders:
-            logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
-            # TODO: notify user
-            return
-
-        order = self.all_orders[id]
-        side = 'ask' if order.order_side == OrderSide.BUY else 'bid'
-        other_side = 'bid' if order.order_side == OrderSide.BUY else 'ask'
-
-        book[other_side][order.price].remove(order)
-
-        # if list is now empty, get rid of it!
-        if not book[other_side][order.price]:
-            del book[other_side][order.price]
-
-        self.update_best(other_side)
-        
-        self.cancel(order)
-        del all_orders[order.id]
-
-        publisher.send_json({'cancel': [order.username, {'order': order.id}]}) 
-            
-        self.publish_order_book()
-
-    def process_order(self, order):
-        logging.info("received order, id=%d, order=%s" % (order.order_id, order))
-        
-        side = 'ask' if order.order_side == OrderSide.BUY else 'bid'
-        other_side = 'bid' if order.order_side == OrderSide.BUY else 'ask'
-
-        # while we can dig in the other side, do so and be executed
-        while order.quantity > 0 and best[side] and order.better(best[side]):
-            try:
-                book_order_list = book[side][best[side]]
-                for book_order in book_order_list:
-                    order.match(book_order, book_order.price)
-                    if book_order.quantity == 0:
-                        book_order_list.remove(book_order)
-                        del all_orders[book_order.order_id]
-                        if not book_order_list:
-                            del book[side][best[side]]
-                    if order.quantity == 0:
-                        break
-                update_best(side)
-            except KeyError as e:
-                print e
-
-        # if some quantity remains place it in the book
-        if order.quantity != 0:
-            if order.price not in book[other_side]:
-                book[other_side][order.price] = []
-            book[other_side][order.price].append(order)
-            all_orders[order.order_id] = order
-            update_best(other_side)
-            # publish the user's open order to their personal channel
-            publisher.send_json({'open_orders': [order.username,{'order': order.order_id,
-                                                             'quantity':order.quantity,
-                                                             'price':order.price,
-                                                             'side': order.order_side,
-                                                             'ticker':contract_name,
-                                                             'contract_id':contract_id}]}) 
-            print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
-                                                             'quantity':order.quantity,
-                                                             'price':order.price,
-                                                             'side': order.order_side,
-                                                             'ticker':contract_name,
-                                                             'contract_id':contract_id}]}) 
-
-        # done placing the order, publish the order book 
-        logging.info(pretty_print_book())
-        publish_order_book()
-
-
-    def update_best(side):
-        """
-        update the current best bid and ask
-        :param side: 'ask' or 'bid'
-        """
-        if side == 'ask':
-            if self.book[side]:
-                self.best[side] = min(self.book[side].keys())
-            else:
-                self.best[side] = None
-        else:
-            if self.book[side]:
-                self.best[side] = max(self.book[side].keys())
-            else:
-                self.best[side] = None
-
-    def publish_order_book():
-        """
-        publishes the order book to be consumed by the server
-        and dispatched to connected clients
-        """
-        publisher.send_json(
-                {'book_update':
-                    {contract_name:
-                        [{"quantity": o.quantity, "price": o.price, "order_side": o.order_side}
-                            for o in all_orders.values()]}})
-
-    def pretty_print_book():
-        """
-        returns a string that can be printed on the console
-        to represent the state of the order book
-        """
-        return '***\n%s\n***' % '\n-----\n'.join(
-            '\n'.join(
-                str(level) + ":" + '+'.join(str(order.quantity)
-                    for order in self.book[side][level])
-                for level in sorted(self.book[side], reverse=True))
-            for side in ['ask', 'bid'])
 
 class SafePricePublisher(object):
     # update exponential moving average volume weighted vwap
@@ -404,16 +245,62 @@ def pretty_print_book():
 
 safe_price_publisher = SafePricePublisher()
 
+
 while True:
-    order = Order(None, None, None, None, None, None)
-    order.__dict__.update(connector.recv_json())
-    logging.info("received order, id=%d, order=%s" % (order.order_id, order))
+    request = connector.recv_json()
+    for request_type, request_details in request.iteritems():
 
-    side = 'ask' if order.order_side == OrderSide.BUY else 'bid'
-    other_side = 'bid' if order.order_side == OrderSide.BUY else 'ask'
+        order = Order(None, None, None, None, None, None)
+        order.__dict__.update(request_details)
+        side = 'ask' if order.order_side == OrderSide.BUY else 'bid'
+        other_side = 'bid' if order.order_side == OrderSide.BUY else 'ask'
 
-    #is it a cancel order?
-    if order.is_a_cancellation:
+        if request_type == "order":
+            logging.info("received order, id=%d, order=%s" % (order.order_id, order))
+
+            # while we can dig in the other side, do so and be executed
+            while order.quantity > 0 and best[side] and order.better(best[side]):
+                try:
+                    book_order_list = book[side][best[side]]
+                    for book_order in book_order_list:
+                        order.match(book_order, book_order.price)
+                        if book_order.quantity == 0:
+                            book_order_list.remove(book_order)
+                            del all_orders[book_order.order_id]
+                            if not book_order_list:
+                                del book[side][best[side]]
+                        if order.quantity == 0:
+                            break
+                    update_best(side)
+                except KeyError as e:
+                    print e
+
+            # if some quantity remains place it in the book
+            if order.quantity != 0:
+                if order.price not in book[other_side]:
+                    book[other_side][order.price] = []
+                book[other_side][order.price].append(order)
+                all_orders[order.order_id] = order
+                update_best(other_side)
+                # publish the user's open order to their personal channel
+                publisher.send_json({'open_orders': [order.username,{'order': order.order_id,
+                                                                 'quantity':order.quantity,
+                                                                 'price':order.price,
+                                                                 'side': order.order_side,
+                                                                 'ticker':contract_name,
+                                                                 'contract_id':contract_id}]})
+                print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
+                                                                 'quantity':order.quantity,
+                                                                 'price':order.price,
+                                                                 'side': order.order_side,
+                                                                 'ticker':contract_name,
+                                                                 'contract_id':contract_id}]})
+
+            # done placing the order, publish the order book
+            logging.info(pretty_print_book())
+            publish_order_book()
+
+    elif request_type == "cancel"
         logging.info("this order is actually a cancellation!")
 
         if order.order_id in all_orders:
@@ -442,49 +329,7 @@ while True:
 
         logging.info(pretty_print_book())
         publish_order_book()
-        continue
 
-    # it's a regular order, carry on
-
-    # while we can dig in the other side, do so and be executed
-    while order.quantity > 0 and best[side] and order.better(best[side]):
-        try:
-            book_order_list = book[side][best[side]]
-            for book_order in book_order_list:
-                order.match(book_order, book_order.price)
-                if book_order.quantity == 0:
-                    book_order_list.remove(book_order)
-                    del all_orders[book_order.order_id]
-                    if not book_order_list:
-                        del book[side][best[side]]
-                if order.quantity == 0:
-                    break
-            update_best(side)
-        except KeyError as e:
-            print e
-
-    # if some quantity remains place it in the book
-    if order.quantity != 0:
-        if order.price not in book[other_side]:
-            book[other_side][order.price] = []
-        book[other_side][order.price].append(order)
-        all_orders[order.order_id] = order
-        update_best(other_side)
-        # publish the user's open order to their personal channel
-        publisher.send_json({'open_orders': [order.username,{'order': order.order_id,
-                                                         'quantity':order.quantity,
-                                                         'price':order.price,
-                                                         'side': order.order_side,
-                                                         'ticker':contract_name,
-                                                         'contract_id':contract_id}]})
-        print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
-                                                         'quantity':order.quantity,
-                                                         'price':order.price,
-                                                         'side': order.order_side,
-                                                         'ticker':contract_name,
-                                                         'contract_id':contract_id}]})
-
-    # done placing the order, publish the order book
-    logging.info(pretty_print_book())
-    publish_order_book()
+    else:
+        logging.warning("unknown request type: %s", request_type)
 

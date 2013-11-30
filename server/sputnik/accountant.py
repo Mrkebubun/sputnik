@@ -234,7 +234,8 @@ def cancel_order(details):
 
         m_e_order = order.to_matching_engine_order()
         m_e_order['is_a_cancellation'] = True
-        engine_sockets[order.contract_id].send(json.dumps(m_e_order))
+        request = ["cancel", m_e_order]
+        engine_sockets[order.contract_id].send(json.dumps(request))
         return True
 
     except NoResultFound:
@@ -277,7 +278,8 @@ def place_order(order):
 
         if accept_order_if_possible(user.username, o.id):
             m_e_order = o.to_matching_engine_order()
-            engine_sockets[o.contract_id].send(json.dumps(m_e_order))
+            request = ["order", m_e_order]
+            engine_sockets[o.contract_id].send(json.dumps(request))
         else:
             logging.info("lol you can't place the order, you don't have enough margin")
     except Exception as e:
