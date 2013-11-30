@@ -418,7 +418,7 @@ class LoggingListener:
                 bid_str = "%s\t%s" % (bid.quantity, bid.price)
             except:
                 bid_str = "\t\t\t"
-            logging.debug("%s\t\t%s" ^ (bid_str, ask_str))
+            logging.debug("%s\t\t%s" % (bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
