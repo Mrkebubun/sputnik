@@ -61,7 +61,7 @@ class Order:
 
     def __eq__(self, other):
         return self.side == other.side and self.price == other.price \
-            and self.timestamp = other.timestamp
+            and self.timestamp == other.timestamp
 
     def __lt__(self, other):
         """
@@ -72,18 +72,18 @@ class Order:
             raise Exception("Orders are not comparable.")
 
         if self.side == OrderSide.BUY:
-            if self.price < other.price
+            if self.price < other.price:
                 return False
-            elif self.price > other.price
+            elif self.price > other.price:
                 return True
-            else
+            else:
                 return self.timestamp < other.timestamp
         elif self.side == OrderSide.SELL:
-            if self.price > other.price
+            if self.price > other.price:
                 return False
-            elif self.price < other.price
+            elif self.price < other.price:
                 return True
-            else
+            else:
                 return self.timestamp < other.timestamp
 
 class EngineListener:
@@ -279,10 +279,10 @@ class Engine:
                 for request_type, details in request.iteritems():
                     if request_type == "order":
                         order = Order(**details)
-                        self.process(order):
+                        self.process(order)
 
                     elif request_type == "cancel":
-                        self.cancel(details.order_id):
+                        self.cancel(details.order_id)
                             
                     elif request_type == "clear":
                         pass
@@ -414,7 +414,7 @@ class AccountantNotifier(EngineListener):
                 'trade': {
                     'username':passive_order.username,
                     'contract': passive_order.contract,
-                    'signed_qty': passive_order.quantity * passive_order.side
+                    'signed_qty': passive_order.quantity * passive_order.side,
                     'price': passive_order.price,
                     'contract_type': self.contract_type
                 }
@@ -473,6 +473,13 @@ class SafePriceNotifier(EngineListener):
 
 session = database.Session()
 context = zmq.Context()
+
+
+try:
+    contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
+except Exception, e:
+    logging.critical("Cannot determine ticker id. %s" % e)
+    raise e
 
 engine_socket = context.socket(zmq.PULL)
 engine_socket.bind('tcp://127.0.0.1:%d' % 4200 + contract_id)
