@@ -406,7 +406,7 @@ class LoggingListener:
         logging.debug("Orderbook for %s:" % self.engine.ticker)
         logging.debug("Bids\t\t\t\t\t\tAsks")
         logging.debug("Vol\tPrice\t\t\t\tPrice\tVol")
-        length = max(len(self.engine.orderbook["Bid"]), len(seld.engine.orderbook["Ask"]))
+        length = max(len(self.engine.orderbook["Bid"]), len(self.engine.orderbook["Ask"]))
         for i in range(length):
             try:
                 ask = self.engine.orderbook["Ask"][i]
