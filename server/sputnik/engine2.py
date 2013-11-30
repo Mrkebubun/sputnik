@@ -476,7 +476,7 @@ context = zmq.Context()
 
 
 try:
-    contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
+    contract_id = int(session.query(models.Contract).filter_by(ticker=args[0]).one().id)
 except Exception, e:
     logging.critical("Cannot determine ticker id. %s" % e)
     raise e
