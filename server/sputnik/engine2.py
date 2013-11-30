@@ -411,7 +411,7 @@ class LoggingListener:
                 ask_str = "          "
             try:
                 bid = self.engine.orderbook["Bid"][i]
-                ask_str = "{:>5}{:>5}".format(bid.price, bid.quantity)
+                bid_str = "{:>5}{:>5}".format(bid.price, bid.quantity)
             except:
                 bid_str = "          "
             logging.debug("{}     {}".format(bid_str, ask_str))
