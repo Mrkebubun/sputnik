@@ -73,21 +73,21 @@ class Order(object):
     def __repr__(self):
         return self.__dict__.__repr__()
 
-    def __init__(self, username=None, contract=None, quantity=None, price=None, order_side=None, order_id=None):
+    def __init__(self, username=None, contract=None, quantity=None, price=None, side=None, order_id=None):
         self.id = id
         self.username = username
         self.contract = contract
         self.quantity = quantity
         self.price = price
-        self.order_side = order_side
+        self.side = side
 
 
 
     def matchable(self, other_order):
 
-        if self.order_side == other_order.order_side:
+        if self.side == other_order.side:
             return False
-        if (self.price - other_order.price) * (2 * self.order_side - 1) > 0:
+        if (self.price - other_order.price) * (2 * self.side - 1) > 0:
             return False
         return True
 
@@ -141,7 +141,7 @@ class Order(object):
         publisher.send_json({'trade': {'ticker': contract_name, 'quantity': qty, 'price': matching_price}})
 
         for o in [self, other_order]:
-            signed_qty = (1 - 2 * o.order_side) * qty
+            signed_qty = (1 - 2 * o.side) * qty
             accountant.send_json({
                 'trade': {
                     'username':o.username,
@@ -165,7 +165,7 @@ class Order(object):
         db_session.commit()
 
     def better(self, price):
-        return (self.price - price) * (2 * self.order_side - 1) <= 0
+        return (self.price - price) * (2 * self.side - 1) <= 0
 
 
 class OrderSide():
@@ -240,7 +240,7 @@ def publish_order_book():
     publishes the order book to be consumed by the server
     and dispatched to connected clients
     """
-    publisher.send_json({'book_update': {contract_name: [{"quantity": o.quantity, "price": o.price, "order_side": o.order_side} for o in all_orders.values()]}})
+    publisher.send_json({'book_update': {contract_name: [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in all_orders.values()]}})
 
 
 def pretty_print_book():
@@ -264,8 +264,8 @@ while True:
 
         order = Order(None, None, None, None, None, None)
         order.__dict__.update(request_details)
-        side = 'ask' if order.order_side == OrderSide.BUY else 'bid'
-        other_side = 'bid' if order.order_side == OrderSide.BUY else 'ask'
+        side = 'ask' if order.side == OrderSide.BUY else 'bid'
+        other_side = 'bid' if order.side == OrderSide.BUY else 'ask'
 
         if request_type == "order":
             logging.info("received order, id=%d, order=%s" % (order.order_id, order))
@@ -298,13 +298,13 @@ while True:
                 publisher.send_json({'open_orders': [order.username,{'order': order.order_id,
                                                                  'quantity':order.quantity,
                                                                  'price':order.price,
-                                                                 'side': order.order_side,
+                                                                 'side': order.side,
                                                                  'ticker':contract_name,
                                                                  'contract_id':contract_id}]})
                 print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
                                                                  'quantity':order.quantity,
                                                                  'price':order.price,
-                                                                 'side': order.order_side,
+                                                                 'side': order.side,
                                                                  'ticker':contract_name,
                                                                  'contract_id':contract_id}]})
 
@@ -317,10 +317,10 @@ while True:
 
             if order.order_id in all_orders:
                 o = all_orders[order.order_id]
-                book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price].remove(o)
+                book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
                 # if list is now empty, get rid of it!
-                if not book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]:
-                    del book['bid' if o.order_side == OrderSide.BUY else 'ask'][o.price]
+                if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
+                    del book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]
 
                 update_best(other_side)
 

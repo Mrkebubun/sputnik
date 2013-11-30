@@ -47,7 +47,7 @@ class Order:
         self.timestamp = time.time()
    
     def matchable(self, other):
-        if self.order_side == other.order_side:
+        if self.side == other.side:
             return False
         if (self.price - other.price) * self.side > 0:
             return False
@@ -440,7 +440,7 @@ class WebserverNotifier(EngineListener):
         self.publisher.send_json(
             {'book_update':
                 {self.engine.ticker:
-                    [{"quantity": o.quantity, "price": o.price, "order_side": o.side} for o in engine.ordermap.values()]}})
+                    [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
 
 
 class SafePriceNotifier(EngineListener):
