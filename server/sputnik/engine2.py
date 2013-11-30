@@ -433,11 +433,13 @@ class WebserverNotifier(EngineListener):
 
     def on_trade_success(self, order, passive_order):
         self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': passive_order.price}})
-        self.webserver.send_json({'fill': [order.username, {'order': order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
-        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
+        self.webserver.send_json({'fill': [order.username, {'order': order.order_id, 'quantity': order.quantity, 'price': passive_order.price}]})
+        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.order_id, 'quantity': order.quantity, 'price': passive_order.price}]})
         self.update_book()
 
     def on_queue_success(self, order):
+        self.webserver.send_json({'open_orders': [order.username, {'order': order.id, 'quantity':order.quantity, 'price':order.price, 'side': order.side,
+                                                                   'ticker': self.engine.ticker, 'contract_id': self.engine.contract_id}]})
         self.update_book()
 
     def on_cancel_success(self, order):
