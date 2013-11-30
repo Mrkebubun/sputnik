@@ -169,6 +169,12 @@ class Engine:
             if not order.matchable(passive_order):
                 break
 
+            # Trading alters the orders on the books. This is inconvenient for
+            #   announcing trade quantities. Save a copy here.
+
+            order_copy = copy.copy(order)
+            passive_order_copy = copy.copy(passive_order)
+
             # Trade.
             # If this method fails, something horrible has happened.
             #   Do not accept the order.
@@ -184,6 +190,9 @@ class Engine:
             if passive_order.quantity <= 0:
                 heapq.heappop(self.orderbook[passive_order.side])
                 del self.ordermap[passive_order.id]
+
+            # Notify listeners.
+            self.notify_trade_success(order_copy, passive_order_copy)
 
 
         # If order is not completely filled, push remainer onto heap and make
@@ -202,6 +211,10 @@ class Engine:
 
         # Calculate trading quantity.
         quantity = min(order.quantity, passive_order.quantity)
+        
+        # Adjust orders on the books
+        order.quantity -= quantity
+        passive_order.quantity -= quantity
 
         # Retrieve the database objects.
         try:
@@ -230,15 +243,6 @@ class Engine:
             logging.error("Unable to match orders id=%s with id=%s. %s" % (order.id, passive_order.id, e))
             self.session.rollback()
             raise e
-
-        # At this point the trade has been successful. Notify listeners.
-
-        self.notify_trade_success(order, passive_order)
-
-        # For logging purposes, update the in engine quantity after the trade has been announced.
-        order.quantity -= quantity
-        passive_order.quantity -= quantity
-
 
         return True
 
@@ -432,9 +436,10 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
 
     def on_trade_success(self, order, passive_order):
-        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': order.quantity, 'price': passive_order.price}})
-        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
-        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
+        quantity = min(order.quantity, passive_order.quantity)
+        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': passive_order.price}})
+        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': passive_order.price}]})
+        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': passive_order.price}]})
         self.update_book()
         self.print_order_book()
 
