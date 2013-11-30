@@ -87,7 +87,7 @@ class Order(object):
 
         if self.side == other_order.side:
             return False
-        if (self.price - other_order.price) * (2 * self.side - 1) > 0:
+        if (self.price - other_order.price) * self.side > 0:
             return False
         return True
 
@@ -141,7 +141,7 @@ class Order(object):
         publisher.send_json({'trade': {'ticker': contract_name, 'quantity': qty, 'price': matching_price}})
 
         for o in [self, other_order]:
-            signed_qty = (1 - 2 * o.side) * qty
+            signed_qty = -o.side * qty
             accountant.send_json({
                 'trade': {
                     'username':o.username,
@@ -165,11 +165,11 @@ class Order(object):
         db_session.commit()
 
     def better(self, price):
-        return (self.price - price) * (2 * self.side - 1) <= 0
+        return (self.price - price) * self.side <= 0
 
 
 class OrderSide():
-    BUY = 0
+    BUY = -1
     SELL = 1
 
 
