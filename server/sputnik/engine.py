@@ -300,7 +300,7 @@ while True:
             logging.info(pretty_print_book())
             publish_order_book()
 
-        elif request_type == "cancel"
+        elif request_type == "cancel":
             logging.info("this order is actually a cancellation!")
 
             if order.order_id in all_orders:
