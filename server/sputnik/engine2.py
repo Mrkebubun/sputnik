@@ -357,7 +357,7 @@ class Engine:
                 logging.warn("Exception in on_cancel_fail of %s: %s." % (listener, e))
 
 
-class LoggingEngineListener:
+class LoggingListener:
     def __init__(self, engine):
         self.engine = engine
 
@@ -496,7 +496,7 @@ forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_addres
 
 engine = Engine(engine_socket, session, args[0])
 
-logger = LoggingNotifier(engine)
+logger = LoggingListener(engine)
 webserver_notifier = WebserverNotifier(engine, webserver_socket)
 accountant_notifier = AccountantNotifier(engine, accountant_socket)
 safeprice_notifier = SafePriceNotifier(engine, forwarder_socket)
