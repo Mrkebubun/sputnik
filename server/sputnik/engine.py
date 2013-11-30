@@ -154,6 +154,16 @@ class Order(object):
             publisher.send_json({'fill': [o.username, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
             print 'test 1:  ',str({'fill': [o.username, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
 
+    def cancel(self):
+        """
+        cancels the order...
+        """
+        logging.info("order %d is now cancelled" % self.order_id)
+        db_order = db_session.query(models.Order).filter_by(id=self.order_id).one()
+        db_order.is_cancelled = True
+        db_session.merge(db_order)
+        db_session.commit()
+
     def better(self, price):
         return (self.price - price) * (2 * self.order_side - 1) <= 0
 
