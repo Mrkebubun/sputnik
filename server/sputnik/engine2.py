@@ -441,7 +441,7 @@ class WebserverNotifier(EngineListener):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
 
     def update_book(self):
-        self.publisher.send_json(
+        self.webserver.send_json(
             {'book_update':
                 {self.engine.ticker:
                     [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
