@@ -202,8 +202,6 @@ class Engine:
 
         # Calculate trading quantity.
         quantity = min(order.quantity, passive_order.quantity)
-        order.quantity -= quantity
-        passive_order.quantity -= quantity
 
         # Retrieve the database objects.
         try:
@@ -236,7 +234,12 @@ class Engine:
         # At this point the trade has been successful. Notify listeners.
 
         self.notify_trade_success(order, passive_order)
-        
+
+        # For logging purposes, update the in engine quantity after the trade has been announced.
+        order.quantity -= quantity
+        passive_order.quantity -= quantity
+
+
         return True
 
     def cancel(self, id):
@@ -409,7 +412,7 @@ class AccountantNotifier(EngineListener):
                     'contract': order.contract,
                     'signed_qty': order.quantity * order.side,
                     'price': passive_order.price,
-                    'contract_type': self.contract_type
+                    'contract_type': self.engine.contract_type
                 }
             })
 
@@ -419,7 +422,7 @@ class AccountantNotifier(EngineListener):
                     'contract': passive_order.contract,
                     'signed_qty': passive_order.quantity * passive_order.side,
                     'price': passive_order.price,
-                    'contract_type': self.contract_type
+                    'contract_type': self.engine.contract_type
                 }
             })
 
@@ -429,7 +432,7 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
 
     def on_trade_success(self, order, passive_order):
-        self.webserver.send_json({'trade': {'ticker': contract_name, 'quantity': quantity, 'price': passive_order.price}})
+        self.webserver.send_json({'trade': {'ticker': self.engine.contract_name, 'quantity': quantity, 'price': passive_order.price}})
         self.webserver.send_json({'fill': [order.username, {'order': order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
         self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.order_id, 'quantity': quantity, 'price': passive_order.price}]})
         self.update_book()
@@ -437,7 +440,7 @@ class WebserverNotifier(EngineListener):
     def on_queue_success(self, order):
         self.update_book()
 
-    def on_cancek_success(self, order):
+    def on_cancel_success(self, order):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
 
     def update_book(self):
