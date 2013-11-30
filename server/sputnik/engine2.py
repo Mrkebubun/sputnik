@@ -395,9 +395,9 @@ class LoggingListener:
 
 
 class AccountantNotifier(EngineListener):
-    def __init__(self, accountant, engine):
-        self.accountant = accountant
+    def __init__(self, engine, accountant):
         self.engine = engine
+        self.accountant = accountant
 
     def on_init(self):
         self.ticker = engine.ticker
@@ -424,9 +424,9 @@ class AccountantNotifier(EngineListener):
             })
 
 class WebserverNotifier(EngineListener):
-    def __init__(self, webserver, engine):
-        self.webserver = webserver
+    def __init__(self, engine, webserver):
         self.engine = engine
+        self.webserver = webserver
 
     def on_trade_success(self, order, passive_order):
         self.webserver.send_json({'trade': {'ticker': contract_name, 'quantity': quantity, 'price': passive_order.price}})
