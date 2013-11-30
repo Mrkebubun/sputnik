@@ -457,7 +457,8 @@ class WebserverNotifier(EngineListener):
 
 
     def print_order_book(self):
-        print self.engine.ordermap
+        logging.debug(str(self.engine.ordermap))
+        logging.debug(str(self.engine.orderbook))
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder):
