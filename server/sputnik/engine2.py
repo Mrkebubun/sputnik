@@ -136,7 +136,7 @@ class Engine:
 
 
         try:
-            for order in db_session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
+            for order in self.session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
                 order.is_cancelled = True
                 self.session.merge(order)
             self.session.commit()
