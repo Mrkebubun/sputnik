@@ -221,6 +221,8 @@ safe_price_forwarder = context.socket(zmq.PUB)
 safe_price_forwarder.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
 
 all_orders = {}
+book = {'bid': {}, 'ask': {}}
+best = {'bid': None, 'ask': None}
 
 
 def publish_order_book():
