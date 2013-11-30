@@ -3,6 +3,7 @@
 import sys
 import logging
 import time
+import copy
 import heapq
 
 import zmq
