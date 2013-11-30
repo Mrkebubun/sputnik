@@ -17,7 +17,7 @@ class Contract(db.Base):
     description = Column(String)
     full_description = Column(String)
     active = Column(Boolean, nullable=False, server_default="true")
-    contract_type = Column(Enum('futures', 'prediction', 'cash', name='contract_types'), nullable=False)
+    contract_type = Column(Enum('futures', 'prediction', 'cash', 'cash_pair', name='contract_types'), nullable=False)
     tick_size = Column(Integer, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
