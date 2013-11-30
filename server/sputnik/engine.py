@@ -73,7 +73,7 @@ class Order(object):
     def __repr__(self):
         return self.__dict__.__repr__()
 
-    def __init__(self, username=None, contract=None, quantity=None, price=None, side=None, order_id=None):
+    def __init__(self, username=None, contract=None, quantity=None, price=None, side=None, id=None):
         self.id = id
         self.username = username
         self.contract = contract
@@ -113,8 +113,8 @@ class Order(object):
         assert other_order.quantity >= 0
 
         #begin db code
-        db_orders = [db_session.query(models.Order).filter_by(id=order_id).one()
-                     for order_id in [self.order_id, other_order.order_id]]
+        db_orders = [db_session.query(models.Order).filter_by(id=oid).one()
+                     for oid in [self.id, other_order.id]]
 
         for i in [0, 1]:
             db_orders[i].quantity_left -= qty
@@ -151,15 +151,15 @@ class Order(object):
                     'contract_type': db_orders[0].contract.contract_type
                 }
             })
-            publisher.send_json({'fill': [o.username, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
-            print 'test 1:  ',str({'fill': [o.username, {'order': o.order_id, 'quantity': qty, 'price': matching_price}]})
+            publisher.send_json({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
+            print 'test 1:  ',str({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
 
     def cancel(self):
         """
         cancels the order...
         """
-        logging.info("order %d is now cancelled" % self.order_id)
-        db_order = db_session.query(models.Order).filter_by(id=self.order_id).one()
+        logging.info("order %d is now cancelled" % self.id)
+        db_order = db_session.query(models.Order).filter_by(id=self.id).one()
         db_order.is_cancelled = True
         db_session.merge(db_order)
         db_session.commit()
@@ -268,7 +268,7 @@ while True:
         other_side = 'bid' if order.side == OrderSide.BUY else 'ask'
 
         if request_type == "order":
-            logging.info("received order, id=%d, order=%s" % (order.order_id, order))
+            logging.info("received order, id=%d, order=%s" % (order.id, order))
 
             # while we can dig in the other side, do so and be executed
             while order.quantity > 0 and best[side] and order.better(best[side]):
@@ -278,7 +278,7 @@ while True:
                         order.match(book_order, book_order.price)
                         if book_order.quantity == 0:
                             book_order_list.remove(book_order)
-                            del all_orders[book_order.order_id]
+                            del all_orders[book_order.id]
                             if not book_order_list:
                                 del book[side][best[side]]
                         if order.quantity == 0:
@@ -292,16 +292,16 @@ while True:
                 if order.price not in book[other_side]:
                     book[other_side][order.price] = []
                 book[other_side][order.price].append(order)
-                all_orders[order.order_id] = order
+                all_orders[order.id] = order
                 update_best(other_side)
                 # publish the user's open order to their personal channel
-                publisher.send_json({'open_orders': [order.username,{'order': order.order_id,
+                publisher.send_json({'open_orders': [order.username,{'order': order.id,
                                                                  'quantity':order.quantity,
                                                                  'price':order.price,
                                                                  'side': order.side,
                                                                  'ticker':contract_name,
                                                                  'contract_id':contract_id}]})
-                print 'test 3:  ',str({'open_orders': [order.username,{'order': order.order_id,
+                print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
                                                                  'quantity':order.quantity,
                                                                  'price':order.price,
                                                                  'side': order.side,
@@ -315,8 +315,8 @@ while True:
         elif request_type == "cancel":
             logging.info("this order is actually a cancellation!")
 
-            if order.order_id in all_orders:
-                o = all_orders[order.order_id]
+            if order.id in all_orders:
+                o = all_orders[order.id]
                 book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
                 # if list is now empty, get rid of it!
                 if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
@@ -325,16 +325,16 @@ while True:
                 update_best(other_side)
 
                 o.cancel()
-                del all_orders[order.order_id]
-                #publisher.send_json({'cancel': [o.user, {'order': o.order_id}]}) #
+                del all_orders[order.id]
+                #publisher.send_json({'cancel': [o.user, {'order': o.id}]}) #
                 #user.usernamechange o to order in the following:
-                print 'o.order_id:  ', o.order_id
-                print 'order.order_id:  ', order.order_id
+                print 'o.id:  ', o.id
+                print 'order.id:  ', order.id
                 print [oxox.__dict__ for oxox in all_orders.values()]
-                print 'o.order_id:  ', o.order_id
-                print 'order.order_id:  ', order.order_id
-                print 'test 2:  ',str({'cancel': [o.username, {'order': o.order_id}]})
-                publisher.send_json({'cancel': [o.username, {'order': o.order_id}]})
+                print 'o.id:  ', o.id
+                print 'order.id:  ', order.id
+                print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
+                publisher.send_json({'cancel': [o.username, {'order': o.id}]})
             else:
                 logging.info("the order cannot be cancelled, it's already outside the book")
                 logging.warning("we currently don't have a way of telling the cancel failed")

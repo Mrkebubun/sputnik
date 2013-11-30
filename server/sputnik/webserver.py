@@ -599,7 +599,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
              'price': order.price,
              'quantity': order.quantity_left,
              'side': order.side,
-             'order_id': order.id}
+             'id': order.id}
             for order in self.session.query(models.Order).filter_by(
                 user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
 
@@ -660,8 +660,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'order_id': order_id, 'username': self.user.username}})
-        self.accountant.push(json.dumps({'cancel_order': {'order_id': order_id, 'username': self.user.username}}))
+        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
+        self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
         self.count += 1
         print 'cancel_order', self.count
 

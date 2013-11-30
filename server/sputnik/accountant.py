@@ -222,7 +222,7 @@ def cancel_order(details):
     """
 
     print 'accountant received', details
-    order_id = details['order_id']
+    order_id = details['id']
     username = details['username']
     try:
         # sanitize inputs:
@@ -334,7 +334,7 @@ def clear_contract(details):
         orders = session.query(models.Order).filter_by(
                 contract=contracti, is_cancelled=False).all()
         for order in orders:
-            cancel_order({"username":order.username, "order_id":order.id})
+            cancel_order({"username":order.username, "id":order.id})
         # place orders on behalf of users
         positions = session.query(models.Position).filter_by(
                 contract=contract).all()
