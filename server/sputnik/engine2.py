@@ -3,7 +3,6 @@
 import sys
 import logging
 import time
-import copy
 import heapq
 
 import zmq
@@ -33,9 +32,9 @@ class OrderSide:
     @staticmethod
     def name(side):
         if side == OrderSide.BUY:
-            return "BUY"
+            return "Buy"
         elif side == OrderSide.SELL:
-            return "SELL"
+            return "Sell"
 
 
 class Order:
@@ -57,7 +56,7 @@ class Order:
         return True
 
     def __str__(self):
-        return "Order(side=%s, price=%s, quantity=%s, id=%d)" % (OrderSide.name(self.side), self.price, self.quantity, self.id)
+        return "%sOrder(price=%s, quantity=%s, id=%d)" % (OrderSide.name(self.side), self.price, self.quantity, self.id)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -102,7 +101,7 @@ class EngineListener:
     def on_queue_fail(self, order, reason):
         pass
     
-    def on_trade_success(self, order, passive_order):
+    def on_trade_success(self, order, passive_order, quantity, price):
         pass
 
     def on_trade_fail(self, order, passive_order, reason):
@@ -384,22 +383,42 @@ class LoggingListener:
 
     def on_queue_success(self, order):
         logging.info("%s queued." % order)
+        self.print_order_book()
     
     def on_queue_fail(self, order, reason):
         logging.warn("%s cannot be queued because %s." % (order, reason))
 
     def on_trade_success(self, order, passive_order):
         logging.info("Successful trade between %s and %s." % (order, passive_order))
+        self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
         logging.warn("Cannot complete trade between %s and %s." % (order, passive_order))
 
     def on_cancel_success(self, order):
         logging.info("%s cancelled." % order)
+        self.print_order_book()
 
     def on_cancel_fail(self, order, reason):
         logging.info("Cannot cancel %s because %s." % (order, reason))
 
+    def print_order_book(self):
+        logging.debug("Orderbook for %s:" % self.engine.ticker)
+        logging.debug("Bids\t\t\t\t\t\tAsks")
+        logging.debug("Vol\tPrice\t\t\t\tPrice\tVol")
+        length = max(len(self.engine.orderbook[0]), len(seld.engine.orderbook[1]))
+        for i in range(length):
+            try:
+                ask = self.engine.orderbook[0][i]
+                ask_str = "%s\t%s" % (ask.price, ask.quantity)
+            except:
+                ask_str = "\t\t\t"
+            try:
+                bid = self.engine.orderbook[1][i]
+                bid_str = "%s\t%s" % (bid.quantity, bid.price)
+            except:
+                bid_str = "\t\t\t"
+            logging.debug("%s\t\t%s" ^ (bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
@@ -442,18 +461,15 @@ class WebserverNotifier(EngineListener):
         self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': passive_order.price}]})
         self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': passive_order.price}]})
         self.update_book()
-        self.print_order_book()
 
     def on_queue_success(self, order):
         self.webserver.send_json({'open_orders': [order.username, {'order': order.id, 'quantity':order.quantity, 'price':order.price, 'side': order.side,
                                                                    'ticker': self.engine.ticker, 'contract_id': self.engine.contract_id}]})
         self.update_book()
-        self.print_order_book()
 
     def on_cancel_success(self, order):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
         self.update_book()
-        self.print_order_book()
 
     def update_book(self):
         self.webserver.send_json(
@@ -461,10 +477,6 @@ class WebserverNotifier(EngineListener):
                 {self.engine.ticker:
                     [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
 
-
-    def print_order_book(self):
-        logging.debug(str(self.engine.ordermap))
-        logging.debug(str(self.engine.orderbook))
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder):
