@@ -175,7 +175,7 @@ class Engine:
             try:
                 self.match(order, passive_order)
             except Exception, e:
-                notify_trade_failed(order, passive_order, "database error")
+                self.notify_trade_failed(order, passive_order, "database error")
                 return False
 
             # At this point, the trade has been successful.
@@ -193,7 +193,7 @@ class Engine:
             self.ordermap[order.id] = order
 
             # Notify listeners
-            notify_queue_success(order)
+            self.notify_queue_success(order)
 
         # Order has been successfully processed.
         return True
@@ -235,7 +235,7 @@ class Engine:
 
         # At this point the trade has been successful. Notify listeners.
 
-        notify_trade_success(order, passive_order)
+        self.notify_trade_success(order, passive_order)
         
         return True
 
@@ -244,7 +244,7 @@ class Engine:
         if details.order_id not in self.ordermap:
             # Too late to cancel.
             logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
-            notify_cancel_failed(id, "the order is no longer on the book")
+            self.notify_cancel_failed(id, "the order is no longer on the book")
             return False
 
         # Find the order object.
@@ -265,11 +265,11 @@ class Engine:
         except Exception, e:
             logging.error("Unable to cancel order id=%s. %s" % (order.id, e))
             self.session.rollback()
-            notify_cancel_failed(id, "database error")
+            self.notify_cancel_failed(id, "database error")
             return False
 
         # Notify user of cancellation.
-        notify_cancel_success(order)
+        self.notify_cancel_success(order)
 
         return True
 
@@ -294,6 +294,8 @@ class Engine:
             except Exception, e:
                 logging.critical("Critical error: %s", e)
                 sys.exit(1)
+
+        self.notify_shutdown()
 
     def add_listener(self, listener):
         self.listeners.append(listener)
