@@ -175,7 +175,7 @@ class Engine:
             try:
                 self.match(order, passive_order)
             except Exception, e:
-                self.notify_trade_failed(order, passive_order, "database error")
+                self.notify_trade_fail(order, passive_order, "database error")
                 return False
 
             # At this point, the trade has been successful.
@@ -222,8 +222,8 @@ class Engine:
 
         # If this fails, rollback.
         try:
-            db_order.quantity_left -= qty
-            db_passive_order.quantity_left -= qty
+            db_order.quantity_left -= quantity
+            db_passive_order.quantity_left -= quantity
             self.session.merge(db_order)
             self.session.merge(db_passive_order)
             self.session.add(trade)
