@@ -436,15 +436,18 @@ class WebserverNotifier(EngineListener):
         self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
         self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': order.quantity, 'price': passive_order.price}]})
         self.update_book()
+        self.print_order_book()
 
     def on_queue_success(self, order):
         self.webserver.send_json({'open_orders': [order.username, {'order': order.id, 'quantity':order.quantity, 'price':order.price, 'side': order.side,
                                                                    'ticker': self.engine.ticker, 'contract_id': self.engine.contract_id}]})
         self.update_book()
+        self.print_order_book()
 
     def on_cancel_success(self, order):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
         self.update_book()
+        self.print_order_book()
 
     def update_book(self):
         self.webserver.send_json(
@@ -452,6 +455,9 @@ class WebserverNotifier(EngineListener):
                 {self.engine.ticker:
                     [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
 
+
+    def print_order_book(self):
+        print self.ordermap
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder):
