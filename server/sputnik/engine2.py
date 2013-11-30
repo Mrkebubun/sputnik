@@ -444,6 +444,7 @@ class WebserverNotifier(EngineListener):
 
     def on_cancel_success(self, order):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
+        self.update_book()
 
     def update_book(self):
         self.webserver.send_json(
