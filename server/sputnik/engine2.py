@@ -476,13 +476,13 @@ context = zmq.Context()
 
 
 try:
-    contract_id = int(session.query(models.Contract).filter_by(ticker=args[0]).one().id)
+    contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
 except Exception, e:
     logging.critical("Cannot determine ticker id. %s" % e)
     raise e
 
 engine_socket = context.socket(zmq.PULL)
-engine_socket.bind('tcp://127.0.0.1:%d' % 4200 + contract_id)
+engine_socket.bind('tcp://127.0.0.1:%d' % (4200 + contract_id))
 
 webserver_socket = context.socket(zmq.PUSH)
 webserver_socket.connect(config.get("webserver", "zmq_address"))
