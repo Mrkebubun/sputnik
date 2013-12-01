@@ -349,12 +349,15 @@ function getMarkets() {
             //load the active markets for search typeahead.
             $('#search').typeahead({source : _.keys(MARKETS)});
 
-            // randomly select a default market
-            var keys = [];
-            for (key in MARKETS) {
-                keys.push(key)
-            }
-            setSiteTicker(keys[Math.floor((keys.length) * Math.random())]);
+                // randomly select a default market
+                var keys = [];
+                for (key in MARKETS) {
+                    if (MARKETS[key]['contract_type'] != 'cash')
+                        keys.push(key)
+                }
+                setSiteTicker(keys[Math.floor((keys.length) * Math.random())]);
+                // but actually for the demo!
+                setSiteTicker('MXN/BTC');
 
             for (key in MARKETS)
                 if (MARKETS[key].contract_type == 'futures')
