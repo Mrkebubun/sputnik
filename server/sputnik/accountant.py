@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import collections
 
 import json
 import re
@@ -67,6 +68,8 @@ def calculate_margin(username, order_id=None):
     """
     low_margin = high_margin = 0
 
+    cash_position = {}
+
     # let's start with positions
     positions = {position.contract_id: position for position in
                  session.query(models.Position).filter_by(username=username)}
@@ -84,12 +87,6 @@ def calculate_margin(username, order_id=None):
         min_position = position.position - sum(
             order.quantity_left for order in open_orders if
             order.contract == position.contract and order.side == 'SELL')
-
-        # if potential_order and position.contract_id == potential_order['contract_id']:
-        #     if potential_order['side'] == 0:
-        #         max_position += potential_order['quantity']
-        #     if potential_order['side'] == 1:
-        #         min_position -= potential_order['quantity']
 
         contract = position.contract
 
@@ -127,12 +124,6 @@ def calculate_margin(username, order_id=None):
             max_received = sum(order.quantity_left * order.price for order in open_orders if
                                order.contract == contract and order.side == 'SELL')
 
-            # if potential_order and position.contract_id == potential_order['contract_id']:
-            #     if potential_order['side'] == 0:
-            #         max_spent += potential_order['quantity'] * potential_order['price']
-            #     if potential_order['side'] == 1:
-            #         max_received += potential_order['quantity'] * potential_order['price']
-
             worst_short_cover = -min_position * payoff if min_position < 0 else 0
             best_short_cover = -max_position * payoff if max_position < 0 else 0
 
@@ -140,25 +131,28 @@ def calculate_margin(username, order_id=None):
             low_margin += additional_margin
             high_margin += additional_margin
 
-        if contract.contract_type == 'cash_pair':
+        if contract.contract_type == 'cash':
+            cash_position[contract.ticker] = position.position
+
+    max_cash_spent = collections.defaultdict(int)
+
+    for order in open_orders:
+        if order.contract.contract_type == 'cash_pair':
             from_currency, to_currency = get_currencies_in_pair(contract.ticker)
+            if order.side == 'BUY':
+                max_cash_spent[from_currency.ticker] += order.quantity_left * order.price
+            if order.side == 'SELL':
+                max_cash_spent[to_currency.ticker] += order.quantity_left
 
-            # case where all our buy orders are hit
-            max_spent = sum(order.quantity_left * order.price for order in open_orders if
-                            order.contract == contract and order.size == 'BUY')
-            # that means I could end up spending as much as max_spent of from_currency!
+    for cash_ticker in cash_position:
+        if cash_ticker == 'BTC':
+            additional_margin = max_cash_spent['BTC']
+        else:
+            # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
+            additional_margin = 0 if max_cash_spent[cash_ticker] < cash_position[cash_ticker] else 2**48
 
-            # case where all our sell orders are hit
-            max_to_deliver = sum(order.quantity_left  for order in open_orders if
-                               order.contract == contract and order.side == 'SELL')
-            # that I could have to deliver as much as max_received. Notice that price doesn't appear there!
-            # it's different from the prediction case
-
-
-
-
-
-
+        low_margin += additional_margin
+        high_margin += additional_margin
 
     return low_margin, high_margin
 
