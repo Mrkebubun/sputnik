@@ -808,7 +808,7 @@ function newMarketsToDisplay(markets) {
 
     var predictions = _.filter(markets, function(item) { return item[1]["contract_type"] == "prediction";});
     var futures = _.filter(markets, function(item) { return item[1]["contract_type"] == "futures";});
-    var cash_pairs = _.filter(markets, function(item){ return item[1]["contract_type"] == "cash_pairs";});
+    var cash_pairs = _.filter(markets, function(item){ return item[1]["contract_type"] == "cash_pair";});
 
     // todo: clean this up, it's copy pasted code, tuck
     var pList = [];
