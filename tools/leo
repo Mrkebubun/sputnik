@@ -78,10 +78,14 @@ class AccountManager:
         position = session.query(models.Position).filter_by(
                 user=user, contract=contract).first()
         if position == None:
-            session.add(models.Position(user, contract, value))
+            if value != "delete":
+                session.add(models.Position(user, contract, value))
         else:
-            position.position = value
-            session.merge(position)
+            if value == "delete":
+                session.delete(position)
+            else:
+                position.position = value
+                session.merge(position)
 
 class ContractManager:
     @staticmethod
@@ -133,6 +137,10 @@ class ContractManager:
         contract = self.resolve(ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
+        positions = session.query(models.Position).filter_by(
+                contract=contract).all()
+        for position in positions:
+            session.delete(position)
         session.delete(contract)
 
     def list(self):
