@@ -156,7 +156,7 @@ function onFill(topicUri, event) {
     getPositions(SITE_TICKER);
     getSafePrices(Object.keys(MARKETS));
 
-    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
+    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['id']== event['order'];});
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
     displayOrders(false,OPEN_ORDERS);
@@ -172,7 +172,7 @@ function onOpenOrder(topicUri, event) {
     getSafePrices(Object.keys(MARKETS));
 
 
-    var new_open_order = {'order_id': event['order'],
+    var new_open_order = {'id': event['order'],
                           'price':    event['price'],
                           'quantity': event['quantity'],
                           'side':     event['side']==0?'BUY':'SELL',
@@ -190,11 +190,11 @@ function onOpenOrder(topicUri, event) {
 function onCancel(topicUri, event) {
     console.log('in onCancel', SITE_TICKER, topicUri, event);
 
-    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
+    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['id']== event['order'];});
 
     displayPositions(false,SITE_POSITIONS);
     displayPositions(true,SITE_POSITIONS);
-    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['order_id']== event['order'];});
+    OPEN_ORDERS = _.reject(OPEN_ORDERS, function (ord) {return ord['id']== event['order'];});
     displayOrders(false,OPEN_ORDERS);
     displayOrders(true,OPEN_ORDERS);
     //reload position tableS
@@ -693,14 +693,14 @@ function displayOrders(show_all_tickers, orders) {
                         MARKETS[order['ticker']]['tick_size'],
                         MARKETS[order['ticker']]['contract_type']);
 
-                    $(element).append("<tr id='cancel_order_row_" + order['order_id'] + "'>" +
+                    $(element).append("<tr id='cancel_order_row_" + order['id'] + "'>" +
 
                         (printed_ticker?'':ticker_td) +
                         "<td>" + quantity + "</td>" +
                         "<td nowrap>" + price + "</td>" +
                         "<td>" + order['side'] + "</td>" +
                         "<td>" +
-                        "<button id='cancel_button_" + order['order_id'] + "' class='cancelButtons btn btn-block btn-danger' type='button' >" + (show_all_tickers?'cancel':'') + "<i class='icon-trash'/></button>" +
+                        "<button id='cancel_button_" + order['id'] + "' class='cancelButtons btn btn-block btn-danger' type='button' >" + (show_all_tickers?'cancel':'') + "<i class='icon-trash'/></button>" +
                         "</td>" +
                         "</tr>");
                     printed_ticker = true;

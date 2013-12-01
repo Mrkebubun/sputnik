@@ -3,7 +3,6 @@
 import sys
 import logging
 import time
-import copy
 import heapq
 
 import zmq
@@ -33,9 +32,9 @@ class OrderSide:
     @staticmethod
     def name(side):
         if side == OrderSide.BUY:
-            return "BUY"
+            return "Bid"
         elif side == OrderSide.SELL:
-            return "SELL"
+            return "Ask"
 
 
 class Order:
@@ -57,7 +56,7 @@ class Order:
         return True
 
     def __str__(self):
-        return "Order(side=%s, price=%s, quantity=%s, id=%d)" % (OrderSide.name(self.side), self.price, self.quantity, self.id)
+        return "%sOrder(price=%s, quantity=%s, id=%d)" % (OrderSide.name(self.side), self.price, self.quantity, self.id)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -102,7 +101,7 @@ class EngineListener:
     def on_queue_fail(self, order, reason):
         pass
     
-    def on_trade_success(self, order, passive_order):
+    def on_trade_success(self, order, passive_order, price, signed_quantity):
         pass
 
     def on_trade_fail(self, order, passive_order, reason):
@@ -117,7 +116,7 @@ class EngineListener:
 
 class Engine:
     def __init__(self, socket, session, ticker):
-        self.orderbook = [[], []]
+        self.orderbook = {"Ask":[], "Bid":[]}
         self.ordermap = {}
 
         self.socket = socket
@@ -156,11 +155,11 @@ class Engine:
         while order.quantity > 0:
 
             # If the other side has run out of orders, break.
-            if len(self.orderbook[OrderSide.other(order.side)]) == 0:
+            if len(self.orderbook[OrderSide.name(OrderSide.other(order.side))]) == 0:
                 break
 
             # Find the best counter-offer.
-            passive_order = self.orderbook[OrderSide.other(order.side)][0]
+            passive_order = self.orderbook[OrderSide.name(OrderSide.other(order.side))][0]
 
             # We may assume this order is the best offer on its side. If not,
             #   the following will automatically fail since it failed for
@@ -169,12 +168,6 @@ class Engine:
             # If the other side's best order is too pricey, break.
             if not order.matchable(passive_order):
                 break
-
-            # Trading alters the orders on the books. This is inconvenient for
-            #   announcing trade quantities. Save a copy here.
-
-            order_copy = copy.copy(order)
-            passive_order_copy = copy.copy(passive_order)
 
             # Trade.
             # If this method fails, something horrible has happened.
@@ -189,17 +182,14 @@ class Engine:
 
             # If the passive order is used up, remove it.
             if passive_order.quantity <= 0:
-                heapq.heappop(self.orderbook[passive_order.side])
+                heapq.heappop(self.orderbook[OrderSide.name(passive_order.side)])
                 del self.ordermap[passive_order.id]
-
-            # Notify listeners.
-            self.notify_trade_success(order_copy, passive_order_copy)
 
 
         # If order is not completely filled, push remainer onto heap and make
         #   an entry in the map.
         if order.quantity > 0:
-            heapq.heappush(self.orderbook[order.side], order)
+            heapq.heappush(self.orderbook[OrderSide.name(order.side)], order)
             self.ordermap[order.id] = order
 
             # Notify listeners
@@ -210,8 +200,10 @@ class Engine:
 
     def match(self, order, passive_order):
 
-        # Calculate trading quantity.
+        # Calculate trading quantity and price.
         quantity = min(order.quantity, passive_order.quantity)
+        signed_quantity = quantity * order.side
+        price = passive_order.price
         
         # Adjust orders on the books
         order.quantity -= quantity
@@ -230,7 +222,7 @@ class Engine:
             raise e
         
         # Create the trade.
-        trade = models.Trade(db_order, db_passive_order, db_passive_order.price, quantity)
+        trade = models.Trade(db_order, db_passive_order, price, quantity)
 
         # If this fails, rollback.
         try:
@@ -244,6 +236,9 @@ class Engine:
             logging.error("Unable to match orders id=%s with id=%s. %s" % (order.id, passive_order.id, e))
             self.session.rollback()
             raise e
+
+        # Notify listeners.
+        self.notify_trade_success(order, passive_order, price, signed_quantity)
 
         return True
 
@@ -260,8 +255,8 @@ class Engine:
 
         # Remove the order from the book.
         del self.ordermap[id]
-        self.orderbook[order.side].remove(order)
-        heapq.heapify(self.orderbook[order.side])
+        self.orderbook[OrderSide.name(order.side)].remove(order)
+        heapq.heapify(self.orderbook[OrderSide.name(order.side)])
 
         # Fetch the database object and cancel the order. If this fails, rollback.
         try:
@@ -340,10 +335,10 @@ class Engine:
             except Exception, e:
                 logging.warn("Exception in on_queue_fail of %s: %s." % (listener, e))
     
-    def notify_trade_success(self, order, passive_order):
+    def notify_trade_success(self, order, passive_order, price, signed_quantity):
         for listener in self.listeners:
             try:
-                listener.on_trade_success(order, passive_order)
+                listener.on_trade_success(order, passive_order, price, signed_quantity)
             except Exception, e:
                 logging.warn("Exception in on_trade_success of %s: %s." % (listener, e))
 
@@ -384,22 +379,42 @@ class LoggingListener:
 
     def on_queue_success(self, order):
         logging.info("%s queued." % order)
+        self.print_order_book()
     
     def on_queue_fail(self, order, reason):
         logging.warn("%s cannot be queued because %s." % (order, reason))
 
-    def on_trade_success(self, order, passive_order):
-        logging.info("Successful trade between %s and %s." % (order, passive_order))
+    def on_trade_success(self, order, passive_order, price, signed_quantity):
+        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, signed_quantity, price))
+        self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
         logging.warn("Cannot complete trade between %s and %s." % (order, passive_order))
 
     def on_cancel_success(self, order):
         logging.info("%s cancelled." % order)
+        self.print_order_book()
 
     def on_cancel_fail(self, order, reason):
         logging.info("Cannot cancel %s because %s." % (order, reason))
 
+    def print_order_book(self):
+        logging.debug("Orderbook for %s:" % self.engine.ticker)
+        logging.debug("Bids                   Asks")
+        logging.debug("Vol.  Price     Price  Vol.")
+        length = max(len(self.engine.orderbook["Bid"]), len(self.engine.orderbook["Ask"]))
+        for i in range(length):
+            try:
+                ask = self.engine.orderbook["Ask"][i]
+                ask_str = "{:<5} {:<5}".format(ask.price, ask.quantity)
+            except:
+                ask_str = "           "
+            try:
+                bid = self.engine.orderbook["Bid"][i]
+                bid_str = "{:>5} {:>5}".format(bid.price, bid.quantity)
+            except:
+                bid_str = "           "
+            logging.debug("{}     {}".format(bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
@@ -410,13 +425,13 @@ class AccountantNotifier(EngineListener):
     def on_init(self):
         self.ticker = engine.ticker
 
-    def on_trade_success(self, order, passive_order):
+    def on_trade_success(self, order, passive_order, price, signed_quantity):
         self.accountant.send_json({
                 'trade': {
                     'username':order.username,
                     'contract': order.contract,
-                    'signed_qty': order.quantity * order.side,
-                    'price': passive_order.price,
+                    'signed_qty': signed_quantity,
+                    'price': price,
                     'contract_type': self.engine.contract_type
                 }
             })
@@ -436,24 +451,21 @@ class WebserverNotifier(EngineListener):
         self.engine = engine
         self.webserver = webserver
 
-    def on_trade_success(self, order, passive_order):
-        quantity = min(order.quantity, passive_order.quantity)
-        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': passive_order.price}})
-        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': passive_order.price}]})
-        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': passive_order.price}]})
+    def on_trade_success(self, order, passive_order, price, signed_quantity):
+        quantity = abs(signed_quantity)
+        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': price}})
+        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': price}]})
+        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': price}]})
         self.update_book()
-        self.print_order_book()
 
     def on_queue_success(self, order):
         self.webserver.send_json({'open_orders': [order.username, {'order': order.id, 'quantity':order.quantity, 'price':order.price, 'side': order.side,
                                                                    'ticker': self.engine.ticker, 'contract_id': self.engine.contract_id}]})
         self.update_book()
-        self.print_order_book()
 
     def on_cancel_success(self, order):
         self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
         self.update_book()
-        self.print_order_book()
 
     def update_book(self):
         self.webserver.send_json(
@@ -462,14 +474,12 @@ class WebserverNotifier(EngineListener):
                     [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
 
 
-    def print_order_book(self):
-        logging.debug(str(self.engine.ordermap))
-        logging.debug(str(self.engine.orderbook))
-
 class SafePriceNotifier(EngineListener):
-    def __init__(self, engine, forwarder):
+    def __init__(self, engine, forwarder, accountant, webserver):
         self.engine = engine
         self.forwarder = forwarder
+        self.accountant = accountant
+        self.webserver = webserver
 
         self.ema_price_volume = 0
         self.ema_volume = 0
@@ -483,13 +493,19 @@ class SafePriceNotifier(EngineListener):
             self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
         except IndexError:
             self.safe_price = 42
+        
+        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
-    def on_trade_success(self, order, passive_order):
+    def on_trade_success(self, order, passive_order, price, signed_quantity):
         self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
-        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * order.quantity * passive_order.price
+        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * abs(signed_quantity) * price
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
 
@@ -520,7 +536,7 @@ engine = Engine(engine_socket, session, args[0])
 logger = LoggingListener(engine)
 webserver_notifier = WebserverNotifier(engine, webserver_socket)
 accountant_notifier = AccountantNotifier(engine, accountant_socket)
-safeprice_notifier = SafePriceNotifier(engine, forwarder_socket)
+safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
 
 engine.add_listener(logger)
 engine.add_listener(webserver_notifier)
