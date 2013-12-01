@@ -224,7 +224,7 @@ function orderBook(ticker) {
             for (var i = 0; i < book.length; i++) {
                 var price = Number(book[i]['price']);
                 var quantity = book[i]['quantity'];
-                ((book[i]['order_side'] == 0) ? buyBook : sellBook).push([price , quantity]);
+                ((book[i]['side'] == -1) ? buyBook : sellBook).push([price , quantity]);
             }
 
             buyBook = stackBook(buyBook);

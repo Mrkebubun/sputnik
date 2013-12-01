@@ -12,14 +12,12 @@ import database
 import logging
 
 from optparse import OptionParser
-
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-                  help="config file", default="../config/sputnik.ini")
+        help="config file", default="../config/sputnik.ini")
 (options, args) = parser.parse_args()
 
 from ConfigParser import SafeConfigParser
-
 config = SafeConfigParser()
 config.read(options.filename)
 
@@ -39,7 +37,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 btc = session.query(models.Contract).filter_by(ticker='BTC').one()
-
 
 
 def create_or_get_position(username, contract, ref_price):
@@ -211,29 +208,29 @@ def get_currencies_in_pair(ticker):
 
 
 def process_trade(trade):
-    """
+     """
      takes in a trade and updates the database to reflect that the trade happened
      :param trade: the trade
      """
-    print trade
-    if trade['contract_type'] == 'futures':
-        cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
-        future_position = create_or_get_position(trade['username'], trade['contract'], trade['price'])
+     print trade
+     if trade['contract_type'] == 'futures':
+         cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
+         future_position = create_or_get_position(trade['username'], trade['contract'], trade['price'])
 
-        #mark to current price as if everything had been entered at that price and profit had been realized
-        cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
-        future_position.reference_price = trade['price']
+         #mark to current price as if everything had been entered at that price and profit had been realized
+         cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
+         future_position.reference_price = trade['price']
 
-        #note that even though we're transferring money to the account, this money may not be withdrawable
-        #because the margin will raise depending on the distance of the price to the safe price
+         #note that even though we're transferring money to the account, this money may not be withdrawable
+         #because the margin will raise depending on the distance of the price to the safe price
 
-        # then change the quantity
-        future_position.position += trade['signed_qty']
+         # then change the quantity
+         future_position.position += trade['signed_qty']
 
-        session.merge(future_position)
-        session.merge(cash_position)
+         session.merge(future_position)
+         session.merge(cash_position)
 
-    elif trade['contract_type'] == 'prediction':
+     elif trade['contract_type'] == 'prediction':
         cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
         prediction_position = create_or_get_position(trade['username'], trade['contract'], 0)
 
@@ -243,7 +240,7 @@ def process_trade(trade):
         session.merge(prediction_position)
         session.merge(cash_position)
 
-    elif trade['contract_type'] == 'cash_pair':
+     elif trade['contract_type'] == 'cash_pair':
         # forgive me lord, for I'm about to sin
 
         try:
@@ -263,12 +260,10 @@ def process_trade(trade):
         except:
             logging.error("trying to trade a cash pair where the ticker has the wrong format")
 
-
-
-    else:
+     else:
         logging.error("unknown contract type")
 
-    session.commit()
+     session.commit()
 
 
 def cancel_order(details):
@@ -280,7 +275,7 @@ def cancel_order(details):
     """
 
     print 'accountant received', details
-    order_id = details['order_id']
+    order_id = details['id']
     username = details['username']
     try:
         # sanitize inputs:
@@ -291,8 +286,7 @@ def cancel_order(details):
             return False
 
         m_e_order = order.to_matching_engine_order()
-        m_e_order['is_a_cancellation'] = True
-        engine_sockets[order.contract_id].send(json.dumps(m_e_order))
+        engine_sockets[order.contract_id].send(json.dumps({"cancel": m_e_order}))
         return True
 
     except NoResultFound:
@@ -312,7 +306,7 @@ def place_order(order):
         else:
             contract = session.query(models.Contract).filter_by(
                 ticker=order["ticker"]).order_by(
-                models.Contract.id.desc()).first()
+                        models.Contract.id.desc()).first()
 
         # check that the contract is active
         if contract == None:
@@ -335,13 +329,12 @@ def place_order(order):
 
         if accept_order_if_possible(user.username, o.id):
             m_e_order = o.to_matching_engine_order()
-            engine_sockets[o.contract_id].send(json.dumps(m_e_order))
+            engine_sockets[o.contract_id].send(json.dumps({"order":m_e_order}))
         else:
             logging.info("lol you can't place the order, you don't have enough margin")
     except Exception as e:
         session.rollback()
         raise e
-
 
 def deposit_cash(details):
     """
@@ -362,15 +355,14 @@ def deposit_cash(details):
 
         #query for db objects we want to update
         total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
-        user_cash_position = session.query(models.Position).filter_by(username=total_deposited_at_address.username,
-                                                                      contract=currency).one()
+        user_cash_position = session.query(models.Position).filter_by(username=total_deposited_at_address.username,contract=currency).one()
 
         #prepare cash deposit
         deposit = total_received - total_deposited_at_address.accounted_for
         print 'updating ', user_cash_position, ' to '
         user_cash_position.position += deposit
         print user_cash_position
-        print 'with a deposit of: ', deposit
+        print 'with a deposit of: ',deposit
 
         #prepare record of deposit
         total_deposited_at_address.accounted_for = total_received
@@ -385,21 +377,20 @@ def deposit_cash(details):
         session.rollback()
         return False
 
-
 def clear_contract(details):
     try:
         contract = session.query(models.Contract).filter_by(
-            id=details["id"]).first()
+                id=details["id"]).first()
         # disable new orders on contract
         contract.active = False
         # cancel all pending orders
         orders = session.query(models.Order).filter_by(
-            contract=contract, is_cancelled=False).all()
+                contract=contract, is_cancelled=False).all()
         for order in orders:
-            cancel_order({"username": order.username, "order_id": order.id})
-            # place orders on behalf of users
+            cancel_order({"username":order.username, "id":order.id})
+        # place orders on behalf of users
         positions = session.query(models.Position).filter_by(
-            contract=contract).all()
+                contract=contract).all()
         for position in positions:
             order = {}
             order["username"] = position.username
@@ -415,7 +406,6 @@ def clear_contract(details):
         session.commit()
     except:
         session.rollback()
-
 
 engine_sockets = {i.id: context.socket(zmq.constants.PUSH)
                   for i in session.query(models.Contract).filter_by(active=True)}
