@@ -898,6 +898,8 @@ function welcome (MARKETS) {
             "</tr></thead>");
 
     for (row in markets) {
+        if (markets[row]['contract_type'] == 'cash')
+            continue;
         $('#welcome').append("<tr class='splash' id='"+ row +"' >" +
             "<td>"+ row + "</td>" +
             "<td>" + markets[row]['description'] + "</td>" +
