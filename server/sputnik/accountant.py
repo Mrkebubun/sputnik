@@ -195,8 +195,8 @@ def get_currencies_in_pair(ticker):
            /^\  ;:,
          """
         m = re.match(r'([a-z]+)/([a-z]+)', ticker, re.IGNORECASE)
-        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1])
-        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0])
+        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1]).one()
+        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0]).one()
         return from_currency, to_currency
 
 
