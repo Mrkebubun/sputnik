@@ -138,7 +138,7 @@ def calculate_margin(username, order_id=None):
 
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency, to_currency = get_currencies_in_pair(contract.ticker)
+            from_currency, to_currency = get_currencies_in_pair(order.contract.ticker)
             if order.side == 'BUY':
                 max_cash_spent[from_currency.ticker] += order.quantity_left * order.price
             if order.side == 'SELL':
@@ -195,8 +195,8 @@ def get_currencies_in_pair(ticker):
            /^\  ;:,
          """
         m = re.match(r'([a-z]+)/([a-z]+)', ticker, re.IGNORECASE)
-        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0])
-        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1])
+        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1])
+        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0])
         return from_currency, to_currency
 
 
