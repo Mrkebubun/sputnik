@@ -308,6 +308,10 @@ def place_order(order):
         if not contract.active:
             return False
 
+        # do not allow orders for internally used contracts
+        if contract.contract_type == 'cash':
+            return False
+
         # check that the price is an integer and within a valid range
 
         # case of predictions
