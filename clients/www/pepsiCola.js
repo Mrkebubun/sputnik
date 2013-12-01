@@ -808,7 +808,9 @@ function newMarketsToDisplay(markets) {
 
     var predictions = _.filter(markets, function(item) { return item[1]["contract_type"] == "prediction";});
     var futures = _.filter(markets, function(item) { return item[1]["contract_type"] == "futures";});
+    var cash_pairs = _.filter(markets, function(item){ return item[1]["contract_type"] == "cash_pairs";});
 
+    // todo: clean this up, it's copy pasted code, tuck
     var pList = [];
     for (market in predictions){
         pList.push("<li><a class='newMarkets' id='" + predictions[market][0] + "' href='#'> <small style='padding-right:1em;'>" +  predictions[market][0] + "</small>"+predictions[market][1]['description'] + "</a></li>")
@@ -819,7 +821,16 @@ function newMarketsToDisplay(markets) {
         fList.push("<li><a class='newMarkets' id='" + futures[market][0] + "' href='#'><small style='padding-right:1em;'>" +  futures[market][0] + "</small>"+futures[market][1]['description'] + "</a></li>")
     }
 
-    $('#marketsDropDown').html( '<li class="nav-header">Predictions</li>' + pList.join('') + '<li class="nav-header">Futures</li>' + fList.join('') );
+    var cList = [];
+    for (market in cash_pairs){
+        cList.push("<li><a class='newMarkets' id='" + cash_pairs[market][0] + "' href='#'><small style='padding-right:1em;'>" +  cash_pairs[market][0] + "</small>"+cash_pairs[market][1]['description'] + "</a></li>")
+    }
+
+    $('#marketsDropDown').html(
+        '<li class="nav-header">Predictions</li>' + pList.join('') +
+            '<li class="nav-header">Futures</li>' + fList.join('') +
+            '<li class="nav-header">Cash</li>'    + cList.join('')
+    );
 
     $('.newMarkets').unbind();
     $('.newMarkets').click(function(e) {
