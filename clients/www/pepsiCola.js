@@ -247,9 +247,22 @@ function sendChat(message) {
     session.publish(chat_URI, message, false)
 }
 
+
+function getContractUnit(ticker)
+{
+    if (MARKETS[ticker]['contract_type'] == 'futures')
+        return '฿';
+    else if (MARKETS[ticker]['contract_type'] == 'prediction')
+        return '%';
+    else if (MARKETS[ticker]['contract_type'] == 'cash_pair')
+        return ticker.split('/')[0]
+
+
+}
+
 function setSiteTicker(ticker) {
     SITE_TICKER = ticker;
-    $('.contract_unit').text(MARKETS[SITE_TICKER]['contract_type'] == 'futures' ? '฿' : '%');
+    $('.contract_unit').text(getContractUnit(SITE_TICKER));
 }
 
 //currency functions
@@ -468,11 +481,10 @@ function build_trade_graph(trades) {
 
 }
 
-function displayPrice(price, denominator, tick_size, contract_type) {
-    var contract_unit = '฿';
+function displayPrice(price, denominator, tick_size, contract_type, ticker) {
+    var contract_unit = getContractUnit(ticker);
     var percentage_adjustment = 1;
     if (contract_type == 'prediction') {
-        contract_unit = '%';
         percentage_adjustment = 100;
     }
     var dp = decimalPlacesNeeded(denominator / ( percentage_adjustment * tick_size));
@@ -523,7 +535,7 @@ function updateTradeTable(trade) {
 
 
 	$('#tradeHistory tr:first').after("<tr class=" + direction + ">" +
-		"<td>" + displayPrice(trade[1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
+		"<td>" + displayPrice(trade[1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type'], SITE_TICKER) + "</td>" + // don't show ticker unless needed
 		"<td>" + trade[2] + "</td>" +
 		"<td>" + trade[0] + "</td>" +
 		"</tr>");
@@ -551,7 +563,7 @@ function tradeTable(trades, fullsize) {
         }
 
         $('#tradeHistory').prepend("<tr class=" + direction + ">" +
-            "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type']) + "</td>" + // don't show ticker unless needed
+            "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type'], SITE_TICKER) + "</td>" + // don't show ticker unless needed
             "<td>" + trades[i][2] + "</td>" +
             "<td>" + new Date(trades[i][0]).toLocaleTimeString() + "</td>" +
             "</tr>");
@@ -601,10 +613,10 @@ function graphTable(table, side, fullsize) {
     // update the suggested buy/sell orders:
     if (table.length >0) {
         if (side =='buy') {
-            PSELL = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
+            PSELL = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type, SITE_TICKER).split(' ')[0];
             QSELL = table[table.length - 1][0];
         } else {
-            PBUY = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type).split(' ')[0];
+            PBUY = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type, SITE_TICKER).split(' ')[0];
             QBUY = table[table.length - 1][0];
         }
     }
@@ -613,7 +625,7 @@ function graphTable(table, side, fullsize) {
         if (i < table.length) {
             //ugly reversing of table.. meh, it's working..
             var j = table.length - i -1;
-            var price_cell = "<td>" + displayPrice(table[j][1], denominator, tick_size, contract_type) + "</td>";
+            var price_cell = "<td>" + displayPrice(table[j][1], denominator, tick_size, contract_type, SITE_TICKER) + "</td>";
             var quantity_cell = "<td>" + table[j][0] + "</td>";
             var row_string = (side == 'buy' ? quantity_cell + price_cell : price_cell + quantity_cell);
             $(id).append("<tr id='" + side + "_" + i + "'>" +
@@ -691,7 +703,7 @@ function displayOrders(show_all_tickers, orders) {
                         order['price'],
                         MARKETS[order['ticker']]['denominator'],
                         MARKETS[order['ticker']]['tick_size'],
-                        MARKETS[order['ticker']]['contract_type']);
+                        MARKETS[order['ticker']]['contract_type'],order['ticker']);
 
                     $(element).append("<tr id='cancel_order_row_" + order['id'] + "'>" +
 
