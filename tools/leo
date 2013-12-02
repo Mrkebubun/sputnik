@@ -158,7 +158,7 @@ class ContractManager:
 
 class DatabaseManager:
     def init(self):
-        database.Base.metadata.create_all(database.engine)
+        database.Base.metadata.create_all(session.bind)
 
 modules = {
     "accounts": AccountManager(),
