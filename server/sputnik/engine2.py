@@ -22,19 +22,8 @@ config.read(options.filename)
 logging.basicConfig(level=logging.DEBUG)
 
 class OrderSide:
-    BUY = -1 
+    BUY = -1
     SELL = 1
-
-    @staticmethod
-    def other(side):
-        return -side
-
-    @staticmethod
-    def name(side):
-        if side == OrderSide.BUY:
-            return "Bid"
-        elif side == OrderSide.SELL:
-            return "Ask"
 
 
 class Order:
@@ -47,16 +36,15 @@ class Order:
         self.side = side
         self.username = username
         self.timestamp = time.time()
-   
+
     def matchable(self, other):
         if self.side == other.side:
             return False
-        if (self.price - other.price) * self.side > 0:
-            return False
-        return True
+        return (self.price - other.price) * self.side <= 0
+
 
     def __str__(self):
-        return "%sOrder(price=%s, quantity=%s, id=%d)" % (OrderSide.name(self.side), self.price, self.quantity, self.id)
+        return "%sOrder(price=%s, quantity=%s, id=%d)" % ("Bid" if self.side < 0 else "Ask", self.price, self.quantity, self.id)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -73,20 +61,8 @@ class Order:
         if self.side is not other.side:
             raise Exception("Orders are not comparable.")
 
-        if self.side == OrderSide.BUY:
-            if self.price < other.price:
-                return False
-            elif self.price > other.price:
-                return True
-            else:
-                return self.timestamp < other.timestamp
-        elif self.side == OrderSide.SELL:
-            if self.price > other.price:
-                return False
-            elif self.price < other.price:
-                return True
-            else:
-                return self.timestamp < other.timestamp
+        return (self.side * self.price, self.timestamp) < (other.side * other.price, other.timestamp)
+
 
 class EngineListener:
     def on_init(self):
@@ -97,10 +73,10 @@ class EngineListener:
 
     def on_queue_success(self, order):
         pass
-    
+
     def on_queue_fail(self, order, reason):
         pass
-    
+
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         pass
 
@@ -116,7 +92,7 @@ class EngineListener:
 
 class Engine:
     def __init__(self, socket, session, ticker):
-        self.orderbook = {"Ask":[], "Bid":[]}
+        self.orderbook = {OrderSide.BUY: [], OrderSide.SELL: []}
         self.ordermap = {}
 
         self.socket = socket
@@ -131,7 +107,7 @@ class Engine:
         except Exception, e:
             logging.critical("Cannot determine ticker id. %s" % e)
             raise e
-      
+
         # Determine contract type
         try:
             self.contract_type = session.query(models.Contract).filter_by(
@@ -148,18 +124,18 @@ class Engine:
         except Exception, e:
             logging.critical("Cannot clear existing orders. %s" % e)
             raise e
-    
+
     def process(self, order):
 
         # Loop until the order or the opposite side is exhausted.
         while order.quantity > 0:
 
             # If the other side has run out of orders, break.
-            if len(self.orderbook[OrderSide.name(OrderSide.other(order.side))]) == 0:
+            if not self.orderbook[-order.side]:
                 break
 
             # Find the best counter-offer.
-            passive_order = self.orderbook[OrderSide.name(OrderSide.other(order.side))][0]
+            passive_order = self.orderbook[-order.side][0]
 
             # We may assume this order is the best offer on its side. If not,
             #   the following will automatically fail since it failed for
@@ -172,6 +148,8 @@ class Engine:
             # Trade.
             # If this method fails, something horrible has happened.
             #   Do not accept the order.
+
+            #todo: in theory this could fail horribly AFTER some matching has happened so we can't just not accept the order
             try:
                 self.match(order, passive_order)
             except Exception, e:
@@ -182,14 +160,14 @@ class Engine:
 
             # If the passive order is used up, remove it.
             if passive_order.quantity <= 0:
-                heapq.heappop(self.orderbook[OrderSide.name(passive_order.side)])
+                heapq.heappop(self.orderbook[passive_order.side])
                 del self.ordermap[passive_order.id]
 
 
         # If order is not completely filled, push remainer onto heap and make
         #   an entry in the map.
         if order.quantity > 0:
-            heapq.heappush(self.orderbook[OrderSide.name(order.side)], order)
+            heapq.heappush(self.orderbook[order.side], order)
             self.ordermap[order.id] = order
 
             # Notify listeners
@@ -204,7 +182,7 @@ class Engine:
         quantity = min(order.quantity, passive_order.quantity)
         signed_quantity = quantity * order.side
         price = passive_order.price
-        
+
         # Adjust orders on the books
         order.quantity -= quantity
         passive_order.quantity -= quantity
@@ -220,7 +198,7 @@ class Engine:
         except Exception, e:
             logging.error("Unable to find order id=%s. Database object lookup error." % passive_order.id)
             raise e
-        
+
         # Create the trade.
         trade = models.Trade(db_order, db_passive_order, price, quantity)
 
@@ -255,8 +233,8 @@ class Engine:
 
         # Remove the order from the book.
         del self.ordermap[id]
-        self.orderbook[OrderSide.name(order.side)].remove(order)
-        heapq.heapify(self.orderbook[OrderSide.name(order.side)])
+        self.orderbook[order.side].remove(order)
+        heapq.heapify(self.orderbook[order.side]) #yuck
 
         # Fetch the database object and cancel the order. If this fails, rollback.
         try:
@@ -289,7 +267,7 @@ class Engine:
 
                     elif request_type == "cancel":
                         self.cancel(details["id"])
-                            
+
                     elif request_type == "clear":
                         pass
             except ValueError:
@@ -327,14 +305,14 @@ class Engine:
                 listener.on_queue_success(order)
             except Exception, e:
                 logging.warn("Exception in on_queue_success of %s: %s." % (listener, e))
-    
+
     def notify_queue_fail(self, order, reason):
         for listener in self.listeners:
             try:
                 listener.on_queue_fail(order, reason)
             except Exception, e:
                 logging.warn("Exception in on_queue_fail of %s: %s." % (listener, e))
-    
+
     def notify_trade_success(self, order, passive_order, price, signed_quantity):
         for listener in self.listeners:
             try:
@@ -380,7 +358,7 @@ class LoggingListener:
     def on_queue_success(self, order):
         logging.info("%s queued." % order)
         self.print_order_book()
-    
+
     def on_queue_fail(self, order, reason):
         logging.warn("%s cannot be queued because %s." % (order, reason))
 
@@ -493,7 +471,7 @@ class SafePriceNotifier(EngineListener):
             self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
         except IndexError:
             self.safe_price = 42
-        
+
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
         self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
