@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from sqlalchemy.orm.exc import NoResultFound
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
