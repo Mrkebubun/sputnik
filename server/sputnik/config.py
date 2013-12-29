@@ -9,40 +9,41 @@ If you wish to provide a custom config file, use the reconfigure() method.
 Config variables can be accessed via the get() method.
 """
 
+import sys
 from os import path
 from ConfigParser import ConfigParser
 
-parser = ConfigParser()
+class AutoConfigParser(ConfigParser):
+    def __init__(self, *args, **kwargs):
+        ConfigParser.__init__(self, *args, **kwargs)
+        self.autoconfig()
 
-def reconfigure(files):
-    parser = ConfigParser()
-    parser.read(files)    
+    def reconfigure(self, files):
+        for section in self.sections():
+            self.remove_section(section)
+        self.read(files)
 
-def get(section, option, raw=False, vars=None):
-    return parser.get(section, option, raw, vars)
+    def autoconfig(self):
+        # Look for config files in order of preference.
+        # read() can merge multiple config files. This can have undesired
+        #   consequences in the program is not expecting it. So, stop as soon
+        #   as a valid config file is found.
 
-def autoconfig():
-    # Look for config files in order of preference.
-    # parser.read can merge multiple config files. This can have undesired
-    #   consequences in the program is not expecting it. So, stop as soon
-    #   as a valid config file is found.
+        local_debug = path.abspath("./debug.ini")
+        local = path.abspath("./sputnik.ini")
+        default_debug = path.abspath(path.join(path.dirname(__file__),
+            "../config/debug.ini"))
+        default = path.abspath(path.join(path.dirname(__file__),
+            "../config/sputnik.ini"))
 
-    local_debug = path.abspath("./debug.ini")
-    local = path.abspath("./sputnik.ini")
-    default_debug = path.abspath(path.join(path.dirname(__file__),
-        "../config/debug.ini"))
-    default = path.abspath(path.join(path.dirname(__file__),
-        "../config/sputnik.ini"))
+        config_files = [local_debug, local, default_debug, default]
 
-    config_files = [local_debug, local, default_debug, default]
+        for filename in config_files:
+            try:
+                with open(filename) as fp:
+                    self.readfp(fp)
+                break
+            except:
+                pass
 
-    for filename in config_files:
-        try:
-            with open(filename) as fp:
-                parser.readfp(fp)
-            break
-        except:
-            pass
-
-autoconfig()
-
+sys.modules[__name__] = AutoConfigParser()
