@@ -199,5 +199,3 @@ class Trade(db.Base):
     def __repr__(self):
         return '<Trade(%s:%d@%d>' % (self.contract.ticker, self.price, self.quantity)
 
-if __name__ == '__main__':
-    db.Base.metadata.create_all(db.engine)

@@ -6,18 +6,21 @@ import config
 
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.engine import Engine
 
-
-def get_uri(**kwargs):
-    return config.get("database", "uri", vars=kwargs)
+# hack to make sure sqlite honors foriegn keys
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 Base = declarative_base()
 
-engine = sqlalchemy.create_engine(get_uri(), echo=False)
-
 def make_session(**kwargs):
-    engine = sqlalchemy.create_engine(get_uri(**kwargs), echo=False)
+    uri = config.get("database", "uri", vars=kwargs)
+    if uri.split(":")[0] == "sqlite":
+        sqlalchemy.event.listen(Engine, "connect", set_sqlite_pragma)
+    engine = sqlalchemy.create_engine(uri, echo=False)
     Session = sqlalchemy.orm.sessionmaker(bind=engine)
     return Session()
 
