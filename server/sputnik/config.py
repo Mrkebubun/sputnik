@@ -16,9 +16,21 @@ from ConfigParser import ConfigParser
 class AutoConfigParser(ConfigParser):
     def __init__(self, *args, **kwargs):
         ConfigParser.__init__(self, *args, **kwargs)
+        self.autoconfig_filename = None
+
+        local_debug = path.abspath("./debug.ini")
+        local = path.abspath("./sputnik.ini")
+        default_debug = path.abspath(path.join(path.dirname(__file__),
+            "../config/debug.ini"))
+        default = path.abspath(path.join(path.dirname(__file__),
+            "../config/sputnik.ini"))
+
+        self.autoconfig_files = [local_debug, local, default_debug, default]
+
         self.autoconfig()
 
     def reconfigure(self, files):
+        self.autoconfig_filename = None
         for section in self.sections():
             self.remove_section(section)
         self.read(files)
@@ -29,21 +41,26 @@ class AutoConfigParser(ConfigParser):
         #   consequences in the program is not expecting it. So, stop as soon
         #   as a valid config file is found.
 
-        local_debug = path.abspath("./debug.ini")
-        local = path.abspath("./sputnik.ini")
-        default_debug = path.abspath(path.join(path.dirname(__file__),
-            "../config/debug.ini"))
-        default = path.abspath(path.join(path.dirname(__file__),
-            "../config/sputnik.ini"))
-
-        config_files = [local_debug, local, default_debug, default]
-
-        for filename in config_files:
+        for filename in self.autoconfig_files:
             try:
                 with open(filename) as fp:
                     self.readfp(fp)
+                    self.autoconfig_filename = filename
                 break
             except:
                 pass
 
-sys.modules[__name__] = AutoConfigParser()
+parser = AutoConfigParser()
+
+if __name__ == "__main__":
+    if parser.autoconfig_filename != None:
+        print "Configuration file found at %s" % parser.autoconfig_filename
+        print
+    else:
+        print "No configuration file found. Tried:"
+        for filename in parser.autoconfig_files:
+            print filename
+        print
+else:
+    sys.modules[__name__] = parser
+
