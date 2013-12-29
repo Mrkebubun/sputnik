@@ -351,7 +351,7 @@ class LoggingListener:
         self.ticker = self.engine.ticker
         self.contract_id = self.engine.contract_id
         logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
-        logging.info("Listening for connections on port %d." % (4200 + self.contract_id))
+        logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
 
     def on_shutdown(self):
         logging.info("Engine for contract %s stopped." % self.ticker)
@@ -499,7 +499,7 @@ except Exception, e:
     raise e
 
 engine_socket = context.socket(zmq.PULL)
-engine_socket.bind('tcp://127.0.0.1:%d' % (4200 + contract_id))
+engine_socket.bind('tcp://127.0.0.1:%d' % (config.getint("engine", "base_port") + contract_id))
 
 webserver_socket = context.socket(zmq.PUSH)
 webserver_socket.connect(config.get("webserver", "zmq_address"))

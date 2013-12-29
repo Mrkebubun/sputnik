@@ -203,7 +203,7 @@ print 'contract name:   ',contract_name
 contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).one().id
 
 # set the port based on the contract id
-CONNECTOR_PORT = 4200 + contract_id
+CONNECTOR_PORT = config.getint("engine", "base_port") + contract_id
 
 
 # first cancel all old pending orders
