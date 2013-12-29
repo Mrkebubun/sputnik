@@ -5,23 +5,23 @@ import database as db
 from datetime import datetime
 
 __author__ = 'satosushi'
-from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean
+from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
 
 
 class Contract(db.Base):
-    __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True})
+    __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
     __tablename__ = 'contracts'
 
     id = Column(Integer, primary_key=True)
     ticker = Column(String, nullable=False)
     description = Column(String)
     full_description = Column(String)
-    active = Column(Boolean, nullable=False, server_default="true")
+    active = Column(Boolean, nullable=False, server_default=sql.true())
     contract_type = Column(Enum('futures', 'prediction', 'cash', 'cash_pair', name='contract_types'), nullable=False)
     tick_size = Column(Integer, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
-    inverse_quotes = Column(Boolean, server_default="false", nullable=False)
+    inverse_quotes = Column(Boolean, server_default=sql.false(), nullable=False)
 
     margin_high = Column(Integer)
     margin_low = Column(Integer)
@@ -35,7 +35,7 @@ class Contract(db.Base):
         self.contract_type, self.active = contract_type, active
 
 class Order(db.Base):
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
     __tablename__ = 'orders'
 
     ORDER_ACCEPTED = 0
@@ -51,7 +51,7 @@ class Order(db.Base):
     price = Column(BigInteger, nullable=False)
     side = Column(Enum('BUY', 'SELL', name='side_types'))
     is_cancelled = Column(Boolean, nullable=False)
-    accepted = Column(Boolean, nullable=False, server_default='false')
+    accepted = Column(Boolean, nullable=False, server_default=sql.false())
     timestamp = Column(DateTime)
 
     def to_matching_engine_order(self):
@@ -71,14 +71,14 @@ class Order(db.Base):
 
 class User(db.Base):
     __tablename__ = 'users'
-    __table_args__ = ({'extend_existing': True},)
+    __table_args__ = {'extend_existing': True}
 
     username = Column(String, primary_key=True)
     password = Column(String, nullable=False)
     totp = Column(String)
     nickname = Column(String)
     email = Column(String)
-    active = Column(Boolean, server_default="true")
+    active = Column(Boolean, server_default=sql.true())
 
     positions = relationship("Position", back_populates="user")
 
@@ -107,14 +107,14 @@ class Addresses(db.Base):
     __tablename__ = 'addresses'
 
     __table_args__ = (schema.UniqueConstraint('address'),
-                      {'extend_existing': True})
+            {'extend_existing': True, 'sqlite_autoincrement': True})
 
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', name='currency_types'), nullable=False)
     address = Column(String, nullable=False)
-    active = Column(Boolean, nullable=False, server_default='false')
+    active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
     def __init__(self, user, currency, address):
@@ -128,7 +128,7 @@ class Position(db.Base):
     __tablename__ = 'positions'
 
     __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
-                      {'extend_existing': True})
+            {'extend_existing': True, 'sqlite_autoincrement': True})
 
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
@@ -149,7 +149,7 @@ class Position(db.Base):
 
 class Withdrawal(db.Base):
     __tablename__ = 'withdrawals'
-    __table_args__ = ({'extend_existing': True},)
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
@@ -158,7 +158,7 @@ class Withdrawal(db.Base):
     currency_id = Column(Integer, ForeignKey('contracts.id'))
     currency = relationship('Contract')
     amount = Column(BigInteger)
-    pending = Column(Boolean, nullable=False, server_default='true')
+    pending = Column(Boolean, nullable=False, server_default=sql.true())
     entered = Column(DateTime, nullable=False)
     completed = Column(DateTime)
 
@@ -171,7 +171,7 @@ class Withdrawal(db.Base):
                % (self.currency.__repr__(), self.user.__repr__(), self.address, self.amount)
 
 class Trade(db.Base):
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
     __tablename__ = 'trades'
 
     id = Column(Integer, primary_key=True)
