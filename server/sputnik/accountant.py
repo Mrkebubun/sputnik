@@ -27,7 +27,7 @@ context = zmq.Context()
 connector = context.socket(zmq.constants.PULL)
 connector.bind(config.get("accountant", "zmq_address"))
 
-session = database.Session()
+session = database.make_session()
 
 logging.basicConfig(level=logging.DEBUG)
 
