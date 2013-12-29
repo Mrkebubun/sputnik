@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 
+import config
+
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+if options.filename:
+    config.reconfigure(options.filename)
+
 import sys
 import logging
 import time
@@ -9,15 +19,6 @@ import zmq
 import database
 import models
 
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
-
-from ConfigParser import SafeConfigParser
-config = SafeConfigParser()
-config.read(options.filename)
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -487,7 +488,7 @@ class SafePriceNotifier(EngineListener):
 
 
 
-session = database.Session()
+session = database.make_session()
 context = zmq.Context()
 
 

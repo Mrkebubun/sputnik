@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+
+import config
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+    help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+if options.filename:
+    config.reconfigure(options.filename)
+
 __author__ = 'satosushi'
 
 """
@@ -8,15 +18,6 @@ and every safe price consumer subscribes to this device.
 
 import zmq
 
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-    help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
-
-from ConfigParser import SafeConfigParser
-config = SafeConfigParser()
-config.read(options.filename)
 
 
 def main():

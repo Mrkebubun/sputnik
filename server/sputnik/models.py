@@ -89,8 +89,15 @@ class User(db.Base):
         self.nickname = nickname
 
     def __repr__(self):
-        return "<User('%s','%s')>" \
-               % (self.username, self.email)
+        return "User('%s', '%s', '%s', '%s')" \
+                % (self.username, self.password, self.email, self.nickname)
+
+    def __str__(self):
+        return "User('%s','%s')" % (self.username, self.email)
+
+    def to_obj(self):
+        return {"username": self.username, "password": self.password,
+                "email": self.email, "nickname":self.nickname}
 
 
 class Addresses(db.Base):

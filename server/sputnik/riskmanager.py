@@ -1,3 +1,13 @@
+import config
+
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+    help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+if options.filename:
+    config.reconfigure(options.filename)
+
 import re
 import datetime
 
@@ -20,17 +30,8 @@ from email.mime.text import MIMEText
 
 NAP_TIME_SECONDS = 10
 
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-    help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
 
-from ConfigParser import SafeConfigParser
-config = SafeConfigParser()
-config.read(options.filename)
-
-session = database.Session()
+session = database.make_session()
 
 context = zmq.Context()
 safe_price_subscriber = context.socket(zmq.SUB)

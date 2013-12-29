@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+import config
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+if options.filename:
+    config.reconfigure(options.filename)
+
 SECONDS_TO_SLEEP = 1
 MINIMUM_CONFIRMATIONS = 0
 TESTNET = True
@@ -12,16 +21,6 @@ import logging
 import bitcoinrpc
 import time
 
-
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
-
-from ConfigParser import SafeConfigParser
-config = SafeConfigParser()
-config.read(options.filename)
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -41,7 +40,7 @@ accountant = context.socket(zmq.PUSH)
 accountant.connect(config.get("accountant","zmq_address"))
 
 #query the active addresses
-db_session = db.Session()
+db_session = db.make_session()
 
 
 def notify_accountant(address, total_received):

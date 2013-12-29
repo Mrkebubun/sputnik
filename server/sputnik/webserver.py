@@ -4,6 +4,18 @@
 Main websocket server, accepts RPC and subscription requests from clients. It's the backbone of the project,
 facilitating all communications between the client, the database and the matching engine.
 """
+
+import config
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+                  help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+if options.filename:
+    config.reconfigure(options.filename)
+
 import cgi
 import json
 import logging
@@ -33,17 +45,6 @@ zf = ZmqFactory()
 import database as db
 import models
 
-from optparse import OptionParser
-
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-                  help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
-
-from ConfigParser import SafeConfigParser
-
-config = SafeConfigParser()
-config.read(options.filename)
 
 MAX_TICKER_LENGTH = 100
 
@@ -97,7 +98,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
 
-        self.session = db.Session()
+        self.session = db.make_session()
         self.user = None
 
         WampCraServerProtocol.connectionMade(self)

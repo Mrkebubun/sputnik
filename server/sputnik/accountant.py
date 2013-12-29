@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+import config
+
+from optparse import OptionParser
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+        help="config file")
+(options, args) = parser.parse_args()
+if options.filename:
+    config.reconfigure(options.filename)
+
 import collections
 
 import json
@@ -12,15 +22,6 @@ import models
 import database
 import logging
 
-from optparse import OptionParser
-parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
-(options, args) = parser.parse_args()
-
-from ConfigParser import SafeConfigParser
-config = SafeConfigParser()
-config.read(options.filename)
 
 context = zmq.Context()
 connector = context.socket(zmq.constants.PULL)
