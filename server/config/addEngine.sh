@@ -7,7 +7,7 @@ echo  "
 command = /srv/sputnik/server/pepsi/engine.py -c /srv/sputnik/server/config/debug.ini $1
 autorestart = true
 exitcodes = 0
-user = www-data
+user = sputnik
 redirect_stderr = true
 stdout_logfile = /srv/sputnik/logs/%(program_name)s.log
 directory = /srv/sputnik/server/pepsi" >> 
