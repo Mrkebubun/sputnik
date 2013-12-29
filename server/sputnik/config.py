@@ -15,7 +15,7 @@ from ConfigParser import ConfigParser
 parser = ConfigParser()
 
 def reconfigure(files):
-    parser = SafeConfigParser()
+    parser = ConfigParser()
     parser.read(files)    
 
 def get(section, option, raw=False, vars=None):
