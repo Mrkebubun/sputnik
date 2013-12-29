@@ -56,6 +56,11 @@ if __name__ == "__main__":
     if parser.autoconfig_filename != None:
         print "Configuration file found at %s" % parser.autoconfig_filename
         print
+        for section in parser.sections():
+            print "[%s]" % section
+            for pair in parser.items(section):
+                print "%s = %s" % pair
+            print
     else:
         print "No configuration file found. Tried:"
         for filename in parser.autoconfig_files:
