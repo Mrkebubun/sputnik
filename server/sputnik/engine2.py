@@ -117,7 +117,7 @@ class Engine:
 
 
         try:
-            for order in self.session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
+            for order in self.session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=self.contract_id):
                 order.is_cancelled = True
                 self.session.merge(order)
             self.session.commit()
@@ -486,40 +486,40 @@ class SafePriceNotifier(EngineListener):
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
+if __name__ == "__main__":
+    session = database.make_session()
+    context = zmq.Context()
 
-session = database.make_session()
-context = zmq.Context()
 
+    try:
+        contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
+    except Exception, e:
+        logging.critical("Cannot determine ticker id. %s" % e)
+        raise e
 
-try:
-    contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
-except Exception, e:
-    logging.critical("Cannot determine ticker id. %s" % e)
-    raise e
+    engine_socket = context.socket(zmq.PULL)
+    engine_socket.bind('tcp://127.0.0.1:%d' % (config.getint("engine", "base_port") + contract_id))
 
-engine_socket = context.socket(zmq.PULL)
-engine_socket.bind('tcp://127.0.0.1:%d' % (config.getint("engine", "base_port") + contract_id))
+    webserver_socket = context.socket(zmq.PUSH)
+    webserver_socket.connect(config.get("webserver", "zmq_address"))
 
-webserver_socket = context.socket(zmq.PUSH)
-webserver_socket.connect(config.get("webserver", "zmq_address"))
+    accountant_socket = context.socket(zmq.PUSH)
+    accountant_socket.connect(config.get("accountant", "zmq_address"))
 
-accountant_socket = context.socket(zmq.PUSH)
-accountant_socket.connect(config.get("accountant", "zmq_address"))
+    forwarder_socket = context.socket(zmq.PUB)
+    forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
 
-forwarder_socket = context.socket(zmq.PUB)
-forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
+    engine = Engine(engine_socket, session, args[0])
 
-engine = Engine(engine_socket, session, args[0])
+    logger = LoggingListener(engine)
+    webserver_notifier = WebserverNotifier(engine, webserver_socket)
+    accountant_notifier = AccountantNotifier(engine, accountant_socket)
+    safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
 
-logger = LoggingListener(engine)
-webserver_notifier = WebserverNotifier(engine, webserver_socket)
-accountant_notifier = AccountantNotifier(engine, accountant_socket)
-safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
+    engine.add_listener(logger)
+    engine.add_listener(webserver_notifier)
+    engine.add_listener(accountant_notifier)
+    engine.add_listener(safeprice_notifier)
 
-engine.add_listener(logger)
-engine.add_listener(webserver_notifier)
-engine.add_listener(accountant_notifier)
-engine.add_listener(safeprice_notifier)
-
-engine.run()
+    engine.run()
 

@@ -31,10 +31,13 @@ class AutoConfigParser(ConfigParser):
 
         self.autoconfig()
 
-    def reconfigure(self, files):
+    def reset(self):
         self.autoconfig_filename = None
         for section in self.sections():
             self.remove_section(section)
+
+    def reconfigure(self, files):
+        self.reset()
         self.read(files)
 
     def autoconfig(self):
