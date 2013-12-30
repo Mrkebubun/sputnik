@@ -43,7 +43,6 @@ class Order:
             return False
         return (self.price - other.price) * self.side <= 0
 
-
     def __str__(self):
         return "%sOrder(price=%s, quantity=%s, id=%d)" % ("Bid" if self.side < 0 else "Ask", self.price, self.quantity, self.id)
 
@@ -148,9 +147,9 @@ class Engine:
 
             # Trade.
             # If this method fails, something horrible has happened.
-            #   Do not accept the order.
+            #   Do not accept the order. The books and the database
+            #   will have not been modified.
 
-            #todo: in theory this could fail horribly AFTER some matching has happened so we can't just not accept the order
             try:
                 self.match(order, passive_order)
             except Exception, e:
@@ -165,7 +164,7 @@ class Engine:
                 del self.ordermap[passive_order.id]
 
 
-        # If order is not completely filled, push remainer onto heap and make
+        # If order is not completely filled, push remainder onto heap and make
         #   an entry in the map.
         if order.quantity > 0:
             heapq.heappush(self.orderbook[order.side], order)
@@ -183,10 +182,6 @@ class Engine:
         quantity = min(order.quantity, passive_order.quantity)
         signed_quantity = quantity * order.side
         price = passive_order.price
-
-        # Adjust orders on the books
-        order.quantity -= quantity
-        passive_order.quantity -= quantity
 
         # Retrieve the database objects.
         try:
@@ -215,6 +210,10 @@ class Engine:
             logging.error("Unable to match orders id=%s with id=%s. %s" % (order.id, passive_order.id, e))
             self.session.rollback()
             raise e
+        
+        # Adjust orders on the books
+        order.quantity -= quantity
+        passive_order.quantity -= quantity
 
         # Notify listeners.
         self.notify_trade_success(order, passive_order, price, signed_quantity)
