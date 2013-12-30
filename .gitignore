@@ -3,3 +3,4 @@ __pycache__
 *.log
 logs
 build
+sputnik.tar.gz
