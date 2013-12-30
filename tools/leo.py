@@ -15,11 +15,13 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 from sputnik import database, models
 
-session = database.make_session(username=getpass.getuser())
-
 class AccountManager:
+    def __init__(self, session):
+        self.session = session
+
     def query(self, username):
-        user = session.query(models.User).filter_by(username=username).first()
+        user = self.session.query(models.User).filter_by(
+                username=username).first()
         if user == None:
             raise Exception("User '%s' not found." % username)
         print "Account: %s" % user.username
@@ -38,25 +40,28 @@ class AccountManager:
 
     def add(self, username):
         user = models.User(username, "")
-        btc = session.query(models.Contract).filter_by(ticker="BTC").first()
+        btc = self.session.query(models.Contract).filter_by(
+                ticker="BTC").first()
         position = models.Position(user, btc, 0)
-        session.add(user)
+        self.session.add(user)
 
     def delete(self, username):
-        user = session.query(models.User).filter_by(username=username).one()
-        session.delete(user)
+        user = self.session.query(models.User).filter_by(
+                username=username).one()
+        self.session.delete(user)
 
     def list(self):
-        users = session.query(models.User).all()
+        users = self.session.query(models.User).all()
         for user in users:
             print user
 
     def modify(self, username, field, value):
-        user = session.query(models.User).filter_by(username=username).first()
+        user = self.session.query(models.User).filter_by(
+                username=username).first()
         if user == None:
             raise Exception("User '%s' not found." % username)
         setattr(user, field, value)
-        session.merge(user)
+        self.session.merge(user)
 
     def password(self, username, secret):
         alphabet = string.digits + string.lowercase
@@ -70,25 +75,29 @@ class AccountManager:
         self.modify(username, "password", "%s:%s" % (salt, password))
 
     def position(self, username, ticker_or_id, value):
-        user = session.query(models.User).filter_by(username=username).first()
+        user = self.session.query(models.User).filter_by(
+                username=username).first()
         if user == None:
             raise Exception("User '%s' not found." % username)
         contract = ContractManager.resolve(ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
-        position = session.query(models.Position).filter_by(
+        position = self.session.query(models.Position).filter_by(
                 user=user, contract=contract).first()
         if position == None:
             if value != "delete":
-                session.add(models.Position(user, contract, value))
+                self.session.add(models.Position(user, contract, value))
         else:
             if value == "delete":
-                session.delete(position)
+                self.session.delete(position)
             else:
                 position.position = value
-                session.merge(position)
+                self.session.merge(position)
 
 class ContractManager:
+    def __init__(self, session):
+        self.session = session
+
     @staticmethod
     def resolve(ticker_or_id):
         try:
@@ -98,9 +107,10 @@ class ContractManager:
             ticker = ticker_or_id
             use_id = False
         if use_id:
-            contract = session.query(models.Contract).filter_by(id=id).first()
+            contract = self.session.query(models.Contract).filter_by(
+                    id=id).first()
         else:
-            contract = session.query(models.Contract).filter_by(
+            contract = self.session.query(models.Contract).filter_by(
                 ticker=ticker).order_by(models.Contract.id.desc()).first()
         return contract
 
@@ -132,20 +142,20 @@ class ContractManager:
 
     def add(self, ticker):
         contract = models.Contract(ticker)
-        session.add(contract)
+        self.session.add(contract)
 
     def delete(self, ticker_or_id):
         contract = self.resolve(ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
-        positions = session.query(models.Position).filter_by(
+        positions = self.session.query(models.Position).filter_by(
                 contract=contract).all()
         for position in positions:
-            session.delete(position)
-        session.delete(contract)
+            self.session.delete(position)
+        self.session.delete(contract)
 
     def list(self):
-        contracts = session.query(models.Contract).all()
+        contracts = self.session.query(models.Contract).all()
         for contract in contracts:
             print contract
 
@@ -154,19 +164,24 @@ class ContractManager:
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         setattr(contract, field, value)
-        session.merge(contract)
+        self.session.merge(contract)
 
 class DatabaseManager:
-    def init(self):
-        database.Base.metadata.create_all(session.bind)
+    def __init__(self, session):
+        self.session = session
 
-modules = {
-    "accounts": AccountManager(),
-    "contracts": ContractManager(),
-    "database": DatabaseManager()
+    def init(self):
+        database.Base.metadata.create_all(self.session.bind)
+
+
+def parse(line, session):
+    modules = {
+        "accounts": AccountManager(session),
+        "contracts": ContractManager(session),
+        "database": DatabaseManager(session)
     }
 
-def process(tokens):
+    tokens = line.split()
     if len(tokens) == 0:
         return
     if len(tokens) < 2:
@@ -178,10 +193,15 @@ def process(tokens):
         raise Exception("Method %s.%s() not found." % (module, command))
     method(*args)
 
-try:
-    process(sys.argv[1:])
-    session.commit()
-except Exception, e:
-    print e
-    session.rollback()
+def main():
+    session = database.make_session(username=getpass.getuser())
+    try:
+        parse(" ".join(sys.argv[1:]), session)
+        session.commit()
+    except Exception, e:
+        print e
+        session.rollback()
+
+if __name__ == "__main__":
+    main()
 
