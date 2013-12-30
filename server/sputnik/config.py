@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """
 config.py looks for configuration files in a number of places and reads them.
 
