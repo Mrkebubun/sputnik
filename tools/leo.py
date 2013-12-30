@@ -13,6 +13,7 @@ import Crypto.Random.random
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
 
+from sputnik import config
 from sputnik import database, models
 
 class AccountManager:
@@ -79,7 +80,7 @@ class AccountManager:
                 username=username).first()
         if user == None:
             raise Exception("User '%s' not found." % username)
-        contract = ContractManager.resolve(ticker_or_id)
+        contract = ContractManager.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         position = self.session.query(models.Position).filter_by(
@@ -99,7 +100,7 @@ class ContractManager:
         self.session = session
 
     @staticmethod
-    def resolve(ticker_or_id):
+    def resolve(session, ticker_or_id):
         try:
             id = int(ticker_or_id)
             use_id = True
@@ -107,15 +108,15 @@ class ContractManager:
             ticker = ticker_or_id
             use_id = False
         if use_id:
-            contract = self.session.query(models.Contract).filter_by(
+            contract = session.query(models.Contract).filter_by(
                     id=id).first()
         else:
-            contract = self.session.query(models.Contract).filter_by(
+            contract = session.query(models.Contract).filter_by(
                 ticker=ticker).order_by(models.Contract.id.desc()).first()
         return contract
 
     def query(self, ticker_or_id):
-        contract = self.resolve(ticker_or_id)
+        contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         print "Contract: %s(%s)" % (contract.ticker, contract.id)
@@ -145,7 +146,7 @@ class ContractManager:
         self.session.add(contract)
 
     def delete(self, ticker_or_id):
-        contract = self.resolve(ticker_or_id)
+        contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         positions = self.session.query(models.Position).filter_by(
@@ -160,7 +161,7 @@ class ContractManager:
             print contract
 
     def modify(self, ticker_or_id, field, value):
-        contract = self.resolve(ticker_or_id)
+        contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         setattr(contract, field, value)
@@ -173,30 +174,33 @@ class DatabaseManager:
     def init(self):
         database.Base.metadata.create_all(self.session.bind)
 
+class LowEarthOrbit:
+    def __init__(self, session):
+        self.session = session
+        self.modules = {
+            "accounts": AccountManager(session),
+            "contracts": ContractManager(session),
+            "database": DatabaseManager(session)
+        }
 
-def parse(line, session):
-    modules = {
-        "accounts": AccountManager(session),
-        "contracts": ContractManager(session),
-        "database": DatabaseManager(session)
-    }
-
-    tokens = line.split()
-    if len(tokens) == 0:
-        return
-    if len(tokens) < 2:
-        raise Exception("Insufficient arguments.")
-    (module, command), args = tokens[:2], tokens[2:]
-    try:
-        method = getattr(modules[module], command)
-    except:
-        raise Exception("Method %s.%s() not found." % (module, command))
-    method(*args)
+    def parse(self, line):
+        tokens = line.split()
+        if len(tokens) == 0:
+            return
+        if len(tokens) < 2:
+            raise Exception("Insufficient arguments.")
+        (module, command), args = tokens[:2], tokens[2:]
+        try:
+            method = getattr(self.modules[module], command)
+        except:
+            raise Exception("Method %s.%s() not found." % (module, command))
+        method(*args)
 
 def main():
     session = database.make_session(username=getpass.getuser())
     try:
-        parse(" ".join(sys.argv[1:]), session)
+        leo = LowEarthOrbit(session)
+        leo.parse(" ".join(sys.argv[1:]))
         session.commit()
     except Exception, e:
         print e
