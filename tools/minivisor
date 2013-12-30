@@ -1,0 +1,65 @@
+#!/usr/bin/python
+
+import sys
+import os
+
+import daemon
+from daemon.pidlockfile import PIDLockFile
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        "../server"))
+
+from sputnik import config
+from optparse import OptionParser
+
+usage = "usage: %prog [options] start|stop service [arguments]"
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+                          help="config file", default="../config/sputnik.ini")
+(options, args) = parser.parse_args()
+
+if options.filename:
+        config.reconfigure(options.filename)
+
+directory = config.get("DEFAULT", "dir")
+
+def get_pid(service, arguments):
+    if len(arguments) != 0:
+        name = service + "_".join(arguments)
+    else:
+        name = service
+    return os.path.join(directory, "%s.pid" % name)
+
+def get_log(service, arguments):
+    if len(arguments) != 0:
+        name = service + "_".join(arguments)
+    else:
+        name = service
+    return os.path.join(directory, "%s.log" % name)
+
+def start_service(service, arguments):
+    module = getattr(__import__("sputnik", fromlist=[service]), service)
+
+    logfile = open(get_log(service, arguments), "a")
+    context = daemon.DaemonContext()
+    context.working_directory = directory
+    context.stdout = logfile
+    context.stderr = logfile
+    context.pidfile = PIDLockFile(get_pid(service, arguments))
+
+    with context:
+        module.main()
+
+def stop_service(service, arguments):
+    pidfile = open(get_pid(service, arguments))
+    os.kill(int(pidfile.read()), 15)
+
+if len(args) < 2:
+    sys.stderr.write("Insufficient arguments\n")
+    sys.exit(1)
+
+if args[0] == "start":
+    start_service(args[1], args[2:])
+elif args[0] == "stop":
+    stop_service(args[1], args[2:])
+
