@@ -32,7 +32,7 @@ def main():
 
         # Socket facing services
         backend = context.socket(zmq.PUB)
-        backend.bind("zmq_backend_address")
+        backend.bind(config.get("safe_price_forwarder", "zmq_backend_address"))
 
         zmq.device(zmq.FORWARDER, frontend, backend)
     except Exception, e:
