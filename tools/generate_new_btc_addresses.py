@@ -9,17 +9,10 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from sputnik import database, models
 import bitcoinrpc
 
-db_session = database.Session()
-TESTNET = True
+db_session = database.make_session()
+conn = bitcoinrpc.connect_to_local('/srv/sputnik/.bitcoin/bitcoin.conf')
 
-if TESTNET:
-    conn = bitcoinrpc.connect_to_remote('bitcoinrpc','E39Vf7y6S8sRAW2YrDqaLJxtPRWekyVw4E6Sv3z8R4N8',port=18332)
-else:
-    raise NotImplementedError()
-    #conn = bitcoinrpc.connect_to_local()
-
-
-conn.walletpassphrase('pass',10, dont_raise=True)
+#conn.walletpassphrase('pass',10, dont_raise=True)
 conn.keypoolrefill()
 
 quantity = 100
