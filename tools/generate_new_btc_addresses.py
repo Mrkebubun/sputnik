@@ -8,8 +8,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 from sputnik import database, models
 import bitcoinrpc
+import getpass
 
-db_session = database.make_session()
+db_session = database.make_session(username=getpass.getuser())
 conn = bitcoinrpc.connect_to_local('/srv/sputnik/.bitcoin/bitcoin.conf')
 
 #conn.walletpassphrase('pass',10, dont_raise=True)
@@ -25,4 +26,4 @@ for i in range(quantity):
 db_session.commit()
 print 'committed'
 
-conn.walletlock()
+#conn.walletlock()
