@@ -23,15 +23,10 @@ import time
 
 
 logging.basicConfig(level=logging.DEBUG)
+bitcoin_conf = config.get("cashier", "bitcoin_conf")
 
-
-if TESTNET:
-    conn = bitcoinrpc.connect_to_remote('bitcoinrpc','E39Vf7y6S8sRAW2YrDqaLJxtPRWekyVw4E6Sv3z8R4N8',port=18332)
-    logging.info('conntecting to bitcoin client')
-else:
-    raise NotImplementedError()
-    #return bitcoinrpc.connect_to_local()
-
+conn = bitcoinrpc.connect_to_local(bitcoin_conf)
+logging.info('connecting to bitcoin client')
 
 # push to the accountant
 context = zmq.Context()
