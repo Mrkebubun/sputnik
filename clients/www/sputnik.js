@@ -1015,6 +1015,11 @@ $('#Account').click(function () {
     }
 });
 
+// TODO: Do this only once on auth and then cache, not everytime we click on the tab
+$('#Profile').click(function() {
+    get_profile();
+});
+
 $('#logoutButton').click(function () {
 
     $('#loggedInMenu').hide();
@@ -1221,6 +1226,10 @@ $("#two_factor").keypress(function (e) {
     }
 });
 
+$("#updateProfile").click(function(e) {
+    var code = change_profile(e.nickname, e.email)
+});
+
 /*
 $(window).resize(
     if ( $(window).width() < 1111) {
@@ -1260,6 +1269,8 @@ var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
 var disable_two_factor_URI= base_uri + "procedures/disable_two_factor";
 
+var get_profile_URI = base_uri + "procedures/get_profile"
+var change_profile_URI = base_uri + "procedures/change_profile"
 var change_password_URI = base_uri + "procedures/change_password";
 var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
@@ -1516,6 +1527,29 @@ function change_password(old_password, new_password) {
                 alert('password reset failed');
             }
 
+        }
+    )
+}
+
+function get_profile() {
+    session.call(get_profile_URI).then(
+        function (profile) {
+            console.log(profile);
+            $('#nickname').text(profile.nickname)
+            $('#email').text(profile.email)
+        }
+    )
+}
+function change_profile(new_nickname, new_email) {
+    session.call(change_profile_URI, new_nickname, new_email).then(
+        function(res) {
+            if(res) {
+                alert('success!');
+            }
+            else
+            {
+                alert('profile change failed')
+            }
         }
     )
 }

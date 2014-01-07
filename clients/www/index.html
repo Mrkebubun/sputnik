@@ -24,6 +24,7 @@
 
     <li><a href="#TradeTab" id="Trade" data-toggle="tab">Trade</a></li>
     <li><a href="#AccountTab" id="Account" data-toggle="tab">Account</a></li>
+    <li><a href="#ProfileTab" id="Profile" data-toggle="tab">Profile</a></li>
     <!-- <li><a href="#ContractsTab" id="Contracts" data-toggle="tab">Contracts</a></li> -->
     <li><a href="#AboutTab" id="About" data-toggle="tab">About</a></li>
 
@@ -158,20 +159,35 @@
     </div>
 </div>
 <!--class="container span10"-->
-
-<div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
-    <div class="container"> <!-- position info-->
-        <h3>Balance</h3>
-        <table id="account_cash_table" class="table table-bordered table-striped table-condensed">
-            <!--position info--> </table>
-        <h3>Positions</h3>
-        <table id="account_positions_table" class="table table-hover table-bordered table-striped table-condensed">
-            <!--position info--> </table>
-        <h3>Open Orders</h3>
-        <table id="openOrders" class="table table-hover table-bordered table-condensed table-striped">
-            <!--position info--> </table>
-
-
+<div id="ProfileTab" class="tab-pane">
+    <div class="container">
+        <h3>Profile</h3>
+        <hr>
+        <form class="form text-center centerCenterLeft">
+           <div class="control-group">
+                <div class="controls">
+                    <div class="input-prepend">
+                        <span class="add-on">#</span>
+                        <input id="nickname" class="input-custom-size" type="text" placeholder="$('#nickname')" value=0>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <div class="input-prepend">
+                        <span class="add-on contract_unit"></span>
+                        <input id="email" class="input-custom-size" type="text" placeholder="$('#email')">
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <button id="updateProfile" class="btn btn-danger btn-block" type="button">Update</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="container">
         <h3>Security:</h3>
         <hr>
         <button id="changePassword" class="btn">Change Password</button>
@@ -239,6 +255,22 @@
                 <!--type="button"-->
             </div>
         </div>
+    </div>
+</div>
+
+<div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
+    <div class="container"> <!-- position info-->
+        <h3>Balance</h3>
+        <table id="account_cash_table" class="table table-bordered table-striped table-condensed">
+            <!--position info--> </table>
+        <h3>Positions</h3>
+        <table id="account_positions_table" class="table table-hover table-bordered table-striped table-condensed">
+            <!--position info--> </table>
+        <h3>Open Orders</h3>
+        <table id="openOrders" class="table table-hover table-bordered table-condensed table-striped">
+            <!--position info--> </table>
+
+
         <!-- end Modal -->
     </div>
 </div>
