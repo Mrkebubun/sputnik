@@ -508,6 +508,30 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                 "inverse_quotes": x.contract.inverse_quotes}
                 for x in self.session.query(models.Position).filter_by(user=self.user)}
 
+    @exportRpc("get_profile")
+    @limit
+    def get_profile(self):
+        return {'nickname': self.user.nickname,
+                'email': self.user.email
+        }
+
+    @exportRpc("change_profile")
+    @limit
+    def change_profile(self, new_nickname, new_email):
+        """
+        Updates a user's nickname and email. Can't change
+        the user's login, that is fixed.
+        """
+        try:
+            self.user.nickname = new_nickname
+            self.user.email = new_email
+            self.session.add(self.user)
+            self.session.commit()
+            return True
+        except Exception as e:
+            self.session.rollback()
+            return False
+
     @exportRpc("change_password")
     @limit
     def change_password(self, old_password_hash, new_password_hash):
