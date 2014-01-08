@@ -6,3 +6,6 @@ build
 sputnik.tar.gz
 .bitcoin
 .idea
+postgresql-9.2-1002.jdbc4.jar
+postgresql-driver-license.txt
+
