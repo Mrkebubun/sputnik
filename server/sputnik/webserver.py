@@ -850,7 +850,7 @@ if __name__ == '__main__':
     listenWS(factory, contextFactory, interface=interface)
 
     if config.getboolean("webserver", "www"):
-        web_dir = File("../../clients/www")
+        web_dir = File(config.get("webserver", "www_root"))
         web = Site(web_dir)
         port = config.getint("webserver", "www_port")
         if config.getboolean("webserver", "ssl"):
