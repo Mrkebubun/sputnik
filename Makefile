@@ -32,8 +32,9 @@ TOOLS_FILES = $(BUILD_TOOLS)/leo
 build: $(SERVER_FILES) $(CONFIG_FILES) $(WWW_FILES) $(TOOLS_FILES)
 debug: $(DEBUG_SERVER_FILES) $(DEBUG_CONFIG_FILES) $(DEBUG_WWW_FILES) $(DEBUG_TOOLS_FILES)
 
-debug_tar: sputnik.debug.tar.gz
-tar: sputnik.tar.gz
+sputnik.debug.tar.gz: debug
+	cd $(DEBUG_ROOT); tar --numeric-owner --owner=0 --group=0 -czf \
+		../sputnik.debug.tar.gz *
 
 sputnik.tar.gz: build
 	cd $(BUILD_ROOT); tar --numeric-owner --owner=0 --group=0 -czf \
