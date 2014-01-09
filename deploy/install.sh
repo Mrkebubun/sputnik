@@ -47,7 +47,7 @@ check_dpkg_dependency()
 
 install_dpkg_dependency()
 {
-    /usr/bin/apt-get -y install $1 > /dev/null 2>&1
+    /usr/bin/apt-get -y install $1 
 }
 
 check_source_dependency()
