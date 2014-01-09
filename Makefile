@@ -38,10 +38,10 @@ $(BUILD_SERVER)/%.pyo: $(SOURCE_SERVER)/%.pyo
 	install -D -m 0755 $< $@
 
 $(BUILD_CONFIG)/sputnik.ini: $(SOURCE_CONFIG)/sputnik.ini
-	install -D -m 0755 $< $@
+	install -D -m 0644 $< $@
 
 $(BUILD_CONFIG)/supervisor.conf: $(SOURCE_CONFIG)/supervisor.conf
-	install -D -m 0755 $< $@
+	install -D -m 0644 $< $@
 
 $(BUILD_WWW)/%: $(SOURCE_WWW)/%
 	install -D -m 0644 $< $@
