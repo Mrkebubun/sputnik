@@ -57,7 +57,7 @@ check_source_dependency()
 
 install_source_dependency()
 {
-    $1 install > /dev/null 2>&1
+    $1 install 
 }
 
 check_python_dependency()

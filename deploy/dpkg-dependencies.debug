@@ -3,3 +3,4 @@ postfix
 python-psycopg2
 supervisor
 apache2
+curl
