@@ -7,7 +7,7 @@ SOURCE_WWW = $(SOURCE_ROOT)/clients/www
 SOURCE_TOOLS = $(SOURCE_ROOT)/tools
 
 BUILD_SERVER = $(BUILD_ROOT)/server/sputnik
-BUILD_CONFIG = $(BUILD_ROOT)/config
+BUILD_CONFIG = $(BUILD_ROOT)/server/config
 BUILD_WWW = $(BUILD_ROOT)/www
 BUILD_TOOLS = $(BUILD_ROOT)/tools
 
