@@ -57,7 +57,7 @@ $(BUILD_SERVER)/%.pyo: $(SOURCE_SERVER)/%.pyo
 $(DEBUG_CONFIG)/%: $(SOURCE_CONFIG)/%
 	install -D -m 0644 $< $@
 
-$(BUILD_CONFIG)/%: $(SOURCE_CONFIG)/%
+$(BUILD_CONFIG)/%: $(SOURCE_CONFIG)/deploy/%
 	install -D -m 0644 $< $@
 
 $(DEBUG_WWW)/%: $(SOURCE_WWW)/%
