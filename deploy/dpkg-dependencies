@@ -1,0 +1,5 @@
+postgresql
+postfix
+python-psycopg2
+supervisor
+apache2
