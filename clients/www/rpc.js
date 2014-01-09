@@ -258,7 +258,7 @@ function getCurrentAddress() {
             console.log(addr);
             $('#deposit_address').attr('href', "bitcoin:" + addr).text(addr);
             $('#qrcode').empty();
-            new QRCode(document.getElementById("qrcode"), "bitcoin:" + addr);
+            $('#qrcode').qrcode("bitcoin:" + addr);
         }
     )
 }
