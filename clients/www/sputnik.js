@@ -60,6 +60,10 @@ function onConnect() {
     getChatHistory();
     session.subscribe(chat_URI, onChat);
 
+    // attempt to load a cookie
+    cookie = document.cookie;
+    if (cookie)
+        cookie_login(cookie);
 }
 
 function twoFactorSetting(){
@@ -103,6 +107,8 @@ function onAuth(permissions) {
     // Initialize for user.  Maybe move the call for markets to before auth?
     //make this chain correctly...or better yet, make it publish upon connection
     //via serverside
+
+    getCookie();
 
     //getSafePrices(Object.keys(MARKETS));
     getSafePrices();

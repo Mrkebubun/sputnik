@@ -25,6 +25,7 @@ import time
 import onetimepass as otp
 import os
 import md5
+import uuid
 
 from sqlalchemy import and_
 from jsonschema import validate
@@ -100,6 +101,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.session = db.make_session()
         self.user = None
+        self.cookie = ""
 
         WampCraServerProtocol.connectionMade(self)
 
@@ -157,14 +159,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         print 'getAuthPermissions'
 
+        if authKey in self.factory.cookies:
+            username = self.factory.cookies[authKey]
+        else:
+            username = authKey
+
         try:
             user = self.session.query(models.User).filter_by(
-                username=authKey).first()
+                username=username).first()
             salt, password_hash = user.password.split(":")
             authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
         except Exception:
             # TODO: make this less predictable
-            noise = md5.md5("super secret" + authKey + "even more secret")
+            noise = md5.md5("super secret" + username + "even more secret")
             salt = noise.hexdigest()[:8]
             authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
 
@@ -175,15 +182,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'https://example.com/user/open_orders#%s' % authKey,
+                                           {'uri': 'https://example.com/user/open_orders#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'https://example.com/user/fills#%s' % authKey,
+                                           {'uri': 'https://example.com/user/fills#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'https://example.com/user/cancels#%s' % authKey,
+                                           {'uri': 'https://example.com/user/cancels#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True}], 'rpc': []},
@@ -195,6 +202,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the auth secret for the given auth key or None when the auth key
         does not exist
         """
+
+        # check for a saved session
+        if authKey in self.factory.cookies:
+            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1000})
 
         try:
             user = self.session.query(models.User).filter_by(
@@ -258,15 +269,39 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # sets the user in the session... I'm not certain it's a 100% safe to store it like this
         #todo: what if the users logs in from different location? To keep an eye on.
-        self.user = self.session.query(models.User).filter_by(username=authKey).one()
+        # search for a saved session
+        username = self.factory.cookies.get(authKey)
+        if username == None:
+            logging.info("Normal user login for: %s" % authKey)
+            self.user = self.session.query(models.User).filter_by(username=authKey).one()
+            uid = str(uuid.uuid4())
+            self.factory.cookies[uid] = authKey
+            self.cookie = uid
+            username = authKey
+        else:
+            logging.info("Cookie login for: %s" % username)
+            self.user = self.session.query(models.User).filter_by(username=username).one()
 
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("https://example.com/user/cancels#" + authKey, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("https://example.com/user/fills#" + authKey, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("https://example.com/user/open_orders#" + authKey,
+        self.registerForPubSub("https://example.com/user/cancels#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("https://example.com/user/fills#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("https://example.com/user/open_orders#" + username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri="https://example.com/user/")
+
+
+    @exportRpc("get_cookie")
+    @limit
+    def get_cookie(self):
+        return self.cookie
+
+    @exportRpc("logout")
+    @limit
+    def logout(self):
+        if self.cookie in self.factory.cookies:
+            del self.factory.cookies[self.cookie]
+        self.dropConnection()
 
     @exportRpc("get_new_two_factor")
     @limit
@@ -728,6 +763,7 @@ class PepsiColaServerFactory(WampServerFactory):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
         self.safe_prices = {}
+        self.cookies = {}
         endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher

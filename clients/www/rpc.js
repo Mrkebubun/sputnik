@@ -24,6 +24,9 @@ var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
 var withdraw_URI = base_uri + "procedures/withdraw";
 
+var get_cookie_URI = base_uri + "procedures/get_cookie";
+var logout_URI = base_uri + "procedures/logout";
+
 var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 
 
@@ -34,10 +37,10 @@ function connect() {
     var wsuri;// = "wss://" + host + ":9000";
 
     if (window.location.protocol === "file:") {
-        wsuri = "wss://localhost:8080";
+        wsuri = "wss://localhost:8000";
         //wsuri = "ws://localhost:9000";
     } else {
-        wsuri = "wss://" + window.location.hostname + ":8080";
+        wsuri = "wss://" + window.location.hostname + ":8000";
         //wsuri = "ws://" + window.location.hostname + ":9000";
     }
     ab.connect(wsuri,
@@ -67,6 +70,30 @@ function connect() {
 
         {'maxRetries': 1, 'retryDelay': 1000}
     );
+}
+
+function cookie_login(cookie) {
+    parts = cookie.split("=", 2);
+    parts = parts[1].split(":", 2);
+    name = parts[0];
+    uid = parts[1];
+    if (!uid)
+        return failed_cookie("bad cookie. clearing.")
+    session.authreq(uid).then(function (challenge) {
+        authextra = JSON.parse(challenge).authextra
+        authextra.salt = "cookie"
+        console.log(ab.deriveKey("cookie", authextra));
+
+        var secret = ab.deriveKey("cookie", authextra);
+
+        var signature = session.authsign(challenge, secret);
+        console.log(signature)
+
+        session.auth(signature).then(function() {login.value = name; onAuth();}, failed_cookie);
+        console.log('end of cookie_login');
+    }, function (err) {
+        failed_cookie('error processing cookie login');
+    });
 }
 
 function do_login(login, password) {
@@ -100,6 +127,12 @@ $('#do_login_button').click(function(){
     do_login(login.value, password.value);
 });
 
+function failed_cookie(err)
+{
+    document.cookie = "";
+    console.log(err)
+}
+
 function failed_login(err) {
     /*bootstrap gets stuck if if two modals are called in succession, so force
     the removal of shaded background with the following line */
@@ -128,6 +161,7 @@ function logout() {
     console.log(OPEN_ORDERS);
     //need to unsubscribe from everything.
 
+    session.call(logout_URI);
     session.close();
 }
 
@@ -392,3 +426,13 @@ function makeAccount(name, psswd, email) {
             }
         })
 }
+
+function getCookie() {
+    session.call(get_cookie_URI).then(
+        function (uid) {
+            console.log("cookie: ", uid);
+            document.cookie = "login" + "=" + login.value + ":" + uid;
+        }
+    );
+}
+
