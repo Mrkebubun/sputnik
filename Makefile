@@ -12,7 +12,7 @@ BUILD_WWW = $(BUILD_ROOT)/www
 BUILD_TOOLS = $(BUILD_ROOT)/tools
 
 SERVER_FILES := $(patsubst $(SOURCE_SERVER)/%.py, $(BUILD_SERVER)/%.pyo, $(wildcard $(SOURCE_SERVER)/*.py))
-CONFIG_FILES = $(BUILD_CONFIG)/sputnik.ini
+CONFIG_FILES = $(BUILD_CONFIG)/sputnik.ini $(BUILD_CONFIG)/supervisor.conf
 WWW_FILES := $(patsubst $(SOURCE_WWW)/%, $(BUILD_WWW)/%, $(wildcard $(SOURCE_WWW)/*))
 TOOLS_FILES = $(BUILD_TOOLS)/leo
 
@@ -38,7 +38,10 @@ $(BUILD_SERVER)/%.pyo: $(SOURCE_SERVER)/%.pyo
 	install -D -m 0755 $< $@
 
 $(BUILD_CONFIG)/sputnik.ini: $(SOURCE_CONFIG)/sputnik.ini
-	install -D -m 0755 $(SOURCE_CONFIG)/sputnik.ini $(BUILD_CONFIG)/sputnik.ini
+	install -D -m 0755 $< $@
+
+$(BUILD_CONFIG)/supervisor.conf: $(SOURCE_CONFIG)/supervisor.conf
+	install -D -m 0755 $< $@
 
 $(BUILD_WWW)/%: $(SOURCE_WWW)/%
 	install -D -m 0644 $< $@
