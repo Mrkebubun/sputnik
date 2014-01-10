@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd /srv/sputnik/server/conf 
+cd /srv/sputnik/server/config
 BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
 TESTNET=1
 sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" bitcoin.conf
