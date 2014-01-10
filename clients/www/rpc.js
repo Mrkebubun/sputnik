@@ -157,12 +157,13 @@ function logout() {
     $('.table').empty()
     SITE_POSITIONS = [];
     OPEN_ORDERS = [];
-    AUTHEXTRA = {};
+    AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
     console.log(OPEN_ORDERS);
     //need to unsubscribe from everything.
 
     session.call(logout_URI);
     session.close();
+    connect();
 }
 
 function getTradeHistory(ticker) {
