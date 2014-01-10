@@ -10,11 +10,12 @@ check()
 install()
 {
     cd /usr/local/src
-    curl -O zeromq-3.2.4.tar.gz $SOURCE
+    wget $SOURCE
     tar -zxvf zeromq-3.2.4.tar.gz
     cd zeromq-3.2.4
     make
     make install
+    ldconfig
 }
 
 case $1 in
