@@ -16,25 +16,25 @@ check_superuser()
 
 check_user()
 {
-    echo -n "Checking/adding user sputnik... "
-    PASSWD=`cat /etc/passwd | grep ^sputnik: | cut -d: -f 6,7`
-    if [ $? ]
+    echo -n "Checking/adding user $1... "
+    if [ `cat /etc/passwd | grep ^$1:` ]
     then
-        if [ X$PASSWD = X"/srv/sputnik:/bin/false" ]
+        PASSWD=`cat /etc/passwd | grep ^$1: | cut -d: -f 6,7`
+        if [ X$PASSWD = X"/srv/$1:/bin/false" ]
         then
             echo ok.
         else
             echo failed.
-            echo "User sputnik exists but with incorrect home or shell." 1>&2
+            echo "User $1 exists but with incorrect home or shell." 1>&2
             exit 1
         fi
     else
-        if /usr/sbin/adduser --quiet --system --group --home=/srv/sputnik sputnik 2>&1
+        if /usr/sbin/adduser --quiet --system --group --home=/srv/$1 $1 > /dev/null 2>&1
         then
             echo "ok."
         else
             echo "failed."
-            echo "Error: cannot create user sputnik." 1>&2
+            echo "Error: cannot create user $1." 1>&2
             exit 1
         fi
     fi
@@ -72,6 +72,7 @@ install_python_dependency()
 
 check_dependencies()
 {
+    cd deps
     echo "Checking $1 dependencies..."
     DEPENDENCY_FILE=${1}-dependencies
     if [ ! -z "$DEBUG" ]
@@ -109,6 +110,7 @@ check_dependencies()
             fi
         fi
     done
+    cd ..
 }
 
 if [ X$1 = X"debug" ]
@@ -123,12 +125,40 @@ else
     exit 1
 fi
 
+install()
+{
+    cp -Rp server /srv/sputnik
+    cp -Rp www /srv/sputnik
+}
+
+update_config()
+{
+    cd config
+    BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
+    sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" bitcoin.conf
+    cd ..
+}
+
+configure()
+{
+    cd config
+    cp -p supervisord.conf /etc/supervisor/supervisord.conf
+    cp -p supervisor.conf /srv/sputnik/server/conf/supervisor.conf
+    ln -s /etc/supervisor/conf.d/sputnik.conf /srv/sputnik/server/conf/supervisor.conf
+    cp sputnik.ini /srv/sputnik/server/conf/sputnik.ini
+    cd ..
+}
+
 #install_tar
 #install_config
 
 check_superuser
-check_user
+check_user sputnik
+check_user bitcoind
 check_dependencies dpkg
 check_dependencies source
 check_dependencies python
+install
+update_config
+configure
 
