@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd ../
+BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
+sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" bitcoin.conf

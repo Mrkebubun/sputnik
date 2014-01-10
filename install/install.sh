@@ -38,6 +38,32 @@ check_superuser()
     fi
 }
 
+run_script()
+{
+    $1 >> $LOGFILE 2>&1
+}
+
+run_scripts()
+{
+    if [ -d $1 ]
+    then
+        log "Running $1 scripts..."
+        for i in $1
+        do
+            SCRIPT_NAME=`log $i | sed 's/.*\/[0-9-]*\(.*\)/\1/'`
+            log -n "Running $SCRIPT_NAME... "
+            if run_script $i
+            then
+                log done.
+            else
+                log failed.
+                error "Error: could not complete $SCRIPT_NAME."
+                exit 1
+            fi
+        done
+    fi
+}
+
 check_user()
 {
     log -n "Checking/adding user $1... "
@@ -140,33 +166,20 @@ install()
     cp -Rp www /srv/sputnik
 }
 
-update_config()
-{
-    cd config
-    BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
-    sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" bitcoin.conf
-    cd ..
-}
-
-configure()
-{
-    cd config
-    cp -p supervisord.conf /etc/supervisor/supervisord.conf
-    cp -p supervisor.conf /srv/sputnik/server/conf/supervisor.conf
-    ln -s /etc/supervisor/conf.d/sputnik.conf /srv/sputnik/server/conf/supervisor.conf
-    cp sputnik.ini /srv/sputnik/server/conf/sputnik.ini
-    cd ..
-}
-
 : > $LOGFILE
+
 check_superuser
+
+run_scripts pre-install
+
 check_user sputnik
 check_user bitcoind
+
 check_dependencies dpkg
 check_dependencies source
 check_dependencies python
+
 install
-check_dependencies config
-update_config
-configure
+
+run_scripts post-install
 
