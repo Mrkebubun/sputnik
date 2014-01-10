@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export DEBIAN_FRONTEND=noninteractive
 
 check_superuser()
 {
@@ -47,7 +48,7 @@ check_dpkg_dependency()
 
 install_dpkg_dependency()
 {
-    /usr/bin/apt-get -y install $1 
+    /usr/bin/apt-get -y install $1 > /dev/null 2>&1
 }
 
 check_source_dependency()
@@ -57,7 +58,7 @@ check_source_dependency()
 
 install_source_dependency()
 {
-    $1 install 
+    $1 install > /dev/null 2>&1
 }
 
 check_python_dependency()
