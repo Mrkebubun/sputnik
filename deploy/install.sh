@@ -122,7 +122,7 @@ elif [ X$1 = X"deploy" ]
 then
     echo Installing deploy version of sputnik to /srv/sputnik
 else
-    echo "usage: $0 [debug|deploy]"
+    echo "usage: $0 debug|deploy"
     exit 1
 fi
 
