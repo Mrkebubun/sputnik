@@ -110,7 +110,7 @@ check_dependencies()
     do
         if [ ! -z $DIR ]
         then
-            PACKAGE_NAME=`log $i | sed 's/.*\/\(.*\)/\1/'`
+            PACKAGE_NAME=`log $i | sed 's/.*\/[0-9-]*\(.*\)/\1/'`
         else
             PACKAGE_NAME=$i
         fi
@@ -135,6 +135,7 @@ check_dependencies()
 
 install()
 {
+    mkdir -p /srv/sputnik
     cp -Rp server /srv/sputnik
     cp -Rp www /srv/sputnik
 }
@@ -165,6 +166,7 @@ check_dependencies dpkg
 check_dependencies source
 check_dependencies python
 install
+check_dependencies config
 update_config
 configure
 
