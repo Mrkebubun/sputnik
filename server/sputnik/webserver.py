@@ -39,12 +39,31 @@ from autobahn.wamp import exportRpc, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
 
+from OpenSSL import SSL
+
 from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 
 zf = ZmqFactory()
 
 import database as db
 import models
+
+class PublicInterface:
+    def __init__(self, protocol):
+        self.protocol = protocol
+    
+    @exportRpc
+    def list_markets(self):
+        return map(lambda x: x.dump(), self.protocol.factory.markets)
+
+    @exportRpc
+    def get_order_book(self):
+        pass
+
+
+class PrivateInterface:
+    def __init__(self, protocol):
+        self.protocol = protocol
 
 
 MAX_TICKER_LENGTH = 100
@@ -809,6 +828,25 @@ class PepsiColaServerFactory(WampServerFactory):
                 print "https://example.com/user/open_orders#%s" % value[0], value[1]
 
 
+class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
+    def __init__(self, privateKeyFileName, certificateChainFileName,
+                sslmethod=SSL.SSLv23_METHOD):
+        """
+        @param privateKeyFileName: Name of a file containing a private key
+        @param certificateChainFileName: Name of a file containing a certificate chain
+        @param sslmethod: The SSL method to use
+        """
+        self.privateKeyFileName = privateKeyFileName
+        self.certificateChainFileName = certificateChainFileName
+        self.sslmethod = sslmethod
+        self.cacheContext()
+
+    def cacheContext(self):
+        ctx = SSL.Context(self.sslmethod)
+        ctx.use_certificate_chain_file(self.certificateChainFileName)
+        ctx.use_privatekey_file(self.privateKeyFileName)
+        self._context = ctx
+
 if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
@@ -834,7 +872,9 @@ if __name__ == '__main__':
         uri = "wss://"
         key = config.get("webserver", "ssl_key")
         cert = config.get("webserver", "ssl_cert")
-        contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
 
     address = config.get("webserver", "ws_address")
     port = config.getint("webserver", "ws_port")
