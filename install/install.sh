@@ -48,7 +48,7 @@ run_scripts()
     if [ -d $1 ]
     then
         log "Running $1 scripts..."
-        for i in $1
+        for i in $1/*
         do
             SCRIPT_NAME=`log $i | sed 's/.*\/[0-9-]*\(.*\)/\1/'`
             log -n "Running $SCRIPT_NAME... "
