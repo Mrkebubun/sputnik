@@ -13,6 +13,7 @@ install()
     wget $SOURCE
     tar -zxvf zeromq-3.2.4.tar.gz
     cd zeromq-3.2.4
+    ./configure
     make
     make install
     ldconfig
