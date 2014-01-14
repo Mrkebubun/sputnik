@@ -1,4 +1,5 @@
 apache2
+bitcoind
 build-essential
 postfix
 postgresql

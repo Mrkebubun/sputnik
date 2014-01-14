@@ -1,5 +1,6 @@
 apache2
 build-essential
+bitcoind
 postfix
 postgresql
 python-dev
