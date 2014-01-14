@@ -1,0 +1,10 @@
+#!/bin/bash
+sudo -u sputnik /bin/bash <<EOF
+/srv/sputnik/tools/leo database init
+/srv/sputnik/tools/leo contracts add BTC
+/srv/sputnik/tools/leo contracts add MXN
+/srv/sputnik/tools/leo contracts add MXN/BTC
+/srv/sputnik/tools/leo contracts modify BTC contract_type cash
+/srv/sputnik/tools/leo contracts modify MXN contract_type cash
+/srv/sputnik/tools/leo contracts modify MXN/BTC contract_type cash_pair
+EOF
