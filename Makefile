@@ -15,7 +15,7 @@ dist:
 config: dist
 	install/install.py config
 
-deps:
+deps: dist
 	install/install.py deps
 
 build: dist
