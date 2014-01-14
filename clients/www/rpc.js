@@ -19,6 +19,9 @@ var register_two_factor_URI= base_uri + "procedures/register_two_factor";
 var get_new_two_factor_URI= base_uri + "procedures/get_new_two_factor";
 var disable_two_factor_URI= base_uri + "procedures/disable_two_factor";
 
+var get_profile_URI = base_uri + "procedures/get_profile"
+var change_profile_URI = base_uri + "procedures/change_profile"
+
 var change_password_URI = base_uri + "procedures/change_password";
 var get_new_address_URI = base_uri + "procedures/get_new_address";
 var get_current_address_URI = base_uri + "procedures/get_current_address";
@@ -30,6 +33,29 @@ var logout_URI = base_uri + "procedures/logout";
 var AUTHEXTRA = {"keylen": 32, "salt": "RANDOM SALT", "iterations": 1000};
 
 
+
+function get_profile() {
+    session.call(get_profile_URI).then(
+        function (profile) {
+            console.log(profile);
+            $('#nickname').text(profile.nickname)
+            $('#email').text(profile.email)
+        }
+    )
+}
+function change_profile(new_nickname, new_email) {
+    session.call(change_profile_URI, new_nickname, new_email).then(
+        function(res) {
+            if(res) {
+                alert('success!');
+            }
+            else
+            {
+                alert('profile change failed')
+            }
+        }
+    )
+}
 
 // connect to Autobahn.ws
 function connect() {

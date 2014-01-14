@@ -1384,7 +1384,7 @@ $('#do_login_button').click(function(){
 function failed_login(err) {
     /*bootstrap gets stuck if if two modals are called in succession, so force
     the removal of shaded background with the following line */
-    $('.modal-backdrop').removeAttr('class','in') 
+    $('.modal-backdrop').removeAttr('class','in')
 
     //add a notification of failed login to login error modal then restart modal
     $('#login_error').attr('class','alert')
@@ -1400,7 +1400,7 @@ function logout() {
     $('#loginButton').show();
     $('#registration').show();
     $('#Sputnik').click();
-    
+
     //clear user data:
     $('.table').empty()
     SITE_POSITIONS = [];
@@ -1449,7 +1449,7 @@ function placeOrder(order) {
             }
         }
     );
-    
+
 }
 
 function cancelOrder(cancel) {
@@ -1551,7 +1551,7 @@ function change_password(old_password, new_password) {
     session.call(change_password_URI,old_password_hash, new_password_hash).then(
         function (res) {
             if (res) {
-                alert('success!'); 
+                alert('success!');
                 $('.modal').modal('hide');
             } else {
                 alert('password reset failed');
@@ -1561,28 +1561,6 @@ function change_password(old_password, new_password) {
     )
 }
 
-function get_profile() {
-    session.call(get_profile_URI).then(
-        function (profile) {
-            console.log(profile);
-            $('#nickname').text(profile.nickname)
-            $('#email').text(profile.email)
-        }
-    )
-}
-function change_profile(new_nickname, new_email) {
-    session.call(change_profile_URI, new_nickname, new_email).then(
-        function(res) {
-            if(res) {
-                alert('success!');
-            }
-            else
-            {
-                alert('profile change failed')
-            }
-        }
-    )
-}
 
 function getNewAddress() {
     session.call(get_new_address_URI).then(
