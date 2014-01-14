@@ -1046,7 +1046,7 @@ $('#Account').click(function () {
     }
 });
 
-// TODO: Do this only once on auth and then cache, not everytime we click on the tab
+// TODO: Do this only once on auth and then cache, not every time we click on the tab
 $('#Profile').click(function() {
     get_profile();
 });
