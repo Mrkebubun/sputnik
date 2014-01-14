@@ -1257,8 +1257,8 @@ $("#two_factor").keypress(function (e) {
     }
 });
 
-$("#updateProfile").click(function(e) {
-    var code = change_profile(e.nickname, e.email)
+$("#change_profile").click(function(e) {
+    var code = change_profile(e.nickname_input, e.email_input)
 });
 
 /*
