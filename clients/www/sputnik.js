@@ -1079,12 +1079,12 @@ function orderButton(q, p, s) {
         var ord = {};
         var price_entered = Number(p);
         ord['ticker'] = SITE_TICKER;
-        var quantity_entered = parseInt(q);
+        var quantity_entered = Number(q);
         var tick_size = MARKETS[SITE_TICKER]['tick_size'];
         var lot_size = MARKETS[SITE_TICKER]['lot_size'];
         var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
         ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
-        ord['quantity'] = Math.round(quantity_entered / lot_size) * lot_size;
+        ord['quantity'] = Math.round(quantity_entered * lot_size) * tick_size;
         ord['side'] = s;
         placeOrder(ord);
     }
