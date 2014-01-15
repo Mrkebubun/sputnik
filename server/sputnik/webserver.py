@@ -582,18 +582,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 raise Exception('duplicate')
 
             user = models.User(name, salt + ":" + password, email)
-            btc = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-            btc_pos = models.Position(user, btc)
-            btc_pos.reference_price = 0
+            self.session.add(user)
+
+            # Set all cash contracts positions to zero
+            cash_contracts = self.session.query(models.Contract).filter_by(contract_type='cash').all()
+            for contract in cash_contracts:
+                cash_pos = models.Position(user, contract)
+                cash_pos.reference_price = 0
+                self.session.add(cash_pos)
 
             new_address = self.session.query(models.Addresses).filter_by(
                 active=False, user=None).first()
             new_address.active = True
             new_address.user = user
-
             self.session.merge(new_address)
-            self.session.add(user)
-            self.session.add(btc_pos)
+
             self.session.commit()
             return True
 
