@@ -48,6 +48,7 @@ function change_profile(new_nickname, new_email) {
         function(res) {
             if(res) {
                 alert('success!');
+                get_profile();
             }
             else
             {
