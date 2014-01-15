@@ -26,7 +26,6 @@ import onetimepass as otp
 import os
 import md5
 import uuid
-import getpass
 
 from jsonschema import validate
 from twisted.python import log
@@ -118,13 +117,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
 
-        # If we're root connect as configured, but if not root
-        # connect as my UID
-        my_user = getpass.getuser()
-        if my_user == 'root':
-            self.session = db.make_session()
-        else:
-            self.session = db.make_session(username=my_user)
+
+        self.session = db.make_session()
         self.user = None
         self.cookie = ""
 

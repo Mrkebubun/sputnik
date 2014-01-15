@@ -197,7 +197,7 @@ class LowEarthOrbit:
         method(*args)
 
 def main():
-    session = database.make_session(username=getpass.getuser())
+    session = database.make_session()
     try:
         leo = LowEarthOrbit(session)
         leo.parse(" ".join(sys.argv[1:]))

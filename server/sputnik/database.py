@@ -7,6 +7,7 @@ import config
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine import Engine
+import getpass
 
 # hack to make sure sqlite honors foriegn keys
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -17,6 +18,11 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 Base = declarative_base()
 
 def make_session(**kwargs):
+    # If we are not root, override SQL username to be myself
+    my_user = getpass.getuser()
+    if my_user != 'root':
+        kwargs['username'] = my_user
+
     uri = config.get("database", "uri", vars=kwargs)
     if uri.split(":")[0] == "sqlite":
         sqlalchemy.event.listen(Engine, "connect", set_sqlite_pragma)
