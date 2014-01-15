@@ -48,7 +48,8 @@ function change_profile(new_nickname, new_email) {
         function(res) {
             if(res) {
                 alert('success!');
-                get_profile();
+                $('#nickname').text(new_nickname);
+                $('#email').text(new_email);
             }
             else
             {
