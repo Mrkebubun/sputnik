@@ -26,8 +26,8 @@ import onetimepass as otp
 import os
 import md5
 import uuid
+import getpass
 
-from sqlalchemy import and_
 from jsonschema import validate
 from twisted.python import log
 from twisted.internet import reactor, defer, ssl
@@ -118,7 +118,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
 
-        self.session = db.make_session()
+        self.session = db.make_session(username=getpass.getuser())
         self.user = None
         self.cookie = ""
 
@@ -564,7 +564,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, username of the user
-        :param password_hash: hash of the password
+        :param password: hash of the password
         :param email: email address for the user
 
         """
@@ -578,7 +578,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         try:
             existing = self.session.query(models.User).filter_by(
                 username=name).first()
-            if existing != None:
+            if existing is not None:
                 raise Exception('duplicate')
 
             user = models.User(name, salt + ":" + password, email)
