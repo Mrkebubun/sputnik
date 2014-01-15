@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo -u sputnik /srv/sputnik/tools/generate_new_btc_addresses.py
