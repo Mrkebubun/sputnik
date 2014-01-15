@@ -1182,6 +1182,10 @@ $('#changePassword').click(function () {
     $('#changePasswordModal').modal('show');
 });
 
+$('#changeProfileBtn').click(function() {
+    $('#changeProfileModal').modal('show');
+})
+
 $('#submitPasswordChange').click(function () {
     console.log('button clicked');
     if (new_password.value == new_password_confirm.value){
@@ -1190,6 +1194,10 @@ $('#submitPasswordChange').click(function () {
         alert("new password doesn't match confirmation");
     }
 });
+
+$('#submitProfileChange').click(function() {
+    change_profile(new_nickname.value, new_email.value);
+})
 
 $('#submitTwoFactor').click(function(){
     if(!TWO_FACTOR_ON){

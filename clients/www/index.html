@@ -162,30 +162,32 @@
         <hr>
         Nickname: <div id="nickname"></div>
         Email: <div id="email"></div>
-        <form class="form text-center centerCenterLeft">
-           <div class="control-group">
+        <button id="changeProfileBtn" class="btn">Update Profile</button>
+        <div id="changeProfileModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="changeProfile"
+             aria-hidden="true"> <!-- Modal -->
+            <div class="modal-body">
+                <div id="changeProfile"></div>
+                <hr>
                 <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on">Nickname</span>
-                        <input id="nickname_input" class="input-custom-size" type="text" placeholder="$('#nickname')">
-                    </div>
+                    <p>Nickname:</p>
+                    <input id="new_nickname" class="input-custom-size" type="text" placeholder="nickname">
+
+                    <p>Email:</p>
+                    <input id="new_email" class="input-custom-size" type="text" placeholder="email">
                 </div>
             </div>
-            <div class="control-group">
-                <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on">Email</span>
-                        <input id="email_input" class="input-custom-size" type="text" placeholder="$('#email')">
-                    </div>
-                </div>
+            <!--end modal-body-->
+            <div class="modal-footer">
+                <button class="btn btn-large" data-dismiss="modal"
+                        aria-hidden="true">Cancel
+                </button>
+                <button id="submitProfileChange" class="btn btn-large btn-success" data-dismiss="modal"
+                        aria-hidden="true">Update
+                </button>
+                <!--type="button"-->
             </div>
-            <div class="control-group">
-                <div class="controls">
-                    <button id="change_profile" class="btn btn-danger btn-block" type="button">Update</button>
-                </div>
-            </div>
-        </form>
-    </div>
+        </div>
+     </div>
     <div class="container">
         <h3>Security:</h3>
         <hr>
