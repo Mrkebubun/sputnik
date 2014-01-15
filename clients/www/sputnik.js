@@ -1039,15 +1039,18 @@ $('#Trade').click(function () {
 });
 
 $('#Account').click(function () {
-    getPositions();
-    getOpenOrders();
     if (!logged_in) {
         $('#loginButton').click()
     }
+    getPositions();
+    getOpenOrders();
 });
 
 // TODO: Do this only once on auth and then cache, not every time we click on the tab
 $('#Profile').click(function() {
+    if (!logged_in) {
+        $('#loginButton').click()
+    }
     get_profile();
 });
 
