@@ -148,7 +148,8 @@ class Order(object):
                     'contract': o.contract,
                     'signed_qty': signed_qty,
                     'price': matching_price,
-                    'contract_type': db_orders[0].contract.contract_type
+                    'contract_type': db_orders[0].contract.contract_type,
+                    'ticker': contract_name,
                 }
             })
             publisher.send_json({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
