@@ -118,7 +118,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
 
-        self.session = db.make_session(username=getpass.getuser())
+        # If we're root connect as configured, but if not root
+        # connect as my UID
+        my_user = getpass.getuser()
+        if my_user == 'root':
+            self.session = db.make_session()
+        else:
+            self.session = db.make_session(username=my_user)
         self.user = None
         self.cookie = ""
 
