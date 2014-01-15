@@ -63,10 +63,10 @@ function connect() {
     var wsuri;// = "wss://" + host + ":9000";
 
     if (window.location.protocol === "file:") {
-        wsuri = "wss://localhost:8000";
+        wsuri = "wss://localhost:8080";
         //wsuri = "ws://localhost:9000";
     } else {
-        wsuri = "wss://" + window.location.hostname + ":8000";
+        wsuri = "wss://" + window.location.hostname + ":8080";
         //wsuri = "ws://" + window.location.hostname + ":9000";
     }
     ab.connect(wsuri,
