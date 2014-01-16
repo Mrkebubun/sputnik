@@ -1,7 +1,7 @@
 var session = null;
 
 
-var base_uri = "https://example.com/";
+var base_uri = "wss://sputnikmkt.com:8000/";
 var get_chat_history_URI = base_uri + "procedures/get_chat_history";
 
 var safe_price_URI = base_uri + "safe_price";
