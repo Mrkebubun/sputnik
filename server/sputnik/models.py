@@ -19,6 +19,7 @@ class Contract(db.Base):
     active = Column(Boolean, nullable=False, server_default=sql.true())
     contract_type = Column(Enum('futures', 'prediction', 'cash', 'cash_pair', name='contract_types'), nullable=False)
     tick_size = Column(Integer, nullable=False, server_default="1")
+    lot_size = Column(Integer, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
     inverse_quotes = Column(Boolean, server_default=sql.false(), nullable=False)
@@ -29,9 +30,9 @@ class Contract(db.Base):
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
 
-    def __init__(self, ticker, description="", full_description="", tick_size=1, denominator=1, contract_type="cash", active=True):
+    def __init__(self, ticker, description="", full_description="", tick_size=1, lot_size=1, denominator=1, contract_type="cash", active=True):
         self.ticker, self.description, self.full_description = ticker, description, full_description
-        self.tick_size, self.denominator = tick_size, denominator
+        self.tick_size, self.lot_size, self.denominator = tick_size, lot_size, denominator
         self.contract_type, self.active = contract_type, active
 
 class Order(db.Base):

@@ -279,11 +279,6 @@ function orderBook(ticker) {
             var buyBook = [];
             var sellBook = [];
 
-            var denominator = MARKETS[ticker]['denominator'];
-            var tick_size = MARKETS[ticker]['tick_size'];
-            var contract_type = MARKETS[ticker]['contract_type'];
-            //var dp = decimalPlacesNeeded(denominator * percentage_adjustment / tick_size);
-
             for (var i = 0; i < book.length; i++) {
                 var price = Number(book[i]['price']);
                 var quantity = book[i]['quantity'];

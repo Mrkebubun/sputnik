@@ -622,7 +622,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                 "denominator": c.denominator,
                                 "contract_type": c.contract_type,
                                 "full_description": c.full_description,
-                                "tick_size": c.tick_size}
+                                "tick_size": c.tick_size,
+                                "lot_size": c.lot_size}
 
             if c.contract_type == 'futures':
                 result[c.ticker]['margin_high'] = c.margin_high
@@ -712,9 +713,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if contract == None:
             raise Exception("Invalid contract ticker.")
         tick_size = contract.tick_size
-        order["price"] = int((order["price"] / tick_size) * tick_size)
+        lot_size = contract.lot_size
 
-        order["quantity"] = int(order["quantity"])
+        # coerce tick size and lot size
+        order["price"] = int(int(order["price"] / tick_size) * tick_size)
+        order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
         order['username'] = self.user.username
 
         self.accountant.push(json.dumps({'place_order': order}))

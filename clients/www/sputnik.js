@@ -508,6 +508,7 @@ function updateOrderBook(book, full_size) {
 
             var denominator = MARKETS[key]['denominator'];
             var tick_size = MARKETS[key]['tick_size'];
+            var lot_size = MARKETS[key]['lot_size'];
             var contract_type = MARKETS[key]['contract_type'];
 
             for (var i = 0; i < book.length; i++) {
@@ -746,16 +747,16 @@ function displayCash(display_account_page, positions) {
             "<th>Currency</th>" +
             "<th>Position</th>" +
             //"<th>Low Margin</th>" +
-            "<th>Reserved in Margin</th>" +
+            //"<th>Reserved in Margin</th>" +
             (display_account_page ?  "<th>Withdraw</th><th>Deposit</th>":"")
             + "</tr>");
 
     for (var key in positions) {
         $(element).append("<tr>" +
             "<td>" + positions[key]['ticker'] + "</td>" +
-            "<td>" + (positions[key]['position'] / 1e8) + "</td>" +
+            "<td>" + (positions[key]['position'] / positions[key]['denominator']) + "</td>" +
             //"<td>" + margins['total'][0] / 1e8 + "</td>" +
-            "<td>" + margins['total'][1] / 1e8 + "</td>" +
+            //"<td>" + margins['total'][1] / 1e8 + "</td>" +
 
             (display_account_page?
             "<td>" +
@@ -790,9 +791,10 @@ function displayPositions(show_all_tickers, positions) {
         .append("<thead><tr>" +
             (show_all_tickers ? "<th>Ticker</th>" : "") +
             "<th>Position</th>" +
-            "<th>Reference Price</th>" +
-			//<th>Low Margin</th>
-			"<th>Reserved for Margin</th></tr></thead><tbody>");
+            //"<th>Reference Price</th>" +
+			//"<th>Low Margin</th>" +
+			//"<th>Reserved for Margin</th> "
+			"</tr></thead><tbody>");
 
     // remove cash and old inactive positions
     positions = _.reject(positions, function (contract) {return contract['contract_type'] =='cash';});
@@ -805,9 +807,9 @@ function displayPositions(show_all_tickers, positions) {
             $(element).append("<tr>" +
                 (show_all_tickers ? "<td class='positionDisplays' id='"+ ticker +"' >" + ticker + "</td>" : "") + // don't show ticker unless needed
                 "<td>" + positions[key]['position'] + "</td>" +
-                "<td>" + (positions[key]['reference_price'] / 1e8) + "</td>" +
+                //"<td>" + (positions[key]['reference_price'] / 1e8) + "</td>" +
                 //"<td>" + margins[ticker][1] / 1e8 + "</td>" +
-                "<td>" + margins[ticker][0] / 1e8 + "</td>" +
+                //"<td>" + margins[ticker][0] / 1e8 + "</td>" +
                 "</tr>");
             }
     }
@@ -1077,10 +1079,12 @@ function orderButton(q, p, s) {
         var ord = {};
         var price_entered = Number(p);
         ord['ticker'] = SITE_TICKER;
-        ord['quantity'] = parseInt(q);
+        var quantity_entered = parseInt(q);
         var tick_size = MARKETS[SITE_TICKER]['tick_size'];
+        var lot_size = MARKETS[SITE_TICKER]['lot_size'];
         var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
         ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
+        ord['quantity'] = Math.round(quantity_entered / lot_size) * lot_size;
         ord['side'] = s;
         placeOrder(ord);
     }
@@ -1100,11 +1104,17 @@ function checkOrder(side) {
        //$('#processingModal').modal('hide');
        alert('Please only enter numbers');
        return false;
-    } else if (parseFloat(price) * 1e8 %MARKETS[SITE_TICKER]['tick_size'] > 0){
+    // IGNOMINOUS HACK THAT WILL ONLY WORK FOR THE PESO MARKET AND THAT NEEDS TO BE CHANGED
+    // WE NEED TO KNOW WHAT CURRENCY THE CONTRACT IS PRICED IN, BASICALLY
+    } else if (parseFloat(price) * 1e2 %MARKETS[SITE_TICKER]['tick_size'] > 0){
        $('.modal').modal('hide');
        //$('#processingModal').modal('hide');
        alert('The tick size of this contract is: 1/'+ 1e8 /MARKETS[SITE_TICKER]['tick_size'] );
        return false;
+    } else if (parseFloat(quantity) * 1e8 % MARKETS[SITE_TICKER]['lot_size'] > 0){
+        $('.modal').modal('hide');
+        alert('The lot size of this contract is 1/' + 1e8/MARKETS[SITE_TICKER]['lot_size'])
+
     } else {
         return true;
     }
