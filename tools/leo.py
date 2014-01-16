@@ -131,6 +131,7 @@ class ContractManager:
             print line
         print "\t\tactive:\t\t%s" % contract.active
         print "\t\ttick_size:\t%s" % contract.tick_size
+        print "\t\tlot_size:\t%s" % contract.lot_size
         print "\t\tdenominator:\t%s" % contract.denominator
         if contract.contract_type == "futures":
             print "\tFutures details:"
