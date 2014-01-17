@@ -1012,8 +1012,8 @@ function switchBookSub (ticker) {
 //Notification messages
 var notifications = new Object();
 
-notifications.orderError = function () {
-    alert('Order error: must be between 0.0% and 100.0%');
+notifications.orderError = function (msg) {
+    alert(msg);
 };
 notifications.processing = function (msg) {
     $('#processingModal').modal('show');

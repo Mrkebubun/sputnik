@@ -26,6 +26,7 @@ import onetimepass as otp
 import os
 import md5
 import uuid
+import traceback
 
 from jsonschema import validate
 from twisted.python import log
@@ -527,10 +528,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.user.email = new_email
             self.session.add(self.user)
             self.session.commit()
-            return True
+            return {'retval': True}
         except Exception as e:
             self.session.rollback()
-            return False
+            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
     @exportRpc("change_password")
     @limit
@@ -551,12 +552,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.session.add(self.user)
                 self.session.commit()
 
-                return True
+                return {'retval': True}
             except Exception as e:
                 self.session.rollback()
-                return False
+                return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
         else:
-            return False
+            return {'retval': False, 'error': "Invalid password", 'traceback': None}
 
     @exportRpc("make_account")
     @limit
@@ -579,7 +580,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             existing = self.session.query(models.User).filter_by(
                 username=name).first()
             if existing is not None:
-                raise Exception('duplicate')
+                raise Exception('duplicate user')
 
             user = models.User(name, salt + ":" + password, email)
             self.session.add(user)
@@ -598,12 +599,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.session.merge(new_address)
 
             self.session.commit()
-            return True
+            return {'retval': True}
 
         except Exception as e:
             print e
             self.session.rollback()
-            return False
+            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
 
     @exportRpc("list_markets")
@@ -697,32 +698,37 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :raise: some exception? need to do better error checking
         """
         # sanitize inputs:
-        validate(order,
-                 {"type": "object", "properties": {
-                     "ticker": {"type": "string"},
-                     "price": {"type": "number"},
-                     "quantity": {"type": "number"},
-                     "side": {"type": "number"}
-                 }})
+        try:
+            validate(order,
+                     {"type": "object", "properties": {
+                         "ticker": {"type": "string"},
+                         "price": {"type": "number"},
+                         "quantity": {"type": "number"},
+                         "side": {"type": "number"}
+                     }})
 
-        # enforce minimum tick_size for prices:
-        contract = self.session.query(models.Contract).filter_by(
-            ticker=order["ticker"]).order_by(
-            models.Contract.id.desc()).first()
-        # TODO: solve this another way, i.e. let the user know
-        if contract == None:
-            raise Exception("Invalid contract ticker.")
-        tick_size = contract.tick_size
-        lot_size = contract.lot_size
+            # enforce minimum tick_size for prices:
+            contract = self.session.query(models.Contract).filter_by(
+                ticker=order["ticker"]).order_by(
+                models.Contract.id.desc()).first()
+            # TODO: solve this another way, i.e. let the user know
+            if contract == None:
+                raise Exception("Invalid contract ticker.")
+            tick_size = contract.tick_size
+            lot_size = contract.lot_size
 
-        # coerce tick size and lot size
-        order["price"] = int(int(order["price"] / tick_size) * tick_size)
-        order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
-        order['username'] = self.user.username
+            # coerce tick size and lot size
+            order["price"] = int(int(order["price"] / tick_size) * tick_size)
+            order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
+            order['username'] = self.user.username
 
-        self.accountant.push(json.dumps({'place_order': order}))
-        self.count += 1
-        print 'place_order', self.count
+            self.accountant.push(json.dumps({'place_order': order}))
+            # TODO: We need some way to know that the accountant didn't accept the order for some reason
+            self.count += 1
+            print 'place_order', self.count
+            return {'retval': True}
+        except Exception as e:
+            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
 
     @exportRpc("get_safe_prices")
     @limit
@@ -740,15 +746,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param order_id: order_id of the order
         """
         # sanitize inputs:
-        print 'received order_id', order_id
-        validate(order_id, {"type": "number"})
-        print 'received order_id', order_id
-        order_id = int(order_id)
-        print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-        self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
-        self.count += 1
-        print 'cancel_order', self.count
+        try:
+            print 'received order_id', order_id
+            validate(order_id, {"type": "number"})
+            print 'received order_id', order_id
+            order_id = int(order_id)
+            print 'formatted order_id', order_id
+            print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
+            self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
+            self.count += 1
+            print 'cancel_order', self.count
+            return {'retval': True}
+        except Exception as e:
+            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+
 
 
     @exportSub("chat")
