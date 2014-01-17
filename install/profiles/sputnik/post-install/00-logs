@@ -1,0 +1,5 @@
+#!/bin/sh
+
+mkdir -p $ROOT/logs
+chgrp sputnik $ROOT/logs
+

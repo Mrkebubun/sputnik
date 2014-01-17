@@ -1,4 +1,5 @@
 #!/bin/bash
+
 sudo -u sputnik /bin/bash <<EOF
 /srv/sputnik/tools/leo database init
 /srv/sputnik/tools/leo contracts add BTC

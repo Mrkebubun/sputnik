@@ -1,4 +1,0 @@
-#!/bin/sh
-mkdir -p /srv/sputnik/logs
-chgrp sputnik /srv/sputnik/logs
-chmod g+w /srv/sputnik.log

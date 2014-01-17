@@ -1,4 +1,0 @@
-#!/bin/bash
-# wait until everything starts up
-sleep 10
-sudo -u sputnik /srv/sputnik/tools/generate_new_btc_addresses.py

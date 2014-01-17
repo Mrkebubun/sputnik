@@ -1,4 +1,5 @@
 #!/bin/bash
+
 sudo -u postgres psql <<EOF
 create database sputnik;
 create user sputnik;
