@@ -1084,7 +1084,7 @@ function orderButton(q, p, s) {
         var lot_size = MARKETS[SITE_TICKER]['lot_size'];
         var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
         ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
-        ord['quantity'] = Math.round(quantity_entered * lot_size) * tick_size;
+        ord['quantity'] = Math.round(quantity_entered * 1e8);
         ord['side'] = s;
         placeOrder(ord);
     }
