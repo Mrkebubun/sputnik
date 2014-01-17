@@ -9,7 +9,7 @@ sudo -u sputnik /bin/bash <<EOF
 /srv/sputnik/tools/leo contracts modify MXN contract_type cash
 /srv/sputnik/tools/leo contracts modify MXN denominator 100
 /srv/sputnik/tools/leo contracts modify MXN/BTC contract_type cash_pair
-/srv/sputnik/tools/leo contracts modify MXN/BTC tick_size 100
+/srv/sputnik/tools/leo contracts modify MXN/BTC tick_size 1
 /srv/sputnik/tools/leo contracts modify MXN/BTC lot_size 1000000
 /srv/sputnik/tools/leo contracts modify MXN/BTC denominator 100
 EOF
