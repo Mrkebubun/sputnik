@@ -499,6 +499,10 @@ function displayPrice(price, denominator, tick_size, contract_type, ticker) {
 
 }
 
+function displayQuantity(price, denominator) {
+    return price / denominator;
+}
+
 function updateOrderBook(book, full_size) {
     console.log('in updateOrderBook');
 	for (key in book){
@@ -571,7 +575,7 @@ function tradeTable(trades, fullsize) {
 
         $('#tradeHistory').prepend("<tr class=" + direction + ">" +
             "<td>" + displayPrice(trades[i][1], MARKETS[SITE_TICKER]['denominator'], MARKETS[SITE_TICKER]['tick_size'], MARKETS[SITE_TICKER]['contract_type'], SITE_TICKER) + "</td>" + // don't show ticker unless needed
-            "<td>" + trades[i][2] + "</td>" +
+            "<td>" + displayQuantity(trades[i][2], 1e8) + "</td>" +
             "<td>" + new Date(trades[i][0]).toLocaleTimeString() + "</td>" +
             "</tr>");
     }
@@ -621,10 +625,10 @@ function graphTable(table, side, fullsize) {
     if (table.length >0) {
         if (side =='buy') {
             PSELL = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type, SITE_TICKER).split(' ')[0];
-            QSELL = table[table.length - 1][0];
+            QSELL = displayQuantity(table[table.length - 1][0], 1e8);
         } else {
             PBUY = displayPrice(table[table.length - 1][1], denominator, tick_size, contract_type, SITE_TICKER).split(' ')[0];
-            QBUY = table[table.length - 1][0];
+            QBUY = displayQuantity(table[table.length - 1][0], 1e8);
         }
     }
 
@@ -633,7 +637,7 @@ function graphTable(table, side, fullsize) {
             //ugly reversing of table.. meh, it's working..
             var j = table.length - i -1;
             var price_cell = "<td>" + displayPrice(table[j][1], denominator, tick_size, contract_type, SITE_TICKER) + "</td>";
-            var quantity_cell = "<td>" + table[j][0] + "</td>";
+            var quantity_cell = "<td>" + displayQuantity(table[j][0], 1e8) + "</td>";
             var row_string = (side == 'buy' ? quantity_cell + price_cell : price_cell + quantity_cell);
             $(id).append("<tr id='" + side + "_" + i + "'>" +
 							row_string + "</tr>");
@@ -705,7 +709,7 @@ function displayOrders(show_all_tickers, orders) {
 //                var margin_td = (show_all_tickers ? "<td rowspan='" + length + "'>" + margins[ticker][1] / 1e8 + "</td>" : "") // don't show ticker unless needed
                 var printed_ticker;
                 _.each(contract_group, function (order) {
-                    var quantity = order['quantity'];
+                    var quantity = displayQuantity(order['quantity'],1e8);
                     var price = displayPrice(
                         order['price'],
                         MARKETS[order['ticker']]['denominator'],
@@ -1080,11 +1084,14 @@ function orderButton(q, p, s) {
         var price_entered = Number(p);
         ord['ticker'] = SITE_TICKER;
         var quantity_entered = Number(q);
+
         var tick_size = MARKETS[SITE_TICKER]['tick_size'];
         var lot_size = MARKETS[SITE_TICKER]['lot_size'];
-        var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
-        ord['price'] = Math.round((MARKETS[SITE_TICKER]['denominator'] * price_entered) / (percentage_adjustment * tick_size)) * tick_size;
-        ord['quantity'] = Math.round(quantity_entered * 1e8);
+        //var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
+        // harcoding some stuff for the time being
+        ord['quantity'] = Math.round(quantity_entered * MARKETS['BTC']['denominator'] / tick_size) * tick_size;
+        ord['price'] = Math.round((MARKETS['MXN']['denominator'] * price_entered) / tick_size) * tick_size;
+
         ord['side'] = s;
         placeOrder(ord);
     }

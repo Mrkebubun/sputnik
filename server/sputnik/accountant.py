@@ -141,7 +141,7 @@ def calculate_margin(username, order_id=None):
         if order.contract.contract_type == 'cash_pair':
             from_currency, to_currency = get_currencies_in_pair(order.contract.ticker)
             if order.side == 'BUY':
-                max_cash_spent[from_currency.ticker] += order.quantity_left * order.price
+                max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
             if order.side == 'SELL':
                 max_cash_spent[to_currency.ticker] += order.quantity_left
 
@@ -241,12 +241,12 @@ def process_trade(trade):
         try:
             from_currency, to_currency = get_currencies_in_pair(trade['ticker'])
 
-
+            contract = session.query(models.Contract).filter(ticker=trade['ticker']).one()
             from_position = session.query(models.Position).filter_by(contract=from_currency,
                                                                      username=trade['username']).one()
             to_position = session.query(models.Position).filter_by(contract=to_currency,
                                                                    username=trade['username']).one()
-            from_position.position -= trade['signed_qty'] * trade['price']
+            from_position.position -= trade['signed_qty'] / contract.lot_size * trade['price']
             to_position.position += trade['signed_qty']
 
             session.merge(from_position)
