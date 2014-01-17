@@ -1,0 +1,18 @@
+[program:bitcoind]
+command = /usr/bin/bitcoind -conf=/srv/bitcoind/bitcoin.conf
+autorestart = true
+exitcodes = 0
+user = bitcoind
+redirect_stderr = true
+stdout_logfile = /srv/bitcoind/debug.log
+directory = /srv/bitcoind
+environment = HOME="/srv/bitcoind"
+
+[program:cashier]
+command = $ROOT/server/sputnik/%(program_name)s.py -c $CONF/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = $LOGS/%(program_name)s.log
+directory = $ROOT/server/sputnik/
+

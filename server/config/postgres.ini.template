@@ -1,0 +1,5 @@
+[database]
+uri = postgresql://%(username)s@/%(dbname)s
+username = sputnik
+dbname = sputnik
+
