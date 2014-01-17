@@ -141,7 +141,7 @@ def calculate_margin(username, order_id=None):
         if order.contract.contract_type == 'cash_pair':
             from_currency, to_currency = get_currencies_in_pair(order.contract.ticker)
             if order.side == 'BUY':
-                max_cash_spent[from_currency.ticker] += order.quantity_left * order.price
+                max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
             if order.side == 'SELL':
                 max_cash_spent[to_currency.ticker] += order.quantity_left
 
@@ -167,10 +167,14 @@ def accept_order_if_possible(username, order_id):
     :param order_id: order we're considering accepting
     :return:
     """
+
+
     low_margin, high_margin = calculate_margin(username, order_id)
     cash_position = session.query(models.Position).filter_by(username=username, contract=btc).one()
 
     order = session.query(models.Order).get(order_id)
+
+    logging.info(order)
     logging.info(
         "high_margin = %d, low_margin = %d, cash_position = %d" % (high_margin, low_margin, cash_position.position))
 
@@ -196,8 +200,8 @@ def get_currencies_in_pair(ticker):
            /^\  ;:,
          """
         m = re.match(r'([a-z]+)/([a-z]+)', ticker, re.IGNORECASE)
-        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1]).one()
-        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0]).one()
+        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0]).one()
+        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1]).one()
         return from_currency, to_currency
 
 
@@ -241,12 +245,12 @@ def process_trade(trade):
         try:
             from_currency, to_currency = get_currencies_in_pair(trade['ticker'])
 
-
+            contract = session.query(models.Contract).filter(ticker=trade['ticker']).one()
             from_position = session.query(models.Position).filter_by(contract=from_currency,
                                                                      username=trade['username']).one()
             to_position = session.query(models.Position).filter_by(contract=to_currency,
                                                                    username=trade['username']).one()
-            from_position.position -= trade['signed_qty'] * trade['price']
+            from_position.position -= trade['signed_qty'] / contract.lot_size * trade['price']
             to_position.position += trade['signed_qty']
 
             session.merge(from_position)
