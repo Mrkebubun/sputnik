@@ -95,7 +95,7 @@ def read(name):
 
 def env():
     for key, value in parser.items("profile"):
-        print "export %s=\"%s\"" % (key, value)
+        print "export PROFILE_%s=\"%s\"" % (key, value)
 
 if mode == "generate":
     generate()        
