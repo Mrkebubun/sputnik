@@ -1,7 +1,8 @@
 ifndef PROFILE
-PROFILE=$(realpath install/profiles/git)
+export PROFILE=$(realpath install/profiles/git)
 endif
 
 config:
-	cd dist && ../server/config/makeconf.py $(PROFILE)/profile.ini
+	cd dist && ../install/lib/config generate
+
 
