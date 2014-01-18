@@ -94,7 +94,8 @@ def read(name):
         sys.exit(1)
 
 def env():
-    pass
+    for key, value in parser.items("profile"):
+        print "export %s=\"%s\"" % (key, value)
 
 if mode == "generate":
     generate()        
