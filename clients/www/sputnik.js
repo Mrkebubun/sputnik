@@ -489,13 +489,15 @@ function build_trade_graph(trades) {
 
 function displayPrice(price, denominator, tick_size, contract_type, ticker) {
     var contract_unit = getContractUnit(ticker);
+    var lot_size = MARKETS[ticker]['lot_size']
     var percentage_adjustment = 1;
     if (contract_type == 'prediction') {
         percentage_adjustment = 100;
     }
     var dp = decimalPlacesNeeded(denominator / ( percentage_adjustment * tick_size));
 
-    return ((price * percentage_adjustment) / denominator).toFixed(dp) + ' ' + contract_unit;
+    // TODO: Get rid of hardcoding this BTC denominator
+    return ((price * percentage_adjustment) / denominator * MARKETS['BTC']['denominator'] / lot_size).toFixed(dp) + ' ' + contract_unit;
 
 }
 
@@ -1016,8 +1018,8 @@ function switchBookSub (ticker) {
 //Notification messages
 var notifications = new Object();
 
-notifications.orderError = function () {
-    alert('Order error: must be between 0.0% and 100.0%');
+notifications.orderError = function (msg) {
+    alert(msg);
 };
 notifications.processing = function (msg) {
     $('#processingModal').modal('show');
@@ -1089,8 +1091,10 @@ function orderButton(q, p, s) {
         var lot_size = MARKETS[SITE_TICKER]['lot_size'];
         //var percentage_adjustment = (MARKETS[SITE_TICKER]['contract_type'] == 'prediction' ? 100 : 1);
         // harcoding some stuff for the time being
+        // QUANTITY HERE IS QUANTITY
         ord['quantity'] = Math.round(quantity_entered * MARKETS['BTC']['denominator'] / lot_size) * lot_size;
-        ord['price'] = Math.round((MARKETS['MXN']['denominator'] * price_entered) / lot_size * tick_size) * tick_size;
+        // PRICE HERE IS PRICE/LOT *NOT* PRICE/QUANTITY
+        ord['price'] = Math.round((MARKETS['MXN']['denominator'] * price_entered) * lot_size / MARKETS['BTC']['denominator'] / tick_size) * tick_size;
 
         ord['side'] = s;
         placeOrder(ord);

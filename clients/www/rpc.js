@@ -46,14 +46,14 @@ function get_profile() {
 function change_profile(new_nickname, new_email) {
     session.call(change_profile_URI, new_nickname, new_email).then(
         function(res) {
-            if(res) {
+            if(res.retval) {
                 alert('success!');
                 $('#nickname').text(new_nickname);
                 $('#email').text(new_email);
             }
             else
             {
-                alert('profile change failed')
+                alert(res.error)
             }
         }
     )
@@ -224,10 +224,10 @@ function getChatHistory() {
 function placeOrder(order) {
     notifications.processing(order);
     session.call(place_order_URI, order).then(
-        function (order_status) {
-            notifications.dismiss_processing(order_status)
-            if (order_status == false) {
-                notifications.orderError();
+        function (res) {
+            notifications.dismiss_processing(res.retval)
+            if (res.retval == false) {
+                notifications.orderError(res.error);
             }
         }
     );
@@ -327,11 +327,11 @@ function change_password(old_password, new_password) {
     console.log(old_password_hash);
     session.call(change_password_URI,old_password_hash, new_password_hash).then(
         function (res) {
-            if (res) {
+            if (res.retval) {
                 alert('success!');
                 $('.modal').modal('hide');
             } else {
-                alert('password reset failed');
+                alert(retval.error);
             }
 
         }
@@ -443,10 +443,10 @@ function makeAccount(name, psswd, email) {
     session.call(make_account_URI, name, psswdHsh, salt,  email).then(
         function (res) {
             login.value = registerLogin.value;
-            if (res){
+            if (res.retval){
                 do_login(registerLogin.value, registerPassword.value);
             } else {
-                alert('Username is taken.');
+                alert(res.error);
             }
         })
 }
