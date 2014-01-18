@@ -9,10 +9,10 @@ directory = /srv/bitcoind
 environment = HOME="/srv/bitcoind"
 
 [program:cashier]
-command = $ROOT/server/sputnik/%(program_name)s.py -c $CONF/sputnik.ini
+command = ${root}/server/sputnik/%(program_name)s.py -c ${root}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = $LOGS/%(program_name)s.log
-directory = $ROOT/server/sputnik/
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
 

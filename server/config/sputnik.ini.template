@@ -1,5 +1,5 @@
 [cashier]
-bitcoin_conf = $CONF/bitcoin.conf
+bitcoin_conf = ${conf}/bitcoin.conf
 
 [engine]
 base_port = 4200
@@ -9,14 +9,14 @@ zmq_address = tcp://127.0.0.1:10000/
 interface = 127.0.0.1
 ws_address = 127.0.0.1
 ws_port = 8000
-chat_log = $LOG/chat.log
+chat_log = ${logs}/chat.log
 ssl = true
-ssl_key = $KEYS/server.key
-ssl_cert = $KEYS/server.crt
-ssl_cert_chain = $KEYS/server.chain
-www = $USE_WWW
+ssl_key = ${keys}/server.key
+ssl_cert = ${keys}/server.crt
+ssl_cert_chain = ${keys}/server.chain
+www = ${use_www}
 www_port = 8888
-www_root = $WWW
+www_root = ${www_root}
 debug = true
 
 [accountant]
@@ -25,3 +25,4 @@ zmq_address = tcp://127.0.0.1:4432/
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501/
 zmq_backend_address = tcp://127.0.0.1:4502/
+

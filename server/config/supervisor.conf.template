@@ -1,42 +1,42 @@
 [supervisord]
-logfile=$LOGS/supervisor.log
-pidfile=$RUN/supervisor.pid
+logfile=${logs}/supervisor.log
+pidfile=${run}/supervisor.pid
 
 [unix_http_server]
-file=$RUN/supervisor.sock
+file=${run}/supervisor.sock
 
 [supervisorctl]
-serverurl=unix://$RUN/supervisor.sock
+serverurl=unix://${run}/supervisor.sock
 
 [program:engine_MXN_BTC]
-command = $ROOT/server/sputnik/engine.py -c $CONF/sputnik.ini MXN/BTC
+command = ${root}/server/sputnik/engine.py -c ${conf}/sputnik.ini MXN/BTC
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = $LOGS/%(program_name)s.log
-directory = $ROOT/server/sputnik/
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
 
 [program:accountant]
-command = $ROOT/server/sputnik/%(program_name)s.py -c $CONF/sputnik.ini
+command = ${root}/server/sputnik/%(program_name)s.py -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = $LOGS/%(program_name)s.log
-directory = $ROOT/server/sputnik/
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
 
 [program:webserver]
-command = $ROOT/server/sputnik/%(program_name)s.py -c $CONF/sputnik.ini
+command = ${root}/server/sputnik/%(program_name)s.py -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = $LOGS/%(program_name)s.log
-directory = $ROOT/server/sputnik/
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
 
 [program:safe_price_forwarder]
-command = $ROOT/server/sputnik/%(program_name)s.py -c $CONF/sputnik.ini
+command = ${root}/server/sputnik/%(program_name)s.py -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = $LOGS/%(program_name)s.log
-directory = $ROOT/server/sputnik/
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
 
