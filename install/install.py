@@ -9,6 +9,9 @@ import optparse
 import ConfigParser
 import getpass
 
+# __file__ may be a relative path, and this causes problem when we chdir
+__file__ = os.path.abspath(__file__)
+
 class Installer:
     def __init__(self, profile=None):
         profile = profile or os.environ.get("PROFILE")
