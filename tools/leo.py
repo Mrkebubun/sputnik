@@ -168,6 +168,14 @@ class ContractManager:
         setattr(contract, field, value)
         self.session.merge(contract)
 
+class AddressManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, address):
+        address = models.Address(None, "btc", address)
+        self.session.add(address)
+
 class DatabaseManager:
     def __init__(self, session):
         self.session = session
@@ -181,6 +189,7 @@ class LowEarthOrbit:
         self.modules = {
             "accounts": AccountManager(session),
             "contracts": ContractManager(session),
+            "addresses": AddressManager(session),
             "database": DatabaseManager(session)
         }
 

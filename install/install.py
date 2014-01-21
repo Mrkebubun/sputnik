@@ -9,14 +9,6 @@ import optparse
 import ConfigParser
 import getpass
 
-here = os.path.dirname(os.path.abspath(__file__))
-lib = os.path.join(here, "lib")
-
-env_path = os.environ.get("PYTHONPATH", "").split(":")
-env_path.append(lib)
-os.environ["PYTHONPATH"] = ":".join(env_path)
-sys.path.append(lib)
-
 class Installer:
     def __init__(self, profile=None):
         profile = profile or os.environ.get("PROFILE")
@@ -27,7 +19,7 @@ class Installer:
         self.logfile = open("install.log", "a")
 
         self.here = os.path.dirname(os.path.abspath(__file__))
-        self.git_root = os.path.abspath(os.path.join(here, ".."))
+        self.git_root = os.path.abspath(os.path.join(self.here, ".."))
         self.templates = os.path.abspath(os.path.join(
                             self.git_root, "server/config"))
 
@@ -156,13 +148,13 @@ class Installer:
                     else:
                         self.log("%s installed.\n" % package)
         except IOError:
-            self.log("No dpkg dependencies listed.")
+            self.log("No dpkg dependencies found.")
 
         # make source deps
         self.log("Installing source dependencies...\n")
         try: 
-            for line in os.listdir(
-                    os.path.join(self.profile, "deps", "source")):
+            for line in sorted(os.listdir(
+                    os.path.join(self.profile, "deps", "source"))):
                 package = line.strip()
                 if not self.check_source(package):
                     package_name = package.lstrip("0123456789-")
@@ -177,8 +169,8 @@ class Installer:
                         self.abort()
                 else:
                     self.log("%s installed.\n" % package)
-        except IOError:
-            self.log("No source dependencies listed.")
+        except OSError:
+            self.log("No source dependencies found.\n")
 
         # make python deps
         self.log("Installing python dependencies...\n")
@@ -199,7 +191,62 @@ class Installer:
                     else:
                         self.log("%s installed.\n" % package)
         except IOError:
-            self.log("No python dependencies listed.")
+            self.log("No python dependencies found.\n")
+
+    def make_install(self):
+        # do pre-install
+        self.log("Running pre-install scripts...\n")
+        try: 
+            for line in sorted(os.listdir(
+                    os.path.join(self.profile, "pre-install"))):
+                script = line.strip()
+                script_name = script.lstrip("0123456789-")
+                script_path = os.path.join(self.profile, "pre-install", script)
+                self.log("Running %s... " % script_name)
+                if self.run([script_path]) == 0:
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Unable to run %s.\n" % script_name)
+                    self.abort()
+        except OSError:
+            self.log("No pre-install scripts found.\n")
+       
+        # do install
+        self.log("Running install scripts...\n")
+        try: 
+            for line in sorted(os.listdir(
+                    os.path.join(self.profile, "install"))):
+                script = line.strip()
+                script_name = script.lstrip("0123456789-")
+                script_path = os.path.join(self.profile, "install", script)
+                self.log("Running %s... " % script_name)
+                if self.run([script_path]) == 0:
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Unable to run %s.\n" % script_name)
+                    self.abort()
+        except OSError:
+            self.log("No install scripts found.\n")
+
+        # do post-install
+        self.log("Running post-install scripts...\n")
+        try: 
+            for line in sorted(os.listdir(
+                    os.path.join(self.profile, "post-install"))):
+                script = line.strip()
+                script_name = script.lstrip("0123456789-")
+                script_path = os.path.join(self.profile, "post-install", script)
+                self.log("Running %s... " % script_name)
+                if self.run([script_path]) == 0:
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Unable to run %s.\n" % script_name)
+                    self.abort()
+        except OSError:
+            self.log("No post-install scripts found.\n")
 
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
@@ -217,6 +264,10 @@ def main():
     opts.add_option("-p", "--profile", dest="profile", help="Profile directory")
     (options, args) = opts.parse_args()
 
+    profile = None
+    if options.profile:
+        profile = os.path.abspath(options.profile)
+
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
         sys.stderr.flush()
@@ -225,7 +276,11 @@ def main():
     mode = args[0]
     
     try: 
-        installer = Installer(options.profile)    
+        # change to work directory
+        here = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(os.path.join(here, "..", "dist"))
+
+        installer = Installer(profile)    
         
         if mode == "config":
             installer.make_config()
