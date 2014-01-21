@@ -1,17 +1,17 @@
 #!/bin/sh
 
-. ./install-tools
+. ./lib/install-tools
 
-: > ./install.log
-export LOGFILE=`readlink -e ./install.log`
+: > ../dist/install.log
+export LOGFILE=`readlink -e ../dists/install.log`
 
 if [ $# -ne 2 ]; then
-    echo "Usage: $0 profile root" 1>&2
+    echo "Usage: $0 profile action" 1>&2
     exit 1
 fi
 
 export PROFILE=$1
-export ROOT=$2
+export ACTION=$2
 
 if [ ! -d profiles/$PROFILE ]; then
     echo "Profile '$PROFILE' not found." 1>&2

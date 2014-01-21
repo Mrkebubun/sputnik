@@ -1,5 +1,4 @@
 build-essential
-postgresql
 python-dev
 python-pip
 python-psycopg2

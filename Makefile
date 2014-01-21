@@ -5,4 +5,5 @@ endif
 config:
 	cd dist && ../install/lib/config generate
 
-
+deps:
+	install/install.sh deps
