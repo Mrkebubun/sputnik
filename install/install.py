@@ -100,36 +100,106 @@ class Installer:
             out.close()
 
     def check_dpkg(self, name):
-        # we can actually query this using the python 'apt' module
-        # however, this may not be installed and there is no good reason
-        # to drag it in
+        # We can actually query this using the python 'apt' module.
+        # However, this may not be installed and there is no good reason
+        # to drag it in.
 
         return self.run(["/usr/bin/dpkg", "-s", name]) == 0
 
+    def check_source(self, name):
+        return self.run([os.path.join(self.profile, "deps", "source", name),
+            "check"]) == 0
+
+    def check_python(self, name):
+        # We can query packages using the pip module.
+
+        # import pip _now_ since it may not exist at script launch
+        import pip
+        import pkg_resources
+
+        # if we installed a package, this is out of date
+        reload(pkg_resources)
+
+        req = pip.req.InstallRequirement.from_line(name)
+        req.check_if_exists()
+        return req.satisfied_by != None
+
     def install_dpkg(self, name):
         return self.run(["/usr/bin/apt-get", "-y", "install", name])
+
+    def install_source(self, name):
+        return self.run([os.path.join(self.profile, "deps", "source", name),
+            "install"])
+
+    def install_python(self, name):
+        return self.run(["/usr/bin/pip", "install", name])
 
     def make_deps(self):
         self.log("Installing dependencies...\n")
 
         # make dpkg deps
-        with open(os.path.join(self.profile, "deps", "dpkg")) as deps:
-            for line in deps:
+        self.log("Installing dpkg dependencies...\n")
+        try:
+            with open(os.path.join(self.profile, "deps", "dpkg")) as deps:
+                for line in deps:
+                    package = line.strip()
+                    if not self.check_dpkg(package):
+                        self.log("%s not installed. Installing... " % package)
+                        self.install_dpkg(package)
+                        if self.check_dpkg(package):
+                            self.log("done.\n")
+                        else:
+                            self.log("failed.\n")
+                            self.error("Error: unable to install %s.\n" %
+                                        package)
+                            self.abort()
+                    else:
+                        self.log("%s installed.\n" % package)
+        except IOError:
+            self.log("No dpkg dependencies listed.")
+
+        # make source deps
+        self.log("Installing source dependencies...\n")
+        try: 
+            for line in os.listdir(
+                    os.path.join(self.profile, "deps", "source")):
                 package = line.strip()
-                if not self.check_dpkg(package):
-                    self.log("%s not installed. Installing... " % package)
-                    self.install_dpkg(package)
-                    if self.check_dpkg(package):
+                if not self.check_source(package):
+                    package_name = package.lstrip("0123456789-")
+                    self.log("%s not installed. Installing... " % package_name)
+                    self.install_source(package)
+                    if self.check_source(package):
                         self.log("done.\n")
                     else:
                         self.log("failed.\n")
-                        self.error("Error: unable to install %s.\n" % package)
+                        self.error("Error: unable to install %s.\n" %
+                            package_name)
                         self.abort()
                 else:
                     self.log("%s installed.\n" % package)
+        except IOError:
+            self.log("No source dependencies listed.")
 
-        # make source deps
         # make python deps
+        self.log("Installing python dependencies...\n")
+        try:
+            with open(os.path.join(self.profile, "deps", "python")) as deps:
+                for line in deps:
+                    package = line.strip()
+                    if not self.check_python(package):
+                        self.log("%s not installed. Installing... " % package)
+                        self.install_python(package)
+                        if self.check_python(package):
+                            self.log("done.\n")
+                        else:
+                            self.log("failed.\n")
+                            self.error("Error: unable to install %s.\n" %
+                                        package)
+                            self.abort()
+                    else:
+                        self.log("%s installed.\n" % package)
+        except IOError:
+            self.log("No python dependencies listed.")
 
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
