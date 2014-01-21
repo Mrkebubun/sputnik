@@ -165,6 +165,3 @@ check_dependencies()
     done
 }
 
-get_config()
-{
-}
