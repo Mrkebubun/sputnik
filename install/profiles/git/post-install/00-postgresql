@@ -1,9 +1,0 @@
-#!/bin/bash
-sudo -u postgres psql <<EOF
-create database sputnik;
-create user sputnik;
-grant all privileges on database sputnik to sputnik;
-create user ${SUDO_USER};
-grant sputnik to ${SUDO_USER};
-alter user ${SUDO_USER} with password '${SUDO_USER}'
-EOF
