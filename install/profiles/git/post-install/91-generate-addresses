@@ -2,7 +2,7 @@
 
 # since bitcoind is not running, add some fake addresses
 cd $PROFILE_conf
-cat << EOF | while read ADDR; do echo $PROFILE_root/tools/leo addresses add $ADDR; done
+cat << EOF | while read ADDR; do $PROFILE_root/tools/leo addresses add $ADDR; done
 1KhjHHvmAUPG9gebE2abW3KepCh5AoMuBX
 186PJiTguUCFAA6AAnMRwoXTCQA9hNqtqi
 1PQohL2x2NnHazqRFw7LRYy2hSumkUsucc

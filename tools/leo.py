@@ -173,7 +173,7 @@ class AddressManager:
         self.session = session
 
     def add(self, address):
-        address = models.Address(None, "btc", address)
+        address = models.Addresses(None, "btc", address)
         self.session.add(address)
 
 class DatabaseManager:
