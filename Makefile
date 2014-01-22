@@ -4,7 +4,7 @@ endif
 
 .PHONY: config deps build install upgrade
 
-all: config build
+all: config deps build
 
 clean:
 	rm dist/*
