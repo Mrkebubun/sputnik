@@ -1,7 +1,7 @@
 import inspect
 import json
 import logging
-from txzmq import ZmqFactory, ZmqEndpoint, ZmqPullConnection
+from txzmq import ZmqFactory, ZmqEndpoint, ZmqPullConnection, ZmqPushConnection
 import zmq
 
 def export(obj):
@@ -76,7 +76,7 @@ class Proxy:
             raise AttributeError
         def remote_method(*args, **kwargs):
             message = {"method":key, "args":args, "kwargs":kwargs}
-            if hasattr(self._connection, "push"):
+            if hasattr(self._connection, "factory"):
                 # txzmq connection
                 self._connection.push(json.dumps(message))
             else:
