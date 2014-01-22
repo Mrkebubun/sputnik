@@ -210,7 +210,14 @@ def main():
     session = database.make_session()
     try:
         leo = LowEarthOrbit(session)
-        leo.parse(" ".join(sys.argv[1:]))
+        if len(sys.argv) == 1:
+            try:
+                while True:
+                    leo.parse(raw_input("leo> "))
+            except EOFError:
+                pass
+        else:
+            leo.parse(" ".join(sys.argv[1:]))
         session.commit()
     except Exception, e:
         print e

@@ -1,16 +1,18 @@
 #!/bin/bash
 
 cd $PROFILE_conf
-$PROFILE_root/tools/leo database init
-$PROFILE_root/tools/leo contracts add BTC
-$PROFILE_root/tools/leo contracts add MXN
-$PROFILE_root/tools/leo contracts add MXN/BTC
-$PROFILE_root/tools/leo contracts modify BTC contract_type cash
-$PROFILE_root/tools/leo contracts modify BTC denominator 100000000
-$PROFILE_root/tools/leo contracts modify MXN contract_type cash
-$PROFILE_root/tools/leo contracts modify MXN denominator 100
-$PROFILE_root/tools/leo contracts modify MXN/BTC contract_type cash_pair
-$PROFILE_root/tools/leo contracts modify MXN/BTC tick_size 100
-$PROFILE_root/tools/leo contracts modify MXN/BTC lot_size 1000000
-$PROFILE_root/tools/leo contracts modify MXN/BTC denominator 1
+cat << EOF | $PROFILE_root/tools/leo 
+database init
+contracts add BTC
+contracts add MXN
+contracts add MXN/BTC
+contracts modify BTC contract_type cash
+contracts modify BTC denominator 100000000
+contracts modify MXN contract_type cash
+contracts modify MXN denominator 100
+contracts modify MXN/BTC contract_type cash_pair
+contracts modify MXN/BTC tick_size 100
+contracts modify MXN/BTC lot_size 1000000
+contracts modify MXN/BTC denominator 1
+EOF
 
