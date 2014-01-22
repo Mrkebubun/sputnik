@@ -45,8 +45,11 @@ from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 
 zf = ZmqFactory()
 
-import database as db
+import database
 import models
+
+Session = database.get_session_maker()
+
 
 class PublicInterface:
     def __init__(self, protocol):
@@ -119,7 +122,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
 
 
-        self.session = db.make_session()
+        self.session = Session()
         self.user = None
         self.cookie = ""
 
