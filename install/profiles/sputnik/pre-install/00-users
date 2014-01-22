@@ -1,8 +1,32 @@
-#!/bin/sh
+#!/bin/bash
 
-. ../../install-tools
+check_user()
+{
+    echo -n "Checking/adding user $1... "
+    if [ `cat /etc/passwd | grep ^$1:` ]
+    then
+        PASSWD=`cat /etc/passwd | grep ^$1: | cut -d: -f 6,7`
+        if [ X$PASSWD = X"$2:/bin/false" ]
+        then
+            echo ok.
+        else
+            echo failed.
+            echo "User $1 exists but with incorrect home or shell." 1>&2
+            exit 1
+        fi
+    else
+        if /usr/sbin/adduser --quiet --system --group --home=$2 $1 >> $LOGFILE 2>&1
+        then
+            echo "ok."
+        else
+            echo "failed."
+            echo "Error: cannot create user $1." 1>&2
+            exit 1
+        fi
+    fi
+}
 
-check_user sputnik $ROOT
-check_user bitcoind /srv/bitcoind
 
+check_user $PROFILE_user $PROFILE_root
+check_user $PROFILE_bitcoin_user $PROFILE_bitcoin_root
 
