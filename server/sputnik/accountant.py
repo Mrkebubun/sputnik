@@ -38,26 +38,252 @@ logging.basicConfig(level=logging.DEBUG)
 # increase/decrease required_margin: adds or remove to the required margin
 
 
-btc = session.query(models.Contract).filter_by(ticker='BTC').one()
+class AccountantException(Exception):
+    pass
+
+class Accountant:
+    def __init__(self, session):
+        self.session = session
+        self.btc = self.resolve("BTC")
+       
+    def get_user(self, username):
+        """
+        Return the User object corresponding to the username.
+        :param username: the username to look up
+        :return: the User matching the username
+        """
+        logging.debug("Looking up username %s." % username)
+
+        try:
+            return self.session.query(models.Users).filter_by(
+                username=username).one()
+        except NoResultFound:
+            raise AccountantException("No such user: '%s'." % username)
+
+    def get_contract(self, ticker):
+        """
+        Return the Contract object corresponding to the ticker.
+        :param ticker: the ticker to look up or a Contract id
+        :return: the last (id-wise) Contract object matching the ticker
+        """
+        logging.debug("Looking up contract %s." % ticker)
+
+        try:
+            ticker = int(ticker)
+            return self.session.query(models.Contract).filter_by(
+                contract_id=ticker).one()
+        except NoResultFound:
+            raise AccountantError("Could not resolve contract '%s'." % ticker)
+        except ValueError:
+            # drop through
+            pass
+
+        try:
+            return self.session.query(models.Contract).filter_by(
+                ticker=ticker).order_by(models.Contract.id.desc()).first()
+        except NoResultFound:
+            raise AccountantError("Could not resolve contract '%s'." % ticker)
+
+    def get_position(self, username, contract, reference_price=0):
+        """
+        Return a user's position for a contact. If it does not exist,
+            initialize it. 
+        :param username: the username
+        :param contract: the contract ticker or id
+        :param reference_price: the (optional) reference price for the position
+        :return: the position object
+        """
+        logging.debug("Looking up position for %s on %s." %
+            (username, contract))
+
+        user = self.get_user(username)
+        contract = self.get_contract(contract)
+
+        try:
+            return self.session.query(models.Position).filter_by(
+                user=user, contract=contract).one()
+        except NoResultFound:
+            logging.debug("Creating new position for %s on %s." %
+                (username, contract))
+            position = models.Position(user, contract)
+            position.reference_price = reference_price
+            self.session.add(pos)
+            return position
+
+    def split_pair(self, pair):
+        """
+        Return the underlying pair of contracts in a cash_pair contract.
+        :param pair: the ticker name of the pair to split
+        :return: a tuple of Contract objects
+        """
+
+        tokens = pair.split("/", 1)
+        if len(tokens) == 1:
+            raise AccountantException("'%s' is not a currency pair." % pair)
+        try:
+            source = self.get_contract(tokens[0])
+            target = self.get_contract(tokens[1])
+        except AccountantError:
+            raise AccountantException("'%s' is not a currency pair." % pair)
+         return source, target  
+
+    def accept_order(self, order):
+        """
+        Accept the order if the user has sufficient margin. Otherwise, delete
+            the order.
+        :param order: Order object we wish to accept
+        :return success: True if there was sufficient margin, otherwise False
+        """
+        logging.info("Trying to accept order %s." % order)
+
+        low_margin, high_margin = margin.get_margin(
+            self.session, order.user, order)
+
+        cash_position = self.get_position(order.username, "BTC")
+
+        logging.info("high_margin = %d, low_margin = %d, cash_position = %d" %
+            (high_margin, low_margin, cash_position.position))
+
+        if high_margin > cash_position.position:
+            # TODO replace deleting rejected orders with marking them as
+            #   rejected, using an enum
+
+            logging.info("Order rejected due to margin.")
+            session.delete(order)
+            session.commit()
+            return False
+        else:
+            logging.info("Order accepted.")
+            order.accepted = True
+            session.merge(order)
+            session.commit()
+            return True
+
+    def process_transaction(self, transaction):
+        """
+        Update the database to reflect that the given trade happened
+        :param trransaction: the transaction object
+        :return: None
+        """
+        logging.info("Processing transaction %s." % transaction)
+
+        username = transaction["username"]
+        ticker = transaction["ticker"]) 
+        price = transaction["price"]
+        signed_quantity = transaction["signed_quantity"]
+        
+        contract = self.get_contract(ticker)
+
+        if contract.contract_type == "futures":
+            logging.debug("This is a futures trade.")
+            cash_position = self.get_position(username, "BTC")
+            future_position = self.get_position(username, ticker, price)
+
+            # mark to current price as if everything had been entered at that
+            #   price and profit had been realized
+            cash_position.position +=
+                (price - future_position.reference_price) * \
+                future_position.position
+            future_position.reference_price = price
+
+            # note that even though we're transferring money to the account,
+            #   this money may not be withdrawable because the margin will
+            #   raise depending on the distance of the price to the safe price
+
+            # then change the quantity
+            future_position.position += signed_quantity
+
+            session.merge(cash_position)
+            session.merge(future_position)
+
+        elif contract.contract_type == "prediction":
+            cash_position = self.get_position(username, "BTC")
+            prediction_position = self.get_position(username, ticker)
+
+            cash_position.position -= signed_quantity * price
+            prediction_position.position += signed_quantity
+
+            session.merge(cash_position)
+            session.merge(prediction_position)
+
+        elif contract.contract_type == "cash_pair":
+            from_currency, to_currency = self.split_pair(ticker)
+            from_position = self.get_position(username, from_currency)
+            to_position = self.get_position(username, to_currency)
+            
+            from_delta_float = float(signed_quantity * price) / \
+                (contract.denominator * to_currency.denominator)
+            from_delta_int = int(from_delta_float)
+            if from_delta_float != from_delta_int:
+                logging.error("Position change is not an integer.")
+
+            from_position.position -= from_delta_int
+            to_position.position += signed_quantity
+
+            session.merge(from_position)
+            session.merge(to_position)
+
+        else:
+            logging.error("Unknown contract type '%s'." %
+                contract.contract_type)
+
+     session.commit()
 
 
-def create_or_get_position(username, contract, ref_price):
-    """
-    returns the position in the database for a contract or creates it should it not exist
-    :param user: the user
-    :param contract: the contract
-    :param ref_price: which price is the position entered at?
-    :return: the position object
-    """
-    try:
-        return session.query(models.Position).filter_by(username=username, contract_id=contract).one()
-    except NoResultFound:
-        user = session.query(models.User).filter_by(username=username).one()
-        contract = session.query(models.Contract).filter_by(id=contract).one()
-        pos = models.Position(user, contract)
-        pos.reference_price = ref_price
-        session.add(pos)
-        return pos
+    def cancel_order(self, id):
+        """
+        Cancel an order by id.
+        :param id: The order id to cancel
+        :return: None
+        """
+        logging.info("Received request to cancel order id %d." % id)
+        
+        try:
+            order = session.query(models.Order).filter_by(id=order_id).one()
+            m_e_order = order.to_matching_engine_order()
+            engine_sockets[order.contract_id].send(json.dumps({"cancel": m_e_order}))
+            return True
+        except NoResultFound:
+            return False
+
+
+    def place_order(order):
+        """
+        Place an order
+        :param order: dictionary representing the order to be placed
+        :return: id of the order placed or -1 if failure
+        """
+        user = self.get_user(order["username"])
+        contact = self.get_contract(order["ticker"])
+
+        if not contract.active:
+            return False
+
+        # do not allow orders for internally used contracts
+        if contract.contract_type == 'cash':
+            return False
+
+        # TODO: check that the price is an integer and within a valid range
+
+        # case of predictions
+        if contract.contract_type == 'prediction':
+            # contract.denominator happens to be the same as the finally payoff
+            if not 0 <= order["price"] <= contract.denominator:
+                return False
+
+        o = models.Order(user, contract, order["quantity"], order["price"], "BUY" if order["side"] == 0 else "SELL")
+
+        session.add(o)
+        session.commit()
+
+        if accept_order_if_possible(user.username, o.id):
+            m_e_order = o.to_matching_engine_order()
+            engine_sockets[o.contract_id].send(json.dumps({"order":m_e_order}))
+        else:
+            logging.info("lol you can't place the order, you don't have enough margin")
+    except Exception as e:
+        session.rollback()
+        raise e
 
 
 def calculate_margin(username, order_id=None):
@@ -139,7 +365,7 @@ def calculate_margin(username, order_id=None):
 
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency, to_currency = get_currencies_in_pair(order.contract.ticker)
+            from_currency, to_currency = self.split_pair(order.contract.ticker)
             if order.side == 'BUY':
                 max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
             if order.side == 'SELL':
@@ -158,186 +384,10 @@ def calculate_margin(username, order_id=None):
     return low_margin, high_margin
 
 
-#todo replace deleting rejected orders with marking them as rejected, using an enum
-def accept_order_if_possible(username, order_id):
-    """
-    Checks the impact of an order on margin, and if said impact is acceptable, mark the order as accepted
-    otherwise delete the order
-    :param username: the username
-    :param order_id: order we're considering accepting
-    :return:
-    """
-
-
-    low_margin, high_margin = calculate_margin(username, order_id)
-    cash_position = session.query(models.Position).filter_by(username=username, contract=btc).one()
-
-    order = session.query(models.Order).get(order_id)
-
-    logging.info(order)
-    logging.info(
-        "high_margin = %d, low_margin = %d, cash_position = %d" % (high_margin, low_margin, cash_position.position))
-
-    if high_margin > cash_position.position:
-        session.delete(order)
-        session.commit()
-        return False
-    else:
-        order.accepted = True
-        session.merge(order)
-        session.commit()
-        return True
-
-        #todo: make actual margin calls here
-
-
-def get_currencies_in_pair(ticker):
-
-
-        """
-            (}
-           /Y\`;,
-           /^\  ;:,
-         """
-        m = re.match(r'([a-z]+)/([a-z]+)', ticker, re.IGNORECASE)
-        from_currency = session.query(models.Contract).filter_by(ticker=m.groups()[0]).one()
-        to_currency = session.query(models.Contract).filter_by(ticker=m.groups()[1]).one()
-        return from_currency, to_currency
 
 
 
-def process_trade(trade):
-     """
-     takes in a trade and updates the database to reflect that the trade happened
-     :param trade: the trade
-     """
-     print trade
-     if trade['contract_type'] == 'futures':
-         cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
-         future_position = create_or_get_position(trade['username'], trade['contract'], trade['price'])
 
-         #mark to current price as if everything had been entered at that price and profit had been realized
-         cash_position.position += (trade['price'] - future_position.reference_price) * future_position.position
-         future_position.reference_price = trade['price']
-
-         #note that even though we're transferring money to the account, this money may not be withdrawable
-         #because the margin will raise depending on the distance of the price to the safe price
-
-         # then change the quantity
-         future_position.position += trade['signed_qty']
-
-         session.merge(future_position)
-         session.merge(cash_position)
-
-     elif trade['contract_type'] == 'prediction':
-        cash_position = session.query(models.Position).filter_by(contract=btc, username=trade['username']).one()
-        prediction_position = create_or_get_position(trade['username'], trade['contract'], 0)
-
-        cash_position.position -= trade['signed_qty'] * trade['price']
-        prediction_position.position += trade['signed_qty']
-
-        session.merge(prediction_position)
-        session.merge(cash_position)
-
-     elif trade['contract_type'] == 'cash_pair':
-        # forgive me lord, for I'm about to sin
-
-        try:
-            from_currency, to_currency = get_currencies_in_pair(trade['ticker'])
-
-            contract = session.query(models.Contract).filter(ticker=trade['ticker']).one()
-            from_position = session.query(models.Position).filter_by(contract=from_currency,
-                                                                     username=trade['username']).one()
-            to_position = session.query(models.Position).filter_by(contract=to_currency,
-                                                                   username=trade['username']).one()
-            from_position.position -= trade['signed_qty'] / contract.lot_size * trade['price']
-            to_position.position += trade['signed_qty']
-
-            session.merge(from_position)
-            session.merge(to_position)
-
-        except:
-            logging.error("trying to trade a cash pair where the ticker has the wrong format")
-
-     else:
-        logging.error("unknown contract type")
-
-     session.commit()
-
-
-def cancel_order(details):
-    """
-    Cancels an order by id
-    :param username:
-    :param order_id:
-    :return:
-    """
-
-    print 'accountant received', details
-    order_id = details['id']
-    username = details['username']
-    try:
-        # sanitize inputs:
-        order_id = int(order_id)
-        # try db query
-        order = session.query(models.Order).filter_by(id=order_id).one()
-        if order.username != username:
-            return False
-
-        m_e_order = order.to_matching_engine_order()
-        engine_sockets[order.contract_id].send(json.dumps({"cancel": m_e_order}))
-        return True
-
-    except NoResultFound:
-        return False
-
-
-def place_order(order):
-    """
-    Places an order
-    :param order: dictionary representing the order to be placed
-    :return: id of the order placed or -1 if failure
-    """
-    try:
-        user = session.query(models.User).get(order['username'])
-        if "contract_id" in order:
-            contract = session.query(models.Contract).filter_by(id=order['contract_id']).first()
-        else:
-            contract = session.query(models.Contract).filter_by(
-                ticker=order["ticker"]).order_by(
-                        models.Contract.id.desc()).first()
-
-        # check that the contract is active
-        if contract == None:
-            return False
-        if not contract.active:
-            return False
-
-        # do not allow orders for internally used contracts
-        if contract.contract_type == 'cash':
-            return False
-
-        # check that the price is an integer and within a valid range
-
-        # case of predictions
-        if contract.contract_type == 'prediction':
-            # contract.denominator happens to be the same as the finally payoff
-            if not 0 <= order["price"] <= contract.denominator:
-                return False
-
-        o = models.Order(user, contract, order["quantity"], order["price"], "BUY" if order["side"] == 0 else "SELL")
-
-        session.add(o)
-        session.commit()
-
-        if accept_order_if_possible(user.username, o.id):
-            m_e_order = o.to_matching_engine_order()
-            engine_sockets[o.contract_id].send(json.dumps({"order":m_e_order}))
-        else:
-            logging.info("lol you can't place the order, you don't have enough margin")
-    except Exception as e:
-        session.rollback()
-        raise e
 
 def deposit_cash(details):
     """
