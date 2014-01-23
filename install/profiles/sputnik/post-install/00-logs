@@ -1,5 +1,5 @@
 #!/bin/sh
 
-mkdir -p $ROOT/logs
-chgrp sputnik $ROOT/logs
+mkdir -p $PROFILE_logs
+chgrp sputnik $PROFILE_logs
 
