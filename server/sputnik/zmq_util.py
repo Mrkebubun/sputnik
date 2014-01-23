@@ -7,122 +7,211 @@ from txzmq import ZmqPullConnection, ZmqPushConnection
 from twisted.internet.defer import Deferred, maybeDeferred
 from functools import partial
 
+
+logging.getLogger().setLevel(logging.DEBUG)
+
+
 def export(obj):
     obj._exported = True
     return obj
 
-class _Exported:
-    def __init__(self, wrapped, receiver):
+
+class Export:
+    def __init__(self, wrapped):
         self.wrapped = wrapped
-        self.receiver = receiver
         self.mapper = {}
         for k in inspect.getmembers(wrapped.__class__, inspect.ismethod):
             if hasattr(k[1], "_exported"):
                 self.mapper[k[0]] = k[1]
 
- 
-    def dispatch(self, message_id, rpc_call):
-        def rpc_error(message):
-            logging.warn("RPC Error: %s" % message)
-            if message_id == None:
-                return
-            response = {"success":False, "result":message}
-            self.receiver.reply(message_id, json.dumps(response))
+    def decode(self, message):
+        logging.debug("Decoding message...")
 
-        # parse the JSON
+        # deserialize
         try:
-            request = json.loads(rpc_call)
-        except ValueError:
-            return self.rpc_error("Invalid JSON received.")
+            request = json.loads(message)
+        except:
+            raise Exception("Invalid JSON received.")
 
         # extract method name and arguments
         method_name = request.get("method", None)
-        args = request.get("arg", [])
+        args = request.get("args", [])
         kwargs = request.get("kwargs", {})
+
+        # look up method
+        method = self.mapper.get(method_name, None)
+        if method_name is None:
+            raise Exception("Method not found: %s" % method_name)
 
         # sanitize input
         if method_name == None:
-            return rpc_error("Missing method name.")
+            raise Exception("Missing method name.")
         if not isinstance(args, list):
-            return rpc_error("Arguments are not a list.")
+            raise Exception("Arguments are not a list.")
         if not isinstance(kwargs, dict):
-            return rpc_error("Keyword arguments are not a dict.")
-        if method_name not in self.mapper:
-            return rpc_error("Method not found: %s" % method_name)
+            raise Exception("Keyword arguments are not a dict.")
+        
+        return method_name, args, kwargs
+
+    def encode(self, success, value):
+        logging.debug("Encoding message...")
+
+        # test to see if result serializes
+        try:
+            json.dumps(value)
+        except:
+            logging.warn("Message cannot be serialized. Converting to string.")
+            value = str(value)
+        
+        if success:
+            return json.dumps({"success":success, "result":value})
+        return json.dumps({"success":success, "exception":value})
+
+    def dispatch(self, method_name, args, kwargs):
+        logging.info("Dispatching %s..." % method_name)
+        logging.debug("method_name=%s, args=%s, kwars=%s" %
+            (method_name, str(args), str(kwargs)))
+        method = self.mapper[method_name]
+        return maybeDeferred(method, self.wrapped, *args, **kwargs)
+
+ 
+class PullExport(Export):
+    def __init__(self, wrapped, connection):
+        Export.__init__(self, wrapped)
+        self.connection = connection
+        self.connection.onPull = self.onPull
+
+    def onPull(self, message):
+        try:
+            # take the first part of the multipart message
+            method_name, args, kwargs = self.decode(message[0])
+        except Exception, e:
+            return logging.warn("RPC Error: %s" % str(e))
 
         def result(value):
             logging.info("Got result for method %s." % method_name)
-            if message_id == None:
-                return
-            # test to see if the result will serialize
-            try:
-                json.dumps(value)
-            except:
-                value = str(value)
-            response = {"success":True, "result":value}
-            self.receiver.reply(message_id, json.dumps(response))
 
         def exception(failure):
-            logging.warn("Caught exception into dispatched method.")
+            logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
-            if message_id == None:
-                return
-            response = {"success":False, "result":str(failure.value)}
-            self.receiver.reply(message_id, json.dumps(response))
+        
+        d = self.dispatch(method_name, args, kwargs)
+        d.addCallbacks(result, exception)
+    
 
-        logging.info("Dispatching %s..." % method_name)
-        method = self.mapper[method_name]
-        d = maybeDeferred(method, self.wrapped, *args, **kwargs)
+class RouterExport(Export):
+    def __init__(self, wrapped, connection):
+        Export.__init__(self, wrapped)
+        self.connection = connection
+        self.connection.gotMessage = self.gotMessage
+
+    def gotMessage(self, message_id, message):
+        try:
+            method_name, args, kwargs = self.decode(message)
+        except Exception, e:
+            logging.warn("RPC Error: %s" % message)
+            return self.connection.reply(message_id, self.encode(False, str(e)))
+
+        def result(value):
+            logging.info("Got result for method %s." % method_name)
+            self.connection.reply(message_id, self.encode(True, value))
+
+        def exception(failure):
+            logging.warn("Caught exception in method %s." % method_name)
+            logging.warn(failure)
+            self.connection.reply(message_id,
+                self.encode(False, str(failure.value)))
+
+        d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
 
+ 
 def share(obj, address=None, mode="router"):
     if mode == "router":
-        receiver = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+        socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+        RouterExport(obj, socket)
     elif mode == "pull":
-        receiver = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+        socket = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+        PullExport(obj, socket)
     else:
         raise Exception("Mode not recognized.")
-    exported = _Exported(obj, receiver)
-    receiver.gotMessage = exported.dispatch
-    receiver.onPull = lambda x: partial(exported.dispatch, None)(x[0])
+
 
 class RemoteException(Exception):
     pass
 
+
 class Proxy:
-    def __init__(self, connection, address, mode):
+    def __init__(self, connection):
         self._connection = connection
-        self._address = address
-        self.mode = mode
+
+    def decode(self, message):
+        logging.debug("Decoding message...")
+
+        # deserialize
+        try:
+            response = json.loads(message)
+        except:
+            raise Exception("Invalid JSON received.")
+
+        # extract success and result
+        success = response.get("success", None)
+        if success == None:
+            raise Exception("Missing success status.")
+        
+        if success:
+            return success, response.get("result", None)
+        return success, response.get("exception", None)
+
+    def encode(self, method_name, args, kwargs):
+        logging.debug("Encoding message...")
+
+        return json.dumps({"method":method_name, "args":args, "kwargs":kwargs})
 
     def __getattr__(self, key):
         if key.startswith("__") and key.endswith("__"):
             raise AttributeError
+
         def remote_method(*args, **kwargs):
-            message = {"method":key, "args":args, "kwargs":kwargs}
-            if self.mode == "push":
-                return self._connection.push(json.dumps(message))
-            d = self._connection.sendMsg(json.dumps(message))
+            message = self.encode(key, args, kwargs)
+            d = self.send(message)
+
             def strip_multipart(message):
                 return message[0]
+
             def parse_result(message):
-                message = json.loads(message)
-                if message["success"] == True:
-                    return message["result"]
-                else:
-                    raise RemoteException(message["result"])
-            d.addCallback(strip_multipart)
-            d.addCallback(parse_result)
+                success, result = self.decode(message)
+                if success:
+                    return result
+                raise RemoteException(result)
+            
+            if d:
+                d.addCallback(strip_multipart)
+                d.addCallback(parse_result)
+
             return d
+
         return remote_method
+
+
+class DealerProxy(Proxy):
+    def send(self, message):
+        return self._connection.sendMsg(message)
+
+ 
+class PushProxy(Proxy):
+    def send(self, message):
+        return self._connection.push(message) 
+
 
 def proxy(address, mode="dealer"):
     if mode == "dealer":
-        sender = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+        socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+        return DealerProxy(socket)
     elif mode == "push":
-        sender = ZmqPushConnection(ZmqFactory(),
+        socket = ZmqPushConnection(ZmqFactory(),
             ZmqEndpoint("connect", address))
+        return PushProxy(socket)
     else:
         raise Exception("Mode not recognized.")
-    return Proxy(sender, address, mode)
 
