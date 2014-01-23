@@ -30,6 +30,31 @@ class _Exported:
             logging.exception(e)
 
     def process(self, message_id, message):
+        response = {"success":True, "result":None}
+        
+        def reply(value):
+            try:
+                json.dumps(value)
+            except:
+                value = str(value)
+            response["result"] = value
+            self.receiver.reply(message_id, json.dumps(response))
+
+        def rpc_error(message):
+            response["success"] = False
+            response["result"] = message
+            self.receiver.reply(message_id, json.dumps(response))
+
+        def error(failure):
+            value = failure.value
+            try:
+                json.dumps(value)
+            except:
+                value = str(failure.value)
+            response["success"] = False
+            response["result"] = value
+            self.receiver.reply(message_id, json.dumps(response))
+
         try:
             request = json.loads(message)
             method = request.get("method", None)
@@ -37,24 +62,26 @@ class _Exported:
             kwargs = request.get("kwargs", {})
             if method == None:
                 logging.warn("Missing method name.")
-                return
+                return rpc_error("Missing method name.")
             if not isinstance(args, list):
                 logging.warn("Arguments are not a list.")
-                return
+                return rpc_error("Arguments are not a list.")
             if not isinstance(kwargs, dict):
                 logging.warn("Keyword arguments are not a dict.")
-                return
+                return rpc_error("Keyword arguments are not a dict.")
             d = self.dispatch(method, *args, **kwargs)
-            def reply(value):
-                self.receiver.reply(message_id, json.dumps(value))
-            d.addCallback(reply)
+            d.addCallbacks(reply, error)
         except ValueError:
             logging.warn("Invalid JSON received.")
+            return rpc_error("Invalid JSON received.")
 
 def share(obj, address=None):
     receiver = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     exported = _Exported(obj, receiver)
     receiver.gotMessage = exported.process
+
+class RemoteException(Exception):
+    pass
 
 class Proxy:
     def __init__(self, connection, address):
@@ -69,7 +96,14 @@ class Proxy:
             d = self._connection.sendMsg(json.dumps(message))
             def strip_multipart(message):
                 return message[0]
+            def parse_result(message):
+                message = json.loads(message)
+                if message["success"] == True:
+                    return message["result"]
+                else:
+                    raise RemoteException(message["result"])
             d.addCallback(strip_multipart)
+            d.addCallback(parse_result)
             return d
         return remote_method
 
