@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mkdir -p $profile_keys $profile_logs $profile_run
+
