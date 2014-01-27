@@ -17,7 +17,6 @@ __file__ = os.path.abspath(__file__)
 
 class Installer:
     def __init__(self, profile=None):
-        profile = profile or os.environ.get("PROFILE")
         if profile == None:
             raise Exception("No profile specified.")
 
@@ -289,9 +288,9 @@ def main():
     opts.add_option("-p", "--profile", dest="profile", help="Profile directory")
     (options, args) = opts.parse_args()
 
-    profile = None
-    if options.profile:
-        profile = os.path.abspath(options.profile)
+    profile = options.profile or os.environ.get("PROFILE")
+    if profile:
+        profile = os.path.abspath(profile)
 
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
