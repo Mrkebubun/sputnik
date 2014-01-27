@@ -6,4 +6,5 @@ postgresql
 python-dev
 python-pip
 python-psycopg2
+sudo
 supervisor
