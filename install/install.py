@@ -2,12 +2,15 @@
 
 import sys
 import os
+import shutil
+import fnmatch
 import string
 import copy
 import subprocess
 import optparse
 import ConfigParser
 import getpass
+import compileall
 
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
@@ -195,6 +198,25 @@ class Installer:
                         self.log("%s installed.\n" % package)
         except IOError:
             self.log("No python dependencies found.\n")
+
+    def make_build(self):
+        # make build directory
+        build_root = os.path.join(self.git_root, "dist", "build")
+        build_server = os.path.join(build_root, "server", "sputnik")
+        shutil.rmtree(build_server, True)
+
+        # byte-compile compile
+        server_source = os.path.join(self.git_root, "server", "sputnik")
+        compileall.compile_dir(server_source)
+        
+        # copy files
+        def ignore(path, names):
+            ignored = []
+            for name in names:
+                if not fnmatch.fnmatch(name, "*.pyc"):
+                    ignored.append(name)
+            return ignored
+        shutil.copytree(server_source, build_server, ignore=ignore)
 
     def make_install(self):
         # do pre-install
