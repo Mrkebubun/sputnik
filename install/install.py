@@ -112,6 +112,7 @@ class Installer:
 
         # import pip _now_ since it may not exist at script launch
         import pip
+        import pip.req
         import pkg_resources
 
         # if we installed a package, this is out of date
