@@ -38,7 +38,7 @@ class Installer:
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
         for key, value in self.config.iteritems():
-            self.env["PROFILE_%s" % key] = value
+            self.env["profile_%s" % key] = value
 
     def log(self, line):
         self.logfile.write(line)

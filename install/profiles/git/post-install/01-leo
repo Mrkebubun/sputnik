@@ -1,7 +1,7 @@
 #!/bin/bash
 
-cd $PROFILE_conf
-cat << EOF | $PROFILE_root/tools/leo 
+cd $profile_conf
+cat << EOF | $profile_root/tools/leo 
 database init
 contracts add BTC
 contracts add MXN
