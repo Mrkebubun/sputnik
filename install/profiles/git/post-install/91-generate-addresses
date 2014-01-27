@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # since bitcoind is not running, add some fake addresses
-cd $PROFILE_conf
-cat << EOF | $PROFILE_root/tools/leo
+cd $profile_conf
+cat << EOF | $profile_root/tools/leo
 addresses add 1KhjHHvmAUPG9gebE2abW3KepCh5AoMuBX
 addresses add 186PJiTguUCFAA6AAnMRwoXTCQA9hNqtqi
 addresses add 1PQohL2x2NnHazqRFw7LRYy2hSumkUsucc
