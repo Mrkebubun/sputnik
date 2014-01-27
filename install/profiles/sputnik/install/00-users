@@ -15,7 +15,7 @@ check_user()
             exit 1
         fi
     else
-        if /usr/sbin/adduser --quiet --system --group --home=$2 $1 >> $LOGFILE 2>&1
+        if /usr/sbin/adduser --quiet --system --group --home=$2 $1
         then
             echo "ok."
         else
