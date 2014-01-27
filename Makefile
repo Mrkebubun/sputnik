@@ -2,23 +2,20 @@ ifndef PROFILE
 export PROFILE=$(realpath install/profiles/git)
 endif
 
-.PHONY: dist config deps build install upgrade
+.PHONY: config deps build install upgrade
 
 all: config build
 
 clean:
 	rm -r dist
 
-dist:
-	mkdir -p dist
-
-config: dist
+config:
 	install/install.py config
 
-deps: dist
+deps:
 	install/install.py deps
 
-build: dist
+build:
 	install/install.py build
 
 upgrade: install

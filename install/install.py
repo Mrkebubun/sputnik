@@ -309,6 +309,10 @@ def main():
     try: 
         # change to work directory
         here = os.path.dirname(os.path.abspath(__file__))
+        dist = os.path.join(here, "..", "dist")      
+ 
+        if not os.path.isdir(dist):
+            os.mkdir(dist)
         os.chdir(os.path.join(here, "..", "dist"))
 
         installer = Installer(profile)    
