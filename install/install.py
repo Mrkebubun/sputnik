@@ -321,6 +321,9 @@ def main():
         elif mode == "vars":
             for key, value in installer.config.iteritems():
                 print "%s%s" % ((key + ":").ljust(20), value)
+        elif mode == "env":
+            for key, value in installer.config.iteritems():
+                print "export profile_%s=\"%s\"" % (key, value)
         else:
             sys.stderr.write("Install mode not recognized.\n")
             sys.stderr.flush()

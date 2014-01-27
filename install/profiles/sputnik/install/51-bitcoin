@@ -7,7 +7,7 @@ chmod 440 $profile_conf/bitcoin.conf
 mkdir -p /data/bitcoind
 chown $profile_bitcoin_user:$profile_bitcoin_user /data/bitcoind
 chmod 700 /data/bitcoind ~$profile_bitcoin_user
-ln -sf $profile_conf/bitcoin.conf ~$profile_bitcoin_user
+ln -sf $profile_conf/bitcoin.conf ~$profile_bitcoin_user/bitcoin.conf
 
 # make .bitcoin dir for sputnik
 mkdir -p ~$profile_user/.bitcoin
