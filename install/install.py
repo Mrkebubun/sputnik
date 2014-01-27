@@ -59,7 +59,8 @@ class Installer:
 
     def make_config(self):
         self.log("Creating config files.\n")
-
+        
+        shutil.rmtree("config", True)
         os.mkdir("config")
 
         # make supervisor.conf

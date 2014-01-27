@@ -4,7 +4,7 @@ endif
 
 .PHONY: dist config deps build install upgrade
 
-all: config deps build
+all: config build
 
 clean:
 	rm -r dist
@@ -23,6 +23,6 @@ build: dist
 
 upgrade: install
 
-install: config build
+install: deps
 	install/install.py install
 
