@@ -203,6 +203,9 @@ class Installer:
             self.log("No python dependencies found.\n")
 
     def make_build(self):
+        if not self.config.get("pycompiled"):
+            return
+
         # make build directory
         build_root = os.path.join(self.git_root, "dist", "build")
         build_server = os.path.join(build_root, "server", "sputnik")
