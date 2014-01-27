@@ -60,8 +60,10 @@ class Installer:
     def make_config(self):
         self.log("Creating config files.\n")
 
+        os.mkdir("config")
+
         # make supervisor.conf
-        out = open("supervisor.conf", "w")
+        out = open("config/supervisor.conf", "w")
         with open(self.get_template("supervisor.conf")) as template_file:
             template = string.Template(template_file.read())
             out.write(template.substitute(self.config))
@@ -73,7 +75,7 @@ class Installer:
         out.close()
         
         # make sputnik.ini
-        out = open("sputnik.ini", "w")
+        out = open("config/sputnik.ini", "w")
         with open(self.get_template("sputnik.ini")) as template_file:
             template = string.Template(template_file.read())
             out.write(template.substitute(self.config))
@@ -90,7 +92,7 @@ class Installer:
 
         # make bitcoin.conf
         if not self.parser.getboolean("profile", "disable_bitcoin"):
-            out = open("bitcoin.conf", "w")
+            out = open("config/bitcoin.conf", "w")
             with open(self.get_template("bitcoin.conf")) as template_file:
                 template = string.Template(template_file.read())
                 out.write(template.substitute(self.config))
