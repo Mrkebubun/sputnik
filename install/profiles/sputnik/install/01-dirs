@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# create the sputnik root directory
+mkdir -p $profile_root
+

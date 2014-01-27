@@ -1,0 +1,20 @@
+#!/bin/bash
+
+chown $profile_user:$profile_bitcoin_user $profile_conf/bitcoin.conf
+chmod 440 $profile_conf/bitcoin.conf
+
+# set bitcoin home and data dir permissions
+mkdir -p /data/bitcoind
+chown $profile_bitcoin_user:$profile_bitcoin_user /data/bitcoind
+chmod 700 /data/bitcoind ~$profile_bitcoin_user
+ln -s $profile_conf/bitcoin.conf ~$profile_bitcoin_user
+
+# make .bitcoin dir for sputnik
+mkdir -p ~$profile_user/.bitcoin
+chown $profile_user:$profile_user ~$profile_user/.bitcoin
+chmod 700 ~$profile_user/.bitcoin
+ln -s $profile_conf/bitcoin.conf ~$profile_user/.bitcoin
+
+# link supervisor config file
+ln -s $profile_conf/bitcoind.conf /etc/supervisor/conf.d
+

@@ -2,7 +2,7 @@
 
 sudo -u postgres psql <<EOF
 create database sputnik;
-create user sputnik;
-grant all privileges on database sputnik to sputnik;
+create user $profile_user;
+grant all privileges on database sputnik to $profile_user;
 EOF
 

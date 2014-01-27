@@ -1,7 +1,6 @@
 #!/bin/bash
 
-cd $PROFILE_root
-cat << EOF | sudo -u sputnik $PROFILE_root/tools/leo
+cat << EOF | sudo -u sputnik $profile_root/tools/leo
 database init
 contracts add BTC
 contracts add MXN
