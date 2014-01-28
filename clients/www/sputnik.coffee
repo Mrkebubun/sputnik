@@ -146,7 +146,7 @@ class Sputnik extends events.EventEmitter
     onOrder = () =>
     onSafePrice = () =>
 
-sputnik = new Sputnik "ws://sputnikmkt.com:8000"
+sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
 
 sputnik.on "ready", ->
