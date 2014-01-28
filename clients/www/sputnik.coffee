@@ -87,12 +87,12 @@ class Sputnik extends events.EventEmitter
     subscribe: (topic, callback) =>
         if not @session?
             return @wtf "Not connected."
-        @session.subscribe "#{@uri}/feeds/#{topic}", callback
-    
+        @session.subscribe "#{@uri}/user/#{topic}", (topic, event) -> callback event
+
     unsubscribe: (topic) =>
         if not @session?
             return @wtf "Not connected."
-        @session.unsubscribe "#{@uri}/feeds/#{topic}"
+        @session.unsubscribe "#{@uri}/user/#{topic}"
 
     # logging
     log: (obj) -> console.log obj
