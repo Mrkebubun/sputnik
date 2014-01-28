@@ -140,6 +140,7 @@ class Sputnik extends EventEmitter
 
     # RPC wrapper
     call: (method, params...) =>
+        @log "calling #{method} with #{params}"
         if not @session?
             return @wtf "Not connected."
         d = ab.Deferred()

@@ -318,7 +318,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     @exportRpc("get_cookie")
     @limit
     def get_cookie(self):
-        return self.cookie
+        return [True, self.cookie]
 
     @exportRpc("logout")
     @limit
