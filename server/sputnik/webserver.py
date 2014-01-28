@@ -516,9 +516,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     @exportRpc("get_profile")
     @limit
     def get_profile(self):
-        return {'nickname': self.user.nickname,
+        return [True, {'nickname': self.user.nickname,
                 'email': self.user.email
-        }
+        }]
 
     @exportRpc("change_profile")
     @limit

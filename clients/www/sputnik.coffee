@@ -56,6 +56,13 @@ class Sputnik extends EventEmitter
             @authenticate(registerLogin.value, registerPassword.value)
 
     getProfile: () =>
+      if not @session?
+        return @wtf "Not connected"
+
+      @call("get_profile").then \
+        (profile) =>
+            @emit "profile", profile.nickname, profile.email
+
     changeProfile: (password, email, nickname) =>
 
     failed_login: (error) =>
@@ -88,7 +95,7 @@ class Sputnik extends EventEmitter
       @logged_in = true;
 
       @getCookie()
-
+      @getProfile()
       @getSafePrices()
       @getOpenOrders()
       @getPositions()
@@ -253,7 +260,12 @@ sputnik.on "chat", ([user, message]) ->
 
 sputnik.on "loggedIn", (user_id) ->
   console.log "userid: " + user_id
-  $('#loggedInAs').html = "<P>Logged In As: " + user_id + "</P>"
+  $('#loggedInAs').text("Logged in as " + user_id)
+
+sputnik.on "profile", (nickname, email) ->
+  console.log "profile: " + nickname + " " + email
+  $('#nickname').text(nickname)
+  $('#email').text(email)
 
 sputnik.on "error", (error) ->
     # There was an RPC error. It is probably best to reconnect.
