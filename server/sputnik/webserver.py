@@ -6,9 +6,7 @@ facilitating all communications between the client, the database and the matchin
 """
 
 from optparse import OptionParser
-
 import config
-
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -46,8 +44,6 @@ from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 
 zf = ZmqFactory()
 
-#import database as db
-#import models
 # noinspection PyUnresolvedReferences
 if config.get("database", "uri").startswith("postgres"):
     import txpostgres as adbapi
@@ -56,26 +52,9 @@ else:
     import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
-dbpool = adbapi.ConnectionPool(config.get("database", "uri"))
-
-
-class PublicInterface:
-    def __init__(self, protocol):
-        self.protocol = protocol
-
-    @exportRpc
-    def list_markets(self):
-        return map(lambda x: x.dump(), self.protocol.factory.markets)
-
-    @exportRpc
-    def get_order_book(self):
-        pass
-
-
-class PrivateInterface:
-    def __init__(self, protocol):
-        self.protocol = protocol
-
+dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+                               user=config.get("database", "username"),
+                               database=config.get("database", "dbname"))
 
 MAX_TICKER_LENGTH = 100
 RATE_LIMIT = 0.5
@@ -449,14 +428,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         def _withdraw(txn, currency):
             logging.info('entering withdraw')
-            currency_id = txn.execute("SELECT id FROM contracts where ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[0][0]
+            currency_id = \
+                txn.execute("SELECT id FROM contracts WHERE ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[
+                    0][0]
 
-            txn.execute("INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
+            txn.execute(
+                "INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
                 {'username': self.username,
                  'address': withdraw_address,
                  'amount': amount,
                  'currency_id': currency_id,
                  'entered': datetime.datetime.utcnow()})
+
         dbpool.runInteraction(_withdraw, currency)
 
     @exportRpc("get_positions")
@@ -536,50 +519,37 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("make_account")
     @limit
-    def make_account(self, name, password, salt, email):
+    def make_account(self, username, password, salt, email):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, username of the user
         :param password: hash of the password
         :param email: email address for the user
-
         """
-
         # sanitize
-        validate(name, {"type": "string"})
+        validate(username, {"type": "string"})
         validate(password, {"type": "string"})
         validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
 
-        try:
-            existing = self.session.query(models.User).filter_by(
-                username=name).first()
-            if existing is not None:
-                raise Exception('duplicate')
+        def _make(tx, params):
+            existing = tx.execute("SELECT id FROM users WHERE username=%s", (params['username'], ))
+            if existing:
+                return [0, (0, "account already exists")]
+            tx.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
+                       (params['username'], params['password'] + ':' + params['salt'], params['email']))
 
-            user = models.User(name, salt + ":" + password, email)
-            self.session.add(user)
+            for contract in tx.execute("SELECT id FROM contracts WHERE contract_type='cash'"):
+                tx.execute("INSERT INTO positions (username, contract_id) VALUES (%s, %s)", (params['username'], contract[0]))
 
-            # Set all cash contracts positions to zero
-            cash_contracts = self.session.query(models.Contract).filter_by(contract_type='cash').all()
-            for contract in cash_contracts:
-                cash_pos = models.Position(user, contract)
-                cash_pos.reference_price = 0
-                self.session.add(cash_pos)
+            new_address = tx.execute("SELECT id FROM addresses WHERE active=FALSE AND username IS NULL LIMIT 1")
+            if not new_address:
+                logging.error("Couldn't create user, out of addresses")
+                raise Exception("Out of new addresses!")
+            tx.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s", (params['username'], new_address[0][0]))
+            return [1, params['username']]
 
-            new_address = self.session.query(models.Addresses).filter_by(
-                active=False, user=None).first()
-            new_address.active = True
-            new_address.user = user
-            self.session.merge(new_address)
-
-            self.session.commit()
-            return True
-
-        except Exception as e:
-            print e
-            self.session.rollback()
-            return False
+        dbpool.runInteraction(_make, {'username': username, 'password': password, 'salt': salt, 'email': email})
 
 
     @exportRpc("list_markets")
@@ -589,7 +559,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Lists markets available for trading
         :return: a list of markets...
         """
-
         result = {}
         for c in self.session.query(models.Contract).filter_by(active=True):
             # .filter(models.Contract.contract_type != 'cash'):  let's include cash contracts
