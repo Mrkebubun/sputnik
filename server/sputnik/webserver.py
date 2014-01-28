@@ -16,6 +16,7 @@ parser.add_option("-c", "--config", dest="filename",
 (options, args) = parser.parse_args()
 
 if options.filename:
+    # noinspection PyUnresolvedReferences
     config.reconfigure(options.filename)
 
 import cgi
@@ -47,11 +48,14 @@ zf = ZmqFactory()
 
 #import database as db
 #import models
+# noinspection PyUnresolvedReferences
 if config.get("database", "uri").startswith("postgres"):
     import txpostgres as adbapi
 else:
+    # noinspection PyPep8Naming
     import twisted.enterprise.adbapi as adbapi
 
+# noinspection PyUnresolvedReferences
 dbpool = adbapi.ConnectionPool(config.get("database", "uri"))
 
 
@@ -74,6 +78,7 @@ class PrivateInterface:
 
 
 MAX_TICKER_LENGTH = 100
+RATE_LIMIT = 0.5
 
 
 def limit(func):
@@ -110,8 +115,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # rate limit counter
         self.count = 0
         self.username = None
-
-    RATE_LIMIT = 0.5
+        # noinspection PyPep8Naming
+        self.clientAuthTimeout = 0
+        # noinspection PyPep8Naming
+        self.clientAuthAllowAnonymous = True
+        self.troll_throttle = 0
 
     def connectionMade(self):
         """
@@ -160,28 +168,33 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
 
         # override global client auth options
+        if (self.clientAuthTimeout, self.clientAuthAllowAnonymous) != (0, True):
+            logging.warning("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
+                            "is useless, __init__ took care of it")
+
+        # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
+        # noinspection PyPep8Naming
         self.clientAuthAllowAnonymous = True
 
         # call base class method
         WampCraServerProtocol.onSessionOpen(self)
 
-
-    def getAuthPermissions(self, authKey, authExtra):
+    def getAuthPermissions(self, auth_key, auth_extra):
         """
         Gets the permission for a login... for now it's very basic
-        :param authKey: pretty much the login
-        :param authExtra: extra information, like a HMAC
+        :param auth_key: pretty much the login
+        :param auth_extra: extra information, like a HMAC
         :return: the permissions associated with that user
         """
         print 'getAuthPermissions'
 
-        if authKey in self.factory.cookies:
-            username = self.factory.cookies[authKey]
+        if auth_key in self.factory.cookies:
+            username = self.factory.cookies[auth_key]
         else:
-            username = authKey
+            username = auth_key
 
-        def permission_callback(result):
+        def _cb(result):
             if result:
                 salt, password_hash = result[0][0].password.split(":")
                 authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
@@ -211,22 +224,22 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                              'sub': True}], 'rpc': []},
                     'authextra': authextra}
 
-        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1", (username,)). \
-            addCallback(permission_callback)
+        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
+                               (username,)).addCallback(_cb)
 
-    def getAuthSecret(self, authKey):
+    def getAuthSecret(self, auth_key):
         """
-        :param authKey: the login
+        :param auth_key: the login
         :return: the auth secret for the given auth key or None when the auth key
         does not exist
         """
         # check for a saved session
-        if authKey in self.factory.cookies:
+        if auth_key in self.factory.cookies:
             return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1000})
 
         def auth_secret_callback(result):
             if not result:
-                raise Exception("No such user: %s" % authKey)
+                raise Exception("No such user: %s" % auth_key)
 
             salt, secret = result[0][0].password.split(":")
             totp = result[0][1]
@@ -263,16 +276,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return ":0xFA1CDA7A:"
 
         return dbpool.runQuery(
-            "SELECT password, totp FROM users WHERE username=%s LIMIT 1", (authKey,)
+            "SELECT password, totp FROM users WHERE username=%s LIMIT 1", (auth_key,)
         ).addCallback(auth_secret_callback).addErrback(auth_secret_errback)
 
     # noinspection PyMethodOverriding
-    def onAuthenticated(self, authKey, perms):
+    def onAuthenticated(self, auth_key, perms):
         """
         fired when authentication succeeds, registers user for RPC, save user object in session
-        :param authKey: login
+        :param auth_key: login
         :rtype : object
-        :param perms: a dictionary describing the permissions associated with this user... from getAuthPermissions
+        :param perms: a dictionary describing the permissions associated with this user...          from getAuthPermissions
         """
 
         self.troll_throttle = time.time()
@@ -287,19 +300,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # sets the user in the session...
         # search for a saved session
-        username = self.factory.cookies.get(authKey)
+        username = self.factory.cookies.get(auth_key)
         if not username:
-            logging.info("Normal user login for: %s" % authKey)
-            self.username = authKey
+            logging.info("Normal user login for: %s" % auth_key)
+            self.username = auth_key
             uid = str(uuid.uuid4())
-            self.factory.cookies[uid] = authKey
+            self.factory.cookies[uid] = auth_key
             self.cookie = uid
         else:
             logging.info("Cookie login for: %s" % username)
             self.username = username
 
         # moved from onSessionOpen
-        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
+        # should the registration of these wait till after onAuth?  And should they only be
+        # for the specific user?
         #  Pretty sure yes.
         self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
@@ -308,7 +322,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri="wss://sputnikmkt.com:8000/user/")
-
 
     @exportRpc("get_cookie")
     @limit
@@ -330,7 +343,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         raise NotImplementedError()
 
-
     @exportRpc("disable_two_factor")
     @limit
     def disable_two_factor(self, confirmation):
@@ -344,11 +356,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
-        :param secret: secret to store
         :param confirmation: trial run of secret
         """
         raise NotImplementedError()
-
 
     @exportRpc("get_trade_history")
     @limit
@@ -372,7 +382,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
         #todo implement time_span checks
-        return dbpool.runQuery("SELECT trade.timestamp, trade.price, trade.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s" % (ticker,))
+        return dbpool.runQuery(
+            "SELECT trade.timestamp, trade.price, trade.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s" % (
+                ticker,))
 
     @exportRpc("get_new_address")
     @limit
@@ -381,16 +393,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
+
         def _get_new_address(txn, username):
-            res = txn.query("SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
+            res = txn.query(
+                "SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
             if not res:
                 logging.error("Out of addresses!")
                 raise Exception("Out of addresses")
 
-            id, address = res[0][0], res[0][1]
+            a_id, a_address = res[0][0], res[0][1]
             txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
-            txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s", (username, id))
-            return address
+            txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
+                        (username, a_id))
+            return a_address
 
         return dbpool.runInteraction(_get_new_address, self.username)
 
@@ -401,46 +416,48 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         RPC call to obtain the current address associated with a particular user
         :return: said current address
         """
+
         def _cb(result):
             if not result:
-                logging.warning("we did not manage to get the current address associated with a user, something's wrong")
+                logging.warning(
+                    "we did not manage to get the current address associated with a user,"
+                    " something's wrong")
                 return ""
             else:
                 return result[0][0]
-        return dbpool.runQuery("SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(
-            _cb)
+
+        return dbpool.runQuery(
+            "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
 
     @exportRpc("withdraw")
     @limit
-    def withdraw(self, currency, address, amount):
+    def withdraw(self, currency, withdraw_address, amount):
         """
         Makes a note in the database that a withdrawal needs to be processed
         :param currency: the currency to process the withdrawal in
-        :param address: the address to which the withdrawn money is to be sent
+        :param withdraw_address: the address to which the withdrawn money is to be sent
         :param amount: the amount of money to withdraw
         :return: true or false, depending on success
         """
         validate(currency, {"type": "string"})
-        validate(address, {"type": "string"})
+        validate(withdraw_address, {"type": "string"})
         validate(amount, {"type": "number"})
         amount = int(amount)
 
         if amount <= 0:
             return False
 
-        try:
+        def _withdraw(txn, currency):
             logging.info('entering withdraw')
-            currency = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-            print currency
-            cancellation = models.Withdrawal(self.user, currency, address, amount)
-            print cancellation
-            self.session.add(cancellation)
-            self.session.commit()
-            return True
-        except Exception as e:
-            self.session.rollback()
-            return False
+            currency_id = txn.execute("SELECT id FROM contracts where ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[0][0]
 
+            txn.execute("INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
+                {'username': self.username,
+                 'address': withdraw_address,
+                 'amount': amount,
+                 'currency_id': currency_id,
+                 'entered': datetime.datetime.utcnow()})
+        dbpool.runInteraction(_withdraw, currency)
 
     @exportRpc("get_positions")
     @limit
@@ -449,6 +466,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Returns the user's positions
         :return: a dictionary representing the user's positions in various tickers
         """
+
         def _cb(result):
             return {x[0]: {"ticker": x[1],
                            "position": x[2],
@@ -456,7 +474,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                            "denominator": x[4],
                            "contract_type": x[5],
                            "inverse_quotes": x[6]}
-                for x in result}
+                    for x in result}
 
         return dbpool.runQuery(
             "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, positions.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
@@ -678,7 +696,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
         order['username'] = self.user.username
 
-        self.accountant.push(json.dumps({'place_order': order}))
+        self.factory.accountant.push(json.dumps({'place_order': order}))
         self.count += 1
         print 'place_order', self.count
 
@@ -704,19 +722,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order_id = int(order_id)
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-        self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
+        self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
         self.count += 1
         print 'cancel_order', self.count
 
 
     @exportSub("chat")
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
+    def subscribe(self, topic_uri_prefix, topic_uri_suffix):
         """
         Custom topic subscription handler
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, in this case always "chat"
+        :param topic_uri_prefix: prefix of the URI
+        :param topic_uri_suffix:suffix part, in this case always "chat"
         """
-        logging.info("client wants to subscribe to %s%s" % (topicUriPrefix, topicUriSuffix))
+        logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if self.user:
             logging.info("he's logged in as %s so we'll let him" % self.user.username)
             return True
@@ -725,15 +743,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return False
 
     @exportPub("chat")
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
+    def publish(self, topic_uri_prefix, topic_uri_suffix, event):
         """
         Custom topic publication handler
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix: suffix part, in this case always "general"
+        :param topic_uri_prefix: prefix of the URI
+        :param topic_uri_suffix: suffix part, in this case always "general"
         :param event: event being published, a json object
         """
         print 'string?', event
-        logging.info("client wants to publish to %s%s" % (topicUriPrefix, topicUriSuffix))
+        logging.info("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if not self.user:
             logging.info("he's not logged in though, so no")
             return None
@@ -766,6 +784,7 @@ class PepsiColaServerFactory(WampServerFactory):
     currently connected clients.
     """
 
+    # noinspection PyPep8Naming
     def __init__(self, url, debugWamp=False, debugCodePaths=False):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
