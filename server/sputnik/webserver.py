@@ -57,7 +57,8 @@ class PublicInterface:
     
     @exportRpc
     def list_markets(self):
-        return map(lambda x: x.dump(), self.protocol.factory.markets)
+        success = True
+        return [success, map(lambda x: x.dump(), self.protocol.factory.markets)]
 
     @exportRpc
     def get_order_book(self):
@@ -637,7 +638,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 result[c.ticker]['final_payoff'] = c.denominator
 
 
-        return result
+        return [True, result]
 
     @exportRpc("get_chat_history")
     @limit
