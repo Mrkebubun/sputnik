@@ -26,12 +26,15 @@
  * 
  */
 
+// create a fake window for autobahn
+jsdom = require("jsdom").jsdom
+document = jsdom("<html><head></head><body></body></html>")
+window = document.parentWindow
+
 var when = require("when")
 var WebSocket = require("ws")
-var jsdom = require("jsdom").jsdom;
-var document = jsdom("<html><head></head><body></body></html>");
-var window = document.parentWindow;
 window.WebSocket = WebSocket;
+window.when = when
 
 // needed to load when.js in legacy environments
 // https://github.com/cujojs/when
@@ -3561,5 +3564,5 @@ ab.lookupWsSupport = function() {
 
 };
 
-module.exports = window.ab
+module.exports = window
 
