@@ -147,8 +147,14 @@ sputnik.connect()
 
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
+
+        chat_messages = []
         sputnik.on "chat", ([user, message]) ->
-            console.log "GUI: #{user}: #{message}"
+            console.log "chat: #{user}: #{message}"
+            chat_messages.push "#{user}: #{message}"
+
+            $('#chatArea').html(chat_messages.join("\n"))
+            $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "error", (error) ->
     # There was an RPC error. It is probably best to reconnect.
