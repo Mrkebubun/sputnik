@@ -124,8 +124,6 @@ class Sputnik extends EventEmitter
       catch error
         @log error
 
-      @subscribe "chat", @onChat
-
       #@switchBookSub SITE_TICKER
 
     # order manipulation
@@ -182,6 +180,7 @@ class Sputnik extends EventEmitter
     publish: (topic, message) =>
         if not @session?
           return @wtf "Not connected."
+        @log "Publishing #{message} on #{topic}"
         @session.publish "#{@uri}/user/#{topic}", message
 
     # logging
@@ -240,6 +239,7 @@ class Sputnik extends EventEmitter
 
 sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
+sputnik.subscribe "chat", sputnik.onChat
 
 # Register UI events
 $('#chatButton').click ->
