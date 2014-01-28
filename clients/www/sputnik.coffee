@@ -63,7 +63,13 @@ class Sputnik extends EventEmitter
         (profile) =>
             @emit "profile", profile.nickname, profile.email
 
-    changeProfile: (password, email, nickname) =>
+    changeProfile: (nickname, email) =>
+      if not @session?
+        return @wtf "Not connected"
+
+      @call("change_profile", nickname, email).then \
+        (res) =>
+          @getProfile()
 
     failed_login: (error) =>
       alert(error)
@@ -245,6 +251,9 @@ $('#loginButton').click ->
 
 $('#registerButton').click ->
   sputnik.makeAccount registerLogin.value, registerPassword.value, registerEmail.value
+
+$('#changeProfileBtn').click ->
+  sputnik.changeProfile(newNickname.value, newEmail.value)
 
 # Handle emitted events
 sputnik.on "ready", ->

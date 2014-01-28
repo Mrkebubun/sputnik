@@ -532,10 +532,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.user.email = new_email
             self.session.add(self.user)
             self.session.commit()
-            return {'retval': True}
+            return [True, None]
         except Exception as e:
             self.session.rollback()
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+            return [False, str(e)]
 
     @exportRpc("change_password")
     @limit
