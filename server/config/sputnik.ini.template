@@ -18,6 +18,7 @@ www = ${use_www}
 www_port = 8888
 www_root = ${www_root}
 debug = true
+base_uri = ${base_uri}
 
 [accountant]
 zmq_address = tcp://127.0.0.1:4432/

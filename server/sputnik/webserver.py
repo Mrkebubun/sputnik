@@ -103,6 +103,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     def __init__(self):
         pass
+        self.base_uri = config.get("webserver", "base_uri")
 
     RATE_LIMIT = 0.5
 
@@ -148,22 +149,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         logging.info("in session open")
         ## register a single, fixed URI as PubSub topic
-
-        self.registerForPubSub("wss://sputnikmkt.com:8000/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.make_account])
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.list_markets])
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/',
+        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.make_account])
+        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.list_markets])
+        self.registerForRpc(self, self.base_uri + "/procedures/",
                             methods=[PepsiColaServerProtocol.get_trade_history])
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.get_order_book])
+        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_order_book])
 
         # TODO: move this to onAuthenticated
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.get_chat_history])
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_chat_history])
+        self.registerForPubSub(self.base_uri + "/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
         # override global client auth options
@@ -201,19 +201,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print authextra
 
         # TODO: clean up permissions
-        return {'permissions': {'pubsub': [{'uri': 'wss://sputnikmkt.com:8000/safe_price#%s' % 'USD.13.7.31',
+        return {'permissions': {'pubsub': [{'uri': self.base_uri + '/safe_price#%s' % 'USD.13.7.31',
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/open_orders#%s' % username,
+                                           {'uri': self.base_uri + '/user/open_orders#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/fills#%s' % username,
+                                           {'uri': self.base_uri + '/user/fills#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/cancels#%s' % username,
+                                           {'uri': self.base_uri + '/user/cancels#%s' % username,
                                             'prefix': True,
                                             'pub': False,
                                             'sub': True}], 'rpc': []},
@@ -288,7 +288,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         ## register RPC endpoints (for now do that manually, keep in sync with perms)
         if perms is not None:
             # noinspection PyTypeChecker
-            self.registerForRpc(self, baseUri="wss://sputnikmkt.com:8000/procedures/")
+            self.registerForRpc(self, baseUri=self.base_uri + "/procedures/")
 
         # sets the user in the session... I'm not certain it's a 100% safe to store it like this
         #todo: what if the users logs in from different location? To keep an eye on.
@@ -307,11 +307,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/fills#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + username,
+        self.registerForPubSub(self.base_uri + "/user/cancels#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/user/fills#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/user/open_orders#" + username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerHandlerForPubSub(self, baseUri="wss://sputnikmkt.com:8000/user/")
+        self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/user/")
 
 
     @exportRpc("get_cookie")
@@ -822,7 +822,7 @@ class PepsiColaServerFactory(WampServerFactory):
     currently connected clients.
     """
 
-    def __init__(self, url, debugWamp=False, debugCodePaths=False):
+    def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
         self.safe_prices = {}
@@ -830,6 +830,7 @@ class PepsiColaServerFactory(WampServerFactory):
         endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher
+        self.base_uri = base_uri
 
     def dispatcher(self, message):
         """
@@ -838,38 +839,39 @@ class PepsiColaServerFactory(WampServerFactory):
         :param message: message do be sent
         """
 
+
         # TODO: check if message is multipart
         for key, value in json.loads(message[0]).iteritems():
             logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value))
             if key == 'book_update':
                 self.all_books.update(value)
-                print "wss://sputnikmkt.com:8000/order_book#%s" % value.keys()[0]
-                self.dispatch("wss://sputnikmkt.com:8000/order_book#%s" % value.keys()[0], json.dumps(value))
+                print self.base_uri + "/order_book#%s" % value.keys()[0]
+                self.dispatch(self.base_uri + "/order_book#%s" % value.keys()[0], json.dumps(value))
                 #logging.info("Sent:    %", message)
 
             elif key == 'safe_price':
                 self.safe_prices.update(value)
-                self.dispatch("wss://sputnikmkt.com:8000/safe_prices#%s" % value.keys()[0], value.values()[0])
+                self.dispatch(self.base_uri + "/safe_prices#%s" % value.keys()[0], value.values()[0])
 
             elif key == 'trade':
-                self.dispatch("wss://sputnikmkt.com:8000/trades#%s" % value['ticker'], value)
+                self.dispatch(self.base_uri + "/trades#%s" % value['ticker'], value)
                 print 'search'
                 print value
 
             elif key == 'fill':
-                self.dispatch("wss://sputnikmkt.com:8000/user/fills#%s" % value[0], value[1])
-                print "wss://sputnikmkt.com:8000/user/fills#%s" % value[0], value[1]
+                self.dispatch(self.base_uri + "/user/fills#%s" % value[0], value[1])
+                print self.base_uri + "/user/fills#%s" % value[0], value[1]
 
             elif key == 'cancel':
-                self.dispatch("wss://sputnikmkt.com:8000/user/cancels#%s" % value[0], value[1])
-                print "wss://sputnikmkt.com:8000/user/cancels#%s" % value[0], value[1]
+                self.dispatch(self.base_uri + "/user/cancels#%s" % value[0], value[1])
+                print self.base_uri + "/user/cancels#%s" % value[0], value[1]
 
             elif key == 'open_orders':
                 '''
                 note: this should be a private per user channel
                 '''
-                self.dispatch("wss://sputnikmkt.com:8000/user/open_orders#%s" % value[0], value[1])
-                print "wss://sputnikmkt.com:8000/user/open_orders#%s" % value[0], value[1]
+                self.dispatch(self.base_uri + "/user/open_orders#%s" % value[0], value[1])
+                print self.base_uri + "/user/open_orders#%s" % value[0], value[1]
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
@@ -910,6 +912,8 @@ if __name__ == '__main__':
     # IP address to listen on for all publicly visible services
     interface = config.get("webserver", "interface")
 
+    base_uri = config.get("webserver", "base_uri")
+
     uri = "ws://"
     contextFactory = None
     if config.getboolean("webserver", "ssl"):
@@ -924,7 +928,7 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    factory = PepsiColaServerFactory(uri, debugWamp=debug, debugCodePaths=debug)
+    factory = PepsiColaServerFactory(uri, base_uri, debugWamp=debug, debugCodePaths=debug)
     factory.protocol = PepsiColaServerProtocol
 
     # prevent excessively large messages
