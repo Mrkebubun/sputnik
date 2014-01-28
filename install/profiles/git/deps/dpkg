@@ -1,4 +1,5 @@
 build-essential
+ca-certificates
 python-dev
 python-pip
 python-psycopg2
