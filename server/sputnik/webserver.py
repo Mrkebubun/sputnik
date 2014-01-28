@@ -383,21 +383,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the new address
         """
 
-        def _update_new_address(txn, param):
-            address_id, address = param[0], param[1]
-            txn.execute("UPDATE addresses SET active=FALSE WHERE username=?", (self.username,))
-            txn.execute("UPDATE addresses SET active=TRUE, username=? WHERE id=?", (self.username, address_id))
-            return address
-
-        def _get_new_address_callback(result):
-            if not result:
+        def _get_new_address(txn, username):
+            res = txn.query("SELECT id, address FROM addresses WHERE username=NULL AND active=TRUE ORDER BY id LIMIT 1")
+            if not res:
                 logging.error("Out of addresses!")
                 raise Exception("Out of addresses")
-            return dbpool.runInteraction(_update_new_address, result[0])
 
-        return dbpool.runQuery(
-            "SELECT id, address FROM addresses WHERE username=NULL AND active=TRUE ORDER BY id LIMIT 1").addCallback(
-                _get_new_address_callback)
+            id, address = res[0][0], res[0][1]
+            txn.execute("UPDATE addresses SET active=FALSE WHERE username=?", (self.username,))
+            txn.execute("UPDATE addresses SET active=TRUE, username=? WHERE id=?", (self.username, id))
+            return address
+
+        return dbpool.runInteraction(_get_new_address, self.username)
+
+
 
     @exportRpc("get_current_address")
     @limit
