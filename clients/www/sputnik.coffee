@@ -7,6 +7,7 @@ class Sputnik extends EventEmitter
     orders: {}
     positions: {}
     margins: {}
+    logged_in: false
 
     constructor: (@uri) ->
 
@@ -45,9 +46,12 @@ class Sputnik extends EventEmitter
     getProfile: () =>
     changeProfile: (password, email, nickname) =>
 
+    failed_login: (error) =>
+      alert(error)
+
     authenticate: (login, password) =>
-      @session.call("authreq", login).then \
-        (challenge) ->
+      @session.authreq(login).then \
+        (challenge) =>
           AUTHEXTRA = JSON.parse(challenge).authextra
           console.log('challenge', AUTHEXTRA)
           console.log(ab.deriveKey(password, AUTHEXTRA))
@@ -56,13 +60,48 @@ class Sputnik extends EventEmitter
           console.log(challenge)
           signature = @session.authsign(challenge, secret)
           console.log(signature)
-          @session.auth(signature).then(onAuth, failed_login)
+          @session.auth(signature).then(@onAuth, @failed_login)
           console.log('authenticate');
       , (error) ->
         @failed_login(error);
 
-    failed_login: (error) =>
-      alert(error)
+    getCookie: () =>
+      @call("get_cookie").then \
+        (uid) ->
+          @log("cookie: " + uid)
+          document.cookie = "login" + "=" + login.value + ":" + uid
+
+    onAuth: (permissions) =>
+      ab.log("authenticated!", JSON.stringify(permissions));
+      @logged_in = true;
+
+      @getCookie()
+
+      @getSafePrices()
+      @getOpenOrders()
+      @getPositions()
+
+      @user_id = _.pluck(permissions.pubsub, 'uri')[1].split('#')[1]
+      @emit "loggedIn", @user_id
+
+      try
+        @subscribe "cancels#" + @user_id, @onCancel
+      catch error
+        @log error
+
+      try
+        @subscribe "fills#" + @user_id, @onFill
+      catch error
+        @log error
+
+      try
+        @subscribe "open_orders#" + @user_id, @onOpenOrder
+      catch error
+        @log error
+
+      @subscribe "chat", @onChat
+
+      #@switchBookSub SITE_TICKER
 
     # order manipulation
     
@@ -74,6 +113,11 @@ class Sputnik extends EventEmitter
     getAddress: (contract) =>
     newAddress: (contract) =>
     withdraw: (contract, address, amount) =>
+
+    # account/position information
+    getSafePrices: () =>
+    getOpenOrders: () =>
+    getPositions: () =>
 
     # miscelaneous methods
 
@@ -190,7 +234,9 @@ sputnik.on "ready", ->
             $('#chatArea').html(chat_messages.join("\n"))
             $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
-        sputnik.on "chatButton", (message) ->
+        sputnik.on "loggedIn", (user_id) ->
+          console.log "userid: " + user_id
+          $('#loggedInAs').html = "<P>Logged In As: " + user_id + "</P>"
 
 
 sputnik.on "error", (error) ->
