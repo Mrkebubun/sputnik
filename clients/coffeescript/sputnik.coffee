@@ -1,6 +1,6 @@
 events = require "events"
-ab = require "./autobahn.node"
-
+window = require "./autobahn.node"
+ab = window.ab
 
 ### UI API ###
 
@@ -13,26 +13,39 @@ class Sputnik extends events.EventEmitter
     margins: {}
 
     constructor: (@uri) ->
-        ab.connect @uri, @onOpen, @onClose
 
 
     ### Sputnik API  ###
 
+    # network control
+    
+    connect: () =>
+        ab.connect @uri, @onOpen, @onClose
+
+    close: () =>
+        @session?.close()
+
     # market selection
     
     follow: (market) =>
-        @session.subscribe "#{@uri}/order_book##{market}", (topic, event) =>
-            @onBookUpdate event
-        @session.subscribe "#{@uri}/trades##{market}", (topic, event) =>
-            @onTrade event
+        if not @session?
+            return @wtf "Not connected."
+        @subscribe "order_book##{market}", @onBookUpdate
+        @subscribe "trades##{market}", @onTrade
 
     unfollow: (market) =>
-        @session.unsubscribe "#{@uri}/order_book##{market}"
-        @session.unsubscribe "#{@uri}/trades##{market}"
+        if not @session?
+            return @wtf "Not connected."
+        @unsubscribe "order_book##{market}"
+        @unsubscribe "trades##{market}"
 
     # authentication and account management
 
-    newAccount: (username, password, email, nickname) =>
+    newAccount: (username, password, email) =>
+        if not @session?
+            return @wtf "Not connected."
+        @call("make_account", username, password, email)
+
     getProfile: () =>
     changeProfile: (password, email, nickname) =>
     authenticate: (username, password) =>
@@ -48,11 +61,42 @@ class Sputnik extends events.EventEmitter
     newAddress: (contract) =>
     withdraw: (contract, address, amount) =>
 
+    # miscelaneous methods
+
+    chat: (message) =>
 
     ### internal methods ###
 
+    # RPC wrapper
+    call: (method, params...) =>
+        if not @session?
+            return @wtf "Not connected."
+        d = ab.Deferred()
+        @session.call("#{@uri}/procedures/#{method}", params...).then \
+            (result) =>
+                if result.length != 2
+                    @warn "RPC Warning: sputnik protocol violation"
+                    return d.resolve result
+                if result[0]
+                    d.resolve result[1]
+                else
+                    d.reject result[1]
+            ,(error) => @wtf "RPC Error: #{error.desc}"
+        return d.promise
+
+    subscribe: (topic, callback) =>
+        if not @session?
+            return @wtf "Not connected."
+        @session.subscribe "#{@uri}/feeds/#{topic}", callback
+    
+    unsubscribe: (topic) =>
+        if not @session?
+            return @wtf "Not connected."
+        @session.unsubscribe "#{@uri}/feeds/#{topic}"
+
     # logging
     log: (obj) -> console.log obj
+    warn: (obj) -> console.warn obj
     error: (obj) -> console.error obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
@@ -62,29 +106,27 @@ class Sputnik extends events.EventEmitter
     onOpen: (@session) =>
         @log "Connected to #{@uri}."
 
-        @session.call("#{@uri}/procedures/list_markets").then @onMarkets, () =>
-            @wtf "Could not get a list of active markets."
+        @call("list_markets").then @onMarkets, @wtf
+        @subscribe "chat", @onChat
 
-        @session.subscribe "#{@uri}/user/chat", (topic, event) =>@onChat event
-
-        @emit "open"
+        # @emit "open"
     
     onClose: (code, reason, details) =>
         @log "Connection lost."
         @emit "close"
 
     # authentication internals
-    
-
+   
     # default RPC callbacks
+
     onMarkets: (@markets) =>
         for ticker of markets
             @markets[ticker].trades = []
             @markets[ticker].buys = []
             @markets[ticker].sells = []
-
         @emit "ready"
 
+ 
     # public feeds
     onBookUpdate: (event) =>
         ticker = event.ticker
@@ -105,7 +147,15 @@ class Sputnik extends events.EventEmitter
     onSafePrice = () =>
 
 sputnik = new Sputnik "wss://sputnikmkt.com:8000"
-sputnik.on "chat", ([user, message]) -> console.log "GUI: #{user}: #{message}"
-sputnik.on "book_update", () -> console.log "GUI: #{sputnik.markets['MXN/BTC']}"
-sputnik.on "error", (error) -> console.error "GUI: #{error}"
+sputnik.connect()
+
+sputnik.on "ready", ->
+        sputnik.follow "MXN/BTC"
+        sputnik.on "chat", ([user, message]) ->
+            console.log "GUI: #{user}: #{message}"
+
+sputnik.on "error", (error) ->
+    # There was an RPC error. It is probably best to reconnect.
+    console.error "GUI: #{error}"
+    sputnik.close()
 
