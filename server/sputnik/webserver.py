@@ -390,8 +390,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 raise Exception("Out of addresses")
 
             id, address = res[0][0], res[0][1]
-            txn.execute("UPDATE addresses SET active=FALSE WHERE username=?", (self.username,))
-            txn.execute("UPDATE addresses SET active=TRUE, username=? WHERE id=?", (self.username, id))
+            txn.execute("UPDATE addresses SET active=FALSE WHERE username=?", (username,))
+            txn.execute("UPDATE addresses SET active=TRUE, username=? WHERE id=?", (username, id))
             return address
 
         return dbpool.runInteraction(_get_new_address, self.username)
