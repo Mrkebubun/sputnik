@@ -1,10 +1,6 @@
-events = require "events"
-window = require "./autobahn.node"
-ab = window.ab
-
 ### UI API ###
 
-class Sputnik extends events.EventEmitter
+class Sputnik extends EventEmitter
 
     markets: {}
 

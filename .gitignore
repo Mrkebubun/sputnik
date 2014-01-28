@@ -11,5 +11,4 @@ sputnik.tar.gz
 postgresql-9.2-1002.jdbc4.jar
 postgresql-driver-license.txt
 clients/www/sputnik.js
-
-
+clients/www/node_modules
