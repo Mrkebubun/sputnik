@@ -60,6 +60,7 @@ class Sputnik extends EventEmitter
     # miscelaneous methods
 
     chat: (message) =>
+      @publish "chat", message
 
     ### internal methods ###
 
@@ -89,6 +90,11 @@ class Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @session.unsubscribe "#{@uri}/user/#{topic}"
+
+    publish: (topic, message) =>
+        if not @session?
+          return @wtf "Not connected."
+        @session.publish "#{@uri}/user/#{topic}", message
 
     # logging
     log: (obj) -> console.log obj
@@ -142,8 +148,15 @@ class Sputnik extends EventEmitter
     onOrder = () =>
     onSafePrice = () =>
 
+
+
 sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
+
+# UI events
+$('#chatButton').click ->
+  sputnik.emit "chatButton", chatBox.value
+  $('#chatBox').val('')
 
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
@@ -155,6 +168,9 @@ sputnik.on "ready", ->
 
             $('#chatArea').html(chat_messages.join("\n"))
             $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+
+        sputnik.on "chatButton", (message) ->
+          sputnik.chat message
 
 sputnik.on "error", (error) ->
     # There was an RPC error. It is probably best to reconnect.
