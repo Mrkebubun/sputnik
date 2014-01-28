@@ -16,7 +16,7 @@ var CHAT_MESSAGES = [];
 var SAFE_PRICES = Object();
 var TWO_FACTOR_ON = false;
 
-var base_uri = "wss://sputnikmkt.com:8000/";
+var base_uri = "ws://localhost:8000/";
 
 var myTopic = base_uri + "topics/mytopic1";
 
