@@ -238,24 +238,25 @@ $('#loginButton').click ->
 $('#registerButton').click ->
   sputnik.makeAccount registerLogin.value, registerPassword.value, registerEmail.value
 
+# Handle emitted events
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
 
-        chat_messages = []
-        sputnik.on "chat", ([user, message]) ->
-            console.log "chat: #{user}: #{message}"
-            chat_messages.push "#{user}: #{message}"
+chat_messages = []
+sputnik.on "chat", ([user, message]) ->
+    console.log "chat: #{user}: #{message}"
+    chat_messages.push "#{user}: #{message}"
 
-            $('#chatArea').html(chat_messages.join("\n"))
-            $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+    $('#chatArea').html(chat_messages.join("\n"))
+    $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
-        sputnik.on "loggedIn", (user_id) ->
-          console.log "userid: " + user_id
-          $('#loggedInAs').html = "<P>Logged In As: " + user_id + "</P>"
-
+sputnik.on "loggedIn", (user_id) ->
+  console.log "userid: " + user_id
+  $('#loggedInAs').html = "<P>Logged In As: " + user_id + "</P>"
 
 sputnik.on "error", (error) ->
     # There was an RPC error. It is probably best to reconnect.
     console.error "GUI: #{error}"
+    alert(error)
     sputnik.close()
 
