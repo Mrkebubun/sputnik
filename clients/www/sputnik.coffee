@@ -44,7 +44,25 @@ class Sputnik extends EventEmitter
 
     getProfile: () =>
     changeProfile: (password, email, nickname) =>
-    authenticate: (username, password) =>
+
+    authenticate: (login, password) =>
+      @session.call("authreq", login).then \
+        (challenge) ->
+          AUTHEXTRA = JSON.parse(challenge).authextra
+          console.log('challenge', AUTHEXTRA)
+          console.log(ab.deriveKey(password, AUTHEXTRA))
+
+          secret = ab.deriveKey(password, AUTHEXTRA)
+          console.log(challenge)
+          signature = @session.authsign(challenge, secret)
+          console.log(signature)
+          @session.auth(signature).then(onAuth, failed_login)
+          console.log('authenticate');
+      , (error) ->
+        @failed_login(error);
+
+    failed_login: (error) =>
+      alert(error)
 
     # order manipulation
     
@@ -153,10 +171,13 @@ class Sputnik extends EventEmitter
 sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
 
-# UI events
+# Register UI events
 $('#chatButton').click ->
-  sputnik.emit "chatButton", chatBox.value
+  sputnik.chat chatBox.value
   $('#chatBox').val('')
+
+$('#loginButton').click ->
+  sputnik.authenticate login.value, password.value
 
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
@@ -170,7 +191,7 @@ sputnik.on "ready", ->
             $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
         sputnik.on "chatButton", (message) ->
-          sputnik.chat message
+
 
 sputnik.on "error", (error) ->
     # There was an RPC error. It is probably best to reconnect.
