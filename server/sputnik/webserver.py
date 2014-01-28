@@ -603,12 +603,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.session.merge(new_address)
 
             self.session.commit()
-            return {'retval': True}
+            return [True, None]
 
         except Exception as e:
             print e
             self.session.rollback()
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+            return [False, str(e)]
 
 
     @exportRpc("list_markets")
