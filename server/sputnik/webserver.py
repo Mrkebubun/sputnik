@@ -211,7 +211,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                              'sub': True}], 'rpc': []},
                     'authextra': authextra}
 
-        return dbpool.runQuery("SELECT password FROM users WHERE username = ? LIMIT 1", (username,)). \
+        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1", (username,)). \
             addCallback(permission_callback)
 
     def getAuthSecret(self, authKey):
@@ -263,7 +263,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return ":0xFA1CDA7A:"
 
         return dbpool.runQuery(
-            "SELECT password, totp FROM users WHERE username = ? LIMIT 1", (authKey,)
+            "SELECT password, totp FROM users WHERE username=%s LIMIT 1", (authKey,)
         ).addCallback(auth_secret_callback).addErrback(auth_secret_errback)
 
     # noinspection PyMethodOverriding
@@ -372,8 +372,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
         #todo implement time_span checks
-        return dbpool.runQuery("SELECT trade.timestamp, trade.price, trade.quantity FROM trades JOIN contracts "
-                               "WHERE contracts.ticker = ?" % (ticker,))
+        return dbpool.runQuery("SELECT trade.timestamp, trade.price, trade.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s" % (ticker,))
 
     @exportRpc("get_new_address")
     @limit
@@ -382,21 +381,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
-
         def _get_new_address(txn, username):
-            res = txn.query("SELECT id, address FROM addresses WHERE username=NULL AND active=TRUE ORDER BY id LIMIT 1")
+            res = txn.query("SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
             if not res:
                 logging.error("Out of addresses!")
                 raise Exception("Out of addresses")
 
             id, address = res[0][0], res[0][1]
-            txn.execute("UPDATE addresses SET active=FALSE WHERE username=?", (username,))
-            txn.execute("UPDATE addresses SET active=TRUE, username=? WHERE id=?", (username, id))
+            txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
+            txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s", (username, id))
             return address
 
         return dbpool.runInteraction(_get_new_address, self.username)
-
-
 
     @exportRpc("get_current_address")
     @limit
@@ -411,7 +407,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return ""
             else:
                 return result[0][0]
-        return dbpool.runQuery("SELECT address FROM addresses WHERE username=? AND active=TRUE ORDER BY id LIMIT 1").addCallback(
+        return dbpool.runQuery("SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(
             _cb)
 
     @exportRpc("withdraw")
@@ -453,20 +449,29 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Returns the user's positions
         :return: a dictionary representing the user's positions in various tickers
         """
-        return {x.contract.id: {"ticker": x.contract.ticker,
-                                "position": x.position,
-                                "reference_price": x.reference_price,
-                                "denominator": x.contract.denominator,
-                                "contract_type": x.contract.contract_type,
-                                "inverse_quotes": x.contract.inverse_quotes}
-                for x in self.session.query(models.Position).filter_by(user=self.user)}
+        def _cb(result):
+            return {x[0]: {"ticker": x[1],
+                           "position": x[2],
+                           "reference_price": x[3],
+                           "denominator": x[4],
+                           "contract_type": x[5],
+                           "inverse_quotes": x[6]}
+                for x in result}
+
+        return dbpool.runQuery(
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, positions.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
     @limit
     def get_profile(self):
-        return {'nickname': self.user.nickname,
-                'email': self.user.email
-        }
+        def _cb(result):
+            if not result:
+                return {}
+            return {'nickname': result[0][0], 'email': result[0][1]}
+
+        return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
+            _cb)
 
     @exportRpc("change_profile")
     @limit
@@ -585,6 +590,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if c.contract_type == 'prediction':
                 result[c.ticker]['final_payoff'] = c.denominator
 
+        "SELECT FROM "
         return result
 
     @exportRpc("get_chat_history")
