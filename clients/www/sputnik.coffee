@@ -8,6 +8,7 @@ class Sputnik extends EventEmitter
     positions: {}
     margins: {}
     logged_in: false
+    authextra: {}
 
     constructor: (@uri) ->
 
@@ -38,10 +39,21 @@ class Sputnik extends EventEmitter
 
     # authentication and account management
 
-    newAccount: (username, password, email) =>
+    makeAccount: (username, password, email) =>
         if not @session?
-            return @wtf "Not connected."
-        @call("make_account", username, password, email)
+            return @wtf "Not connected"
+
+        console.log("makeAccount")
+
+        salt = Math.random().toString(36).slice(2)
+        @authextra['salt'] = salt;
+        password_hash = ab.deriveKey(password, @authextra);
+
+        @log('making session call for makeAccount');
+        @call("make_account", name, password_hash, salt,  email).then \
+          (res) ->
+            login.value = registerLogin.value;
+            @authenticate(registerLogin.value, registerPassword.value)
 
     getProfile: () =>
     changeProfile: (password, email, nickname) =>
@@ -52,11 +64,11 @@ class Sputnik extends EventEmitter
     authenticate: (login, password) =>
       @session.authreq(login).then \
         (challenge) =>
-          AUTHEXTRA = JSON.parse(challenge).authextra
-          console.log('challenge', AUTHEXTRA)
-          console.log(ab.deriveKey(password, AUTHEXTRA))
+          @authextra = JSON.parse(challenge).authextra
+          console.log('challenge', @authextra)
+          console.log(ab.deriveKey(password, @authextra))
 
-          secret = ab.deriveKey(password, AUTHEXTRA)
+          secret = ab.deriveKey(password, @authextra)
           console.log(challenge)
           signature = @session.authsign(challenge, secret)
           console.log(signature)
@@ -222,6 +234,9 @@ $('#chatButton').click ->
 
 $('#loginButton').click ->
   sputnik.authenticate login.value, password.value
+
+$('#registerButton').click ->
+  sputnik.makeAccount registerLogin.value, registerPassword.value, registerEmail.value
 
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
