@@ -656,7 +656,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 #strip the date and time from the line:
                 lastThirty.append(line.split()[2])
 
-        return lastThirty
+        return [True,lastThirty]
 
 
     @exportRpc("get_order_book")

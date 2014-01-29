@@ -9,6 +9,7 @@ class Sputnik extends EventEmitter
     margins: {}
     logged_in: false
     authextra: {}
+    chat_messages: []
 
     constructor: (@uri) ->
 
@@ -43,17 +44,23 @@ class Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected"
 
-        console.log("makeAccount")
+        @log("makeAccount")
 
+        @log("computing salt")
         salt = Math.random().toString(36).slice(2)
+        @log("computing hash")
         @authextra['salt'] = salt;
         password_hash = ab.deriveKey(password, @authextra);
 
         @log('making session call for makeAccount');
         @call("make_account", name, password_hash, salt,  email).then \
-          (res) ->
+          (res) =>
+            @log('account created: #{name}')
             login.value = registerLogin.value;
             @authenticate(registerLogin.value, registerPassword.value)
+          , (error) =>
+            @emit "make_account_error", error
+
 
     getProfile: () =>
       if not @session?
@@ -72,21 +79,21 @@ class Sputnik extends EventEmitter
           @getProfile()
 
     failed_login: (error) =>
-      alert(error)
+      @emit "failed_login", error
 
     authenticate: (login, password) =>
       @session.authreq(login).then \
         (challenge) =>
           @authextra = JSON.parse(challenge).authextra
-          console.log('challenge', @authextra)
-          console.log(ab.deriveKey(password, @authextra))
+          @log('challenge', @authextra)
+          @log(ab.deriveKey(password, @authextra))
 
           secret = ab.deriveKey(password, @authextra)
-          console.log(challenge)
+          @log(challenge)
           signature = @session.authsign(challenge, secret)
-          console.log(signature)
+          @log(signature)
           @session.auth(signature).then(@onAuth, @failed_login)
-          console.log('authenticate');
+          @log('authenticate');
       , (error) ->
         @failed_login(error);
 
@@ -189,7 +196,7 @@ class Sputnik extends EventEmitter
     error: (obj) -> console.error obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
-        @emit "error", obj
+        @emit "wtf_error", obj
 
     # connection events
     onOpen: (@session) =>
@@ -197,8 +204,12 @@ class Sputnik extends EventEmitter
 
         @call("list_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
+        @call("get_chat_history").then \
+          (chats) ->
+            @chat_history = chats
+            @emit "chat", @chat_history
 
-        # @emit "open"
+        @emit "open"
     
     onClose: (code, reason, details) =>
         @log "Connection lost."
@@ -229,7 +240,11 @@ class Sputnik extends EventEmitter
         @emit "trade", event
 
     onChat: (event) =>
-        @emit "chat", event
+        user = event[0]
+        message = event[1]
+        @chat_messages.push "#{user}: #{message}"
+        @log "Chat: #{user}: #{message}"
+        @emit "chat", @chat_messages
 
     # private feeds
     onOrder = () =>
@@ -239,7 +254,6 @@ class Sputnik extends EventEmitter
 
 sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
-sputnik.subscribe "chat", sputnik.onChat
 
 # Register UI events
 $('#chatButton').click ->
@@ -259,11 +273,7 @@ $('#changeProfileBtn').click ->
 sputnik.on "ready", ->
         sputnik.follow "MXN/BTC"
 
-chat_messages = []
-sputnik.on "chat", ([user, message]) ->
-    console.log "chat: #{user}: #{message}"
-    chat_messages.push "#{user}: #{message}"
-
+sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
@@ -276,9 +286,16 @@ sputnik.on "profile", (nickname, email) ->
   $('#nickname').text(nickname)
   $('#email').text(email)
 
-sputnik.on "error", (error) ->
-    # There was an RPC error. It is probably best to reconnect.
+sputnik.on "wtf_error", (error) ->
+    # There was a serious error. It is probably best to reconnect.
     console.error "GUI: #{error}"
-    alert(error)
+    alert error
     sputnik.close()
 
+sputnik.on "failed_login", (error) ->
+  console.error "login error: #{error.desc}"
+  alert "login error: #{error.desc}"
+
+sputnik.on "make_account_error", (error) ->
+  console.error "make_account_error: #{error}"
+  alert "account creation failed: #{error}"
