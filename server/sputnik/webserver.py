@@ -476,20 +476,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("change_profile")
     @limit
-    def change_profile(self, new_nickname, new_email):
+    def change_profile(self, new_nick, new_email):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
         """
-        try:
-            self.user.nickname = new_nickname
-            self.user.email = new_email
-            self.session.add(self.user)
-            self.session.commit()
-            return True
-        except Exception as e:
-            self.session.rollback()
-            return False
+        # sanitize
+        validate(new_nick, {"type": "string"})
+        validate(new_email, {"type": "string"})
+
+        def _change(tx, params):
+            tx.execute("UPDATE users SET nickname=%s, email=%s WHERE username=%s",
+                       (params['new_nick'], params['new_email'], self.username))
+        return dbpool.runQuery(_change, {'new_nick': new_nick, 'new_email': new_email})
 
     @exportRpc("change_password")
     @limit
@@ -499,7 +498,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param old_password_hash: current password
         :param new_password_hash: new password
         """
-
         # sanitize
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
@@ -559,26 +557,25 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Lists markets available for trading
         :return: a list of markets...
         """
-        result = {}
-        for c in self.session.query(models.Contract).filter_by(active=True):
-            # .filter(models.Contract.contract_type != 'cash'):  let's include cash contracts
+        def _cb(res):
+            result = {}
+            for r in res:
+                result[r[0]] = {"description": r[1],
+                                    "denominator": r[2],
+                                    "contract_type": r[3],
+                                    "full_description": r[4],
+                                    "tick_size": r[5],
+                                    "lot_size": r[6]}
 
-            result[c.ticker] = {"description": c.description,
-                                "denominator": c.denominator,
-                                "contract_type": c.contract_type,
-                                "full_description": c.full_description,
-                                "tick_size": c.tick_size,
-                                "lot_size": c.lot_size}
+                if result[r[0]]['contract_type'] == 'futures':
+                    result[r[0]]['margin_high'] = r[7]
+                    result[r[0]]['margin_low'] = r[8]
 
-            if c.contract_type == 'futures':
-                result[c.ticker]['margin_high'] = c.margin_high
-                result[c.ticker]['margin_low'] = c.margin_low
+                if result[r[0]]['contract_type'] == 'prediction':
+                    result[r[0]]['final_payoff'] = r[2]
 
-            if c.contract_type == 'prediction':
-                result[c.ticker]['final_payoff'] = c.denominator
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
 
-        "SELECT FROM "
-        return result
 
     @exportRpc("get_chat_history")
     @limit
@@ -595,7 +592,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             for line in f.read().split('\n')[-31:-1]:
                 #strip the date and time from the line:
                 lastThirty.append(line.split()[2])
-
         return lastThirty
 
 
@@ -622,15 +618,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         gets open orders
         """
-        return [
-            {'ticker': order.contract.ticker,
-             'price': order.price,
-             'quantity': order.quantity_left,
-             'side': order.side,
-             'id': order.id}
-            for order in self.session.query(models.Order).filter_by(
-                user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
-
+        def _cb(result):
+            return [{'ticker':r[0], 'price':r[1], 'quantity':r[2], 'side':r[3], 'id':r[4]} for r in result]
+        return dbpool.runQuery("SELECT ticker, price, quantity, side, id FROM orders WHERE username=%s AND accepted=TRUE AND is_cancelled=FALSE", (self.username,)).addCallback(_cb)
 
     @exportRpc("place_order")
     @limit
@@ -649,25 +639,31 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                      "quantity": {"type": "number"},
                      "side": {"type": "number"}
                  }})
+        order['ticker'] = order['ticker'][:MAX_TICKER_LENGTH]
 
         # enforce minimum tick_size for prices:
-        contract = self.session.query(models.Contract).filter_by(
-            ticker=order["ticker"]).order_by(
-            models.Contract.id.desc()).first()
-        # TODO: solve this another way, i.e. let the user know
-        if contract == None:
-            raise Exception("Invalid contract ticker.")
-        tick_size = contract.tick_size
-        lot_size = contract.lot_size
 
-        # coerce tick size and lot size
-        order["price"] = int(int(order["price"] / tick_size) * tick_size)
-        order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
-        order['username'] = self.user.username
+        def _cb(result):
+            if not result:
+                raise Exception("Invalid contract ticker.")
 
-        self.factory.accountant.push(json.dumps({'place_order': order}))
-        self.count += 1
-        print 'place_order', self.count
+            tick_size = result[0][0]
+            lot_size = result[0][1]
+
+            # coerce tick size and lot size
+
+            order["price"] = int(order["price"])
+            order["quantity"] = int(order["quantity"])
+            if order["price"] % tick_size != 0 or order["quantity"] % lot_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+                raise Exception("invalid price or quantity")
+
+            order['username'] = self.username
+            #TODO (yury can you make this an async rep/req with TXZMQ?)
+            self.factory.accountant.push(json.dumps({'place_order': order}))
+            self.count += 1
+            print 'place_order', self.count
+
+        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
     @limit
