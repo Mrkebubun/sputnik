@@ -106,7 +106,7 @@ class Sputnik extends EventEmitter
       @getOpenOrders()
       @getPositions()
 
-      @user_id = _.pluck(permissions.pubsub, 'uri')[1].split('#')[1]
+      @user_id = (x.uri for x in permissions.pubsub)[1].split('#')[1]
       @emit "loggedIn", @user_id
 
       try
