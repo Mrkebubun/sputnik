@@ -45,11 +45,11 @@ from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 zf = ZmqFactory()
 
 # noinspection PyUnresolvedReferences
-if config.get("database", "uri").startswith("postgres"):
-    import txpostgres as adbapi
-else:
+#if config.get("database", "uri").startswith("postgres"):
+#    import txpostgres as adbapi
+#else:
     # noinspection PyPep8Naming
-    import twisted.enterprise.adbapi as adbapi
+import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
 dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),

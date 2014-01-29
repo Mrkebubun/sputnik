@@ -15,6 +15,7 @@ import sys
 from os import path
 from ConfigParser import ConfigParser
 
+
 class AutoConfigParser(ConfigParser):
     def __init__(self, *args, **kwargs):
         ConfigParser.__init__(self, *args, **kwargs)
