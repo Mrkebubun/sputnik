@@ -97,6 +97,24 @@ class Sputnik extends EventEmitter
       , (error) ->
         @failed_login(error);
 
+    logout: () =>
+      @logged_in = false
+
+      # Clear user data
+      @site_positions = []
+      @open_orders = []
+      @authextra =
+                   "keylen": 32
+                   "salt": "RANDOM_SALT"
+                   "iterations": 1000
+      @log @open_orders
+
+      # TODO: Unsubscribe from everything
+      @call "logout"
+      @close()
+      @connect()
+      @emit "logout"
+
     getCookie: () =>
       @call("get_cookie").then \
         (uid) ->
@@ -263,6 +281,9 @@ $('#chatButton').click ->
 $('#loginButton').click ->
   sputnik.authenticate login.value, password.value
 
+$('#logoutButton').click ->
+  sputnik.logout()
+
 $('#registerButton').click ->
   sputnik.makeAccount registerLogin.value, registerPassword.value, registerEmail.value
 
@@ -299,3 +320,7 @@ sputnik.on "failed_login", (error) ->
 sputnik.on "make_account_error", (error) ->
   console.error "make_account_error: #{error}"
   alert "account creation failed: #{error}"
+
+sputnik.on "logout", () ->
+  console.log "loggedout"
+  $('#loggedInAs').text('')
