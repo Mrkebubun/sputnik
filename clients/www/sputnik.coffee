@@ -170,7 +170,11 @@ class Sputnik extends EventEmitter
     # miscelaneous methods
 
     chat: (message) =>
-      @publish "chat", message
+      if @logged_in
+        @publish "chat", message
+        return [true, null]
+      else
+        return [false, "Not logged in"]
 
     ### internal methods ###
 
@@ -275,7 +279,10 @@ sputnik.connect()
 
 # Register UI events
 $('#chatButton').click ->
-  sputnik.chat chatBox.value
+  chat_return = sputnik.chat chatBox.value
+  if not chat_return[0]
+    alert(chat_return[1])
+
   $('#chatBox').val('')
 
 $('#loginButton').click ->
