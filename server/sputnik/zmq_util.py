@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+import zmq
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
@@ -67,6 +68,7 @@ class Export:
             return json.dumps({"success":success, "result":value})
         return json.dumps({"success":success, "exception":value})
 
+class AsyncExport(Export):
     def dispatch(self, method_name, args, kwargs):
         logging.info("Dispatching %s..." % method_name)
         logging.debug("method_name=%s, args=%s, kwars=%s" %
@@ -74,10 +76,17 @@ class Export:
         method = self.mapper[method_name]
         return maybeDeferred(method, self.wrapped, *args, **kwargs)
 
+class SyncExport(Export):
+    def dispatch(self, method_name, args, kwargs):
+        logging.info("Dispatching %s..." % method_name)
+        logging.debug("method_name=%s, args=%s, kwars=%s" %
+            (method_name, str(args), str(kwargs)))
+        method = self.mapper[method_name]
+        return method(self.wrapped, *args, **kwargs)
  
-class PullExport(Export):
+class AsyncPullExport(AsyncExport):
     def __init__(self, wrapped, connection):
-        Export.__init__(self, wrapped)
+        AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.onPull = self.onPull
 
@@ -97,11 +106,10 @@ class PullExport(Export):
         
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
-    
 
-class RouterExport(Export):
+class AsyncRouterExport(AsyncExport):
     def __init__(self, wrapped, connection):
-        Export.__init__(self, wrapped)
+        AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.gotMessage = self.gotMessage
 
@@ -125,21 +133,92 @@ class RouterExport(Export):
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
 
+class SyncPullExport(SyncExport):
+    def __init__(self, wrapped, connection):
+        SyncExport.__init__(self, wrapped)
+        self.connection = connection
+
+    def process(self, message):
+        sender_id = message[0]
+        message = message[1]
+        try:
+            # take the first part of the multipart message
+            method_name, args, kwargs = self.decode(message)
+        except Exception, e:
+            return logging.warn("RPC Error: %s" % str(e))
+
+        def result(value):
+            logging.info("Got result for method %s." % method_name)
+
+        def exception(failure):
+            logging.warn("Caught exception in method %s." % method_name)
+            logging.warn(failure)
+
+        try:
+            result(self.dispatch(method_name, args, kwargs))
+        except Exception, e:
+            exception(e)
+
+class SyncRouterExport(SyncExport):
+    def __init__(self, wrapped, connection):
+        SyncExport.__init__(self, wrapped)
+        self.connection = connection
+
+    def process(self, message):
+        sender_id = message[0]
+        message_id = message[1]
+        message = message[3]
+        try:
+            method_name, args, kwargs = self.decode(message)
+        except Exception, e:
+            logging.warn("RPC Error: %s" % message)
+            return self.connection.send_multipart(
+                [sender_id, message_id, "", self.encode(False, str(e))])
+
+        def result(value):
+            logging.info("Got result for method %s." % method_name)
+            self.connection.send_multipart(
+                [sender_id, message_id, "", self.encode(True, value)])
+
+        def exception(failure):
+            logging.warn("Caught exception in method %s." % method_name)
+            logging.warn(failure)
+            self.connection.send_multipart(
+                [sender_id, message_id, "", self.encode(False, str(failure))])
+
+        try:
+            result(self.dispatch(method_name, args, kwargs))
+        except Exception, e:
+            exception(e)
+
  
-def share(obj, address=None, mode="router"):
-    if mode == "router":
-        socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
-        RouterExport(obj, socket)
-    elif mode == "pull":
-        socket = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
-        PullExport(obj, socket)
-    else:
-        raise Exception("Mode not recognized.")
+def router_share_async(obj, address):
+    socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return AsyncRouterExport(obj, socket)
+
+def pull_share_async(obj, address):
+    socket = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return AsyncPullExport(obj, socket)
+
+def router_share_sync(obj, address):
+    context = zmq.Context()
+    socket = context.socket(zmq.ROUTER)
+    socket.bind(address)
+    sre = SyncRouterExport(obj, socket)
+    while True:
+        sre.process(socket.recv_multipart())
+
+def pull_share_sync(obj, address):
+    context = zmq.Context()
+    socket = context.socket(zmq.ROUTER)
+    socket.bind(address)
+    spe = SyncPullExport(obj, socket)
+    while True:
+        spe.process(socket.recv_multipart())
 
 
 class RemoteException(Exception):
     pass
-
 
 class Proxy:
     def __init__(self, connection):
@@ -193,16 +272,13 @@ class Proxy:
 
         return remote_method
 
-
 class DealerProxy(Proxy):
     def send(self, message):
         return self._connection.sendMsg(message)
-
  
 class PushProxy(Proxy):
     def send(self, message):
         return self._connection.push(message) 
-
 
 def proxy(address, mode="dealer"):
     if mode == "dealer":
