@@ -190,6 +190,7 @@ class Sputnik extends EventEmitter
         price: price
         ticker: ticker
         side: side
+      @log "placing order: #{order}"
       @emit "place_order", order
       @call("place_order", order).then \
         (res) =>
@@ -351,10 +352,10 @@ $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
 $('#sellButton').click ->
-  sputnik.placeOrder(qsell.value, psell.value, ticker.value, 1)
+  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 1)
 
 $('#buyButton').click ->
-  sputnik.placeOrder(qbuy.value, pbuy.value, ticker.value, 0)
+  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 0)
 
 # UI functions
 displayMarkets = (markets) ->

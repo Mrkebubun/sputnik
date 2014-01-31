@@ -731,9 +731,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # TODO: We need some way to know that the accountant didn't accept the order for some reason
             self.count += 1
             print 'place_order', self.count
-            return {'retval': True}
+            return [True, None]
         except Exception as e:
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+            return [False, str(e)]
 
     @exportRpc("get_safe_prices")
     @limit
