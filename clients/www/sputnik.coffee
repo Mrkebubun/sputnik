@@ -308,7 +308,7 @@ class Sputnik extends EventEmitter
     onOrder = () =>
     onSafePrice = () =>
 
-
+# Connect
 
 sputnik = new Sputnik "ws://localhost:8000"
 sputnik.connect()
@@ -333,9 +333,11 @@ $('#registerButton').click ->
 $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
+# UI functions
 displayMarkets = (markets) ->
   for ticker, data of markets
     if data.contract_type != "cash"
+      # Why are we doing [0] here? This is not clear to me
       table = $('#marketsTable')[0]
       row = table.insertRow(0)
       nameCell = row.insertCell(0)
@@ -356,32 +358,32 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "loggedIn", (user_id) ->
-  console.log "userid: " + user_id
+  @log "userid: " + user_id
   $('#loggedInAs').text("Logged in as " + user_id)
 
 sputnik.on "profile", (nickname, email) ->
-  console.log "profile: " + nickname + " " + email
+  @log "profile: " + nickname + " " + email
   $('#nickname').text(nickname)
   $('#email').text(email)
 
 sputnik.on "wtf_error", (error) ->
     # There was a serious error. It is probably best to reconnect.
-    console.error "GUI: #{error}"
+    @error "GUI: #{error}"
     alert error
     sputnik.close()
 
 sputnik.on "failed_login", (error) ->
-  console.error "login error: #{error.desc}"
+  @error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
 
 sputnik.on "failed_cookie", (error) ->
-  console.error "cookie error: #{error.desc}"
+  @error "cookie error: #{error.desc}"
   alert "cookie error: #{error.desc}"
 
 sputnik.on "make_account_error", (error) ->
-  console.error "make_account_error: #{error}"
+  @error "make_account_error: #{error}"
   alert "account creation failed: #{error}"
 
 sputnik.on "logout", () ->
-  console.log "loggedout"
+  @log "loggedout"
   $('#loggedInAs').text('')
