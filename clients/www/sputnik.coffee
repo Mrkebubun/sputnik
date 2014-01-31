@@ -184,7 +184,19 @@ class Sputnik extends EventEmitter
 
     # order manipulation
     
-    order: (ticker, price, quantity) =>
+    placeOrder: (quantity, price, ticker, side) =>
+      order =
+        quantity: quantity
+        price: price
+        ticker: ticker
+        side: side
+      @emit "place_order", order
+      @call("place_order", order).then \
+        (res) =>
+          @emit "place_order_success", res
+        , (error) =>
+          @emit "place_order_error", error
+
     cancel: (ticker, id) =>
 
     # deposits and withdrawals
@@ -197,6 +209,11 @@ class Sputnik extends EventEmitter
     getSafePrices: () =>
     getOpenOrders: () =>
     getPositions: () =>
+      @log("getting positions")
+      @call("get_positions").then \
+        (positions) =>
+          @log("positions received: #{positions}")
+          @emit "positions", positions
 
     # miscelaneous methods
 
@@ -289,7 +306,7 @@ class Sputnik extends EventEmitter
         ticker = event.ticker
         @markets[ticker].buys = event.buys
         @markets[ticker].sells = event.sells
-        @emit "book_update", event
+        @emit "book_update", @markets
 
     onTrade: (event) =>
         ticker = event.ticker
@@ -333,17 +350,57 @@ $('#registerButton').click ->
 $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
+$('#sellButton').click ->
+  sputnik.placeOrder(qsell.value, psell.value, ticker.value, 1)
+
+$('#buyButton').click ->
+  sputnik.placeOrder(qbuy.value, pbuy.value, ticker.value, 0)
+
 # UI functions
 displayMarkets = (markets) ->
+  # Why are we doing [0] here? This is not clear to me
+  table = $('#marketsTable')[0]
   for ticker, data of markets
     if data.contract_type != "cash"
-      # Why are we doing [0] here? This is not clear to me
-      table = $('#marketsTable')[0]
-      row = table.insertRow(0)
+      row = table.insertRow(-1)
       nameCell = row.insertCell(0)
       descriptionCell = row.insertCell(1)
       nameCell.innerText = ticker
       descriptionCell.innerText = data.description
+
+generateBookTable = (book) ->
+  table = document.createElement('table')
+  for book_row in book
+    row = table.insertRow(-1)
+    quantity = row.insertCell(0)
+    price = row.insertCell(1)
+    quantity.innerText = book_row[0]
+    price.innerText = book_row[1]
+
+  return table
+
+displayBooks = (markets) ->
+  table = $('#booksTable')[0]
+  for ticker, data of markets
+    if data.contract_type != "cash"
+      row = table.insertRow(-1)
+      nameCell = row.insertCell(0)
+      nameCell.innerText = ticker
+
+      sellsCell = row.insertCell(1)
+      sellsCell.appendChild(generateBookTable(data.sells))
+      buysCell = row.insertCell(2)
+      buysCell.appendChild(generateBookTable(data.buys))
+
+displayPositions = (positions) ->
+  table = $('#positionsTable')[0]
+  for id, position of positions
+    row = table.insertRow(-1)
+    tickerCell = row.insertCell(0)
+    tickerCell.innerText = position.ticker
+
+    positionCell = row.insertCell(1)
+    positionCell.innerText = position.position
 
 # Handle emitted events
 sputnik.on "markets", (markets) ->
@@ -352,6 +409,9 @@ sputnik.on "markets", (markets) ->
             sputnik.follow ticker
 
         displayMarkets markets
+
+sputnik.on "positions", (positions) ->
+  displayPositions positions
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
@@ -387,3 +447,14 @@ sputnik.on "make_account_error", (error) ->
 sputnik.on "logout", () ->
   @log "loggedout"
   $('#loggedInAs').text('')
+
+sputnik.on "place_order", () ->
+  @log "GUI: placing order"
+
+sputnik.on "place_order_success", (res) ->
+  @log "place order success: #{res.desc}"
+  alert "success: #{res.desc}"
+
+sputnik.on "place_order_error", (error) ->
+  @log "place order error: #{error}"
+  alert "error: #{error}"

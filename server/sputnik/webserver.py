@@ -506,13 +506,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Returns the user's positions
         :return: a dictionary representing the user's positions in various tickers
         """
-        return {x.contract.id: {"ticker": x.contract.ticker,
-                                "position": x.position,
-                                "reference_price": x.reference_price,
-                                "denominator": x.contract.denominator,
-                                "contract_type": x.contract.contract_type,
-                                "inverse_quotes": x.contract.inverse_quotes}
-                for x in self.session.query(models.Position).filter_by(user=self.user)}
+        return [True, {x.contract.id: {"ticker": x.contract.ticker,
+                                       "position": x.position,
+                                       "reference_price": x.reference_price,
+                                       "denominator": x.contract.denominator,
+                                       "contract_type": x.contract.contract_type,
+                                       "inverse_quotes": x.contract.inverse_quotes}
+                       for x in self.session.query(models.Position).filter_by(user=self.user)}]
 
     @exportRpc("get_profile")
     @limit
