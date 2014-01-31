@@ -761,9 +761,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
             self.count += 1
             print 'cancel_order', self.count
-            return {'retval': True}
+            return [True, None]
         except Exception as e:
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+            return [False, str(e)]
 
 
 

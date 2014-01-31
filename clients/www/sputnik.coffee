@@ -198,7 +198,10 @@ class Sputnik extends EventEmitter
         , (error) =>
           @emit "place_order_error", error
 
-    cancel: (ticker, id) =>
+    cancelOrder: (id) =>
+      @log "cancelling: #{id}"
+      @call("cancel_order", id)
+
 
     # deposits and withdrawals
 
@@ -362,6 +365,9 @@ $('#sellButton').click ->
 
 $('#buyButton').click ->
   sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 0)
+
+$('#cancelButton').click ->
+  sputnik.cancelOrder(parseInt(orderId.value))
 
 # UI functions
 displayMarkets = (markets) ->
