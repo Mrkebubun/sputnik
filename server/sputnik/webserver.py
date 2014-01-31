@@ -683,14 +683,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         gets open orders
         """
-        return [
+        return [True, [
             {'ticker': order.contract.ticker,
              'price': order.price,
              'quantity': order.quantity_left,
              'side': order.side,
              'id': order.id}
             for order in self.session.query(models.Order).filter_by(
-                user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
+                user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]]
 
 
     @exportRpc("place_order")

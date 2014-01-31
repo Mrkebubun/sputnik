@@ -209,6 +209,12 @@ class Sputnik extends EventEmitter
     # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
+      @log("getting open orders")
+      @call("get_open_orders").then \
+        (orders) =>
+          @log("orders received: #{orders}")
+          @emit "orders", orders
+
     getPositions: () =>
       @log("getting positions")
       @call("get_positions").then \
@@ -403,6 +409,26 @@ displayPositions = (positions) ->
     positionCell = row.insertCell(1)
     positionCell.innerText = position.position
 
+displayOrders = (orders) ->
+  table = $('#ordersTable')[0]
+  for order in orders
+    row = table.insertRow(-1)
+
+    tickerCell = row.insertCell(0)
+    tickerCell.innerText = order.ticker
+
+    priceCell = row.insertCell(1)
+    priceCell.innerText = order.price
+
+    quantityCell = row.insertCell(2)
+    quantityCell.innerText = order.quantity
+
+    sideCell = row.insertCell(3)
+    sideCell.innerText = order.side
+
+    idCell = row.insertCell(4)
+    idCell.innerText = order.id
+
 # Handle emitted events
 sputnik.on "markets", (markets) ->
         for ticker, data of markets
@@ -413,6 +439,9 @@ sputnik.on "markets", (markets) ->
 
 sputnik.on "positions", (positions) ->
   displayPositions positions
+
+sputnik.on "orders", (orders) ->
+  displayOrders orders
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
