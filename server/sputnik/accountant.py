@@ -23,6 +23,8 @@ import database
 import logging
 
 
+
+
 context = zmq.Context()
 connector = context.socket(zmq.constants.PULL)
 connector.bind(config.get("accountant", "zmq_address"))
