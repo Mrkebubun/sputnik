@@ -281,7 +281,7 @@ class Sputnik extends EventEmitter
             @markets[ticker].trades = []
             @markets[ticker].buys = []
             @markets[ticker].sells = []
-        @emit "ready"
+        @emit "markets", @markets
 
  
     # public feeds
@@ -333,9 +333,23 @@ $('#registerButton').click ->
 $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
+displayMarkets = (markets) ->
+  for ticker, data of markets
+    if data.contract_type != "cash"
+      table = $('#marketsTable')[0]
+      row = table.insertRow(0)
+      nameCell = row.insertCell(0)
+      descriptionCell = row.insertCell(1)
+      nameCell.innerText = ticker
+      descriptionCell.innerText = data.description
+
 # Handle emitted events
-sputnik.on "ready", ->
-        sputnik.follow "MXN/BTC"
+sputnik.on "markets", (markets) ->
+        for ticker, data of markets
+          if data.contract_type != "cash"
+            sputnik.follow ticker
+
+        displayMarkets markets
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
