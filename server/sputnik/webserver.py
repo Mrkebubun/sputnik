@@ -675,7 +675,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if ticker in self.factory.all_books:
             return self.factory.all_books[ticker]
         else:
-            return []
+            return [False, "no book for %s" % ticker]
 
     @exportRpc("get_open_orders")
     @limit

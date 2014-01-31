@@ -225,6 +225,10 @@ class Sputnik extends EventEmitter
           @log("positions received: #{positions}")
           @emit "positions", positions
 
+    getOrderBook: (ticker) =>
+      @log("getting orderbook: #{ticker}")
+      @call("get_order_book", ticker).then @onBookUpdate
+
     # miscelaneous methods
 
     chat: (message) =>
@@ -426,6 +430,7 @@ sputnik.on "markets", (markets) ->
         for ticker, data of markets
           if data.contract_type != "cash"
             sputnik.follow ticker
+            sputnik.getOrderBook ticker
 
         displayMarkets markets
 
