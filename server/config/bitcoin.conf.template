@@ -1,0 +1,7 @@
+rpcuser=bitcoinrpc
+rpcpassword=
+datadir=/data/bitcoind
+printtoconsole=1
+gen=0
+maxconnections=10
+testnet=0

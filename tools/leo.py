@@ -168,6 +168,14 @@ class ContractManager:
         setattr(contract, field, value)
         self.session.merge(contract)
 
+class AddressManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, address):
+        address = models.Addresses(None, "btc", address)
+        self.session.add(address)
+
 class DatabaseManager:
     def __init__(self, session):
         self.session = session
@@ -181,6 +189,7 @@ class LowEarthOrbit:
         self.modules = {
             "accounts": AccountManager(session),
             "contracts": ContractManager(session),
+            "addresses": AddressManager(session),
             "database": DatabaseManager(session)
         }
 
@@ -201,7 +210,14 @@ def main():
     session = database.make_session()
     try:
         leo = LowEarthOrbit(session)
-        leo.parse(" ".join(sys.argv[1:]))
+        if len(sys.argv) == 1:
+            try:
+                while True:
+                    leo.parse(raw_input("leo> "))
+            except EOFError:
+                pass
+        else:
+            leo.parse(" ".join(sys.argv[1:]))
         session.commit()
     except Exception, e:
         print e

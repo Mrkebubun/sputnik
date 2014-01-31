@@ -4,6 +4,7 @@ __pycache__
 logs
 build
 debug
+dist
 sputnik.tar.gz
 .bitcoin
 .idea

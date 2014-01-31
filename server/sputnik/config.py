@@ -21,14 +21,15 @@ class AutoConfigParser(ConfigParser):
         ConfigParser.__init__(self, *args, **kwargs)
         self.autoconfig_filename = None
 
-        local_debug = path.abspath("./debug.ini")
         local = path.abspath("./sputnik.ini")
-        default_debug = path.abspath(path.join(path.dirname(__file__),
-            "../config/debug.ini"))
+        root = path.abspath(path.join(path.dirname(__file__),
+            "./server/config/sputnik.ini"))
+        dist = path.abspath(path.join(path.dirname(__file__),
+            "../../dist/config/sputnik.ini"))
         default = path.abspath(path.join(path.dirname(__file__),
             "../config/sputnik.ini"))
 
-        self.autoconfig_files = [local_debug, local, default_debug, default]
+        self.autoconfig_files = [local, root, dist, default]
 
         self.autoconfig()
 

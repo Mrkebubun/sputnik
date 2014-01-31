@@ -1,6 +1,0 @@
-#!/bin/bash
-ln -s /srv/sputnik/server/config/supervisor.conf /etc/supervisor/conf.d/sputnik.conf
-sed -i "s/\(chmod=\).*/\10770\nchown=root:adm/" /etc/supervisor/supervisord.conf
-
-usermod -a -G adm $SUDO_USER
-supervisorctl reload

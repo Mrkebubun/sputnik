@@ -1,9 +1,0 @@
-apache2
-bitcoind
-build-essential
-postfix
-postgresql
-python-dev
-python-pip
-python-psycopg2
-supervisor

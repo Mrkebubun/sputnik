@@ -1,0 +1,45 @@
+[supervisord]
+logfile=${logs}/supervisor.log
+pidfile=${run}/supervisor.pid
+
+[unix_http_server]
+file=${run}/supervisor.sock
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix://${run}/supervisor.sock
+
+[program:engine_MXN_BTC]
+command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini MXN/BTC
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+
+[program:accountant]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+
+[program:webserver]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+
+[program:safe_price_forwarder]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+

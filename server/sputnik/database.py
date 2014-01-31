@@ -17,7 +17,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 Base = declarative_base()
 
-def make_session(**kwargs):
+def get_session_maker(**kwargs):
     # If we are not root, override SQL username to be myself
     my_user = getpass.getuser()
     if my_user != 'root':
@@ -28,5 +28,9 @@ def make_session(**kwargs):
         sqlalchemy.event.listen(Engine, "connect", set_sqlite_pragma)
     engine = sqlalchemy.create_engine(uri, echo=False)
     Session = sqlalchemy.orm.sessionmaker(bind=engine)
+    return Session
+    
+def make_session(**kwargs):
+    Session = get_session_maker(**kwargs)
     return Session()
 
