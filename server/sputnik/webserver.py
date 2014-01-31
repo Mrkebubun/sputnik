@@ -5,6 +5,8 @@ Main websocket server, accepts RPC and subscription requests from clients. It's 
 facilitating all communications between the client, the database and the matching engine.
 """
 
+#magic buffalo!!!
+
 from optparse import OptionParser
 import config
 
@@ -57,8 +59,6 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                database=config.get("database", "dbname"))
 
 MAX_TICKER_LENGTH = 100
-RATE_LIMIT = 0.5
-
 
 def limit(func):
     last_called = [0.0]
@@ -99,6 +99,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # noinspection PyPep8Naming
         self.clientAuthAllowAnonymous = True
         self.troll_throttle = 0
+        self.rate_limit = 0.5
 
     def connectionMade(self):
         """
@@ -175,7 +176,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         def _cb(result):
             if result:
-                salt, password_hash = result[0][0].password.split(":")
+                salt, password_hash = result[0][0].split(":")
                 authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
             else:
                 noise = hashlib.md5("super secret" + username + "even more secret")
@@ -220,7 +221,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if not result:
                 raise Exception("No such user: %s" % auth_key)
 
-            salt, secret = result[0][0].password.split(":")
+            salt, secret = result[0][0].split(":")
             totp = result[0][1]
 
             try:
@@ -294,11 +295,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # should the registration of these wait till after onAuth?  And should they only be
         # for the specific user?
         #  Pretty sure yes.
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + username,
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + self.username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/fills#" + username,
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/fills#" + self.username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + username,
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + self.username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri="wss://sputnikmkt.com:8000/user/")
 
@@ -362,8 +363,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #todo implement time_span checks
         return dbpool.runQuery(
-            "SELECT trade.timestamp, trade.price, trade.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s" % (
-                ticker,))
+            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
+            (ticker,))
 
     @exportRpc("get_new_address")
     @limit
@@ -460,7 +461,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                     for x in result}
 
         return dbpool.runQuery(
-            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, positions.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, contracts.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
@@ -531,16 +532,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(email, {"type": "string"})
 
         def _make(tx, params):
-            existing = tx.execute("SELECT id FROM users WHERE username=%s", (params['username'], ))
+            tx.execute("SELECT username FROM users WHERE username=%s", (params['username'], ))
+            existing = tx.fetchall()
             if existing:
                 return [0, (0, "account already exists")]
             tx.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
-                       (params['username'], params['password'] + ':' + params['salt'], params['email']))
+                       (params['username'], params['salt'] + ':' + params['password'], params['email']))
 
-            for contract in tx.execute("SELECT id FROM contracts WHERE contract_type='cash'"):
+            tx.execute("SELECT id FROM contracts WHERE contract_type='cash'")
+            for contract in tx.fetchall():
                 tx.execute("INSERT INTO positions (username, contract_id) VALUES (%s, %s)", (params['username'], contract[0]))
 
-            new_address = tx.execute("SELECT id FROM addresses WHERE active=FALSE AND username IS NULL LIMIT 1")
+            tx.execute("SELECT id FROM addresses WHERE active=FALSE AND username IS NULL LIMIT 1")
+            new_address = tx.fetchall()
             if not new_address:
                 logging.error("Couldn't create user, out of addresses")
                 raise Exception("Out of new addresses!")
@@ -573,6 +577,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
                 if result[r[0]]['contract_type'] == 'prediction':
                     result[r[0]]['final_payoff'] = r[2]
+            return result
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
 
@@ -620,7 +625,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         def _cb(result):
             return [{'ticker':r[0], 'price':r[1], 'quantity':r[2], 'side':r[3], 'id':r[4]} for r in result]
-        return dbpool.runQuery("SELECT ticker, price, quantity, side, id FROM orders WHERE username=%s AND accepted=TRUE AND is_cancelled=FALSE", (self.username,)).addCallback(_cb)
+        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.side, orders.id FROM orders, contracts WHERE orders.contract_id=contracts.id AND orders.username=%s AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(_cb)
 
     @exportRpc("place_order")
     @limit
@@ -662,6 +667,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.factory.accountant.push(json.dumps({'place_order': order}))
             self.count += 1
             print 'place_order', self.count
+            return True
+
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
