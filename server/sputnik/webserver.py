@@ -304,6 +304,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             username = authKey
         else:
             logging.info("Cookie login for: %s" % username)
+            self.cookie = authKey
             self.user = self.session.query(models.User).filter_by(username=username).one()
 
         # moved from onSessionOpen

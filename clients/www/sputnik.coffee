@@ -97,6 +97,34 @@ class Sputnik extends EventEmitter
       , (error) ->
         @failed_login(error);
 
+    cookie_login: (cookie) =>
+      parts = cookie.split("=", 2)[1].split(":", 2)
+      name = parts[0]
+      uid = parts[1]
+      if !uid
+        return @failed_cookie "bad_cookie, clearing"
+
+      @session.authreq(uid).then \
+        (challenge) =>
+          @authextra = JSON.parse(challenge).authextra
+          @authextra.salt = "cookie"
+          secret = ab.deriveKey("cookie", @authextra)
+          signature = @session.authsign(challenge, secret)
+          @log signature
+          @session.auth(signature).then \
+            (permissions) =>
+              login.value = name
+              @onAuth permissions
+            , @failed_cookie
+          @log "end of cookie login"
+        , (error) =>
+          @failed_cookie "error processing cookie login: #{error}"
+
+    failed_cookie: (error) =>
+      document.cookie = ''
+      @emit "failed_cookie", error
+      @log error
+
     logout: () =>
       @logged_in = false
 
@@ -111,13 +139,16 @@ class Sputnik extends EventEmitter
 
       # TODO: Unsubscribe from everything
       @call "logout"
+
+      # Clear cookie
+      document.cookie = ''
       @close()
       @connect()
       @emit "logout"
 
     getCookie: () =>
       @call("get_cookie").then \
-        (uid) ->
+        (uid) =>
           @log("cookie: " + uid)
           document.cookie = "login" + "=" + login.value + ":" + uid
 
@@ -231,8 +262,12 @@ class Sputnik extends EventEmitter
             @chat_history = chats
             @emit "chat", @chat_history
 
-        @emit "open"
-    
+        # Attempt a cookie login
+        cookie = document.cookie
+        @log "cookie: #{cookie}"
+        if cookie
+          @cookie_login cookie
+
     onClose: (code, reason, details) =>
         @log "Connection lost."
         @emit "close"
@@ -262,6 +297,7 @@ class Sputnik extends EventEmitter
         @emit "trade", event
 
     onChat: (event) =>
+        # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent
         user = event[0]
         message = event[1]
         @chat_messages.push "#{user}: #{message}"
@@ -323,6 +359,10 @@ sputnik.on "wtf_error", (error) ->
 sputnik.on "failed_login", (error) ->
   console.error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
+
+sputnik.on "failed_cookie", (error) ->
+  console.error "cookie error: #{error.desc}"
+  alert "cookie error: #{error.desc}"
 
 sputnik.on "make_account_error", (error) ->
   console.error "make_account_error: #{error}"
