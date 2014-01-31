@@ -376,19 +376,20 @@ displayMarkets = (markets) ->
   for ticker, data of markets
     if data.contract_type != "cash"
       row = table.insertRow(-1)
-      nameCell = row.insertCell(0)
-      descriptionCell = row.insertCell(1)
-      nameCell.innerText = ticker
-      descriptionCell.innerText = data.description
+      row.insertCell(-1).innerText = ticker
+      row.insertCell(-1).innerText = data.description
+      row.insertCell(-1).innerText = data.full_description
+      row.insertCell(-1).innerText = data.contract_type
+      row.insertCell(-1).innerText = data.tick_size
+      row.insertCell(-1).innerText = data.lot_size
+      row.insertCell(-1).innerText = data.denominator
 
 generateBookTable = (book) ->
   table = document.createElement('table')
   for book_row in book
     row = table.insertRow(-1)
-    quantity = row.insertCell(0)
-    price = row.insertCell(1)
-    quantity.innerText = book_row[0]
-    price.innerText = book_row[1]
+    row.insertCell(-1).innerText = book_row[0]
+    row.insertCell(-1).innerText = book_row[1]
 
   return table
 
@@ -397,43 +398,28 @@ displayBooks = (markets) ->
   for ticker, data of markets
     if data.contract_type != "cash"
       row = table.insertRow(-1)
-      nameCell = row.insertCell(0)
-      nameCell.innerText = ticker
-
-      sellsCell = row.insertCell(1)
-      sellsCell.appendChild(generateBookTable(data.sells))
-      buysCell = row.insertCell(2)
-      buysCell.appendChild(generateBookTable(data.buys))
+      row.insertCell(-1).innerText = ticker
+      row.insertCell(-1).appendChild(generateBookTable(data.sells))
+      row.insertCell(-1).appendChild(generateBookTable(data.buys))
 
 displayPositions = (positions) ->
   table = $('#positionsTable')[0]
   for id, position of positions
     row = table.insertRow(-1)
-    tickerCell = row.insertCell(0)
-    tickerCell.innerText = position.ticker
-
-    positionCell = row.insertCell(1)
-    positionCell.innerText = position.position
+    row.insertCell(-1).innerText = position.ticker
+    row.insertCell(-1).innerText = position.position
+    row.insertCell(-1).innerText = position.reference_price
 
 displayOrders = (orders) ->
   table = $('#ordersTable')[0]
   for order in orders
     row = table.insertRow(-1)
-
-    tickerCell = row.insertCell(0)
-    tickerCell.innerText = order.ticker
-
-    priceCell = row.insertCell(1)
-    priceCell.innerText = order.price
-
-    quantityCell = row.insertCell(2)
-    quantityCell.innerText = order.quantity
-
-    sideCell = row.insertCell(3)
-    sideCell.innerText = order.side
-
-    idCell = row.insertCell(4)
-    idCell.innerText = order.id
+    row.insertCell(-1).innerText = order.ticker
+    row.insertCell(-1).innerText = order.price
+    row.insertCell(-1).innerText = order.quantity
+    row.insertCell(-1).innerText = order.side
+    row.insertCell(-1).innerText = order.timestamp
+    row.insertCell(-1).innerText = order.id
 
 # Handle emitted events
 sputnik.on "markets", (markets) ->
