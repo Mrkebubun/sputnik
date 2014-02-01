@@ -3,7 +3,3 @@ uri = postgresql://%(username)s@/%(dbname)s
 username = sputnik
 dbname = sputnik
 adapter = psycopg2
-<<<<<<< HEAD
-=======
-
->>>>>>> yury
