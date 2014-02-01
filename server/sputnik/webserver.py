@@ -815,8 +815,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        endpoint = ZmqEndpoint("connect", config.get("accountant", "webserver_link"))
-        self.accountant = dealer_proxy_async(zf, endpoint)
+        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
 
     def dispatcher(self, message):
         """
