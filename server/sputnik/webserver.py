@@ -736,8 +736,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-        self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
+        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
+        self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.username}}))
         self.count += 1
         print 'cancel_order', self.count
         return [True, None]
