@@ -41,6 +41,7 @@ from autobahn.wamp import exportRpc, \
 from OpenSSL import SSL
 
 from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
+from zmq_util import dealer_proxy_async
 
 zf = ZmqFactory()
 
@@ -65,7 +66,7 @@ def limit(func):
     def kick(self, *arg, **kwargs):
         elapsed = time.clock() - last_called[0]
 
-        if elapsed < self.RATE_LIMIT:
+        if elapsed < self.rate_limit:
             self.count += 1
         else:
             # forgive past floods
@@ -116,7 +117,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param reason: reason why the connection was lost
         """
         logging.info("Connection was lost: %s" % reason)
-        self.session.close()
+        #self.session.close()
 
     def onSessionOpen(self):
         """
@@ -706,11 +707,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 raise Exception("invalid price or quantity")
 
             order['username'] = self.username
-            #TODO (yury can you make this an async rep/req with TXZMQ?)
-            self.factory.accountant.push(json.dumps({'place_order': order}))
             self.count += 1
             print 'place_order', self.count
+<<<<<<< HEAD
             return [True, None]
+=======
+            return self.factory.accountant.place_order(order)
+
+
+>>>>>>> yury
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
@@ -736,11 +741,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-        self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
+        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
         self.count += 1
         print 'cancel_order', self.count
+<<<<<<< HEAD
         return [True, None]
+=======
+        return self.factory.accountant.cancel_order(order_id)
+>>>>>>> yury
 
 
     @exportSub("chat")
@@ -811,8 +819,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        endpoint = ZmqEndpoint("connect", config.get("accountant", "zmq_address"))
-        self.accountant = ZmqPushConnection(zf, endpoint)
+        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
 
     def dispatcher(self, message):
         """

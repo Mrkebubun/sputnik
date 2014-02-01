@@ -3,12 +3,9 @@ __author__ = 'arthurb'
 import models
 import logging
 
+import collections
+
 logging.basicConfig(level=logging.DEBUG)
-
-
-
-
-
 
 def calculate_margin(username, session, safe_prices, order_id=None):
     """
@@ -18,6 +15,8 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     :return: low and high margin
     """
     low_margin = high_margin = 0
+
+    cash_position = {}
 
     # let's start with positions
     positions = {position.contract_id: position for position in
@@ -34,18 +33,12 @@ def calculate_margin(username, session, safe_prices, order_id=None):
         max_position = position.position + sum(
             order.quantity_left for order in open_orders if order.contract == position.contract and order.side == 'BUY')
         min_position = position.position - sum(
-            order.quantity_left for order in open_orders if order.contract == position.contract and order.side == 'SELL')
-
-        # if potential_order and position.contract_id == potential_order['contract_id']:
-        #     if potential_order['side'] == 0:
-        #         max_position += potential_order['quantity']
-        #     if potential_order['side'] == 1:
-        #         min_position -= potential_order['quantity']
+            order.quantity_left for order in open_orders if
+            order.contract == position.contract and order.side == 'SELL')
 
         contract = position.contract
 
         if contract.contract_type == 'futures':
-
             SAFE_PRICE = safe_prices[position.contract.ticker]
 
             logging.info(low_margin)
@@ -62,8 +55,8 @@ def calculate_margin(username, session, safe_prices, order_id=None):
                 position.reference_price - SAFE_PRICE)
             high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
-            logging.info( low_max)
-            logging.info( low_min)
+            logging.info(low_max)
+            logging.info(low_min)
 
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
@@ -79,12 +72,6 @@ def calculate_margin(username, session, safe_prices, order_id=None):
             max_received = sum(order.quantity_left * order.price for order in open_orders if
                                order.contract == contract and order.side == 'SELL')
 
-            # if potential_order and position.contract_id == potential_order['contract_id']:
-            #     if potential_order['side'] == 0:
-            #         max_spent += potential_order['quantity'] * potential_order['price']
-            #     if potential_order['side'] == 1:
-            #         max_received += potential_order['quantity'] * potential_order['price']
-
             worst_short_cover = -min_position * payoff if min_position < 0 else 0
             best_short_cover = -max_position * payoff if max_position < 0 else 0
 
@@ -92,4 +79,36 @@ def calculate_margin(username, session, safe_prices, order_id=None):
             low_margin += additional_margin
             high_margin += additional_margin
 
+        if contract.contract_type == 'cash':
+            cash_position[contract.ticker] = position.position
+
+    max_cash_spent = collections.defaultdict(int)
+
+    for order in open_orders:
+        if order.contract.contract_type == 'cash_pair':
+            from_currency, to_currency = get_currencies_in_pair(session, order.contract.ticker)
+            if order.side == 'BUY':
+                max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
+            if order.side == 'SELL':
+                max_cash_spent[to_currency.ticker] += order.quantity_left
+
+    for cash_ticker in cash_position:
+        if cash_ticker == 'BTC':
+            additional_margin = max_cash_spent['BTC']
+        else:
+            # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
+            additional_margin = 0 if max_cash_spent[cash_ticker] < cash_position[cash_ticker] else 2**48
+
+        low_margin += additional_margin
+        high_margin += additional_margin
+
     return low_margin, high_margin
+
+def get_currencies_in_pair(session, ticker):
+        tokens = ticker.split("/", 1)
+        source = session.query(models.Contract).filter_by(
+            ticker=tokens[0]).order_by(models.Contract.id.desc()).first()
+        target = session.query(models.Contract).filter_by(
+            ticker=tokens[1]).order_by(models.Contract.id.desc()).first()
+        return source, target
+

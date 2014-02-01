@@ -5,7 +5,7 @@ import config
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
+        help="config file", default=None)
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
@@ -14,6 +14,7 @@ import sys
 import logging
 
 import zmq
+from zmq_util import export, router_share_sync, push_proxy_sync
 from sqlalchemy.orm.exc import NoResultFound
 import database as db
 import models
@@ -41,7 +42,7 @@ class SafePricePublisher(object):
             self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
         except IndexError:
             self.safe_price = 42
-        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        accountant.safe_price(contract_name, self.safe_price)
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
@@ -60,7 +61,7 @@ class SafePricePublisher(object):
 
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % self.safe_price)
-        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        accountant.safe_price(contract_name, self.safe_price)
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
@@ -142,16 +143,16 @@ class Order(object):
 
         for o in [self, other_order]:
             signed_qty = -o.side * qty
-            accountant.send_json({
-                'trade': {
+            accountant.post_transaction(
+                {
                     'username':o.username,
                     'contract': o.contract,
-                    'signed_qty': signed_qty,
+                    'signed_quantity': signed_qty,
                     'price': matching_price,
                     'contract_type': db_orders[0].contract.contract_type,
                     'ticker': contract_name,
                 }
-            })
+            )
             publisher.send_json({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
             print 'test 1:  ',str({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
 
@@ -216,16 +217,15 @@ db_session.commit()
 
 
 # will automatically pull order from requests
-connector = context.socket(zmq.PULL)
-connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
+#connector = context.socket(zmq.PULL)
+#connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
 
 # publishes book updates
 publisher = context.socket(zmq.PUSH)
 publisher.connect(config.get("webserver", "zmq_address"))
 
 # push to the accountant
-accountant = context.socket(zmq.PUSH)
-accountant.connect(config.get("accountant", "zmq_address"))
+accountant = push_proxy_sync(config.get("accountant", "engine_link"))
 
 # push to the safe price forwarder
 safe_price_forwarder = context.socket(zmq.PUB)
@@ -259,90 +259,94 @@ def pretty_print_book():
 safe_price_publisher = SafePricePublisher()
 
 
-while True:
-    request = connector.recv_json()
-    for request_type, request_details in request.iteritems():
+class ReplaceMeWithARealEngine:
+    @export
+    def cancel_order(self, order_id):
+        logging.info("this order is actually a cancellation!")
+
+        if order_id in all_orders:
+            o = all_orders[order_id]
+            side = 'ask' if o.side == OrderSide.BUY else 'bid'
+            other_side = 'bid' if o.side == OrderSide.BUY else 'ask'
+            book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
+            # if list is now empty, get rid of it!
+            if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
+                del book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]
+
+            update_best(other_side)
+
+            o.cancel()
+            del all_orders[order_id]
+            #publisher.send_json({'cancel': [o.user, {'order': o.id}]}) #
+            #user.usernamechange o to order in the following:
+            print 'o.id:  ', o.id
+            print 'order.id:  ', order_id
+            print [oxox.__dict__ for oxox in all_orders.values()]
+            print 'o.id:  ', o.id
+            print 'order.id:  ', order_id
+            print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
+            publisher.send_json({'cancel': [o.username, {'order': o.id}]})
+        else:
+            logging.info("the order cannot be cancelled, it's already outside the book")
+            return False
+
+        logging.info(pretty_print_book())
+        publish_order_book()
+
+        return True
+
+    @export
+    def place_order(self, obj):
+        logging.info("received order, id=%d, order=%s" % (obj["id"], obj))
 
         order = Order(None, None, None, None, None, None)
-        order.__dict__.update(request_details)
+        order.__dict__.update(obj)
         side = 'ask' if order.side == OrderSide.BUY else 'bid'
         other_side = 'bid' if order.side == OrderSide.BUY else 'ask'
 
-        if request_type == "order":
-            logging.info("received order, id=%d, order=%s" % (order.id, order))
+        # while we can dig in the other side, do so and be executed
+        while order.quantity > 0 and best[side] and order.better(best[side]):
+            try:
+                book_order_list = book[side][best[side]]
+                for book_order in book_order_list:
+                    order.match(book_order, book_order.price)
+                    if book_order.quantity == 0:
+                        book_order_list.remove(book_order)
+                        del all_orders[book_order.id]
+                        if not book_order_list:
+                            del book[side][best[side]]
+                    if order.quantity == 0:
+                        break
+                update_best(side)
+            except KeyError as e:
+                print e
 
-            # while we can dig in the other side, do so and be executed
-            while order.quantity > 0 and best[side] and order.better(best[side]):
-                try:
-                    book_order_list = book[side][best[side]]
-                    for book_order in book_order_list:
-                        order.match(book_order, book_order.price)
-                        if book_order.quantity == 0:
-                            book_order_list.remove(book_order)
-                            del all_orders[book_order.id]
-                            if not book_order_list:
-                                del book[side][best[side]]
-                        if order.quantity == 0:
-                            break
-                    update_best(side)
-                except KeyError as e:
-                    print e
+        # if some quantity remains place it in the book
+        if order.quantity != 0:
+            if order.price not in book[other_side]:
+                book[other_side][order.price] = []
+            book[other_side][order.price].append(order)
+            all_orders[order.id] = order
+            update_best(other_side)
+            # publish the user's open order to their personal channel
+            publisher.send_json({'open_orders': [order.username,{'order': order.id,
+                                                             'quantity':order.quantity,
+                                                             'price':order.price,
+                                                             'side': order.side,
+                                                             'ticker':contract_name,
+                                                             'contract_id':contract_id}]})
+            print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
+                                                             'quantity':order.quantity,
+                                                             'price':order.price,
+                                                             'side': order.side,
+                                                             'ticker':contract_name,
+                                                             'contract_id':contract_id}]})
 
-            # if some quantity remains place it in the book
-            if order.quantity != 0:
-                if order.price not in book[other_side]:
-                    book[other_side][order.price] = []
-                book[other_side][order.price].append(order)
-                all_orders[order.id] = order
-                update_best(other_side)
-                # publish the user's open order to their personal channel
-                publisher.send_json({'open_orders': [order.username,{'order': order.id,
-                                                                 'quantity':order.quantity,
-                                                                 'price':order.price,
-                                                                 'side': order.side,
-                                                                 'ticker':contract_name,
-                                                                 'contract_id':contract_id}]})
-                print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
-                                                                 'quantity':order.quantity,
-                                                                 'price':order.price,
-                                                                 'side': order.side,
-                                                                 'ticker':contract_name,
-                                                                 'contract_id':contract_id}]})
+        # done placing the order, publish the order book
+        logging.info(pretty_print_book())
+        publish_order_book()
+        return True
 
-            # done placing the order, publish the order book
-            logging.info(pretty_print_book())
-            publish_order_book()
-
-        elif request_type == "cancel":
-            logging.info("this order is actually a cancellation!")
-
-            if order.id in all_orders:
-                o = all_orders[order.id]
-                book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
-                # if list is now empty, get rid of it!
-                if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
-                    del book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]
-
-                update_best(other_side)
-
-                o.cancel()
-                del all_orders[order.id]
-                #publisher.send_json({'cancel': [o.user, {'order': o.id}]}) #
-                #user.usernamechange o to order in the following:
-                print 'o.id:  ', o.id
-                print 'order.id:  ', order.id
-                print [oxox.__dict__ for oxox in all_orders.values()]
-                print 'o.id:  ', o.id
-                print 'order.id:  ', order.id
-                print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
-                publisher.send_json({'cancel': [o.username, {'order': o.id}]})
-            else:
-                logging.info("the order cannot be cancelled, it's already outside the book")
-                logging.warning("we currently don't have a way of telling the cancel failed")
-
-            logging.info(pretty_print_book())
-            publish_order_book()
-
-        else:
-            logging.warning("unknown request type: %s", request_type)
+engine = ReplaceMeWithARealEngine()
+router_share_sync(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)
 
