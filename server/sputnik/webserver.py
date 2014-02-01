@@ -813,7 +813,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        endpoint = ZmqEndpoint("connect", config.get("accountant", "web_server_link"))
+        endpoint = ZmqEndpoint("connect", config.get("accountant", "webserver_link"))
         self.accountant = ZmqPushConnection(zf, endpoint)
 
     def dispatcher(self, message):
