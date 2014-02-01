@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import zmq
+import uuid
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
@@ -264,30 +265,57 @@ class Proxy:
                     return result
                 raise RemoteException(result)
             
-            if d:
+            if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
                 d.addCallback(parse_result)
-
+            
             return d
 
         return remote_method
 
-class DealerProxy(Proxy):
+class DealerProxyAsync(Proxy):
     def send(self, message):
         return self._connection.sendMsg(message)
  
-class PushProxy(Proxy):
+class PushProxyAsync(Proxy):
     def send(self, message):
         return self._connection.push(message) 
 
-def proxy(address, mode="dealer"):
-    if mode == "dealer":
-        socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-        return DealerProxy(socket)
-    elif mode == "push":
-        socket = ZmqPushConnection(ZmqFactory(),
-            ZmqEndpoint("connect", address))
-        return PushProxy(socket)
-    else:
-        raise Exception("Mode not recognized.")
+class DealerProxySync(Proxy):
+    def send(self, message):
+        self._id = str(uuid.uuid4())
+        self._connection.send_multipart([self._id, "", message])
+        data = self._connection.recv_multipart()
+        if data[0] != self._id:
+            raise Exception("Invalid return ID.")
+        message = data[2]
+        success, result = self.decode(message)
+        if success:
+            return result
+        raise RemoteException(result)
+ 
+class PushProxySync(Proxy):
+    def send(self, message):
+        self._connection.send(message) 
+        return None
+
+def dealer_proxy_async(address):
+    socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return DealerProxyAsync(socket)
+
+def push_proxy_async(address):
+    socket = ZmqPushConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return PushProxyAsync(socket)
+
+def dealer_proxy_sync(address):
+    context = zmq.Context()
+    socket = context.socket(zmq.DEALER)
+    socket.connect(address)
+    return DealerProxySync(socket)
+
+def push_proxy_sync(address):
+    context = zmq.Context()
+    socket = context.socket(zmq.PUSH)
+    socket.connect(address)
+    return PushProxySync(socket)
 

@@ -12,7 +12,7 @@ if options.filename:
 import database
 import models
 
-from zmq_util import export, proxy, router_share_async, pull_share_async
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
@@ -41,7 +41,7 @@ class Accountant:
                 logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
                 self.safe_prices[contract.ticker] = 42
             port = 4200 + contract.id
-            self.engines[contract.ticker] = proxy("tcp://127.0.0.1:%d" % port)
+            self.engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" % port)
        
     def get_user(self, username):
         """

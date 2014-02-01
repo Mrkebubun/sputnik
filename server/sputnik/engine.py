@@ -14,7 +14,7 @@ import sys
 import logging
 
 import zmq
-from zmq_util import export, router_share_sync
+from zmq_util import export, router_share_sync, push_proxy_sync
 from sqlalchemy.orm.exc import NoResultFound
 import database as db
 import models
@@ -42,7 +42,7 @@ class SafePricePublisher(object):
             self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
         except IndexError:
             self.safe_price = 42
-        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        accountant.safe_price(contract_name, self.safe_price)
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
@@ -61,7 +61,7 @@ class SafePricePublisher(object):
 
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % self.safe_price)
-        accountant.send_json({'safe_price': {contract_name: self.safe_price}})
+        accountant.safe_price(contract_name, self.safe_price)
         publisher.send_json({'safe_price': {contract_name: self.safe_price}})
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
@@ -143,16 +143,16 @@ class Order(object):
 
         for o in [self, other_order]:
             signed_qty = -o.side * qty
-            accountant.send_json({
-                'trade': {
+            accountant.post_transaction(
+                {
                     'username':o.username,
                     'contract': o.contract,
-                    'signed_qty': signed_qty,
+                    'signed_quantity': signed_qty,
                     'price': matching_price,
                     'contract_type': db_orders[0].contract.contract_type,
                     'ticker': contract_name,
                 }
-            })
+            )
             publisher.send_json({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
             print 'test 1:  ',str({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
 
@@ -225,8 +225,7 @@ publisher = context.socket(zmq.PUSH)
 publisher.connect(config.get("webserver", "zmq_address"))
 
 # push to the accountant
-accountant = context.socket(zmq.PUSH)
-accountant.connect(config.get("accountant", "zmq_address"))
+accountant = push_proxy_sync(config.get("accountant", "engine_link"))
 
 # push to the safe price forwarder
 safe_price_forwarder = context.socket(zmq.PUB)
