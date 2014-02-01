@@ -415,14 +415,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
-        try:
-            old_addresses = self.session.query(models.Addresses).filter_by(user=self.user).all()
-            for addr in old_addresses:
-                print addr
-                print addr.active
-                addr.active = False
-                self.session.add(addr)
-
         def _get_new_address(txn, username):
             res = txn.query(
                 "SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
@@ -718,11 +710,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.factory.accountant.push(json.dumps({'place_order': order}))
             self.count += 1
             print 'place_order', self.count
-            return {'retval': True}
-        except Exception as e:
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
-
-
+            return [True, None]
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
@@ -741,19 +729,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param order_id: order_id of the order
         """
         # sanitize inputs:
-        try:
-            print 'received order_id', order_id
-            validate(order_id, {"type": "number"})
-            print 'received order_id', order_id
-            order_id = int(order_id)
-            print 'formatted order_id', order_id
-            print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-            self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
-            self.count += 1
-            print 'cancel_order', self.count
-            return [True, None]
-        except Exception as e:
-            return [False, str(e)]
+        validate(order_id, {"type": "number"})
+
         print 'received order_id', order_id
         validate(order_id, {"type": "number"})
         print 'received order_id', order_id
@@ -763,7 +740,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
         self.count += 1
         print 'cancel_order', self.count
-
+        return [True, None]
 
 
     @exportSub("chat")
@@ -823,9 +800,8 @@ class PepsiColaServerFactory(WampServerFactory):
     currently connected clients.
     """
 
-    def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
     # noinspection PyPep8Naming
-    def __init__(self, url, debugWamp=False, debugCodePaths=False):
+    def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
         self.safe_prices = {}
