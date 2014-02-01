@@ -9,42 +9,39 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
-import collections
-
-import json
-import re
-
-__author__ = 'satosushi'
-
-from sqlalchemy.orm.exc import NoResultFound
-import zmq
-import models
 import database
+import models
+
+from zmq_util import export, proxy, router_share_async, pull_share_async
+
+from twisted.internet import reactor
+from sqlalchemy.orm.exc import NoResultFound
+
 import logging
-
-
-context = zmq.Context()
-connector = context.socket(zmq.constants.PULL)
-connector.bind(config.get("accountant", "zmq_address"))
-
-session = database.make_session()
-
-logging.basicConfig(level=logging.DEBUG)
-
-
-# type of messages:
-
-# deposit/withdraw: adds or remove coins from the account
-# increase/decrease required_margin: adds or remove to the required margin
 
 
 class AccountantException(Exception):
     pass
 
+
 class Accountant:
     def __init__(self, session):
         self.session = session
-        self.btc = self.resolve("BTC")
+        self.btc = self.get_contract("BTC")
+        self.safe_prices = {}
+        self.engines = {}
+        for contract in session.query(models.Contract).filter_by(
+                active=True).all():
+            try:
+                last_trade = session.query(models.Trade).filter_by(
+                    contract=contract).order_by(
+                    models.Trade.timestamp.desc()).first()
+                self.safe_prices[contract.ticker] = int(last_trade.price)
+            except:
+                logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
+                self.safe_prices[contract.ticker] = 42
+            port = 4200 + contract.id
+            self.engines[contract.ticker] = proxy("tcp://127.0.0.1:%d" % port)
        
     def get_user(self, username):
         """
@@ -54,8 +51,11 @@ class Accountant:
         """
         logging.debug("Looking up username %s." % username)
 
+        if isinstance(username, models.User):
+            return username
+
         try:
-            return self.session.query(models.Users).filter_by(
+            return self.session.query(models.User).filter_by(
                 username=username).one()
         except NoResultFound:
             raise AccountantException("No such user: '%s'." % username)
@@ -67,6 +67,9 @@ class Accountant:
         :return: the last (id-wise) Contract object matching the ticker
         """
         logging.debug("Looking up contract %s." % ticker)
+
+        if isinstance(ticker, models.Contract):
+            return ticker
 
         try:
             ticker = int(ticker)
@@ -116,6 +119,9 @@ class Accountant:
         :param pair: the ticker name of the pair to split
         :return: a tuple of Contract objects
         """
+        
+        if isinstance(pair, models.Contract):
+            return self.split_pair(pair.ticker)
 
         tokens = pair.split("/", 1)
         if len(tokens) == 1:
@@ -125,7 +131,7 @@ class Accountant:
             target = self.get_contract(tokens[1])
         except AccountantError:
             raise AccountantException("'%s' is not a currency pair." % pair)
-         return source, target  
+        return source, target  
 
     def accept_order(self, order):
         """
@@ -136,8 +142,8 @@ class Accountant:
         """
         logging.info("Trying to accept order %s." % order)
 
-        low_margin, high_margin = margin.get_margin(
-            self.session, order.user, order)
+        low_margin, high_margin = margin.calculate_margin(
+            order.user, self.session, self.safe_prices, order)
 
         cash_position = self.get_position(order.username, "BTC")
 
@@ -159,16 +165,16 @@ class Accountant:
             session.commit()
             return True
 
-    def process_transaction(self, transaction):
+    def post_transaction(self, transaction):
         """
         Update the database to reflect that the given trade happened
-        :param trransaction: the transaction object
+        :param transaction: the transaction object
         :return: None
         """
         logging.info("Processing transaction %s." % transaction)
 
         username = transaction["username"]
-        ticker = transaction["ticker"]) 
+        ticker = transaction["ticker"]
         price = transaction["price"]
         signed_quantity = transaction["signed_quantity"]
         
@@ -181,7 +187,7 @@ class Accountant:
 
             # mark to current price as if everything had been entered at that
             #   price and profit had been realized
-            cash_position.position +=
+            cash_position.position += \
                 (price - future_position.reference_price) * \
                 future_position.position
             future_position.reference_price = price
@@ -227,7 +233,7 @@ class Accountant:
             logging.error("Unknown contract type '%s'." %
                 contract.contract_type)
 
-     session.commit()
+        session.commit()
 
 
     def cancel_order(self, id):
@@ -240,12 +246,9 @@ class Accountant:
         
         try:
             order = session.query(models.Order).filter_by(id=order_id).one()
-            m_e_order = order.to_matching_engine_order()
-            engine_sockets[order.contract_id].send(json.dumps({"cancel": m_e_order}))
-            return True
+            return self.engines[order.contract.ticker].cancel(id)
         except NoResultFound:
-            return False
-
+            raise Exception("No such order found.")
 
     def place_order(order):
         """
@@ -257,11 +260,12 @@ class Accountant:
         contact = self.get_contract(order["ticker"])
 
         if not contract.active:
-            return False
+            raise Exception("Contract is not active.")
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
-            return False
+            logging.critical("Webserver allowed a 'cash' contract!")
+            raise Exception("Not a valid contract type.")
 
         # TODO: check that the price is an integer and within a valid range
 
@@ -269,232 +273,150 @@ class Accountant:
         if contract.contract_type == 'prediction':
             # contract.denominator happens to be the same as the finally payoff
             if not 0 <= order["price"] <= contract.denominator:
-                return False
+                raise Exception("Not a valid prediction price.")
 
         o = models.Order(user, contract, order["quantity"], order["price"], "BUY" if order["side"] == 0 else "SELL")
 
         session.add(o)
         session.commit()
 
-        if accept_order_if_possible(user.username, o.id):
-            m_e_order = o.to_matching_engine_order()
-            engine_sockets[o.contract_id].send(json.dumps({"order":m_e_order}))
+        if self.accept_order(o):
+            return self.engines[o.contract.ticker].place_order(o.serialize())
         else:
-            logging.info("lol you can't place the order, you don't have enough margin")
-    except Exception as e:
-        session.rollback()
-        raise e
+            raise Exception("Not enough margin.")
+
+    def deposit_cash(self, address, total):
+        """
+        Deposits cash
+        :param address:
+        :param total:
+        :return:
+        """
+        try:
+            print 'received', address, total
+            currency = self.btc
+
+            # sanitize inputs:
+            address = str(address)
+            total = int(total)
+
+            #query for db objects we want to update
+            total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
+            user_cash_position = session.query(models.Position).filter_by(username=total_deposited_at_address.username,contract=currency).one()
+
+            #prepare cash deposit
+            deposit = total_received - total_deposited_at_address.accounted_for
+            print 'updating ', user_cash_position, ' to '
+            user_cash_position.position += deposit
+            print user_cash_position
+            print 'with a deposit of: ',deposit
+
+            #prepare record of deposit
+            total_deposited_at_address.accounted_for = total_received
+
+            session.add(total_deposited_at_address)
+            session.add(user_cash_position)
+
+            session.commit()
+            return True
+        except NoResultFound:
+            session.rollback()
+            return False
+
+    def clear_contract(self, ticker):
+        try:
+            contract = self.get_contract(ticker)
+            # disable new orders on contract
+            contract.active = False
+            # cancel all pending orders
+            orders = session.query(models.Order).filter_by(
+                    contract=contract, is_cancelled=False).all()
+            for order in orders:
+                self.cancel_order(order.id)
+            # place orders on behalf of users
+            positions = session.query(models.Position).filter_by(
+                    contract=contract).all()
+            for position in positions:
+                order = {}
+                order["username"] = position.username
+                order["contract_id"] = position.contract_id
+                if position.position > 0:
+                    order["quantity"] = position.position
+                    order["side"] = 0 # sell
+                elif position.position < 0:
+                    order["quantity"] = -position.position
+                    order["side"] = 1 # buy
+                order["price"] = details["price"]
+                self.place_order(order)
+            session.commit()
+        except:
+            session.rollback()
 
 
-def calculate_margin(username, order_id=None):
-    """
-    calculates the low and high margin for a given user
-    :param order_id: order we're considering throwing in
-    :param username: the username
-    :return: low and high margin
-    """
-    low_margin = high_margin = 0
+class WebserverLink:
+    def __init__(self, accountant):
+        self.accountant = accountant
 
-    cash_position = {}
+    @export
+    def place_order(self, order):
+        return self.accountant.place_order(order)
 
-    # let's start with positions
-    positions = {position.contract_id: position for position in
-                 session.query(models.Position).filter_by(username=username)}
-
-    open_orders = session.query(models.Order).filter_by(username=username).filter(
-        models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
-
-    if order_id:
-        open_orders += session.query(models.Order).filter_by(id=order_id).all()
-
-    for position in positions.values():
-
-        max_position = position.position + sum(
-            order.quantity_left for order in open_orders if order.contract == position.contract and order.side == 'BUY')
-        min_position = position.position - sum(
-            order.quantity_left for order in open_orders if
-            order.contract == position.contract and order.side == 'SELL')
-
-        contract = position.contract
-
-        if contract.contract_type == 'futures':
-            SAFE_PRICE = safe_prices[position.contract.ticker]
-
-            logging.info(low_margin)
-            print 'max position:', max_position
-            print 'contract.margin_low :', contract.margin_low
-            print 'SAFE_PRICE :', SAFE_PRICE
-            print 'position.reference_price :', position.reference_price
-            print position
-            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
-            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
-            logging.info(low_max)
-            logging.info(low_min)
-
-            high_margin += max(high_max, high_min)
-            low_margin += max(low_max, low_min)
-
-        if contract.contract_type == 'prediction':
-            payoff = contract.denominator
-
-            # case where all our buy orders are hit
-            max_spent = sum(order.quantity_left * order.price for order in open_orders if
-                            order.contract == contract and order.side == 'BUY')
-
-            # case where all out sell orders are hit
-            max_received = sum(order.quantity_left * order.price for order in open_orders if
-                               order.contract == contract and order.side == 'SELL')
-
-            worst_short_cover = -min_position * payoff if min_position < 0 else 0
-            best_short_cover = -max_position * payoff if max_position < 0 else 0
-
-            additional_margin = max(max_spent + best_short_cover, -max_received + worst_short_cover)
-            low_margin += additional_margin
-            high_margin += additional_margin
-
-        if contract.contract_type == 'cash':
-            cash_position[contract.ticker] = position.position
-
-    max_cash_spent = collections.defaultdict(int)
-
-    for order in open_orders:
-        if order.contract.contract_type == 'cash_pair':
-            from_currency, to_currency = self.split_pair(order.contract.ticker)
-            if order.side == 'BUY':
-                max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
-            if order.side == 'SELL':
-                max_cash_spent[to_currency.ticker] += order.quantity_left
-
-    for cash_ticker in cash_position:
-        if cash_ticker == 'BTC':
-            additional_margin = max_cash_spent['BTC']
-        else:
-            # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
-            additional_margin = 0 if max_cash_spent[cash_ticker] < cash_position[cash_ticker] else 2**48
-
-        low_margin += additional_margin
-        high_margin += additional_margin
-
-    return low_margin, high_margin
+    @export
+    def cancel_order(self, order_id):
+        return self.accountant.cancel_order(order_id)
 
 
+class EngineLink:
+    def __init__(self, accountant):
+        self.accountant = accountant
+
+    @export
+    def safe_price(self, ticker, price):
+        self.accountant.safe_prices[ticker] = price
+
+    @export
+    def post_transaction(self, transaction):
+        self.accountant.post_transaction(transaction)
 
 
+class CashierLink:
+    def __init__(self, accountant):
+        self.accountant = accountant
+
+    @export
+    def deposit_cash(self, address, total):
+        self.accountant.deposit_cash(address, total)
 
 
+class AdministratorLink:
+    def __init__(self, accountant):
+        self.accountant = accountant
 
-def deposit_cash(details):
-    """
-    Deposits cash
-    :param address:
-    :param total_received:
-    :return:
-    """
-    try:
-        print 'received', details
-        currency = btc
-        address = details['address']
-        total_received = details['total_received']
+    @export
+    def clear_contract(self, ticker):
+        self.accountant.clear_contract(ticker)
+    
 
-        # sanitize inputs:
-        address = str(address)
-        total_received = int(total_received)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
 
-        #query for db objects we want to update
-        total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
-        user_cash_position = session.query(models.Position).filter_by(username=total_deposited_at_address.username,contract=currency).one()
+    session = database.make_session()
 
-        #prepare cash deposit
-        deposit = total_received - total_deposited_at_address.accounted_for
-        print 'updating ', user_cash_position, ' to '
-        user_cash_position.position += deposit
-        print user_cash_position
-        print 'with a deposit of: ',deposit
+    accountant = Accountant(session)
 
-        #prepare record of deposit
-        total_deposited_at_address.accounted_for = total_received
+    webserver_link = WebserverLink(accountant)
+    engine_link = EngineLink(accountant)
+    cashier_link = CashierLink(accountant)
+    administrator_link = AdministratorLink(accountant)
 
-        session.add(total_deposited_at_address)
-        session.add(user_cash_position)
+    router_share_async(webserver_link,
+        config.get("accountant", "webserver_link"))
+    pull_share_async(engine_link,
+        config.get("accountant", "engine_link"))
+    pull_share_async(cashier_link,
+        config.get("accountant", "cashier_link"))
+    pull_share_async(administrator_link,
+        config.get("accountant", "administrator_link"))
 
-        session.commit()
-        return True
-
-    except NoResultFound:
-        session.rollback()
-        return False
-
-def clear_contract(details):
-    try:
-        contract = session.query(models.Contract).filter_by(
-                id=details["id"]).first()
-        # disable new orders on contract
-        contract.active = False
-        # cancel all pending orders
-        orders = session.query(models.Order).filter_by(
-                contract=contract, is_cancelled=False).all()
-        for order in orders:
-            cancel_order({"username":order.username, "id":order.id})
-        # place orders on behalf of users
-        positions = session.query(models.Position).filter_by(
-                contract=contract).all()
-        for position in positions:
-            order = {}
-            order["username"] = position.username
-            order["contract_id"] = position.contract_id
-            if position.position > 0:
-                order["quantity"] = position.position
-                order["side"] = 0 # sell
-            elif position.position < 0:
-                order["quantity"] = -position.position
-                order["side"] = 1 # buy
-            order["price"] = details["price"]
-            place_order(order)
-        session.commit()
-    except:
-        session.rollback()
-
-engine_sockets = {i.id: context.socket(zmq.constants.PUSH)
-                  for i in session.query(models.Contract).filter_by(active=True)}
-
-for contract_id, socket in engine_sockets.iteritems():
-    socket.connect('tcp://%s:%d' % ("localhost", 4200 + contract_id))
-
-safe_prices = {}
-for c in session.query(models.Contract):
-    # this should be refined at some point for a better
-    # initial safe value
-    try:
-        last_trade = session.query(models.Trade).filter_by(contract=c).order_by(
-            models.Trade.timestamp.desc()).first()
-        #round to an int for safe prices
-        safe_prices[c.ticker] = int(last_trade.price)
-    except:
-        logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % c.ticker)
-        safe_prices[c.ticker] = 42
-
-#TODO: make one zmq socket for each connecting service (webserver, engine, leo)
-while True:
-    request = connector.recv_json()
-    for request_type, request_details in request.iteritems():
-        if request_type == 'safe_price':
-            safe_prices.update(request_details)
-        elif request_type == 'trade':
-            process_trade(request_details)
-        elif request_type == 'place_order':
-            place_order(request_details)
-        elif request_type == 'cancel_order':
-            cancel_order(request_details)
-        elif request_type == 'deposit_cash':
-            deposit_cash(request_details)
-        elif request_type == 'clear':
-            clear_contract(request_details)
-        else:
-            logging.warning("unknown request type: %s", request_type)
+    reactor.run()
 

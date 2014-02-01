@@ -15,6 +15,7 @@ import sys
 from os import path
 from ConfigParser import ConfigParser
 
+
 class AutoConfigParser(ConfigParser):
     def __init__(self, *args, **kwargs):
         ConfigParser.__init__(self, *args, **kwargs)
@@ -24,7 +25,7 @@ class AutoConfigParser(ConfigParser):
         root = path.abspath(path.join(path.dirname(__file__),
             "./server/config/sputnik.ini"))
         dist = path.abspath(path.join(path.dirname(__file__),
-            "../../dist/sputnik.ini"))
+            "../../dist/config/sputnik.ini"))
         default = path.abspath(path.join(path.dirname(__file__),
             "../config/sputnik.ini"))
 
