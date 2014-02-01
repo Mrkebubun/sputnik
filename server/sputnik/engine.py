@@ -5,7 +5,7 @@ import config
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
+        help="config file", default=None)
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
@@ -266,7 +266,7 @@ class ReplaceMeWithARealEngine:
         logging.info("this order is actually a cancellation!")
 
         if order_id in all_orders:
-            o = all_orders[order.id]
+            o = all_orders[order_id]
             book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
             # if list is now empty, get rid of it!
             if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
@@ -275,14 +275,14 @@ class ReplaceMeWithARealEngine:
             update_best(other_side)
 
             o.cancel()
-            del all_orders[order.id]
+            del all_orders[order_id]
             #publisher.send_json({'cancel': [o.user, {'order': o.id}]}) #
             #user.usernamechange o to order in the following:
             print 'o.id:  ', o.id
-            print 'order.id:  ', order.id
+            print 'order.id:  ', order_id
             print [oxox.__dict__ for oxox in all_orders.values()]
             print 'o.id:  ', o.id
-            print 'order.id:  ', order.id
+            print 'order.id:  ', order_id
             print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
             publisher.send_json({'cancel': [o.username, {'order': o.id}]})
         else:
@@ -296,7 +296,7 @@ class ReplaceMeWithARealEngine:
 
     @export
     def order(self, obj):
-        logging.info("received order, id=%d, order=%s" % (order.id, order))
+        logging.info("received order, id=%d, order=%s" % (obj["id"], obj))
 
         order = Order(None, None, None, None, None, None)
         order.__dict__.update(obj)
