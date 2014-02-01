@@ -261,11 +261,13 @@ safe_price_publisher = SafePricePublisher()
 
 class ReplaceMeWithARealEngine:
     @export
-    def cancel(self, order_id):
+    def cancel_order(self, order_id):
         logging.info("this order is actually a cancellation!")
 
         if order_id in all_orders:
             o = all_orders[order_id]
+            side = 'ask' if o.side == OrderSide.BUY else 'bid'
+            other_side = 'bid' if o.side == OrderSide.BUY else 'ask'
             book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
             # if list is now empty, get rid of it!
             if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
@@ -294,7 +296,7 @@ class ReplaceMeWithARealEngine:
         return True
 
     @export
-    def order(self, obj):
+    def place_order(self, obj):
         logging.info("received order, id=%d, order=%s" % (obj["id"], obj))
 
         order = Order(None, None, None, None, None, None)

@@ -11,6 +11,7 @@ if options.filename:
 
 import database
 import models
+import margin
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
 
@@ -143,7 +144,7 @@ class Accountant:
         logging.info("Trying to accept order %s." % order)
 
         low_margin, high_margin = margin.calculate_margin(
-            order.user, self.session, self.safe_prices, order)
+            order.username, self.session, self.safe_prices, order.id)
 
         cash_position = self.get_position(order.username, "BTC")
 
@@ -236,28 +237,28 @@ class Accountant:
         session.commit()
 
 
-    def cancel_order(self, id):
+    def cancel_order(self, order_id):
         """
         Cancel an order by id.
         :param id: The order id to cancel
         :return: None
         """
-        logging.info("Received request to cancel order id %d." % id)
+        logging.info("Received request to cancel order id %d." % order_id)
         
         try:
             order = session.query(models.Order).filter_by(id=order_id).one()
-            return self.engines[order.contract.ticker].cancel(id)
+            return self.engines[order.contract.ticker].cancel_order(order_id)
         except NoResultFound:
             raise Exception("No such order found.")
 
-    def place_order(order):
+    def place_order(self, order):
         """
         Place an order
         :param order: dictionary representing the order to be placed
         :return: id of the order placed or -1 if failure
         """
         user = self.get_user(order["username"])
-        contact = self.get_contract(order["ticker"])
+        contract = self.get_contract(order["ticker"])
 
         if not contract.active:
             raise Exception("Contract is not active.")
@@ -281,7 +282,7 @@ class Accountant:
         session.commit()
 
         if self.accept_order(o):
-            return self.engines[o.contract.ticker].place_order(o.serialize())
+            return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
         else:
             raise Exception("Not enough margin.")
 

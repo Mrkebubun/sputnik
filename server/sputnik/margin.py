@@ -3,6 +3,8 @@ __author__ = 'arthurb'
 import models
 import logging
 
+import collections
+
 logging.basicConfig(level=logging.DEBUG)
 
 def calculate_margin(username, session, safe_prices, order_id=None):
@@ -84,7 +86,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
 
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency, to_currency = get_currencies_in_pair(order.contract.ticker)
+            from_currency, to_currency = get_currencies_in_pair(session, order.contract.ticker)
             if order.side == 'BUY':
                 max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
             if order.side == 'SELL':
@@ -101,4 +103,12 @@ def calculate_margin(username, session, safe_prices, order_id=None):
         high_margin += additional_margin
 
     return low_margin, high_margin
+
+def get_currencies_in_pair(session, ticker):
+        tokens = ticker.split("/", 1)
+        source = session.query(models.Contract).filter_by(
+            ticker=tokens[0]).order_by(models.Contract.id.desc()).first()
+        target = session.query(models.Contract).filter_by(
+            ticker=tokens[1]).order_by(models.Contract.id.desc()).first()
+        return source, target
 

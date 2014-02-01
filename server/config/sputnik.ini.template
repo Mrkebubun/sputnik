@@ -20,7 +20,10 @@ www_root = ${www_root}
 debug = true
 
 [accountant]
-zmq_address = tcp://127.0.0.1:4432/
+engine_link = tcp://127.0.0.1:4432/
+webserver_link = tcp://127.0.0.1:4433/
+cashier_link = tcp://127.0.0.1:4434/
+administrator_link = tcp://127.0.0.1:4435/
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501/
