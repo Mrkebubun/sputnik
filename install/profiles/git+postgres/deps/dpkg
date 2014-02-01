@@ -4,3 +4,4 @@ python-pip
 python-psycopg2
 sudo
 supervisor
+postgresql
