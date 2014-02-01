@@ -41,7 +41,6 @@ from autobahn.wamp import exportRpc, \
 from OpenSSL import SSL
 
 from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
-from zmq_util import dealer_proxy_async
 
 zf = ZmqFactory()
 
@@ -117,7 +116,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param reason: reason why the connection was lost
         """
         logging.info("Connection was lost: %s" % reason)
-        #self.session.close()
+        self.session.close()
 
     def onSessionOpen(self):
         """
@@ -545,20 +544,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
-        raise NotImplementedError()
-        #
-        # if old_password_hash == self.user.password_hash:
-        #     try:
-        #         self.user.password_hash = new_password_hash
-        #         self.session.add(self.user)
-        #         self.session.commit()
-        #
-        #         return True
-        #     except Exception as e:
-        #         self.session.rollback()
-        #         return False
-        # else:
-        #     return {'retval': False, 'error': "Invalid password", 'traceback': None}
+
+        if old_password_hash == self.user.password_hash:
+            try:
+                self.user.password_hash = new_password_hash
+                self.session.add(self.user)
+                self.session.commit()
+
+                return {'retval': True}
+            except Exception as e:
+                self.session.rollback()
+                return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+        else:
+            return {'retval': False, 'error': "Invalid password", 'traceback': None}
 
     @exportRpc("make_account")
     @limit
@@ -708,10 +706,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 raise Exception("invalid price or quantity")
 
             order['username'] = self.username
+            #TODO (yury can you make this an async rep/req with TXZMQ?)
+            self.factory.accountant.push(json.dumps({'place_order': order}))
             self.count += 1
             print 'place_order', self.count
-            return self.factory.accountant.place_order(order)
-
+            return [True, None]
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
@@ -738,10 +737,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         order_id = int(order_id)
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
+
         self.count += 1
         print 'cancel_order', self.count
         return self.factory.accountant.cancel_order(order_id)
-
 
 
     @exportSub("chat")
@@ -812,7 +811,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
+        endpoint = ZmqEndpoint("connect", config.get("accountant", "zmq_address"))
+        self.accountant = ZmqPushConnection(zf, endpoint)
 
     def dispatcher(self, message):
         """
