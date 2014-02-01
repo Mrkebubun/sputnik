@@ -1,799 +1,92 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <meta charset="UTF-8">
-    <title>Sputnik Market</title>
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/2.3.2/css/bootstrap.min.css" media="screen">
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dc/1.6.0/dc.css">
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.14-beta/nv.d3.min.css">
-    <link rel="stylesheet" href="sputnik.css" media="screen">
-</head>
-
-<body>
-<a href="#SputnikTab" id="Sputnik" data-toggle="tab"><img src="logo.gif" width="100" height="50" class="icon"/></a>
-<ul class="nav nav-tabs navbar" id="tabs">
-    <li class="dropdown offset1">
-        <a class="dropdown-toggle" data-toggle="dropdown" href="#"> Markets <b class="caret"></b> </a>
-        <ul id="marketsDropDown" class="dropdown-menu ">
-        </ul>
-    </li>
-
-    <li><a href="#TradeTab" id="Trade" data-toggle="tab">Trade</a></li>
-    <li><a href="#AccountTab" id="Account" data-toggle="tab">Account</a></li>
-    <li><a href="#ProfileTab" id="Profile" data-toggle="tab">Profile</a></li>
-    <!-- <li><a href="#ContractsTab" id="Contracts" data-toggle="tab">Contracts</a></li> -->
-    <li><a href="#AboutTab" id="About" data-toggle="tab">About</a></li>
-
-    <!--<li><input type="text" class="search-query  " placeholder="Search"></li>-->
-
-
-    <!-- modal triggers -->
-    <li class="pull-right"><a id="loginButton" href="#loginModal" role="button" data-toggle="modal">Login</a></li>
-    <li class="pull-right"><a id="registration" href="#registerModal" role="button" data-toggle="modal">Register </a>
-    </li>
-    <div id="loggedInMenu" class="dropdown pull-right" style="display:none;padding-right:2%;">
-        <a class="dropdown-toggle" id="dLabel" role="button" data-toggle="dropdown" data-target="#" href="/page.html">
-            Dropdown
-            <b class="caret"></b>
-        </a>
-        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-            <li role="presentation"><a role="menuitem" href="#" onclick="$('#Account').click()">Account</a></li>
-            <li role="presentation"><a role="menuitem" href="#" id="logoutButton">Logout</a></li>
-        </ul>
-    </div>
-</ul>
-
-
-<div class="tab-content">
-<div class="tab-pane active" id="SputnikTab"> <!--item 1 contains the splash page-->
-    <blockquote><p class="lead "><em>Sputnik</em></p>
-        <small>a predictions market and futures trading platform</small>
-    </blockquote>
-    <table id="welcome" class="center table table-striped table-bordered table-hover"></table>
-    <img id="splash" src="splash.jpg" class="pull-right" style="display:none;"/>
-
-
-</div>
-<!-- End item one-->
-
-<div class="tab-pane" id="TradeTab">     <!--  item 2 contains a single market and the control panel-->
-
-    <table id="tradeHistory" class="right-centered table table-bordered table-condensed"></table>
-
-
-    <div id="centerPanel" class="centered"><!--interior container-->
-        <h2 id="currentMarket"></h2>
-
-        <h3 class="muted" id="currentTicker"></h3>
-
-        <div id="tradeHistoryCharts">
-            <!--<div id="chart1">-->
-            <!--<svg style="height: 500px;"></svg>-->
-            <!--</div>-->
-            <small style="position:absolute; right:50px;">Trade History & Volume</small>
-            <div id="monthly-move-chart"></div>
-            <div id="monthly-volume-chart"></div>
-        </div>
-
-        <form class='form centerCenterLeft'>
-            <div class="control-group">
-                <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on">#</span>
-                        <input id="qbuy" class="input-custom-size" type="text" placeholder="quantity" value=0>
-                    </div>
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on contract_unit"></span>
-                        <input id="pbuy" class="input-custom-size" type="text" placeholder="price">
-                    </div>
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <button id="buyButton" class="btn btn-success btn-block" type="button">Buy</button>
-                </div>
-            </div>
-        </form>
-        <!--End of Left control-->
-
-        <form class='form text-center centerCenterRight'>
-            <div class="control-group">
-                <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on">#</span>
-                        <input id="qsell" class="input-custom-size" type="text" placeholder="quantity" value=0>
-                    </div>
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <div class="input-prepend">
-                        <span class="add-on contract_unit"></span>
-                        <input id="psell" class="input-custom-size" type="text" placeholder="price">
-                    </div>
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <button id="sellButton" class="btn btn-danger btn-block" type="button">Sell</button>
-                </div>
-            </div>
-        </form>
-        <!-- end of right control-->
-        <div class="centerCenterLeftLower">
-            <table id="orderBookBuys" class="table table-bordered table-striped table-condensed">
-                <!--position info--> </table>
-        </div>
-        <div class="centerCenterRightLower">
-            <table id="orderBookSells" class="table table-bordered table-striped table-condensed">
-                <!--position info--> </table>
-        </div>
-
-    </div>
-
-    <div id="leftControlPanel" class="left-centered">
-        <!-- make this dissappear on tablets, phones and smaller displays-->
-
-        <!--
-        <h3> Description </h3>
-        <p id="descriptionText">blah blah</p>
-        -->
-
-        <h3>Cash</h3>
-        <table id="cash_table" class="table table-bordered table-striped table-condensed"></table>
-        <h3>Position</h3>
-        <table id="market_position_table"
-               class="table table-bordered table-striped table-condensed"></table>
-        <h3>Open Orders</h3>
-        <table id="market_order_table"
-               class="table table-bordered table-striped table-condensed"></table>
-
-    </div>
-</div>
-<!--class="container span10"-->
-<div id="ProfileTab" class="tab-pane">
-    <div class="container">
-        <h3>Profile</h3>
-        <hr>
-        Nickname: <div id="nickname"></div>
-        Email: <div id="email"></div>
-        <button id="changeProfileBtn" class="btn">Update Profile</button>
-        <div id="changeProfileModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="changeProfile"
-             aria-hidden="true"> <!-- Modal -->
-            <div class="modal-body">
-                <div id="changeProfile"></div>
-                <hr>
-                <div class="controls">
-                    <p>Nickname:</p>
-                    <input id="new_nickname" class="input-custom-size" type="text" placeholder="nickname">
-
-                    <p>Email:</p>
-                    <input id="new_email" class="input-custom-size" type="text" placeholder="email">
-                </div>
-            </div>
-            <!--end modal-body-->
-            <div class="modal-footer">
-                <button class="btn btn-large" data-dismiss="modal"
-                        aria-hidden="true">Cancel
-                </button>
-                <button id="submitProfileChange" class="btn btn-large btn-success" data-dismiss="modal"
-                        aria-hidden="true">Update
-                </button>
-                <!--type="button"-->
-            </div>
-        </div>
-     </div>
-    <div class="container">
-        <h3>Security:</h3>
-        <hr>
-        <button id="changePassword" class="btn">Change Password</button>
-
-        <label> Two Factor: </label>
-        <button id="enableTwoFactor" class="btn btn-success">Enable</button>
-
-        <div id="changePasswordModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="changePassw"
-             aria-hidden="true"> <!-- Modal -->
-            <div class="modal-header">
-                <h3>Change password:</h3>
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-            </div>
-
-            <div class="modal-body">
-                <div id="changePass"></div>
-                <hr>
-                <div class="controls">
-                    <p>Current:</p>
-                    <input id="old_password" class="input-custom-size" type="password" placeholder="old">
-
-                    <p>New Password:</p>
-                    <input id="new_password" class="input-custom-size" type="password" placeholder="new">
-
-                    <p>Confirm New Password:</p>
-                    <input id="new_password_confirm" class="input-custom-size" type="password" placeholder="new">
-                </div>
-            </div>
-            <!--end modal-body-->
-            <div class="modal-footer">
-                <button class="btn btn-large" data-dismiss="modal"
-                        aria-hidden="true">Cancel
-                </button>
-                <button id="submitPasswordChange" class="btn btn-large btn-success" data-dismiss="modal"
-                        aria-hidden="true">Change
-                </button>
-                <!--type="button"-->
-            </div>
-        </div>
-        <!-- end Modal -->
-        <div id="twoFactorModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="twoFactor"
-             aria-hidden="true"> <!-- Modal -->
-            <div class="modal-header">
-                <h3>Enable Two Factor:</h3>
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-            </div>
-
-            <div class="modal-body">
-                <div id="twoFactor"></div>
-                <hr>
-                <p id='twoFactorInstructions'></p>
-
-                <div class="controls">
-                    <input id="registerTwoFactor" class="input-custom-size" type="text" placeholder="123456">
-                </div>
-            </div>
-            <!--end modal-body-->
-            <div class="modal-footer">
-                <button class="btn btn-large" data-dismiss="modal"
-                        aria-hidden="true">Cancel
-                </button>
-                <button id="submitTwoFactor" class="btn btn-large btn-success" data-dismiss="modal"
-                        aria-hidden="true">Submit
-                </button>
-                <!--type="button"-->
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="AccountTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
-    <div class="container"> <!-- position info-->
-        <h3>Balance</h3>
-        <table id="account_cash_table" class="table table-bordered table-striped table-condensed">
-            <!--position info--> </table>
-        <h3>Positions</h3>
-        <table id="account_positions_table" class="table table-hover table-bordered table-striped table-condensed">
-            <!--position info--> </table>
-        <h3>Open Orders</h3>
-        <table id="openOrders" class="table table-hover table-bordered table-condensed table-striped">
-            <!--position info--> </table>
-
-
-        <!-- end Modal -->
-    </div>
-</div>
-<!-- end of item 4 -->
-
-
-<!--
-<div id="ContractsTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
-<!-- <div class="center">
-
--->
-
-<!-- wait till production server is running to implement -->
-
-<!--
-            <form class="form-search">
-            <div class="input-append">
-            <input id="search" autocomplete="off" type="text" data-provide="typeahead" class="search-query span8" placeholder="Search">  <button id="searchButton" class="btn btn-info" type="submit">Search</button>
-            </div>
-            </form>
-            <blockquote id="searchedContract" class="hero-unit">
-
-            <h3 id='searchPlaceHolder' class='text-center'>Search For a Specific Contract</h3>'
-
-            <div id='BTC' style="display:none">
-            <p class="lead">BTC.13.7.31</p>
-            <small>future</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
-
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-                <p><dt>Example:</dt>
-                </p>
-
-             </div>
-             <div id="USD" style="display:none">
-
-            <p class="lead">USD.13.7.31</p>
-            <small>prediction</small>
-                <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-                <p><dt>Close Date</dt>
-                    <dd>July 31, 2013.  12:00 UTC</dd>
-                    <dd>The 24 Vwap of BitStamp</dd>
-                </p>
-
-                <p><dt>Tick Size</dt>
-                    <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-                </p>
-                <p><dt>Margin Required</dt>
-                    <dd>30%</dd>
-                </p>
-                <p><dt>Example:</dt>
-                </p>
-
-                <hr>
-            </div>
-            </blockquote>
-
--->
-
-<!--  <h3>Predictions</h3>
-  <hr>
-      <p>A prediction market allows its participants to trade in contracts offering a financial exposure to certain events. These prediction contracts represent a promise by the seller to pay a fixed amount to the buyer if certain events come to pass. These markets offer hedgers the opportunity to protect themselves against the risk of adverse events and give a competitive estimate of probabilities through the mechanism of price discovery. When </p>
-
-      <p><dt>Simply speaking:</dt>
-          <dd>If you believe an event will come to pass, you should <em class="text-success">buy</em> the corresponding contract.</dd>
-          <dd>If you believe an event will <em>not</em> come to pass, you should <em class="text-error">sell</em> the contract instead.</dd>
-          <dd>If you want to hedge yourself against the risk of a certain event coming to pass, you should <em class="text-succes">buy<en> the contract.</dd>
-      </p>
-
-      <p><dt>In detail:</dt>
-          <dd>The price of prediction contracts is quoted in percentage points, between 0% and 100%. The minimum tick-size is currently set to 0.1%, as a compromise between transaction costs and liquidity. This means the price will vary in increments of 0.1%.</dd>
-
-          <dd>A user may place an order to buy or sell at any price they wish. If there is no matching buyer or seller at this price, this order will be placed in the order book, until it is filled by another order or cancelled by the user. If there is already a willing buyer or seller on the other side of the ordebook at the chosen price or better, the order will be matched and executed at this price. Fills may be partial or executed at various prices depending on the quantity required and the quantity available in the book. In any case, the execution price will always be the same or better than the price indicated in the order.</dd>
-
-          <dd>The cost of a prediction and the potential profit or loss depends on the price the order is filled at and whether it is a buy or a sell.</dd>
-      </p>
-      <p><dt>Formally:</dt>
-
-          <blockquote>
-          <dd>Let P be the specified payout of a prediction contract, be the size of a prediction contract and x% its sell or purchase price:
-          <dd>In a <em class="text-success">buy</em>, the cost is x% of P, thus the potential profit is (100-x)% of P and the potential loss is x% of P.</dd>
-          <dd>In a <em class="text-error">sell</em>, the cost is (100-x)% of P, thus the potential profit is x% of P and the potential loss is (100-x)% of P.</dd>
-          <dd>When you are a net seller of the prediction, you will need to maintain an amount of margin P for each contract you sold, to guarantee your ability to cover the maximum possible loss.</dd>
-          </blockquote>
-
-          <dd>Note that if the market price reflects your estimated probability of the event happening, your expected profit and loss will be 0.</dd>
-      </p>
-
-  <p></p>
-  <h3>Futures</h3>
-      <hr>
-      <p>A future is an agreement to buy or sell an asset for a given price at a later date.</p>
-
-      <p><dt>In short:</dt>
-          <dd>    If you believe price of an asset will go <em>up</em>, you should <em class="text-success">buy</em> a future.</dd>
-          <dd>    If you believe the price of an asset  will go <em>down</em>, you should <em class="text-error">sell</em> a future</dd>
-      </p>
-
-      <p><dt>In detail:</dt>
-          <dd>The price of a future is denominated in bitcoins. A tick size, dependent on the asset,  will be enforced to avoid
-          trivial front running of orders.</dd>
-
-          <dd>A user may place an order to buy or sell at any percentage they wish.
-          If there is an open order betting in the opposite direction already in the order book, the order will be filled at the price of open order.
-          Otherwise, the order will be placed into the order book till it is filled or the user cancels it.</dd>
-
-          <dd> A portion of the purchase price, the <em>margin</em>,
-          is required as a down payment. The margin is adjusted as the price of a future fluctuates.  If a trader cannot meet the required margin,
-          their contracts will be closed. A trader does not have to worry about their counter party's solvency, as
-          <strong><em>Sputnik</em> ensures the counter party risk.</strong></dd>
-
-          <dd> The initial cost of a future is the margin.  As the margin fluctuates, money will be taken or returned from your account to maintain the new margin.</dd>
-      </p>
-      <p><dt>Formally:</dt>
-
-          <blockquote>
-          <dd> Let X the price of the asset, Y be the lot size of the futures contract (namely the quantity of the asset represented by a single contract),  and Z the percent required for margin:</dd>
-          <dd>Purchasing n contracts requires at least X*Y*Z bitcoins in margin.</dd>
-          <dd>Margin is required as soon as you place an order, even if it does not immediately fill or is yet to be filled by a counter party's order. Margin is returned if the order is cancelled before it is filled.</dd>
-          <dd>Margin is adjusted <strong>continuously</strong> according to the <em>Safe Price</em>.</dd>
-          <dd>Let S be the <em>Safe Price</em>, then the required margin is: .....</dd>
-          <dd>The <em>Safe Price</em> is computed as follows.... </dd>
-          </blockquote>
-
-      </p>
-      <p><dt>Example:</dt>
-      </p>
-
-      <hr>
-      <p>Futures can be used to hedge against price fluctuations, or make a leveraged bet on the rise or fall of an assets price.</p>
-
-      c.f. <a href="http://en.wikipedia.org/wiki/Futures_contract">Wikipedia</a>
-
-  <h3> Individual Contracts:</h3>
-  <hr>
-  <p class="lead">BTC.13.7.31</p>
-  <small>future</small>
-      <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-      <p><dt>Close Date</dt>
-          <dd>July 31, 2013.  12:00 UTC</dd>
-          <dd>The 24 Vwap of BitStamp</dd>
-      </p>
-
-      <p><dt>Tick Size</dt>
-          <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-      </p>
-      <p><dt>Margin Required</dt>
-          <dd>30%</dd>
-      </p>
-      <p><dt>Example:</dt>
-      </p>
-
-  <hr>
-  <p class="lead">USD.13.7.31</p>
-  <small>prediction</small>
-      <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-      <p><dt>Close Date</dt>
-          <dd>July 31, 2013.  12:00 UTC</dd>
-          <dd>The 24 Vwap of BitStamp</dd>
-      </p>
-
-      <p><dt>Tick Size</dt>
-          <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-      </p>
-      <p><dt>Margin Required</dt>
-          <dd>30%</dd>
-      </p>
-      <p><dt>Example:</dt>
-      </p>
-
-      <hr>
--->
-
-
-<!-- wait till production server running -->
-<!--
-            <h3> Suggested Contracts:
-            <button id="suggestContractButton" class="btn btn-success pull-right">Suggest a Contract</button>
-            </h3>
-
-<div id="suggestionModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel" aria-hidden="true">
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="">Suggest a contract:</h3>
-    </div>
-    <div class="modal-body">
-    <form>
-        <fieldset>
-        <label>Contract Name:</label>
-            <input type="text" placeholder="Type something…">
-        <label>Contract Type:</label>
-            <input type="text" placeholder="Type something…">
-        <label>Tick Size:</label>
-            <input type="text" placeholder="Type something…">
-        <label>Margin (if a future):</label>
-            <input type="text" placeholder="Type something…">
-        <label>Close Date:</label>
-            <input type="text" placeholder="Type something…">
-        <span class="help-block">Example block-level help text here.</span>
-        </fieldset>
-    </form>
-    </div>
-    <div class="modal-footer">
-        <button class="btn btn-large " data-dismiss="modal" aria-hidden="true">Cancel </button>
-        <button id="submitSuggestion" class="btn btn-large pull-right btn-info" data-dismiss="modal" aria-hidden="true">Submit </button>  </div>
-    </div>
-</div>
-
-
-
-<hr>
-<p class="lead">Bitoin VIX</p>
-<small>future</small>
-    <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-    <p><dt>Close Date</dt>
-        <dd>July 31, 2013.  12:00 UTC</dd>
-        <dd>The 24 Vwap of BitStamp</dd>
-    </p>
-
-    <p><dt>Tick Size</dt>
-        <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-    </p>
-    <p><dt>Margin Required</dt>
-        <dd>30%</dd>
-    </p>
-<button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
-
-<hr>
-<p class="lead">Minining Difficulty </p>
-<small>future</small>
-    <p>The MtGox VWAP of bitcoin will be strictly greater than $70/btc on July 7th 2013</p>
-
-    <p><dt>Close Date</dt>
-        <dd>July 31, 2013.  12:00 UTC</dd>
-        <dd>The 24 Vwap of BitStamp</dd>
-    </p>
-
-    <p><dt>Tick Size</dt>
-        <dd>100000 Satoshis, or .001 Bitcoins.</dd>
-    </p>
-    <p><dt>Margin Required</dt>
-        <dd>30%</dd>
-    </p>
-
-<button style="position:relative; bottom:40px;" class="btn pull-right btn-success">Vote Up</button>
-<hr>
--->
-
-<!-- </div> -->
-<!--end of center-->
-<!-- </div> -->
-<!--end of Contracts Tab-->
-
-
-<div id="AboutTab" class="tab-pane"> <!-- item 4 account info contains position and balance info-->
-    <div class="container">
-        <p class="lead"><em>Sputnik Exchange Engine</em> is a flexible trading platform.</p>
-        <hr>
-        <h3>Contact:</h3>
-        <address>
-            <strong>Mimetic Markets, Inc.</strong><br>
-            <a href="mailto:info@m2.io">info@m2.io</a><br>
-        </address>
-    </div>
-</div>
-
-</div>
-<!-- end tab-content-->
-
-
-&nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
-<div id="processingModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="processingLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="processingLabel">Processing</h3>
-    </div>
-
-    <div class="modal-body">
-        <div class="progress progress-striped active">
-            <div class="bar" style="width: 100%;"></div>
-        </div>
-    </div>
-    <!--end modal-body-->
-    <div class="modal-footer">
-        <button id="processingDismissButton" class="btn btn-large pull-right btn-info" data-dismiss="modal"
-                aria-hidden="true">OK
-        </button>
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-<div id="loggedOutModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="loggedOutLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <p>notification</p>
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-    </div>
-
-    <div class="modal-body">
-        <h3 class="text-center">Logged Out</h3>
-    </div>
-    <!--end modal-body-->
-    <div class="modal-footer">
-        <button id="loggedOutReconnectButton" class="btn btn-large pull-right btn-info" data-dismiss="modal"
-                aria-hidden="true" onclick="location.reload()">Reconnect
-        </button>
-        <button id="loggedOutDismissButton" class="btn btn-large pull-right" data-dismiss="modal"
-                aria-hidden="true">OK
-        </button>
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-<div id="depositModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="depositLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="depositLabel">Deposit Address</h3>
-    </div>
-
-    <div class="modal-body">
-        <legend><a id="deposit_address"></a></legend>
-        <div id="qrcode"></div>
-    </div>
-    <!--end modal-body-->
-    <div class="modal-footer">
-        <button id="newAddressButton" class="btn btn-large"
-                aria-hidden="true">New Address
-        </button>
-        <button class="btn btn-large" data-dismiss="modal"
-                aria-hidden="true">Close
-        </button>
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-<div id="withdrawModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="whithdrawLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="whithdrawLabel">Withdraw</h3>
-    </div>
-
-    <div class="modal-body">
-        <form class="form-horizontal">
-            <div class="control-group">
-                <label class="control-label" for="withdrawAddress" autofocus>Send to Address</label>
-
-                <div class="controls">
-                    <input type="text" id="withdrawAddress" placeholder="Address">
-                </div>
-            </div>
-            <div class="control-group">
-                <label class="control-label" for="withdrawAmount">Amount</label>
-
-                <div class="controls">
-                    <input type="text" id="withdrawAmount" placeholder="0.0">
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    </label>
-                </div>
-            </div>
-        </form>
-    </div>
-    <!--end modal-body-->
-    <div class="modal-footer">
-
-        <button class="btn btn-large " data-dismiss="modal"
-                aria-hidden="true">Cancel
-        </button>
-        <button class="btn btn-large btn-primary" id='withdrawButton' data-dismiss="modal"
-                aria-hidden="true">Send!
-        </button>
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-&nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
-<div id="loginModal" class="modal hide fade global-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-     aria-hidden="true">
-    <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="loginModalLabel">Login</h3>
-    </div>
-    <div class="modal-body">
-        <div id="login_error"></div>
-        <form class="form-horizontal">
-            <div class="control-group">
-                <label class="control-label" for="login" autofocus>Login</label>
-
-                <div class="controls">
-                    <input type="text" id="login" placeholder="Login">
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label class="control-label" for="password">Password</label>
-
-                <div class="controls">
-                    <input type="password" id="password" placeholder="Password">
-                </div>
-            </div>
-            <div class="control-group">
-                <label class="control-label" for="two_factor">Two Factor</label>
-
-                <div class="controls">
-                    <input type="password" id="two_factor" placeholder="(if enabled)">
-                </div>
-            </div>
-        </form>
-    </div>
-    <!--end modal-body-->
-
-    <div class="modal-footer">
-        <button class="btn btn-large pull-left" data-dismiss="modal" aria-hidden="true">Close</button>
-        <button id='do_login_button' data-dismiss="modal" class="btn btn-success btn-large"
-                type="button" id='login_button'> login <i class="icon-lock"></i></button>
-
-        <!--type="button"-->
-    </div>
-</div>
-<!-- end Modal -->
-
-<!-- Register modal -->
-<div id="registerModal" class="modal hide fade global-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-     aria-hidden="true"> <!-- Modal -->
-    <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-        <h3 id="myModalLabel">Register</h3>
-    </div>
-    <div class="modal-body">
-        <form class="form-horizontal">
-            <div class="control-group">
-                <label class="control-label" for="registerLogin">Login</label>
-
-                <div class="controls">
-                    <input type="text" id="registerLogin" placeholder="Login">
-                </div>
-            </div>
-            <div class="control-group">
-                <label class="control-label" for="registerPassword">Password</label>
-                <div class="controls">
-                    <input type="password" id="registerPassword" placeholder="Password">
-                </div>
-            </div>
-            <div class="control-group">
-                <label class="control-label" for="registerEmail">Email</label>
-                <div class="controls">
-                    <input type="email" id="registerEmail" placeholder="name@mail.com">
-                </div>
-            </div>
-
-
-            <div class="control-group">
-                <div class="controls">
-                    </label>
-                </div>
-            </div>
-        </form>
-    </div>
-    <!--end modal-body-->
-
-    <div class="modal-footer">
-        <button class="btn btn-large pull-left" data-dismiss="modal" aria-hidden="true">Close</button>
-
-        <button id="registerButton" data-dismiss="modal" class="btn btn-success btn-large" type="button"> Register <i
-                class="icon-lock"></i></button>
-    </div>
-</div>
-<!-- end Modal -->
-
-<div class="footer collapse">
-    <button id="minimizeChat" class="btn" style="position:absolute; top:-10; right:0;"><i class="icon-chevron-down"></i>
-    </button>
-    <textarea readonly id="chatArea" class="chatText" cols="460" rows="10"></textarea>
-
-    <div class="input-append">
-        <input id="chatBox" class="chatInput" type="text">
-        <button id="chatButton" class="btn" type="button">Send</button>
-    </div>
-    <button id="chatFooterButton" class="btn push" type="button"><i class="icon-chevron-up"></i> Chat</button>
-</div>
-
-<!-- end container -->
-
-
-<!-- Le javascript
-================================================== -->
-<!-- Placed at the end of the document so the pages load faster -->
-<script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.js"></script>
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.3.13/d3.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.1/crossfilter.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/dc/1.6.0/dc.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.14-beta/nv.d3.min.js"></script>
-<script type="text/javascript" src="sputnik.js"></script>
-<script type="text/javascript" src="rpc.js"></script>
-
-</body>
+    <head>
+        <title>Sputnik</title>
+
+    </head>
+    <body>
+
+        <div id="loggedInAs"></div>
+        <P>
+            <input type="text" id="login" placeholder="login">
+            <input type="password" id="password" placeholder="password">
+            <button id="loginButton" class="btn" type="button">Login</button>
+            <button id="logoutButton" class="btn" type="button">Logout</button>
+        </P>
+
+        <P>
+            <input type="text" id="registerLogin" placeholder="login">
+            <input type="password" id="registerPassword" placeholder="password">
+            <input type="text" id="registerEmail" placeholder="email">
+            <button id="registerButton" class="btn" type="button">Register</button>
+        </P>
+
+        <P>
+            Nickname: <div id="nickname"></div>
+            Email: <div id="email"></div>
+        </P>
+
+        <P>
+            <input type="text" id="newNickname" placeholder="nickname">
+            <input type="text" id="newEmail" placeholder="email">
+            <button id="changeProfileBtn" class="btn" type="button">Change Profile</button>
+        </P>
+
+        <P>
+            <textarea readonly id="chatArea" class="chatText" cols="80" rows="10"></textarea>
+        </P>
+
+        <P>
+            <input id="chatBox" class="chatInput" type="text">
+            <button id="chatButton" class="btn" type="button">Send Chat</button>
+        </P>
+
+        <P>
+            <table id="marketsTable"></table>
+        </P>
+
+        <P>
+            <table id="booksTable"></table>
+        </P>
+
+        <P>
+            <table id="positionsTable"></table>
+        </P>
+
+        <P>
+            <table id="ordersTable"></table>
+        </P>
+
+        <P>
+            <input id="ticker" type="text" placeholder="ticker">
+        </P>
+        <P>
+            <button id="cancelButton">Cancel</button>
+            <input id="orderId" type="text" placeholder="orderId">
+        </P>
+        <P>
+            <button id="sellButton">Sell</button>
+            <input id="qsell" type="text" placeholder="quantity">
+            <input id="psell" type="text" placeholder="price">
+        </P>
+
+        <P>
+            <button id="buyButton">Buy</button>
+            <input id="qbuy" type="text" placeholder="quantity">
+            <input id="pbuy" type="text" placeholder="price">
+        </P>
+
+        <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.3.13/d3.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.1/crossfilter.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/dc/1.6.0/dc.min.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.14-beta/nv.d3.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"> </script>
+        <script src="EventEmitter.min.js"></script>
+        <script type="text/javascript" src="coffee-script.js"></script>
+        <script type="text/coffeescript" src="sputnik.coffee"></script>
+    </body>
 </html>

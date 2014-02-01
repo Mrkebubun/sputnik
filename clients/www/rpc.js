@@ -1,7 +1,7 @@
 var session = null;
 
 
-var base_uri = "wss://sputnikmkt.com:8000/";
+var base_uri = "ws://localhost:8000/";
 var get_chat_history_URI = base_uri + "procedures/get_chat_history";
 
 var safe_price_URI = base_uri + "safe_price";
@@ -65,10 +65,10 @@ function connect() {
     var wsuri;// = "wss://" + host + ":9000";
 
     if (window.location.protocol === "file:") {
-        wsuri = "wss://localhost:8000";
+        wsuri = "ws://localhost:8000";
         //wsuri = "ws://localhost:9000";
     } else {
-        wsuri = "wss://" + window.location.hostname + ":8000";
+        wsuri = "ws://" + window.location.hostname + ":8000";
         //wsuri = "ws://" + window.location.hostname + ":9000";
     }
     ab.connect(wsuri,
