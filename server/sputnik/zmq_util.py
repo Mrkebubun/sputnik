@@ -6,6 +6,7 @@ import uuid
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
+from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from functools import partial
 
@@ -268,24 +269,42 @@ class Proxy:
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
                 d.addCallback(parse_result)
-            
+
             return d
 
         return remote_method
 
 class DealerProxyAsync(Proxy):
+    def __init__(self, connection, timeout=1):
+        self._timeout = timeout
+        Proxy.__init__(self, connection)
+
     def send(self, message):
-        return self._connection.sendMsg(message)
+        d = self._connection.sendMsg(message)
+        if self._timeout > 0:
+            timeout = reactor.callLater(self._timeout, d.cancel)
+            def cancelTimeout(result):
+                if timeout.active():
+                    timeout.cancel()
+                return result
+            d.addBoth(cancelTimeout)
+        return d        
  
 class PushProxyAsync(Proxy):
     def send(self, message):
         return self._connection.push(message) 
 
 class DealerProxySync(Proxy):
+    def __init__(self, connection, timeout=1):
+        self._timeout = timeout
+        Proxy.__init__(self, connection)
+        self._connection.RCVTIMEO = int(timeout * 1000)
+
     def send(self, message):
         self._id = str(uuid.uuid4())
         self._connection.send_multipart([self._id, "", message])
         data = self._connection.recv_multipart()
+        print data
         if data[0] != self._id:
             raise Exception("Invalid return ID.")
         message = data[2]
