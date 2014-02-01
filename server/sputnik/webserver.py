@@ -117,7 +117,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param reason: reason why the connection was lost
         """
         logging.info("Connection was lost: %s" % reason)
-        self.session.close()
 
     def onSessionOpen(self):
         """
@@ -755,7 +754,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param topic_uri_suffix:suffix part, in this case always "chat"
         """
         logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
-        if self.user:
+        if self.username:
             logging.info("he's logged in as %s so we'll let him" % self.user.username)
             return True
         else:
@@ -772,7 +771,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         print 'string?', event
         logging.info("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
-        if not self.user:
+        if not self.username:
             logging.info("he's not logged in though, so no")
             return None
         else:
