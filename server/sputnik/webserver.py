@@ -26,6 +26,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
+from zmq_util import dealer_proxy_async
 
 from jsonschema import validate
 from twisted.python import log
@@ -709,10 +710,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order['username'] = self.username
             #TODO (yury can you make this an async rep/req with TXZMQ?)
-            self.factory.accountant.push(json.dumps({'place_order': order}))
+
             self.count += 1
             print 'place_order', self.count
-            return [True, None]
+            return self.factory.accountant.place_order(order)
+
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
@@ -814,7 +816,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.base_uri = base_uri
 
         endpoint = ZmqEndpoint("connect", config.get("accountant", "webserver_link"))
-        self.accountant = ZmqPushConnection(zf, endpoint)
+        self.accountant = dealer_proxy_async(zf, endpoint)
 
     def dispatcher(self, message):
         """
