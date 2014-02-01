@@ -1,3 +1,5 @@
 [database]
 uri = sqlite:///${database}
-
+username = sputnik
+dbname = sputnik
+adapter = sqlite3
