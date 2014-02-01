@@ -5,7 +5,7 @@ bitcoin_conf = ${conf}/bitcoin.conf
 base_port = 4200
 
 [webserver]
-zmq_address = tcp://127.0.0.1:10000/
+zmq_address = tcp://127.0.0.1:10000
 interface = 127.0.0.1
 ws_address = 127.0.0.1
 ws_port = 8000
@@ -21,12 +21,12 @@ debug = true
 base_uri = ${base_uri}
 
 [accountant]
-engine_link = tcp://127.0.0.1:4432/
-webserver_link = tcp://127.0.0.1:4433/
-cashier_link = tcp://127.0.0.1:4434/
-administrator_link = tcp://127.0.0.1:4435/
+engine_link = tcp://127.0.0.1:4432
+webserver_link = tcp://127.0.0.1:4433
+cashier_link = tcp://127.0.0.1:4434
+administrator_link = tcp://127.0.0.1:4435
 
 [safe_price_forwarder]
-zmq_frontend_address = tcp://127.0.0.1:4501/
-zmq_backend_address = tcp://127.0.0.1:4502/
+zmq_frontend_address = tcp://127.0.0.1:4501
+zmq_backend_address = tcp://127.0.0.1:4502
 
