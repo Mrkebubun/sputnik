@@ -545,19 +545,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
-
-        if old_password_hash == self.user.password_hash:
-            try:
-                self.user.password_hash = new_password_hash
-                self.session.add(self.user)
-                self.session.commit()
-
-                return {'retval': True}
-            except Exception as e:
-                self.session.rollback()
-                return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
-        else:
-            return {'retval': False, 'error': "Invalid password", 'traceback': None}
+        raise NotImplementedError()
+        #
+        # if old_password_hash == self.user.password_hash:
+        #     try:
+        #         self.user.password_hash = new_password_hash
+        #         self.session.add(self.user)
+        #         self.session.commit()
+        #
+        #         return True
+        #     except Exception as e:
+        #         self.session.rollback()
+        #         return False
+        # else:
+        #     return {'retval': False, 'error': "Invalid password", 'traceback': None}
 
     @exportRpc("make_account")
     @limit
@@ -709,13 +710,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             order['username'] = self.username
             self.count += 1
             print 'place_order', self.count
-<<<<<<< HEAD
-            return [True, None]
-=======
             return self.factory.accountant.place_order(order)
 
-
->>>>>>> yury
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
@@ -744,11 +740,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
         self.count += 1
         print 'cancel_order', self.count
-<<<<<<< HEAD
-        return [True, None]
-=======
         return self.factory.accountant.cancel_order(order_id)
->>>>>>> yury
+
 
 
     @exportSub("chat")
