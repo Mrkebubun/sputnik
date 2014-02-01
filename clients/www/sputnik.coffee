@@ -249,13 +249,13 @@ class Sputnik extends EventEmitter
         @session.call("#{@uri}/procedures/#{method}", params...).then \
             (result) =>
                 if result.length != 2
-                    @warn "RPC Warning: sputnik protocol violation"
+                    @warn "RPC Warning: sputnik protocol violation in #{method}"
                     return d.resolve result
                 if result[0]
                     d.resolve result[1]
                 else
                     d.reject result[1]
-            ,(error) => @wtf "RPC Error: #{error.desc}"
+            ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
         return d.promise
 
     subscribe: (topic, callback) =>
