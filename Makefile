@@ -4,10 +4,10 @@ endif
 
 .PHONY: config deps build install upgrade
 
-all: config deps build
+all: config build
 
 clean:
-	rm dist/*
+	rm -r dist
 
 config:
 	install/install.py config
@@ -16,9 +16,10 @@ deps:
 	install/install.py deps
 
 build:
+	install/install.py build
 
 upgrade: install
 
-install:
+install: deps
 	install/install.py install
 

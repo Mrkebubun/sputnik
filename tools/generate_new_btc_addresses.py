@@ -11,7 +11,7 @@ import bitcoinrpc
 import getpass
 
 db_session = database.make_session(username=getpass.getuser())
-conn = bitcoinrpc.connect_to_local('/srv/sputnik/.bitcoin/bitcoin.conf')
+conn = bitcoinrpc.connect_to_local('../dist/config/bitcoin.conf')
 
 #conn.walletpassphrase('pass',10, dont_raise=True)
 conn.keypoolrefill()

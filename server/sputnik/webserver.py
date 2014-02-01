@@ -5,8 +5,10 @@ Main websocket server, accepts RPC and subscription requests from clients. It's 
 facilitating all communications between the client, the database and the matching engine.
 """
 
-import config
+#magic buffalo!!!
+
 from optparse import OptionParser
+import config
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -14,6 +16,7 @@ parser.add_option("-c", "--config", dest="filename",
 (options, args) = parser.parse_args()
 
 if options.filename:
+    # noinspection PyUnresolvedReferences
     config.reconfigure(options.filename)
 
 import cgi
@@ -23,14 +26,12 @@ import sys
 import datetime
 import time
 import onetimepass as otp
-import os
-import md5
+import hashlib
 import uuid
-import traceback
 
 from jsonschema import validate
 from twisted.python import log
-from twisted.internet import reactor, defer, ssl
+from twisted.internet import reactor, ssl
 from twisted.web.server import Site
 from twisted.web.static import File
 from autobahn.websocket import listenWS
@@ -45,40 +46,27 @@ from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
 
 zf = ZmqFactory()
 
-import database
-import models
+# noinspection PyUnresolvedReferences
+#if config.get("database", "uri").startswith("postgres"):
+#    import txpostgres as adbapi
+#else:
+    # noinspection PyPep8Naming
+import twisted.enterprise.adbapi as adbapi
 
-Session = database.get_session_maker()
-
-
-class PublicInterface:
-    def __init__(self, protocol):
-        self.protocol = protocol
-    
-    @exportRpc
-    def list_markets(self):
-        return map(lambda x: x.dump(), self.protocol.factory.markets)
-
-    @exportRpc
-    def get_order_book(self):
-        pass
-
-
-class PrivateInterface:
-    def __init__(self, protocol):
-        self.protocol = protocol
-
+# noinspection PyUnresolvedReferences
+dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+                               user=config.get("database", "username"),
+                               database=config.get("database", "dbname"))
 
 MAX_TICKER_LENGTH = 100
-
 
 def limit(func):
     last_called = [0.0]
 
-    def kick(self, *arg, **args):
+    def kick(self, *arg, **kwargs):
         elapsed = time.clock() - last_called[0]
 
-        if (elapsed < self.RATE_LIMIT):
+        if elapsed < self.RATE_LIMIT:
             self.count += 1
         else:
             # forgive past floods
@@ -91,7 +79,7 @@ def limit(func):
             WampCraServerProtocol.connectionLost(self,
                                                  "rate limit exceeded")
         else:
-            return func(self, *arg, **args)
+            return func(self, *arg, **kwargs)
 
     return kick
 
@@ -102,34 +90,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     """
 
     def __init__(self):
-        pass
-
-    RATE_LIMIT = 0.5
-
-    # doesn't seem to affect the random salt value... but login doesn't work with this line deleted.
-    #PERMISSIONS = {'pubsub': [{'uri': 'wss://sputnikmkt.com:8000/simple/',
-    #                           'prefix': True,
-    #                           'pub': True,
-    #                           'sub': True}],
-    #               'rpc': [{'uri': 'wss://sputnikmkt.com:8000/procedures/place_order',
-    #                        'call': True}]}
-
+        self.cookie = ""
+        # rate limit counter
+        self.count = 0
+        self.username = None
+        # noinspection PyPep8Naming
+        self.clientAuthTimeout = 0
+        # noinspection PyPep8Naming
+        self.clientAuthAllowAnonymous = True
+        self.troll_throttle = 0
+        self.rate_limit = 0.5
 
     def connectionMade(self):
         """
         Called when a connection to the protocol is made
         this is the right place to initialize stuff, not __init__()
         """
-
-
-        self.session = Session()
-        self.user = None
-        self.cookie = ""
-
         WampCraServerProtocol.connectionMade(self)
-
-        # rate limit counter
-        self.count = 0
 
     def connectionLost(self, reason):
         """
@@ -155,94 +132,119 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
         self.registerForPubSub("wss://sputnikmkt.com:8000/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.make_account])
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.list_markets])
         self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/',
+                            methods=[PepsiColaServerProtocol.make_account])
+        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/',
+                            methods=[PepsiColaServerProtocol.list_markets])
+        self.registerForRpc('wss://sputnikmkt.com:8000/procedures/',
                             methods=[PepsiColaServerProtocol.get_trade_history])
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.get_order_book])
+        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/',
+                            methods=[PepsiColaServerProtocol.get_order_book])
 
         # TODO: move this to onAuthenticated
-        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/', methods=[PepsiColaServerProtocol.get_chat_history])
+        self.registerForRpc(self, 'wss://sputnikmkt.com:8000/procedures/',
+                            methods=[PepsiColaServerProtocol.get_chat_history])
         self.registerForPubSub("wss://sputnikmkt.com:8000/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
         # override global client auth options
+        if (self.clientAuthTimeout, self.clientAuthAllowAnonymous) != (0, True):
+            logging.warning("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
+                            "is useless, __init__ took care of it")
+
+        # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
+        # noinspection PyPep8Naming
         self.clientAuthAllowAnonymous = True
 
         # call base class method
         WampCraServerProtocol.onSessionOpen(self)
 
-    def getAuthPermissions(self, authKey, authExtra):
+    def getAuthPermissions(self, auth_key, auth_extra):
         """
         Gets the permission for a login... for now it's very basic
-        :param authKey: pretty much the login
-        :param authExtra: extra information, like a HMAC
+        :param auth_key: pretty much the login
+        :param auth_extra: extra information, like a HMAC
         :return: the permissions associated with that user
         """
         print 'getAuthPermissions'
 
-        if authKey in self.factory.cookies:
-            username = self.factory.cookies[authKey]
+        if auth_key in self.factory.cookies:
+            username = self.factory.cookies[auth_key]
         else:
-            username = authKey
+            username = auth_key
 
-        try:
-            user = self.session.query(models.User).filter_by(
-                username=username).first()
-            salt, password_hash = user.password.split(":")
-            authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
-        except Exception:
-            # TODO: make this less predictable
-            noise = md5.md5("super secret" + username + "even more secret")
-            salt = noise.hexdigest()[:8]
-            authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+        def _cb(result):
+            if result:
+                salt, password_hash = result[0][0].split(":")
+                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+            else:
+                noise = hashlib.md5("super secret" + username + "even more secret")
+                salt = noise.hexdigest()[:8]
+                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
 
-        print authextra
+            # TODO: clean up permissions
+            return {'permissions':
+                        {'pubsub': [
+                            {'uri': 'wss://sputnikmkt.com:8000/safe_price#%s' % 'USD.13.7.31',
+                             'prefix': True,
+                             'pub': False,
+                             'sub': True},
+                            {'uri': 'wss://sputnikmkt.com:8000/user/open_orders#%s' % username,
+                             'prefix': True,
+                             'pub': False,
+                             'sub': True},
+                            {'uri': 'wss://sputnikmkt.com:8000/user/fills#%s' % username,
+                             'prefix': True,
+                             'pub': False,
+                             'sub': True},
+                            {'uri': 'wss://sputnikmkt.com:8000/user/cancels#%s' % username,
+                             'prefix': True,
+                             'pub': False,
+                             'sub': True}], 'rpc': []},
+                    'authextra': authextra}
 
-        # TODO: clean up permissions
-        return {'permissions': {'pubsub': [{'uri': 'wss://sputnikmkt.com:8000/safe_price#%s' % 'USD.13.7.31',
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/open_orders#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/fills#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': 'wss://sputnikmkt.com:8000/user/cancels#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True}], 'rpc': []},
-                'authextra': authextra}
+        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
+                               (username,)).addCallback(_cb)
 
-    def getAuthSecret(self, authKey):
+    def getAuthSecret(self, auth_key):
         """
-        :param authKey: the login
+        :param auth_key: the login
         :return: the auth secret for the given auth key or None when the auth key
         does not exist
         """
-
         # check for a saved session
-        if authKey in self.factory.cookies:
+        if auth_key in self.factory.cookies:
             return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1000})
 
-        try:
-            user = self.session.query(models.User).filter_by(
-                username=authKey).first()
-            if user == None:
-                raise Exception("No such user: %s" % authKey)
-            salt, secret = user.password.split(":")
+        def auth_secret_callback(result):
+            if not result:
+                raise Exception("No such user: %s" % auth_key)
+
+            salt, secret = result[0][0].split(":")
+            totp = result[0][1]
+
             try:
-                otp_num = otp.get_totp(user.totp)
+                otp_num = otp.get_totp(totp)
             except TypeError:
                 otp_num = ""
             otp_num = str(otp_num)
-        except Exception, e:
-            logging.warning("Error retrieving auth secret: %s" % e)
+
+            # hash password again but this in mostly unnecessary
+            # totp should be safe enough to send over in the clear
+
+            # TODO: extra hashing is being done with a possibly empty salt
+            # does this weaken the original derived key?
+            if otp_num:
+                auth_secret = WampCraProtocol.deriveKey(secret, {'salt': otp_num, 'keylen': 32, 'iterations': 10})
+            else:
+                auth_secret = secret
+
+            logging.info("returning auth secret: %s" % auth_secret)
+            return auth_secret
+
+        def auth_secret_errback(fail=None):
+            logging.warning("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
@@ -253,32 +255,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # information about user existence
             return ":0xFA1CDA7A:"
 
-        # hash password again but this in mostly unnecessary
-        # totp should be safe enough to send over in the clear
-
-        # TODO: extra hashing is being done with a possibly empty salt
-        # does this weaken the original derived key?
-        if otp_num == "":
-            auth_secret = secret
-        else:
-            auth_secret = WampCraProtocol.deriveKey(secret,
-                                                    {'salt': otp_num, 'keylen': 32, 'iterations': 10})
-
-        logging.info("returning auth secret: %s" % auth_secret)
-        return auth_secret
+        return dbpool.runQuery(
+            "SELECT password, totp FROM users WHERE username=%s LIMIT 1", (auth_key,)
+        ).addCallback(auth_secret_callback).addErrback(auth_secret_errback)
 
     # noinspection PyMethodOverriding
-    def onAuthenticated(self, authKey, perms):
+    def onAuthenticated(self, auth_key, perms):
         """
         fired when authentication succeeds, registers user for RPC, save user object in session
-        :param authKey: login
+        :param auth_key: login
         :rtype : object
-        :param perms: a dictionary describing the permissions associated with this user... from getAuthPermissions
+        :param perms: a dictionary describing the permissions associated with this user...          from getAuthPermissions
         """
-
-        endpoint = ZmqEndpoint("connect",
-                               config.get("accountant", "zmq_address"))
-        self.accountant = ZmqPushConnection(zf, endpoint)
 
         self.troll_throttle = time.time()
 
@@ -290,29 +278,30 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # noinspection PyTypeChecker
             self.registerForRpc(self, baseUri="wss://sputnikmkt.com:8000/procedures/")
 
-        # sets the user in the session... I'm not certain it's a 100% safe to store it like this
-        #todo: what if the users logs in from different location? To keep an eye on.
+        # sets the user in the session...
         # search for a saved session
-        username = self.factory.cookies.get(authKey)
-        if username == None:
-            logging.info("Normal user login for: %s" % authKey)
-            self.user = self.session.query(models.User).filter_by(username=authKey).one()
+        username = self.factory.cookies.get(auth_key)
+        if not username:
+            logging.info("Normal user login for: %s" % auth_key)
+            self.username = auth_key
             uid = str(uuid.uuid4())
-            self.factory.cookies[uid] = authKey
+            self.factory.cookies[uid] = auth_key
             self.cookie = uid
-            username = authKey
         else:
             logging.info("Cookie login for: %s" % username)
-            self.user = self.session.query(models.User).filter_by(username=username).one()
+            self.username = username
 
         # moved from onSessionOpen
-        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/fills#" + username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + username,
+        # should the registration of these wait till after onAuth?  And should they only be
+        # for the specific user?
+        #  Pretty sure yes.
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/cancels#" + self.username,
+                               pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/fills#" + self.username,
+                               pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub("wss://sputnikmkt.com:8000/user/open_orders#" + self.username,
                                pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri="wss://sputnikmkt.com:8000/user/")
-
 
     @exportRpc("get_cookie")
     @limit
@@ -332,10 +321,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         prepares new two factor authentication for an account
         """
-        new = otp.base64.b32encode(os.urandom(10))
-        self.user.two_factor = new
-        return new
-
+        raise NotImplementedError()
 
     @exportRpc("disable_two_factor")
     @limit
@@ -343,57 +329,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         disables two factor authentication for an account
         """
-        secret = self.session.query(models.User).filter_by(username=self.user.username).one().two_factor
-        logging.info('in disable, got secret: %s' % secret)
-        totp = otp.get_totp(secret)
-
-        if confirmation == totp:
-            try:
-                logging.info(self.user)
-                self.user.two_factor = None
-                logging.info('should be None till added user')
-                logging.info(self.user.two_factor)
-                self.session.add(self.user)
-                logging.info('added user')
-                self.session.commit()
-                logging.info('commited')
-                return True
-            except:
-                self.session.rollBack()
-                return False
-
+        raise NotImplementedError()
 
     @exportRpc("register_two_factor")
     @limit
     def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
-        :param secret: secret to store
         :param confirmation: trial run of secret
         """
-        # sanitize input
-        confirmation_schema = {"type": "number"}
-        validate(confirmation, confirmation_schema)
-
-        #there should be a db query here, or maybe we can just refernce self.user..
-        #secret = 'JBSWY3DPEHPK3PXP' # = self.user.two_factor
-
-        logging.info('two factor in register: %s' % self.user.two_factor)
-        secret = self.user.two_factor
-        test = otp.get_totp(secret)
-        logging.info(test)
-
-        #compare server totp to client side totp:
-        if confirmation == test:
-            try:
-                self.session.add(self.user)
-                self.session.commit()
-                return True
-            except Exception as e:
-                self.session.rollBack()
-                return False
-        else:
-            return False
+        raise NotImplementedError()
 
     @exportRpc("get_trade_history")
     @limit
@@ -416,9 +361,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         to_dt = datetime.datetime.utcnow()
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
-        return [[trade.timestamp.isoformat(), trade.price, trade.quantity] for trade in
-                self.session.query(models.Trade).join(models.Contract).filter_by(
-                    ticker=ticker)] #.filter(and_( models.Trade.timestamp >= from_dt, models.Trade.timestamp < to_dt))]
+        #todo implement time_span checks
+        return dbpool.runQuery(
+            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
+            (ticker,))
 
     @exportRpc("get_new_address")
     @limit
@@ -427,26 +373,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
-        try:
-            old_addresses = self.session.query(models.Addresses).filter_by(user=self.user).all()
-            for addr in old_addresses:
-                print addr
-                print addr.active
-                addr.active = False
-                self.session.add(addr)
 
-            new_address = self.session.query(models.Addresses).filter_by(active=True, user=None).first()
-            new_address.active = True
-            new_address.user = self.user
-            self.session.add(new_address)
-            self.session.commit()
-            return new_address.address
+        def _get_new_address(txn, username):
+            res = txn.query(
+                "SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
+            if not res:
+                logging.error("Out of addresses!")
+                raise Exception("Out of addresses")
 
+            a_id, a_address = res[0][0], res[0][1]
+            txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
+            txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
+                        (username, a_id))
+            return a_address
 
-        except  Exception as e:
-            self.session.rollback()
-            logging.warning("we did not manage to assign a new address to a user, something's wrong")
-            return ""
+        return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
     @limit
@@ -455,47 +396,52 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         RPC call to obtain the current address associated with a particular user
         :return: said current address
         """
-        try:
-            current_address = self.session.query(models.Addresses).filter_by(user=self.user, active=True).first()
-            return current_address.address
 
-        except Exception as e:
-            self.session.rollback()
-            logging.warning("we did not manage to get the current address associated with a user, something's wrong")
-            return ""
+        def _cb(result):
+            if not result:
+                logging.warning(
+                    "we did not manage to get the current address associated with a user,"
+                    " something's wrong")
+                return ""
+            else:
+                return result[0][0]
 
+        return dbpool.runQuery(
+            "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
 
     @exportRpc("withdraw")
     @limit
-    def withdraw(self, currency, address, amount):
+    def withdraw(self, currency, withdraw_address, amount):
         """
         Makes a note in the database that a withdrawal needs to be processed
         :param currency: the currency to process the withdrawal in
-        :param address: the address to which the withdrawn money is to be sent
+        :param withdraw_address: the address to which the withdrawn money is to be sent
         :param amount: the amount of money to withdraw
         :return: true or false, depending on success
         """
         validate(currency, {"type": "string"})
-        validate(address, {"type": "string"})
+        validate(withdraw_address, {"type": "string"})
         validate(amount, {"type": "number"})
         amount = int(amount)
 
         if amount <= 0:
             return False
 
-        try:
+        def _withdraw(txn, currency):
             logging.info('entering withdraw')
-            currency = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-            print currency
-            cancellation = models.Withdrawal(self.user, currency, address, amount)
-            print cancellation
-            self.session.add(cancellation)
-            self.session.commit()
-            return True
-        except Exception as e:
-            self.session.rollback()
-            return False
+            currency_id = \
+                txn.execute("SELECT id FROM contracts WHERE ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[
+                    0][0]
 
+            txn.execute(
+                "INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
+                {'username': self.username,
+                 'address': withdraw_address,
+                 'amount': amount,
+                 'currency_id': currency_id,
+                 'entered': datetime.datetime.utcnow()})
+
+        dbpool.runInteraction(_withdraw, currency)
 
     @exportRpc("get_positions")
     @limit
@@ -504,37 +450,46 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Returns the user's positions
         :return: a dictionary representing the user's positions in various tickers
         """
-        return {x.contract.id: {"ticker": x.contract.ticker,
-                                "position": x.position,
-                                "reference_price": x.reference_price,
-                                "denominator": x.contract.denominator,
-                                "contract_type": x.contract.contract_type,
-                                "inverse_quotes": x.contract.inverse_quotes}
-                for x in self.session.query(models.Position).filter_by(user=self.user)}
+
+        def _cb(result):
+            return {x[0]: {"ticker": x[1],
+                           "position": x[2],
+                           "reference_price": x[3],
+                           "denominator": x[4],
+                           "contract_type": x[5],
+                           "inverse_quotes": x[6]}
+                    for x in result}
+
+        return dbpool.runQuery(
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, contracts.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
     @limit
     def get_profile(self):
-        return {'nickname': self.user.nickname,
-                'email': self.user.email
-        }
+        def _cb(result):
+            if not result:
+                return {}
+            return {'nickname': result[0][0], 'email': result[0][1]}
+
+        return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
+            _cb)
 
     @exportRpc("change_profile")
     @limit
-    def change_profile(self, new_nickname, new_email):
+    def change_profile(self, new_nick, new_email):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
         """
-        try:
-            self.user.nickname = new_nickname
-            self.user.email = new_email
-            self.session.add(self.user)
-            self.session.commit()
-            return {'retval': True}
-        except Exception as e:
-            self.session.rollback()
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+        # sanitize
+        validate(new_nick, {"type": "string"})
+        validate(new_email, {"type": "string"})
+
+        def _change(tx, params):
+            tx.execute("UPDATE users SET nickname=%s, email=%s WHERE username=%s",
+                       (params['new_nick'], params['new_email'], self.username))
+        return dbpool.runQuery(_change, {'new_nick': new_nick, 'new_email': new_email})
 
     @exportRpc("change_password")
     @limit
@@ -544,7 +499,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param old_password_hash: current password
         :param new_password_hash: new password
         """
-
         # sanitize
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
@@ -555,59 +509,49 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.session.add(self.user)
                 self.session.commit()
 
-                return {'retval': True}
+                return True
             except Exception as e:
                 self.session.rollback()
-                return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+                return False
         else:
-            return {'retval': False, 'error': "Invalid password", 'traceback': None}
+            return False
 
     @exportRpc("make_account")
     @limit
-    def make_account(self, name, password, salt, email):
+    def make_account(self, username, password, salt, email):
         """
         creates a new user account based on a name and a password_hash
         :param name: login, username of the user
         :param password: hash of the password
         :param email: email address for the user
-
         """
-
         # sanitize
-        validate(name, {"type": "string"})
+        validate(username, {"type": "string"})
         validate(password, {"type": "string"})
         validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
 
-        try:
-            existing = self.session.query(models.User).filter_by(
-                username=name).first()
-            if existing is not None:
-                raise Exception('duplicate user')
+        def _make(tx, params):
+            tx.execute("SELECT username FROM users WHERE username=%s", (params['username'], ))
+            existing = tx.fetchall()
+            if existing:
+                return [0, (0, "account already exists")]
+            tx.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
+                       (params['username'], params['salt'] + ':' + params['password'], params['email']))
 
-            user = models.User(name, salt + ":" + password, email)
-            self.session.add(user)
+            tx.execute("SELECT id FROM contracts WHERE contract_type='cash'")
+            for contract in tx.fetchall():
+                tx.execute("INSERT INTO positions (username, contract_id) VALUES (%s, %s)", (params['username'], contract[0]))
 
-            # Set all cash contracts positions to zero
-            cash_contracts = self.session.query(models.Contract).filter_by(contract_type='cash').all()
-            for contract in cash_contracts:
-                cash_pos = models.Position(user, contract)
-                cash_pos.reference_price = 0
-                self.session.add(cash_pos)
+            tx.execute("SELECT id FROM addresses WHERE active=FALSE AND username IS NULL LIMIT 1")
+            new_address = tx.fetchall()
+            if not new_address:
+                logging.error("Couldn't create user, out of addresses")
+                raise Exception("Out of new addresses!")
+            tx.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s", (params['username'], new_address[0][0]))
+            return [1, params['username']]
 
-            new_address = self.session.query(models.Addresses).filter_by(
-                active=False, user=None).first()
-            new_address.active = True
-            new_address.user = user
-            self.session.merge(new_address)
-
-            self.session.commit()
-            return {'retval': True}
-
-        except Exception as e:
-            print e
-            self.session.rollback()
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+        dbpool.runInteraction(_make, {'username': username, 'password': password, 'salt': salt, 'email': email})
 
 
     @exportRpc("list_markets")
@@ -617,27 +561,26 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Lists markets available for trading
         :return: a list of markets...
         """
+        def _cb(res):
+            result = {}
+            for r in res:
+                result[r[0]] = {"description": r[1],
+                                    "denominator": r[2],
+                                    "contract_type": r[3],
+                                    "full_description": r[4],
+                                    "tick_size": r[5],
+                                    "lot_size": r[6]}
 
-        result = {}
-        for c in self.session.query(models.Contract).filter_by(active=True):
-            # .filter(models.Contract.contract_type != 'cash'):  let's include cash contracts
+                if result[r[0]]['contract_type'] == 'futures':
+                    result[r[0]]['margin_high'] = r[7]
+                    result[r[0]]['margin_low'] = r[8]
 
-            result[c.ticker] = {"description": c.description,
-                                "denominator": c.denominator,
-                                "contract_type": c.contract_type,
-                                "full_description": c.full_description,
-                                "tick_size": c.tick_size,
-                                "lot_size": c.lot_size}
+                if result[r[0]]['contract_type'] == 'prediction':
+                    result[r[0]]['final_payoff'] = r[2]
+            return result
 
-            if c.contract_type == 'futures':
-                result[c.ticker]['margin_high'] = c.margin_high
-                result[c.ticker]['margin_low'] = c.margin_low
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
 
-            if c.contract_type == 'prediction':
-                result[c.ticker]['final_payoff'] = c.denominator
-
-
-        return result
 
     @exportRpc("get_chat_history")
     @limit
@@ -654,7 +597,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             for line in f.read().split('\n')[-31:-1]:
                 #strip the date and time from the line:
                 lastThirty.append(line.split()[2])
-
         return lastThirty
 
 
@@ -681,15 +623,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         gets open orders
         """
-        return [
-            {'ticker': order.contract.ticker,
-             'price': order.price,
-             'quantity': order.quantity_left,
-             'side': order.side,
-             'id': order.id}
-            for order in self.session.query(models.Order).filter_by(
-                user=self.user).filter(models.Order.quantity_left > 0) if not order.is_cancelled and order.accepted]
-
+        def _cb(result):
+            return [{'ticker':r[0], 'price':r[1], 'quantity':r[2], 'side':r[3], 'id':r[4]} for r in result]
+        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.side, orders.id FROM orders, contracts WHERE orders.contract_id=contracts.id AND orders.username=%s AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(_cb)
 
     @exportRpc("place_order")
     @limit
@@ -701,37 +637,40 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :raise: some exception? need to do better error checking
         """
         # sanitize inputs:
-        try:
-            validate(order,
-                     {"type": "object", "properties": {
-                         "ticker": {"type": "string"},
-                         "price": {"type": "number"},
-                         "quantity": {"type": "number"},
-                         "side": {"type": "number"}
-                     }})
+        validate(order,
+                 {"type": "object", "properties": {
+                     "ticker": {"type": "string"},
+                     "price": {"type": "number"},
+                     "quantity": {"type": "number"},
+                     "side": {"type": "number"}
+                 }})
+        order['ticker'] = order['ticker'][:MAX_TICKER_LENGTH]
 
-            # enforce minimum tick_size for prices:
-            contract = self.session.query(models.Contract).filter_by(
-                ticker=order["ticker"]).order_by(
-                models.Contract.id.desc()).first()
-            # TODO: solve this another way, i.e. let the user know
-            if contract == None:
+        # enforce minimum tick_size for prices:
+
+        def _cb(result):
+            if not result:
                 raise Exception("Invalid contract ticker.")
-            tick_size = contract.tick_size
-            lot_size = contract.lot_size
+
+            tick_size = result[0][0]
+            lot_size = result[0][1]
 
             # coerce tick size and lot size
-            order["price"] = int(int(order["price"] / tick_size) * tick_size)
-            order["quantity"] = int(int(order["quantity"] / lot_size) * lot_size)
-            order['username'] = self.user.username
 
-            self.accountant.push(json.dumps({'place_order': order}))
-            # TODO: We need some way to know that the accountant didn't accept the order for some reason
+            order["price"] = int(order["price"])
+            order["quantity"] = int(order["quantity"])
+            if order["price"] % tick_size != 0 or order["quantity"] % lot_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+                raise Exception("invalid price or quantity")
+
+            order['username'] = self.username
+            #TODO (yury can you make this an async rep/req with TXZMQ?)
+            self.factory.accountant.push(json.dumps({'place_order': order}))
             self.count += 1
             print 'place_order', self.count
-            return {'retval': True}
-        except Exception as e:
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
+            return True
+
+
+        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
     @limit
@@ -749,30 +688,25 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param order_id: order_id of the order
         """
         # sanitize inputs:
-        try:
-            print 'received order_id', order_id
-            validate(order_id, {"type": "number"})
-            print 'received order_id', order_id
-            order_id = int(order_id)
-            print 'formatted order_id', order_id
-            print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
-            self.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
-            self.count += 1
-            print 'cancel_order', self.count
-            return {'retval': True}
-        except Exception as e:
-            return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
-
+        print 'received order_id', order_id
+        validate(order_id, {"type": "number"})
+        print 'received order_id', order_id
+        order_id = int(order_id)
+        print 'formatted order_id', order_id
+        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.user.username}})
+        self.factory.accountant.push(json.dumps({'cancel_order': {'id': order_id, 'username': self.user.username}}))
+        self.count += 1
+        print 'cancel_order', self.count
 
 
     @exportSub("chat")
-    def subscribe(self, topicUriPrefix, topicUriSuffix):
+    def subscribe(self, topic_uri_prefix, topic_uri_suffix):
         """
         Custom topic subscription handler
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix:suffix part, in this case always "chat"
+        :param topic_uri_prefix: prefix of the URI
+        :param topic_uri_suffix:suffix part, in this case always "chat"
         """
-        logging.info("client wants to subscribe to %s%s" % (topicUriPrefix, topicUriSuffix))
+        logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if self.user:
             logging.info("he's logged in as %s so we'll let him" % self.user.username)
             return True
@@ -781,15 +715,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return False
 
     @exportPub("chat")
-    def publish(self, topicUriPrefix, topicUriSuffix, event):
+    def publish(self, topic_uri_prefix, topic_uri_suffix, event):
         """
         Custom topic publication handler
-        :param topicUriPrefix: prefix of the URI
-        :param topicUriSuffix: suffix part, in this case always "general"
+        :param topic_uri_prefix: prefix of the URI
+        :param topic_uri_suffix: suffix part, in this case always "general"
         :param event: event being published, a json object
         """
         print 'string?', event
-        logging.info("client wants to publish to %s%s" % (topicUriPrefix, topicUriSuffix))
+        logging.info("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if not self.user:
             logging.info("he's not logged in though, so no")
             return None
@@ -822,6 +756,7 @@ class PepsiColaServerFactory(WampServerFactory):
     currently connected clients.
     """
 
+    # noinspection PyPep8Naming
     def __init__(self, url, debugWamp=False, debugCodePaths=False):
         WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
         self.all_books = {}
@@ -830,6 +765,9 @@ class PepsiColaServerFactory(WampServerFactory):
         endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher
+
+        endpoint = ZmqEndpoint("connect", config.get("accountant", "zmq_address"))
+        self.accountant = ZmqPushConnection(zf, endpoint)
 
     def dispatcher(self, message):
         """
@@ -874,7 +812,7 @@ class PepsiColaServerFactory(WampServerFactory):
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
-                sslmethod=SSL.SSLv23_METHOD):
+                 sslmethod=SSL.SSLv23_METHOD):
         """
         @param privateKeyFileName: Name of a file containing a private key
         @param certificateChainFileName: Name of a file containing a certificate chain
@@ -890,6 +828,7 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_certificate_chain_file(self.certificateChainFileName)
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
+
 
 if __name__ == '__main__':
 

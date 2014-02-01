@@ -2,19 +2,21 @@
 
 import sys
 import os
+import shutil
+import fnmatch
 import string
 import copy
 import subprocess
 import optparse
 import ConfigParser
 import getpass
+import compileall
 
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
 
 class Installer:
     def __init__(self, profile=None):
-        profile = profile or os.environ.get("PROFILE")
         if profile == None:
             raise Exception("No profile specified.")
 
@@ -38,7 +40,7 @@ class Installer:
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
         for key, value in self.config.iteritems():
-            self.env["PROFILE_%s" % key] = value
+            self.env["profile_%s" % key] = value
 
     def log(self, line):
         self.logfile.write(line)
@@ -57,9 +59,12 @@ class Installer:
 
     def make_config(self):
         self.log("Creating config files.\n")
+        
+        shutil.rmtree("config", True)
+        os.mkdir("config")
 
         # make supervisor.conf
-        out = open("supervisor.conf", "w")
+        out = open("config/supervisor.conf", "w")
         with open(self.get_template("supervisor.conf")) as template_file:
             template = string.Template(template_file.read())
             out.write(template.substitute(self.config))
@@ -71,7 +76,7 @@ class Installer:
         out.close()
         
         # make sputnik.ini
-        out = open("sputnik.ini", "w")
+        out = open("config/sputnik.ini", "w")
         with open(self.get_template("sputnik.ini")) as template_file:
             template = string.Template(template_file.read())
             out.write(template.substitute(self.config))
@@ -88,7 +93,7 @@ class Installer:
 
         # make bitcoin.conf
         if not self.parser.getboolean("profile", "disable_bitcoin"):
-            out = open("bitcoin.conf", "w")
+            out = open("config/bitcoin.conf", "w")
             with open(self.get_template("bitcoin.conf")) as template_file:
                 template = string.Template(template_file.read())
                 out.write(template.substitute(self.config))
@@ -110,6 +115,7 @@ class Installer:
 
         # import pip _now_ since it may not exist at script launch
         import pip
+        import pip.req
         import pkg_resources
 
         # if we installed a package, this is out of date
@@ -196,6 +202,28 @@ class Installer:
         except IOError:
             self.log("No python dependencies found.\n")
 
+    def make_build(self):
+        if not self.config.get("pycompiled"):
+            return
+
+        # make build directory
+        build_root = os.path.join(self.git_root, "dist", "build")
+        build_server = os.path.join(build_root, "server", "sputnik")
+        shutil.rmtree(build_server, True)
+
+        # byte-compile compile
+        server_source = os.path.join(self.git_root, "server", "sputnik")
+        compileall.compile_dir(server_source)
+        
+        # copy files
+        def ignore(path, names):
+            ignored = []
+            for name in names:
+                if not fnmatch.fnmatch(name, "*.pyc"):
+                    ignored.append(name)
+            return ignored
+        shutil.copytree(server_source, build_server, ignore=ignore)
+
     def make_install(self):
         # do pre-install
         self.log("Running pre-install scripts...\n")
@@ -267,9 +295,9 @@ def main():
     opts.add_option("-p", "--profile", dest="profile", help="Profile directory")
     (options, args) = opts.parse_args()
 
-    profile = None
-    if options.profile:
-        profile = os.path.abspath(options.profile)
+    profile = options.profile or os.environ.get("PROFILE")
+    if profile:
+        profile = os.path.abspath(profile)
 
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
@@ -281,6 +309,10 @@ def main():
     try: 
         # change to work directory
         here = os.path.dirname(os.path.abspath(__file__))
+        dist = os.path.join(here, "..", "dist")      
+ 
+        if not os.path.isdir(dist):
+            os.mkdir(dist)
         os.chdir(os.path.join(here, "..", "dist"))
 
         installer = Installer(profile)    
@@ -296,6 +328,9 @@ def main():
         elif mode == "vars":
             for key, value in installer.config.iteritems():
                 print "%s%s" % ((key + ":").ljust(20), value)
+        elif mode == "env":
+            for key, value in installer.config.iteritems():
+                print "export profile_%s=\"%s\"" % (key, value)
         else:
             sys.stderr.write("Install mode not recognized.\n")
             sys.stderr.flush()
