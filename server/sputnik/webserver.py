@@ -65,7 +65,7 @@ def limit(func):
     def kick(self, *arg, **kwargs):
         elapsed = time.clock() - last_called[0]
 
-        if elapsed < self.RATE_LIMIT:
+        if elapsed < self.rate_limit:
             self.count += 1
         else:
             # forgive past floods
