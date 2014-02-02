@@ -189,7 +189,7 @@ class Sputnik extends EventEmitter
       order =
         quantity: quantity
         price: price
-        ticker: ticker
+        contract: ticker
         side: side
       @log "placing order: #{order}"
       @emit "place_order", order
@@ -314,20 +314,20 @@ class Sputnik extends EventEmitter
     onMarkets: (@markets) =>
         for ticker of markets
             @markets[ticker].trades = []
-            @markets[ticker].buys = []
-            @markets[ticker].sells = []
+            @markets[ticker].bids = []
+            @markets[ticker].asks = []
         @emit "markets", @markets
 
  
     # public feeds
     onBookUpdate: (event) =>
-        ticker = event.ticker
-        @markets[ticker].buys = event.buys
-        @markets[ticker].sells = event.sells
+        ticker = event.contract
+        @markets[ticker].bids = event.bids
+        @markets[ticker].asks = event.asks
         @emit "book_update", @markets
 
     onTrade: (event) =>
-        ticker = event.ticker
+        ticker = event.contract
         @markets[ticker].trades.push event
         @emit "trade", event
 
@@ -369,10 +369,10 @@ $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
 $('#sellButton').click ->
-  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 1)
+  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 'SELL')
 
 $('#buyButton').click ->
-  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 0)
+  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 'BUY')
 
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
@@ -403,18 +403,18 @@ generateBookTable = (book) ->
 
 displayBooks = (markets) ->
   table = $('#booksTable')[0]
-  for ticker, data of markets
+  for contract, data of markets
     if data.contract_type != "cash"
       row = table.insertRow(-1)
-      row.insertCell(-1).innerText = ticker
-      row.insertCell(-1).appendChild(generateBookTable(data.sells))
-      row.insertCell(-1).appendChild(generateBookTable(data.buys))
+      row.insertCell(-1).innerText = contract
+      row.insertCell(-1).appendChild(generateBookTable(data.bids))
+      row.insertCell(-1).appendChild(generateBookTable(data.asks))
 
 displayPositions = (positions) ->
   table = $('#positionsTable')[0]
   for id, position of positions
     row = table.insertRow(-1)
-    row.insertCell(-1).innerText = position.ticker
+    row.insertCell(-1).innerText = position.contract
     row.insertCell(-1).innerText = position.position
     row.insertCell(-1).innerText = position.reference_price
 
@@ -422,9 +422,10 @@ displayOrders = (orders) ->
   table = $('#ordersTable')[0]
   for order in orders
     row = table.insertRow(-1)
-    row.insertCell(-1).innerText = order.ticker
+    row.insertCell(-1).innerText = order.contract
     row.insertCell(-1).innerText = order.price
     row.insertCell(-1).innerText = order.quantity
+    row.insertCell(-1).innerText = order.quantity_left
     row.insertCell(-1).innerText = order.side
     row.insertCell(-1).innerText = order.timestamp
     row.insertCell(-1).innerText = order.id
@@ -438,6 +439,9 @@ sputnik.on "markets", (markets) ->
 
         displayMarkets markets
 
+sputnik.on "book_update", (markets) ->
+  displayBooks markets
+
 sputnik.on "positions", (positions) ->
   displayPositions positions
 
@@ -450,47 +454,47 @@ sputnik.on "chat", (chat_messages) ->
 
 sputnik.on "loggedIn", (user_id) ->
   login.value = user_id
-  @log "userid: " + user_id
+  sputnik.log "userid: " + user_id
   $('#loggedInAs').text("Logged in as " + user_id)
 
 sputnik.on "profile", (nickname, email) ->
-  @log "profile: " + nickname + " " + email
+  sputnik.log "profile: " + nickname + " " + email
   $('#nickname').text(nickname)
   $('#email').text(email)
 
 sputnik.on "wtf_error", (error) ->
     # There was a serious error. It is probably best to reconnect.
-    @error "GUI: #{error}"
+    sputnik.error "GUI: #{error}"
     alert error
     sputnik.close()
 
 sputnik.on "failed_login", (error) ->
-  @error "login error: #{error.desc}"
+  sputnik.error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
 
 sputnik.on "failed_cookie", (error) ->
-  @error "cookie error: #{error.desc}"
+  sputnik.error "cookie error: #{error.desc}"
   alert "cookie error: #{error.desc}"
 
 sputnik.on "make_account_success", (username) ->
-  @log "make_account success: #{username}"
+  sputnik.log "make_account success: #{username}"
   alert "account creation success: #{username}"
 
 sputnik.on "make_account_error", (error) ->
-  @error "make_account_error: #{error}"
+  sputnik.error "make_account_error: #{error}"
   alert "account creation failed: #{error}"
 
 sputnik.on "logout", () ->
-  @log "loggedout"
+  sputnik.log "loggedout"
   $('#loggedInAs').text('')
 
 sputnik.on "place_order", () ->
-  @log "GUI: placing order"
+  sputnik.log "GUI: placing order"
 
 sputnik.on "place_order_success", (res) ->
-  @log "place order success: #{res.desc}"
+  sputnik.log "place order success: #{res.desc}"
   alert "success: #{res.desc}"
 
 sputnik.on "place_order_error", (error) ->
-  @log "place order error: #{error}"
+  sputnik.log "place order error: #{error}"
   alert "error: #{error}"
