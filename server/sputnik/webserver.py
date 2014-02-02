@@ -712,7 +712,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             self.count += 1
             print 'place_order', self.count
-            return self.factory.accountant.place_order(order)
+
+            def _retval_cb(return_value):
+                if return_value is True:
+                    return [True, None]
+                else:
+                    return [False, (0, "unknown error")]
+
+            return self.factory.accountant.place_order(order).addCallback(_retval_cb)
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
