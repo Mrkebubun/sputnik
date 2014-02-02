@@ -13,6 +13,9 @@ from functools import partial
 
 logging.getLogger().setLevel(logging.DEBUG)
 
+class RemoteCallException(Exception): pass
+class RemoteCallTimedOut(RemoteCallException): pass
+
 
 def export(obj):
     obj._exported = True
@@ -34,7 +37,7 @@ class Export:
         try:
             request = json.loads(message)
         except:
-            raise Exception("Invalid JSON received.")
+            raise RemoteCallException("Invalid JSON received.")
 
         # extract method name and arguments
         method_name = request.get("method", None)
@@ -43,28 +46,40 @@ class Export:
 
         # look up method
         method = self.mapper.get(method_name, None)
-        if method_name is None:
-            raise Exception("Method not found: %s" % method_name)
+        if method is None:
+            raise RemoteCallException("Method not found: %s" % method_name)
 
         # sanitize input
         if method_name == None:
-            raise Exception("Missing method name.")
+            raise RemoteCallException("Missing method name.")
         if not isinstance(args, list):
-            raise Exception("Arguments are not a list.")
+            raise RemoteCallException("Arguments are not a list.")
         if not isinstance(kwargs, dict):
-            raise Exception("Keyword arguments are not a dict.")
+            raise RemoteCallException("Keyword arguments are not a dict.")
         
         return method_name, args, kwargs
 
     def encode(self, success, value):
         logging.debug("Encoding message...")
 
+        # try to serialize Exception if there was a failure
+        if not success:
+            if isinstance(value, Exception):
+                klass = value.__class__
+                value = {"class":klass.__name__, "module": klass.__module__,
+                    "args":value.args}
+
         # test to see if result serializes
         try:
             json.dumps(value)
         except:
             logging.warn("Message cannot be serialized. Converting to string.")
-            value = str(value)
+            # do our best to serialize
+            try:
+                value = repr(value)
+            except:
+                success = False
+                value = "Result could not be serialized."
         
         if success:
             return json.dumps({"success":success, "result":value})
@@ -97,7 +112,7 @@ class AsyncPullExport(AsyncExport):
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
         except Exception, e:
-            return logging.warn("RPC Error: %s" % str(e))
+            return logging.warn("RPC Error: %s" % e)
 
         def result(value):
             logging.info("Got result for method %s." % method_name)
@@ -119,8 +134,8 @@ class AsyncRouterExport(AsyncExport):
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            logging.warn("RPC Error: %s" % message)
-            return self.connection.reply(message_id, self.encode(False, str(e)))
+            logging.warn("RPC Error: %s" % e)
+            return self.connection.reply(message_id, self.encode(False, e))
 
         def result(value):
             logging.info("Got result for method %s." % method_name)
@@ -130,7 +145,7 @@ class AsyncRouterExport(AsyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
             self.connection.reply(message_id,
-                self.encode(False, str(failure.value)))
+                self.encode(False, failure.value))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
@@ -147,7 +162,7 @@ class SyncPullExport(SyncExport):
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            return logging.warn("RPC Error: %s" % str(e))
+            return logging.warn("RPC Error: %s" % e)
 
         def result(value):
             logging.info("Got result for method %s." % method_name)
@@ -173,9 +188,9 @@ class SyncRouterExport(SyncExport):
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            logging.warn("RPC Error: %s" % message)
+            logging.warn("RPC Error: %s" % e)
             return self.connection.send_multipart(
-                [sender_id, message_id, "", self.encode(False, str(e))])
+                [sender_id, message_id, "", self.encode(False, e)])
 
         def result(value):
             logging.info("Got result for method %s." % method_name)
@@ -186,7 +201,7 @@ class SyncRouterExport(SyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
             self.connection.send_multipart(
-                [sender_id, message_id, "", self.encode(False, str(failure))])
+                [sender_id, message_id, "", self.encode(False, failure.value)])
 
         try:
             result(self.dispatch(method_name, args, kwargs))
@@ -218,10 +233,6 @@ def pull_share_sync(obj, address):
     while True:
         spe.process(socket.recv_multipart())
 
-
-class RemoteException(Exception):
-    pass
-
 class Proxy:
     def __init__(self, connection):
         self._connection = connection
@@ -242,7 +253,23 @@ class Proxy:
         
         if success:
             return success, response.get("result", None)
-        return success, response.get("exception", None)
+
+        # decode the exception
+        exception = response.get("exception", None)
+        if isinstance(exception, dict):
+            cname = exception.get("class", None)
+            mname = exception.get("module", None)
+            if not cname or not mname:
+                klass = Exception
+            else:
+                try:
+                    module = __import__(mname)
+                    klass = getattr(module, cname)
+                except:
+                    klass = Exception
+            args = exception.get("args", ())
+            exception = klass(*args)
+        return success, exception
 
     def encode(self, method_name, args, kwargs):
         logging.debug("Encoding message...")
@@ -264,7 +291,7 @@ class Proxy:
                 success, result = self.decode(message)
                 if success:
                     return result
-                raise RemoteException(result)
+                raise result
             
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
@@ -282,7 +309,8 @@ class DealerProxyAsync(Proxy):
     def send(self, message):
         d = self._connection.sendMsg(message)
         if self._timeout > 0:
-            timeout = reactor.callLater(self._timeout, d.cancel)
+            timeout = reactor.callLater(self._timeout, d.errback,
+                RemoteCallTimedOut("Call timed out."))
             def cancelTimeout(result):
                 if timeout.active():
                     timeout.cancel()
@@ -303,15 +331,19 @@ class DealerProxySync(Proxy):
     def send(self, message):
         self._id = str(uuid.uuid4())
         self._connection.send_multipart([self._id, "", message])
-        data = self._connection.recv_multipart()
-        print data
+        try:
+            data = self._connection.recv_multipart()
+        except zmq.ZMQError, e:
+            if str(e) == "Resource temporarily unavailable":
+                raise RemoteCallTimedOut()
+            raise e
         if data[0] != self._id:
-            raise Exception("Invalid return ID.")
+            raise RemoteCallException("Invalid return ID.")
         message = data[2]
         success, result = self.decode(message)
         if success:
             return result
-        raise RemoteException(result)
+        raise result
  
 class PushProxySync(Proxy):
     def send(self, message):

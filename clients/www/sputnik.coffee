@@ -1,14 +1,16 @@
 ### UI API ###
 
-class Sputnik extends EventEmitter
+class window.Sputnik extends EventEmitter
 
     markets: {}
 
     orders: {}
     positions: {}
     margins: {}
-    logged_in: false
-    authextra: {}
+    authenticated: false
+    profile:
+        email: null
+        nickname: null
     chat_messages: []
 
     constructor: (@uri) ->
@@ -23,165 +25,113 @@ class Sputnik extends EventEmitter
 
     close: () =>
         @session?.close()
+        @session = null
 
     # market selection
     
     follow: (market) =>
-        if not @session?
-            return @wtf "Not connected."
         @subscribe "order_book##{market}", @onBookUpdate
         @subscribe "trades##{market}", @onTrade
 
     unfollow: (market) =>
-        if not @session?
-            return @wtf "Not connected."
         @unsubscribe "order_book##{market}"
         @unsubscribe "trades##{market}"
 
     # authentication and account management
 
-    makeAccount: (username, password, email) =>
-        if not @session?
-            return @wtf "Not connected"
-
-
-        @emit "make_account_start"
-        @log("makeAccount")
-
-        @log("computing salt")
+    makeAccount: (username, secret, email) =>
+        @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
-        @log("computing hash")
-        @authextra['salt'] = salt;
-        password_hash = ab.deriveKey(password, @authextra);
+        authextra =
+            salt: salt
+            iterations: 1000
+        password = salt + ":" + ab.deriveKey secret, authextra
 
-        @log('making session call for makeAccount');
-        @call("make_account", username, password_hash, salt,  email).then \
-          (res) =>
-            @log('account created: #{username}')
-            @emit "make_account_success", username
-            @authenticate(username, password)
+        @call("make_account", username, password, email).then \
+          (result) =>
+            @emit "make_account_success", result
           , (error) =>
             @emit "make_account_error", error
 
-
     getProfile: () =>
-      if not @session?
-        return @wtf "Not connected"
-
-      @call("get_profile").then \
-        (profile) =>
-            @emit "profile", profile.nickname, profile.email
+      @call("get_profile").then (@profile) =>
+        @emit "profile", @profile
 
     changeProfile: (nickname, email) =>
-      if not @session?
-        return @wtf "Not connected"
-
-      @call("change_profile", nickname, email).then \
-        (res) =>
-          @getProfile()
-
-    failed_login: (error) =>
-      @emit "failed_login", error
+      @call("change_profile", email, nickname).then (@profile) =>
 
     authenticate: (login, password) =>
-      @session.authreq(login).then \
-        (challenge) =>
-          @authextra = JSON.parse(challenge).authextra
-          @log('challenge', @authextra)
-          @log(ab.deriveKey(password, @authextra))
+        if not @session?
+            @wtf "Not connected."
 
-          secret = ab.deriveKey(password, @authextra)
-          @log(challenge)
-          signature = @session.authsign(challenge, secret)
-          @log(signature)
-          @session.auth(signature).then(@onAuth, @failed_login)
-          @log('authenticate');
-      , (error) ->
-        @failed_login(error);
+        @session.authreq(login).then \
+            (challenge) =>
+                authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(password, authextra)
+                signature = @session.authsign(challenge, secret)
+                @session.auth(signature).then @onAuthSuccess, @onAuthFail
+            , (error) =>
+                @emit "Failed login: Could not authenticate: #{error}."
+    
+    restoreSession: (uid) =>
+        if not @session?
+            @wtf "Not connected."
 
-    cookie_login: (cookie) =>
-      parts = cookie.split("=", 2)[1].split(":", 2)
-      name = parts[0]
-      uid = parts[1]
-      if !uid
-        return @failed_cookie "bad_cookie, clearing"
-
-      @session.authreq(uid).then \
-        (challenge) =>
-          @authextra = JSON.parse(challenge).authextra
-          @authextra.salt = "cookie"
-          secret = ab.deriveKey("cookie", @authextra)
-          signature = @session.authsign(challenge, secret)
-          @log signature
-          @session.auth(signature).then \
-            (permissions) =>
-              @onAuth permissions
-            , @failed_cookie
-          @log "end of cookie login"
-        , (error) =>
-          @failed_cookie "error processing cookie login: #{error}"
-
-    failed_cookie: (error) =>
-      document.cookie = ''
-      @emit "failed_cookie", error
-      @log error
+        @session.authreq(uid).then \
+            (challenge) =>
+                # TODO: Why is this secret hardcoded?
+                secret = "EOcGpbPeYMMpL5hQH/fI5lb4Pn2vePsOddtY5xM+Zxs="
+                signature = @session.authsign(challenge, secret)
+                @session.auth(signature).then @onAuthSuccess, @onSessionExpired
+            , (error) =>
+                @wtf "RPC Error: Could not authenticate: #{error}."
 
     logout: () =>
-      @logged_in = false
-
-      # Clear user data
-      @site_positions = []
-      @open_orders = []
-      @authextra =
-                   "keylen": 32
-                   "salt": "RANDOM_SALT"
-                   "iterations": 1000
-      @log @open_orders
-
-      # TODO: Unsubscribe from everything
-      @call "logout"
-
-      # Clear cookie
-      document.cookie = ''
-      @close()
-      @connect()
-      @emit "logout"
+        @authenticated = false
+        @call "logout"
+        @close()
+        @emit "logout"
 
     getCookie: () =>
       @call("get_cookie").then \
         (uid) =>
           @log("cookie: " + uid)
-          document.cookie = "login" + "=" + login.value + ":" + uid
+          @emit "cookie", uid
 
-    onAuth: (permissions) =>
-      ab.log("authenticated!", JSON.stringify(permissions));
-      @logged_in = true;
+    onAuthSuccess: (permissions) =>
+      ab.log("authenticated!", JSON.stringify(permissions))
+      @authenticated = true
 
-      @getCookie()
       @getProfile()
       @getSafePrices()
       @getOpenOrders()
       @getPositions()
 
-      @user_id = (x.uri for x in permissions.pubsub)[1].split('#')[1]
-      @emit "loggedIn", @user_id
+      @username = permissions.username
+      @emit "logged_in", @username
 
       try
-        @subscribe "cancels#" + @user_id, @onCancel
+        @subscribe "cancels#" + @username, @onCancel
       catch error
         @log error
 
       try
-        @subscribe "fills#" + @user_id, @onFill
+        @subscribe "fills#" + @username, @onFill
       catch error
         @log error
 
       try
-        @subscribe "open_orders#" + @user_id, @onOpenOrder
+        @subscribe "open_orders#" + @username, @onOpenOrder
       catch error
         @log error
 
-      #@switchBookSub SITE_TICKER
+    onAuthFail: (error) =>
+        @username = null
+        [code, reason] = error  
+        @emit "failed_login", error
+
+    onSessionExpired: (error) =>
+        @emit "session_expired"
 
     # order manipulation
     
@@ -216,27 +166,24 @@ class Sputnik extends EventEmitter
     # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
-      @log("getting open orders")
       @call("get_open_orders").then \
         (orders) =>
           @log("orders received: #{orders}")
           @emit "orders", orders
 
     getPositions: () =>
-      @log("getting positions")
       @call("get_positions").then \
         (positions) =>
           @log("positions received: #{positions}")
           @emit "positions", positions
 
     getOrderBook: (ticker) =>
-      @log("getting orderbook: #{ticker}")
       @call("get_order_book", ticker).then @onBookUpdate
 
     # miscelaneous methods
 
     chat: (message) =>
-      if @logged_in
+      if @authenticated
         @publish "chat", message
         return [true, null]
       else
@@ -246,9 +193,9 @@ class Sputnik extends EventEmitter
 
     # RPC wrapper
     call: (method, params...) =>
-        @log "calling #{method} with #{params}"
         if not @session?
             return @wtf "Not connected."
+        @log "Invoking RPC #{method}(#{params})"
         d = ab.Deferred()
         @session.call("#{@uri}/procedures/#{method}", params...).then \
             (result) =>
@@ -284,24 +231,21 @@ class Sputnik extends EventEmitter
     error: (obj) -> console.error obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
-        @emit "wtf_error", obj
+        @emit "error", obj
 
     # connection events
     onOpen: (@session) =>
         @log "Connected to #{@uri}."
 
-        @call("list_markets").then @onMarkets, @wtf
+        @call("get_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
-        @call("get_chat_history").then \
-          (chats) ->
-            @chat_history = chats
-            @emit "chat", @chat_history
+        # TODO: Are chats private? Do we want them for authenticated users only?
+        #@call("get_chat_history").then \
+        #  (chats) ->
+        #    @chat_history = chats
+        #    @emit "chat", @chat_history
 
-        # Attempt a cookie login
-        cookie = document.cookie
-        @log "cookie: #{cookie}"
-        if cookie
-          @cookie_login cookie
+        @emit "open"
 
     onClose: (code, reason, details) =>
         @log "Connection lost."

@@ -26,6 +26,9 @@ webserver_link = tcp://127.0.0.1:4433
 cashier_link = tcp://127.0.0.1:4434
 administrator_link = tcp://127.0.0.1:4435
 
+[administrator]
+webserver_link = tcp://127.0.0.1:4601
+
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501
 zmq_backend_address = tcp://127.0.0.1:4502

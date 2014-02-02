@@ -28,9 +28,11 @@ import hashlib
 import uuid
 from zmq_util import dealer_proxy_async
 
+from administrator import AdministratorException
+
 from jsonschema import validate
 from twisted.python import log
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
 from twisted.web.static import File
 from autobahn.websocket import listenWS
@@ -38,6 +40,8 @@ from autobahn.wamp import exportRpc, \
     WampCraProtocol, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
+
+from autobahn.wamp import CallHandler
 
 from OpenSSL import SSL
 
@@ -58,30 +62,121 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                database=config.get("database", "dbname"))
 
 
+class RateLimitedCallHandler(CallHandler):
+    def _callProcedure(self, call):
+        def doActualCall(call):
+            call.proto.last_call = time.time()
+            return CallHandler._callProcedure(self, call)
+        
+        now = time.time()
+        if now - call.proto.last_call < 0.01:
+            # try again later
+            logging.info("rate limiting...")
+            delay = max(0, call.proto.last_call + 0.01 - now)
+            d = task.deferLater(reactor, delay, self._callProcedure, call)
+            return d
+        return doActualCall(call)
+
+
 MAX_TICKER_LENGTH = 100
 
-def limit(func):
-    last_called = [0.0]
+class AdministratorLink:
+    pass
 
-    def kick(self, *arg, **kwargs):
-        elapsed = time.clock() - last_called[0]
+class PublicInterface:
+    def __init__(self, factory):
+        self.factory = factory
+        self.init()
 
-        if elapsed < self.rate_limit:
-            self.count += 1
+    def init(self):
+        # TODO: clean this up
+        def _cb(res):
+            result = {}
+            for r in res:
+                result[r[0]] = {"ticker": r[0],
+                                "description": r[1],
+                                    "denominator": r[2],
+                                    "contract_type": r[3],
+                                    "full_description": r[4],
+                                    "tick_size": r[5],
+                                    "lot_size": r[6]}
+
+                if result[r[0]]['contract_type'] == 'futures':
+                    result[r[0]]['margin_high'] = r[7]
+                    result[r[0]]['margin_low'] = r[8]
+
+                if result[r[0]]['contract_type'] == 'prediction':
+                    result[r[0]]['final_payoff'] = r[2]
+            self.factory.markets = result
+
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
+
+    @exportRpc("get_markets")
+    def get_markets(self):
+        return [True, self.factory.markets]
+
+    @exportRpc("get_trade_history")
+    def get_trade_history(self, ticker, time_span):
+        """
+        Gets a list of trades between two dates
+        :param ticker: ticker of the contract to get the trade history from
+        :param time_span: time span in seconds to look at
+        """
+        # TODO: cache this
+        # TODO: make sure return format is correct
+
+        # sanitize input
+        ticker_schema = {"type": "string"}
+        validate(ticker, ticker_schema)
+        time_span_schema = {"type": "number"}
+        validate(time_span, time_span_schema)
+
+        time_span = int(time_span)
+        time_span = min(max(time_span, 0), 365 * 24 * 3600)
+        ticker = ticker[:MAX_TICKER_LENGTH]
+
+        to_dt = datetime.datetime.utcnow()
+        from_dt = to_dt - datetime.timedelta(seconds=time_span)
+
+        #todo implement time_span checks
+        #TODO: Implement new API
+        return dbpool.runQuery(
+            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
+            (ticker,))
+
+    @exportRpc("get_order_book")
+    def get_order_book(self, ticker):
+        # sanitize inputs:
+        validate(ticker, {"type": "string"})
+
+        # rpc call:
+        if ticker in self.factory.all_books:
+            return [True, self.factory.all_books[ticker]]
         else:
-            # forgive past floods
-            self.count -= 1
+            return [False, (0, "No book for %s." % ticker)]
 
-        last_called[0] = time.clock()
+    @exportRpc
+    def make_account(self, username, password, salt, email):
 
-        if self.count > 100:
-            WampCraServerProtocol.dropConnection(self)
-            WampCraServerProtocol.connectionLost(self,
-                                                 "rate limit exceeded")
-        else:
-            return func(self, *arg, **kwargs)
+        # sanitize
+        validate(username, {"type": "string"})
+        validate(password, {"type": "string"})
+        validate(salt, {"type": "string"})
+        validate(email, {"type": "string"})
 
-    return kick
+        password = salt + ":" + password
+        d = self.factory.administrator.make_account(username, password)
+        profile = {"email":email, "nickname":"anonymous"}
+        self.factory.administrator.change_profile(username, profile)       
+        
+        def onAccountSuccess(result):
+            return [True, username]
+
+        def onAccountFail(failure):
+            return [False, failure.value.args]
+ 
+        return d.addCallbacks(onAccountSuccess, onAccountFail)
+
 
 
 class PepsiColaServerProtocol(WampCraServerProtocol):
@@ -91,15 +186,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     def __init__(self):
         self.cookie = ""
-        # rate limit counter
-        self.count = 0
         self.username = None
         # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
         # noinspection PyPep8Naming
         self.clientAuthAllowAnonymous = True
-        self.troll_throttle = 0
-        self.rate_limit = 0.5
         self.base_uri = config.get("webserver", "base_uri")
 
 
@@ -110,6 +201,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
         WampCraServerProtocol.connectionMade(self)
+        
+        # install rate limited call handler
+        self.last_call = 0
+        self.handlerMapping[self.MESSAGE_TYPEID_CALL] = \
+            RateLimitedCallHandler(self, self.prefixes)
+
 
     def connectionLost(self, reason):
         """
@@ -133,14 +230,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
         self.registerForPubSub(self.base_uri + "/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.make_account])
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.list_markets])
-        self.registerForRpc(self, self.base_uri + "/procedures/",
-                            methods=[PepsiColaServerProtocol.get_trade_history])
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_order_book])
 
-        # TODO: move this to onAuthenticated
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_chat_history])
+        self.registerForRpc(self.factory.public_interface,
+            self.base_uri + "/procedures/")
+
         self.registerForPubSub(self.base_uri + "/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
@@ -173,6 +266,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         else:
             username = auth_key
 
+        # TODO: SECURITY: This is susceptible to a timing attack.
         def _cb(result):
             if result:
                 salt, password_hash = result[0][0].split(":")
@@ -181,26 +275,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 noise = hashlib.md5("super secret" + username + "even more secret")
                 salt = noise.hexdigest()[:8]
                 authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
-
-
-            # TODO: clean up permissions
-            return {'permissions': {'pubsub': [{'uri': self.base_uri + '/safe_price#%s' % 'USD.13.7.31',
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': self.base_uri + '/user/open_orders#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': self.base_uri + '/user/fills#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True},
-                                           {'uri': self.base_uri + '/user/cancels#%s' % username,
-                                            'prefix': True,
-                                            'pub': False,
-                                            'sub': True}], 'rpc': []},
-               'authextra': authextra}
+            
+            # SECURITY: If they know the cookie, it is alright for them to know
+            #   the username. They can log in anyway.
+            return {"authextra": authextra,
+                "permissions": {"pubsub": [], "rpc": [], "username":username}}
+                
 
         return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
                                (username,)).addCallback(_cb)
@@ -214,7 +294,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # check for a saved session
         if auth_key in self.factory.cookies:
-            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1000})
+            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1})
 
         def auth_secret_callback(result):
             if not result:
@@ -301,19 +381,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_cookie")
-    @limit
     def get_cookie(self):
         return [True, self.cookie]
 
     @exportRpc("logout")
-    @limit
     def logout(self):
         if self.cookie in self.factory.cookies:
             del self.factory.cookies[self.cookie]
         self.dropConnection()
 
     @exportRpc("get_new_two_factor")
-    @limit
     def get_new_two_factor(self):
         """
         prepares new two factor authentication for an account
@@ -324,7 +401,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         raise NotImplementedError()
 
     @exportRpc("disable_two_factor")
-    @limit
     def disable_two_factor(self, confirmation):
         """
         disables two factor authentication for an account
@@ -350,7 +426,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("register_two_factor")
-    @limit
     def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
@@ -382,35 +457,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #    return False
         raise NotImplementedError()
 
-    @exportRpc("get_trade_history")
-    @limit
-    def get_trade_history(self, ticker, time_span):
-        """
-        Gets a list of trades between two dates
-        :param ticker: ticker of the contract to get the trade history from
-        :param time_span: time span in seconds to look at
-        """
-        # sanitize input
-        ticker_schema = {"type": "string"}
-        validate(ticker, ticker_schema)
-        time_span_schema = {"type": "number"}
-        validate(time_span, time_span_schema)
-
-        time_span = int(time_span)
-        time_span = min(max(time_span, 0), 365 * 24 * 3600)
-        ticker = ticker[:MAX_TICKER_LENGTH]
-
-        to_dt = datetime.datetime.utcnow()
-        from_dt = to_dt - datetime.timedelta(seconds=time_span)
-
-        #todo implement time_span checks
-        #TODO: Update to new API
-        return dbpool.runQuery(
-            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
-            (ticker,))
-
     @exportRpc("get_new_address")
-    @limit
     def get_new_address(self):
         """
         assigns a new deposit address to a user and returns the address
@@ -433,7 +480,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
-    @limit
     def get_current_address(self):
         """
         RPC call to obtain the current address associated with a particular user
@@ -454,7 +500,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
 
     @exportRpc("withdraw")
-    @limit
     def withdraw(self, currency, withdraw_address, amount):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -489,7 +534,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         dbpool.runInteraction(_withdraw, currency)
 
     @exportRpc("get_positions")
-    @limit
     def get_positions(self):
         """
         Returns the user's positions
@@ -508,7 +552,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
-    @limit
     def get_profile(self):
         def _cb(result):
             if not result:
@@ -519,25 +562,29 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             _cb)
 
     @exportRpc("change_profile")
-    @limit
-    def change_profile(self, new_nick, new_email):
+    def change_profile(self, email, nickname):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
         """
+
         # sanitize
-        validate(new_nick, {"type": "string"})
-        validate(new_email, {"type": "string"})
+        # TODO: make sure email is an actual email
+        # TODO: make sure nickname is appropriate
+        validate(email, {"type": "string"})
+        validate(nickname, {"type": "string"})
 
-        def _change(tx, params):
-            tx.execute("UPDATE users SET nickname=%s, email=%s WHERE username=%s",
-                       (params['new_nick'], params['new_email'], self.username))
-            return [True, None]
+        profile = {"email":email, "nickname":nickname}
+        d = self.factory.administrator.change_profile(self.username, profile)       
+        def onProfileSuccess(result):
+            return [True, profile]
 
-        return dbpool.runQuery(_change, {'new_nick': new_nick, 'new_email': new_email})
+        def onProfileFail(failure):
+            return [False, failure.value.args]
+
+        return d.addCallbacks(onProfileSuccess, onProfileFail)
 
     @exportRpc("change_password")
-    @limit
     def change_password(self, old_password_hash, new_password_hash):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -563,120 +610,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # else:
         #     return {'retval': False, 'error': "Invalid password", 'traceback': None}
 
-    @exportRpc("make_account")
-    @limit
-    def make_account(self, username, password, salt, email):
-        """
-        creates a new user account based on a name and a password_hash
-        :param name: login, username of the user
-        :param password: hash of the password
-        :param email: email address for the user
-        """
-        # sanitize
-        validate(username, {"type": "string"})
-        validate(password, {"type": "string"})
-        validate(salt, {"type": "string"})
-        validate(email, {"type": "string"})
-
-        def _make(tx, params):
-            tx.execute("SELECT username FROM users WHERE username=%s", (params['username'], ))
-            existing = tx.fetchall()
-            if existing:
-                return [False, (0, "account already exists")]
-            tx.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
-                       (params['username'], params['salt'] + ':' + params['password'], params['email']))
-
-            tx.execute("SELECT id FROM contracts WHERE contract_type='cash'")
-            for contract in tx.fetchall():
-                tx.execute("INSERT INTO positions (username, contract_id) VALUES (%s, %s)", (params['username'], contract[0]))
-
-            tx.execute("SELECT id FROM addresses WHERE active=FALSE AND username IS NULL LIMIT 1")
-            new_address = tx.fetchall()
-            if not new_address:
-                logging.error("Couldn't create user, out of addresses")
-                raise Exception("Out of new addresses!")
-            tx.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s", (params['username'], new_address[0][0]))
-            return [True, params['username']]
-
-        dbpool.runInteraction(_make, {'username': username, 'password': password, 'salt': salt, 'email': email})
-
-
-    @exportRpc("list_markets")
-    @limit
-    def list_markets(self):
-        """
-        Lists markets available for trading
-        :return: a list of markets...
-        """
-        def _cb(res):
-            result = {}
-            for r in res:
-                result[r[0]] = {    "ticker": r[0],
-                                    "description": r[1],
-                                    "denominator": r[2],
-                                    "contract_type": r[3],
-                                    "full_description": r[4],
-                                    "tick_size": r[5],
-                                    "lot_size": r[6]}
-
-                if result[r[0]]['contract_type'] == 'futures':
-                    result[r[0]]['margin_high'] = r[7]
-                    result[r[0]]['margin_low'] = r[8]
-
-                if result[r[0]]['contract_type'] == 'prediction':
-                    result[r[0]]['final_payoff'] = r[2]
-            return [True, result]
-
-        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
-
-
-
-    @exportRpc("get_chat_history")
-    @limit
-    def get_chat_history(self):
-        """
-        rpc use to load the last n lines of the chat box
-        :param ticker: ticker of the book we want
-        :return: the book
-        """
-        # rpc call:
-        lastThirty = []
-
-        with open(config.get("webserver", "chat_log")) as f:
-            for line in f.read().split('\n')[-31:-1]:
-                #strip the date and time from the line:
-                lastThirty.append(line.split()[2])
-        return [True,lastThirty]
-
-
-    @exportRpc("get_order_book")
-    @limit
-    def get_order_book(self, ticker):
-        """
-        rpc used to get the cached order book
-        :param ticker: ticker of the book we want
-        :return: the book
-        """
-        # sanitize inputs:
-        validate(ticker, {"type": "string"})
-
-        # rpc call:
-        book = { 'contract': ticker,
-                 'bids': [],
-                 'asks': []
-        }
-        if ticker in self.factory.all_books:
-            for order in self.factory.all_books[ticker]:
-                if order['side'].upper() == 'BUY':
-                    book.bids.append(order)
-                else:
-                    book.asks.append(order)
-            return [True, book]
-        else:
-            return [False, (0,"no book for %s" % ticker)]
 
     @exportRpc("get_open_orders")
-    @limit
     def get_open_orders(self):
         """
         gets open orders
@@ -692,7 +627,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("place_order")
-    @limit
     def place_order(self, order):
         """
         Places an order on the engine
@@ -742,7 +676,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['contract'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
-    @limit
     def get_safe_prices(self, array_of_tickers):
         validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
         if array_of_tickers:
@@ -750,7 +683,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return self.factory.safe_prices
 
     @exportRpc("cancel_order")
-    @limit
     def cancel_order(self, order_id):
         """
         Cancels a specific order
@@ -823,6 +755,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
                 return [cgi.escape(self.user.nickname), message]
 
+    @exportRpc
+    def get_chat_history(self):
+        return [True, self.factory.chats[-30:]]
+
+
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -836,12 +773,15 @@ class PepsiColaServerFactory(WampServerFactory):
         self.all_books = {}
         self.safe_prices = {}
         self.cookies = {}
+        self.chats = []
+        self.public_interface = PublicInterface(self)
         endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
         self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
+        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_link"))
 
     def dispatcher(self, message):
         """
