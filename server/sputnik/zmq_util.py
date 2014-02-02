@@ -59,12 +59,24 @@ class Export:
     def encode(self, success, value):
         logging.debug("Encoding message...")
 
+        # try to serialize Exception if there was a failure
+        if not success:
+            if isinstance(value, Exception):
+                klass = value.__class__
+                value = {"class":klass.__name__, "module": klass.__module__,
+                    "args":value.args}
+
         # test to see if result serializes
         try:
             json.dumps(value)
         except:
             logging.warn("Message cannot be serialized. Converting to string.")
-            value = str(value)
+            # do our best to serialize
+            try:
+                value = repr(value)
+            except:
+                success = False
+                value = "Result could not be serialized."
         
         if success:
             return json.dumps({"success":success, "result":value})
@@ -130,7 +142,7 @@ class AsyncRouterExport(AsyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
             self.connection.reply(message_id,
-                self.encode(False, str(failure.value)))
+                self.encode(False, failure.value))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
@@ -186,7 +198,7 @@ class SyncRouterExport(SyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
             self.connection.send_multipart(
-                [sender_id, message_id, "", self.encode(False, str(failure))])
+                [sender_id, message_id, "", self.encode(False, failure.value)])
 
         try:
             result(self.dispatch(method_name, args, kwargs))
@@ -242,7 +254,26 @@ class Proxy:
         
         if success:
             return success, response.get("result", None)
-        return success, response.get("exception", None)
+
+        # decode the exception
+        exception = response.get("exception", None)
+        if isinstance(exception, dict):
+            cname = exception.get("class", None)
+            mname = exception.get("module", None)
+            if not cname or not mname:
+                klass = Exception
+            else:
+                try:
+                    module = __import__(mname)
+                    klass = getattr(module, cname)
+                except:
+                    klass = Exception
+            args = exception.get("args", ())
+            try:
+                exception = klass(*args)
+            except:
+                exception = RemoteException(*args)
+        return success, exception
 
     def encode(self, method_name, args, kwargs):
         logging.debug("Encoding message...")
@@ -264,7 +295,7 @@ class Proxy:
                 success, result = self.decode(message)
                 if success:
                     return result
-                raise RemoteException(result)
+                raise result
             
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
@@ -304,14 +335,13 @@ class DealerProxySync(Proxy):
         self._id = str(uuid.uuid4())
         self._connection.send_multipart([self._id, "", message])
         data = self._connection.recv_multipart()
-        print data
         if data[0] != self._id:
             raise Exception("Invalid return ID.")
         message = data[2]
         success, result = self.decode(message)
         if success:
             return result
-        raise RemoteException(result)
+        raise result
  
 class PushProxySync(Proxy):
     def send(self, message):
