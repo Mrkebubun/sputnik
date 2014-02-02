@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """
 The administrator modifies database objects. It is allowed to access User
     objects. For other objects it delegates to appropirate services. This
