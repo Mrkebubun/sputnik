@@ -44,6 +44,8 @@ class Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected"
 
+
+        @emit "make_account_start"
         @log("makeAccount")
 
         @log("computing salt")
@@ -56,7 +58,7 @@ class Sputnik extends EventEmitter
         @call("make_account", username, password_hash, salt,  email).then \
           (res) =>
             @log('account created: #{username}')
-            @emit "make_account", username
+            @emit "make_account_success", username
             @authenticate(username, password)
           , (error) =>
             @emit "make_account_error", error
@@ -199,8 +201,11 @@ class Sputnik extends EventEmitter
 
     cancelOrder: (id) =>
       @log "cancelling: #{id}"
-      @call("cancel_order", id)
-
+      @call("cancel_order", id).then \
+        (ret) =>
+          @emit "cancel_order", ret
+        , (error) =>
+          @emit "cancel_order_error", error
 
     # deposits and withdrawals
 
@@ -467,7 +472,7 @@ sputnik.on "failed_cookie", (error) ->
   @error "cookie error: #{error.desc}"
   alert "cookie error: #{error.desc}"
 
-sputnik.on "make_account", (username) ->
+sputnik.on "make_account_success", (username) ->
   @log "make_account success: #{username}"
   alert "account creation success: #{username}"
 
