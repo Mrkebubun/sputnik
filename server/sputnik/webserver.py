@@ -609,14 +609,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
 
         # sanitize
+        # TODO: make sure email is an actual email
+        # TODO: make sure nickname is appropriate
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
 
         profile = {"email":email, "nickname":nickname}
         d = self.factory.administrator.change_profile(self.username, profile)       
-        
         def onProfileSuccess(result):
-            return [True, username]
+            return [True, profile]
 
         def onProfileFail(failure):
             return [False, failure.value.args]

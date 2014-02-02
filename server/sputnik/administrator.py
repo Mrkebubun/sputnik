@@ -76,7 +76,7 @@ class Administrator:
             username=username).first()
         if not user:
             raise NO_SUCH_USER
-        
+       
         user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         self.session.merge(user)
