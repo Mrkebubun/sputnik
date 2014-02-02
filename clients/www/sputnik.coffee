@@ -49,14 +49,15 @@ class Sputnik extends EventEmitter
         @log("computing salt")
         salt = Math.random().toString(36).slice(2)
         @log("computing hash")
-        @authextra['salt'] = salt;
-        password_hash = ab.deriveKey(password, @authextra);
+        @authextra.salt = salt
+        @authextra.iterations = 1000
+        password_hash = ab.deriveKey password, @authextra
 
-        @log('making session call for makeAccount');
-        @call("make_account", name, password_hash, salt,  email).then \
+        @log('making session call for makeAccount')
+        @call("make_account", username, password_hash, salt, email).then \
           (res) =>
             @log('account created: #{name}')
-            login.value = registerLogin.value;
+            login.value = registerLogin.value
             @authenticate(registerLogin.value, registerPassword.value)
           , (error) =>
             @emit "make_account_error", error
@@ -93,9 +94,9 @@ class Sputnik extends EventEmitter
           signature = @session.authsign(challenge, secret)
           @log(signature)
           @session.auth(signature).then(@onAuth, @failed_login)
-          @log('authenticate');
+          @log('authenticate')
       , (error) ->
-        @failed_login(error);
+        @failed_login(error)
 
     cookie_login: (cookie) =>
       parts = cookie.split("=", 2)[1].split(":", 2)
@@ -153,8 +154,8 @@ class Sputnik extends EventEmitter
           document.cookie = "login" + "=" + login.value + ":" + uid
 
     onAuth: (permissions) =>
-      ab.log("authenticated!", JSON.stringify(permissions));
-      @logged_in = true;
+      ab.log("authenticated!", JSON.stringify(permissions))
+      @logged_in = true
 
       @getCookie()
       @getProfile()
