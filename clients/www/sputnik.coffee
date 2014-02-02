@@ -75,7 +75,7 @@ class Sputnik extends EventEmitter
       if not @session?
         return @wtf "Not connected"
 
-      @call("change_profile", nickname, email).then \
+      @call("change_profile", email, nickname).then \
         (res) =>
           @getProfile()
 

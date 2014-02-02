@@ -118,7 +118,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return [True, username]
 
         def onAccountFail(failure):
-            return [0, failure.value.args]
+            return [False, failure.value.args]
  
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
@@ -602,20 +602,26 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("change_profile")
     @limit
-    def change_profile(self, new_nick, new_email):
+    def change_profile(self, email, nickname):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
         """
-        # sanitize
-        validate(new_nick, {"type": "string"})
-        validate(new_email, {"type": "string"})
 
-        def _change(tx, params):
-            tx.execute("UPDATE users SET nickname=%s, email=%s WHERE username=%s",
-                       (params['new_nick'], params['new_email'], self.username))
-            return [True, None]
-        return dbpool.runQuery(_change, {'new_nick': new_nick, 'new_email': new_email})
+        # sanitize
+        validate(email, {"type": "string"})
+        validate(nickname, {"type": "string"})
+
+        profile = {"email":email, "nickname":nickname}
+        d = self.factory.administrator.change_profile(self.username, profile)       
+        
+        def onProfileSuccess(result):
+            return [True, username]
+
+        def onProfileFail(failure):
+            return [False, failure.value.args]
+
+        return d.addCallbacks(onProfileSuccess, onProfileFail)
 
     @exportRpc("change_password")
     @limit
