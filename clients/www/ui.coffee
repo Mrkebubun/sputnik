@@ -13,6 +13,8 @@ $('#loginButton').click ->
   sputnik.authenticate login.value, password.value
 
 $('#logoutButton').click ->
+  # Clear cookie
+  document.cookie = ''
   sputnik.logout()
 
 $('#registerButton').click ->
@@ -83,6 +85,26 @@ displayOrders = (orders) ->
     row.insertCell(-1).innerText = order.id
 
 # Handle emitted events
+sputnik.on "open", ->
+    # Attempt a cookie login
+    cookie = document.cookie
+    @log "cookie: #{cookie}"
+    if cookie
+        parts = cookie.split("=", 2)[1].split(":", 2)
+        name = parts[0]
+        uid = parts[1]
+        if !uid
+            document.cookie = ''
+        else
+            sputnik.restoreSession uid
+
+sputnik.on "close", ->
+    # location.reload()
+
+sputnik.on "session_expired", ->
+    console.log "Session is stale."
+    document.cookie = ''
+
 sputnik.on "markets", (markets) ->
         for ticker, data of markets
           if data.contract_type != "cash"
@@ -101,16 +123,19 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
-sputnik.on "loggedIn", (user_id) ->
-  @log "userid: " + user_id
-  $('#loggedInAs').text("Logged in as " + user_id)
+sputnik.on "logged_in", (username) ->
+    sputnik.getCookie().then (uid) =>
+        @log("cookie: " + uid)
+        document.cookie = "login" + "=" + login.value + ":" + uid
+    @log "username: " + username
+    $('#loggedInAs').text("Logged in as " + username)
 
 sputnik.on "profile", (nickname, email) ->
   @log "profile: " + nickname + " " + email
   $('#nickname').text(nickname)
   $('#email').text(email)
 
-sputnik.on "wtf_error", (error) ->
+sputnik.on "error", (error) ->
     # There was a serious error. It is probably best to reconnect.
     @error "GUI: #{error}"
     alert error
@@ -119,10 +144,7 @@ sputnik.on "wtf_error", (error) ->
 sputnik.on "failed_login", (error) ->
   @error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
-
-sputnik.on "failed_cookie", (error) ->
-  @error "cookie error: #{error.desc}"
-  alert "cookie error: #{error.desc}"
+  document.cookie = ""
 
 sputnik.on "make_account_error", (error) ->
   @error "make_account_error: #{error}"

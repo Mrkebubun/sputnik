@@ -309,8 +309,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 noise = hashlib.md5("super secret" + username + "even more secret")
                 salt = noise.hexdigest()[:8]
                 authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
-
-            return {'permissions': {'pubsub': [], 'rpc': []}, 'authextra': authextra}
+            
+            # SECURITY: If they know the cookie, it is alright for them to know
+            #   the username. They can log in anyway.
+            return {"authextra": authextra,
+                "permissions": {"pubsub": [], "rpc": [], "username":username}}
+                
 
         return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
                                (username,)).addCallback(_cb)
@@ -324,7 +328,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # check for a saved session
         if auth_key in self.factory.cookies:
-            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1000})
+            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1})
 
         def auth_secret_callback(result):
             if not result:

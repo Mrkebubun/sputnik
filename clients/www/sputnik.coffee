@@ -7,8 +7,10 @@ class window.Sputnik extends EventEmitter
     orders: {}
     positions: {}
     margins: {}
-    logged_in: false
-    authextra: {}
+    authenticated: false
+    profile:
+        email: null
+        nickname: null
     chat_messages: []
 
     constructor: (@uri) ->
@@ -18,11 +20,12 @@ class window.Sputnik extends EventEmitter
 
     # network control
     
-    connect: () ->
+    connect: () =>
         ab.connect @uri, @onOpen, @onClose
 
     close: () =>
         @session?.close()
+        @session = null
 
     # market selection
     
@@ -37,123 +40,88 @@ class window.Sputnik extends EventEmitter
     # authentication and account management
 
     makeAccount: (username, secret, email) =>
-        salt = Math.random().toString(36).slice(2)
-        @authextra.salt = salt
-        @authextra.iterations = 1000
         @log "Computing password hash..."
-        password = salt + ":" + ab.deriveKey secret, @authextra
+        salt = Math.random().toString(36).slice(2)
+        authextra =
+            salt: salt
+            iterations: 1000
+        password = salt + ":" + ab.deriveKey secret, authextra
 
         @call("make_account", username, password, email)
 
     getProfile: () =>
-      @call("get_profile")
+      @call("get_profile").then (@profile) =>
 
     changeProfile: (nickname, email) =>
-      @call("change_profile", email, nickname)
-
-    failed_login: (error) =>
-      @emit "failed_login", error
+      @call("change_profile", email, nickname).then (@profile) =>
 
     authenticate: (login, password) =>
-      @session.authreq(login).then \
-        (challenge) =>
-          @authextra = JSON.parse(challenge).authextra
-          @log('challenge', @authextra)
-          @log(ab.deriveKey(password, @authextra))
+        if not @session?
+            @wtf "Not connected."
 
-          secret = ab.deriveKey(password, @authextra)
-          @log(challenge)
-          signature = @session.authsign(challenge, secret)
-          @log(signature)
-          @session.auth(signature).then(@onAuth, @failed_login)
-          @log('authenticate')
-      , (error) ->
-        @failed_login(error)
+        @session.authreq(login).then \
+            (challenge) =>
+                authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(password, authextra)
+                signature = @session.authsign(challenge, secret)
+                @session.auth(signature).then @onAuthSuccess, @onAuthFail
+            , (error) =>
+                @wtf "RPC Error: Could not authenticate: #{error}."
+    
+    restoreSession: (uid) =>
+        if not @session?
+            @wtf "Not connected."
 
-    cookie_login: (cookie) =>
-      parts = cookie.split("=", 2)[1].split(":", 2)
-      name = parts[0]
-      uid = parts[1]
-      if !uid
-        return @failed_cookie "bad_cookie, clearing"
-
-      @session.authreq(uid).then \
-        (challenge) =>
-          @authextra = JSON.parse(challenge).authextra
-          @authextra.salt = "cookie"
-          secret = ab.deriveKey("cookie", @authextra)
-          signature = @session.authsign(challenge, secret)
-          @log signature
-          @session.auth(signature).then \
-            (permissions) =>
-              login.value = name
-              @onAuth permissions
-            , @failed_cookie
-          @log "end of cookie login"
-        , (error) =>
-          @failed_cookie "error processing cookie login: #{error}"
-
-    failed_cookie: (error) =>
-      document.cookie = ''
-      @emit "failed_cookie", error
-      @log error
+        @session.authreq(uid).then \
+            (challenge) =>
+                secret = "EOcGpbPeYMMpL5hQH/fI5lb4Pn2vePsOddtY5xM+Zxs="
+                signature = @session.authsign(challenge, secret)
+                @session.auth(signature).then @onAuthSuccess, @onSessionExpired
+            , (error) =>
+                @wtf "RPC Error: Could not authenticate: #{error}."
 
     logout: () =>
-      @logged_in = false
-
-      # Clear user data
-      @site_positions = []
-      @open_orders = []
-      @authextra =
-                   "keylen": 32
-                   "salt": "RANDOM_SALT"
-                   "iterations": 1000
-      @log @open_orders
-
-      # TODO: Unsubscribe from everything
-      @call "logout"
-
-      # Clear cookie
-      document.cookie = ''
-      @close()
-      @connect()
-      @emit "logout"
+        @authenticated = false
+        @call "logout"
+        @close()
 
     getCookie: () =>
-      @call("get_cookie").then \
-        (uid) =>
-          @log("cookie: " + uid)
-          document.cookie = "login" + "=" + login.value + ":" + uid
+      @call("get_cookie")
 
-    onAuth: (permissions) =>
+    onAuthSuccess: (permissions) =>
       ab.log("authenticated!", JSON.stringify(permissions))
-      @logged_in = true
+      @authenticated = true
 
-      @getCookie()
       @getProfile()
       @getSafePrices()
       @getOpenOrders()
       @getPositions()
 
-      @user_id = (x.uri for x in permissions.pubsub)[1].split('#')[1]
-      @emit "loggedIn", @user_id
+      @username = permissions.username
+      @emit "logged_in", @username
 
       try
-        @subscribe "cancels#" + @user_id, @onCancel
+        @subscribe "cancels#" + @username, @onCancel
       catch error
         @log error
 
       try
-        @subscribe "fills#" + @user_id, @onFill
+        @subscribe "fills#" + @username, @onFill
       catch error
         @log error
 
       try
-        @subscribe "open_orders#" + @user_id, @onOpenOrder
+        @subscribe "open_orders#" + @username, @onOpenOrder
       catch error
         @log error
 
-      #@switchBookSub SITE_TICKER
+    onAuthFail: (error) =>
+        @username = null
+        [code, reason] = error  
+        @emit "failed_login", error
+
+    onSessionExpired: (error) =>
+        @emit "session_expired"
 
     # order manipulation
     
@@ -201,7 +169,7 @@ class window.Sputnik extends EventEmitter
     # miscelaneous methods
 
     chat: (message) =>
-      if @logged_in
+      if @authenticated
         @publish "chat", message
         return [true, null]
       else
@@ -211,6 +179,8 @@ class window.Sputnik extends EventEmitter
 
     # RPC wrapper
     call: (method, params...) =>
+        if not @session?
+            return @wtf "Not connected."
         @log "Invoking RPC #{method}(#{params})"
         d = ab.Deferred()
         @session.call("#{@uri}/procedures/#{method}", params...).then \
@@ -226,12 +196,18 @@ class window.Sputnik extends EventEmitter
         return d.promise
 
     subscribe: (topic, callback) =>
+        if not @session?
+            return @wtf "Not connected."
         @session.subscribe "#{@uri}/user/#{topic}", (topic, event) -> callback event
 
     unsubscribe: (topic) =>
+        if not @session?
+            return @wtf "Not connected."
         @session.unsubscribe "#{@uri}/user/#{topic}"
 
     publish: (topic, message) =>
+        if not @session?
+            return @wtf "Not connected."
         @session.publish "#{@uri}/user/#{topic}", message
 
     # logging
@@ -240,7 +216,7 @@ class window.Sputnik extends EventEmitter
     error: (obj) -> console.error obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
-        @emit "wtf_error", obj
+        @emit "error", obj
 
     # connection events
     onOpen: (@session) =>
@@ -253,11 +229,7 @@ class window.Sputnik extends EventEmitter
             @chat_history = chats
             @emit "chat", @chat_history
 
-        # Attempt a cookie login
-        cookie = document.cookie
-        @log "cookie: #{cookie}"
-        if cookie
-          @cookie_login cookie
+        @emit "open"
 
     onClose: (code, reason, details) =>
         @log "Connection lost."
