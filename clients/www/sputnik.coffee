@@ -53,11 +53,11 @@ class Sputnik extends EventEmitter
         password_hash = ab.deriveKey(password, @authextra);
 
         @log('making session call for makeAccount');
-        @call("make_account", name, password_hash, salt,  email).then \
+        @call("make_account", username, password_hash, salt,  email).then \
           (res) =>
-            @log('account created: #{name}')
-            login.value = registerLogin.value;
-            @authenticate(registerLogin.value, registerPassword.value)
+            @log('account created: #{username}')
+            @emit "make_account", username
+            @authenticate(username, password)
           , (error) =>
             @emit "make_account_error", error
 
@@ -113,7 +113,6 @@ class Sputnik extends EventEmitter
           @log signature
           @session.auth(signature).then \
             (permissions) =>
-              login.value = name
               @onAuth permissions
             , @failed_cookie
           @log "end of cookie login"
@@ -445,6 +444,7 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "loggedIn", (user_id) ->
+  login.value = user_id
   @log "userid: " + user_id
   $('#loggedInAs').text("Logged in as " + user_id)
 
@@ -466,6 +466,10 @@ sputnik.on "failed_login", (error) ->
 sputnik.on "failed_cookie", (error) ->
   @error "cookie error: #{error.desc}"
   alert "cookie error: #{error.desc}"
+
+sputnik.on "make_account", (username) ->
+  @log "make_account success: #{username}"
+  alert "account creation success: #{username}"
 
 sputnik.on "make_account_error", (error) ->
   @error "make_account_error: #{error}"
