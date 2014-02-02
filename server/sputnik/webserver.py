@@ -714,7 +714,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
             if order["price"] % tick_size != 0 or order["quantity"] % lot_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-                raise Exception("invalid price or quantity")
+                return [False, (0, "invalid price or quantity")]
 
             order['username'] = self.username
             #TODO (yury can you make this an async rep/req with TXZMQ?)
@@ -756,8 +756,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.count += 1
         print 'cancel_order', self.count
-        return self.factory.accountant.cancel_order(order_id)
+        def _cb(result):
+            if result:
+                return [True, None]
+            else:
+                return [False, (0, "unknown error")]
 
+        return self.factory.accountant.cancel_order(order_id).addCallback(_cb)
 
     @exportSub("chat")
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):
