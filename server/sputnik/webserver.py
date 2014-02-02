@@ -661,8 +661,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(ticker, {"type": "string"})
 
         # rpc call:
+        book = { 'contract': ticker,
+                 'bids': [],
+                 'asks': []
+        }
         if ticker in self.factory.all_books:
-            return self.factory.all_books[ticker]
+            for order in self.factory.all_books[ticker]:
+                if order['side'].upper() == 'BUY':
+                    book.bids.append(order)
+                else:
+                    book.asks.append(order)
+            return [True, book]
         else:
             return [False, (0,"no book for %s" % ticker)]
 
