@@ -32,7 +32,7 @@ from administrator import AdministratorException
 
 from jsonschema import validate
 from twisted.python import log
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
 from twisted.web.static import File
 from autobahn.websocket import listenWS
@@ -40,6 +40,8 @@ from autobahn.wamp import exportRpc, \
     WampCraProtocol, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
+
+from autobahn.wamp import CallHandler
 
 from OpenSSL import SSL
 
@@ -60,31 +62,16 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                database=config.get("database", "dbname"))
 
 
+class RateLimitedCallHandler(CallHandler):
+    def _callProcedure(self, call):
+        if time.time() - call.proto.last_call < 0.1:
+            d = task.deferLater(reactor, 0.1, CallHandler._callProcedure,
+                self, call)
+            return d
+        return CallHandler._callProcedure(self, call)
+
+
 MAX_TICKER_LENGTH = 100
-
-def limit(func):
-    last_called = [0.0]
-
-    def kick(self, *arg, **kwargs):
-        elapsed = time.clock() - last_called[0]
-
-        if elapsed < self.rate_limit:
-            self.count += 1
-        else:
-            # forgive past floods
-            self.count -= 1
-
-        last_called[0] = time.clock()
-
-        if self.count > 100:
-            WampCraServerProtocol.dropConnection(self)
-            WampCraServerProtocol.connectionLost(self,
-                                                 "rate limit exceeded")
-        else:
-            return func(self, *arg, **kwargs)
-
-    return kick
-
 
 
 class PepsiColaServerProtocol(WampCraServerProtocol):
@@ -94,7 +81,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("make_account")
-    @limit
     def make_account(self, username, password, salt, email):
         """
         creates a new user account based on a name and a password_hash
@@ -123,7 +109,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
     @exportRpc("list_markets")
-    @limit
     def list_markets(self):
         """
         Lists markets available for trading
@@ -151,7 +136,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_trade_history")
-    @limit
     def get_trade_history(self, ticker, time_span):
         """
         Gets a list of trades between two dates
@@ -180,7 +164,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_chat_history")
-    @limit
     def get_chat_history(self):
         """
         rpc use to load the last n lines of the chat box
@@ -198,7 +181,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_order_book")
-    @limit
     def get_order_book(self, ticker):
         """
         rpc used to get the cached order book
@@ -218,15 +200,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     def __init__(self):
         self.cookie = ""
-        # rate limit counter
-        self.count = 0
         self.username = None
         # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
         # noinspection PyPep8Naming
         self.clientAuthAllowAnonymous = True
-        self.troll_throttle = 0
-        self.rate_limit = 0.5
         self.base_uri = config.get("webserver", "base_uri")
 
 
@@ -237,6 +215,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         this is the right place to initialize stuff, not __init__()
         """
         WampCraServerProtocol.connectionMade(self)
+        
+        # install rate limited call handler
+        self.last_call = 0
+        self.handlerMapping[self.MESSAGE_TYPEID_CALL] = \
+            RateLimitedCallHandler(self, self.prefixes)
+
 
     def connectionLost(self, reason):
         """
@@ -415,19 +399,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_cookie")
-    @limit
     def get_cookie(self):
         return [True, self.cookie]
 
     @exportRpc("logout")
-    @limit
     def logout(self):
         if self.cookie in self.factory.cookies:
             del self.factory.cookies[self.cookie]
         self.dropConnection()
 
     @exportRpc("get_new_two_factor")
-    @limit
     def get_new_two_factor(self):
         """
         prepares new two factor authentication for an account
@@ -438,7 +419,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         raise NotImplementedError()
 
     @exportRpc("disable_two_factor")
-    @limit
     def disable_two_factor(self, confirmation):
         """
         disables two factor authentication for an account
@@ -464,7 +444,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("register_two_factor")
-    @limit
     def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
@@ -497,7 +476,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         raise NotImplementedError()
 
     @exportRpc("get_new_address")
-    @limit
     def get_new_address(self):
         """
         assigns a new deposit address to a user and returns the address
@@ -519,7 +497,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
-    @limit
     def get_current_address(self):
         """
         RPC call to obtain the current address associated with a particular user
@@ -539,7 +516,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
 
     @exportRpc("withdraw")
-    @limit
     def withdraw(self, currency, withdraw_address, amount):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -573,7 +549,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         dbpool.runInteraction(_withdraw, currency)
 
     @exportRpc("get_positions")
-    @limit
     def get_positions(self):
         """
         Returns the user's positions
@@ -594,7 +569,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
-    @limit
     def get_profile(self):
         def _cb(result):
             if not result:
@@ -605,7 +579,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             _cb)
 
     @exportRpc("change_profile")
-    @limit
     def change_profile(self, email, nickname):
         """
         Updates a user's nickname and email. Can't change
@@ -629,7 +602,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return d.addCallbacks(onProfileSuccess, onProfileFail)
 
     @exportRpc("change_password")
-    @limit
     def change_password(self, old_password_hash, new_password_hash):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -657,7 +629,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_open_orders")
-    @limit
     def get_open_orders(self):
         """
         gets open orders
@@ -668,7 +639,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("place_order")
-    @limit
     def place_order(self, order):
         """
         Places an order on the engine
@@ -711,7 +681,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
-    @limit
     def get_safe_prices(self, array_of_tickers):
         validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
         if array_of_tickers:
@@ -719,7 +688,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return self.factory.safe_prices
 
     @exportRpc("cancel_order")
-    @limit
     def cancel_order(self, order_id):
         """
         Cancels a specific order
