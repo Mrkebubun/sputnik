@@ -26,7 +26,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
-from zmq_util import dealer_proxy_async
+from zmq_util import export, pull_proxy_async, dealer_proxy_async
 
 from administrator import AdministratorException
 
@@ -746,7 +746,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
 
+class EngineLink:
+    def __init__(self, factory):
+        self.factory = factory
 
+    @export
+    def book_update(self, ticker, book):
+        self.factory.all_books.update(book)
+        self.factory.dispatch(
+            self.factory.base_uri + "/public/feeds/%s/book" % ticker, book)
+
+    @export
+    def safe_price(self, ticker, safe_price):
+        pass
+
+    @export
+    def trade(self, ticker, trade):
+        pass
 
 class PepsiColaServerFactory(WampServerFactory):
     """
