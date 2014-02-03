@@ -2,7 +2,7 @@
 
 """
 The administrator modifies database objects. It is allowed to access User
-    objects. For other objects it delegates to appropirate services. This
+    objects. For other objects it delegates to appropriate services. This
     ensures there are no race conditions.
 
 The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
