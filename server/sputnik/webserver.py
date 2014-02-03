@@ -64,11 +64,18 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
 
 class RateLimitedCallHandler(CallHandler):
     def _callProcedure(self, call):
-        if time.time() - call.proto.last_call < 0.1:
-            d = task.deferLater(reactor, 0.1, CallHandler._callProcedure,
-                self, call)
+        def doActualCall(call):
+            call.proto.last_call = time.time()
+            return CallHandler._callProcedure(self, call)
+        
+        now = time.time()
+        if now - call.proto.last_call < 0.01:
+            # try again later
+            logging.info("rate limiting...")
+            delay = max(0, call.proto.last_call + 0.01 - now)
+            d = task.deferLater(reactor, delay, self._callProcedure, call)
             return d
-        return CallHandler._callProcedure(self, call)
+        return doActualCall(call)
 
 
 MAX_TICKER_LENGTH = 100
