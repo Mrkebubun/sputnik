@@ -80,21 +80,81 @@ class RateLimitedCallHandler(CallHandler):
 
 MAX_TICKER_LENGTH = 100
 
+class AdministratorLink:
+    pass
 
-class PepsiColaServerProtocol(WampCraServerProtocol):
-    """
-    Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
-    """
+class PublicInterface:
+    def __init__(self, factory):
+        self.factory = factory
+        self.init()
 
+    def init(self):
+        # TODO: clean this up
+        def _cb(res):
+            result = {}
+            for r in res:
+                result[r[0]] = {"description": r[1],
+                                    "denominator": r[2],
+                                    "contract_type": r[3],
+                                    "full_description": r[4],
+                                    "tick_size": r[5],
+                                    "lot_size": r[6]}
 
-    @exportRpc("make_account")
+                if result[r[0]]['contract_type'] == 'futures':
+                    result[r[0]]['margin_high'] = r[7]
+                    result[r[0]]['margin_low'] = r[8]
+
+                if result[r[0]]['contract_type'] == 'prediction':
+                    result[r[0]]['final_payoff'] = r[2]
+            self.factory.markets = result
+
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
+
+    @exportRpc("get_markets")
+    def get_markets(self):
+        return [True, self.factory.markets]
+
+    @exportRpc
+    def get_trade_history(self, ticker, time_span):
+        """
+        Gets a list of trades between two dates
+        :param ticker: ticker of the contract to get the trade history from
+        :param time_span: time span in seconds to look at
+        """
+        # TODO: cache this
+        # TODO: make sure return format is correct
+
+        # sanitize input
+        ticker_schema = {"type": "string"}
+        validate(ticker, ticker_schema)
+        time_span_schema = {"type": "number"}
+        validate(time_span, time_span_schema)
+
+        time_span = int(time_span)
+        time_span = min(max(time_span, 0), 365 * 24 * 3600)
+        ticker = ticker[:MAX_TICKER_LENGTH]
+
+        to_dt = datetime.datetime.utcnow()
+        from_dt = to_dt - datetime.timedelta(seconds=time_span)
+
+        #todo implement time_span checks
+        return dbpool.runQuery(
+            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
+            (ticker,))
+
+    @exportRpc("get_order_book")
+    def get_order_book(self, ticker):
+        # sanitize inputs:
+        validate(ticker, {"type": "string"})
+
+        # rpc call:
+        if ticker in self.factory.all_books:
+            return [True, self.factory.all_books[ticker]]
+        else:
+            return [False, (0, "No book for %s." % ticker)]
+
+    @exportRpc
     def make_account(self, username, password, salt, email):
-        """
-        creates a new user account based on a name and a password_hash
-        :param name: login, username of the user
-        :param password: hash of the password
-        :param email: email address for the user
-        """
 
         # sanitize
         validate(username, {"type": "string"})
@@ -115,93 +175,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
  
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
-    @exportRpc("list_markets")
-    def list_markets(self):
-        """
-        Lists markets available for trading
-        :return: a list of markets...
-        """
-        def _cb(res):
-            result = {}
-            for r in res:
-                result[r[0]] = {"description": r[1],
-                                    "denominator": r[2],
-                                    "contract_type": r[3],
-                                    "full_description": r[4],
-                                    "tick_size": r[5],
-                                    "lot_size": r[6]}
-
-                if result[r[0]]['contract_type'] == 'futures':
-                    result[r[0]]['margin_high'] = r[7]
-                    result[r[0]]['margin_low'] = r[8]
-
-                if result[r[0]]['contract_type'] == 'prediction':
-                    result[r[0]]['final_payoff'] = r[2]
-            return [True, result]
-
-        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
 
 
-    @exportRpc("get_trade_history")
-    def get_trade_history(self, ticker, time_span):
-        """
-        Gets a list of trades between two dates
-        :param ticker: ticker of the contract to get the trade history from
-        :param time_span: time span in seconds to look at
-        """
-        # sanitize input
-        ticker_schema = {"type": "string"}
-        validate(ticker, ticker_schema)
-        time_span_schema = {"type": "number"}
-        validate(time_span, time_span_schema)
-
-        time_span = int(time_span)
-        time_span = min(max(time_span, 0), 365 * 24 * 3600)
-        ticker = ticker[:MAX_TICKER_LENGTH]
-
-        to_dt = datetime.datetime.utcnow()
-        from_dt = to_dt - datetime.timedelta(seconds=time_span)
-
-        #todo implement time_span checks
-        return dbpool.runQuery(
-            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
-            (ticker,))
+class PepsiColaServerProtocol(WampCraServerProtocol):
+    """
+    Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
+    """
 
 
-
-
-    @exportRpc("get_chat_history")
-    def get_chat_history(self):
-        """
-        rpc use to load the last n lines of the chat box
-        :param ticker: ticker of the book we want
-        :return: the book
-        """
-        # rpc call:
-        lastThirty = []
-
-        with open(config.get("webserver", "chat_log")) as f:
-            for line in f.read().split('\n')[-31:-1]:
-                #strip the date and time from the line:
-                lastThirty.append(line.split()[2])
-        return [True,lastThirty]
-
-
-    @exportRpc("get_order_book")
-    def get_order_book(self, ticker):
-        """
-        rpc used to get the cached order book
-        :param ticker: ticker of the book we want
-        :return: the book
-        """
-        # sanitize inputs:
-        validate(ticker, {"type": "string"})
-
-        # rpc call:
-        if ticker in self.factory.all_books:
-            return self.factory.all_books[ticker]
-        else:
-            return [False, (0,"no book for %s" % ticker)]
    
 
 
@@ -251,14 +232,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
         self.registerForPubSub(self.base_uri + "/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.make_account])
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.list_markets])
-        self.registerForRpc(self, self.base_uri + "/procedures/",
-                            methods=[PepsiColaServerProtocol.get_trade_history])
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_order_book])
 
-        # TODO: move this to onAuthenticated
-        self.registerForRpc(self, self.base_uri + "/procedures/", methods=[PepsiColaServerProtocol.get_chat_history])
+        self.registerForRpc(self.factory.public_interface,
+            self.base_uri + "/procedures/")
+
         self.registerForPubSub(self.base_uri + "/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
@@ -765,6 +742,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
                 return [cgi.escape(self.user.nickname), message]
 
+    @exportRpc
+    def get_chat_history(self):
+        return [True, self.factory.chats[-30:]]
+
+
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -778,6 +760,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.all_books = {}
         self.safe_prices = {}
         self.cookies = {}
+        self.chats = []
+        self.public_interface = PublicInterface(self)
         endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
         self.receiver = ZmqPullConnection(zf, endpoint)
         self.receiver.onPull = self.dispatcher

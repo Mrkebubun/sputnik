@@ -222,12 +222,13 @@ class window.Sputnik extends EventEmitter
     onOpen: (@session) =>
         @log "Connected to #{@uri}."
 
-        @call("list_markets").then @onMarkets, @wtf
+        @call("get_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
-        @call("get_chat_history").then \
-          (chats) ->
-            @chat_history = chats
-            @emit "chat", @chat_history
+        # TODO: Are chats private? Do we want them for authenticated users only?
+        #@call("get_chat_history").then \
+        #  (chats) ->
+        #    @chat_history = chats
+        #    @emit "chat", @chat_history
 
         @emit "open"
 
