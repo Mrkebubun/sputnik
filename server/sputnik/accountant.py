@@ -77,7 +77,7 @@ class Accountant:
             return self.session.query(models.Contract).filter_by(
                 contract_id=ticker).one()
         except NoResultFound:
-            raise AccountantError("Could not resolve contract '%s'." % ticker)
+            raise AccountantException("Could not resolve contract '%s'." % ticker)
         except ValueError:
             # drop through
             pass
@@ -86,7 +86,7 @@ class Accountant:
             return self.session.query(models.Contract).filter_by(
                 ticker=ticker).order_by(models.Contract.id.desc()).first()
         except NoResultFound:
-            raise AccountantError("Could not resolve contract '%s'." % ticker)
+            raise AccountantException("Could not resolve contract '%s'." % ticker)
 
     def get_position(self, username, contract, reference_price=0):
         """
@@ -130,7 +130,7 @@ class Accountant:
         try:
             source = self.get_contract(tokens[0])
             target = self.get_contract(tokens[1])
-        except AccountantError:
+        except AccountantException:
             raise AccountantException("'%s' is not a currency pair." % pair)
         return source, target  
 
@@ -258,7 +258,7 @@ class Accountant:
         :return: id of the order placed or -1 if failure
         """
         user = self.get_user(order["username"])
-        contract = self.get_contract(order["ticker"])
+        contract = self.get_contract(order["contract"])
 
         if not contract.active:
             raise Exception("Contract is not active.")
@@ -276,7 +276,7 @@ class Accountant:
             if not 0 <= order["price"] <= contract.denominator:
                 raise Exception("Not a valid prediction price.")
 
-        o = models.Order(user, contract, order["quantity"], order["price"], "BUY" if order["side"] == 0 else "SELL")
+        o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
 
         session.add(o)
         session.commit()
@@ -354,7 +354,7 @@ class Accountant:
             session.rollback()
 
 
-class WebserverLink:
+class WebserverExport:
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -367,7 +367,7 @@ class WebserverLink:
         return self.accountant.cancel_order(order_id)
 
 
-class EngineLink:
+class EngineExport:
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -380,7 +380,7 @@ class EngineLink:
         self.accountant.post_transaction(transaction)
 
 
-class CashierLink:
+class CashierExport:
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -389,7 +389,7 @@ class CashierLink:
         self.accountant.deposit_cash(address, total)
 
 
-class AdministratorLink:
+class AdministratorExport:
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -405,19 +405,19 @@ if __name__ == "__main__":
 
     accountant = Accountant(session)
 
-    webserver_link = WebserverLink(accountant)
-    engine_link = EngineLink(accountant)
-    cashier_link = CashierLink(accountant)
-    administrator_link = AdministratorLink(accountant)
+    webserver_export = WebserverExport(accountant)
+    engine_export = EngineExport(accountant)
+    cashier_export = CashierExport(accountant)
+    administrator_export = AdministratorExport(accountant)
 
-    router_share_async(webserver_link,
-        config.get("accountant", "webserver_link"))
-    pull_share_async(engine_link,
-        config.get("accountant", "engine_link"))
-    pull_share_async(cashier_link,
-        config.get("accountant", "cashier_link"))
-    pull_share_async(administrator_link,
-        config.get("accountant", "administrator_link"))
+    router_share_async(webserver_export,
+        config.get("accountant", "webserver_export"))
+    pull_share_async(engine_export,
+        config.get("accountant", "engine_export"))
+    pull_share_async(cashier_export,
+        config.get("accountant", "cashier_export"))
+    pull_share_async(administrator_export,
+        config.get("accountant", "administrator_export"))
 
     reactor.run()
 

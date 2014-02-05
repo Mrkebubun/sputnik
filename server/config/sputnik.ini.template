@@ -21,13 +21,13 @@ debug = true
 base_uri = ${base_uri}
 
 [accountant]
-engine_link = tcp://127.0.0.1:4432
-webserver_link = tcp://127.0.0.1:4433
-cashier_link = tcp://127.0.0.1:4434
-administrator_link = tcp://127.0.0.1:4435
+engine_export = tcp://127.0.0.1:4432
+webserver_export = tcp://127.0.0.1:4433
+cashier_export = tcp://127.0.0.1:4434
+administrator_export = tcp://127.0.0.1:4435
 
 [administrator]
-webserver_link = tcp://127.0.0.1:4601
+webserver_export = tcp://127.0.0.1:4601
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501

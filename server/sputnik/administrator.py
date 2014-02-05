@@ -93,7 +93,8 @@ class AdminWebUI(Resource):
     def render_GET(self):
         return "Here be admin interface!"
 
-class WebserverLink:
+
+class WebserverExport:
     """
     For security reasons, the webserver only has access to a limit subset of
         the administrator functionality. This is exposed here.
@@ -113,9 +114,9 @@ class WebserverLink:
 if __name__ == "__main__":
     session = database.make_session()
     administrator = Administrator(session)
-    webserver_link = WebserverLink(administrator)
-    router_share_async(webserver_link,
-                       config.get("administrator", "webserver_link"))
+    webserver_export = WebserverExport(administrator)
+    router_share_async(webserver_export,
+        config.get("administrator", "webserver_export"))
 
     admin_ui = AdminWebUI()
     reactor.listenTCP(config.get("administrator", "UI_port"), Site(admin_ui), interface=config.get("administrator", "interface"))

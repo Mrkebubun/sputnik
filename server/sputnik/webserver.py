@@ -26,7 +26,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
-from zmq_util import dealer_proxy_async
+from zmq_util import export, pull_proxy_async, dealer_proxy_async
 
 from administrator import AdministratorException
 
@@ -80,7 +80,7 @@ class RateLimitedCallHandler(CallHandler):
 
 MAX_TICKER_LENGTH = 100
 
-class AdministratorLink:
+class AdministratorExport:
     pass
 
 class PublicInterface:
@@ -93,7 +93,8 @@ class PublicInterface:
         def _cb(res):
             result = {}
             for r in res:
-                result[r[0]] = {"description": r[1],
+                result[r[0]] = {"ticker": r[0],
+                                "description": r[1],
                                     "denominator": r[2],
                                     "contract_type": r[3],
                                     "full_description": r[4],
@@ -114,7 +115,7 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
-    @exportRpc
+    @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span):
         """
         Gets a list of trades between two dates
@@ -138,6 +139,7 @@ class PublicInterface:
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
         #todo implement time_span checks
+        #TODO: Implement new API
         return dbpool.runQuery(
             "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
             (ticker,))
@@ -181,10 +183,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
     """
-
-
-   
-
 
     def __init__(self):
         self.cookie = ""
@@ -476,6 +474,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
             txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
                         (username, a_id))
+            # TODO: Update to new API
             return a_address
 
         return dbpool.runInteraction(_get_new_address, self.username)
@@ -496,6 +495,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             else:
                 return result[0][0]
 
+        # TODO: Update to new API
         return dbpool.runQuery(
             "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
 
@@ -522,6 +522,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 txn.execute("SELECT id FROM contracts WHERE ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[
                     0][0]
 
+            # TODO: Update to new API
             txn.execute(
                 "INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
                 {'username': self.username,
@@ -540,23 +541,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
 
         def _cb(result):
-            return [True, {x[0]: {"ticker": x[1],
+            return [True, {x[0]: {"contract": x[1],
                            "position": x[2],
-                           "reference_price": x[3],
-                           "denominator": x[4],
-                           "contract_type": x[5],
-                           "inverse_quotes": x[6]}
+                           "reference_price": x[3]
+            }
                     for x in result}]
 
         return dbpool.runQuery(
-            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price, contracts.denominator, contracts.contract_type, contracts.inverse_quotes  FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
     def get_profile(self):
         def _cb(result):
             if not result:
-                return {}
+                return [False, (0, "unknown error")]
             return [True, {'nickname': result[0][0], 'email': result[0][1]}]
 
         return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
@@ -618,8 +617,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         gets open orders
         """
         def _cb(result):
-            return [True, [{'ticker':r[0], 'price':r[1], 'quantity':r[2], 'side':r[3], 'id':r[4]} for r in result]]
-        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.side, orders.id FROM orders, contracts WHERE orders.contract_id=contracts.id AND orders.username=%s AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(_cb)
+            # TODO: Fix timestamp to return what is the in API description
+            return [True, [{'contract':r[0], 'price':r[1], 'quantity':r[2], 'quantity_left': r[3],
+                            'timestamp': r[4].isoformat(), 'side': r[5], 'id':r[6]} for r in result]]
+        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
+                               "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
+                               "WHERE orders.contract_id=contracts.id AND orders.username=%s " +
+                               "AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(_cb)
 
 
     @exportRpc("place_order")
@@ -633,12 +637,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize inputs:
         validate(order,
                  {"type": "object", "properties": {
-                     "ticker": {"type": "string"},
+                     "contract": {"type": "string"},
                      "price": {"type": "number"},
                      "quantity": {"type": "number"},
-                     "side": {"type": "number"}
+                     "side": {"type": "string"}
                  }})
-        order['ticker'] = order['ticker'][:MAX_TICKER_LENGTH]
+        order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
 
         # enforce minimum tick_size for prices:
 
@@ -653,16 +657,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
             if order["price"] % tick_size != 0 or order["quantity"] % lot_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-                raise Exception("invalid price or quantity")
+                return [False, (0, "invalid price or quantity")]
 
             order['username'] = self.username
             #TODO (yury can you make this an async rep/req with TXZMQ?)
 
             self.count += 1
             print 'place_order', self.count
-            return self.factory.accountant.place_order(order)
 
-        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['ticker'],)).addCallback(_cb)
+            def _retval_cb(return_value):
+                if return_value is True:
+                    return [True, None]
+                else:
+                    return [False, (0, "unknown error")]
+
+            return self.factory.accountant.place_order(order).addCallback(_retval_cb)
+
+        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['contract'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
     def get_safe_prices(self, array_of_tickers):
@@ -679,9 +690,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         # sanitize inputs:
         validate(order_id, {"type": "number"})
-
-        print 'received order_id', order_id
-        validate(order_id, {"type": "number"})
         print 'received order_id', order_id
         order_id = int(order_id)
         print 'formatted order_id', order_id
@@ -689,8 +697,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.count += 1
         print 'cancel_order', self.count
-        return self.factory.accountant.cancel_order(order_id)
+        def _cb(result):
+            if result:
+                return [True, None]
+            else:
+                return [False, (0, "unknown error")]
 
+        return self.factory.accountant.cancel_order(order_id).addCallback(_cb)
 
     @exportSub("chat")
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):
@@ -746,7 +759,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
 
+class EngineExport:
+    def __init__(self, factory):
+        self.factory = factory
 
+    @export
+    def book_update(self, ticker, book):
+        self.factory.all_books.update(book)
+        self.factory.dispatch(
+            self.factory.base_uri + "/public/feeds/%s/book" % ticker, book)
+
+    @export
+    def safe_price(self, ticker, safe_price):
+        pass
+
+    @export
+    def trade(self, ticker, trade):
+        pass
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -767,8 +796,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
-        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_link"))
+        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
+        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_export"))
 
     def dispatcher(self, message):
         """
