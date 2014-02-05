@@ -84,7 +84,7 @@ class Administrator:
         self.session.commit()
         return True
 
-class WebserverLink:
+class WebserverExport:
     """
     For security reasons, the webserver only has access to a limit subset of
         the administrator functionality. This is exposed here.
@@ -104,9 +104,9 @@ class WebserverLink:
 if __name__ == "__main__":
     session = database.make_session()
     administrator = Administrator(session)
-    webserver_link = WebserverLink(administrator)
-    router_share_async(webserver_link,
-        config.get("administrator", "webserver_link"))
+    webserver_export = WebserverExport(administrator)
+    router_share_async(webserver_export,
+        config.get("administrator", "webserver_export"))
 
     reactor.run()
 

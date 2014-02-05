@@ -80,7 +80,7 @@ class RateLimitedCallHandler(CallHandler):
 
 MAX_TICKER_LENGTH = 100
 
-class AdministratorLink:
+class AdministratorExport:
     pass
 
 class PublicInterface:
@@ -759,7 +759,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
 
-class EngineLink:
+class EngineExport:
     def __init__(self, factory):
         self.factory = factory
 
@@ -796,8 +796,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.receiver.onPull = self.dispatcher
         self.base_uri = base_uri
 
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
-        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_link"))
+        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
+        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_export"))
 
     def dispatcher(self, message):
         """
