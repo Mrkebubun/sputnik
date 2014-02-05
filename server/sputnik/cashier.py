@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 import config
+
+from twisted.internet import reactor
+from twisted.internet.defer import maybeDeferred
+from twisted.web.resource import Resource
+from twisted.web.server import Site
+from twisted.internet import reactor
+
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -13,6 +20,8 @@ MINIMUM_CONFIRMATIONS = 0
 TESTNET = True
 COLD_WALLET_ADDRESS = "bleh"  #make this a multisig?
 ACCOUNTANT_PORT = 4432
+
+
 
 import zmq
 import models
@@ -32,17 +41,14 @@ logging.info('connecting to bitcoin client')
 context = zmq.Context()
 accountant = context.socket(zmq.PUSH)
 #accountant.connect('tcp://localhost:%d' % ACCOUNTANT_PORT)
-accountant.connect(config.get("accountant","zmq_address"))
+accountant.connect(config.get("accountant", "zmq_address"))
 
 #query the active addresses
 db_session = db.make_session()
 
 
 def notify_accountant(address, total_received):
-    accountant.send_json({'deposit_cash': {'address':address,
-                                            'total_received':total_received
-                                            }
-                        })
+    accountant.send_json({'deposit_cash': {'address': address, 'total_received': total_received}})
 
 def check_for_deposits():
     logging.info('checking for deposits')
@@ -84,3 +90,24 @@ while True:
 
     time.sleep(SECONDS_TO_SLEEP)
 
+
+class CompropagoHook(Resource):
+    isLeaf = True
+    def render_POST(self, request):
+        json_string = request.content.getvalue()
+
+        logging.warning('we got a compropago confirmation, do something about it')
+
+        return "OK"
+
+if __name__ == '__main__':
+
+    public_server = Resource()
+    public_server.putChild('compropago', CompropagoHook())
+
+    private_server = Resource()
+
+    reactor.listenTCP(config.get("cashier", "public_port"), Site(public_server), interface=config.get("cashier", "public_interface"))
+    reactor.listenTCP(config.get("cashier", "private_port"), Site(private_server), interface=config.get("cashier", "private_interface"))
+
+    reactor.run()
