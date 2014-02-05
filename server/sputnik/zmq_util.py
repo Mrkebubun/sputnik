@@ -201,7 +201,7 @@ class SyncRouterExport(SyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
             self.connection.send_multipart(
-                [sender_id, message_id, "", self.encode(False, failure.value)])
+                [sender_id, message_id, "", self.encode(False, failure)])
 
         try:
             result(self.dispatch(method_name, args, kwargs))
