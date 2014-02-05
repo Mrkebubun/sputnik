@@ -26,7 +26,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
-from zmq_util import export, pull_proxy_async, dealer_proxy_async
+from zmq_util import export, pull_share_async, dealer_proxy_async
 
 from administrator import AdministratorException
 
@@ -660,10 +660,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return [False, (0, "invalid price or quantity")]
 
             order['username'] = self.username
-            #TODO (yury can you make this an async rep/req with TXZMQ?)
-
-            self.count += 1
-            print 'place_order', self.count
 
             def _retval_cb(return_value):
                 if return_value is True:
@@ -695,8 +691,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
 
-        self.count += 1
-        print 'cancel_order', self.count
         def _cb(result):
             if result:
                 return [True, None]
@@ -777,6 +771,43 @@ class EngineExport:
     def trade(self, ticker, trade):
         pass
 
+class EngineExport:
+    def __init__(self, webserver):
+        self.webserver = webserver
+
+    @export
+    def book_update(self, ticker, book):
+        self.webserver.all_books[ticker] = book
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/order_book#%s" % ticker, book)
+
+    @export
+    def safe_price(self, ticker, price):
+        self.webserver.safe_prices[ticker] = price
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/safe_prices#%s" % ticker, price)
+       
+    @export
+    def trade(self, ticker, trade):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/trades#%s" % ticker, trade)
+
+    @export
+    def fill(self, user, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/fills#%s" % user, order)
+
+    @export
+    def cancel(self, user, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/cancels#%s" % user, order)
+
+    @export
+    def open_orders(self, user, orders):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/open_orders#%s" % user, orders)
+
+
 class PepsiColaServerFactory(WampServerFactory):
     """
     Simple broadcast server broadcasting any message it receives to all
@@ -785,69 +816,32 @@ class PepsiColaServerFactory(WampServerFactory):
 
     # noinspection PyPep8Naming
     def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
-        WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
-        self.all_books = {}
-        self.safe_prices = {}
-        self.cookies = {}
-        self.chats = []
-        self.public_interface = PublicInterface(self)
-        endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
-        self.receiver = ZmqPullConnection(zf, endpoint)
-        self.receiver.onPull = self.dispatcher
+        WampServerFactory.__init__(
+            self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
+
         self.base_uri = base_uri
 
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
-        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_export"))
+        self.all_books = {}
+        self.safe_prices = {}
+        self.markets = {}
+        self.chats = []
 
-    def dispatcher(self, message):
-        """
-        Dispatches a message on the "simple" pub/sub channel... here for example purposes
-        :rtype : NoneType
-        :param message: message do be sent
-        """
+        self.cookies = {}
 
-        # TODO: check if message is multipart
-        for key, value in json.loads(message[0]).iteritems():
-            logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value))
-            if key == 'book_update':
-                self.all_books.update(value)
-                print self.base_uri + "/order_book#%s" % value.keys()[0]
-                self.dispatch(self.base_uri + "/order_book#%s" % value.keys()[0], json.dumps(value))
-                #logging.info("Sent:    %", message)
+        self.public_interface = PublicInterface(self)
 
-            elif key == 'safe_price':
-                self.safe_prices.update(value)
-                self.dispatch(self.base_uri + "/safe_prices#%s" % value.keys()[0], value.values()[0])
-
-            elif key == 'trade':
-                self.dispatch(self.base_uri + "/trades#%s" % value['ticker'], value)
-                print 'search'
-                print value
-
-            elif key == 'fill':
-                self.dispatch(self.base_uri + "/user/fills#%s" % value[0], value[1])
-                print self.base_uri + "/user/fills#%s" % value[0], value[1]
-
-            elif key == 'cancel':
-                self.dispatch(self.base_uri + "/user/cancels#%s" % value[0], value[1])
-                print self.base_uri + "/user/cancels#%s" % value[0], value[1]
-
-            elif key == 'open_orders':
-                '''
-                note: this should be a private per user channel
-                '''
-                self.dispatch(self.base_uri + "/user/open_orders#%s" % value[0], value[1])
-                print self.base_uri + "/user/open_orders#%s" % value[0], value[1]
+        self.engine_export = EngineExport(self)
+        pull_share_async(self.engine_export,
+            config.get("webserver", "engine_export"))
+        self.accountant = dealer_proxy_async(
+            config.get("accountant", "webserver_export"))
+        self.administrator = dealer_proxy_async(
+            config.get("administrator", "webserver_export"))
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
                  sslmethod=SSL.SSLv23_METHOD):
-        """
-        @param privateKeyFileName: Name of a file containing a private key
-        @param certificateChainFileName: Name of a file containing a certificate chain
-        @param sslmethod: The SSL method to use
-        """
         self.privateKeyFileName = privateKeyFileName
         self.certificateChainFileName = certificateChainFileName
         self.sslmethod = sslmethod

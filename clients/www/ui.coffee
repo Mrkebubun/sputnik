@@ -24,10 +24,10 @@ $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
 $('#sellButton').click ->
-  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 1)
+  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, "SELL")
 
 $('#buyButton').click ->
-  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 0)
+  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, "BUY")
 
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
