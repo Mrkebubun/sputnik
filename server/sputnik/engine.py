@@ -9,13 +9,11 @@ parser.add_option("-c", "--config", dest="filename",
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
-
-import sys
+    
 import logging
 
 import zmq
 from zmq_util import export, router_share_sync, push_proxy_sync
-from sqlalchemy.orm.exc import NoResultFound
 import database as db
 import models
 

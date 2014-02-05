@@ -77,7 +77,7 @@ class Accountant:
             return self.session.query(models.Contract).filter_by(
                 contract_id=ticker).one()
         except NoResultFound:
-            raise AccountantError("Could not resolve contract '%s'." % ticker)
+            raise AccountantException("Could not resolve contract '%s'." % ticker)
         except ValueError:
             # drop through
             pass
@@ -86,7 +86,7 @@ class Accountant:
             return self.session.query(models.Contract).filter_by(
                 ticker=ticker).order_by(models.Contract.id.desc()).first()
         except NoResultFound:
-            raise AccountantError("Could not resolve contract '%s'." % ticker)
+            raise AccountantException("Could not resolve contract '%s'." % ticker)
 
     def get_position(self, username, contract, reference_price=0):
         """
@@ -130,7 +130,7 @@ class Accountant:
         try:
             source = self.get_contract(tokens[0])
             target = self.get_contract(tokens[1])
-        except AccountantError:
+        except AccountantException:
             raise AccountantException("'%s' is not a currency pair." % pair)
         return source, target  
 
@@ -258,7 +258,7 @@ class Accountant:
         :return: id of the order placed or -1 if failure
         """
         user = self.get_user(order["username"])
-        contract = self.get_contract(order["ticker"])
+        contract = self.get_contract(order["contract"])
 
         if not contract.active:
             raise Exception("Contract is not active.")
@@ -276,7 +276,7 @@ class Accountant:
             if not 0 <= order["price"] <= contract.denominator:
                 raise Exception("Not a valid prediction price.")
 
-        o = models.Order(user, contract, order["quantity"], order["price"], "BUY" if order["side"] == 0 else "SELL")
+        o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
 
         session.add(o)
         session.commit()

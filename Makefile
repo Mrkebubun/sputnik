@@ -1,5 +1,5 @@
 ifndef PROFILE
-export PROFILE=$(realpath install/profiles/git)
+export PROFILE=$(realpath install/profiles/git+postgres)
 endif
 
 .PHONY: config deps build install upgrade
