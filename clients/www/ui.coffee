@@ -24,17 +24,10 @@ $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
 $('#sellButton').click ->
-<<<<<<< HEAD
   sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 'SELL')
 
 $('#buyButton').click ->
-  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 'BUY')
-=======
   sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, "SELL")
-
-$('#buyButton').click ->
-  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, "BUY")
->>>>>>> remotes/origin/master
 
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
