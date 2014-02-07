@@ -5,8 +5,10 @@ Main websocket server, accepts RPC and subscription requests from clients. It's 
 facilitating all communications between the client, the database and the matching engine.
 """
 
-import config
 from optparse import OptionParser
+
+import config
+
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -18,7 +20,6 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import cgi
-import json
 import logging
 import sys
 import datetime
@@ -26,9 +27,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
-from zmq_util import dealer_proxy_async
-
-from administrator import AdministratorException
+from zmq_util import export, pull_share_async, dealer_proxy_async
 
 from jsonschema import validate
 from twisted.python import log
@@ -45,7 +44,7 @@ from autobahn.wamp import CallHandler
 
 from OpenSSL import SSL
 
-from txzmq import ZmqFactory, ZmqEndpoint, ZmqPushConnection, ZmqPullConnection
+from txzmq import ZmqFactory
 
 zf = ZmqFactory()
 
@@ -53,7 +52,7 @@ zf = ZmqFactory()
 #if config.get("database", "uri").startswith("postgres"):
 #    import txpostgres as adbapi
 #else:
-    # noinspection PyPep8Naming
+# noinspection PyPep8Naming
 import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
@@ -64,10 +63,10 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
 
 class RateLimitedCallHandler(CallHandler):
     def _callProcedure(self, call):
-        def doActualCall(call):
-            call.proto.last_call = time.time()
-            return CallHandler._callProcedure(self, call)
-        
+        def do_actual_call(actual_call):
+            actual_call.proto.last_call = time.time()
+            return CallHandler._callProcedure(self, actual_call)
+
         now = time.time()
         if now - call.proto.last_call < 0.01:
             # try again later
@@ -75,13 +74,15 @@ class RateLimitedCallHandler(CallHandler):
             delay = max(0, call.proto.last_call + 0.01 - now)
             d = task.deferLater(reactor, delay, self._callProcedure, call)
             return d
-        return doActualCall(call)
+        return do_actual_call(call)
 
 
 MAX_TICKER_LENGTH = 100
 
-class AdministratorLink:
+
+class AdministratorExport:
     pass
+
 
 class PublicInterface:
     def __init__(self, factory):
@@ -95,11 +96,11 @@ class PublicInterface:
             for r in res:
                 result[r[0]] = {"ticker": r[0],
                                 "description": r[1],
-                                    "denominator": r[2],
-                                    "contract_type": r[3],
-                                    "full_description": r[4],
-                                    "tick_size": r[5],
-                                    "lot_size": r[6]}
+                                "denominator": r[2],
+                                "contract_type": r[3],
+                                "full_description": r[4],
+                                "tick_size": r[5],
+                                "lot_size": r[6]}
 
                 if result[r[0]]['contract_type'] == 'futures':
                     result[r[0]]['margin_high'] = r[7]
@@ -109,7 +110,8 @@ class PublicInterface:
                     result[r[0]]['final_payoff'] = r[2]
             self.factory.markets = result
 
-        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description, tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
+                               "tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
 
     @exportRpc("get_markets")
     def get_markets(self):
@@ -141,7 +143,8 @@ class PublicInterface:
         #todo implement time_span checks
         #TODO: Implement new API
         return dbpool.runQuery(
-            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE trades.contract_id=contracts.id AND contracts.ticker=%s",
+            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+            "trades.contract_id=contracts.id AND contracts.ticker=%s",
             (ticker,))
 
     @exportRpc("get_order_book")
@@ -166,17 +169,16 @@ class PublicInterface:
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
-        profile = {"email":email, "nickname":"anonymous"}
-        self.factory.administrator.change_profile(username, profile)       
-        
+        profile = {"email": email, "nickname": "anonymous"}
+        self.factory.administrator.change_profile(username, profile)
+
         def onAccountSuccess(result):
             return [True, username]
 
         def onAccountFail(failure):
             return [False, failure.value.args]
- 
-        return d.addCallbacks(onAccountSuccess, onAccountFail)
 
+        return d.addCallbacks(onAccountSuccess, onAccountFail)
 
 
 class PepsiColaServerProtocol(WampCraServerProtocol):
@@ -194,14 +196,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.base_uri = config.get("webserver", "base_uri")
 
 
-
     def connectionMade(self):
         """
         Called when a connection to the protocol is made
         this is the right place to initialize stuff, not __init__()
         """
         WampCraServerProtocol.connectionMade(self)
-        
+
         # install rate limited call handler
         self.last_call = 0
         self.handlerMapping[self.MESSAGE_TYPEID_CALL] = \
@@ -232,7 +233,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
 
         self.registerForRpc(self.factory.public_interface,
-            self.base_uri + "/procedures/")
+                            self.base_uri + "/procedures/")
 
         self.registerForPubSub(self.base_uri + "/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
@@ -275,12 +276,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 noise = hashlib.md5("super secret" + username + "even more secret")
                 salt = noise.hexdigest()[:8]
                 authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
-            
+
             # SECURITY: If they know the cookie, it is alright for them to know
             #   the username. They can log in anyway.
             return {"authextra": authextra,
-                "permissions": {"pubsub": [], "rpc": [], "username":username}}
-                
+                    "permissions": {"pubsub": [], "rpc": [], "username": username}}
+
 
         return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
                                (username,)).addCallback(_cb)
@@ -335,7 +336,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return ":0xFA1CDA7A:"
 
         return dbpool.runQuery(
-            "SELECT password, totp FROM users WHERE username=%s LIMIT 1", (auth_key,)
+            'SELECT password, totp FROM users WHERE username=%s LIMIT 1', (auth_key,)
         ).addCallback(auth_secret_callback).addErrback(auth_secret_errback)
 
     # noinspection PyMethodOverriding
@@ -344,9 +345,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         fired when authentication succeeds, registers user for RPC, save user object in session
         :param auth_key: login
         :rtype : object
-        :param perms: a dictionary describing the permissions associated with this user...          from getAuthPermissions
+        :param perms: a dictionary describing the permissions associated with this user...
+        from getAuthPermissions
         """
-
 
         self.troll_throttle = time.time()
 
@@ -372,7 +373,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.cookie = auth_key
 
         # moved from onSessionOpen
-        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?  Pretty sure yes.
+        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
+        #  Pretty sure yes.
         self.registerForPubSub(self.base_uri + "/user/cancels#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/user/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/user/open_orders#" + self.username,
@@ -463,6 +465,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
+
         def _get_new_address(txn, username):
             res = txn.query(
                 "SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
@@ -524,7 +527,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             # TODO: Update to new API
             txn.execute(
-                "INSERT INTO withdrawals (username, address, amount, currency_id, entered) VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
+                "INSERT INTO withdrawals (username, address, amount, currency_id, entered)"
+                " VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
                 {'username': self.username,
                  'address': withdraw_address,
                  'amount': amount,
@@ -542,13 +546,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         def _cb(result):
             return [True, {x[0]: {"contract": x[1],
-                           "position": x[2],
-                           "reference_price": x[3]
+                                  "position": x[2],
+                                  "reference_price": x[3]
             }
-                    for x in result}]
+                           for x in result}]
 
         return dbpool.runQuery(
-            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price "
+            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
@@ -574,8 +579,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
 
-        profile = {"email":email, "nickname":nickname}
-        d = self.factory.administrator.change_profile(self.username, profile)       
+        profile = {"email": email, "nickname": nickname}
+        d = self.factory.administrator.change_profile(self.username, profile)
+
         def onProfileSuccess(result):
             return [True, profile]
 
@@ -616,14 +622,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         gets open orders
         """
+
         def _cb(result):
             # TODO: Fix timestamp to return what is the in API description
-            return [True, [{'contract':r[0], 'price':r[1], 'quantity':r[2], 'quantity_left': r[3],
-                            'timestamp': r[4].isoformat(), 'side': r[5], 'id':r[6]} for r in result]]
+            return [True, [{'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
+                            'timestamp': r[4].isoformat(), 'side': r[5], 'id': r[6]} for r in result]]
+
         return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
                                "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
                                "WHERE orders.contract_id=contracts.id AND orders.username=%s " +
-                               "AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(_cb)
+                               "AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(
+            _cb)
 
 
     @exportRpc("place_order")
@@ -656,14 +665,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
-            if order["price"] % tick_size != 0 or order["quantity"] % lot_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+            if order["price"] % tick_size != 0 \
+                    or order["quantity"] % lot_size != 0 \
+                    or order["price"] < 0 \
+                    or order["quantity"] < 0:
                 return [False, (0, "invalid price or quantity")]
 
             order['username'] = self.username
-            #TODO (yury can you make this an async rep/req with TXZMQ?)
-
-            self.count += 1
-            print 'place_order', self.count
 
             def _retval_cb(return_value):
                 if return_value is True:
@@ -673,7 +681,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             return self.factory.accountant.place_order(order).addCallback(_retval_cb)
 
-        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s", (order['contract'],)).addCallback(_cb)
+        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
+                               (order['contract'],)).addCallback(_cb)
 
     @exportRpc("get_safe_prices")
     def get_safe_prices(self, array_of_tickers):
@@ -695,8 +704,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
 
-        self.count += 1
-        print 'cancel_order', self.count
         def _cb(result):
             if result:
                 return [True, None]
@@ -760,6 +767,61 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return [True, self.factory.chats[-30:]]
 
 
+class EngineExport:
+    def __init__(self, factory):
+        self.factory = factory
+
+    @export
+    def book_update(self, ticker, book):
+        self.factory.all_books.update(book)
+        self.factory.dispatch(
+            self.factory.base_uri + "/public/feeds/%s/book" % ticker, book)
+
+    @export
+    def safe_price(self, ticker, safe_price):
+        pass
+
+    @export
+    def trade(self, ticker, trade):
+        pass
+
+
+class EngineExport:
+    def __init__(self, webserver):
+        self.webserver = webserver
+
+    @export
+    def book_update(self, ticker, book):
+        self.webserver.all_books[ticker] = book
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/order_book#%s" % ticker, book)
+
+    @export
+    def safe_price(self, ticker, price):
+        self.webserver.safe_prices[ticker] = price
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/safe_prices#%s" % ticker, price)
+
+    @export
+    def trade(self, ticker, trade):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/trades#%s" % ticker, trade)
+
+    @export
+    def fill(self, user, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/fills#%s" % user, order)
+
+    @export
+    def cancel(self, user, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/cancels#%s" % user, order)
+
+    @export
+    def open_orders(self, user, orders):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/user/open_orders#%s" % user, orders)
+
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -769,69 +831,32 @@ class PepsiColaServerFactory(WampServerFactory):
 
     # noinspection PyPep8Naming
     def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
-        WampServerFactory.__init__(self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
-        self.all_books = {}
-        self.safe_prices = {}
-        self.cookies = {}
-        self.chats = []
-        self.public_interface = PublicInterface(self)
-        endpoint = ZmqEndpoint("bind", config.get("webserver", "zmq_address"))
-        self.receiver = ZmqPullConnection(zf, endpoint)
-        self.receiver.onPull = self.dispatcher
+        WampServerFactory.__init__(
+            self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
+
         self.base_uri = base_uri
 
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_link"))
-        self.administrator = dealer_proxy_async(config.get("administrator", "webserver_link"))
+        self.all_books = {}
+        self.safe_prices = {}
+        self.markets = {}
+        self.chats = []
 
-    def dispatcher(self, message):
-        """
-        Dispatches a message on the "simple" pub/sub channel... here for example purposes
-        :rtype : NoneType
-        :param message: message do be sent
-        """
+        self.cookies = {}
 
-        # TODO: check if message is multipart
-        for key, value in json.loads(message[0]).iteritems():
-            logging.info("key, value pair for event: %s, %s", json.dumps(key), json.dumps(value))
-            if key == 'book_update':
-                self.all_books.update(value)
-                print self.base_uri + "/order_book#%s" % value.keys()[0]
-                self.dispatch(self.base_uri + "/order_book#%s" % value.keys()[0], json.dumps(value))
-                #logging.info("Sent:    %", message)
+        self.public_interface = PublicInterface(self)
 
-            elif key == 'safe_price':
-                self.safe_prices.update(value)
-                self.dispatch(self.base_uri + "/safe_prices#%s" % value.keys()[0], value.values()[0])
-
-            elif key == 'trade':
-                self.dispatch(self.base_uri + "/trades#%s" % value['ticker'], value)
-                print 'search'
-                print value
-
-            elif key == 'fill':
-                self.dispatch(self.base_uri + "/user/fills#%s" % value[0], value[1])
-                print self.base_uri + "/user/fills#%s" % value[0], value[1]
-
-            elif key == 'cancel':
-                self.dispatch(self.base_uri + "/user/cancels#%s" % value[0], value[1])
-                print self.base_uri + "/user/cancels#%s" % value[0], value[1]
-
-            elif key == 'open_orders':
-                '''
-                note: this should be a private per user channel
-                '''
-                self.dispatch(self.base_uri + "/user/open_orders#%s" % value[0], value[1])
-                print self.base_uri + "/user/open_orders#%s" % value[0], value[1]
+        self.engine_export = EngineExport(self)
+        pull_share_async(self.engine_export,
+                         config.get("webserver", "engine_export"))
+        self.accountant = dealer_proxy_async(
+            config.get("accountant", "webserver_export"))
+        self.administrator = dealer_proxy_async(
+            config.get("administrator", "webserver_export"))
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
                  sslmethod=SSL.SSLv23_METHOD):
-        """
-        @param privateKeyFileName: Name of a file containing a private key
-        @param certificateChainFileName: Name of a file containing a certificate chain
-        @param sslmethod: The SSL method to use
-        """
         self.privateKeyFileName = privateKeyFileName
         self.certificateChainFileName = certificateChainFileName
         self.sslmethod = sslmethod

@@ -41,7 +41,7 @@ class SafePricePublisher(object):
         except IndexError:
             self.safe_price = 42
         accountant.safe_price(contract_name, self.safe_price)
-        publisher.send_json({'safe_price': {contract_name: self.safe_price}})
+        webserver.safe_price(contract_name, self.safe_price)
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
     def onTrade(self, last_trade):
@@ -60,7 +60,7 @@ class SafePricePublisher(object):
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % self.safe_price)
         accountant.safe_price(contract_name, self.safe_price)
-        publisher.send_json({'safe_price': {contract_name: self.safe_price}})
+        webserver.safe_price(contract_name, self.safe_price)
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
@@ -137,7 +137,11 @@ class Order(object):
         #end db code
 
         safe_price_publisher.onTrade({'price': matching_price, 'quantity': qty})
-        publisher.send_json({'trade': {'ticker': contract_name, 'quantity': qty, 'price': matching_price}})
+        webserver.trade(
+            contract_name,
+            {'ticker': contract_name,
+             'quantity': qty,
+             'price': matching_price})
 
         for o in [self, other_order]:
             signed_qty = -o.side * qty
@@ -151,7 +155,8 @@ class Order(object):
                     'ticker': contract_name,
                 }
             )
-            publisher.send_json({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
+            webserver.fill(o.username,
+                {'order': o.id, 'quantity': qty, 'price': matching_price})
             print 'test 1:  ',str({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
 
     def cancel(self):
@@ -219,11 +224,10 @@ db_session.commit()
 #connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
 
 # publishes book updates
-publisher = context.socket(zmq.PUSH)
-publisher.connect(config.get("webserver", "zmq_address"))
+webserver = push_proxy_sync(config.get("webserver", "engine_export"))
 
 # push to the accountant
-accountant = push_proxy_sync(config.get("accountant", "engine_link"))
+accountant = push_proxy_sync(config.get("accountant", "engine_export"))
 
 # push to the safe price forwarder
 safe_price_forwarder = context.socket(zmq.PUB)
@@ -239,7 +243,7 @@ def publish_order_book():
     publishes the order book to be consumed by the server
     and dispatched to connected clients
     """
-    publisher.send_json({'book_update': {contract_name: [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in all_orders.values()]}})
+    webserver.book_update(contract_name, [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in all_orders.values()])
 
 
 def pretty_print_book():
@@ -283,7 +287,7 @@ class ReplaceMeWithARealEngine:
             print 'o.id:  ', o.id
             print 'order.id:  ', order_id
             print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
-            publisher.send_json({'cancel': [o.username, {'order': o.id}]})
+            webserver.cancel(o.username, {'order': o.id})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             return False
@@ -327,12 +331,14 @@ class ReplaceMeWithARealEngine:
             all_orders[order.id] = order
             update_best(other_side)
             # publish the user's open order to their personal channel
-            publisher.send_json({'open_orders': [order.username,{'order': order.id,
-                                                             'quantity':order.quantity,
-                                                             'price':order.price,
-                                                             'side': order.side,
-                                                             'ticker':contract_name,
-                                                             'contract_id':contract_id}]})
+            webserver.open_orders(
+                order.username,
+                {'order': order.id,
+                 'quantity':order.quantity,
+                 'price':order.price,
+                 'side': order.side,
+                 'ticker':contract_name,
+                 'contract_id':contract_id})
             print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
                                                              'quantity':order.quantity,
                                                              'price':order.price,
