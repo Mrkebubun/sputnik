@@ -5,7 +5,7 @@ sputnik.connect()
 $('#chatButton').click ->
   chat_return = sputnik.chat chatBox.value
   if not chat_return[0]
-    alert(chat_return[1])
+    alert chat_return[1]
 
   $('#chatBox').val('')
 
@@ -24,10 +24,10 @@ $('#changeProfileBtn').click ->
   sputnik.changeProfile(newNickname.value, newEmail.value)
 
 $('#sellButton').click ->
-  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 1)
+  sputnik.placeOrder(parseInt(qsell.value), parseInt(psell.value), ticker.value, 'SELL')
 
 $('#buyButton').click ->
-  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 0)
+  sputnik.placeOrder(parseInt(qbuy.value), parseInt(pbuy.value), ticker.value, 'BUY')
 
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
@@ -62,14 +62,14 @@ displayBooks = (markets) ->
     if data.contract_type != "cash"
       row = table.insertRow(-1)
       row.insertCell(-1).innerText = ticker
-      row.insertCell(-1).appendChild(generateBookTable(data.sells))
-      row.insertCell(-1).appendChild(generateBookTable(data.buys))
+      row.insertCell(-1).appendChild(generateBookTable(data.bids))
+      row.insertCell(-1).appendChild(generateBookTable(data.asks))
 
 displayPositions = (positions) ->
   table = $('#positionsTable')[0]
   for id, position of positions
     row = table.insertRow(-1)
-    row.insertCell(-1).innerText = position.ticker
+    row.insertCell(-1).innerText = position.contract
     row.insertCell(-1).innerText = position.position
     row.insertCell(-1).innerText = position.reference_price
 
@@ -77,9 +77,10 @@ displayOrders = (orders) ->
   table = $('#ordersTable')[0]
   for order in orders
     row = table.insertRow(-1)
-    row.insertCell(-1).innerText = order.ticker
+    row.insertCell(-1).innerText = order.contract
     row.insertCell(-1).innerText = order.price
     row.insertCell(-1).innerText = order.quantity
+    row.insertCell(-1).innerText = order.quantity_left
     row.insertCell(-1).innerText = order.side
     row.insertCell(-1).innerText = order.timestamp
     row.insertCell(-1).innerText = order.id
@@ -119,6 +120,9 @@ sputnik.on "positions", (positions) ->
 sputnik.on "orders", (orders) ->
   displayOrders orders
 
+sputnik.on book_update, (markets) ->
+  displayBooks markets
+
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
@@ -145,6 +149,10 @@ sputnik.on "failed_login", (error) ->
   @error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
   document.cookie = ""
+
+sputnik.on "make_account_success", (username) ->
+  sputnik.log "make_account success: #{username}"
+  alert "account creation success: #{username}"
 
 sputnik.on "make_account_error", (error) ->
   @error "make_account_error: #{error}"
