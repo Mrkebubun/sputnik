@@ -225,7 +225,7 @@ class window.Sputnik extends EventEmitter
         (res) =>
           @emit "place_order_success", res
         , (error) =>
-          @emit "place_order_error", error
+          @emit "place_order_fail", error
 
     cancelOrder: (id) =>
       @log "cancelling: #{id}"
@@ -233,7 +233,7 @@ class window.Sputnik extends EventEmitter
         (ret) =>
           @emit "cancel_order", ret
         , (error) =>
-          @emit "cancel_order_error", error
+          @emit "cancel_order_fail", error
 
     # deposits and withdrawals
 

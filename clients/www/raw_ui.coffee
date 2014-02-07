@@ -129,12 +129,17 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
-sputnik.on "logged_in", (username) ->
+sputnik.on "auth_success", (username) ->
     sputnik.getCookie().then (uid) =>
         @log("cookie: " + uid)
         document.cookie = "login" + "=" + login.value + ":" + uid
     @log "username: " + username
     $('#loggedInAs').text("Logged in as " + username)
+
+sputnik.on "auth_fail", (error) ->
+  @error "login error: #{error.desc}"
+  alert "login error: #{error.desc}"
+  document.cookie = ""
 
 sputnik.on "profile", (nickname, email) ->
   @log "profile: " + nickname + " " + email
@@ -147,17 +152,12 @@ sputnik.on "error", (error) ->
     alert error
     sputnik.close()
 
-sputnik.on "failed_login", (error) ->
-  @error "login error: #{error.desc}"
-  alert "login error: #{error.desc}"
-  document.cookie = ""
-
 sputnik.on "make_account_success", (username) ->
   sputnik.log "make_account success: #{username}"
   alert "account creation success: #{username}"
 
-sputnik.on "make_account_error", (error) ->
-  @error "make_account_error: #{error}"
+sputnik.on "make_account_fail", (error) ->
+  @error "make_account_fail: #{error}"
   alert "account creation failed: #{error}"
 
 sputnik.on "logout", () ->
@@ -171,6 +171,6 @@ sputnik.on "place_order_success", (res) ->
   @log "place order success: #{res.desc}"
   alert "success: #{res.desc}"
 
-sputnik.on "place_order_error", (error) ->
-  @log "place order error: #{error}"
+sputnik.on "place_order_fail", (error) ->
+  @log "place order fail: #{error}"
   alert "error: #{error}"
