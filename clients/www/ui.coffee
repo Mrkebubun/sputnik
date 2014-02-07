@@ -1,3 +1,5 @@
+# TODO: Make this point to the right place even if not localhost or the 8000 port
+
 sputnik = new window.Sputnik "ws://localhost:8000"
 sputnik.connect()
 
