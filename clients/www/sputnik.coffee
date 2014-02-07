@@ -114,7 +114,8 @@ class window.Sputnik extends EventEmitter
       @emit "auth_success", @username
 
       try
-        @subscribe "orders#" + @username, @onCancel
+        @subscribe "orders#" + @username, @onOrder
+        @subscribe "fills#" + @username, @onFill
       catch error
         @log error
 
@@ -125,15 +126,6 @@ class window.Sputnik extends EventEmitter
 
     onSessionExpired: (error) =>
         @emit "session_expired"
-
-    onCancel: (event) =>
-      @emit "cancel", event
-
-    onFill: (event) =>
-      @emit "fill", event
-
-    onOpenOrder: (event) =>
-      @emit "open_order", event
 
     # data conversion
 
@@ -171,6 +163,13 @@ class window.Sputnik extends EventEmitter
       order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
       return order
 
+    tradeFromWire: (wire_trade) =>
+      ticker = wire_trade.contract
+      trade = wire_trade
+      trade.price = @priceFromWire(ticker, wire_trade.price)
+      trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
+      return trade
+
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
         quantity = quantity * target.denominator
@@ -206,8 +205,6 @@ class window.Sputnik extends EventEmitter
  
 
     # order manipulation
-
- 
     placeOrder: (quantity, price, ticker, side) =>
       order =
         quantity: quantity
@@ -224,8 +221,8 @@ class window.Sputnik extends EventEmitter
     cancelOrder: (id) =>
       @log "cancelling: #{id}"
       @call("cancel_order", id).then \
-        (ret) =>
-          @emit "cancel_order", ret
+        (res) =>
+          @emit "cancel_order_success", res
         , (error) =>
           @emit "cancel_order_fail", error
 
@@ -241,16 +238,21 @@ class window.Sputnik extends EventEmitter
       @call("get_open_orders").then \
         (orders) =>
           @log("orders received: #{orders}")
-          @emit "orders", orders
+          @orders = {}
+          for id, order of orders
+            @orders[id] = @orderFromWire(order)
+
+          @emit "orders", @orders
 
     getPositions: () =>
       @call("get_positions").then \
         (wire_positions) =>
           @log("positions received: #{wire_positions}")
-          positions = {}
-          for id, position of wire_positions
-            positions[id] = @positionFromWire(position)
-          @emit "positions", positions
+          @positions = {}
+          for ticker, position of wire_positions
+            @positions[ticker] = @positionFromWire(position)
+
+          @emit "positions", @positions
 
     getOrderBook: (ticker) =>
       @call("get_order_book", ticker).then @onBookUpdate
@@ -338,7 +340,7 @@ class window.Sputnik extends EventEmitter
         @emit "markets", @markets
 
  
-    # public feeds
+    # feeds
     onBookUpdate: (event) =>
         books = {}
         for ticker of event
@@ -347,15 +349,16 @@ class window.Sputnik extends EventEmitter
             @markets[ticker].asks =
                 (order for order in event[ticker] when order.side is "SELL")
             books[ticker] =
+              contract: ticker
               bids: (@orderFromWire(order) for order in @markets[ticker].bids)
               asks: (@orderFromWire(order) for order in @markets[ticker].asks)
 
         @emit "book_update", books
 
-    onTrade: (event) =>
-        ticker = event.contract
-        @markets[ticker].trades.push event
-        @emit "trade", event
+    onTrade: (trade) =>
+        ticker = trade.contract
+        @markets[ticker].trades.push trade
+        @emit "trade", @tradeFromWire(trade)
 
     onChat: (event) =>
         # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent
@@ -365,7 +368,27 @@ class window.Sputnik extends EventEmitter
         @log "Chat: #{user}: #{message}"
         @emit "chat", @chat_messages
 
-    # private feeds
-    onOrder = () =>
-    onSafePrice = () =>
+    onOrder: (order) =>
+      id = order.id
+      if id in @orders and order.cancelled
+        delete @orders[id]
+      else
+        @orders[id] = @orderFromWire(order)
+      @emit "orders", @orders
 
+    onFill: (fill) =>
+      [contract, source, target] = @cstFromTicker(fill.contract)
+      if contract.contract_type == "cash_pair"
+        order = @orders[fill.id]
+        quantity = @quantityFromWire(fill.contract, fill.quantity)
+        price = @priceFromWire(fill.contract, fill.price)
+        if order.side = "SELL"
+          sign = -1
+        else
+          sign = 1
+        @positions[source.ticker] -= quantity * price * sign
+        @positions[target.ticker] += quantity * sign
+      else
+        @error "only cash_pair contracts implemented in onFill"
+
+      emit @positions
