@@ -53,8 +53,8 @@ generateBookTable = (book) ->
   table = document.createElement('table')
   for book_row in book
     row = table.insertRow(-1)
-    row.insertCell(-1).innerText = book_row[0]
-    row.insertCell(-1).innerText = book_row[1]
+    row.insertCell(-1).innerText = book_row.price
+    row.insertCell(-1).innerText = book_row.quantity
 
   return table
 
