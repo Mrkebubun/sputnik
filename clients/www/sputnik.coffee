@@ -134,6 +134,15 @@ class window.Sputnik extends EventEmitter
     onSessionExpired: (error) =>
         @emit "session_expired"
 
+    onCancel: (event) =>
+      @emit "cancel", event
+
+    onFill: (event) =>
+      @emit "fill", event
+
+    onOpenOrder: (event) =>
+      @emit "open_order", event
+
     # data conversion
 
     quantityToWire: (ticker, quantity) =>

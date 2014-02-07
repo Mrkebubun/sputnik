@@ -177,3 +177,12 @@ sputnik.on "place_order_success", (res) ->
 sputnik.on "place_order_fail", (error) ->
   @log "place order fail: #{error}"
   alert "error: #{error}"
+
+sputnik.on "cancel", (event) ->
+  @log "cancel: #{event}"
+
+sputnik.on "fill", (event) ->
+  @log "fill: #{event}"
+
+sputnik.on "open_order", (event) ->
+  @log "open_order: #{event}"
