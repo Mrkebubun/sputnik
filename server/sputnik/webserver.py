@@ -227,17 +227,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         logging.info("in session open")
         ## register a single, fixed URI as PubSub topic
-        self.registerForPubSub(self.base_uri + "/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/feeds/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForPubSub(self.base_uri + "/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/feeds/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
-        self.registerForPubSub(self.base_uri + "/order_book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/feeds/book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
         self.registerForRpc(self.factory.public_interface,
-                            self.base_uri + "/procedures/")
+                            self.base_uri + "/rpc/")
 
-        self.registerForPubSub(self.base_uri + "/user/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        self.registerForPubSub(self.base_uri + "/feeds/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
 
         # override global client auth options
@@ -359,7 +359,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         ## register RPC endpoints (for now do that manually, keep in sync with perms)
         if perms is not None:
             # noinspection PyTypeChecker
-            self.registerForRpc(self, baseUri=self.base_uri + "/procedures/")
+            self.registerForRpc(self, baseUri=self.base_uri + "/rpc/")
 
         # sets the user in the session...
         # search for a saved session
@@ -378,12 +378,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
         #  Pretty sure yes.
 
-        self.registerForPubSub(self.base_uri + "/user/cancels#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/user/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/user/open_orders#" + self.username,
-                               pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/user/")
-
+        self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
     @exportRpc("get_cookie")
     def get_cookie(self):
@@ -811,33 +807,33 @@ class EngineExport:
     def book_update(self, ticker, book):
         self.webserver.all_books[ticker] = book
         self.webserver.dispatch(
-            self.webserver.base_uri + "/order_book#%s" % ticker, book)
+            self.webserver.base_uri + "/feeds/order_book#%s" % ticker, book)
 
     @export
     def safe_price(self, ticker, price):
         self.webserver.safe_prices[ticker] = price
         self.webserver.dispatch(
-            self.webserver.base_uri + "/safe_prices#%s" % ticker, price)
+            self.webserver.base_uri + "/feeds/safe_prices#%s" % ticker, price)
 
     @export
     def trade(self, ticker, trade):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/trades#%s" % ticker, trade)
+            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
 
     @export
     def fill(self, user, order):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/user/fills#%s" % user, order)
+            self.webserver.base_uri + "/feeds/orders#%s" % user, order)
 
     @export
     def cancel(self, user, order):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/user/cancels#%s" % user, order)
+            self.webserver.base_uri + "/feeds/orders#%s" % user, order)
 
     @export
     def open_orders(self, user, orders):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/user/open_orders#%s" % user, orders)
+            self.webserver.base_uri + "/feeds/orders#%s" % user, orders)
 
 
 class PepsiColaServerFactory(WampServerFactory):

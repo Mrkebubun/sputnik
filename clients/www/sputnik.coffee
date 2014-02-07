@@ -30,12 +30,14 @@ class window.Sputnik extends EventEmitter
     # market selection
     
     follow: (market) =>
-        @subscribe "order_book##{market}", @onBookUpdate
+        @subscribe "book##{market}", @onBookUpdate
         @subscribe "trades##{market}", @onTrade
+        @subscribe "safe_prices##{market}", @onSafePrice
 
     unfollow: (market) =>
-        @unsubscribe "order_book##{market}"
+        @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
+        @unsubscribe "safe_prices##{market}"
 
     # authentication and account management
 
@@ -112,17 +114,7 @@ class window.Sputnik extends EventEmitter
       @emit "auth_success", @username
 
       try
-        @subscribe "cancels#" + @username, @onCancel
-      catch error
-        @log error
-
-      try
-        @subscribe "fills#" + @username, @onFill
-      catch error
-        @log error
-
-      try
-        @subscribe "open_orders#" + @username, @onOpenOrder
+        @subscribe "orders#" + @username, @onCancel
       catch error
         @log error
 
@@ -280,7 +272,7 @@ class window.Sputnik extends EventEmitter
             return @wtf "Not connected."
         @log "Invoking RPC #{method}(#{params})"
         d = ab.Deferred()
-        @session.call("#{@uri}/procedures/#{method}", params...).then \
+        @session.call("#{@uri}/rpc/#{method}", params...).then \
             (result) =>
                 if result.length != 2
                     @warn "RPC Warning: sputnik protocol violation in #{method}"
@@ -295,18 +287,18 @@ class window.Sputnik extends EventEmitter
     subscribe: (topic, callback) =>
         if not @session?
             return @wtf "Not connected."
-        @session.subscribe "#{@uri}/user/#{topic}", (topic, event) -> callback event
+        @session.subscribe "#{@uri}/feeds/#{topic}", (topic, event) -> callback event
 
     unsubscribe: (topic) =>
         if not @session?
             return @wtf "Not connected."
-        @session.unsubscribe "#{@uri}/user/#{topic}"
+        @session.unsubscribe "#{@uri}/feeds/#{topic}"
 
     publish: (topic, message) =>
         if not @session?
           return @wtf "Not connected."
         @log "Publishing #{message} on #{topic}"
-        @session.publish "#{@uri}/user/#{topic}", message
+        @session.publish "#{@uri}/feeds/#{topic}", message
 
     # logging
     log: (obj) -> console.log obj
