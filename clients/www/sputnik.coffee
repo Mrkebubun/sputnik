@@ -216,8 +216,8 @@ class window.Sputnik extends EventEmitter
  
     placeOrder: (quantity, price, ticker, side) =>
       order =
-        quantity: quantity
-        price: price
+        quantity: @quantityToWire(ticker, quantity)
+        price: @priceToWire(ticker, price)
         contract: ticker
         side: side
       @log "placing order: #{order}"
