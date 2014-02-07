@@ -581,7 +581,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
 
         def _cb(result):
-            return [True, {x[0]: {"contract": x[1],
+            return [True, {x[1]: {"contract": x[1],
                                   "position": x[2],
                                   "reference_price": x[3]
             }
