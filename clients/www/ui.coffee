@@ -162,7 +162,7 @@ sputnik.on "make_account_error", (error) ->
 
 sputnik.on "logout", () ->
   @log "loggedout"
-  $('#loggedInAs').text('')
+  $('#loggedInAs').text('Not logged in')
 
 sputnik.on "place_order", () ->
   @log "GUI: placing order"
