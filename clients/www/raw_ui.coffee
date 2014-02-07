@@ -122,7 +122,7 @@ sputnik.on "positions", (positions) ->
 sputnik.on "orders", (orders) ->
   displayOrders orders
 
-sputnik.on book_update, (markets) ->
+sputnik.on "book_update", (markets) ->
   displayBooks markets
 
 sputnik.on "chat", (chat_messages) ->
@@ -130,21 +130,24 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "auth_success", (username) ->
-    sputnik.getCookie().then (uid) =>
-        @log("cookie: " + uid)
-        document.cookie = "login" + "=" + login.value + ":" + uid
+    if with_cookie.value
+      sputnik.getCookie()
     @log "username: " + username
     $('#loggedInAs').text("Logged in as " + username)
+
+sputnik.on "cookie", (uid) ->
+  @log "cookie: " + uid
+  document.cookie = "login" + "=" + login.value + ":" + uid
 
 sputnik.on "auth_fail", (error) ->
   @error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
   document.cookie = ""
 
-sputnik.on "profile", (nickname, email) ->
-  @log "profile: " + nickname + " " + email
-  $('#nickname').text(nickname)
-  $('#email').text(email)
+sputnik.on "profile", (profile) ->
+  @log "profile: " + profile.nickname + " " + profile.email
+  $('#nickname').text(profile.nickname)
+  $('#email').text(profile.email)
 
 sputnik.on "error", (error) ->
     # There was a serious error. It is probably best to reconnect.

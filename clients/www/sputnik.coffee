@@ -59,6 +59,7 @@ class window.Sputnik extends EventEmitter
 
     changeProfile: (nickname, email) =>
       @call("change_profile", email, nickname).then (@profile) =>
+        @emit "profile", @profile
 
     authenticate: (login, password) =>
         if not @session?
