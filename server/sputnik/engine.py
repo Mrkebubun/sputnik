@@ -247,7 +247,7 @@ def publish_order_book():
     publishes the order book to be consumed by the server
     and dispatched to connected clients
     """
-    webserver.book_update(contract_name, [{"quantity": o.quantity, "price": o.price, "side": OrderSide.name(o.side)} for o in all_orders.values()])
+    webserver.book_update(contract_name, [{"contract": o.contract, "quantity": o.quantity, "price": o.price, "side": OrderSide.name(o.side)} for o in all_orders.values()])
 
 
 def pretty_print_book():

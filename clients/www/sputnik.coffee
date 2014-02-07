@@ -145,7 +145,7 @@ class window.Sputnik extends EventEmitter
 
     # data conversion
 
-    quantityToWire: (ticker, quantity) =>
+    cstFromTicker: (ticker) =>
         contract = @markets[ticker]
         if contract.contract_type is "cash_pair"
             [s, t] = ticker.split("/")
@@ -154,68 +154,60 @@ class window.Sputnik extends EventEmitter
         else
             source = @markets["BTC"]
             target = @markets[ticker]
-       
+        return [contract, source, target]
+
+    positionFromWire: (wire_position) =>
+      ticker = wire_position.contract
+      position = wire_position
+      position.position = @quantityFromWire(ticker, wire_position.position)
+      position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
+      return position
+
+    orderToWire: (order) =>
+      ticker = order.contract
+      wire_order = order
+      wire_order.price = @priceToWire(ticker, order.price)
+      wire_order.quantity = @quantityToWire(ticker, order.quantity)
+      wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
+      return wire_order
+
+    orderFromWire: (wire_order) =>
+      ticker = wire_order.contract
+      order = wire_order
+      order.price = @priceFromWire(ticker, wire_order.price)
+      order.quantity = @quantityFromWire(ticker, wire_order.quantity)
+      order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
+      return order
+
+    quantityToWire: (ticker, quantity) =>
+        [contract, source, target] = @cstFromTicker(ticker)
         quantity = quantity * target.denominator
         quantity = quantity - quantity % contract.lot_size
+        return quantity
 
     priceToWire: (ticker, price) =>
-        contract = @markets[ticker]
-        if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
-            target = @markets[ticker]
-        
+        [contract, source, target] = @cstFromTicker(ticker)
         price = price * source.denominator * contract.denominator
         price = price - price % contract.tick_size
+        return price
        
     quantityFromWire: (ticker, quantity) =>
-        contract = @markets[ticker]
-        if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
-            target = @markets[ticker]
+        [contract, source, target] = @cstFromTicker(ticker)
         
         return quantity / target.denominator
     
     priceFromWire: (ticker, price) =>
-        contract = @markets[ticker]
-        if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
-            target = @markets[ticker]
+        [contract, source, target] = @cstFromTicker(ticker)
         
         return price / (source.denominator * contract.denominator)
 
     getPricePrecision: (ticker) =>
-        contract = @markets[ticker]
-        if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
-            target = @markets[ticker]
+        [contract, source, target] = @cstFromTicker(ticker)
         
         return Math.log(source.denominator / contract.tick_size) / Math.LN10
        
     getQuantityPrecision: (ticker) =>
-        contract = @markets[ticker]
-        if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
-            target = @markets[ticker]
+        [contract, source, target] = @cstFromTicker(ticker)
       
         # TODO: account for contract denominator
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
@@ -226,12 +218,12 @@ class window.Sputnik extends EventEmitter
  
     placeOrder: (quantity, price, ticker, side) =>
       order =
-        quantity: @quantityToWire(ticker, quantity)
-        price: @priceToWire(ticker, price)
+        quantity: quantity
+        price: price
         contract: ticker
         side: side
       @log "placing order: #{order}"
-      @call("place_order", order).then \
+      @call("place_order", @orderToWire(order)).then \
         (res) =>
           @emit "place_order_success", res
         , (error) =>
@@ -261,8 +253,11 @@ class window.Sputnik extends EventEmitter
 
     getPositions: () =>
       @call("get_positions").then \
-        (positions) =>
-          @log("positions received: #{positions}")
+        (wire_positions) =>
+          @log("positions received: #{wire_positions}")
+          positions = {}
+          for id, position of wire_positions
+            positions[id] = @positionFromWire(position)
           @emit "positions", positions
 
     getOrderBook: (ticker) =>
@@ -346,19 +341,24 @@ class window.Sputnik extends EventEmitter
     onMarkets: (@markets) =>
         for ticker of markets
             @markets[ticker].trades = []
-            @markets[ticker].buys = []
-            @markets[ticker].sells = []
+            @markets[ticker].bids = []
+            @markets[ticker].asks = []
         @emit "markets", @markets
 
  
     # public feeds
     onBookUpdate: (event) =>
+        books = {}
         for ticker of event
-            @markets[ticker].buys =
+            @markets[ticker].bids =
                 (order for order in event[ticker] when order.side is "BUY")
-            @markets[ticker].sells =
+            @markets[ticker].asks =
                 (order for order in event[ticker] when order.side is "SELL")
-        @emit "book_update", @markets
+            books[ticker] =
+              bids: (@orderFromWire(order) for order in @markets[ticker].bids)
+              asks: (@orderFromWire(order) for order in @markets[ticker].asks)
+
+        @emit "book_update", books
 
     onTrade: (event) =>
         ticker = event.contract
