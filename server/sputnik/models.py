@@ -57,6 +57,7 @@ class Order(db.Base):
 
     def to_matching_engine_order(self):
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
+                'quantity_left': self.quantity_left,
                 'price': self.price, 'side': (-1 if self.side == "BUY" else 1)}
 
 
