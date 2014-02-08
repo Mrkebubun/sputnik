@@ -47,15 +47,14 @@ displayMarkets = (markets) ->
   header.insertCell(-1).innerText = "Lot Size"
   header.insertCell(-1).innerText = "Denominator"
   for ticker, data of markets
-    if data.contract_type != "cash"
-      row = table.insertRow(-1)
-      row.insertCell(-1).innerText = ticker
-      row.insertCell(-1).innerText = data.description
-      row.insertCell(-1).innerText = data.full_description
-      row.insertCell(-1).innerText = data.contract_type
-      row.insertCell(-1).innerText = data.tick_size
-      row.insertCell(-1).innerText = data.lot_size
-      row.insertCell(-1).innerText = data.denominator
+    row = table.insertRow(-1)
+    row.insertCell(-1).innerText = ticker
+    row.insertCell(-1).innerText = data.description
+    row.insertCell(-1).innerText = data.full_description
+    row.insertCell(-1).innerText = data.contract_type
+    row.insertCell(-1).innerText = data.tick_size
+    row.insertCell(-1).innerText = data.lot_size
+    row.insertCell(-1).innerText = data.denominator
 
 generateBookTable = (book) ->
   table = document.createElement('table')
