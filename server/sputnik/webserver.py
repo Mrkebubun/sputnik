@@ -657,8 +657,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         def _cb(result):
             # TODO: Fix timestamp to return what is the in API description
-            return [True, [{'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-                            'timestamp': r[4].isoformat(), 'side': r[5], 'id': r[6]} for r in result]]
+            return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
+                            'timestamp': r[4].isoformat(), 'side': r[5], 'id': r[6]} for r in result}]
 
         return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
                                "orders.timestamp, orders.side, orders.id FROM orders, contracts " +

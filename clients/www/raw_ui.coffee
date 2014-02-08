@@ -103,7 +103,7 @@ displayOrders = (orders) ->
   header.insertCell(-1).innerText = "Side"
   header.insertCell(-1).innerText = "TimeStamp"
   header.insertCell(-1).innerText = "Id"
-  for order in orders
+  for id, order of orders
     row = table.insertRow(-1)
     row.insertCell(-1).innerText = order.contract
     row.insertCell(-1).innerText = order.price
@@ -111,7 +111,7 @@ displayOrders = (orders) ->
     row.insertCell(-1).innerText = order.quantity_left
     row.insertCell(-1).innerText = order.side
     row.insertCell(-1).innerText = order.timestamp
-    row.insertCell(-1).innerText = order.id
+    row.insertCell(-1).innerText = id
 
 # Handle emitted events
 sputnik.on "open", ->
