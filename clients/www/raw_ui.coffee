@@ -122,7 +122,7 @@ sputnik.on "positions", (positions) ->
 sputnik.on "orders", (orders) ->
   displayOrders orders
 
-sputnik.on "book_update", (markets) ->
+sputnik.on "book", (markets) ->
   displayBooks markets
 
 sputnik.on "chat", (chat_messages) ->
@@ -178,11 +178,8 @@ sputnik.on "place_order_fail", (error) ->
   @log "place order fail: #{error}"
   alert "error: #{error}"
 
-sputnik.on "cancel", (event) ->
-  @log "cancel: #{event}"
-
 sputnik.on "fill", (event) ->
   @log "fill: #{event}"
 
-sputnik.on "open_order", (event) ->
-  @log "open_order: #{event}"
+sputnik.on "order", (event) ->
+  @log "order: #{event}"

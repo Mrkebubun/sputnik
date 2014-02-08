@@ -113,7 +113,7 @@ class Accountant:
                           (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
-            self.session.add(pos)
+            self.session.add(position)
             return position
 
     def split_pair(self, pair):
@@ -177,7 +177,7 @@ class Accountant:
         logging.info("Processing transaction %s." % transaction)
 
         username = transaction["username"]
-        ticker = transaction["ticker"]
+        ticker = transaction["contract"]
         price = transaction["price"]
         signed_quantity = transaction["signed_quantity"]
 
@@ -342,7 +342,7 @@ class Accountant:
                 elif position.position < 0:
                     order["quantity"] = -position.position
                     order["side"] = 1  # buy
-                order["price"] = details["price"] #todo what's that missing details?
+                #order["price"] = details["price"] #todo what's that missing details?
                 self.place_order(order)
             session.commit()
         except:
@@ -367,7 +367,7 @@ class EngineExport:
         self.accountant = accountant
 
     @export
-    def safe_price(self, ticker, price):
+    def safe_prices(self, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export

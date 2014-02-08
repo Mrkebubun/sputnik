@@ -30,7 +30,7 @@ class window.Sputnik extends EventEmitter
     # market selection
     
     follow: (market) =>
-        @subscribe "book##{market}", @onBookUpdate
+        @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
 
@@ -255,7 +255,7 @@ class window.Sputnik extends EventEmitter
           @emit "positions", @positions
 
     getOrderBook: (ticker) =>
-      @call("get_order_book", ticker).then @onBookUpdate
+      @call("get_order_book", ticker).then @onBook
 
     # miscelaneous methods
 
@@ -341,7 +341,7 @@ class window.Sputnik extends EventEmitter
 
  
     # feeds
-    onBookUpdate: (event) =>
+    onBook: (event) =>
         books = {}
         for ticker of event
             @markets[ticker].bids =
@@ -353,7 +353,7 @@ class window.Sputnik extends EventEmitter
               bids: (@orderFromWire(order) for order in @markets[ticker].bids)
               asks: (@orderFromWire(order) for order in @markets[ticker].asks)
 
-        @emit "book_update", books
+        @emit "book", books
 
     onTrade: (trade) =>
         ticker = trade.contract
@@ -369,14 +369,16 @@ class window.Sputnik extends EventEmitter
         @emit "chat", @chat_messages
 
     onOrder: (order) =>
+      @emit "order", @orderFromWire(order)
       id = order.id
-      if id in @orders and order.cancelled
+      if id in @orders and order.is_cancelled
         delete @orders[id]
       else
         @orders[id] = @orderFromWire(order)
       @emit "orders", @orders
 
     onFill: (fill) =>
+      @emit "fill", @tradeFromWire(fill)
       [contract, source, target] = @cstFromTicker(fill.contract)
       if contract.contract_type == "cash_pair"
         order = @orders[fill.id]
@@ -391,4 +393,4 @@ class window.Sputnik extends EventEmitter
       else
         @error "only cash_pair contracts implemented in onFill"
 
-      emit @positions
+      emit "positions", @positions

@@ -40,8 +40,8 @@ class SafePricePublisher(object):
             self.safe_price = db_session.query(models.Trade).join(models.Contract).filter_by(ticker=contract_name).all()[-1].price
         except IndexError:
             self.safe_price = 42
-        accountant.safe_price(contract_name, self.safe_price)
-        webserver.safe_price(contract_name, self.safe_price)
+        accountant.safe_prices(contract_name, self.safe_price)
+        webserver.safe_prices(contract_name, self.safe_price)
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
     def onTrade(self, last_trade):
@@ -139,25 +139,31 @@ class Order(object):
         safe_price_publisher.onTrade({'price': matching_price, 'quantity': qty})
         webserver.trade(
             contract_name,
-            {'ticker': contract_name,
+            {'contract': contract_name,
              'quantity': qty,
-             'price': matching_price})
+             'price': matching_price
+             # TODO: Add timestamp
+            })
 
         for o in [self, other_order]:
             signed_qty = -o.side * qty
             accountant.post_transaction(
                 {
                     'username':o.username,
-                    'contract': o.contract,
+                    'contract': contract_name,
                     'signed_quantity': signed_qty,
                     'price': matching_price,
-                    'contract_type': db_orders[0].contract.contract_type,
-                    'ticker': contract_name,
+                    'contract_type': db_orders[0].contract.contract_type
                 }
             )
             webserver.fill(o.username,
-                {'order': o.id, 'quantity': qty, 'price': matching_price})
-            print 'test 1:  ',str({'fill': [o.username, {'order': o.id, 'quantity': qty, 'price': matching_price}]})
+                {'contract': contract_name,
+                 'id': o.id,
+                 'quantity': qty,
+                 'price': matching_price
+                 # TODO: Add timestamp
+                })
+            print 'test 1:  ',str({'fill': [o.username, {'id': o.id, 'quantity': qty, 'price': matching_price}]})
 
     def cancel(self):
         """
@@ -247,7 +253,7 @@ def publish_order_book():
     publishes the order book to be consumed by the server
     and dispatched to connected clients
     """
-    webserver.book_update(contract_name, [{"contract": o.contract, "quantity": o.quantity, "price": o.price, "side": OrderSide.name(o.side)} for o in all_orders.values()])
+    webserver.book(contract_name, [{"contract": o.contract, "quantity": o.quantity, "price": o.price, "side": OrderSide.name(o.side)} for o in all_orders.values()])
 
 
 def pretty_print_book():
@@ -291,7 +297,7 @@ class ReplaceMeWithARealEngine:
             print 'o.id:  ', o.id
             print 'order.id:  ', order_id
             print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
-            webserver.cancel(o.username, {'order': o.id})
+            webserver.order(o.username, {'id': o.id, 'is_cancelled': True})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             return False
@@ -328,23 +334,25 @@ class ReplaceMeWithARealEngine:
                 print e
 
         # if some quantity remains place it in the book
-        if order.quantity != 0:
+        if order.quantity_left != 0:
             if order.price not in book[other_side]:
                 book[other_side][order.price] = []
             book[other_side][order.price].append(order)
             all_orders[order.id] = order
             update_best(other_side)
             # publish the user's open order to their personal channel
-            webserver.open_orders(
+            webserver.order(
                 order.username,
                 {'order': order.id,
                  'quantity':order.quantity,
+                 'quantity_left': order.quantity_left,
                  'price':order.price,
                  'side': order.side,
                  'ticker':contract_name,
                  'contract_id':contract_id})
             print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
                                                              'quantity':order.quantity,
+                                                             'quantity_left':order.quantity_left,
                                                              'price':order.price,
                                                              'side': order.side,
                                                              'ticker':contract_name,

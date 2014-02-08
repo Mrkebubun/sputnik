@@ -804,13 +804,13 @@ class EngineExport:
         self.webserver = webserver
 
     @export
-    def book_update(self, ticker, book):
+    def book(self, ticker, book):
         self.webserver.all_books[ticker] = book
         self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/order_book#%s" % ticker, book)
+            self.webserver.base_uri + "/feeds/book#%s" % ticker, book)
 
     @export
-    def safe_price(self, ticker, price):
+    def safe_prices(self, ticker, price):
         self.webserver.safe_prices[ticker] = price
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/safe_prices#%s" % ticker, price)
@@ -821,20 +821,14 @@ class EngineExport:
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
 
     @export
-    def fill(self, user, order):
+    def fill(self, user, trade):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/orders#%s" % user, order)
+            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
 
     @export
-    def cancel(self, user, order):
+    def order(self, user, order):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/orders#%s" % user, order)
-
-    @export
-    def open_orders(self, user, orders):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/orders#%s" % user, orders)
-
 
 class PepsiColaServerFactory(WampServerFactory):
     """
