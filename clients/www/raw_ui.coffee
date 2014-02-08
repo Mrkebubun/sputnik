@@ -68,13 +68,13 @@ generateBookTable = (book) ->
 
   return table
 
-displayBooks = (markets) ->
+displayBooks = (books) ->
   table = $('#booksTable')[0]
   header = table.insertRow(-1)
   header.insertCell(-1).innerText = "Contract"
   header.insertCell(-1).innerText = "Bids"
   header.insertCell(-1).innerText = "Asks"
-  for ticker, data of markets
+  for ticker, data of books
     if data.contract_type != "cash"
       row = table.insertRow(-1)
       row.insertCell(-1).innerText = ticker

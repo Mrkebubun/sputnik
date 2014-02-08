@@ -253,7 +253,21 @@ def publish_order_book():
     publishes the order book to be consumed by the server
     and dispatched to connected clients
     """
-    webserver.book(contract_name, [{"contract": o.contract, "quantity": o.quantity, "price": o.price, "side": OrderSide.name(o.side)} for o in all_orders.values()])
+    published_book = { 'contract': contract_name,
+             'bids': [],
+             'asks': []
+    }
+    for price in sorted(book['bid'].iterkeys()):
+        published_book['bids'].append({ 'price': price,
+                                        'quantity': sum([x.quantity for x in book['bid'][price]])
+        })
+
+    for price in sorted(book['ask'].iterkeys(), reverse=True):
+        published_book['asks'].append({ 'price': price,
+                                        'quantity': sum([x.quantity for x in book['ask'][price]])
+        })
+
+    webserver.book(contract_name, published_book)
 
 
 def pretty_print_book():
@@ -278,14 +292,13 @@ class ReplaceMeWithARealEngine:
 
         if order_id in all_orders:
             o = all_orders[order_id]
-            side = 'ask' if o.side == OrderSide.BUY else 'bid'
-            other_side = 'bid' if o.side == OrderSide.BUY else 'ask'
-            book['bid' if o.side == OrderSide.BUY else 'ask'][o.price].remove(o)
+            side = 'bid' if o.side == OrderSide.BUY else 'ask'
+            book[side][o.price].remove(o)
             # if list is now empty, get rid of it!
-            if not book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]:
-                del book['bid' if o.side == OrderSide.BUY else 'ask'][o.price]
+            if not book[side][o.price]:
+                del book[side][o.price]
 
-            update_best(other_side)
+            update_best(side)
 
             o.cancel()
             del all_orders[order_id]

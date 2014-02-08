@@ -163,6 +163,12 @@ class window.Sputnik extends EventEmitter
       order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
       return order
 
+    bookRowFromWire: (ticker, wire_book_row) =>
+      book_row = wire_book_row
+      book_row.price = @priceFromWire(ticker, wire_book_row.price)
+      book_row.quantity = @quantityFromWire(ticker, wire_book_row.quantity)
+      return book_row
+
     tradeFromWire: (wire_trade) =>
       ticker = wire_trade.contract
       trade = wire_trade
@@ -282,9 +288,10 @@ class window.Sputnik extends EventEmitter
                 if result[0]
                     d.resolve result[1]
                 else
+                    @warn "RPC call failed: #{result[1]}"
                     d.reject result[1]
             ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
-        return d.promise
+
 
     subscribe: (topic, callback) =>
         if not @session?
@@ -341,17 +348,19 @@ class window.Sputnik extends EventEmitter
 
  
     # feeds
-    onBook: (event) =>
+    onBook: (book) =>
+        @log "book received: #{book}"
+
+        @markets[book.contract].bids = book.bids
+        @markets[book.contract].asks = book.asks
+
         books = {}
-        for ticker of event
-            @markets[ticker].bids =
-                (order for order in event[ticker] when order.side is "BUY")
-            @markets[ticker].asks =
-                (order for order in event[ticker] when order.side is "SELL")
-            books[ticker] =
-              contract: ticker
-              bids: (@orderFromWire(order) for order in @markets[ticker].bids)
-              asks: (@orderFromWire(order) for order in @markets[ticker].asks)
+        for contract, market of @markets
+          if market.contract_type != "cash"
+            books[contract] =
+              contract: contract
+              bids: @bookRowFromWire(contract, order) for order in market.bids
+              asks: @bookRowFromWire(contract, order) for order in market.asks
 
         @emit "book", books
 
