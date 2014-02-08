@@ -38,6 +38,14 @@ $('#cancelButton').click ->
 displayMarkets = (markets) ->
   # Why are we doing [0] here? This is not clear to me
   table = $('#marketsTable')[0]
+  header = table.insertRow(-1)
+  header.insertCell(-1).innerText = "Contract"
+  header.insertCell(-1).innerText = "Description"
+  header.insertCell(-1).innerText = "Full Description"
+  header.insertCell(-1).innerText = "Contract Type"
+  header.insertCell(-1).innerText = "Tick Size"
+  header.insertCell(-1).innerText = "Lot Size"
+  header.insertCell(-1).innerText = "Denominator"
   for ticker, data of markets
     if data.contract_type != "cash"
       row = table.insertRow(-1)
@@ -51,6 +59,9 @@ displayMarkets = (markets) ->
 
 generateBookTable = (book) ->
   table = document.createElement('table')
+  header = table.insertRow(-1)
+  header.insertCell(-1).innerText = "Price"
+  header.insertCell(-1).innerText = "Quantity"
   for book_row in book
     row = table.insertRow(-1)
     row.insertCell(-1).innerText = book_row.price
@@ -60,6 +71,10 @@ generateBookTable = (book) ->
 
 displayBooks = (markets) ->
   table = $('#booksTable')[0]
+  header = table.insertRow(-1)
+  header.insertCell(-1).innerText = "Contract"
+  header.insertCell(-1).innerText = "Bids"
+  header.insertCell(-1).innerText = "Asks"
   for ticker, data of markets
     if data.contract_type != "cash"
       row = table.insertRow(-1)
@@ -69,6 +84,10 @@ displayBooks = (markets) ->
 
 displayPositions = (positions) ->
   table = $('#positionsTable')[0]
+  header = table.insertRow(-1)
+  header.insertCell(-1).innerText = "Contract"
+  header.insertCell(-1).innerText = "Position"
+  header.insertCell(-1).innerText = "Reference Price"
   for id, position of positions
     row = table.insertRow(-1)
     row.insertCell(-1).innerText = position.contract
@@ -77,6 +96,14 @@ displayPositions = (positions) ->
 
 displayOrders = (orders) ->
   table = $('#ordersTable')[0]
+  header = table.insertRow(-1)
+  header.insertCell(-1).innerText = "Contract"
+  header.insertCell(-1).innerText = "Price"
+  header.insertCell(-1).innerText = "Quantity"
+  header.insertCell(-1).innerText = "Quantity Left"
+  header.insertCell(-1).innerText = "Side"
+  header.insertCell(-1).innerText = "TimeStamp"
+  header.insertCell(-1).innerText = "Id"
   for order in orders
     row = table.insertRow(-1)
     row.insertCell(-1).innerText = order.contract
