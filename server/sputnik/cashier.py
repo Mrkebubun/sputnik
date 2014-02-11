@@ -1,94 +1,150 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import logging
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
+import bitcoinrpc
 
 import config
 from zmq_util import dealer_proxy_async
-import zmq
 import models
 import database as db
-import logging
-import bitcoinrpc
 
 parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename",
-                  help="config file", default="../config/sputnik.ini")
+parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
 
-SECONDS_TO_SLEEP = 1
-MINIMUM_CONFIRMATIONS = 0
-TESTNET = config.get("cashier", "testnet")
-COLD_WALLET_ADDRESS = "bleh"  #make this a multisig?
+
+class Cashier():
+    """
+    Handles communication between the outside world of deposits and withdrawals and
+    the accountant. It does so by offering a public hook for Compropago and a private
+    hook to the bitcoin client
+    """
+    minimum_confirmations = 0
+
+    def __init__(self):
+        """
+        Initializes the cashier class by connecting to bitcoind and to the accountant
+        also sets up the db session and some configuration variables
+        """
+        self.testnet = config.get('cashier', 'testnet')
+        self.cold_wallet_address = 'xxxx'
+        self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
+        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
+        logging.info('connecting to bitcoin client')
+        self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
+        self.session = db.make_session()
+
+    def notify_accountant(self, address, total_received):
+        # tells the accountant an address has an updated "total received" amount
+        """
+        Notifies the accountant that the total received in a given address has increased
+        and that this should be reflected as a deposit
+        @param address: address where the deposit has been made
+        @param total_received: total amount received for this address
+        """
+        logging.info('notifying the accountant that %s received %d' % (address, total_received))
+        # note that this is *only* a notification to the accountant. We know at this point
+        # that this address has received *at least* total_received. It will be up to the accountant
+        # to update the "accounted_for" column to the total_received value while simulateously
+        # increasing a user's position. We might not have caught *all of the deposited* money
+        # but that can happen later and we're guaranteed to never miss a deposit in the long run
+        # or to double credit someone incorrectly. Increasing "accounted_for" and increasing
+        # the position is an atomic transaction. Cashier is *only telling* the accountant
+        # what the state of the bitcoin client is.
+        self.accountant.deposit_cash({'address': address, 'total_received': total_received})
+
+    def check_for_crypto_deposits(self, currency='btc'):
+        """
+        Checks for crypto deposits in a crypto currency that offers
+        a connection compatible with the bitcoind RPC (typically, litecoin, dogecoin...)
+        @param currency: the btc-like currency for which to check for deposits
+        """
+        logging.info('checking for deposits')
+        # first we get the confirmed deposits
+        confirmed_deposits = self.conn[currency].listreceivedbyaddress(self.minimum_confirmations)
+        # ok, so now for each address get how much was received
+        total_received = {row.address: int(row.amount * int(1e8)) for row in confirmed_deposits}
+        # but how much have we already accounted for?
+        accounted_for = {row.address: row.accounted_for for row in
+                         self.session.query(models.Addresses).filter_by(active=True)}
+
+        # so for all the addresses we're dealing with
+        for address in set(total_received.keys()).intersection(set(accounted_for.keys())):
+            # if we haven't accounted for all the deposits
+            if total_received[address] > accounted_for[address]:
+                # tell the accountant
+                self.notify_accountant(address, total_received[address])
+
+    def check_for_withdrawals(self):
+        """
+        list withdrawal requests that have been entered and processed them
+        either immediately or by pushing them to manual verification
+        @raise NotImplementedError:
+        """
+        # if the transaction is innocuous enough
+        if self.pass_safety_check(None):
+            raise NotImplementedError()
+        # otherwise tell the user he'll have to wait
+        else:
+            self.notify_pending_withdrawal()
+
+    def pass_safety_check(self, withdrawal_request):
+        """
+        @param withdrawal_request: a specific request for withdrawal, to be accepted for immediate
+                withdrawal or wait until manual validation
+        """
+        # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
+        # 2) make sure we have enough btc on hand
+        return False
 
 
-logging.basicConfig(level=logging.DEBUG)
-bitcoin_conf = config.get("cashier", "bitcoin_conf")
+    def notify_pending_withdrawal(self):
+        """
+        email notification of withdrawal pending to the user
 
-conn = bitcoinrpc.connect_to_local(bitcoin_conf)
-logging.info('connecting to bitcoin client')
-
-# push to the accountant
-accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
-
-#query the active addresses
-db_session = db.make_session()
-
-def notify_accountant(address, total_received):
-    accountant.deposit_cash({'address': address, 'total_received': total_received})
-
-def check_for_deposits():
-    logging.info('checking for deposits')
-    confirmed_deposits = conn.listreceivedbyaddress(MINIMUM_CONFIRMATIONS)
-
-    total_received = {row.address: int(row.amount * int(1e8)) for row in confirmed_deposits}
-    accounted_for = {row.address: row.accounted_for for row in
-                     db_session.query(models.Addresses).filter_by(active=True)}
-
-    for address in set(total_received.keys()).intersection(set(accounted_for.keys())):
-        if total_received[address] > accounted_for[address]:
-            notify_accountant(address, total_received[address])
-            logging.info(
-                'updating address: %s to %d from %d' % (address, total_received[address], accounted_for[address]))
-
-
-def check_for_withdrawals():
-    if safety_check():
+        @raise NotImplementedError:
+        """
         raise NotImplementedError()
-    else:
-        notify_pending_withdrawal()
-
-
-def safety_check():
-    '''
-    1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
-    2) make sure we have enough btc on hand
-    '''
-    return False
-
-
-def notify_pending_withdrawal():
-    '''
-    email notification of withdrawal pending
-    '''
-    raise NotImplementedError()
 
 
 class CompropagoHook(Resource):
+    """
+    Resource URL for compropago to give us callbacks
+    @param cashier_: instance of the cashier
+    """
     isLeaf = True
 
+    def __init__(self, cashier_):
+        Resource.__init__(self)
+        self.cashier = cashier_
+
     def render_POST(self, request):
+        """
+        Compropago will post transaction details to us
+        @param request: a json object representing the transaction details
+        @return: anything as long as it's code 200
+        """
         json_string = request.content.getvalue()
         logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
         return "OK"
 
 
 class BitcoinNotify(Resource):
+    """
+    A hook for the bitcoind client to notify us via curl or wget
+    @param cashier:
+    """
     isLeaf = True
+
+    def __init__(self, cashier_):
+        Resource.__init__(self)
+        self.cashier = cashier_
 
     def render_GET(self, request):
         """
@@ -97,16 +153,20 @@ class BitcoinNotify(Resource):
         @return: the string "OK", which isn't relevant
         """
         logging.info("Got a notification from bitcoind: %s" % request)
-        check_for_deposits()
+        self.cashier.check_for_crypto_deposits('btc')
         return "OK"
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+
+    cashier = Cashier()
 
     public_server = Resource()
-    public_server.putChild('compropago', CompropagoHook())
+    public_server.putChild('compropago', CompropagoHook(cashier))
     private_server = Resource()
-    private_server.putChild('bitcoin', BitcoinNotify())
+    private_server.putChild('bitcoin', BitcoinNotify(cashier))
+
 
     reactor.listenTCP(config.get("cashier", "public_port"), Site(public_server),
                       interface=config.get("cashier", "public_interface"))
