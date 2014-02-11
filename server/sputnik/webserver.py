@@ -460,15 +460,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         raise NotImplementedError()
 
     @exportRpc("get_new_address")
-    def get_new_address(self):
+    def get_new_address(self, currency):
         """
         assigns a new deposit address to a user and returns the address
         :return: the new address
         """
+        validate(currency, {"type": "string"})
+        currency = currency[:MAX_TICKER_LENGTH]
 
         def _get_new_address(txn, username):
             res = txn.query(
-                "SELECT id, address FROM addresses WHERE username IS NULL AND active=FALSE ORDER BY id LIMIT 1")
+                "SELECT addresses.id, addresses.address FROM addresses, contracts WHERE "
+                "addresses.username IS NULL AND addresses.active=FALSE AND addresses.currency=contracts.id "
+                "AND contracts.ticker=%s"
+                " ORDER BY id LIMIT 1", (currency,))
             if not res:
                 logging.error("Out of addresses!")
                 raise Exception("Out of addresses")
@@ -483,11 +488,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
-    def get_current_address(self):
+    def get_current_address(self, currency):
         """
         RPC call to obtain the current address associated with a particular user
         :return: said current address
         """
+        validate(currency, {"type": "string"})
+        currency = currency[:MAX_TICKER_LENGTH]
 
         def _cb(result):
             if not result:
@@ -500,7 +507,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # TODO: Update to new API
         return dbpool.runQuery(
-            "SELECT address FROM addresses WHERE username=%s AND active=TRUE ORDER BY id LIMIT 1").addCallback(_cb)
+            "SELECT addresses.address FROM addresses, contracts WHERE"
+            " username=%s AND active=TRUE AND addresses.currency=contracts.id AND contracts.ticker=%s"
+            " ORDER BY id LIMIT 1", (self.username, currency)).addCallback(_cb)
 
     @exportRpc("withdraw")
     def withdraw(self, currency, withdraw_address, amount):
@@ -646,10 +655,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize inputs:
         validate(order,
                  {"type": "object", "properties": {
-                     "contract": {"type": "string"},
-                     "price": {"type": "number"},
-                     "quantity": {"type": "number"},
-                     "side": {"type": "string"}
+                     "contract": {"type": "string", "required": True},
+                     "price": {"type": "number", "required": True},
+                     "quantity": {"type": "number", "required": True},
+                     "side": {"type": "string", "required": True}
                  }})
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
 

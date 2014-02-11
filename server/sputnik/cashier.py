@@ -1,16 +1,21 @@
 #!/usr/bin/env python
+import json
 from optparse import OptionParser
 import logging
 
-from twisted.web.resource import Resource
+from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
 from twisted.internet import reactor
+
 import bitcoinrpc
+from compropago import Compropago
 
 import config
 from zmq_util import dealer_proxy_async
 import models
 import database as db
+from jsonschema import ValidationError
+
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -39,6 +44,7 @@ class Cashier():
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
+        self.compropago = Compropago()
 
     def notify_accountant(self, address, total_received):
         # tells the accountant an address has an updated "total received" amount
@@ -103,6 +109,11 @@ class Cashier():
         # 2) make sure we have enough btc on hand
         return False
 
+    def process_compropago_payment(self, payment_info):
+        address = 'compropago_%s' % payment_info['id']
+        self.notify_accountant(address, payment_info['amount'])
+
+
 
     def notify_pending_withdrawal(self):
         """
@@ -131,7 +142,17 @@ class CompropagoHook(Resource):
         @return: anything as long as it's code 200
         """
         json_string = request.content.getvalue()
+        try:
+            payment_info = self.compropago.validate_response(json.loads(json_string))
+            self.cashier.process_compropago_payment(payment_info)
+
+
+        except ValidationError:
+            logging.error("Error in the input %s" % json_string)
+            return ErrorPage()
         logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
+
+
         return "OK"
 
 
@@ -166,7 +187,6 @@ if __name__ == '__main__':
     public_server.putChild('compropago', CompropagoHook(cashier))
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
-
 
     reactor.listenTCP(config.get("cashier", "public_port"), Site(public_server),
                       interface=config.get("cashier", "public_interface"))
