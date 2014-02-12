@@ -1,10 +1,14 @@
+from Crypto import Random
+import hashlib
+import datetime
+
 __author__ = 'satosushi'
 
 import json
 import requests
 
 from jsonschema import validate
-from jsonschema import Validator
+from Crypto.Cipher import AES
 
 
 class Charge:
@@ -26,7 +30,25 @@ class Charge:
         self.image_url = image_url
 
 
+
+    @staticmethod
+    def from_dict(x):
+        return Charge(x['price'], x['customer_name'], x['customer_email'], x['payment_type'],
+                      x['send_sms'], x['currency'], x['product_name'], x['product_id'], x['image_url'])
+
+
+
 class Compropago:
+
+    def make_public_handle(self, username):
+        iv = Random.new().read(AES.block_size)
+        return (iv + AES.new(self.aes_key, AES.MODE_CBC, iv).encrypt(self.pad(username))).encode('hex')
+
+    def parse_public_handle(self, public_handle):
+        cipher = public_handle.decode('hex')
+        return self.unpad(
+            AES.new(self.aes_key, AES.MODE_CBC, cipher[:AES.block_size]).decrypt(cipher[AES.block_size:]))
+
     base_URL = 'http://api.compropago.com'
     charge_URL = base_URL + '/v1/charges'
     headers = {'Accept': 'application/compropago+json',
@@ -34,11 +56,17 @@ class Compropago:
 
     def __init__(self, key):
         self.key = key
+        self.aes_key = hashlib.sha256('midly secret').digest()
+        self.pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
+        self.unpad = lambda s: s[0:-ord(s[-1])]
 
     def create_bill(self, charge):
+        charge.username = self.make_public_handle(charge.customer_name)
         r = requests.post(self.charge_URL,
                           data=json.dumps(charge.__dict__),
                           headers=self.headers, auth=(self.key, ''))
+
+
         return r.json()
 
 
@@ -111,13 +139,13 @@ class Compropago:
 
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
-    abtest = Compropago('sk_test_5b82f569d4833add')
-    bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
-    print bill
-    status = abtest.get_bill(bill['payment_id'])
-    print status
-    abtest.validate_response(status)
-    #print abtest.get_all()
-
+    # abtest = Compropago('sk_test_5b82f569d4833add')
+    # bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
+    # print bill
+    # status = abtest.get_bill(bill['payment_id'])
+    # print status
+    # abtest.validate_response(status)
+    # #print abtest.get_all()
+    pass
 
 

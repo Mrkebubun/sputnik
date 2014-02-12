@@ -8,6 +8,7 @@ facilitating all communications between the client, the database and the matchin
 from optparse import OptionParser
 
 import config
+import compropago
 
 
 parser = OptionParser()
@@ -189,6 +190,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def __init__(self):
         self.cookie = ""
         self.username = None
+        self.public_handle = None
         # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
         # noinspection PyPep8Naming
@@ -375,6 +377,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
         #  Pretty sure yes.
+
         self.registerForPubSub(self.base_uri + "/user/cancels#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/user/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/user/open_orders#" + self.username,
@@ -458,6 +461,30 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #else:
         #    return False
         raise NotImplementedError()
+
+    @exportRpc("make_compropago_deposit")
+    def make_compropago_deposit(self, charge):
+        """
+
+        @param charge: indication on the payment
+        """
+        validate(charge, {"type": "object", "properties":
+            {
+                "price": {"type": "int", "required": "true"},
+                "payment_type": {"type": "string", "required": "true"},
+                "sens_sms": {"type": "boolean", "required": "true"},
+                "currency": {"type": "string", "required": "true"}
+            }
+        })
+        charge['customer_name'] = self.username
+        charge['customer_email'] = ''
+        charge['product_name'] = ''
+        charge['product_id'] = ''
+        charge['image_url'] = ''
+
+        c = compropago.Charge.from_dict(charge)
+        self.factory.compropago.create_bill(c)
+
 
     @exportRpc("get_new_address")
     def get_new_address(self, currency):
@@ -777,25 +804,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
 class EngineExport:
-    def __init__(self, factory):
-        self.factory = factory
-
-    @export
-    def book_update(self, ticker, book):
-        self.factory.all_books.update(book)
-        self.factory.dispatch(
-            self.factory.base_uri + "/public/feeds/%s/book" % ticker, book)
-
-    @export
-    def safe_price(self, ticker, safe_price):
-        pass
-
-    @export
-    def trade(self, ticker, trade):
-        pass
-
-
-class EngineExport:
     def __init__(self, webserver):
         self.webserver = webserver
 
@@ -859,6 +867,8 @@ class PepsiColaServerFactory(WampServerFactory):
             config.get("accountant", "webserver_export"))
         self.administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
+
+        self.compropago = compropago.Compropago()
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
