@@ -110,10 +110,12 @@ class Cashier():
         return False
 
     def process_compropago_payment(self, payment_info):
+        """
+        received payment information from a compropago payment and processes it
+        @param payment_info: object representing a payment
+        """
         address = 'compropago_%s' % payment_info['id']
         self.notify_accountant(address, payment_info['amount'])
-
-
 
     def notify_pending_withdrawal(self):
         """
@@ -122,7 +124,6 @@ class Cashier():
         @raise NotImplementedError:
         """
         raise NotImplementedError()
-
 
 class CompropagoHook(Resource):
     """
@@ -145,8 +146,6 @@ class CompropagoHook(Resource):
         try:
             payment_info = self.compropago.validate_response(json.loads(json_string))
             self.cashier.process_compropago_payment(payment_info)
-
-
         except ValidationError:
             logging.error("Error in the input %s" % json_string)
             return ErrorPage()

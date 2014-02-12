@@ -849,9 +849,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.safe_prices = {}
         self.markets = {}
         self.chats = []
-
         self.cookies = {}
-
         self.public_interface = PublicInterface(self)
 
         self.engine_export = EngineExport(self)

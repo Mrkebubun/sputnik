@@ -2,9 +2,10 @@
 import config
 
 from optparse import OptionParser
+
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file")
+                  help="config file")
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
@@ -39,11 +40,12 @@ class Accountant:
                     models.Trade.timestamp.desc()).first()
                 self.safe_prices[contract.ticker] = int(last_trade.price)
             except:
-                logging.warning("warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
+                logging.warning(
+                    "warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
                 self.safe_prices[contract.ticker] = 42
             port = 4200 + contract.id
             self.engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" % port)
-       
+
     def get_user(self, username):
         """
         Return the User object corresponding to the username.
@@ -91,14 +93,14 @@ class Accountant:
     def get_position(self, username, contract, reference_price=0):
         """
         Return a user's position for a contact. If it does not exist,
-            initialize it. 
+            initialize it.
         :param username: the username
         :param contract: the contract ticker or id
         :param reference_price: the (optional) reference price for the position
         :return: the position object
         """
         logging.debug("Looking up position for %s on %s." %
-            (username, contract))
+                      (username, contract))
 
         user = self.get_user(username)
         contract = self.get_contract(contract)
@@ -108,7 +110,7 @@ class Accountant:
                 user=user, contract=contract).one()
         except NoResultFound:
             logging.debug("Creating new position for %s on %s." %
-                (username, contract))
+                          (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
             self.session.add(pos)
@@ -120,7 +122,7 @@ class Accountant:
         :param pair: the ticker name of the pair to split
         :return: a tuple of Contract objects
         """
-        
+
         if isinstance(pair, models.Contract):
             return self.split_pair(pair.ticker)
 
@@ -132,7 +134,7 @@ class Accountant:
             target = self.get_contract(tokens[1])
         except AccountantException:
             raise AccountantException("'%s' is not a currency pair." % pair)
-        return source, target  
+        return source, target
 
     def accept_order(self, order):
         """
@@ -149,7 +151,7 @@ class Accountant:
         cash_position = self.get_position(order.username, "BTC")
 
         logging.info("high_margin = %d, low_margin = %d, cash_position = %d" %
-            (high_margin, low_margin, cash_position.position))
+                     (high_margin, low_margin, cash_position.position))
 
         if high_margin > cash_position.position:
             # TODO replace deleting rejected orders with marking them as
@@ -178,7 +180,7 @@ class Accountant:
         ticker = transaction["ticker"]
         price = transaction["price"]
         signed_quantity = transaction["signed_quantity"]
-        
+
         contract = self.get_contract(ticker)
 
         if contract.contract_type == "futures":
@@ -217,9 +219,9 @@ class Accountant:
             from_currency, to_currency = self.split_pair(ticker)
             from_position = self.get_position(username, from_currency)
             to_position = self.get_position(username, to_currency)
-            
+
             from_delta_float = float(signed_quantity * price) / \
-                (contract.denominator * to_currency.denominator)
+                               (contract.denominator * to_currency.denominator)
             from_delta_int = int(from_delta_float)
             if from_delta_float != from_delta_int:
                 logging.error("Position change is not an integer.")
@@ -232,7 +234,7 @@ class Accountant:
 
         else:
             logging.error("Unknown contract type '%s'." %
-                contract.contract_type)
+                          contract.contract_type)
 
         session.commit()
 
@@ -244,7 +246,7 @@ class Accountant:
         :return: None
         """
         logging.info("Received request to cancel order id %d." % order_id)
-        
+
         try:
             order = session.query(models.Order).filter_by(id=order_id).one()
             return self.engines[order.contract.ticker].cancel_order(order_id)
@@ -286,42 +288,35 @@ class Accountant:
         else:
             raise Exception("Not enough margin.")
 
-    def deposit_cash(self, address, total):
+    def deposit_cash(self, address, total_received):
         """
         Deposits cash
         :param address:
-        :param total:
-        :return:
+        :param total_received:
+        :return: whether that succeeded
         """
         try:
-            print 'received', address, total
-            currency = self.btc
-
-            # sanitize inputs:
-            address = str(address)
-            total = int(total)
+            logging.log('received %d at %s' % (total_received, address))
 
             #query for db objects we want to update
             total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
-            user_cash_position = session.query(models.Position).filter_by(username=total_deposited_at_address.username,contract=currency).one()
+            user_cash_position = session.query(models.Position).filter_by(
+                username=total_deposited_at_address.username,
+                contract=total_deposited_at_address.currency).one()
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
-            print 'updating ', user_cash_position, ' to '
             user_cash_position.position += deposit
-            print user_cash_position
-            print 'with a deposit of: ',deposit
-
-            #prepare record of deposit
             total_deposited_at_address.accounted_for = total_received
-
-            session.add(total_deposited_at_address)
-            session.add(user_cash_position)
-
+            total_deposited_at_address - session.merge(total_deposited_at_address)
+            user_cash_position = session.add(user_cash_position)
             session.commit()
+
             return True
-        except NoResultFound:
+        except:
             session.rollback()
+            logging.error(
+                "Updating user position failed for address=%s and total_received=%d" % (address, total_received))
             return False
 
     def clear_contract(self, ticker):
@@ -331,23 +326,23 @@ class Accountant:
             contract.active = False
             # cancel all pending orders
             orders = session.query(models.Order).filter_by(
-                    contract=contract, is_cancelled=False).all()
+                contract=contract, is_cancelled=False).all()
             for order in orders:
                 self.cancel_order(order.id)
             # place orders on behalf of users
             positions = session.query(models.Position).filter_by(
-                    contract=contract).all()
+                contract=contract).all()
             for position in positions:
                 order = {}
                 order["username"] = position.username
                 order["contract_id"] = position.contract_id
                 if position.position > 0:
                     order["quantity"] = position.position
-                    order["side"] = 0 # sell
+                    order["side"] = 0  # sell
                 elif position.position < 0:
                     order["quantity"] = -position.position
-                    order["side"] = 1 # buy
-                order["price"] = details["price"]
+                    order["side"] = 1  # buy
+                order["price"] = details["price"] #todo what's that missing details?
                 self.place_order(order)
             session.commit()
         except:
@@ -385,8 +380,8 @@ class CashierExport:
         self.accountant = accountant
 
     @export
-    def deposit_cash(self, address, total):
-        self.accountant.deposit_cash(address, total)
+    def deposit_cash(self, address, total_received):
+        self.accountant.deposit_cash(address, total_received)
 
 
 class AdministratorExport:
@@ -396,7 +391,7 @@ class AdministratorExport:
     @export
     def clear_contract(self, ticker):
         self.accountant.clear_contract(ticker)
-    
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -411,13 +406,13 @@ if __name__ == "__main__":
     administrator_export = AdministratorExport(accountant)
 
     router_share_async(webserver_export,
-        config.get("accountant", "webserver_export"))
+                       config.get("accountant", "webserver_export"))
     pull_share_async(engine_export,
-        config.get("accountant", "engine_export"))
+                     config.get("accountant", "engine_export"))
     pull_share_async(cashier_export,
-        config.get("accountant", "cashier_export"))
+                     config.get("accountant", "cashier_export"))
     pull_share_async(administrator_export,
-        config.get("accountant", "administrator_export"))
+                     config.get("accountant", "administrator_export"))
 
     reactor.run()
 
