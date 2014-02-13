@@ -119,6 +119,6 @@ if __name__ == "__main__":
         config.get("administrator", "webserver_export"))
 
     admin_ui = AdminWebUI()
-    reactor.listenTCP(config.get("administrator", "UI_port"), Site(admin_ui), interface=config.get("administrator", "interface"))
+    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(admin_ui), interface=config.get("administrator", "interface"))
     reactor.run()
 
