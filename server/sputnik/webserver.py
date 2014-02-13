@@ -868,7 +868,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
 
-        self.compropago = compropago.Compropago()
+        self.compropago = compropago.Compropago("")
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
