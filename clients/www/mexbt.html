@@ -13,6 +13,8 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.js"></script>
     <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    <script src="min.js/EventEmitter.min.js"></script>
+    <script src="sputnik.coffee" type="text/coffeescript"></script>
     <script src="mexbt.coffee" type="text/coffeescript"></script>
     <title>MexBT Trading Platform</title>
 </head>
@@ -27,12 +29,15 @@
         		    </div>
         		    <div class="modal-body">
                     <form class="form-signin" role="form">
-                        <input type="text" class="form-control" placeholder="Username" required autofocus><br>
-                        <input type="password" class="form-control" placeholder="Password" required><br>
+                        <input type="text" class="form-control" id="login_username" placeholder="Username" required autofocus><br>
+                        <input type="password" class="form-control" id="login_password", placeholder="Password" required><br>
                         <label class="checkbox">
                             <input type="checkbox" value="remember-me"> Remember me
                         </label>
                     </form>
+                    <div class="alert alert-warning" style="display:none" id="login_error">
+                        <strong>Error!</strong> Incorrect username or password.
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="login_button"><span class="ladda-label">Login</span></button>

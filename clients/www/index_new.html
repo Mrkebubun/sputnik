@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Sputnik</title>
+
+    </head>
+    <body>
+
+        <div id="loggedInAs"></div>
+        <P>
+            <input type="text" id="login" placeholder="login">
+            <input type="password" id="password" placeholder="password">
+            <button id="loginButton" class="btn" type="button">Login</button>
+            <button id="logoutButton" class="btn" type="button">Logout</button>
+        </P>
+
+        <P>
+            <input type="text" id="registerLogin" placeholder="login">
+            <input type="password" id="registerPassword" placeholder="password">
+            <input type="text" id="registerEmail" placeholder="email">
+            <button id="registerButton" class="btn" type="button">Register</button>
+        </P>
+
+        <P>
+            Nickname: <div id="nickname"></div>
+            Email: <div id="email"></div>
+        </P>
+
+        <P>
+            <input type="text" id="newNickname" placeholder="nickname">
+            <input type="text" id="newEmail" placeholder="email">
+            <button id="changeProfileBtn" class="btn" type="button">Change Profile</button>
+        </P>
+
+        <P>
+            <textarea readonly id="chatArea" class="chatText" cols="80" rows="10"></textarea>
+        </P>
+
+        <P>
+            <input id="chatBox" class="chatInput" type="text">
+            <button id="chatButton" class="btn" type="button">Send Chat</button>
+        </P>
+
+        <P>
+            <table id="marketsTable"></table>
+        </P>
+
+        <P>
+            <table id="booksTable"></table>
+        </P>
+
+        <P>
+            <table id="positionsTable"></table>
+        </P>
+
+        <P>
+            <table id="ordersTable"></table>
+        </P>
+
+        <P>
+            <input id="ticker" type="text" placeholder="ticker">
+        </P>
+        <P>
+            <button id="cancelButton">Cancel</button>
+            <input id="orderId" type="text" placeholder="orderId">
+        </P>
+        <P>
+            <button id="sellButton">Sell</button>
+            <input id="qsell" type="text" placeholder="quantity">
+            <input id="psell" type="text" placeholder="price">
+        </P>
+
+        <P>
+            <button id="buyButton">Buy</button>
+            <input id="qbuy" type="text" placeholder="quantity">
+            <input id="pbuy" type="text" placeholder="price">
+        </P>
+
+        <script src="min.js/autobahn.min.js"></script>
+        <script src="min.js/jquery.min.js"></script>
+        <script src="min.js/bootstrap.min.js"></script>
+        <script src="min.js/jquery.qrcode.min.js"></script>
+        <script src="min.js/d3.min.js"></script>
+        <script src="min.js/crossfilter.min.js"></script>
+        <script src="min.js/dc.min.js"></script>
+        <script src="min.js/nv.d3.min.js"></script>
+        <script src="min.js/EventEmitter.min.js"></script>
+        <script type="text/javascript" src="coffee-script.js"></script>
+        <script type="text/coffeescript" src="sputnik.coffee"></script>
+        <script type="text/coffeescript" src="ui.coffee"></script>
+    </body>
+</html>

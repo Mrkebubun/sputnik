@@ -51,7 +51,7 @@ class window.Sputnik extends EventEmitter
           (result) =>
             @emit "make_account_success", result
           , (error) =>
-            @emit "make_account_error", error
+            @emit "make_account_fail", error
 
     getProfile: () =>
       @call("get_profile").then (@profile) =>
@@ -71,7 +71,7 @@ class window.Sputnik extends EventEmitter
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
-                @emit "Failed login: Could not authenticate: #{error}."
+                @wtf "Failed login: Could not authenticate: #{error}."
     
     restoreSession: (uid) =>
         if not @session?
@@ -108,7 +108,7 @@ class window.Sputnik extends EventEmitter
       @getPositions()
 
       @username = permissions.username
-      @emit "logged_in", @username
+      @emit "auth_success", @username
 
       try
         @subscribe "cancels#" + @username, @onCancel
@@ -127,8 +127,8 @@ class window.Sputnik extends EventEmitter
 
     onAuthFail: (error) =>
         @username = null
-        [code, reason] = error  
-        @emit "failed_login", error
+        [code, reason] = error
+        @emit "auth_fail", error
 
     onSessionExpired: (error) =>
         @emit "session_expired"
