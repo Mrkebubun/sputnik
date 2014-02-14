@@ -45,9 +45,9 @@ class window.Sputnik extends EventEmitter
         authextra =
             salt: salt
             iterations: 1000
-        password = salt + ":" + ab.deriveKey secret, authextra
+        password = ab.deriveKey secret, authextra
 
-        @call("make_account", username, password, email).then \
+        @call("make_account", username, password, salt, email).then \
           (result) =>
             @emit "make_account_success", result
           , (error) =>

@@ -36,7 +36,7 @@
                         </label>
                     </form>
                     <div class="alert alert-warning" style="display:none" id="login_error">
-                        <strong>Error!</strong> Incorrect username or password.
+                        Incorrect username or password.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -54,11 +54,13 @@
         		    </div>
         		    <div class="modal-body">
                     <form class="form-signin" role="form">
-                        <input type="text" class="form-control" placeholder="Username" required autofocus><br>
-                        <input type="email" class="form-control" placeholder="Email" required><br>
-                        <input type="password" class="form-control" placeholder="Password" required><br>
-                        <input type="password" class="form-control" placeholder="Nickname (for chat)"><br>
+                        <input type="text" class="form-control" id="register_username" placeholder="Username" required autofocus><br>
+                        <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
+                        <input type="password" class="form-control" id="register_password" placeholder="Password" required><br>
+                        <input type="password" class="form-control" id="register_nickname" placeholder="Nickname (for chat)"><br>
                     </form>
+                    <div class="alert alert-warning" style="display:none" id="register_error">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="register_button"><span class="ladda-label">Register</span></button>
@@ -77,6 +79,13 @@
         <li style="padding: 15px 10px; color:958881;">VWAP: <b id="vwap">51</b></li>
         <li class="pull-right"><a id="login" href="#" style="padding: 15px 10px;">Log in</a></li>
         <li class="pull-right"><a id="register" href="#" style="padding: 15px 10px;">Register</a></li>
+        <li id="account" class="dropdown pull-right" style="display:none;">
+            <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">Logged in as <b id="login_name"></b> <b class="caret"></b></a>
+            <ul class="dropdown-menu">
+                <li><a href="#">Account</a></li>
+                <li><a href="#" id="logout">Logout</a></li>
+            </ul>
+        </li>
         <li id="btc_balance" class="dropdown pull-right" style="display:none;">
             <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">BTC: <b>100</b> <b class="caret"></b></a>
             <ul class="dropdown-menu">
