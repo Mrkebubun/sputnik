@@ -184,7 +184,32 @@ class window.Sputnik extends EventEmitter
             target = @markets[ticker]
         
         return price / (source.denominator * contract.denominator)
-         
+
+    getPricePrecision: (ticker) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+        
+        return Math.log(source.denominator / contract.tick_size) / Math.LN10
+       
+    getQuantityPrecision: (ticker) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+      
+        # TODO: account for contract denominator
+        return Math.log(target.denominator / contract.lot_size) / Math.LN10
+ 
 
     # order manipulation
 
