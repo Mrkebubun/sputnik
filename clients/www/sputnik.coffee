@@ -142,7 +142,6 @@ class window.Sputnik extends EventEmitter
         contract: ticker
         side: side
       @log "placing order: #{order}"
-      @emit "place_order", order
       @call("place_order", order).then \
         (res) =>
           @emit "place_order_success", res
@@ -258,16 +257,18 @@ class window.Sputnik extends EventEmitter
     onMarkets: (@markets) =>
         for ticker of markets
             @markets[ticker].trades = []
-            @markets[ticker].bids = []
-            @markets[ticker].asks = []
+            @markets[ticker].buys = []
+            @markets[ticker].sells = []
         @emit "markets", @markets
 
  
     # public feeds Connect
     onBookUpdate: (event) =>
-        ticker = event.contract
-        @markets[ticker].bids = event.bids
-        @markets[ticker].asks = event.asks
+        for ticker of event
+            @markets[ticker].buys =
+                (order for order in event[ticker] when order.side is "BUY")
+            @markets[ticker].sells =
+                (order for order in event[ticker] when order.side is "SELL")
         @emit "book_update", @markets
 
     onTrade: (event) =>

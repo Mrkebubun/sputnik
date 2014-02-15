@@ -18,6 +18,9 @@ sputnik.on "auth_success", (username) ->
     $("#sell_panel").toggle()
     $("#orders_panel").toggle()
 
+
+    sputnik.placeOrder(1000000, 1000000, "MXN/BTC", "BUY")
+
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
     ladda.stop()
@@ -123,4 +126,10 @@ $ ->
     updateTrades sample_trades
     sputnik.connect()
 
+sputnik.on "open", () ->
+    console.log "open"
+    sputnik.getOrderBook("MXN/BTC")
 
+sputnik.on "book_update", ->
+    updateBuys ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].buys)
+    updateSells ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].sells)

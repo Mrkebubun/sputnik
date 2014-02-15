@@ -155,7 +155,7 @@ class PublicInterface:
 
         # rpc call:
         if ticker in self.factory.all_books:
-            return [True, self.factory.all_books[ticker]]
+            return [True, {ticker:self.factory.all_books[ticker]}]
         else:
             return [False, (0, "No book for %s." % ticker)]
 
