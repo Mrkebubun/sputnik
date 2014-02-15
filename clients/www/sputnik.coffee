@@ -133,8 +133,62 @@ class window.Sputnik extends EventEmitter
     onSessionExpired: (error) =>
         @emit "session_expired"
 
-    # order manipulation
+    # data conversion
+
+    quantityToWire: (ticker, quantity) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+       
+        quantity = quantity * target.denominator
+        quantity = quantity - quantity % contract.lot_size
+
+    priceToWire: (ticker, price) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+        
+        price = price * source.denominator * contract.denominator
+        price = price - price % contract.tick_size
+       
+    quantityFromWire: (ticker, quantity) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+        
+        return quantity / target.denominator
     
+    priceFromWire: (ticker, price) =>
+        contract = @markets[ticker]
+        if contract.contract_type is "cash_pair"
+            [s, t] = ticker.split("/")
+            source = @markets[s]
+            target = @markets[t]
+        else
+            source = @markets["BTC"]
+            target = @markets[ticker]
+        
+        return price / (source.denominator * contract.denominator)
+         
+
+    # order manipulation
+
+ 
     placeOrder: (quantity, price, ticker, side) =>
       order =
         quantity: quantity
@@ -262,7 +316,7 @@ class window.Sputnik extends EventEmitter
         @emit "markets", @markets
 
  
-    # public feeds Connect
+    # public feeds
     onBookUpdate: (event) =>
         for ticker of event
             @markets[ticker].buys =

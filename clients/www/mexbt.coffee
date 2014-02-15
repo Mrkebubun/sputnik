@@ -133,3 +133,4 @@ sputnik.on "open", () ->
 sputnik.on "book_update", ->
     updateBuys ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].buys)
     updateSells ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].sells)
+
