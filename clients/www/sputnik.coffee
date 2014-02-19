@@ -140,16 +140,22 @@ class window.Sputnik extends EventEmitter
             target = @markets[ticker]
         return [contract, source, target]
 
+    copy: (object) =>
+      new_object = {}
+      for key of object
+        new_object[key] = object[key]
+      return new_object
+
     positionFromWire: (wire_position) =>
       ticker = wire_position.contract
-      position = wire_position
+      position = @copy(wire_position)
       position.position = @quantityFromWire(ticker, wire_position.position)
       position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
       return position
 
     orderToWire: (order) =>
       ticker = order.contract
-      wire_order = order
+      wire_order = @copy(order)
       wire_order.price = @priceToWire(ticker, order.price)
       wire_order.quantity = @quantityToWire(ticker, order.quantity)
       wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
@@ -157,21 +163,21 @@ class window.Sputnik extends EventEmitter
 
     orderFromWire: (wire_order) =>
       ticker = wire_order.contract
-      order = wire_order
+      order = @copy(wire_order)
       order.price = @priceFromWire(ticker, wire_order.price)
       order.quantity = @quantityFromWire(ticker, wire_order.quantity)
       order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
       return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
-      book_row = wire_book_row
+      book_row = @copy(wire_book_row)
       book_row.price = @priceFromWire(ticker, wire_book_row.price)
       book_row.quantity = @quantityFromWire(ticker, wire_book_row.quantity)
       return book_row
 
     tradeFromWire: (wire_trade) =>
       ticker = wire_trade.contract
-      trade = wire_trade
+      trade = @copy(wire_trade)
       trade.price = @priceFromWire(ticker, wire_trade.price)
       trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
       return trade
@@ -242,23 +248,23 @@ class window.Sputnik extends EventEmitter
     getSafePrices: () =>
     getOpenOrders: () =>
       @call("get_open_orders").then \
-        (orders) =>
+        (@orders) =>
           @log("orders received: #{orders}")
-          @orders = {}
-          for id, order of orders
-            @orders[id] = @orderFromWire(order)
+          orders = {}
+          for id, order of @orders
+            orders[id] = @orderFromWire(order)
 
-          @emit "orders", @orders
+          @emit "orders", orders
 
     getPositions: () =>
       @call("get_positions").then \
-        (wire_positions) =>
-          @log("positions received: #{wire_positions}")
-          @positions = {}
-          for ticker, position of wire_positions
-            @positions[ticker] = @positionFromWire(position)
+        (@positions) =>
+          @log("positions received: #{@positions}")
+          positions = {}
+          for ticker, position of @positions
+            positions[ticker] = @positionFromWire(position)
 
-          @emit "positions", @positions
+          @emit "positions", positions
 
     getOrderBook: (ticker) =>
       @call("get_order_book", ticker).then @onBook
@@ -377,29 +383,39 @@ class window.Sputnik extends EventEmitter
         @log "Chat: #{user}: #{message}"
         @emit "chat", @chat_messages
 
+    # My orders get updated with orders
     onOrder: (order) =>
       @emit "order", @orderFromWire(order)
+
       id = order.id
       if id in @orders and order.is_cancelled
         delete @orders[id]
       else
-        @orders[id] = @orderFromWire(order)
-      @emit "orders", @orders
+        @orders[id] = order
 
+      orders = {}
+      for id, order of @orders
+        orders[id] = @orderFromWire(order)
+
+      @emit "orders", orders
+
+    # My positions and available margin get updated with fills
     onFill: (fill) =>
       @emit "fill", @tradeFromWire(fill)
       [contract, source, target] = @cstFromTicker(fill.contract)
       if contract.contract_type == "cash_pair"
         order = @orders[fill.id]
-        quantity = @quantityFromWire(fill.contract, fill.quantity)
-        price = @priceFromWire(fill.contract, fill.price)
         if order.side = "SELL"
           sign = -1
         else
           sign = 1
-        @positions[source.ticker] -= quantity * price * sign
-        @positions[target.ticker] += quantity * sign
+        @positions[source.ticker] -= fill.quantity * fill.price * sign
+        @positions[target.ticker] += fill.quantity * sign
       else
         @error "only cash_pair contracts implemented in onFill"
 
-      emit "positions", @positions
+      positions = {}
+      for ticker, position of @positions
+        positions[ticker] = @positionFromWire(position)
+
+      emit "positions", positions

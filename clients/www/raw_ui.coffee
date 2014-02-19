@@ -34,10 +34,15 @@ $('#buyButton').click ->
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
 
+clearTable = (table) ->
+  while table.hasChildNodes()
+    table.removeChild(table.firstChild)
+
 # UI functions
 displayMarkets = (markets) ->
   # Why are we doing [0] here? This is not clear to me
   table = $('#marketsTable')[0]
+  clearTable(table)
   header = table.insertRow(-1)
   header.insertCell(-1).innerText = "Contract"
   header.insertCell(-1).innerText = "Description"
@@ -68,8 +73,10 @@ generateBookTable = (book) ->
 
   return table
 
+
 displayBooks = (books) ->
   table = $('#booksTable')[0]
+  clearTable(table)
   header = table.insertRow(-1)
   header.insertCell(-1).innerText = "Contract"
   header.insertCell(-1).innerText = "Bids"
@@ -83,6 +90,7 @@ displayBooks = (books) ->
 
 displayPositions = (positions) ->
   table = $('#positionsTable')[0]
+  clearTable(table)
   header = table.insertRow(-1)
   header.insertCell(-1).innerText = "Contract"
   header.insertCell(-1).innerText = "Position"
@@ -95,6 +103,7 @@ displayPositions = (positions) ->
 
 displayOrders = (orders) ->
   table = $('#ordersTable')[0]
+  clearTable(table)
   header = table.insertRow(-1)
   header.insertCell(-1).innerText = "Contract"
   header.insertCell(-1).innerText = "Price"
@@ -117,7 +126,7 @@ displayOrders = (orders) ->
 sputnik.on "open", ->
     # Attempt a cookie login
     cookie = document.cookie
-    @log "cookie: #{cookie}"
+    sputnik.log "cookie: #{cookie}"
     if cookie
         parts = cookie.split("=", 2)[1].split(":", 2)
         name = parts[0]
@@ -158,26 +167,26 @@ sputnik.on "chat", (chat_messages) ->
 sputnik.on "auth_success", (username) ->
     if with_cookie.value
       sputnik.getCookie()
-    @log "username: " + username
+    sputnik.log "username: " + username
     $('#loggedInAs').text("Logged in as " + username)
 
 sputnik.on "cookie", (uid) ->
-  @log "cookie: " + uid
+  sputnik.log "cookie: " + uid
   document.cookie = "login" + "=" + login.value + ":" + uid
 
 sputnik.on "auth_fail", (error) ->
-  @error "login error: #{error.desc}"
+  sputnik.error "login error: #{error.desc}"
   alert "login error: #{error.desc}"
   document.cookie = ""
 
 sputnik.on "profile", (profile) ->
-  @log "profile: " + profile.nickname + " " + profile.email
+  sputnik.log "profile: " + profile.nickname + " " + profile.email
   $('#nickname').text(profile.nickname)
   $('#email').text(profile.email)
 
 sputnik.on "error", (error) ->
     # There was a serious error. It is probably best to reconnect.
-    @error "GUI: #{error}"
+    sputnik.error "GUI: #{error}"
     alert error
     sputnik.close()
 
@@ -186,26 +195,42 @@ sputnik.on "make_account_success", (username) ->
   alert "account creation success: #{username}"
 
 sputnik.on "make_account_fail", (error) ->
-  @error "make_account_fail: #{error}"
+  sputnik.error "make_account_fail: #{error}"
   alert "account creation failed: #{error}"
 
 sputnik.on "logout", () ->
-  @log "loggedout"
+  sputnik.log "loggedout"
   $('#loggedInAs').text('Not logged in')
 
 sputnik.on "place_order", () ->
-  @log "GUI: placing order"
+  sputnik.log "GUI: placing order"
 
 sputnik.on "place_order_success", (res) ->
-  @log "place order success: #{res.desc}"
+  sputnik.log "place order success: #{res.desc}"
   alert "success: #{res.desc}"
 
 sputnik.on "place_order_fail", (error) ->
-  @log "place order fail: #{error}"
+  sputnik.log "place order fail: #{error}"
   alert "error: #{error}"
 
-sputnik.on "fill", (event) ->
-  @log "fill: #{event}"
+# feedLog
+sputnik.on "fill", (trade) ->
+  sputnik.log "fill: #{trade}"
+  table = $('#feedLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "Fill"
+  row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} id: #{trade.id} timestamp: #{trade.timestamp}"
 
-sputnik.on "order", (event) ->
-  @log "order: #{event}"
+sputnik.on "order", (order) ->
+  sputnik.log "order: #{order}"
+  table = $('#feedLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "Order"
+  row.insertCell(-1).innerText = "contract: #{order.contract} price: #{order.price} quantity: #{order.quantity} quantity_left: #{order.quantity_left} side: #{order.side} timestamp: #{order.timestamp} is_cancelled: #{order.is_cancelled}"
+
+sputnik.on "trade", (trade) ->
+  sputnik.log "trade: #{trade}"
+  table = $('#feedLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "Trade"
+  row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} timestamp: #{trade.timestamp}"
