@@ -356,20 +356,24 @@ class ReplaceMeWithARealEngine:
             # publish the user's open order to their personal channel
             webserver.order(
                 order.username,
-                {'order': order.id,
+                {'id': order.id,
                  'quantity':order.quantity,
                  'quantity_left': order.quantity_left,
                  'price':order.price,
-                 'side': order.side,
-                 'ticker':contract_name,
-                 'contract_id':contract_id})
-            print 'test 3:  ',str({'open_orders': [order.username,{'order': order.id,
+                 'side': OrderSide.name(order.side),
+                 'contract':contract_name,
+                 # TODO: is hardcoding 'False' in here correct?
+                 'is_cancelled':False
+                 # TODO: Add timestamp
+                })
+            print 'test 3:  ',str({'order': [order.username,{'id': order.id,
                                                              'quantity':order.quantity,
                                                              'quantity_left':order.quantity_left,
                                                              'price':order.price,
-                                                             'side': order.side,
-                                                             'ticker':contract_name,
-                                                             'contract_id':contract_id}]})
+                                                             'side': OrderSide.name(order.side),
+                                                             'contract':contract_name,
+                                                             'is_cancelled':False
+                                                             }]})
 
         # done placing the order, publish the order book
         logging.info(pretty_print_book())
