@@ -254,7 +254,8 @@ class window.Sputnik extends EventEmitter
           @log("orders received: #{orders}")
           orders = {}
           for id, order of @orders
-            orders[id] = @orderFromWire(order)
+            if order.quantity_left > 0
+              orders[id] = @orderFromWire(order)
 
           @emit "orders", orders
 
