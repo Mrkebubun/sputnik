@@ -388,7 +388,7 @@ class window.Sputnik extends EventEmitter
       @emit "order", @orderFromWire(order)
 
       id = order.id
-      if id of @orders and order.is_cancelled
+      if id of @orders and (order.is_cancelled or order.quantity_left == 0)
         delete @orders[id]
       else
         @orders[id] = order
@@ -404,8 +404,7 @@ class window.Sputnik extends EventEmitter
       @emit "fill", @tradeFromWire(fill)
       [contract, source, target] = @cstFromTicker(fill.contract)
       if contract.contract_type == "cash_pair"
-        order = @orders[fill.id]
-        if order.side = "SELL"
+        if fill.side = "SELL"
           sign = -1
         else
           sign = 1

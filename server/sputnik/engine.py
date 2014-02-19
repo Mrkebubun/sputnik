@@ -77,6 +77,7 @@ class Order(object):
         self.username = username
         self.contract = contract
         self.quantity = quantity
+        self.quantity_left = quantity
         self.price = price
         self.side = side
 
@@ -102,25 +103,25 @@ class Order(object):
         assert self.matchable(other_order)
         assert other_order.price == matching_price
 
-        qty = min(self.quantity, other_order.quantity)
+        quantity = min(self.quantity_left, other_order.quantity_left)
         print "Order", self, "matched to", other_order
 
-        self.quantity -= qty
-        other_order.quantity -= qty
+        self.quantity_left -= quantity
+        other_order.quantity_left -= quantity
 
-        assert self.quantity >= 0
-        assert other_order.quantity >= 0
+        assert self.quantity_left >= 0
+        assert other_order.quantity_left >= 0
 
         #begin db code
         db_orders = [db_session.query(models.Order).filter_by(id=oid).one()
                      for oid in [self.id, other_order.id]]
 
         for i in [0, 1]:
-            db_orders[i].quantity_left -= qty
+            db_orders[i].quantity_left -= quantity
             db_orders[i] = db_session.merge(db_orders[i])
 
-        assert db_orders[0].quantity_left == self.quantity
-        assert db_orders[1].quantity_left == other_order.quantity
+        assert db_orders[0].quantity_left == self.quantity_left
+        assert db_orders[1].quantity_left == other_order.quantity_left
 
 
         # case of futures
@@ -128,7 +129,7 @@ class Order(object):
         # potentially inefficient, but premature optimization is never a good idea
 
 
-        trade = models.Trade(db_orders[0], db_orders[1], matching_price, qty)
+        trade = models.Trade(db_orders[0], db_orders[1], matching_price, quantity)
         db_session.add(trade)
 
         #commit db
@@ -136,34 +137,45 @@ class Order(object):
         print "db committed."
         #end db code
 
-        safe_price_publisher.onTrade({'price': matching_price, 'quantity': qty})
+        safe_price_publisher.onTrade({'price': matching_price, 'quantity': quantity})
         webserver.trade(
             contract_name,
             {'contract': contract_name,
-             'quantity': qty,
+             'quantity': quantity,
              'price': matching_price
              # TODO: Add timestamp
             })
 
         for o in [self, other_order]:
-            signed_qty = -o.side * qty
+            signed_quantity = -o.side * quantity
             accountant.post_transaction(
                 {
                     'username':o.username,
                     'contract': contract_name,
-                    'signed_quantity': signed_qty,
+                    'signed_quantity': signed_quantity,
                     'price': matching_price,
                     'contract_type': db_orders[0].contract.contract_type
                 }
             )
+            # Send an order update and a fill message
+            webserver.order(o.username,
+                {'contract': contract_name,
+                 'id': o.id,
+                 'quantity': o.quantity,
+                 'quantity_left': o.quantity_left,
+                 'price': o.price,
+                 'side': OrderSide.name(o.side)
+                 # TODO: Add timestamp
+                 })
             webserver.fill(o.username,
                 {'contract': contract_name,
                  'id': o.id,
-                 'quantity': qty,
-                 'price': matching_price
+                 'quantity': quantity,
+                 'price': matching_price,
+                 'side': OrderSide.name(o.side)
                  # TODO: Add timestamp
                 })
-            print 'test 1:  ',str({'fill': [o.username, {'id': o.id, 'quantity': qty, 'price': matching_price}]})
+            print 'test 1:  ',str({'fill': [o.username, {'contract': contract_name, 'id': o.id, 'quantity': quantity, 'price': matching_price}]})
 
     def cancel(self):
         """
@@ -222,11 +234,6 @@ contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).
 CONNECTOR_PORT = config.getint("engine", "base_port") + contract_id
 
 
-# first cancel all old pending orders
-for order in db_session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
-    order.is_cancelled = True
-    db_session.merge(order)
-db_session.commit()
 
 
 
@@ -247,6 +254,16 @@ safe_price_forwarder.connect(config.get("safe_price_forwarder", "zmq_frontend_ad
 all_orders = {}
 book = {'bid': {}, 'ask': {}}
 best = {'bid': None, 'ask': None}
+
+# first cancel all old pending orders
+for order in db_session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
+    order.is_cancelled = True
+    db_session.merge(order)
+    # Tell the users that their order has been cancelled
+    webserver.order(order.username, {'id': order.id, 'is_cancelled': True, 'contract': contract_name})
+
+db_session.commit()
+
 
 def publish_order_book():
     """
@@ -330,17 +347,17 @@ class ReplaceMeWithARealEngine:
         other_side = 'bid' if order.side == OrderSide.BUY else 'ask'
 
         # while we can dig in the other side, do so and be executed
-        while order.quantity > 0 and best[side] and order.better(best[side]):
+        while order.quantity_left > 0 and best[side] and order.better(best[side]):
             try:
                 book_order_list = book[side][best[side]]
                 for book_order in book_order_list:
                     order.match(book_order, book_order.price)
-                    if book_order.quantity == 0:
+                    if book_order.quantity_left == 0:
                         book_order_list.remove(book_order)
                         del all_orders[book_order.id]
                         if not book_order_list:
                             del book[side][best[side]]
-                    if order.quantity == 0:
+                    if order.quantity_left == 0:
                         break
                 update_best(side)
             except KeyError as e:
