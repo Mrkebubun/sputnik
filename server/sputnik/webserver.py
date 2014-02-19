@@ -693,15 +693,22 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             tick_size = result[0][0]
             lot_size = result[0][1]
 
-            # coerce tick size and lot size
-
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
+
+            # Check for zero price or quantity
+            if order["price"] == 0 or order["quantity"] == 0:
+                return [False, (0, "invalid price or quantity")]
+
+            # coerce tick size and lot size
+
+
             if order["price"] % tick_size != 0 \
                     or order["quantity"] % lot_size != 0 \
                     or order["price"] < 0 \
                     or order["quantity"] < 0:
                 return [False, (0, "invalid price or quantity")]
+
 
             order['username'] = self.username
 
