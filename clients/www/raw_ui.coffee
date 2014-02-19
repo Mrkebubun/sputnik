@@ -48,48 +48,50 @@ uniqueId = (length=8) ->
 # Execute some extensive tests -- this doesn't work.
 #
 $('#testButton').click ->
-  # First logout
-  sputnik.logout()
-  sputnik.connect()
-
   # Login Test
-  testMessage "TEST: Logging in testuser1"
-  sputnik.authenticate('testuser1', 'testuser1')
+  sputnik.once "open", ->
+    testMessage "TEST: Logging in testuser1"
+    sputnik.authenticate('testuser1', 'testuser1')
 
-  # Place a sell order
-  testMessage "TEST: Placing sell order"
-  sputnik.placeOrder(10, 10, 'MXN/BTC', 'SELL')
+    sputnik.once "auth_success", (username) ->
+      # Place a sell order
+      testMessage "TEST: Placing sell order"
+      sputnik.placeOrder(10, 10, 'MXN/BTC', 'SELL')
 
-  # Place a buy order
-  testMessage "TEST: Placing buy order"
-  sputnik.placeOrder(10, 1, 'MXN/BTC', 'BUY')
+      # Place a buy order
+      testMessage "TEST: Placing buy order"
+      sputnik.placeOrder(10, 1, 'MXN/BTC', 'BUY')
 
-  # Logout
-  testMessage "TEST: Logging out"
+      sputnik.once "logout", ->
+        sputnik.once "make_account_success", (username) ->
+          sputnik.once "auth_success", (username) ->
+            # Login as other user to do trades with
+            testMessage "TEST: Logging in testuser2"
+            sputnik.authenticate('testuser2', 'testuser2')
+
+            testMessage "TEST: Placing a bunch of orders"
+            sputnik.placeOrder(1, 10, 'MXN/BTC', 'BUY')
+            sputnik.placeOrder(1, 11, 'MXN/BTC', 'BUY')
+            sputnik.placeOrder(1, 9, 'MXN/BTC', 'BUY')
+            sputnik.placeOrder(1, 2, 'MXN/BTC', 'SELL')
+            sputnik.placeOrder(1, 1, 'MXN/BTC', 'SELL')
+            sputnik.placeOrder(1, 0.5, 'MXN/BTC', 'SELL')
+
+            testMessage "TEST: Logging out"
+            sputnik.logout()
+          sputnik.authenticate(username, username)
+
+        user_id = uniqueId()
+        testMessage "TEST: Creating user: #{user_id}"
+        sputnik.makeAccount(user_id, user_id, user_id + "@m2.io")
+
+      testMessage "TEST: Logging out"
+      sputnik.logout()
+
+  sputnik.once "logout", ->
+    sputnik.connect()
+
   sputnik.logout()
-
-  # Create a new user test
-  user_id = uniqueId()
-  testMessage "TEST: Creating user: #{user_id}"
-  sputnik.makeAccount(user_id, user_id, user_id + "@m2.io")
-
-  # Login as other user to do trades with
-  testMessage "TEST: Logging in testuser2"
-  sputnik.authenticate('testuser2', 'testuser2')
-
-  testMessage "TEST: Placing a bunch of orders"
-  sputnik.placeOrder(1, 10, 'MXN/BTC', 'BUY')
-  sputnik.placeOrder(1, 11, 'MXN/BTC', 'BUY')
-  sputnik.placeOrder(1, 9, 'MXN/BTC', 'BUY')
-  sputnik.placeOrder(1, 2, 'MXN/BTC', 'SELL')
-  sputnik.placeOrder(1, 1, 'MXN/BTC', 'SELL')
-  sputnik.placeOrder(1, 0.5, 'MXN/BTC', 'SELL')
-
-  testMessage "TEST: Logging out"
-  sputnik.logout()
-
-
-
 
 clearTable = (table) ->
   while table.hasChildNodes()
