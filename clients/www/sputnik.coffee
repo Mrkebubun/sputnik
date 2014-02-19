@@ -388,7 +388,7 @@ class window.Sputnik extends EventEmitter
       @emit "order", @orderFromWire(order)
 
       id = order.id
-      if id in @orders and order.is_cancelled
+      if id of @orders and order.is_cancelled
         delete @orders[id]
       else
         @orders[id] = order
