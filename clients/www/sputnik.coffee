@@ -413,8 +413,8 @@ class window.Sputnik extends EventEmitter
           sign = -1
         else
           sign = 1
-        @positions[source.ticker] -= fill.quantity * fill.price * sign
-        @positions[target.ticker] += fill.quantity * sign
+        @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
+        @positions[target.ticker].position += fill.quantity * sign
       else
         @error "only cash_pair contracts implemented in onFill"
 
@@ -422,4 +422,4 @@ class window.Sputnik extends EventEmitter
       for ticker, position of @positions
         positions[ticker] = @positionFromWire(position)
 
-      emit "positions", positions
+      @emit "positions", positions
