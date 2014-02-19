@@ -80,7 +80,7 @@ $('#testButton').click ->
   testMessage "TEST: Placing a bunch of orders"
   sputnik.placeOrder(1, 10, 'MXN/BTC', 'BUY')
   sputnik.placeOrder(1, 11, 'MXN/BTC', 'BUY')
-  sputnik.placeOrder(1, 9, MXN/BTC', 'BUY')
+  sputnik.placeOrder(1, 9, 'MXN/BTC', 'BUY')
   sputnik.placeOrder(1, 2, 'MXN/BTC', 'SELL')
   sputnik.placeOrder(1, 1, 'MXN/BTC', 'SELL')
   sputnik.placeOrder(1, 0.5, 'MXN/BTC', 'SELL')
