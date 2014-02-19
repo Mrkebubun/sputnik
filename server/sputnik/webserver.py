@@ -379,6 +379,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #  Pretty sure yes.
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
     @exportRpc("get_cookie")
