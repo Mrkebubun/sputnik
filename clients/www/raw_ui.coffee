@@ -58,11 +58,11 @@ $('#testButton').click ->
 
   # Place a sell order
   testMessage "TEST: Placing sell order"
-  sputnik.place_order(10, 10, 'SELL', 'MXN/BTC')
+  sputnik.placeOrder(10, 10, 'MXN/BTC', 'SELL')
 
   # Place a buy order
   testMessage "TEST: Placing buy order"
-  sputnik.place_order(10, 1, 'BUY', 'MXN/BTC')
+  sputnik.placeOrder(10, 1, 'MXN/BTC', 'BUY')
 
   # Logout
   testMessage "TEST: Logging out"
@@ -78,12 +78,12 @@ $('#testButton').click ->
   sputnik.authenticate('testuser2', 'testuser2')
 
   testMessage "TEST: Placing a bunch of orders"
-  sputnik.place_order(1, 10, 'BUY', 'MXN/BTC')
-  sputnik.place_order(1, 11, 'BUY', 'MXN/BTC')
-  sputnik.place_order(1, 9, 'BUY', 'MXN/BTC')
-  sputnik.place_order(1, 2, 'SELL', 'MXN/BTC')
-  sputnik.place_order(1, 1, 'SELL', 'MXN/BTC')
-  sputnik.place_order(1, 0.5, 'SELL', 'MXN/BTC')
+  sputnik.placeOrder(1, 10, 'MXN/BTC', 'BUY')
+  sputnik.placeOrder(1, 11, 'MXN/BTC', 'BUY')
+  sputnik.placeOrder(1, 9, MXN/BTC', 'BUY')
+  sputnik.placeOrder(1, 2, 'MXN/BTC', 'SELL')
+  sputnik.placeOrder(1, 1, 'MXN/BTC', 'SELL')
+  sputnik.placeOrder(1, 0.5, 'MXN/BTC', 'SELL')
 
   testMessage "TEST: Logging out"
   sputnik.logout()
