@@ -184,7 +184,7 @@ sputnik.on "profile", (profile) ->
   $('#nickname').text(profile.nickname)
   $('#email').text(profile.email)
 
-sputnik.on "error", (error) ->
+sputnik.on "wtf", (error) ->
     # There was a serious error. It is probably best to reconnect.
     sputnik.error "GUI: #{error}"
     alert error
@@ -234,3 +234,18 @@ sputnik.on "trade", (trade) ->
   row = table.insertRow(-1)
   row.insertCell(-1).innerText = "Trade"
   row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} timestamp: #{trade.timestamp}"
+
+sputnik.on "log", (obj) ->
+  table = $('#debugLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "log: #{obj}"
+
+sputnik.on "warn", (obj) ->
+  table = $('#debugLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "warn: #{obj}"
+
+sputnik.on "error", (obj) ->
+  table = $('#debugLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = "error: #{obj}"

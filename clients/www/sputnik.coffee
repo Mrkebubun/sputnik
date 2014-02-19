@@ -319,12 +319,18 @@ class window.Sputnik extends EventEmitter
         @session.publish "#{@uri}/feeds/#{topic}", message
 
     # logging
-    log: (obj) -> console.log obj
-    warn: (obj) -> console.warn obj
-    error: (obj) -> console.error obj
+    log: (obj) =>
+      console.log obj
+      @emit "log", obj
+    warn: (obj) ->
+      console.warn obj
+      @emit "warn", obj
+    error: (obj) ->
+      console.error obj
+      @emit "error", obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
-        @emit "error", obj
+        @emit "wtf", obj
 
     # connection events
     onOpen: (@session) =>
