@@ -94,6 +94,8 @@ class window.Sputnik extends EventEmitter
         @call "logout"
         @close()
         @emit "logout"
+        # Reconnect after logout
+        @connect()
 
     getCookie: () =>
       @call("get_cookie").then \
