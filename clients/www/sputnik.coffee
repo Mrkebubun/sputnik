@@ -295,10 +295,10 @@ class window.Sputnik extends EventEmitter
                     @warn "RPC Warning: sputnik protocol violation in #{method}"
                     return d.resolve result
                 if result[0]
-                    d.resolve result[1]
+                    return d.resolve result[1]
                 else
                     @warn "RPC call failed: #{result[1]}"
-                    d.reject result[1]
+                    return d.reject result[1]
             ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
 
 
