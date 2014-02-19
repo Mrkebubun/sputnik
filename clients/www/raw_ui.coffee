@@ -219,7 +219,7 @@ sputnik.on "fill", (trade) ->
   table = $('#feedLog')[0]
   row = table.insertRow(-1)
   row.insertCell(-1).innerText = "Fill"
-  row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} id: #{trade.id} timestamp: #{trade.timestamp}"
+  row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} side: #{trade.side} id: #{trade.id} timestamp: #{trade.timestamp}"
 
 sputnik.on "order", (order) ->
   sputnik.log "order: #{order}"
