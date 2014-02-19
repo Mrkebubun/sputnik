@@ -7,25 +7,16 @@ from twisted.internet import reactor, ssl
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
 
-base_uri = "http://example.com/"
-trade_URI = base_uri + "trades#"
-safe_price_URI = base_uri + "safe_prices#"
-order_book_URI = base_uri + "order_book#"
-
-fills_URI = base_uri + "user/fills#";
-cancels_URI = base_uri + "user/cancels#";
-open_orders_URI = base_uri + "user/open_orders#";
-
 class TradingBot(WampCraClientProtocol):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
    """
 
-    def __init__(self):
-        self.base_URI = "http://example.com/procedures/"
-        self.user = 'new'
-        self.psswd = 'new'
+    def __init__(self, username, password, base_uri="ws://localhost:8000"):
+        self.base_uri = base_uri
+        self.username = username
+        self.password = password
 
     def action(self):
         '''
@@ -44,9 +35,9 @@ class TradingBot(WampCraClientProtocol):
 
         ## authenticate as "foobar" with password "secret"
         ##
-        d = self.authenticate(authKey=self.user,
+        d = self.authenticate(authKey=self.username,
                               authExtra=None,
-                              authSecret=self.psswd)
+                              authSecret=self.password)
 
         d.addCallbacks(self.onAuthSuccess, self.onAuthError)
 
@@ -56,99 +47,86 @@ class TradingBot(WampCraClientProtocol):
     def onAuthSuccess(self, permissions):
         print "Authentication Success!", permissions
 
-        self.subToTradeStream(16)
-        self.subToTradeStream(17)
-        self.subOpenOrders(8)
-        self.subOpenOrders(16)
-        self.subOpenOrders(17)
-        self.subCancels(8)
-        self.subCancels(16)
-        self.subCancels(17)
-        self.subFills(8)
-        self.subFills(16)
-        self.subFills(17)
-        self.subToSafePrices('USD.13.7.31')
-        self.subToSafePrices(8)
-        self.subToSafePrices(16)
-        self.subToSafePrices(17)
-        self.subToOrderBook('USD.13.7.31')
-
         self.action()
-        #self.publish("http://example.com/topics/mytopic1", "Hello, world!")
-        #self.sendClose()
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
         print "Authentication Error!", uri, desc, details
 
-    def onOrderBook(self, topicUri, event):
+    def onBook(self, topicUri, event):
         """
         overwrite me
         """
-        print "in onOrderBook"
-        print "Event", topicUri, event
+        print "Book: ", topicUri, event
 
     def onTrade(self, topicUri, event):
         """
         overwrite me
         """
-        print "in onTrade"
-        print "Event", topicUri, event
+        print "Trade: ", topicUri, event
 
     def onSafePrice(self, topicUri, event):
         """
         overwrite me
         """
-        print "in onSafePriceg"
-        print "Event", topicUri, event
+        print "SafePrice", topicUri, event
 
-    def onOpenOrder(self, topicUri, event):
+    def onOrder(self, topicUri, event):
         """
         overwrite me
         """
-        print "in onOpenOrder"
-        print "Event", topicUri, event
-
-    def onCancel(self, topicUri, event):
-        """
-        overwrite me
-        """
-        print "in onCancel"
-        print "Event", topicUri, event
+        print "Order", topicUri, event
 
     def onFill(self, topicUri, event):
         """
         overwrite me
         """
-        print "in onFill"
-        print "Event", topicUri, event
+        print "Fill", topicUri, event
 
     """
     Subscriptions
     """
-    def subOpenOrders(self,ticker):
-       self.subscribe(open_orders_URI + str(ticker), self.onOpenOrder) 
-       print 'subscribed to: ',open_orders_URI 
+    def subOrders(self):
+        uri = "%s/feeds/orders#%s" % (self.base_uri, self.username)
+        self.subscribe(uri, self.onOrder)
+        print 'subscribed to: ', uri
 
-    def subCancels(self,ticker):
-       self.subscribe(cancels_URI + str(ticker), self.onCancel) 
-       print 'subscribed to: ', cancels_URI
+    def subFills(self):
+        uri = "%s/feeds/fills#%s" % (self.base_uri, self.username)
+        self.subscribe(uri, self.onFill)
+        print 'subscribed to: ', uri
 
-    def subFills(self,ticker):
-       self.subscribe(fills_URI + str(ticker), self.onFill) 
-       print 'subscribed to: ', fills_URI
+    def subBook(self, ticker):
+        uri = "%s/feeds/book#%s" % (self.base_uri, ticker)
+        self.subscribe(uri, self.onOrderBook)
+        print 'subscribed to: ', uri
 
-    def subToOrderBook(self,ticker):
-       self.subscribe(order_book_URI + str(ticker), self.onOrderBook) 
-       print order_book_URI
+    def subTrades(self, ticker):
+        uri = "%s/feeds/trades#%s" % (self.base_uri, ticker)
+        self.subscribe(uri, self.onTrade)
+        print 'subscribed to: ', uri
 
-    def subToTradeStream(self,ticker):
-       self.subscribe(trade_URI + str(ticker), self.onTrade) 
-       print trade_URI + str(ticker)
+    def subSafePrices(self, ticker):
+        uri = "%s/feeds/safe_prices#%s" % (self.base_uri, ticker)
+        self.subscribe(uri, self.onSafePrice)
+        print 'subscribed to: ', uri
 
-    def subToSafePrices(self,ticker):
-       self.subscribe(safe_price_URI + str(ticker), self.onSafePrice) 
-       print safe_price_URI + str(ticker)
+    """
+    RPC call wrapper
+    """
+    def call(self, uri):
+        d = super(TradingBot, self).call(uri)
+                @session.call("#{@uri}/rpc/#{method}", params...).then \
+            (result) =>
+                if result.length != 2
+                    @warn "RPC Warning: sputnik protocol violation in #{method}"
+                    return d.resolve result
+                if result[0]
+                    d.resolve result[1]
+                else
+                    @warn "RPC call failed: #{result[1]}"
+                    d.reject result[1]
+            ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
 
 
     """
@@ -156,31 +134,31 @@ class TradingBot(WampCraClientProtocol):
     """
 
     def getNewAddress(self):
-        d = self.call(self.base_URI + "get_new_address")
+        d = self.call(self.base_uri + "/rpc/get_new_address")
         d.addBoth(pprint)
-        d.addBoth(self.sendClose)
 
     def getPositions(self):
-        d = self.call(self.base_URI + "get_positions")
+        d = self.call(self.base_uri + "/rpc/get_positions")
         d.addBoth(pprint)
-        d.addBoth(self.sendClose)
 
-    def listMarkets(self):
-        d = self.call(self.base_URI + "list_markets")
+    def getMarkets(self, callback):
+        d = self.call(self.base_uri + "/rpc/get_markets")
         d.addBoth(pprint)
-        d.addBoth(self.sendClose)
-
-    def getOrderBook(self, ticker, callback):
-        d = self.call(self.base_URI + "get_order_book", ticker)
         d.addBoth(callback)
 
-    def getOpenOrders(self,callback):
+    def getOrderBook(self, ticker, callback):
+        d = self.call(self.base_uri + "/rpc/get_order_book", ticker)
+        d.addBoth(pprint)
+        d.addBoth(callback)
+
+    def getOpenOrders(self, callback):
         # store cache of open orders update asynchronously
-        d = self.call(self.base_URI + "get_open_orders")
+        d = self.call(self.base_URI + "/rpc/get_open_orders")
         d.addBoth(callback)
 
     def getTradeHistory(self, ticker, callback):
-        d = self.call(self.base_URI + "get_trade_history", ticker, 1000000)
+        d = self.call(self.base_uri + "/rpc/get_trade_history", ticker, 1000000)
+        d.addBoth(pprint)
         d.addBoth(callback)
 
     def placeOrder(self, ticker, quantity, price, side):
@@ -190,8 +168,8 @@ class TradingBot(WampCraClientProtocol):
         ord['price'] = price
         ord['side'] = side
         print "inside place order", ord
-        print self.base_URI + "place_order"
-        d = self.call(self.base_URI + "place_order", ord)
+        print self.base_uri + "/rpc/place_order"
+        d = self.call(self.base_uri + "/rpc/place_order", ord)
 
     def cancelOrder(self, id):
         """
@@ -199,7 +177,8 @@ class TradingBot(WampCraClientProtocol):
         :param id: order id
         """
         print "inside cancel order"
-        d = self.call(self.base_URI + "cancel_order", id)
+        d = self.call(self.base_uri + "/rpc/cancel_order", id)
+        d.addBoth(pprint)
 
 
 if __name__ == '__main__':
@@ -212,8 +191,11 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     # ws -> wss
-    factory = WampClientFactory("wss://localhost:9000", debugWamp=debug)
-    factory.protocol = TradingBot
+    base_uri = "ws://localhost:8000"
+    username = "testuser1"
+    password = "testuser1"
+    factory = WampClientFactory(base_uri, debugWamp=debug)
+    factory.protocol = TradingBot(username, password, base_uri=base_uri)
 
     # null -> ....
     if factory.isSecure:
