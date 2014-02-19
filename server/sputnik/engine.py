@@ -309,8 +309,8 @@ class ReplaceMeWithARealEngine:
             print [oxox.__dict__ for oxox in all_orders.values()]
             print 'o.id:  ', o.id
             print 'order.id:  ', order_id
-            print 'test 2:  ',str({'cancel': [o.username, {'order': o.id}]})
-            webserver.order(o.username, {'id': o.id, 'is_cancelled': True})
+            print 'test 2:  ',str({'cancel': [o.username, {'id': o.id, 'is_cancelled': True, 'contract': contract_name}]})
+            webserver.order(o.username, {'id': o.id, 'is_cancelled': True, 'contract': contract_name})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
             return False
