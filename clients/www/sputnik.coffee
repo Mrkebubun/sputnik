@@ -391,7 +391,8 @@ class window.Sputnik extends EventEmitter
       if id of @orders and (order.is_cancelled or order.quantity_left == 0)
         delete @orders[id]
       else
-        @orders[id] = order
+        if order.quantity_left > 0
+          @orders[id] = order
 
       orders = {}
       for id, order of @orders
