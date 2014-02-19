@@ -29,7 +29,7 @@ $('#sellButton').click ->
   sputnik.placeOrder(Number(qsell.value), Number(psell.value), ticker.value, 'SELL')
 
 $('#buyButton').click ->
-  sputnik.placeOrder(Number(qsell.value), Number(psell.value), ticker.value, 'BUY')
+  sputnik.placeOrder(Number(qbuy.value), Number(pbuy.value), ticker.value, 'BUY')
 
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
