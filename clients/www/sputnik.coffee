@@ -409,7 +409,7 @@ class window.Sputnik extends EventEmitter
       @emit "fill", @tradeFromWire(fill)
       [contract, source, target] = @cstFromTicker(fill.contract)
       if contract.contract_type == "cash_pair"
-        if fill.side = "SELL"
+        if fill.side == "SELL"
           sign = -1
         else
           sign = 1
