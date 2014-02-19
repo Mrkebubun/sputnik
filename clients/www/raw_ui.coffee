@@ -34,6 +34,63 @@ $('#buyButton').click ->
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
 
+testMessage = (message) ->
+  table = $('#testLog')[0]
+  row = table.insertRow(-1)
+  row.insertCell(-1).innerText = message
+
+uniqueId = (length=8) ->
+  id = ""
+  id += Math.random().toString(36).substr(2) while id.length < length
+  id.substr 0, length
+
+#
+# Execute some extensive tests -- this doesn't work.
+#
+$('#testButton').click ->
+  # First logout
+  sputnik.logout()
+  sputnik.connect()
+
+  # Login Test
+  testMessage "TEST: Logging in testuser1"
+  sputnik.authenticate('testuser1', 'testuser1')
+
+  # Place a sell order
+  testMessage "TEST: Placing sell order"
+  sputnik.place_order(10, 10, 'SELL', 'MXN/BTC')
+
+  # Place a buy order
+  testMessage "TEST: Placing buy order"
+  sputnik.place_order(10, 1, 'BUY', 'MXN/BTC')
+
+  # Logout
+  testMessage "TEST: Logging out"
+  sputnik.logout()
+
+  # Create a new user test
+  user_id = uniqueId()
+  testMessage "TEST: Creating user: #{user_id}"
+  sputnik.makeAccount(user_id, user_id, user_id + "@m2.io")
+
+  # Login as other user to do trades with
+  testMessage "TEST: Logging in testuser2"
+  sputnik.authenticate('testuser2', 'testuser2')
+
+  testMessage "TEST: Placing a bunch of orders"
+  sputnik.place_order(1, 10, 'BUY', 'MXN/BTC')
+  sputnik.place_order(1, 11, 'BUY', 'MXN/BTC')
+  sputnik.place_order(1, 9, 'BUY', 'MXN/BTC')
+  sputnik.place_order(1, 2, 'SELL', 'MXN/BTC')
+  sputnik.place_order(1, 1, 'SELL', 'MXN/BTC')
+  sputnik.place_order(1, 0.5, 'SELL', 'MXN/BTC')
+
+  testMessage "TEST: Logging out"
+  sputnik.logout()
+
+
+
+
 clearTable = (table) ->
   while table.hasChildNodes()
     table.removeChild(table.firstChild)
