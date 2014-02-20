@@ -34,65 +34,6 @@ $('#buyButton').click ->
 $('#cancelButton').click ->
   sputnik.cancelOrder(parseInt(orderId.value))
 
-testMessage = (message) ->
-  table = $('#testLog')[0]
-  row = table.insertRow(-1)
-  row.insertCell(-1).innerText = message
-
-uniqueId = (length=8) ->
-  id = ""
-  id += Math.random().toString(36).substr(2) while id.length < length
-  id.substr 0, length
-
-#
-# Execute some extensive tests -- this doesn't work.
-#
-$('#testButton').click ->
-  # Login Test
-  sputnik.once "open", ->
-    testMessage "TEST: Logging in testuser1"
-    sputnik.authenticate('testuser1', 'testuser1')
-
-    sputnik.once "auth_success", (username) ->
-      # Place a sell order
-      testMessage "TEST: Placing sell order"
-      sputnik.placeOrder(10, 10, 'MXN/BTC', 'SELL')
-
-      # Place a buy order
-      testMessage "TEST: Placing buy order"
-      sputnik.placeOrder(10, 1, 'MXN/BTC', 'BUY')
-
-      sputnik.once "logout", ->
-        sputnik.once "make_account_success", (username) ->
-          sputnik.once "auth_success", (username) ->
-            # Login as other user to do trades with
-            testMessage "TEST: Logging in testuser2"
-            sputnik.authenticate('testuser2', 'testuser2')
-
-            testMessage "TEST: Placing a bunch of orders"
-            sputnik.placeOrder(1, 10, 'MXN/BTC', 'BUY')
-            sputnik.placeOrder(1, 11, 'MXN/BTC', 'BUY')
-            sputnik.placeOrder(1, 9, 'MXN/BTC', 'BUY')
-            sputnik.placeOrder(1, 2, 'MXN/BTC', 'SELL')
-            sputnik.placeOrder(1, 1, 'MXN/BTC', 'SELL')
-            sputnik.placeOrder(1, 0.5, 'MXN/BTC', 'SELL')
-
-            testMessage "TEST: Logging out"
-            sputnik.logout()
-          sputnik.authenticate(username, username)
-
-        user_id = uniqueId()
-        testMessage "TEST: Creating user: #{user_id}"
-        sputnik.makeAccount(user_id, user_id, user_id + "@m2.io")
-
-      testMessage "TEST: Logging out"
-      sputnik.logout()
-
-  sputnik.once "logout", ->
-    sputnik.connect()
-
-  sputnik.logout()
-
 clearTable = (table) ->
   while table.hasChildNodes()
     table.removeChild(table.firstChild)
@@ -272,6 +213,7 @@ sputnik.on "place_order_fail", (error) ->
   sputnik.log "place order fail: #{error}"
   alert "error: #{error}"
 
+###
 # feedLog
 sputnik.on "fill", (trade) ->
   sputnik.log "fill: #{trade}"
@@ -294,6 +236,7 @@ sputnik.on "trade", (trade) ->
   row.insertCell(-1).innerText = "Trade"
   row.insertCell(-1).innerText = "contract: #{trade.contract} price: #{trade.price} quantity: #{trade.quantity} timestamp: #{trade.timestamp}"
 
+# debugLog
 sputnik.on "log", (obj) ->
   table = $('#debugLog')[0]
   row = table.insertRow(-1)
@@ -308,3 +251,4 @@ sputnik.on "error", (obj) ->
   table = $('#debugLog')[0]
   row = table.insertRow(-1)
   row.insertCell(-1).innerText = "error: #{obj}"
+###

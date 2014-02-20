@@ -8,6 +8,7 @@ from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
 
 import random
+import string
 
 class TradingBot(WampCraClientProtocol):
     """
@@ -55,6 +56,9 @@ class TradingBot(WampCraClientProtocol):
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1.0)
+
+        self.chatter = task.LoopingCall(self.saySomethingRandom)
+        self.chatter.start(30.0)
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
@@ -175,6 +179,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/place_order", ord)
         d.addBoth(self.onPlaceOrder)
 
+    def chat(self, message):
+        print "chatting: ", message
+        self.publish(self.base_uri + "/feeds/chat", message)
+
     def cancelOrder(self, id):
         """
         cancels an order by its id.
@@ -203,9 +211,13 @@ class TradingBot(WampCraClientProtocol):
         tick_size = contract['tick_size']
         lot_size = contract['lot_size']
 
-        price = tick_size * random.randint(1,10)
-        quantity = lot_size * random.randint(5,20)
+        price = tick_size * random.randint(1,100)
+        quantity = lot_size * random.randint(1,200)
         self.placeOrder(ticker, quantity, price, side)
+
+    def saySomethingRandom(self):
+        random_saying = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(8))
+        self.chat(random_saying)
 
 if __name__ == '__main__':
 
