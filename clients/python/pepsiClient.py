@@ -103,6 +103,9 @@ class TradingBot(WampCraClientProtocol):
     def onChat(self, topicUri, event):
         pprint(["Chat", topicUri, event])
 
+    def onPlaceOrder(self, event):
+        pprint(event)
+
     """
     Subscriptions
     """
@@ -163,14 +166,14 @@ class TradingBot(WampCraClientProtocol):
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
-        ord['ticker'] = ticker
+        ord['contract'] = ticker
         ord['quantity'] = quantity
         ord['price'] = price
         ord['side'] = side
         print "inside place order", ord
         print self.base_uri + "/rpc/place_order"
         d = self.call(self.base_uri + "/rpc/place_order", ord)
-        d.addBoth(pprint)
+        d.addBoth(self.onPlaceOrder)
 
     def cancelOrder(self, id):
         """
