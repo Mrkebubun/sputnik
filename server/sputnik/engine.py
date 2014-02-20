@@ -11,11 +11,13 @@ if options.filename:
     config.reconfigure(options.filename)
     
 import logging
+import util
 
 import zmq
 from zmq_util import export, router_share_sync, push_proxy_sync
 import database as db
 import models
+from datetime import datetime
 
 db_session = db.make_session()
 
@@ -80,8 +82,7 @@ class Order(object):
         self.quantity_left = quantity
         self.price = price
         self.side = side
-
-
+        self.timestamp = datetime.utcnow()
 
     def matchable(self, other_order):
 
@@ -116,6 +117,10 @@ class Order(object):
         db_orders = [db_session.query(models.Order).filter_by(id=oid).one()
                      for oid in [self.id, other_order.id]]
 
+        # Make sure our timestamps are what is in the DB
+        self.timestamp = db_orders[0].timestamp
+        other_order.timestamp = db_orders[1].timestamp
+
         for i in [0, 1]:
             db_orders[i].quantity_left -= quantity
             db_orders[i] = db_session.merge(db_orders[i])
@@ -142,8 +147,8 @@ class Order(object):
             contract_name,
             {'contract': contract_name,
              'quantity': quantity,
-             'price': matching_price
-             # TODO: Add timestamp
+             'price': matching_price,
+             'timestamp': util.dt_to_timestamp(trade.timestamp)
             })
 
         for o in [self, other_order]:
@@ -166,16 +171,16 @@ class Order(object):
                  'price': o.price,
                  'side': OrderSide.name(o.side),
                  # TODO: is hardcoding 'False' in here correct?
-                 'is_cancelled': False
-                 # TODO: Add timestamp
+                 'is_cancelled': False,
+                 'timestamp': util.dt_to_timestamp(o.timestamp)
                  })
             webserver.fill(o.username,
                 {'contract': contract_name,
                  'id': o.id,
                  'quantity': quantity,
                  'price': matching_price,
-                 'side': OrderSide.name(o.side)
-                 # TODO: Add timestamp
+                 'side': OrderSide.name(o.side),
+                 'timestamp': util.dt_to_timestamp(trade.timestamp)
                 })
             print 'test 1:  ',str({'fill': [o.username, {'contract': contract_name, 'id': o.id, 'quantity': quantity, 'price': matching_price}]})
 
@@ -373,26 +378,21 @@ class ReplaceMeWithARealEngine:
             all_orders[order.id] = order
             update_best(other_side)
             # publish the user's open order to their personal channel
+            order_msg = {'id': order.id,
+                         'quantity': order.quantity,
+                         'quantity_left': order.quantity_left,
+                         'price': order.price,
+                         'side': OrderSide.name(order.side),
+                         'contract': contract_name,
+                         # TODO: is hardcoding 'False' in here correct?
+                         'is_cancelled': False,
+                         'timestamp': util.dt_to_timestamp(order.timestamp)
+            }
             webserver.order(
                 order.username,
-                {'id': order.id,
-                 'quantity':order.quantity,
-                 'quantity_left': order.quantity_left,
-                 'price':order.price,
-                 'side': OrderSide.name(order.side),
-                 'contract':contract_name,
-                 # TODO: is hardcoding 'False' in here correct?
-                 'is_cancelled':False
-                 # TODO: Add timestamp
-                })
-            print 'test 3:  ',str({'order': [order.username,{'id': order.id,
-                                                             'quantity':order.quantity,
-                                                             'quantity_left':order.quantity_left,
-                                                             'price':order.price,
-                                                             'side': OrderSide.name(order.side),
-                                                             'contract':contract_name,
-                                                             'is_cancelled':False
-                                                             }]})
+                order_msg
+                )
+            print 'place_order:  ', str({'order': [order.username, order_msg]})
 
         # done placing the order, publish the order book
         logging.info(pretty_print_book())

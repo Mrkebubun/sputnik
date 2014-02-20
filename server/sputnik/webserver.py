@@ -28,6 +28,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
+import util
 from zmq_util import export, pull_share_async, dealer_proxy_async
 
 from jsonschema import validate
@@ -141,12 +142,16 @@ class PublicInterface:
         to_dt = datetime.datetime.utcnow()
         from_dt = to_dt - datetime.timedelta(seconds=time_span)
 
+        def _cb(result):
+            return [True, [{'contract': r[0], 'price': r[2], 'quantity': r[3],
+                                  'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
+
         #todo implement time_span checks
         #TODO: Implement new API
         return dbpool.runQuery(
-            "SELECT trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
             "trades.contract_id=contracts.id AND contracts.ticker=%s",
-            (ticker,))
+            (ticker,)).addCallback(_cb)
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):
@@ -657,9 +662,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
 
         def _cb(result):
-            # TODO: Fix timestamp to return what is the in API description
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-                            'timestamp': r[4].isoformat(), 'side': r[5], 'id': r[6]} for r in result}]
+                           'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6]} for r in result}]
 
         return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
                                "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
