@@ -144,7 +144,7 @@ class window.Sputnik extends EventEmitter
 
     timeFormat: (timestamp) =>
       dt = new Date(timestamp/1000)
-      return dt.toTimeString()
+      return dt.toLocaleTimeString()
 
     copy: (object) =>
       new_object = {}
