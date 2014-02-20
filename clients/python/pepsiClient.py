@@ -21,6 +21,7 @@ class TradingBot(WampCraClientProtocol):
         self.username = 'testuser1'
         self.password = 'testuser1'
         self.markets = {}
+        self.orders = {}
 
     def action(self):
         '''
@@ -60,6 +61,9 @@ class TradingBot(WampCraClientProtocol):
         self.chatter = task.LoopingCall(self.saySomethingRandom)
         self.chatter.start(30.0)
 
+        self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
+        self.cancel_orders.start(2.5)
+
     def onAuthError(self, e):
         uri, desc, details = e.value.args
         print "Authentication Error!", uri, desc, details
@@ -92,11 +96,22 @@ class TradingBot(WampCraClientProtocol):
         """
         pprint(["SafePrice", topicUri, event])
 
-    def onOrder(self, topicUri, event):
+    def onOpenOrders(self, event):
+        pprint(event)
+        self.orders = event[1]
+
+    def onOrder(self, topicUri, order):
         """
         overwrite me
         """
-        pprint(["Order", topicUri, event])
+        id = order['id']
+        if id in self.orders and (order['is_cancelled'] or order['quantity_left'] == 0):
+            del self.orders[id]
+        else:
+            if order['quantity_left'] > 0:
+                self.orders[id] = order
+
+        pprint(["Order", topicUri, order])
 
     def onFill(self, topicUri, event):
         """
@@ -166,7 +181,7 @@ class TradingBot(WampCraClientProtocol):
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
         d = self.call(self.base_URI + "/rpc/get_open_orders")
-        d.addBoth(pprint)
+        d.addBoth(self.onOpenOrders)
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
@@ -211,13 +226,22 @@ class TradingBot(WampCraClientProtocol):
         tick_size = contract['tick_size']
         lot_size = contract['lot_size']
 
-        price = tick_size * random.randint(1,100)
+        price = tick_size * random.randint(1,10)
         quantity = lot_size * random.randint(1,200)
         self.placeOrder(ticker, quantity, price, side)
 
     def saySomethingRandom(self):
         random_saying = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(8))
         self.chat(random_saying)
+
+    def cancelRandomOrder(self):
+        if len(self.orders.keys()) > 0:
+            while True:
+                order_to_cancel = random.choice(self.orders.keys())
+                if not self.orders[order_to_cancel].is_cancelled and self.orders[order_to_cancel].quantity_left > 0:
+                    break
+            self.cancelOrder(order_to_cancel)
+
 
 if __name__ == '__main__':
 

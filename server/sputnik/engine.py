@@ -164,7 +164,9 @@ class Order(object):
                  'quantity': o.quantity,
                  'quantity_left': o.quantity_left,
                  'price': o.price,
-                 'side': OrderSide.name(o.side)
+                 'side': OrderSide.name(o.side),
+                 # TODO: is hardcoding 'False' in here correct?
+                 'is_cancelled': False
                  # TODO: Add timestamp
                  })
             webserver.fill(o.username,
