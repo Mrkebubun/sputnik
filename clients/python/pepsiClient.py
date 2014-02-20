@@ -2,10 +2,12 @@ import sys
 from pprint import pprint
 
 from twisted.python import log
-from twisted.internet import reactor, ssl, defer
+from twisted.internet import reactor, ssl, task
 
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
+
+import random
 
 class TradingBot(WampCraClientProtocol):
     """
@@ -17,6 +19,7 @@ class TradingBot(WampCraClientProtocol):
         self.base_uri = "ws://localhost:8000"
         self.username = 'testuser1'
         self.password = 'testuser1'
+        self.markets = {}
 
     def action(self):
         '''
@@ -50,7 +53,8 @@ class TradingBot(WampCraClientProtocol):
         self.subOrders()
         self.subFills()
 
-        self.action()
+        self.place_orders = task.LoopingCall(self.placeRandomOrder)
+        self.place_orders.start(1.0)
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
@@ -58,8 +62,8 @@ class TradingBot(WampCraClientProtocol):
 
     def onMarkets(self, event):
         pprint(event)
-        markets = event[1]
-        for ticker, contract in markets.iteritems():
+        self.markets = event[1]
+        for ticker, contract in self.markets.iteritems():
             if contract['contract_type'] != "cash":
                 self.subBook(ticker)
                 self.subTrades(ticker)
@@ -70,34 +74,34 @@ class TradingBot(WampCraClientProtocol):
         """
         overwrite me
         """
-        print "Book: ", topicUri, event
+        pprint(["Book: ", topicUri, event])
 
     def onTrade(self, topicUri, event):
         """
         overwrite me
         """
-        print "Trade: ", topicUri, event
+        pprint(["Trade: ", topicUri, event])
 
     def onSafePrice(self, topicUri, event):
         """
         overwrite me
         """
-        print "SafePrice", topicUri, event
+        pprint(["SafePrice", topicUri, event])
 
     def onOrder(self, topicUri, event):
         """
         overwrite me
         """
-        print "Order", topicUri, event
+        pprint(["Order", topicUri, event])
 
     def onFill(self, topicUri, event):
         """
         overwrite me
         """
-        print "Fill", topicUri, event
+        pprint(["Fill", topicUri, event])
 
     def onChat(self, topicUri, event):
-        print "Chat", topicUri, event
+        pprint(["Chat", topicUri, event])
 
     """
     Subscriptions
@@ -177,6 +181,28 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
         d.addBoth(pprint)
 
+    """
+    Testing calls
+    """
+
+    def placeRandomOrder(self):
+        random_markets = []
+        for ticker, contract in self.markets.iteritems():
+            if contract['contract_type'] != "cash":
+                random_markets.append(ticker)
+
+        # Pick a market at random
+        ticker = random.choice(random_markets)
+        side = random.choice(["BUY", "SELL"])
+        contract = self.markets[ticker]
+
+        # Set a price/quantity that is reasonable for the market
+        tick_size = contract['tick_size']
+        lot_size = contract['lot_size']
+
+        price = tick_size * random.randint(1,10)
+        quantity = lot_size * random.randint(5,20)
+        self.placeOrder(ticker, quantity, price, side)
 
 if __name__ == '__main__':
 
@@ -187,11 +213,7 @@ if __name__ == '__main__':
         debug = False
 
     log.startLogging(sys.stdout)
-    # ws -> wss
-    base_uri = "ws://localhost:8000"
-    username = "testuser1"
-    password = "testuser1"
-    factory = WampClientFactory(base_uri, debugWamp=debug)
+    factory = WampClientFactory("ws://localhost:8000", debugWamp=debug)
     factory.protocol = TradingBot
 
     # null -> ....
@@ -199,6 +221,6 @@ if __name__ == '__main__':
         contextFactory = ssl.ClientContextFactory()
     else:
         contextFactory = None
-        # (factory) -> (factory, contextFActory)
+
     connectWS(factory, contextFactory)
     reactor.run()
