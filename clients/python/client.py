@@ -2,13 +2,10 @@ import sys
 from pprint import pprint
 
 from twisted.python import log
-from twisted.internet import reactor, ssl, task
+from twisted.internet import reactor, ssl
 
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
-
-import random
-import string
 
 class TradingBot(WampCraClientProtocol):
     """
@@ -22,8 +19,6 @@ class TradingBot(WampCraClientProtocol):
         self.password = 'testuser1'
         self.markets = {}
         self.orders = {}
-        # The higher the number the slower the orders get placed etc
-        self.rate = 1
 
     def action(self):
         '''
@@ -57,14 +52,8 @@ class TradingBot(WampCraClientProtocol):
         self.subOrders()
         self.subFills()
 
-        self.place_orders = task.LoopingCall(self.placeRandomOrder)
-        self.place_orders.start(1.0 * self.rate)
+        self.startAutomation()
 
-        self.chatter = task.LoopingCall(self.saySomethingRandom)
-        self.chatter.start(30.0 * self.rate)
-
-        self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
-        self.cancel_orders.start(2.5 * self.rate)
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
@@ -208,41 +197,6 @@ class TradingBot(WampCraClientProtocol):
         print "inside cancel order"
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
         d.addBoth(pprint)
-
-    """
-    Testing calls
-    """
-
-    def placeRandomOrder(self):
-        random_markets = []
-        for ticker, contract in self.markets.iteritems():
-            if contract['contract_type'] != "cash":
-                random_markets.append(ticker)
-
-        # Pick a market at random
-        ticker = random.choice(random_markets)
-        side = random.choice(["BUY", "SELL"])
-        contract = self.markets[ticker]
-
-        # Set a price/quantity that is reasonable for the market
-        tick_size = contract['tick_size']
-        lot_size = contract['lot_size']
-
-        price = tick_size * random.randint(1,10)
-        quantity = lot_size * random.randint(1,200)
-        self.placeOrder(ticker, quantity, price, side)
-
-    def saySomethingRandom(self):
-        random_saying = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(8))
-        self.chat(random_saying)
-
-    def cancelRandomOrder(self):
-        if len(self.orders.keys()) > 0:
-            while True:
-                order_to_cancel = random.choice(self.orders.keys())
-                if not self.orders[order_to_cancel]['is_cancelled'] and self.orders[order_to_cancel]['quantity_left'] > 0:
-                    break
-            self.cancelOrder(order_to_cancel)
 
 
 if __name__ == '__main__':

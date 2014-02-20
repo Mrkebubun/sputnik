@@ -4,6 +4,8 @@
       <w>addr</w>
       <w>authextra</w>
       <w>bitcoin</w>
+      <w>btcmxn</w>
+      <w>btcusd</w>
       <w>coffeescript</w>
       <w>compropago</w>
       <w>crossfilter</w>
@@ -20,6 +22,7 @@
       <w>retval</w>
       <w>sputnikmkt</w>
       <w>testuser</w>
+      <w>usdmxn</w>
       <w>webserver</w>
     </words>
   </dictionary>

@@ -13,7 +13,7 @@ from pepsiClient import TradingBot
 
 import json
 import time
-import random
+import random_trader
 import numpy as np
 
 class TickerBot(TradingBot):
@@ -31,7 +31,7 @@ class TickerBot(TradingBot):
             else:
                 self.bids.append(order['price'])
 
-        direction = random.randint(0,1)
+        direction = random_trader.randint(0,1)
 
         if len(self.asks) >0:
             ask = int(np.exp(np.random.randn()/50-0.5/2500)*min(self.asks))
@@ -46,7 +46,7 @@ class TickerBot(TradingBot):
     def randomCancel(self,openOrders):
         print "random cancel"
         for order in openOrders:
-            test = random.randint(0,10)
+            test = random_trader.randint(0,10)
             print test
             if test == 0:
                 oid = order['order_id']
@@ -57,7 +57,7 @@ class TickerBot(TradingBot):
     def action(self):
         print 'sleeping'
         time.sleep(np.random.poisson(1))
-        path = random.randint(0, 2)
+        path = random_trader.randint(0, 2)
         print path
         if path == 0:
             print 'sleeping'
