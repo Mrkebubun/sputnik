@@ -82,13 +82,6 @@ updateTable = (id, data) ->
         "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
     $("##{id}").html rows.join("")
 
-initPlot = () ->
-    d1 = ([i/2, 30*Math.sin(i/2) + 55] for i in [0..28])
-    d2 = ([i, 100*Math.sin(i) + 100] for i in [0..13])
-    $.plot "#graph",
-        [{data:d1, yaxis:1}, {data:d2, bars:{show:true}, yaxis:2}],
-        {yaxes:[{position:"left"}, {position:"right"}]}
-
 updateBuys = (data) ->
     data.sort (a, b) -> b[0] - a[0]
     updateTable "buys", data
@@ -108,10 +101,18 @@ updateTrades = (data) ->
 
 updatePlot = (data) ->
     plot_data = for trade in data
-      [trade.wire_timestamp, trade.price]
+      [trade.wire_timestamp/1000, trade.price]
+    data =
+      data: plot_data
+      label: 'Trades'
 
-    $.plot "#graph",
-      [{data:plot_data, label:'Trades'}]
+    options =
+      xaxis:
+        mode: 'time'
+        timezone: 'browser'
+        format: '%H:%M:%S'
+
+    $.plot("#graph", [data], options)
 
 updateOrders = (orders) ->
   rows = []
