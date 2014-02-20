@@ -102,7 +102,9 @@ updateSells = (data) ->
     $("#buy_price").attr "placeholder", best_offer
 
 updateTrades = (data) ->
-    updateTable "trades", data
+    rows = for [price, quantity, timestamp] in data
+      "<tr><td>#{price}</td><td>#{quantity}</td><td>#{timestamp}</td></tr>"
+    $("#trades").html rows.join("")
 
 updateOrders = (orders) ->
   rows = []
@@ -113,11 +115,12 @@ updateOrders = (orders) ->
       icon = "<td>#{icon}</td>"
       price = "<td>#{order.price}</td>"
       quantity = "<td>#{order.quantity}</td>"
-      id = "<td>#{id}</td>"
+      #timestamp = "<td>#{order.timestamp}</td>"
+      #id = "<td>#{id}</td>"
       button = "<td><button type='button' class='btn btn-danger' id='cancelButton'>"
       button += "<span class='glyphicon glyphicon-trash'></span>"
       button += "</button></td>"
-      rows.push "<tr>" + icon + price + quantity + button + id + "</tr>"
+      rows.push "<tr>" + icon + price + quantity + button + "</tr>"
 
   $("#orders").html rows.join("")
 
@@ -135,7 +138,7 @@ $ ->
 
 trade_history = []
 sputnik.on "trade", (trade) ->
-  trade_history.push [trade.price, trade.quantity]
+  trade_history.push [trade.price, trade.quantity, trade.timestamp]
   updateTrades(trade_history)
 
 sputnik.on "open", () ->

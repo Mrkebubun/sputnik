@@ -142,6 +142,10 @@ class window.Sputnik extends EventEmitter
             target = @markets[ticker]
         return [contract, source, target]
 
+    timeFormat: (timestamp) =>
+      dt = new Date(timestamp/1000)
+      return dt.toTimeString()
+
     copy: (object) =>
       new_object = {}
       for key of object
@@ -169,6 +173,7 @@ class window.Sputnik extends EventEmitter
       order.price = @priceFromWire(ticker, wire_order.price)
       order.quantity = @quantityFromWire(ticker, wire_order.quantity)
       order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
+      order.timestamp = @timeFormat(wire_order.timestamp)
       return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
@@ -182,6 +187,7 @@ class window.Sputnik extends EventEmitter
       trade = @copy(wire_trade)
       trade.price = @priceFromWire(ticker, wire_trade.price)
       trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
+      trade.timestamp = @timeFormat(wire_trade.timestamp)
       return trade
 
     quantityToWire: (ticker, quantity) =>
