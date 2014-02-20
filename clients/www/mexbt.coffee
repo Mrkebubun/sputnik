@@ -105,18 +105,21 @@ updateTrades = (data) ->
     updateTable "trades", data
 
 updateOrders = (orders) ->
-    rows = for order in orders
-        icon = "<span class='label label-warning'>Sell</span>"
-        if order.side is "BUY"
-            icon = "<span class='label label-primary'>Buy</span>"
-        icon = "<td>#{icon}</td>"
-        price = "<td>#{order.price}</td>"
-        quantity = "<td>#{order.quantity}</td>"
-        button = "<td><button type='button' class='btn btn-danger'>"
-        button += "<span class='glyphicon glyphicon-trash'></span>"
-        button += "</button></td>"
-        "<tr>" + icon + price + quantity + button + "</tr>"
-    $("##{orders}").html rows.join("")
+  rows = []
+  for id, order of orders
+      icon = "<span class='label label-warning'>Sell</span>"
+      if order.side is "BUY"
+          icon = "<span class='label label-primary'>Buy</span>"
+      icon = "<td>#{icon}</td>"
+      price = "<td>#{order.price}</td>"
+      quantity = "<td>#{order.quantity}</td>"
+      id = "<td>#{id}</td>"
+      button = "<td><button type='button' class='btn btn-danger' id='cancelButton'>"
+      button += "<span class='glyphicon glyphicon-trash'></span>"
+      button += "</button></td>"
+      rows.push "<tr>" + icon + price + quantity + button + id + "</tr>"
+
+  $("#orders").html rows.join("")
 
 updateTicker = (ticker) ->
     $("#last").text ticker.last
