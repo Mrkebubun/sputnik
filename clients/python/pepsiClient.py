@@ -2,7 +2,7 @@ import sys
 from pprint import pprint
 
 from twisted.python import log
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor, ssl, defer
 
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
@@ -13,10 +13,10 @@ class TradingBot(WampCraClientProtocol):
 
    """
 
-    def __init__(self, username, password, base_uri="ws://localhost:8000"):
-        self.base_uri = base_uri
-        self.username = username
-        self.password = password
+    def __init__(self):
+        self.base_uri = "ws://localhost:8000"
+        self.username = 'testuser1'
+        self.password = 'testuser1'
 
     def action(self):
         '''
@@ -32,7 +32,8 @@ class TradingBot(WampCraClientProtocol):
         ## "authenticate" as anonymous
         ##
         #d = self.authenticate()
-
+        self.getMarkets()
+        self.subChat()
         ## authenticate as "foobar" with password "secret"
         ##
         d = self.authenticate(authKey=self.username,
@@ -46,12 +47,24 @@ class TradingBot(WampCraClientProtocol):
 
     def onAuthSuccess(self, permissions):
         print "Authentication Success!", permissions
+        self.subOrders()
+        self.subFills()
 
         self.action()
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
         print "Authentication Error!", uri, desc, details
+
+    def onMarkets(self, event):
+        pprint(event)
+        markets = event[1]
+        for ticker, contract in markets.iteritems():
+            if contract['contract_type'] != "cash":
+                self.subBook(ticker)
+                self.subTrades(ticker)
+                self.subSafePrices(ticker)
+        return event
 
     def onBook(self, topicUri, event):
         """
@@ -83,6 +96,9 @@ class TradingBot(WampCraClientProtocol):
         """
         print "Fill", topicUri, event
 
+    def onChat(self, topicUri, event):
+        print "Chat", topicUri, event
+
     """
     Subscriptions
     """
@@ -98,7 +114,7 @@ class TradingBot(WampCraClientProtocol):
 
     def subBook(self, ticker):
         uri = "%s/feeds/book#%s" % (self.base_uri, ticker)
-        self.subscribe(uri, self.onOrderBook)
+        self.subscribe(uri, self.onBook)
         print 'subscribed to: ', uri
 
     def subTrades(self, ticker):
@@ -111,23 +127,10 @@ class TradingBot(WampCraClientProtocol):
         self.subscribe(uri, self.onSafePrice)
         print 'subscribed to: ', uri
 
-    """
-    RPC call wrapper
-    """
-    def call(self, uri):
-        d = super(TradingBot, self).call(uri)
-                @session.call("#{@uri}/rpc/#{method}", params...).then \
-            (result) =>
-                if result.length != 2
-                    @warn "RPC Warning: sputnik protocol violation in #{method}"
-                    return d.resolve result
-                if result[0]
-                    d.resolve result[1]
-                else
-                    @warn "RPC call failed: #{result[1]}"
-                    d.reject result[1]
-            ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
-
+    def subChat(self):
+        uri = "%s/feeds/chat" % self.base_uri
+        self.subscribe(uri, self.onChat)
+        print 'subscribe to: ', uri
 
     """
     RPC calls
@@ -141,25 +144,18 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/get_positions")
         d.addBoth(pprint)
 
-    def getMarkets(self, callback):
+    def getMarkets(self):
         d = self.call(self.base_uri + "/rpc/get_markets")
-        d.addBoth(pprint)
-        d.addBoth(callback)
+        d.addBoth(self.onMarkets)
 
-    def getOrderBook(self, ticker, callback):
+    def getOrderBook(self, ticker):
         d = self.call(self.base_uri + "/rpc/get_order_book", ticker)
         d.addBoth(pprint)
-        d.addBoth(callback)
 
-    def getOpenOrders(self, callback):
+    def getOpenOrders(self):
         # store cache of open orders update asynchronously
         d = self.call(self.base_URI + "/rpc/get_open_orders")
-        d.addBoth(callback)
-
-    def getTradeHistory(self, ticker, callback):
-        d = self.call(self.base_uri + "/rpc/get_trade_history", ticker, 1000000)
         d.addBoth(pprint)
-        d.addBoth(callback)
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
@@ -170,6 +166,7 @@ class TradingBot(WampCraClientProtocol):
         print "inside place order", ord
         print self.base_uri + "/rpc/place_order"
         d = self.call(self.base_uri + "/rpc/place_order", ord)
+        d.addBoth(pprint)
 
     def cancelOrder(self, id):
         """
@@ -195,7 +192,7 @@ if __name__ == '__main__':
     username = "testuser1"
     password = "testuser1"
     factory = WampClientFactory(base_uri, debugWamp=debug)
-    factory.protocol = TradingBot(username, password, base_uri=base_uri)
+    factory.protocol = TradingBot
 
     # null -> ....
     if factory.isSecure:
