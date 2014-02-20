@@ -187,6 +187,7 @@ class window.Sputnik extends EventEmitter
       trade = @copy(wire_trade)
       trade.price = @priceFromWire(ticker, wire_trade.price)
       trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
+      trade.wire_timestamp = wire_trade.timestamp
       trade.timestamp = @timeFormat(wire_trade.timestamp)
       return trade
 

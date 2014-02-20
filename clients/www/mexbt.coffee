@@ -102,9 +102,16 @@ updateSells = (data) ->
     $("#buy_price").attr "placeholder", best_offer
 
 updateTrades = (data) ->
-    rows = for [price, quantity, timestamp] in data
-      "<tr><td>#{price}</td><td>#{quantity}</td><td>#{timestamp}</td></tr>"
+    rows = for trade in data
+      "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
     $("#trades").html rows.join("")
+
+updatePlot = (data) ->
+    plot_data = for trade in data
+      [trade.wire_timestamp, trade.price]
+
+    $.plot "#graph",
+      [{data:plot_data, label:'Trades'}]
 
 updateOrders = (orders) ->
   rows = []
@@ -133,13 +140,13 @@ updateTicker = (ticker) ->
 onLogin = (username) ->
 
 $ ->
-    initPlot()
     sputnik.connect()
 
 trade_history = []
 sputnik.on "trade", (trade) ->
-  trade_history.push [trade.price, trade.quantity, trade.timestamp]
+  trade_history.push trade
   updateTrades(trade_history)
+  updatePlot(trade_history)
 
 sputnik.on "open", () ->
     sputnik.log "open"
