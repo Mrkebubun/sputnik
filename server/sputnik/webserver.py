@@ -120,7 +120,7 @@ class PublicInterface:
         return [True, self.factory.markets]
 
     @exportRpc("get_trade_history")
-    def get_trade_history(self, ticker, time_span):
+    def get_trade_history(self, ticker, time_span=3600):
         """
         Gets a list of trades between two dates
         :param ticker: ticker of the contract to get the trade history from
@@ -147,11 +147,11 @@ class PublicInterface:
                                   'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
 
         #todo implement time_span checks
-        #TODO: Implement new API
         return dbpool.runQuery(
             "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-            "trades.contract_id=contracts.id AND contracts.ticker=%s",
-            (ticker,)).addCallback(_cb)
+            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
+            "AND trades.timestamp <= %s",
+            (ticker, from_dt, to_dt)).addCallback(_cb)
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):

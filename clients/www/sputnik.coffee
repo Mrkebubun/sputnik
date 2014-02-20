@@ -279,6 +279,9 @@ class window.Sputnik extends EventEmitter
     getOrderBook: (ticker) =>
       @call("get_order_book", ticker).then @onBook
 
+    getTradeHistory: (ticker) =>
+      @call("get_trade_history", ticker).then @onTradeHistory
+
     # miscelaneous methods
 
     chat: (message) =>
@@ -386,10 +389,41 @@ class window.Sputnik extends EventEmitter
 
         @emit "book", books
 
+    # Make sure we only have the last hour of trades
+    cleanTradeHistory: (ticker) =>
+      now = new Date()
+      an_hour_past = new Date()
+      an_hour_past.setHours(now.getHours() - 1)
+      ahpgt = an_hour_past.getTime()
+      while @markets[ticker].trades[0].timestamp/1000 < ahpgt
+        @log "#{@markets[ticker].trades[0].timestamp/1000} #{ahpgt}"
+        @markets[ticker].trades.shift()
+
+    emitTradeHistory: (ticker) =>
+        trade_history = {}
+        trade_history[ticker] = for trade in @markets[ticker].trades
+          @tradeFromWire(trade)
+
+        @emit "trade_history", trade_history
+
+    onTradeHistory: (trade_history) =>
+      @log "trade_history received: #{trade_history}"
+      if trade_history.length > 0
+        ticker = trade_history[0].contract
+        @markets[ticker].trades = trade_history
+        @cleanTradeHistory(ticker)
+        @emitTradeHistory(ticker)
+      else
+        @warn "no trades in history"
+
     onTrade: (trade) =>
         ticker = trade.contract
         @markets[ticker].trades.push trade
         @emit "trade", @tradeFromWire(trade)
+        @cleanTradeHistory(ticker)
+        @emitTradeHistory(ticker)
+
+
 
     onChat: (event) =>
         # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent

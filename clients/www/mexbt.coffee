@@ -143,17 +143,15 @@ onLogin = (username) ->
 $ ->
     sputnik.connect()
 
-trade_history = []
-sputnik.on "trade", (trade) ->
-  trade_history.push trade
-  updateTrades(trade_history)
-  updatePlot(trade_history)
+sputnik.on "trade_history", (trade_history) ->
+  updateTrades(trade_history['MXN/BTC'])
+  updatePlot(trade_history['MXN/BTC'])
 
 sputnik.on "open", () ->
     sputnik.log "open"
     sputnik.getOrderBook "MXN/BTC"
+    sputnik.getTradeHistory "MXN/BTC"
     sputnik.follow "MXN/BTC"
-    #sputnik.getTradeHistory "MXN/BTC"
 
     # Attempt a cookie login
     cookie = document.cookie
