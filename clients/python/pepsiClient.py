@@ -22,6 +22,8 @@ class TradingBot(WampCraClientProtocol):
         self.password = 'testuser1'
         self.markets = {}
         self.orders = {}
+        # The higher the number the slower the orders get placed etc
+        self.rate = 1
 
     def action(self):
         '''
@@ -56,13 +58,13 @@ class TradingBot(WampCraClientProtocol):
         self.subFills()
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
-        self.place_orders.start(1.0)
+        self.place_orders.start(1.0 * self.rate)
 
         self.chatter = task.LoopingCall(self.saySomethingRandom)
-        self.chatter.start(30.0)
+        self.chatter.start(30.0 * self.rate)
 
         self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
-        self.cancel_orders.start(2.5)
+        self.cancel_orders.start(2.5 * self.rate)
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
@@ -238,7 +240,7 @@ class TradingBot(WampCraClientProtocol):
         if len(self.orders.keys()) > 0:
             while True:
                 order_to_cancel = random.choice(self.orders.keys())
-                if not self.orders[order_to_cancel].is_cancelled and self.orders[order_to_cancel].quantity_left > 0:
+                if not self.orders[order_to_cancel]['is_cancelled'] and self.orders[order_to_cancel]['quantity_left'] > 0:
                     break
             self.cancelOrder(order_to_cancel)
 

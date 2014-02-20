@@ -87,14 +87,14 @@
             </ul>
         </li>
         <li id="btc_balance" class="dropdown pull-right" style="display:none;">
-            <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">BTC: <b>100</b> <b class="caret"></b></a>
+            <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">BTC: <b><div id="BTCpos"></div></b> <b class="caret"></b></a>
             <ul class="dropdown-menu">
                 <li><a href="#">Deposit</a></li>
                 <li><a href="#">Withdraw</a></li>
             </ul>
         </li>
         <li id="mxn_balance" class="dropdown pull-right" style="display:none;">
-            <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">MXN: <b>1000</b> <b class="caret"></b></a>
+            <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">MXN: <b><div id="MXNpos"></div></b> <b class="caret"></b></a>
             <ul class="dropdown-menu">
                 <li><a href="#">Deposit</a></li>
                 <li><a href="#">Withdraw</a></li>
@@ -123,7 +123,7 @@
                         <div class="form-group">
                             <label for="buy_quantity">Quantity</label> <input type="text" class="form-control" id="buy_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-primary pull-right" onclick="return false;">Buy</button>
+                        <button type="submit" class="btn btn-primary pull-right" id="buyButton">Buy</button>
                     </form>
                 </div>
             </div>
@@ -160,7 +160,7 @@
                         <div class="form-group">
                             <label for="sell_quantity">Quantity</label> <input type="text" class="form-control" id="sell_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-warning pull-right" onclick="return false;">Sell</button>
+                        <button type="submit" class="btn btn-warning pull-right" id="sellButton">Sell</button>
                     </form>
                 </div>
             </div>
@@ -198,19 +198,7 @@
                                 <th>Cancel</th>
                             </tr>
                         </thead>
-                    <tbody>
-                        <tr>
-                            <td><span class="label label-warning">Sell</span></td>
-                            <td>12</td>
-                            <td>1</td>
-                            <td><button type="button" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span></button></td>
-                        </tr>
-                        <tr>
-                            <td><span class="label label-primary">Buy</span></td>
-                            <td>10</td>
-                            <td>1</td>
-                            <td><button type="button" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span></button></td>
-                        </tr>
+                    <tbody id="orders">
                     </tbody>
                 </table>
                 </div>

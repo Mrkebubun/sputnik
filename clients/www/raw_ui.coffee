@@ -157,16 +157,15 @@ sputnik.on "positions", (positions) ->
 sputnik.on "orders", (orders) ->
   displayOrders orders
 
-sputnik.on "book", (markets) ->
-  displayBooks markets
+sputnik.on "book", (book) ->
+  displayBooks book
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "auth_success", (username) ->
-    if with_cookie.value
-      sputnik.getCookie()
+    sputnik.getCookie()
     sputnik.log "username: " + username
     $('#loggedInAs').text("Logged in as " + username)
 

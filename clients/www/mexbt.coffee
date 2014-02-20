@@ -17,9 +17,11 @@ sputnik.on "auth_success", (username) ->
     $("#buy_panel").toggle()
     $("#sell_panel").toggle()
     $("#orders_panel").toggle()
+    sputnik.getCookie()
 
-
-    sputnik.placeOrder(1000000, 1000000, "MXN/BTC", "BUY")
+sputnik.on "cookie", (uid) ->
+  sputnik.log "cookie: " + uid
+  document.cookie = "login" + "=" + login.value + ":" + uid
 
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
@@ -64,8 +66,16 @@ $("#register_button").click (event) ->
     email = $("#register_email").val()
     sputnik.makeAccount username, password, email
 
+$("#buyButton").click ->
+  sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'MXN/BTC', 'BUY')
+
+$("#sellButton").click ->
+  sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'MXN/BTC', 'SELL')
+
 $("#logout").click (event) ->
-    location.reload()
+  document.cookie = ''
+  sputnik.logout()
+  location.reload()
 
 updateTable = (id, data) ->
     rows = for [price, quantity] in data
@@ -118,19 +128,45 @@ onLogin = (username) ->
 
 $ ->
     initPlot()
-    sample_buys = [[1, 2], [2, 3]]
-    sample_sells = [[3, 1], [4, 2]]
-    sample_trades = [[2.5, 100]]
-    updateBuys sample_buys
-    updateSells sample_sells
-    updateTrades sample_trades
     sputnik.connect()
 
+trade_history = []
+sputnik.on "trade", (trade) ->
+  trade_history.push [trade.price, trade.quantity]
+  updateTrades(trade_history)
+
 sputnik.on "open", () ->
-    console.log "open"
-    sputnik.getOrderBook("MXN/BTC")
+    sputnik.log "open"
+    sputnik.getOrderBook "MXN/BTC"
+    sputnik.follow "MXN/BTC"
+    #sputnik.getTradeHistory "MXN/BTC"
 
-sputnik.on "book_update", ->
-    updateBuys ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].buys)
-    updateSells ([order.price, order.quantity] for order in sputnik.markets["MXN/BTC"].sells)
+    # Attempt a cookie login
+    cookie = document.cookie
+    sputnik.log "cookie: #{cookie}"
+    if cookie
+        parts = cookie.split("=", 2)[1].split(":", 2)
+        name = parts[0]
+        uid = parts[1]
+        if !uid
+            document.cookie = ''
+        else
+            sputnik.restoreSession uid
 
+sputnik.on "session_expired", ->
+    console.log "Session is stale."
+    document.cookie = ''
+
+sputnik.on "book", (book) ->
+    updateBuys ([book_row.price, book_row.quantity] for book_row in book["MXN/BTC"].bids)
+    updateSells ([book_row.price, book_row.quantity] for book_row in book["MXN/BTC"].asks)
+
+sputnik.on "orders", (orders) ->
+  updateOrders orders
+
+sputnik.on "positions", (positions) ->
+  MXNpos = positions['MXN'].position
+  BTCpos = positions['BTC'].position
+  # TODO: fix this to use the getprecision calls
+  $('#MXNpos').text(MXNpos.toFixed(2))
+  $('#BTCpos').test(BTCpos.toFixed(2))
