@@ -205,7 +205,7 @@ class window.Sputnik extends EventEmitter
        
     quantityFromWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        
+
         return quantity / target.denominator
     
     priceFromWire: (ticker, price) =>

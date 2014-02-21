@@ -132,14 +132,6 @@ updateOrders = (orders) ->
 
   $("#orders").html rows.join("")
 
-updateTicker = (ticker) ->
-    $("#last").text ticker.last
-    $("#low").text ticker.low
-    $("#high").text ticker.high
-    $("#vwap").text ticker.vwap
-
-onLogin = (username) ->
-
 $ ->
     sputnik.connect()
 
@@ -176,9 +168,12 @@ sputnik.on "book", (book) ->
 sputnik.on "orders", (orders) ->
   updateOrders orders
 
+sputnik.on "trade", (trade) ->
+  if trade.contract == "MXN/BTC"
+    $('#last').text trade.price.toFixed(0)
+
 sputnik.on "positions", (positions) ->
   MXNpos = positions['MXN'].position
   BTCpos = positions['BTC'].position
-  # TODO: fix this to use the getprecision calls
-  $('#MXNpos').text(MXNpos.toFixed(2))
-  $('#BTCpos').test(BTCpos.toFixed(2))
+  $('#MXNpos').text MXNpos.toFixed(0)
+  $('#BTCpos').text BTCpos.toFixed(2)
