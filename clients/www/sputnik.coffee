@@ -16,10 +16,10 @@ class window.Sputnik extends EventEmitter
     constructor: (@uri) ->
 
 
-    ### Sputnik API  ###
+        ### Sputnik API  ###
 
-    # network control
-    
+        # network control
+
     connect: () =>
         ab.connect @uri, @onOpen, @onClose
 
@@ -28,7 +28,7 @@ class window.Sputnik extends EventEmitter
         @session = null
 
     # market selection
-    
+
     follow: (market) =>
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
@@ -50,18 +50,18 @@ class window.Sputnik extends EventEmitter
         password = ab.deriveKey secret, authextra
 
         @call("make_account", username, password, salt, email).then \
-          (result) =>
-            @emit "make_account_success", result
-          , (error) =>
-            @emit "make_account_fail", error
+            (result) =>
+                @emit "make_account_success", result
+            , (error) =>
+                @emit "make_account_fail", error
 
     getProfile: () =>
-      @call("get_profile").then (@profile) =>
-        @emit "profile", @profile
+        @call("get_profile").then (@profile) =>
+            @emit "profile", @profile
 
     changeProfile: (nickname, email) =>
-      @call("change_profile", email, nickname).then (@profile) =>
-        @emit "profile", @profile
+        @call("change_profile", email, nickname).then (@profile) =>
+            @emit "profile", @profile
 
     authenticate: (login, password) =>
         if not @session?
@@ -75,7 +75,7 @@ class window.Sputnik extends EventEmitter
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
                 @wtf "Failed login: Could not authenticate: #{error}."
-    
+
     restoreSession: (uid) =>
         if not @session?
             @wtf "Not connected."
@@ -98,28 +98,28 @@ class window.Sputnik extends EventEmitter
         @connect()
 
     getCookie: () =>
-      @call("get_cookie").then \
-        (uid) =>
-          @log("cookie: " + uid)
-          @emit "cookie", uid
+        @call("get_cookie").then \
+            (uid) =>
+                @log("cookie: " + uid)
+                @emit "cookie", uid
 
     onAuthSuccess: (permissions) =>
-      ab.log("authenticated!", JSON.stringify(permissions))
-      @authenticated = true
+        ab.log("authenticated!", JSON.stringify(permissions))
+        @authenticated = true
 
-      @getProfile()
-      @getSafePrices()
-      @getOpenOrders()
-      @getPositions()
+        @getProfile()
+        @getSafePrices()
+        @getOpenOrders()
+        @getPositions()
 
-      @username = permissions.username
-      @emit "auth_success", @username
+        @username = permissions.username
+        @emit "auth_success", @username
 
-      try
-        @subscribe "orders#" + @username, @onOrder
-        @subscribe "fills#" + @username, @onFill
-      catch error
-        @log error
+        try
+            @subscribe "orders#" + @username, @onOrder
+            @subscribe "fills#" + @username, @onFill
+        catch error
+            @log error
 
     onAuthFail: (error) =>
         @username = null
@@ -143,53 +143,53 @@ class window.Sputnik extends EventEmitter
         return [contract, source, target]
 
     timeFormat: (timestamp) =>
-      dt = new Date(timestamp/1000)
-      return dt.toLocaleTimeString()
+        dt = new Date(timestamp / 1000)
+        return dt.toLocaleTimeString()
 
     copy: (object) =>
-      new_object = {}
-      for key of object
-        new_object[key] = object[key]
-      return new_object
+        new_object = {}
+        for key of object
+            new_object[key] = object[key]
+        return new_object
 
     positionFromWire: (wire_position) =>
-      ticker = wire_position.contract
-      position = @copy(wire_position)
-      position.position = @quantityFromWire(ticker, wire_position.position)
-      position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
-      return position
+        ticker = wire_position.contract
+        position = @copy(wire_position)
+        position.position = @quantityFromWire(ticker, wire_position.position)
+        position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
+        return position
 
     orderToWire: (order) =>
-      ticker = order.contract
-      wire_order = @copy(order)
-      wire_order.price = @priceToWire(ticker, order.price)
-      wire_order.quantity = @quantityToWire(ticker, order.quantity)
-      wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
-      return wire_order
+        ticker = order.contract
+        wire_order = @copy(order)
+        wire_order.price = @priceToWire(ticker, order.price)
+        wire_order.quantity = @quantityToWire(ticker, order.quantity)
+        wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
+        return wire_order
 
     orderFromWire: (wire_order) =>
-      ticker = wire_order.contract
-      order = @copy(wire_order)
-      order.price = @priceFromWire(ticker, wire_order.price)
-      order.quantity = @quantityFromWire(ticker, wire_order.quantity)
-      order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
-      order.timestamp = @timeFormat(wire_order.timestamp)
-      return order
+        ticker = wire_order.contract
+        order = @copy(wire_order)
+        order.price = @priceFromWire(ticker, wire_order.price)
+        order.quantity = @quantityFromWire(ticker, wire_order.quantity)
+        order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
+        order.timestamp = @timeFormat(wire_order.timestamp)
+        return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
-      book_row = @copy(wire_book_row)
-      book_row.price = @priceFromWire(ticker, wire_book_row.price)
-      book_row.quantity = @quantityFromWire(ticker, wire_book_row.quantity)
-      return book_row
+        book_row = @copy(wire_book_row)
+        book_row.price = @priceFromWire(ticker, wire_book_row.price)
+        book_row.quantity = @quantityFromWire(ticker, wire_book_row.quantity)
+        return book_row
 
     tradeFromWire: (wire_trade) =>
-      ticker = wire_trade.contract
-      trade = @copy(wire_trade)
-      trade.price = @priceFromWire(ticker, wire_trade.price)
-      trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
-      trade.wire_timestamp = wire_trade.timestamp
-      trade.timestamp = @timeFormat(wire_trade.timestamp)
-      return trade
+        ticker = wire_trade.contract
+        trade = @copy(wire_trade)
+        trade.price = @priceFromWire(ticker, wire_trade.price)
+        trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
+        trade.wire_timestamp = wire_trade.timestamp
+        trade.timestamp = @timeFormat(wire_trade.timestamp)
+        return trade
 
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -202,50 +202,50 @@ class window.Sputnik extends EventEmitter
         price = price * source.denominator * contract.denominator
         price = price - price % contract.tick_size
         return price
-       
+
     quantityFromWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
         return quantity / target.denominator
-    
+
     priceFromWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        
+
         return price / (source.denominator * contract.denominator)
 
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        
+
         return Math.log(source.denominator / contract.tick_size) / Math.LN10
-       
+
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-      
+
         # TODO: account for contract denominator
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
- 
+
 
     # order manipulation
     placeOrder: (quantity, price, ticker, side) =>
-      order =
-        quantity: quantity
-        price: price
-        contract: ticker
-        side: side
-      @log "placing order: #{order}"
-      @call("place_order", @orderToWire(order)).then \
-        (res) =>
-          @emit "place_order_success", res
-        , (error) =>
-          @emit "place_order_fail", error
+        order =
+            quantity: quantity
+            price: price
+            contract: ticker
+            side: side
+        @log "placing order: #{order}"
+        @call("place_order", @orderToWire(order)).then \
+            (res) =>
+                @emit "place_order_success", res
+            , (error) =>
+                @emit "place_order_fail", error
 
     cancelOrder: (id) =>
-      @log "cancelling: #{id}"
-      @call("cancel_order", id).then \
-        (res) =>
-          @emit "cancel_order_success", res
-        , (error) =>
-          @emit "cancel_order_fail", error
+        @log "cancelling: #{id}"
+        @call("cancel_order", id).then \
+            (res) =>
+                @emit "cancel_order_success", res
+            , (error) =>
+                @emit "cancel_order_fail", error
 
     # deposits and withdrawals
 
@@ -253,43 +253,43 @@ class window.Sputnik extends EventEmitter
     newAddress: (contract) =>
     withdraw: (contract, address, amount) =>
 
-    # account/position information
+        # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
-      @call("get_open_orders").then \
-        (@orders) =>
-          @log("orders received: #{orders}")
-          orders = {}
-          for id, order of @orders
-            if order.quantity_left > 0
-              orders[id] = @orderFromWire(order)
+        @call("get_open_orders").then \
+            (@orders) =>
+                @log("orders received: #{orders}")
+                orders = {}
+                for id, order of @orders
+                    if order.quantity_left > 0
+                        orders[id] = @orderFromWire(order)
 
-          @emit "orders", orders
+                @emit "orders", orders
 
     getPositions: () =>
-      @call("get_positions").then \
-        (@positions) =>
-          @log("positions received: #{@positions}")
-          positions = {}
-          for ticker, position of @positions
-            positions[ticker] = @positionFromWire(position)
+        @call("get_positions").then \
+            (@positions) =>
+                @log("positions received: #{@positions}")
+                positions = {}
+                for ticker, position of @positions
+                    positions[ticker] = @positionFromWire(position)
 
-          @emit "positions", positions
+                @emit "positions", positions
 
     getOrderBook: (ticker) =>
-      @call("get_order_book", ticker).then @onBook
+        @call("get_order_book", ticker).then @onBook
 
     getTradeHistory: (ticker) =>
-      @call("get_trade_history", ticker).then @onTradeHistory
+        @call("get_trade_history", ticker).then @onTradeHistory
 
     # miscelaneous methods
 
     chat: (message) =>
-      if @authenticated
-        @publish "chat", message
-        return [true, null]
-      else
-        return [false, "Not logged in"]
+        if @authenticated
+            @publish "chat", message
+            return [true, null]
+        else
+            return [false, "Not logged in"]
 
     ### internal methods ###
 
@@ -309,13 +309,15 @@ class window.Sputnik extends EventEmitter
                 else
                     @warn "RPC call failed: #{result[1]}"
                     return d.reject result[1]
-            ,(error) => @wtf "RPC Error: #{error.desc} in #{method}"
+            , (error) =>
+                @wtf "RPC Error: #{error.desc} in #{method}"
 
 
     subscribe: (topic, callback) =>
         if not @session?
             return @wtf "Not connected."
-        @session.subscribe "#{@uri}/feeds/#{topic}", (topic, event) -> callback event
+        @session.subscribe "#{@uri}/feeds/#{topic}", (topic, event) ->
+            callback event
 
     unsubscribe: (topic) =>
         if not @session?
@@ -324,20 +326,20 @@ class window.Sputnik extends EventEmitter
 
     publish: (topic, message) =>
         if not @session?
-          return @wtf "Not connected."
+            return @wtf "Not connected."
         @log "Publishing #{message} on #{topic}"
         @session.publish "#{@uri}/feeds/#{topic}", message
 
     # logging
     log: (obj) =>
-      console.log obj
-      @emit "log", obj
+        console.log obj
+        @emit "log", obj
     warn: (obj) ->
-      console.warn obj
-      @emit "warn", obj
+        console.warn obj
+        @emit "warn", obj
     error: (obj) ->
-      console.error obj
-      @emit "error", obj
+        console.error obj
+        @emit "error", obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
         @emit "wtf", obj
@@ -361,7 +363,7 @@ class window.Sputnik extends EventEmitter
         @emit "close"
 
     # authentication internals
-   
+
     # default RPC callbacks
 
     onMarkets: (@markets) =>
@@ -371,7 +373,7 @@ class window.Sputnik extends EventEmitter
             @markets[ticker].asks = []
         @emit "markets", @markets
 
- 
+
     # feeds
     onBook: (book) =>
         @log "book received: #{book}"
@@ -381,40 +383,38 @@ class window.Sputnik extends EventEmitter
 
         books = {}
         for contract, market of @markets
-          if market.contract_type != "cash"
-            books[contract] =
-              contract: contract
-              bids: @bookRowFromWire(contract, order) for order in market.bids
-              asks: @bookRowFromWire(contract, order) for order in market.asks
+            if market.contract_type != "cash"
+                books[contract] =
+                    contract: contract
+                    bids: @bookRowFromWire(contract, order) for order in market.bids
+                    asks: @bookRowFromWire(contract, order) for order in market.asks
 
         @emit "book", books
 
     # Make sure we only have the last hour of trades
     cleanTradeHistory: (ticker) =>
-      now = new Date()
-      an_hour_past = new Date()
-      an_hour_past.setHours(now.getHours() - 1)
-      ahpgt = an_hour_past.getTime()
-      while @markets[ticker].trades[0].timestamp/1000 < ahpgt
-        @log "#{@markets[ticker].trades[0].timestamp/1000} #{ahpgt}"
-        @markets[ticker].trades.shift()
+        now = new Date()
+        an_hour_ago = new Date()
+        an_hour_ago.setHours(now.getHours() - 1)
+        while @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
+            @markets[ticker].trades.shift()
 
     emitTradeHistory: (ticker) =>
         trade_history = {}
         trade_history[ticker] = for trade in @markets[ticker].trades
-          @tradeFromWire(trade)
+            @tradeFromWire(trade)
 
         @emit "trade_history", trade_history
 
     onTradeHistory: (trade_history) =>
-      @log "trade_history received: #{trade_history}"
-      if trade_history.length > 0
-        ticker = trade_history[0].contract
-        @markets[ticker].trades = trade_history
-        @cleanTradeHistory(ticker)
-        @emitTradeHistory(ticker)
-      else
-        @warn "no trades in history"
+        @log "trade_history received: #{trade_history}"
+        if trade_history.length > 0
+            ticker = trade_history[0].contract
+            @markets[ticker].trades = trade_history
+            @cleanTradeHistory(ticker)
+            @emitTradeHistory(ticker)
+        else
+            @warn "no trades in history"
 
     onTrade: (trade) =>
         ticker = trade.contract
@@ -435,38 +435,38 @@ class window.Sputnik extends EventEmitter
 
     # My orders get updated with orders
     onOrder: (order) =>
-      @emit "order", @orderFromWire(order)
+        @emit "order", @orderFromWire(order)
 
-      id = order.id
-      if id of @orders and (order.is_cancelled or order.quantity_left == 0)
-        delete @orders[id]
-      else
-        if order.quantity_left > 0
-          @orders[id] = order
+        id = order.id
+        if id of @orders and (order.is_cancelled or order.quantity_left == 0)
+            delete @orders[id]
+        else
+            if order.quantity_left > 0
+                @orders[id] = order
 
-      orders = {}
-      for id, order of @orders
-        if order.quantity_left > 0
-          orders[id] = @orderFromWire(order)
+        orders = {}
+        for id, order of @orders
+            if order.quantity_left > 0
+                orders[id] = @orderFromWire(order)
 
-      @emit "orders", orders
+        @emit "orders", orders
 
     # My positions and available margin get updated with fills
     onFill: (fill) =>
-      @emit "fill", @tradeFromWire(fill)
-      [contract, source, target] = @cstFromTicker(fill.contract)
-      if contract.contract_type == "cash_pair"
-        if fill.side == "SELL"
-          sign = -1
+        @emit "fill", @tradeFromWire(fill)
+        [contract, source, target] = @cstFromTicker(fill.contract)
+        if contract.contract_type == "cash_pair"
+            if fill.side == "SELL"
+                sign = -1
+            else
+                sign = 1
+            @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
+            @positions[target.ticker].position += fill.quantity * sign
         else
-          sign = 1
-        @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
-        @positions[target.ticker].position += fill.quantity * sign
-      else
-        @error "only cash_pair contracts implemented in onFill"
+            @error "only cash_pair contracts implemented in onFill"
 
-      positions = {}
-      for ticker, position of @positions
-        positions[ticker] = @positionFromWire(position)
+        positions = {}
+        for ticker, position of @positions
+            positions[ticker] = @positionFromWire(position)
 
-      @emit "positions", positions
+        @emit "positions", positions

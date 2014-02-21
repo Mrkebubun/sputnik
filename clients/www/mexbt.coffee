@@ -20,8 +20,8 @@ sputnik.on "auth_success", (username) ->
     sputnik.getCookie()
 
 sputnik.on "cookie", (uid) ->
-  sputnik.log "cookie: " + uid
-  document.cookie = "login" + "=" + login.value + ":" + uid
+    sputnik.log "cookie: " + uid
+    document.cookie = "login" + "=" + login.value + ":" + uid
 
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
@@ -67,15 +67,15 @@ $("#register_button").click (event) ->
     sputnik.makeAccount username, password, email
 
 $("#buyButton").click ->
-  sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'MXN/BTC', 'BUY')
+    sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'MXN/BTC', 'BUY')
 
 $("#sellButton").click ->
-  sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'MXN/BTC', 'SELL')
+    sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'MXN/BTC', 'SELL')
 
 $("#logout").click (event) ->
-  document.cookie = ''
-  sputnik.logout()
-  location.reload()
+    document.cookie = ''
+    sputnik.logout()
+    location.reload()
 
 updateTable = (id, data) ->
     rows = for [price, quantity] in data
@@ -83,61 +83,63 @@ updateTable = (id, data) ->
     $("##{id}").html rows.join("")
 
 updateBuys = (data) ->
-    data.sort (a, b) -> b[0] - a[0]
+    data.sort (a, b) ->
+        b[0] - a[0]
     updateTable "buys", data
     best_offer = Math.max 0, (price for [price, quantity] in data)...
     $("#sell_price").attr "placeholder", best_offer
 
 updateSells = (data) ->
-    data.sort (a, b) -> a[0] - b[0]
+    data.sort (a, b) ->
+        a[0] - b[0]
     updateTable "sells", data
     best_offer = Math.min (price for [price, quantity] in data)...
     $("#buy_price").attr "placeholder", best_offer
 
 updateTrades = (data) ->
     rows = for trade in data.reverse()
-      "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
+        "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
     $("#trades").html rows.join("")
 
 updatePlot = (data) ->
     plot_data = for trade in data
-      [trade.wire_timestamp/1000, trade.price]
+        [trade.wire_timestamp / 1000, trade.price]
     data =
-      data: plot_data
-      label: 'Trades'
+        data: plot_data
+        label: 'Trades'
 
     options =
-      xaxis:
-        mode: 'time'
-        timezone: 'browser'
-        format: '%H:%M:%S'
+        xaxis:
+            mode: 'time'
+            timezone: 'browser'
+            format: '%H:%M:%S'
 
     $.plot("#graph", [data], options)
 
 updateOrders = (orders) ->
-  rows = []
-  for id, order of orders
-      icon = "<span class='label label-warning'>Sell</span>"
-      if order.side is "BUY"
-          icon = "<span class='label label-primary'>Buy</span>"
-      icon = "<td>#{icon}</td>"
-      price = "<td>#{order.price}</td>"
-      quantity = "<td>#{order.quantity}</td>"
-      #timestamp = "<td>#{order.timestamp}</td>"
-      #id = "<td>#{id}</td>"
-      button = "<td><button type='button' class='btn btn-danger' onclick='cancelOrder(#{id})'>"
-      button += "<span class='glyphicon glyphicon-trash'></span>"
-      button += "</button></td>"
-      rows.push "<tr>" + icon + price + quantity + button + "</tr>"
+    rows = []
+    for id, order of orders
+        icon = "<span class='label label-warning'>Sell</span>"
+        if order.side is "BUY"
+            icon = "<span class='label label-primary'>Buy</span>"
+        icon = "<td>#{icon}</td>"
+        price = "<td>#{order.price}</td>"
+        quantity = "<td>#{order.quantity}</td>"
+        #timestamp = "<td>#{order.timestamp}</td>"
+        #id = "<td>#{id}</td>"
+        button = "<td><button type='button' class='btn btn-danger' onclick='cancelOrder(#{id})'>"
+        button += "<span class='glyphicon glyphicon-trash'></span>"
+        button += "</button></td>"
+        rows.push "<tr>" + icon + price + quantity + button + "</tr>"
 
-  $("#orders").html rows.join("")
+    $("#orders").html rows.join("")
 
 $ ->
     sputnik.connect()
 
 sputnik.on "trade_history", (trade_history) ->
-  updateTrades(trade_history['MXN/BTC'])
-  updatePlot(trade_history['MXN/BTC'])
+    updateTrades(trade_history['MXN/BTC'])
+    updatePlot(trade_history['MXN/BTC'])
 
 sputnik.on "open", () ->
     sputnik.log "open"
@@ -166,14 +168,14 @@ sputnik.on "book", (book) ->
     updateSells ([book_row.price, book_row.quantity] for book_row in book["MXN/BTC"].asks)
 
 sputnik.on "orders", (orders) ->
-  updateOrders orders
+    updateOrders orders
 
 sputnik.on "trade", (trade) ->
-  if trade.contract == "MXN/BTC"
-    $('#last').text trade.price.toFixed(0)
+    if trade.contract == "MXN/BTC"
+        $('#last').text trade.price.toFixed(0)
 
 sputnik.on "positions", (positions) ->
-  MXNpos = positions['MXN'].position
-  BTCpos = positions['BTC'].position
-  $('#MXNpos').text MXNpos.toFixed(0)
-  $('#BTCpos').text BTCpos.toFixed(2)
+    MXNpos = positions['MXN'].position
+    BTCpos = positions['BTC'].position
+    $('#MXNpos').text MXNpos.toFixed(0)
+    $('#BTCpos').text BTCpos.toFixed(2)
