@@ -14,7 +14,7 @@ import random, string
 
 class RandomBot(TradingBot):
     def startAutomation(self):
-        rate = 5
+        rate = 1
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1.0 * rate)
@@ -42,9 +42,20 @@ class RandomBot(TradingBot):
         tick_size = contract['tick_size']
         lot_size = contract['lot_size']
 
-        # really we should look at current best bid/ask and do something around that, but whatevs
-        price = tick_size * random.randint(70,80) * 100
-        quantity = lot_size * random.randint(100,200)
+        # Look at best bid/ask
+        try:
+            best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
+            best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
+
+            # Pick a price reasonably close to the best bid and ask
+            price = int(random.randint(int(best_bid*0.9), (best_ask*0.9)) / tick_size) * tick_size
+        except (ValueError, KeyError):
+            # We don't have a best bid/ask, just pick a price randomly
+            price = random.randint(7000,8000) * tick_size
+
+        # a qty somewhere between 0.5 and 2 BTC
+        quantity = random.randint(50,200) * lot_size
+
         self.placeOrder(ticker, quantity, price, side)
 
     def saySomethingRandom(self):

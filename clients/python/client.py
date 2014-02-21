@@ -75,6 +75,8 @@ class TradingBot(WampCraClientProtocol):
         overwrite me
         """
         pprint(["Book: ", topicUri, event])
+        self.markets[event['contract']]['bids'] = event['bids']
+        self.markets[event['contract']]['asks'] = event['asks']
 
     def onTrade(self, topicUri, event):
         """
