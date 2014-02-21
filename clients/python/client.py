@@ -15,8 +15,8 @@ class TradingBot(WampCraClientProtocol):
 
     def __init__(self):
         self.base_uri = "ws://localhost:8000"
-        self.username = 'testuser1'
-        self.password = 'testuser1'
+        self.username = 'testuser2'
+        self.password = 'testuser2'
         self.markets = {}
         self.orders = {}
 
@@ -51,6 +51,7 @@ class TradingBot(WampCraClientProtocol):
         print "Authentication Success!", permissions
         self.subOrders()
         self.subFills()
+        self.getOpenOrders()
 
         self.startAutomation()
 
@@ -89,7 +90,9 @@ class TradingBot(WampCraClientProtocol):
 
     def onOpenOrders(self, event):
         pprint(event)
-        self.orders = event[1]
+        self.orders = {}
+        for id, order in event[1].iteritems():
+            self.orders[int(id)] = order
 
     def onOrder(self, topicUri, order):
         """
@@ -115,6 +118,9 @@ class TradingBot(WampCraClientProtocol):
 
     def onPlaceOrder(self, event):
         pprint(event)
+
+    def onRpcError(self, event):
+        pprint(["RpcError", event.value.args])
 
     """
     Subscriptions
@@ -155,24 +161,24 @@ class TradingBot(WampCraClientProtocol):
 
     def getNewAddress(self):
         d = self.call(self.base_uri + "/rpc/get_new_address")
-        d.addBoth(pprint)
+        d.addCallbacks(pprint, self.onRpcError)
 
     def getPositions(self):
         d = self.call(self.base_uri + "/rpc/get_positions")
-        d.addBoth(pprint)
+        d.addCallbacks(pprint, self.onRpcError)
 
     def getMarkets(self):
         d = self.call(self.base_uri + "/rpc/get_markets")
-        d.addBoth(self.onMarkets)
+        d.addCallbacks(self.onMarkets, self.onRpcError)
 
     def getOrderBook(self, ticker):
         d = self.call(self.base_uri + "/rpc/get_order_book", ticker)
-        d.addBoth(pprint)
+        d.addCallbacks(pprint, self.onRpcError)
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
-        d = self.call(self.base_URI + "/rpc/get_open_orders")
-        d.addBoth(self.onOpenOrders)
+        d = self.call(self.base_uri + "/rpc/get_open_orders")
+        d.addCallbacks(self.onOpenOrders, self.onRpcError)
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
@@ -183,7 +189,7 @@ class TradingBot(WampCraClientProtocol):
         print "inside place order", ord
         print self.base_uri + "/rpc/place_order"
         d = self.call(self.base_uri + "/rpc/place_order", ord)
-        d.addBoth(self.onPlaceOrder)
+        d.addCallbacks(self.onPlaceOrder, self.onRpcError)
 
     def chat(self, message):
         print "chatting: ", message
@@ -194,9 +200,9 @@ class TradingBot(WampCraClientProtocol):
         cancels an order by its id.
         :param id: order id
         """
-        print "inside cancel order"
+        print "cancel order: %d" % id
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
-        d.addBoth(pprint)
+        d.addCallbacks(pprint, self.onRpcError)
 
 
 if __name__ == '__main__':

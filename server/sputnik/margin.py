@@ -2,7 +2,7 @@ __author__ = 'arthurb'
 
 import models
 import logging
-
+import util
 import collections
 
 logging.basicConfig(level=logging.DEBUG)
@@ -31,7 +31,8 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     for position in positions.values():
 
         max_position = position.position + sum(
-            order.quantity_left for order in open_orders if order.contract == position.contract and order.side == 'BUY')
+            order.quantity_left for order in open_orders if
+            order.contract == position.contract and order.side == 'BUY')
         min_position = position.position - sum(
             order.quantity_left for order in open_orders if
             order.contract == position.contract and order.side == 'SELL')
@@ -86,11 +87,18 @@ def calculate_margin(username, session, safe_prices, order_id=None):
 
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency, to_currency = get_currencies_in_pair(session, order.contract.ticker)
+            from_currency_ticker, to_currency_ticker = util.split_pair(order.contract.ticker)
+            to_currency = session.query(models.Contract).filter_by(
+                ticker=to_currency_ticker).order_by(models.Contract.id.desc()).first()
             if order.side == 'BUY':
-                max_cash_spent[from_currency.ticker] += (order.quantity_left / order.contract.lot_size) * order.price
+                # WARNING: This may create a float but I think its okay because we are just using
+                # this value for a margin comparison, a small rounding error here should
+                # not be a problem
+                # We switched from lot_size to to_currency_denominator because quantity
+                # is quantity, not lots
+                max_cash_spent[from_currency_ticker] += order.quantity_left * order.price / to_currency.denominator
             if order.side == 'SELL':
-                max_cash_spent[to_currency.ticker] += order.quantity_left
+                max_cash_spent[to_currency_ticker] += order.quantity_left
 
     for cash_ticker in cash_position:
         if cash_ticker == 'BTC':
@@ -104,11 +112,4 @@ def calculate_margin(username, session, safe_prices, order_id=None):
 
     return low_margin, high_margin
 
-def get_currencies_in_pair(session, ticker):
-        tokens = ticker.split("/", 1)
-        source = session.query(models.Contract).filter_by(
-            ticker=tokens[0]).order_by(models.Contract.id.desc()).first()
-        target = session.query(models.Contract).filter_by(
-            ticker=tokens[1]).order_by(models.Contract.id.desc()).first()
-        return source, target
 

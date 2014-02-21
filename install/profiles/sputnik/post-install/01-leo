@@ -4,14 +4,14 @@ cat << EOF | sudo -u sputnik $profile_root/tools/leo
 database init
 contracts add BTC
 contracts add MXN
-contracts add MXN/BTC
+contracts add BTC/MXN
 contracts modify BTC contract_type cash
 contracts modify BTC denominator 100000000
 contracts modify MXN contract_type cash
 contracts modify MXN denominator 100
-contracts modify MXN/BTC contract_type cash_pair
-contracts modify MXN/BTC tick_size 100
-contracts modify MXN/BTC lot_size 1000000
-contracts modify MXN/BTC denominator 1
+contracts modify BTC/MXN contract_type cash_pair
+contracts modify BTC/MXN tick_size 100
+contracts modify BTC/MXN lot_size 1000000
+contracts modify BTC/MXN denominator 1
 EOF
 

@@ -14,7 +14,7 @@ import random, string
 
 class RandomBot(TradingBot):
     def startAutomation(self):
-        rate = 1
+        rate = 5
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1.0 * rate)
@@ -34,7 +34,7 @@ class RandomBot(TradingBot):
                 random_markets.append(ticker)
 
         # Pick a market at random
-        ticker = random.choice(random_markets)
+        ticker = 'BTC/MXN'
         side = random.choice(["BUY", "SELL"])
         contract = self.markets[ticker]
 

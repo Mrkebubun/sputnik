@@ -67,10 +67,10 @@ $("#register_button").click (event) ->
     sputnik.makeAccount username, password, email
 
 $("#buyButton").click ->
-    sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'MXN/BTC', 'BUY')
+    sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
 
 $("#sellButton").click ->
-    sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'MXN/BTC', 'SELL')
+    sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'BTC/MXN', 'SELL')
 
 $("#logout").click (event) ->
     document.cookie = ''
@@ -138,14 +138,14 @@ $ ->
     sputnik.connect()
 
 sputnik.on "trade_history", (trade_history) ->
-    updateTrades(trade_history['MXN/BTC'])
-    updatePlot(trade_history['MXN/BTC'])
+    updateTrades(trade_history['BTC/MXN'])
+    updatePlot(trade_history['BTC/MXN'])
 
 sputnik.on "open", () ->
     sputnik.log "open"
-    sputnik.getOrderBook "MXN/BTC"
-    sputnik.getTradeHistory "MXN/BTC"
-    sputnik.follow "MXN/BTC"
+    sputnik.getOrderBook "BTC/MXN"
+    sputnik.getTradeHistory "BTC/MXN"
+    sputnik.follow "BTC/MXN"
 
     # Attempt a cookie login
     cookie = document.cookie
@@ -164,14 +164,14 @@ sputnik.on "session_expired", ->
     document.cookie = ''
 
 sputnik.on "book", (book) ->
-    updateBuys ([book_row.price, book_row.quantity] for book_row in book["MXN/BTC"].bids)
-    updateSells ([book_row.price, book_row.quantity] for book_row in book["MXN/BTC"].asks)
+    updateBuys ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].bids)
+    updateSells ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].asks)
 
 sputnik.on "orders", (orders) ->
     updateOrders orders
 
 sputnik.on "trade", (trade) ->
-    if trade.contract == "MXN/BTC"
+    if trade.contract == "BTC/MXN"
         $('#last').text trade.price.toFixed(0)
 
 sputnik.on "positions", (positions) ->

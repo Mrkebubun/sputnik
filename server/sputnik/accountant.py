@@ -13,6 +13,7 @@ if options.filename:
 import database
 import models
 import margin
+import util
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
 
@@ -116,26 +117,6 @@ class Accountant:
             self.session.add(position)
             return position
 
-    def split_pair(self, pair):
-        """
-        Return the underlying pair of contracts in a cash_pair contract.
-        :param pair: the ticker name of the pair to split
-        :return: a tuple of Contract objects
-        """
-
-        if isinstance(pair, models.Contract):
-            return self.split_pair(pair.ticker)
-
-        tokens = pair.split("/", 1)
-        if len(tokens) == 1:
-            raise AccountantException("'%s' is not a currency pair." % pair)
-        try:
-            source = self.get_contract(tokens[0])
-            target = self.get_contract(tokens[1])
-        except AccountantException:
-            raise AccountantException("'%s' is not a currency pair." % pair)
-        return source, target
-
     def accept_order(self, order):
         """
         Accept the order if the user has sufficient margin. Otherwise, delete
@@ -216,7 +197,11 @@ class Accountant:
             session.merge(prediction_position)
 
         elif contract.contract_type == "cash_pair":
-            from_currency, to_currency = self.split_pair(ticker)
+            from_currency_ticker, to_currency_ticker = util.split_pair(ticker)
+
+            from_currency = self.get_contract(from_currency_ticker)
+            to_currency = self.get_contract(to_currency_ticker)
+
             from_position = self.get_position(username, from_currency)
             to_position = self.get_position(username, to_currency)
 

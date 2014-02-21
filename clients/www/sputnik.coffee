@@ -134,7 +134,7 @@ class window.Sputnik extends EventEmitter
     cstFromTicker: (ticker) =>
         contract = @markets[ticker]
         if contract.contract_type is "cash_pair"
-            [s, t] = ticker.split("/")
+            [t, s] = ticker.split("/")
             source = @markets[s]
             target = @markets[t]
         else
