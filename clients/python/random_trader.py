@@ -13,6 +13,9 @@ from client import TradingBot
 import random, string
 
 class RandomBot(TradingBot):
+    def getUsernamePassword(self):
+        return ['randomtrader', 'randomtrader']
+
     def startAutomation(self):
         rate = 1
 

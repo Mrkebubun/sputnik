@@ -15,16 +15,18 @@ class TradingBot(WampCraClientProtocol):
 
     def __init__(self):
         self.base_uri = "ws://localhost:8000"
-        self.username = 'testuser2'
-        self.password = 'testuser2'
         self.markets = {}
         self.orders = {}
+        self.username = None
 
     def action(self):
         '''
         overwrite me
         '''
         return True
+
+    def getUsernamePassword(self):
+        return ['testuser1', 'testuser1']
 
     """
     reactive events - on* 
@@ -38,9 +40,10 @@ class TradingBot(WampCraClientProtocol):
         self.subChat()
         ## authenticate as "foobar" with password "secret"
         ##
+        [self.username, password] = self.getUsernamePassword()
         d = self.authenticate(authKey=self.username,
                               authExtra=None,
-                              authSecret=self.password)
+                              authSecret=password)
 
         d.addCallbacks(self.onAuthSuccess, self.onAuthError)
 

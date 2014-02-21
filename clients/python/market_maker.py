@@ -15,6 +15,9 @@ import json
 from bs4 import BeautifulSoup
 
 class MarketMakerBot(TradingBot):
+    def getUsernamePassword(self):
+        return ['marketmaker', 'marketmaker']
+
     def startAutomation(self):
         rate = 1
 
@@ -52,8 +55,8 @@ class MarketMakerBot(TradingBot):
             self.cancelOrder(id)
 
         # Place two orders for the current bid and ask
-        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 100, 'BUY')
-        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 100, 'SELL')
+        self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_bid) * 100, 'BUY')
+        self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_ask) * 100, 'SELL')
 
 
 if __name__ == '__main__':
