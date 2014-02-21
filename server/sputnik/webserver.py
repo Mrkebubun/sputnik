@@ -663,7 +663,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         def _cb(result):
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-                           'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6]} for r in result}]
+                           'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
 
         return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
                                "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
