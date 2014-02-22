@@ -96,7 +96,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
                 # not be a problem
                 # We switched from lot_size to to_currency_denominator because quantity
                 # is quantity, not lots
-                max_cash_spent[from_currency_ticker] += order.quantity_left * order.price / to_currency.denominator
+                max_cash_spent[from_currency_ticker] += order.quantity_left * order.price / order.contract.denominator / to_currency.denominator
             if order.side == 'SELL':
                 max_cash_spent[to_currency_ticker] += order.quantity_left
 
