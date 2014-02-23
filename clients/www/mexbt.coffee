@@ -1,4 +1,5 @@
 sputnik = new window.Sputnik "ws://localhost:8000"
+window.sputnik = sputnik
 
 sputnik.on "auth_success", (username) ->
     ladda = Ladda.create $("#login_button")[0]
