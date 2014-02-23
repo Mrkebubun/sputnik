@@ -59,8 +59,8 @@ class MarketMakerBot(TradingBot):
         if int(self.btcmxn_bid) == int(self.btcmxn_ask):
             self.btcmxn_bid -= 1
 
-        self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_bid) * 100, 'BUY')
-        self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_ask) * 100, 'SELL')
+        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 100, 'BUY')
+        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 100, 'SELL')
 
 
 if __name__ == '__main__':
