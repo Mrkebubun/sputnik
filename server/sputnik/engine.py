@@ -337,12 +337,14 @@ class ReplaceMeWithARealEngine:
             webserver.order(o.username, {'id': o.id, 'is_cancelled': True, 'contract': contract_name})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
-            return False
+            # TODO: Fix to use exceptions
+            return [False, (0, "the order %d cannot be cancelled, it's already outside the book" % order_id)]
 
         logging.info(pretty_print_book())
         publish_order_book()
 
-        return True
+        # TODO: Fix to use exceptions
+        return [True, None]
 
     @export
     def place_order(self, obj):
@@ -397,7 +399,8 @@ class ReplaceMeWithARealEngine:
         # done placing the order, publish the order book
         logging.info(pretty_print_book())
         publish_order_book()
-        return True
+        # TODO: Fix to use exception error format
+        return [True, order.id]
 
 engine = ReplaceMeWithARealEngine()
 router_share_sync(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)

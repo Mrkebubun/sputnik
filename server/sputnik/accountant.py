@@ -236,7 +236,8 @@ class Accountant:
             order = session.query(models.Order).filter_by(id=order_id).one()
             return self.engines[order.contract.ticker].cancel_order(order_id)
         except NoResultFound:
-            raise Exception("No such order found.")
+            # TODO: Fix to use exceptions
+            return [False, (0, "No order %d found" % order_id)]
 
     def place_order(self, order):
         """
@@ -248,12 +249,13 @@ class Accountant:
         contract = self.get_contract(order["contract"])
 
         if not contract.active:
-            raise Exception("Contract is not active.")
+            # TODO: Fix to use exceptions
+            return [False, (0, "Contract is not active.")]
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
             logging.critical("Webserver allowed a 'cash' contract!")
-            raise Exception("Not a valid contract type.")
+            return [False, (0, "Not a valid contract type.")]
 
         # TODO: check that the price is an integer and within a valid range
 
@@ -261,7 +263,7 @@ class Accountant:
         if contract.contract_type == 'prediction':
             # contract.denominator happens to be the same as the finally payoff
             if not 0 <= order["price"] <= contract.denominator:
-                raise Exception("Not a valid prediction price.")
+                return [False, (0, "Not a valid prediction price")]
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
 
@@ -271,7 +273,8 @@ class Accountant:
         if self.accept_order(o):
             return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
         else:
-            raise Exception("Not enough margin.")
+            # TODO: Fix to use exceptions
+            return [False, (0, "Not enough margin")]
 
     def deposit_cash(self, address, total_received):
         """

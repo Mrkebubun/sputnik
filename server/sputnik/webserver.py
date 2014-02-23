@@ -598,7 +598,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_profile(self):
         def _cb(result):
             if not result:
-                return [False, (0, "unknown error")]
+                return [False, (0, "get profile failed")]
             return [True, {'nickname': result[0][0], 'email': result[0][1]}]
 
         return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
@@ -717,13 +717,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order['username'] = self.username
 
-            def _retval_cb(return_value):
-                if return_value is True:
-                    return [True, None]
-                else:
-                    return [False, (0, "unknown error")]
-
-            return self.factory.accountant.place_order(order).addCallback(_retval_cb)
+            return self.factory.accountant.place_order(order)
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
                                (order['contract'],)).addCallback(_cb)
@@ -748,13 +742,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
 
-        def _cb(result):
-            if result:
-                return [True, None]
-            else:
-                return [False, (0, "unknown error")]
-
-        return self.factory.accountant.cancel_order(order_id).addCallback(_cb)
+        return self.factory.accountant.cancel_order(order_id)
 
     @exportSub("chat")
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):

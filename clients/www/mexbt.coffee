@@ -125,7 +125,7 @@ updateOrders = (orders) ->
             icon = "<span class='label label-primary'>Buy</span>"
         icon = "<td>#{icon}</td>"
         price = "<td>#{order.price}</td>"
-        quantity = "<td>#{order.quantity}</td>"
+        quantity = "<td>#{order.quantity_left}</td>"
         #timestamp = "<td>#{order.timestamp}</td>"
         #id = "<td>#{id}</td>"
         button = "<td><button type='button' class='btn btn-danger' onclick='cancelOrder(#{id})'>"
