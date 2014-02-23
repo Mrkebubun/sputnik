@@ -13,6 +13,7 @@
       <w>dbpool</w>
       <w>jsonschema</w>
       <w>keylen</w>
+      <w>marketmaker</w>
       <w>minified</w>
       <w>onetimepass</w>
       <w>postgresql</w>
@@ -21,7 +22,9 @@
       <w>randomtrader</w>
       <w>requirejs</w>
       <w>retval</w>
+      <w>sameer</w>
       <w>sputnikmkt</w>
+      <w>sudo</w>
       <w>testuser</w>
       <w>usdmxn</w>
       <w>webserver</w>
