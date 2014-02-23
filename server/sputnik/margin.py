@@ -105,7 +105,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
             additional_margin = max_cash_spent['BTC']
         else:
             # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
-            additional_margin = 0 if max_cash_spent[cash_ticker] < cash_position[cash_ticker] else 2**48
+            additional_margin = 0 if max_cash_spent[cash_ticker] <= cash_position[cash_ticker] else 2**48
 
         low_margin += additional_margin
         high_margin += additional_margin

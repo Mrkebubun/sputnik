@@ -9,6 +9,7 @@ else
 uri = ws_protocol + "//" + hostname + ":8000"
 
 sputnik = new window.Sputnik uri
+window.sputnik = sputnik
 
 sputnik.on "auth_success", (username) ->
     ladda = Ladda.create $("#login_button")[0]
