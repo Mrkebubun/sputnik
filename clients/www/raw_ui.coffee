@@ -1,6 +1,14 @@
-# TODO: Make this point to the right place even if not localhost or the 8000 port
+location = window.location
+hostname = location.hostname
+protocol = location.protocol
+if protocol == 'http:'
+    ws_protocol = "ws:"
+else
+    ws_protocol = "wss:"
 
-sputnik = new window.Sputnik "ws://localhost:8000"
+uri = ws_protocol + "//" + hostname + ":8000"
+
+sputnik = new window.Sputnik uri
 sputnik.connect()
 
 # Register UI events
