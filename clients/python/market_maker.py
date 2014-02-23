@@ -52,7 +52,8 @@ class MarketMakerBot(TradingBot):
     def monitorOrders(self):
         # Cancel any existing orders
         for id, order in self.orders.iteritems():
-            self.cancelOrder(id)
+            if not order['is_cancelled'] and order['quantity_left'] > 0:
+                self.cancelOrder(id)
 
         # Place two orders for the current bid and ask
         self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_bid) * 100, 'BUY')
