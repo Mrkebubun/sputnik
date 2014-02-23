@@ -1,4 +1,14 @@
-sputnik = new window.Sputnik "ws://localhost:8000"
+location = window.location
+hostname = location.hostname
+protocol = location.protocol
+if protocol == 'http:'
+    ws_protocol = "ws:"
+else
+    ws_protocol = "wss:"
+
+uri = ws_protocol + "//" + hostname + ":8000"
+
+sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
 sputnik.on "auth_success", (username) ->
