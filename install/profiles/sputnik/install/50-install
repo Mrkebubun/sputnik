@@ -12,4 +12,5 @@ cp -R $profile_git_root/dist/keys $profile_keys
 # change permissions
 chown -R root:root $profile_root
 chmod -R ugo+rX $profile_root
+chmod +x $profile_root/server/sputnik/*.pyc
 
