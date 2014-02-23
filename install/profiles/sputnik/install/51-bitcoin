@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ "X$UPGRADE" = "X" ]; then
+    exit 0
+fi
+
 chown $profile_user:$profile_bitcoin_user $profile_conf/bitcoin.conf
 chmod 440 $profile_conf/bitcoin.conf
 

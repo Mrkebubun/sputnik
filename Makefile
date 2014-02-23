@@ -18,7 +18,8 @@ deps:
 build:
 	install/install.py build
 
-upgrade: install
+upgrade:
+	install/install.py upgrade
 
 install: deps
 	install/install.py install

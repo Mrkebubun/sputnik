@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ "X$UPGRADE" = "X" ]; then
+    exit 0
+fi
+
 # wait until everything starts up
 sleep 10
 sudo -u sputnik $profile_root/tools/generate_new_btc_addresses.py
