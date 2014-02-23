@@ -325,6 +325,9 @@ def main():
             installer.make_build()
         elif mode == "install":
             installer.make_install()
+        elif mode == "upgrade":
+            installer.env["UPGRADE"] = "upgrade"
+            installer.make_install()
         elif mode == "vars":
             for key, value in installer.config.iteritems():
                 print "%s%s" % ((key + ":").ljust(20), value)
