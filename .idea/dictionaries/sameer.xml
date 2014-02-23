@@ -4,8 +4,10 @@
       <w>addr</w>
       <w>authextra</w>
       <w>bitcoin</w>
+      <w>bitcoind</w>
       <w>btcmxn</w>
       <w>btcusd</w>
+      <w>chown</w>
       <w>coffeescript</w>
       <w>compropago</w>
       <w>crossfilter</w>
@@ -15,8 +17,10 @@
       <w>keylen</w>
       <w>marketmaker</w>
       <w>minified</w>
+      <w>mkdir</w>
       <w>onetimepass</w>
       <w>postgresql</w>
+      <w>psql</w>
       <w>pubsub</w>
       <w>qrcode</w>
       <w>randomtrader</w>
