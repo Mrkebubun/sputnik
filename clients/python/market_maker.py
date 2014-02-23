@@ -56,6 +56,9 @@ class MarketMakerBot(TradingBot):
                 self.cancelOrder(id)
 
         # Place two orders for the current bid and ask
+        if int(self.btcmxn_bid) == int(self.btcmxn_ask):
+            self.btcmxn_bid -= 1
+
         self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_bid) * 100, 'BUY')
         self.placeOrder('BTC/MXN', 1000000000, int(self.btcmxn_ask) * 100, 'SELL')
 
