@@ -36,6 +36,13 @@ class MarketMakerBot(TradingBot):
 
         return True
 
+    # See if we have any orders on a given side
+    def checkOrders(self, side):
+        for id, order in self.orders.iteritems():
+            if order.side == side:
+                return True
+        return False
+
     def getExternalMarket(self):
         url = "https://www.bitstamp.net/api/ticker/"
         file_handle = urllib2.urlopen(url)
@@ -63,8 +70,11 @@ class MarketMakerBot(TradingBot):
         if int(self.btcmxn_bid) == int(self.btcmxn_ask):
             self.btcmxn_bid -= 1
 
-        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 10000, 'BUY')
-        self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 10000, 'SELL')
+        if not self.checkOrders('BUY'):
+            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 10000, 'BUY')
+
+        if not self.checkOrders('SELL'):
+            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 10000, 'SELL')
 
 
 if __name__ == '__main__':
