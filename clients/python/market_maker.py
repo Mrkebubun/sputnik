@@ -39,7 +39,10 @@ class MarketMakerBot(TradingBot):
     # See if we have any orders on a given side
     def checkOrders(self, side):
         for id, order in self.orders.iteritems():
-            if order.side == side:
+            if order['is_cancelled'] or order['quantity_left'] <= 0:
+                continue
+
+            if order['side'] == side:
                 return True
         return False
 
