@@ -23,16 +23,16 @@ class MarketMakerBot(TradingBot):
         return uri
 
     def startAutomation(self):
-        rate = 1
+        rate = 10
 
         self.btcmxn_bid = None
         self.btcmxn_ask = None
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(1.0)
+        self.get_external_market.start(rate * 1.0)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(0.5)
+        self.monitor_orders.start(rate * 1.0)
 
         return True
 
@@ -74,10 +74,10 @@ class MarketMakerBot(TradingBot):
             self.btcmxn_bid -= 1
 
         if not self.checkOrders('BUY'):
-            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 10000, 'BUY')
+            self.placeOrder('BTC/MXN', 25000000, int(self.btcmxn_bid) * 100, 'BUY')
 
         if not self.checkOrders('SELL'):
-            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 10000, 'SELL')
+            self.placeOrder('BTC/MXN', 25000000, int(self.btcmxn_ask) * 100, 'SELL')
 
 
 if __name__ == '__main__':
