@@ -14,7 +14,7 @@ class TradingBot(WampCraClientProtocol):
    """
 
     def __init__(self):
-        self.base_uri = "ws://localhost:8000"
+        self.base_uri = self.getUri()
         self.markets = {}
         self.orders = {}
         self.username = None

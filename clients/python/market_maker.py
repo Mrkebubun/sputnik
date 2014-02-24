@@ -14,9 +14,13 @@ import urllib2
 import json
 from bs4 import BeautifulSoup
 
+uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
     def getUsernamePassword(self):
         return ['marketmaker', 'marketmaker']
+
+    def getUri(self):
+        return uri
 
     def startAutomation(self):
         rate = 1
@@ -72,7 +76,7 @@ if __name__ == '__main__':
         debug = False
 
     log.startLogging(sys.stdout)
-    factory = WampClientFactory("ws://localhost:8000", debugWamp=debug)
+    factory = WampClientFactory(uri, debugWamp=debug)
     factory.protocol = MarketMakerBot
 
     # null -> ....

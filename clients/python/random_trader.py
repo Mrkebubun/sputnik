@@ -12,9 +12,13 @@ from autobahn.wamp import WampClientFactory
 from client import TradingBot
 import random, string
 
+uri = 'wss://sputnikmkt.com:8000'
 class RandomBot(TradingBot):
     def getUsernamePassword(self):
         return ['randomtrader', 'randomtrader']
+
+    def getUri(self):
+        return uri
 
     def startAutomation(self):
         rate = 1
@@ -44,6 +48,8 @@ class RandomBot(TradingBot):
         # Set a price/quantity that is reasonable for the market
         tick_size = contract['tick_size']
         lot_size = contract['lot_size']
+        denominator = contract['denominator']
+
 
         # Look at best bid/ask
         try:
@@ -51,10 +57,10 @@ class RandomBot(TradingBot):
             best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
 
             # Pick a price reasonably close to the best bid and ask
-            price = int(random.randint(int(best_bid*0.9), (best_ask*0.9)) / tick_size) * tick_size
+            price = int(random.randint(int(best_bid*0.9), (best_ask*0.9)) / (tick_size * denominator)) * (tick_size * denominator)
         except (ValueError, KeyError):
             # We don't have a best bid/ask, just pick a price randomly
-            price = random.randint(7000,8000) * tick_size
+            price = random.randint(7000,8000) * (tick_size * denominator)
 
         # a qty somewhere between 0.5 and 2 BTC
         quantity = random.randint(50,200) * lot_size
@@ -82,7 +88,7 @@ if __name__ == '__main__':
         debug = False
 
     log.startLogging(sys.stdout)
-    factory = WampClientFactory("ws://localhost:8000", debugWamp=debug)
+    factory = WampClientFactory(uri, debugWamp=debug)
     factory.protocol = RandomBot
 
     # null -> ....
