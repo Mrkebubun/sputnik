@@ -56,8 +56,13 @@ class RandomBot(TradingBot):
             best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
             best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
 
-            # Pick a price reasonably close to the best bid and ask
-            price = int(random.randint(int(best_bid*0.9), (best_ask*0.9)) / (tick_size * denominator)) * (tick_size * denominator)
+            # Pick a price somewhere deep in the book
+            if side is 'BUY':
+                price = random.randint(best_ask, best_ask * 1.1)
+            else:
+                price = random.randint(best_bid * 0.9, best_bid)
+
+            price = int(price / (tick_size * denominator)) * tick_size * denominator
         except (ValueError, KeyError):
             # We don't have a best bid/ask, just pick a price randomly
             price = random.randint(7000,8000) * (tick_size * denominator)
