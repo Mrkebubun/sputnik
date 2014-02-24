@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # copy over compiled byte-code
-cp -R $profile_git_root/dist/build/* $profile_root
+cp -r $profile_git_root/dist/build/server $profile_root
 
 # copy over config
-cp -R $profile_git_root/dist/config $profile_conf
+cp $profile_git_root/dist/config/* $profile_conf
 
 # copy over keys
-cp -R $profile_git_root/dist/keys $profile_keys
+cp $profile_git_root/dist/keys/* $profile_keys
 
 # change permissions
 chown -R root:root $profile_root

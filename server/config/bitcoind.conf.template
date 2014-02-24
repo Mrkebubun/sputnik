@@ -15,4 +15,5 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 

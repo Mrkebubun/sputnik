@@ -18,6 +18,7 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 
 [program:accountant]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
@@ -26,6 +27,7 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 
 [program:administrator]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
@@ -34,6 +36,7 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 
 [program:webserver]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
@@ -42,6 +45,7 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 
 [program:safe_price_forwarder]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
@@ -50,4 +54,5 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
+user=${user}
 

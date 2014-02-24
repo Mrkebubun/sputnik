@@ -70,7 +70,7 @@ class Installer:
             out.write(template.substitute(self.config))
         if not self.parser.getboolean("profile", "disable_bitcoin"):
             out.write("\n")
-            with open(self.get_template("bitcoin.conf")) as template_file:
+            with open(self.get_template("bitcoind.conf")) as template_file:
                 template = string.Template(template_file.read())
                 out.write(template.substitute(self.config))
         out.close()
