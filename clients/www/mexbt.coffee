@@ -97,15 +97,15 @@ updateBuys = (data) ->
     data.sort (a, b) ->
         b[0] - a[0]
     updateTable "buys", data
-    best_offer = Math.max 0, (price for [price, quantity] in data)...
-    $("#sell_price").attr "placeholder", best_offer
+    best_bid = Math.max 0, (price for [price, quantity] in data)...
+    $("#sell_price").val best_bid
 
 updateSells = (data) ->
     data.sort (a, b) ->
         a[0] - b[0]
     updateTable "sells", data
-    best_offer = Math.min (price for [price, quantity] in data)...
-    $("#buy_price").attr "placeholder", best_offer
+    best_ask = Math.min (price for [price, quantity] in data)...
+    $("#buy_price").val best_ask
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
