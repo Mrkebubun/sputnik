@@ -143,6 +143,8 @@ class CompropagoHook(Resource):
         @return: anything as long as it's code 200
         """
         json_string = request.content.getvalue()
+        #todo: re-request from compropago ourselves to avoid being fed
+        #spoofed information
         try:
             payment_info = self.compropago.validate_response(json.loads(json_string))
             self.cashier.process_compropago_payment(payment_info)
