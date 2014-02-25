@@ -33,7 +33,7 @@ class MarketMakerBot(TradingBot):
         self.get_external_market.start(rate * 1.0)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(rate * 1.0)
+        self.monitor_orders.start(rate * 0.1)
 
         return True
 
@@ -82,10 +82,6 @@ class MarketMakerBot(TradingBot):
     def replaceBidAsk(self, new_ba, side):
         self.cancelOrders(side)
         self.btcmxn_bid = new_ba
-
-        # Wait until cancel
-        while self.checkOrders(side):
-            time.sleep(0.5)
 
         self.placeOrder('BTC/MXN', 25000000, int(new_ba) * 100, side)
 
