@@ -141,7 +141,7 @@ updateOrders = (orders) ->
         quantity = "<td>#{order.quantity_left}</td>"
         #timestamp = "<td>#{order.timestamp}</td>"
         #id = "<td>#{id}</td>"
-        button = "<td><button type='button' class='btn btn-danger' onclick='cancelOrder(#{id})'>"
+        button = "<td><button type='button' class='btn btn-danger' onclick='sputnik.cancelOrder(#{id})'>"
         button += "<span class='glyphicon glyphicon-trash'></span>"
         button += "</button></td>"
         rows.push "<tr>" + icon + price + quantity + button + "</tr>"
