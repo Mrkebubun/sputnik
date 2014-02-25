@@ -14,6 +14,8 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     :param username: the username
     :return: low and high margin
     """
+    BTC = session.query(models.Contract).filter_by(ticker="BTC").one()
+
     low_margin = high_margin = 0
 
     cash_position = {}
@@ -88,8 +90,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
             from_currency_ticker, to_currency_ticker = util.split_pair(order.contract.ticker)
-            to_currency = session.query(models.Contract).filter_by(
-                ticker=to_currency_ticker).order_by(models.Contract.id.desc()).first()
+            to_currency = BTC
             if order.side == 'BUY':
                 # WARNING: This may create a float but I think its okay because we are just using
                 # this value for a margin comparison, a small rounding error here should
