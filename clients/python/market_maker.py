@@ -13,6 +13,7 @@ from client import TradingBot
 import urllib2
 import json
 from bs4 import BeautifulSoup
+import time
 
 uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
@@ -29,14 +30,22 @@ class MarketMakerBot(TradingBot):
         self.btcmxn_ask = None
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(1.0)
+        self.get_external_market.start(rate * 1.0)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(0.5)
+        self.monitor_orders.start(rate * 0.1)
 
         return True
 
     # See if we have any orders on a given side
+    def cancelOrders(self, side):
+        for id, order in self.orders.iteritems():
+            if order['is_cancelled'] or order['quantity_left'] <= 0:
+                continue
+
+            if order['side'] == side:
+                self.cancelOrder(id)
+
     def checkOrders(self, side):
         for id, order in self.orders.iteritems():
             if order['is_cancelled'] or order['quantity_left'] <= 0:
@@ -44,6 +53,7 @@ class MarketMakerBot(TradingBot):
 
             if order['side'] == side:
                 return True
+
         return False
 
     def getExternalMarket(self):
@@ -60,25 +70,36 @@ class MarketMakerBot(TradingBot):
         usdmxn_bid = float(soup.find(id="yfs_b00_usdmxn=x").text)
         usdmxn_ask = float(soup.find(id="yfs_a00_usdmxn=x").text)
 
-        self.btcmxn_bid = btcusd_bid * usdmxn_bid
-        self.btcmxn_ask = btcusd_ask * usdmxn_ask
+        btcmxn_bid = int(btcusd_bid * usdmxn_bid)
+        btcmxn_ask = int(btcusd_ask * usdmxn_ask)
+        if btcmxn_bid != self.btcmxn_bid:
+            self.btcmxn_bid = btcmxn_bid
+            self.replaceBidAsk(btcmxn_bid, 'BUY')
+        if btcmxn_ask != self.btcmxn_ask:
+            self.btcmxn_ask = btcmxn_ask
+            self.replaceBidAsk(btcmxn_ask, 'SELL')
+
+    def replaceBidAsk(self, new_ba, side):
+        self.cancelOrders(side)
+        self.btcmxn_bid = new_ba
+
+        self.placeOrder('BTC/MXN', 25000000, int(new_ba) * 100, side)
 
     def monitorOrders(self):
-        # Cancel any existing orders
-        for id, order in self.orders.iteritems():
-            if not order['is_cancelled'] and order['quantity_left'] > 0:
-                self.cancelOrder(id)
+        # Make sure we have orders open for both bid and ask
+        for side in ['BUY', 'SELL']:
+            total_qty = 0
+            for id, order in self.orders.iteritems():
+                if order['side'] == side and order['is_cancelled'] is False:
+                    total_qty += order['quantity_left']
+            qty_to_add = 25000000 - total_qty
+            if qty_to_add > 0:
+                if side == 'BUY':
+                    price = int(self.btcmxn_bid) * 100
+                else:
+                    price = int(self.btcmxn_ask) * 100
 
-        # Place two orders for the current bid and ask
-        if int(self.btcmxn_bid) == int(self.btcmxn_ask):
-            self.btcmxn_bid -= 1
-
-        if not self.checkOrders('BUY'):
-            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_bid) * 10000, 'BUY')
-
-        if not self.checkOrders('SELL'):
-            self.placeOrder('BTC/MXN', 100000000, int(self.btcmxn_ask) * 10000, 'SELL')
-
+                self.placeOrder('BTC/MXN', qty_to_add, price, side)
 
 if __name__ == '__main__':
 

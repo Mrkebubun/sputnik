@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "X$UPGRADE" = "X" ]; then
+if [ -n "$UPGRADE" ]; then
     exit 0
 fi
 
