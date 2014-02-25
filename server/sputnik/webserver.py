@@ -472,10 +472,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         validate(charge, {"type": "object", "properties":
             {
-                "price": {"type": "int", "required": "true"},
+                "product_price": {"type": "int", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
                 "sens_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"}
+                #todo: add which store
             }
         })
         charge['customer_name'] = self.username
@@ -485,7 +486,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         charge['image_url'] = ''
 
         c = compropago.Charge.from_dict(charge)
-        self.factory.compropago.create_bill(c)
+        self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+
+        # todo: return instructions for the user
+
 
 
     @exportRpc("get_new_address")

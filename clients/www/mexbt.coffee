@@ -105,14 +105,16 @@ updateBuys = (data) ->
         b[0] - a[0]
     updateTable "buys", data
     best_bid = Math.max 0, (price for [price, quantity] in data)...
-    $("#sell_price").val best_bid
+    if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
+      $("#sell_price").val best_bid
 
 updateSells = (data) ->
     data.sort (a, b) ->
         a[0] - b[0]
     updateTable "sells", data
     best_ask = Math.min (price for [price, quantity] in data)...
-    $("#buy_price").val best_ask
+    if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
+      $("#buy_price").val best_ask
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
@@ -146,7 +148,7 @@ updateOrders = (orders) ->
         quantity = "<td>#{order.quantity_left}</td>"
         #timestamp = "<td>#{order.timestamp}</td>"
         #id = "<td>#{id}</td>"
-        button = "<td><button type='button' class='btn btn-danger' onclick='cancelOrder(#{id})'>"
+        button = "<td><button type='button' class='btn btn-danger' onclick='sputnik.cancelOrder(#{id})'>"
         button += "<span class='glyphicon glyphicon-trash'></span>"
         button += "</button></td>"
         rows.push "<tr>" + icon + price + quantity + button + "</tr>"

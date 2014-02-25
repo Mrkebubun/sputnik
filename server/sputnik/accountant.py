@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import config
 
 from optparse import OptionParser
@@ -19,6 +20,8 @@ from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import DataError
+
 
 import logging
 
@@ -266,9 +269,13 @@ class Accountant:
                 return [False, (0, "Not a valid prediction price")]
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
-
-        session.add(o)
-        session.commit()
+        try:
+            session.add(o)
+            session.commit()
+        except Exception as e:
+            logging.error("Error adding data %s" % e)
+            session.rollback()
+            raise e
 
         if self.accept_order(o):
             return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())

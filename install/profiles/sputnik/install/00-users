@@ -32,5 +32,5 @@ if [ -n "$UPGRADE" ]; then
 fi
 
 check_user $profile_user $profile_root
-check_user $profile_bitcoin_user $profile_bitcoin_root
+#check_user $profile_bitcoin_user $profile_bitcoin_root
 
