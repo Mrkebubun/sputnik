@@ -351,10 +351,10 @@ class window.Sputnik extends EventEmitter
         @call("get_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
         # TODO: Are chats private? Do we want them for authenticated users only?
-        #@call("get_chat_history").then \
-        #  (chats) ->
-        #    @chat_history = chats
-        #    @emit "chat", @chat_history
+        @call("get_chat_history").then \
+          (chats) ->
+            @chat_messages = chats
+            @emit "chat", @chat_messages
 
         @emit "open"
 
