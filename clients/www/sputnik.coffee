@@ -328,7 +328,7 @@ class window.Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log "Publishing #{message} on #{topic}"
-        @session.publish "#{@uri}/feeds/#{topic}", message
+        @session.publish "#{@uri}/feeds/#{topic}", message, false
 
     # logging
     log: (obj) =>

@@ -195,6 +195,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def __init__(self):
         self.cookie = ""
         self.username = None
+        self.nickname = None
         self.public_handle = None
         # noinspection PyPep8Naming
         self.clientAuthTimeout = 0
@@ -379,6 +380,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             logging.info("Cookie login for: %s" % self.username)
             self.cookie = auth_key
 
+        def _cb(result):
+            self.nickname = result[0][0] if result[0][0] else "anonymous"
+            logging.warning("SETTING SELF.NICKNAME TO %s" % self.nickname)
+
+
         # moved from onSessionOpen
         # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
         #  Pretty sure yes.
@@ -386,6 +392,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
+
+        return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
+                        (self.username,)).addCallback(_cb)
 
     @exportRpc("get_cookie")
     def get_cookie(self):
@@ -757,7 +766,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if self.username:
-            logging.info("he's logged in as %s so we'll let him" % self.user.username)
+            logging.info("he's logged in as %s so we'll let him" % self.username)
             return True
         else:
             logging.info("but he's not logged in, so we won't let him")
@@ -777,7 +786,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             logging.info("he's not logged in though, so no")
             return None
         else:
-            logging.info("he's logged as %s in so that's cool" % self.user.username)
+            logging.info("he's logged as %s in so that's cool" % self.username)
             if type(event) not in [str, unicode]:
                 logging.warning("but the event type isn't a string, that's way uncool so no")
                 return None
@@ -785,7 +794,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 message = cgi.escape(event)
                 if len(message) > 128:
                     message = message[:128] + u"[\u2026]"
-                chat_log.info('%s:%s' % (self.user.nickname, message))
+                chat_log.info('%s:%s' % (self.nickname, message))
 
                 #pause message rate if necessary
                 time_span = time.time() - self.troll_throttle
@@ -796,7 +805,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.troll_throttle = time.time()
                 print self.troll_throttle
 
-                return [cgi.escape(self.user.nickname), message]
+                return [cgi.escape(self.nickname), message]
 
     @exportRpc
     def get_chat_history(self):

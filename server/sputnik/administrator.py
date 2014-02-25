@@ -90,7 +90,8 @@ class Administrator:
         return True
 
 class AdminWebUI(Resource):
-    def render_GET(self):
+    isLeaf = True
+    def render_GET(self, request):
         return "Here be admin interface!"
 
 
@@ -118,7 +119,12 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
+
+
     admin_ui = AdminWebUI()
-    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(admin_ui), interface=config.get("administrator", "interface"))
+
+
+    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(admin_ui),
+                      interface=config.get("administrator", "interface"))
     reactor.run()
 
