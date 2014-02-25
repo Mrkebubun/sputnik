@@ -108,7 +108,8 @@ updateSells = (data) ->
     $("#buy_price").attr "placeholder", best_offer
 
 updateTrades = (data) ->
-    rows = for trade in data.reverse()
+    trades_reversed = data.reverse()
+    rows = for trade in trades_reversed[0..20]
         "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
     $("#trades").html rows.join("")
 
