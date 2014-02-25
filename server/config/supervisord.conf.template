@@ -1,0 +1,12 @@
+[supervisord]
+logfile=${logs}/supervisor.log
+pidfile=${run}/supervisor.pid
+
+[unix_http_server]
+file=${run}/supervisor.sock
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix://${run}/supervisor.sock
