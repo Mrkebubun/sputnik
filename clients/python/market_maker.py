@@ -57,18 +57,22 @@ class MarketMakerBot(TradingBot):
         return False
 
     def getExternalMarket(self):
-        url = "https://www.bitstamp.net/api/ticker/"
-        file_handle = urllib2.urlopen(url)
-        json_data = json.load(file_handle)
-        btcusd_bid = float(json_data['bid'])
-        btcusd_ask = float(json_data['ask'])
+        try:
+            url = "https://www.bitstamp.net/api/ticker/"
+            file_handle = urllib2.urlopen(url)
+            json_data = json.load(file_handle)
+            btcusd_bid = float(json_data['bid'])
+            btcusd_ask = float(json_data['ask'])
 
-        # Get Yahoo USD/MXN quote
-        url = "http://finance.yahoo.com/q?s=USDMXN=X"
-        file_handle = urllib2.urlopen(url)
-        soup = BeautifulSoup(file_handle)
-        usdmxn_bid = float(soup.find(id="yfs_b00_usdmxn=x").text)
-        usdmxn_ask = float(soup.find(id="yfs_a00_usdmxn=x").text)
+            # Get Yahoo USD/MXN quote
+            url = "http://finance.yahoo.com/q?s=USDMXN=X"
+            file_handle = urllib2.urlopen(url)
+            soup = BeautifulSoup(file_handle)
+            usdmxn_bid = float(soup.find(id="yfs_b00_usdmxn=x").text)
+            usdmxn_ask = float(soup.find(id="yfs_a00_usdmxn=x").text)
+        except Exception as e:
+            # Unable to get markets, just exit
+            print "unable to get external market data: %s" % e
 
         btcmxn_bid = int(btcusd_bid * usdmxn_bid)
         btcmxn_ask = int(btcusd_ask * usdmxn_ask)
