@@ -65,6 +65,10 @@ class Installer:
 
         # make supervisor.conf
         out = open("config/supervisor.conf", "w")
+        if self.parser.getboolean("profile", "bundle_supervisord"):
+            with open(self.get_template("supervisord.conf")) as template_file:
+                template = string.Template(template_file.read())
+                out.write(template.substitute(self.config))
         with open(self.get_template("supervisor.conf")) as template_file:
             template = string.Template(template_file.read())
             out.write(template.substitute(self.config))
