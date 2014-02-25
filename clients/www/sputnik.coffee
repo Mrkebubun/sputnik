@@ -353,7 +353,10 @@ class window.Sputnik extends EventEmitter
         # TODO: Are chats private? Do we want them for authenticated users only?
         @call("get_chat_history").then \
           (chats) =>
-            @chat_messages = chats
+            for chat in chats
+                user = chat[0]
+                msg = chat[1]
+                @chat_messages.push "#{user}: #{msg}"
             @emit "chat", @chat_messages
 
         @emit "open"
