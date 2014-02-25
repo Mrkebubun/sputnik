@@ -88,6 +88,13 @@ $("#logout").click (event) ->
     sputnik.logout()
     location.reload()
 
+$('#chatButton').click ->
+    chat_return = sputnik.chat chatBox.value
+    if not chat_return[0]
+        alert chat_return[1]
+
+    $('#chatBox').val('')
+
 updateTable = (id, data) ->
     rows = for [price, quantity] in data
         "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
@@ -191,3 +198,7 @@ sputnik.on "positions", (positions) ->
     BTCpos = positions['BTC'].position
     $('#MXNpos').text MXNpos.toFixed(0)
     $('#BTCpos').text BTCpos.toFixed(2)
+
+sputnik.on "chat", (chat_messages) ->
+    $('#chatArea').html(chat_messages.join("\n"))
+    $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
