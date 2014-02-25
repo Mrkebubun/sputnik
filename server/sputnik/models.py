@@ -24,8 +24,8 @@ class Contract(db.Base):
     expiration = Column(DateTime)
     inverse_quotes = Column(Boolean, server_default=sql.false(), nullable=False)
 
-    margin_high = Column(Integer)
-    margin_low = Column(Integer)
+    margin_high = Column(BigInteger)
+    margin_low = Column(BigInteger)
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
