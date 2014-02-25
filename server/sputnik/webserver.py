@@ -89,6 +89,7 @@ class AdministratorExport:
 class PublicInterface:
     def __init__(self, factory):
         self.factory = factory
+        self.factory.chats = []
         self.init()
 
     def init(self):
@@ -185,6 +186,12 @@ class PublicInterface:
             return [False, failure.value.args]
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
+
+
+    @exportRpc
+    def get_chat_history(self):
+        return [True, self.factory.chats[-30:]]
+
 
 
 class PepsiColaServerProtocol(WampCraServerProtocol):
@@ -586,7 +593,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                  'currency_id': currency_id,
                  'entered': datetime.datetime.utcnow()})
 
-        dbpool.runInteraction(_withdraw, currency)
+        return dbpool.runInteraction(_withdraw, currency)
+
 
     @exportRpc("get_positions")
     def get_positions(self):
@@ -804,12 +812,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                     print 'sleeping'
                 self.troll_throttle = time.time()
                 print self.troll_throttle
+                msg = [cgi.escape(self.nickname), message]
+                self.factory.chats.append(msg)
+                if len(self.factory.chats) > 50:
+                    self.factory.chats = self.factory.chats[-50:]
+                logging.warning(self.factory.chats)
+                return msg
 
-                return [cgi.escape(self.nickname), message]
-
-    @exportRpc
-    def get_chat_history(self):
-        return [True, self.factory.chats[-30:]]
 
 
 class EngineExport:
