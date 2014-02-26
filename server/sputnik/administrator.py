@@ -103,7 +103,7 @@ class AdminWebUI(Resource):
 
     def render_GET(self, request):
         if request.uri == '/':
-            return bytes(self.user_list())
+            return self.user_list().encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
