@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<table>
+    {% for user in users %}
+    <tr>
+        <td>{{user.username}}</td>
+        <td>{{user.email}}</td>
+        <td>{{user.nickname}}</td>
+        <td></td>
+    </tr>
+        {% for position in user.positions %}
+        <tr>
+            <td></td>
+            <td>{{position.contract.ticker}}</td>
+            <td>{{position.position}}</td>
+            <td>{{position.reference_price}}</td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+</table>
+</body>
+</html>

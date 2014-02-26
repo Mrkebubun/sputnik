@@ -109,7 +109,7 @@ class AdminWebUI(Resource):
 
     def user_list(self):
         users = self.administrator.get_users()
-        t = Template("{% for user in users %}{{user.username}}{% endfor %}")
+        t = Template(open('admin_templates/user_list.html', 'r').read())
         return t.render(users=users)
 
 
