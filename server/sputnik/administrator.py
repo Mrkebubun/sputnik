@@ -23,8 +23,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
 
-from django.template import Template, Context
-import django
+from jinja2 import Template
 
 
 class AdministratorException(Exception): pass
@@ -99,7 +98,6 @@ class Administrator:
 class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator):
-        django.conf.settings.configure()
         self.administrator = administrator
         Resource.__init__(self)
 
@@ -112,8 +110,7 @@ class AdminWebUI(Resource):
     def user_list(self):
         users = self.administrator.get_users()
         t = Template("{% for user in users %}{{user.username}}{% endfor %}")
-        c = Context({"users": users})
-        return t.render(c)
+        return t.render(users=users)
 
 
 class WebserverExport:
