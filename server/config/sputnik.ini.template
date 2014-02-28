@@ -22,7 +22,7 @@ ssl_cert_chain = ${keys}/server.chain
 www = ${use_www}
 www_port = 8888
 www_root = ${www_root}
-debug = true
+debug = ${debug}
 base_uri = ${base_uri}
 
 [accountant]
@@ -30,11 +30,13 @@ engine_export = tcp://127.0.0.1:4432
 webserver_export = tcp://127.0.0.1:4433
 cashier_export = tcp://127.0.0.1:4434
 administrator_export = tcp://127.0.0.1:4435
+debug = ${debug}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4601
 UI_port = 8080
 interface = 127.0.0.1
+debug = ${debug}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501

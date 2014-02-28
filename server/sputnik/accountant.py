@@ -16,7 +16,7 @@ import models
 import margin
 import util
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, dealer_proxy_sync
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
@@ -31,8 +31,9 @@ class AccountantException(Exception):
 
 
 class Accountant:
-    def __init__(self, session):
+    def __init__(self, session, debug):
         self.session = session
+        self.debug = debug
         self.btc = self.get_contract("BTC")
         self.safe_prices = {}
         self.engines = {}
@@ -93,6 +94,21 @@ class Accountant:
                 ticker=ticker).order_by(models.Contract.id.desc()).first()
         except NoResultFound:
             raise AccountantException("Could not resolve contract '%s'." % ticker)
+
+    def adjust_position(self, username, contract, adjustment):
+        if not self.debug:
+            return [False, (0, "Position modification not allowed")]
+        position = self.get_position(username, contract)
+        old_position = position.position
+        position.position += adjustment
+        try:
+            session.add(position)
+            session.commit()
+            logging.info("Position for %s/%s modified from %d to %d" %
+                         (username, contract, old_position, position.position))
+        except Exception as e:
+            logging.error("Unable to modify position: %s" % e)
+            session.rollback()
 
     def get_position(self, username, contract, reference_price=0):
         """
@@ -387,13 +403,17 @@ class AdministratorExport:
     def clear_contract(self, ticker):
         self.accountant.clear_contract(ticker)
 
+    @export
+    def adjust_position(self, username, ticker, adjustment):
+        self.accountant.adjust_position(username, ticker, adjustment)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     session = database.make_session()
+    debug = config.getboolean("accountant", "debug")
 
-    accountant = Accountant(session)
+    accountant = Accountant(session, debug=debug)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
@@ -406,7 +426,7 @@ if __name__ == "__main__":
                      config.get("accountant", "engine_export"))
     pull_share_async(cashier_export,
                      config.get("accountant", "cashier_export"))
-    pull_share_async(administrator_export,
+    dealer_proxy_sync(administrator_export,
                      config.get("accountant", "administrator_export"))
 
     reactor.run()

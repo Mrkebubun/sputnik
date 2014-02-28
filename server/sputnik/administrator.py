@@ -15,7 +15,7 @@ import database
 import models
 import collections
 
-from zmq_util import export, router_share_async
+from zmq_util import export, router_share_async, dealer_proxy_sync
 
 from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred
@@ -48,8 +48,10 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session):
+    def __init__(self, session, accountant, debug=False):
         self.session = session
+        self.accountant = accountant
+        self.debug = debug
 
     @session_aware
     def make_account(self, username, password):
@@ -100,6 +102,9 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
+    def adjust_position(self, username, ticker, adjustment):
+        return self.accountant.adjust_position(username, ticker, adjustment)
+
 class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator):
@@ -111,6 +116,8 @@ class AdminWebUI(Resource):
             return self.user_list().encode('utf-8')
         elif request.uri == '/audit':
             return self.audit().encode('utf-8')
+        elif request.uri == '/position_edit' and self.administrator.debug:
+            return self.position_edit(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -149,15 +156,17 @@ class WebserverExport:
 
 if __name__ == "__main__":
     session = database.make_session()
-    administrator = Administrator(session)
+
+    debug = config.getboolean("administrator", "debug")
+    accountant = dealer_proxy_sync(config.get("accountant", "administrator_export"))
+
+    administrator = Administrator(session, accountant, debug)
     webserver_export = WebserverExport(administrator)
+
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-
-
     admin_ui = AdminWebUI(administrator)
-
 
     reactor.listenTCP(config.getint("administrator", "UI_port"), Site(admin_ui),
                       interface=config.get("administrator", "interface"))
