@@ -13,6 +13,7 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 import config
 import database
 import models
+import collections
 
 from zmq_util import export, router_share_async
 
@@ -95,6 +96,10 @@ class Administrator:
         users = self.session.query(models.User).all()
         return users
 
+    def get_positions(self):
+        positions = self.session.query(models.Position).all()
+        return positions
+
 class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator):
@@ -104,6 +109,8 @@ class AdminWebUI(Resource):
     def render_GET(self, request):
         if request.uri == '/':
             return self.user_list().encode('utf-8')
+        elif request.uri == '/audit':
+            return self.audit().encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -112,6 +119,16 @@ class AdminWebUI(Resource):
         t = Template(open('admin_templates/user_list.html', 'r').read())
         return t.render(users=users)
 
+    def audit(self):
+        # TODO: Do this in SQLalchemy
+        positions = self.administrator.get_positions()
+        position_totals = collections.defaultdict(int)
+        for position in positions:
+            position_totals[position.contract.ticker] += position.position
+
+        t = Template(open('admin_templates/audit.html', 'r').read())
+        rendered = t.render(position_totals=position_totals)
+        return rendered
 
 class WebserverExport:
     """

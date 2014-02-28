@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audit</title>
+</head>
+<body>
+<table>
+    {% for ticker, position_total in position_totals.iteritems() %}
+    <tr>
+        <td>{{ticker}}</td>
+        <td>{{position_total}}</td>
+    </tr>
+    {% endfor %}
+</table>
+</body>
+</html>
