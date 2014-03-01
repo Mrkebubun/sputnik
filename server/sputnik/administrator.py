@@ -25,6 +25,8 @@ from twisted.internet import reactor
 
 from jinja2 import Template
 
+import logging
+
 
 class AdministratorException(Exception): pass
 
@@ -57,6 +59,7 @@ class Administrator:
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
+            logging.error("Account creation failed: %s username is taken" % username)
             raise USERNAME_TAKEN
 
         user = models.User(username, password)
@@ -72,11 +75,13 @@ class Administrator:
             active=False, user=None).first()
         if not address:
             # TODO: create a new address for the user
+            logging.error("Account creating failed for %s: insufficient addresses" % username)
             raise OUT_OF_ADDRESSES
         address.user = user
         address.active = True
 
         self.session.commit()
+        logging.info("Account created for %s" % username)
         return True
 
     @session_aware
@@ -91,6 +96,7 @@ class Administrator:
         self.session.merge(user)
 
         self.session.commit()
+        logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
 
     def get_users(self):
@@ -106,6 +112,7 @@ class Administrator:
         return positions
 
     def adjust_position(self, username, ticker, adjustment):
+        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, adjustment))
         self.accountant.adjust_position(username, ticker, adjustment)
 
 class AdminWebUI(Resource):
@@ -174,6 +181,8 @@ class WebserverExport:
         return self.administrator.change_profile(username, profile)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
     session = database.make_session()
 
     debug = config.getboolean("administrator", "debug")
