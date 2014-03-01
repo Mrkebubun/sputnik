@@ -8,7 +8,7 @@
 <table>
     {% for user in users %}
     <tr>
-        <td>{{user.username}}</td>
+        <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
         <td>{{user.email}}</td>
         <td>{{user.nickname}}</td>
         <td></td>
