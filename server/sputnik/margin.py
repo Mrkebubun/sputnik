@@ -90,6 +90,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
             from_currency_ticker, to_currency_ticker = util.split_pair(order.contract.ticker)
+            # TODO: Fix this temporary hack to deal with inefficient margin code
             to_currency = BTC
             if order.side == 'BUY':
                 # WARNING: This may create a float but I think its okay because we are just using
