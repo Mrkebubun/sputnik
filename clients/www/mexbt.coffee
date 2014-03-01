@@ -32,7 +32,7 @@ sputnik.on "auth_success", (username) ->
 
 sputnik.on "cookie", (uid) ->
     sputnik.log "cookie: " + uid
-    document.cookie = "login" + "=" + login.value + ":" + uid
+    document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
@@ -54,6 +54,7 @@ sputnik.on "make_account_fail", (event) ->
 
 $("#login").click () ->
     $("#login_modal").modal()
+
 
 $("#login_button").click (event) ->
     event.preventDefault()
@@ -87,6 +88,18 @@ $("#logout").click (event) ->
     document.cookie = ''
     sputnik.logout()
     location.reload()
+
+$('#deposit_mxn').click (event) ->
+    $('#compropago_modal').modal()
+
+$("#compropago_pay_button").click (event) ->
+    event.preventDefault()
+    ladda = Ladda.create $("#compropago_pay_button")[0]
+    ladda.start()
+    store = $("#compropago_store").val()
+    amount = $("#compropago_amount").val()
+    send_sms = $("#compropago_send_sms").is(":checked")
+    sputnik.makeCompropagoDeposit store, Number(amount), send_sms
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value
