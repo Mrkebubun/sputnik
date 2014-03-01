@@ -490,7 +490,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             {
                 "product_price": {"type": "number", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
-                "sens_sms": {"type": "boolean", "required": "true"},
+                "send_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"}
                 #todo: add which store
             }
