@@ -488,13 +488,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         validate(charge, {"type": "object", "properties":
             {
-                "product_price": {"type": "int", "required": "true"},
+                "product_price": {"type": "number", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
                 "sens_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"}
                 #todo: add which store
             }
         })
+        # Make sure we received an integer qty of MXN
+        if charge['product_price'] != int(charge['product_price']):
+            return [False, (0, "Invalid MXN quantity sent")]
+
         charge['customer_name'] = self.username
         charge['customer_email'] = ''
         charge['product_name'] = ''
