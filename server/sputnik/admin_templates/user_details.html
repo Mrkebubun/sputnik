@@ -54,10 +54,17 @@
         <td>{{order.is_cancelled}}</td>
         <td>{{order.accepted}}</td>
     </tr>
+        <tr>
+            <th>TRADES</th>
+            <th></th>
+            <th></th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Timestamp</th>
+        </tr>
         {% for trade in order.aggressive_trades %}
         <tr>
-            <td>
-            </td>
+            <td></td>
             <td></td>
             <td></td>
             <td>{{trade.quantity}}</td>
@@ -67,8 +74,7 @@
         {% endfor %}
         {% for trade in order.passive_trades %}
         <tr>
-            <td>
-            </td>
+            <td></td>
             <td></td>
             <td></td>
             <td>{{trade.quantity}}</td>
