@@ -143,7 +143,7 @@ class AdminWebUI(Resource):
 
         user = self.administrator.get_user(params['username'][0])
         t = Template(open('admin_templates/user_details.html', 'r').read())
-        rendered = t.render(user=user)
+        rendered = t.render(user=user, debug=self.administrator.debug)
         return rendered
 
     def adjust_position(self, request):
