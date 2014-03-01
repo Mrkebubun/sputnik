@@ -84,5 +84,43 @@
         {% endfor %}
     {% endfor %}
 </table>
+
+<table>
+    <tr>
+        <th>Currency</th>
+        <th>Address</th>
+        <th>Active</th>
+        <th>Accounted For</th>
+    </tr>
+    {% for address in user.addresses %}
+    <tr>
+        <td>{{address.currency}}</td>
+        <td>{{address.address}}</td>
+        <td>{{address.active}}</td>
+        <td>{{address.accounted_for}}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>Currency</th>
+        <th>Address</th>
+        <th>Amount</th>
+        <th>Pending</th>
+        <th>Entered</th>
+        <th>Completed</th>
+    </tr>
+    {% for withdrawal in user.withdrawals %}
+    <tr>
+        <td>{{withdrawal.currency.ticker}}</td>
+        <td>{{withdrawal.address}}</td>
+        <td>{{withdrawal.amount}}</td>
+        <td>{{withdrawal.pending}}</td>
+        <td>{{withdrawal.entered}}</td>
+        <td>{{withdrawal.completed}}</td>
+    </tr>
+    {% endfor %}
+</table>
 </body>
 </html>

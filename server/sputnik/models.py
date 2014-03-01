@@ -87,6 +87,8 @@ class User(db.Base):
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
+    addresses = relationship("Addresses", back_populates="user")
+    withdrawals = relationship("Withdrawal", back_populates="user")
 
     def __init__(self, username, password, email="", nickname="anonymous"):
         self.username = username
