@@ -9,7 +9,7 @@
     {% for user in users %}
     <tr>
         <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
-        <td>{{user.email}}</td>
+        <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         <td>{{user.nickname}}</td>
         <td></td>
     </tr>
