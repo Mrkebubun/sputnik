@@ -39,6 +39,10 @@ class Accountant:
         self.deposit_limits = { 'btc': 1000000,
                                 'mxn': 600000
         }
+        # TODO: Make this configurable
+        self.vendor_share_config = { 'm2': 0.5,
+                                     'mexbt': 0.5
+        }
         self.safe_prices = {}
         self.engines = {}
         for contract in session.query(models.Contract).filter_by(
@@ -172,6 +176,59 @@ class Accountant:
             session.commit()
             return True
 
+    def get_cash_fees(self, username, contract, from_delta_int):
+        """
+        Given a transaction, figure out how much fees need to be paid and
+        what accounts those fees need to go to
+        :param transaction: the transaction object
+        :return: dict
+        """
+
+        # Right now fees are very simple, just 20bps of the total from_currency amount
+        # user account.
+        # Not implemented for anything but cash_pair
+        # TODO: Make fees based on transaction size
+        # TODO: Give some users different fee schedules
+        # TODO: Give some contracts different fee schedules
+        # TODO: make the fee user accounts configurable in config file
+        # TODO: Put fee schedule and user levels into DB
+        # TODO: Create fees for futures and predictions
+        if contract.contract_type == "cash_pair":
+            from_currency_ticker, to_currency_ticker = util.split_pair(contract.ticker)
+            fees = round(from_delta_int * 0.002)
+            return { from_currency_ticker: fees }
+        else:
+            # Only cash_pair is implemented for now
+            raise NotImplementedError
+
+    def credit_fees(self, fees):
+        """
+        Credit fees to the people operating the exchange
+        """
+        # TODO: Make this configurable
+
+        # Make sure the vendorshares is less than or equal to 1.0
+        assert(sum(self.vendorshareconfig.values()) <= 1.0)
+
+        for ticker, fee in fees:
+            remaining_fee = fee
+            for vendor_name, vendor_share in self.vendorshareconfig:
+                vendor_position = self.get_position(vendor_name, ticker)
+                vendor_credit = int(fee * vendor_share)
+                vendor_position.position += vendor_credit
+                remaining_fee -= vendor_credit
+                session.add(vendor_position)
+
+            # There might be some fee leftover due to rounding,
+            # we have an account for that guy
+            # Once that balance gets large we distribute it manually to the
+            # various share holders
+            remainder_account_position = self.position('remainder', ticker)
+            remainder_account_position.position += remaining_fee
+            session.add(remainder_account_position)
+
+        session.commit()
+
     def post_transaction(self, transaction):
         """
         Update the database to reflect that the given trade happened
@@ -233,8 +290,12 @@ class Accountant:
             from_delta_int = int(from_delta_float)
             if from_delta_float != from_delta_int:
                 logging.error("Position change is not an integer.")
+            fees = self.get_cash_fees(username, contract, from_delta_int)
 
-            from_position.position -= from_delta_int
+            # Credit fees to vendor
+            self.credit_fees(fees)
+
+            from_position.position -= from_delta_int + fees[from_currency_ticker]
             to_position.position += signed_quantity
 
             session.merge(from_position)
