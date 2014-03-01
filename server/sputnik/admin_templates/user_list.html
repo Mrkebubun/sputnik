@@ -9,6 +9,7 @@
     {% for user in users %}
     <tr>
         <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
+        <!-- TODO: Change this to connecto to zendesk to contact user -->
         <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         <td>{{user.nickname}}</td>
         <td></td>

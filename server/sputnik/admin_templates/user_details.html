@@ -15,16 +15,30 @@
 </tr>
 <tr>
     <td>Email</td>
+    <!-- TODO: CHange this to connecto to zendesk to contact user -->
     <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
 </tr>
 </table>
 
 <table>
+    <tr>
+        <th>Contract</th>
+        <th>Position</th>
+        <th>Reference Price</th>
+        <th>Adjust</th>
+    </tr>
     {% for position in user.positions %}
     <tr>
         <td>{{position.contract.ticker}}</td>
         <td>{{position.position}}</td>
         <td>{{position.reference_price}}</td>
+        <td>
+            <form action="/adjust_position" method="get">
+                <input type="text" name="adjustment">
+                <input type="hidden" name="username" value="{{user.username}}">
+                <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+            </form>
+        </td>
     </tr>
     {% endfor %}
 </table>

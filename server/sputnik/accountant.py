@@ -16,7 +16,7 @@ import models
 import margin
 import util
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, dealer_proxy_sync
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
@@ -426,7 +426,7 @@ if __name__ == "__main__":
                      config.get("accountant", "engine_export"))
     pull_share_async(cashier_export,
                      config.get("accountant", "cashier_export"))
-    dealer_proxy_sync(administrator_export,
+    router_share_async(administrator_export,
                      config.get("accountant", "administrator_export"))
 
     reactor.run()

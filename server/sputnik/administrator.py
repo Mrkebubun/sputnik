@@ -106,7 +106,7 @@ class Administrator:
         return positions
 
     def adjust_position(self, username, ticker, adjustment):
-        return self.accountant.adjust_position(username, ticker, adjustment)
+        self.accountant.adjust_position(username, ticker, adjustment)
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -115,12 +115,12 @@ class AdminWebUI(Resource):
         Resource.__init__(self)
 
     def render_GET(self, request):
-        if request.path == '/':
+        if request.path in ['/user_list', '/']:
             return self.user_list().encode('utf-8')
         elif request.path == '/audit':
             return self.audit().encode('utf-8')
-        elif request.path == '/position_edit' and self.administrator.debug:
-            return self.position_edit(request).encode('utf-8')
+        elif request.path == '/adjust_position' and self.administrator.debug:
+            return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             return self.user_details(request).encode('utf-8')
         else:
@@ -138,6 +138,12 @@ class AdminWebUI(Resource):
         t = Template(open('admin_templates/user_details.html', 'r').read())
         rendered = t.render(user=user)
         return rendered
+
+    def adjust_position(self, request):
+        params = parse_qs(urlparse(request.uri).query)
+        self.administrator.adjust_position(params['username'][0], params['contract'][0],
+                                           int(params['adjustment'][0]))
+        return self.user_details(request)
 
     def audit(self):
         # TODO: Do this in SQLalchemy
