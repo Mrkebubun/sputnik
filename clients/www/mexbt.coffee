@@ -92,13 +92,14 @@ $("#logout").click (event) ->
 $('#deposit_mxn').click (event) ->
     $('#compropago_modal').modal()
 
-$('#compropago_pay_button').click (event) ->
+$("#compropago_pay_button").click (event) ->
     event.preventDefault()
-    ladda = Ladda.create $('compropago_pay_button')[0]
-    ladda.start ()
-    compropago_store = $('#compropago_store').val()
-    compropago_amount = $('#compropago_amount').val()
-    sputnik.makeCompropagoDeposit compropago_store, Number(compropago_amount)
+    ladda = Ladda.create $("#compropago_pay_button")[0]
+    ladda.start()
+    store = $("#compropago_store").val()
+    amount = $("#compropago_amount").val()
+    send_sms = $("#compropago_send_sms").val()
+    sputnik.makeCompropagoDeposit store, Number(amount), send_sms
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value

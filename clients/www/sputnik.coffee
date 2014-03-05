@@ -247,13 +247,21 @@ class window.Sputnik extends EventEmitter
                 @emit "cancel_order_fail", error
 
     # deposits and withdrawals
-    makeCompropagoDeposit: (store, amount) =>
-        @call("make_compropago_deposit", store, amount).then \
+
+    makeCompropagoDeposit: (store, amount, send_sms) =>
+        charge =
+          product_price: amount
+          payment_type: store
+          send_sms: send_sms
+          currency: "MXN"
+
+        @call("make_compropago_deposit", charge).then \
             (@ticket) =>
                 @log "compropago deposit ticket: #{ticket}"
                 @emit "compropago_deposit_success", ticket
             , (error) =>
                 @emit "compropago_deposit_fail", error
+
 
     getAddress: (contract) =>
     newAddress: (contract) =>
