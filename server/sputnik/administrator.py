@@ -15,10 +15,9 @@ import database
 import models
 import collections
 
-from zmq_util import export, router_share_async, dealer_proxy_sync
+from zmq_util import export, router_share_async, dealer_proxy_async
 
-from twisted.internet import reactor
-from twisted.internet.defer import maybeDeferred
+from urlparse import parse_qs, urlparse
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site
@@ -98,12 +97,16 @@ class Administrator:
         users = self.session.query(models.User).all()
         return users
 
+    def get_user(self, username):
+        user = self.session.query(models.User).filter(models.User.username == username).one()
+        return user
+
     def get_positions(self):
         positions = self.session.query(models.Position).all()
         return positions
 
     def adjust_position(self, username, ticker, adjustment):
-        return self.accountant.adjust_position(username, ticker, adjustment)
+        self.accountant.adjust_position(username, ticker, adjustment)
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -112,12 +115,14 @@ class AdminWebUI(Resource):
         Resource.__init__(self)
 
     def render_GET(self, request):
-        if request.uri == '/':
+        if request.path in ['/user_list', '/']:
             return self.user_list().encode('utf-8')
-        elif request.uri == '/audit':
+        elif request.path == '/audit':
             return self.audit().encode('utf-8')
-        elif request.uri == '/position_edit' and self.administrator.debug:
-            return self.position_edit(request).encode('utf-8')
+        elif request.path == '/adjust_position' and self.administrator.debug:
+            return self.adjust_position(request).encode('utf-8')
+        elif request.path == '/user_details':
+            return self.user_details(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -125,6 +130,20 @@ class AdminWebUI(Resource):
         users = self.administrator.get_users()
         t = Template(open('admin_templates/user_list.html', 'r').read())
         return t.render(users=users)
+
+    def user_details(self, request):
+        params = parse_qs(urlparse(request.uri).query)
+
+        user = self.administrator.get_user(params['username'][0])
+        t = Template(open('admin_templates/user_details.html', 'r').read())
+        rendered = t.render(user=user)
+        return rendered
+
+    def adjust_position(self, request):
+        params = parse_qs(urlparse(request.uri).query)
+        self.administrator.adjust_position(params['username'][0], params['contract'][0],
+                                           int(params['adjustment'][0]))
+        return self.user_details(request)
 
     def audit(self):
         # TODO: Do this in SQLalchemy
@@ -158,7 +177,7 @@ if __name__ == "__main__":
     session = database.make_session()
 
     debug = config.getboolean("administrator", "debug")
-    accountant = dealer_proxy_sync(config.get("accountant", "administrator_export"))
+    accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
 
     administrator = Administrator(session, accountant, debug)
     webserver_export = WebserverExport(administrator)

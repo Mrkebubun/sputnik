@@ -55,6 +55,9 @@ class Order(db.Base):
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
     timestamp = Column(DateTime)
 
+    aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
+    passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
+
     def to_matching_engine_order(self):
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
                 'quantity_left': self.quantity_left,
@@ -83,6 +86,9 @@ class User(db.Base):
     active = Column(Boolean, server_default=sql.true())
 
     positions = relationship("Position", back_populates="user")
+    orders = relationship("Order", back_populates="user")
+    addresses = relationship("Addresses", back_populates="user")
+    withdrawals = relationship("Withdrawal", back_populates="user")
 
     def __init__(self, username, password, email="", nickname="anonymous"):
         self.username = username

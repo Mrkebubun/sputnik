@@ -14,6 +14,7 @@
       <w>crossfilter</w>
       <w>dbname</w>
       <w>dbpool</w>
+      <w>endfor</w>
       <w>jsonschema</w>
       <w>keylen</w>
       <w>marketmaker</w>

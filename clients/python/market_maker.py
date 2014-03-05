@@ -91,6 +91,9 @@ class MarketMakerBot(TradingBot):
 
     def monitorOrders(self):
         # Make sure we have orders open for both bid and ask
+        if self.btcmxn_bid is None or self.btcmxn_ask is None:
+            return
+
         for side in ['BUY', 'SELL']:
             total_qty = 0
             for id, order in self.orders.iteritems():

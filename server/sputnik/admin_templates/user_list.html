@@ -6,21 +6,19 @@
 <body>
 <a href="/audit">Audit</a>
 <table>
+    <tr>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Nickname</th>
+    </tr>
     {% for user in users %}
     <tr>
-        <td>{{user.username}}</td>
-        <td>{{user.email}}</td>
+        <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
+        <!-- TODO: Change this to connecto to zendesk to contact user -->
+        <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         <td>{{user.nickname}}</td>
         <td></td>
     </tr>
-        {% for position in user.positions %}
-        <tr>
-            <td></td>
-            <td>{{position.contract.ticker}}</td>
-            <td>{{position.position}}</td>
-            <td>{{position.reference_price}}</td>
-        </tr>
-        {% endfor %}
     {% endfor %}
 </table>
 </body>

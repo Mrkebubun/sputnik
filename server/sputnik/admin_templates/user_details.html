@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{user.username}}</title>
+</head>
+<body>
+<table>
+<tr>
+    <td>Username</td>
+    <td>{{user.username}}</td>
+</tr>
+<tr>
+    <td>Nickname</td>
+    <td>{{user.nickname}}</td>
+</tr>
+<tr>
+    <td>Email</td>
+    <!-- TODO: CHange this to connecto to zendesk to contact user -->
+    <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
+</tr>
+</table>
+
+<table>
+    <tr>
+        <th>Contract</th>
+        <th>Position</th>
+        <th>Reference Price</th>
+        <th>Adjust</th>
+    </tr>
+    {% for position in user.positions %}
+    <tr>
+        <td>{{position.contract.ticker}}</td>
+        <td>{{position.position}}</td>
+        <td>{{position.reference_price}}</td>
+        <td>
+            <form action="/adjust_position" method="get">
+                <input type="text" name="adjustment">
+                <input type="hidden" name="username" value="{{user.username}}">
+                <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<table>
+    {% for order in user.orders %}
+    <tr>
+        <td>{{order.contract.ticker}}</td>
+        <td>{{order.quantity}}</td>
+        <td>{{order.quantity_left}}</td>
+        <td>{{order.price}}</td>
+        <td>{{order.side}}</td>
+        <td>{{order.timestamp}}</td>
+        <td>{{order.is_cancelled}}</td>
+        <td>{{order.accepted}}</td>
+    </tr>
+        <tr>
+            <th>TRADES</th>
+            <th></th>
+            <th></th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Timestamp</th>
+        </tr>
+        {% for trade in order.aggressive_trades %}
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>{{trade.quantity}}</td>
+            <td>{{trade.price}}</td>
+            <td>{{trade.timestamp}}</td>
+        </tr>
+        {% endfor %}
+        {% for trade in order.passive_trades %}
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>{{trade.quantity}}</td>
+            <td>{{trade.price}}</td>
+            <td>{{trade.timestamp}}</td>
+        </tr>
+        {% endfor %}
+    {% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>Currency</th>
+        <th>Address</th>
+        <th>Active</th>
+        <th>Accounted For</th>
+    </tr>
+    {% for address in user.addresses %}
+    <tr>
+        <td>{{address.currency}}</td>
+        <td>{{address.address}}</td>
+        <td>{{address.active}}</td>
+        <td>{{address.accounted_for}}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>Currency</th>
+        <th>Address</th>
+        <th>Amount</th>
+        <th>Pending</th>
+        <th>Entered</th>
+        <th>Completed</th>
+    </tr>
+    {% for withdrawal in user.withdrawals %}
+    <tr>
+        <td>{{withdrawal.currency.ticker}}</td>
+        <td>{{withdrawal.address}}</td>
+        <td>{{withdrawal.amount}}</td>
+        <td>{{withdrawal.pending}}</td>
+        <td>{{withdrawal.entered}}</td>
+        <td>{{withdrawal.completed}}</td>
+    </tr>
+    {% endfor %}
+</table>
+</body>
+</html>
