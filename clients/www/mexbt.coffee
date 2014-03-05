@@ -98,7 +98,7 @@ $("#compropago_pay_button").click (event) ->
     ladda.start()
     store = $("#compropago_store").val()
     amount = $("#compropago_amount").val()
-    send_sms = $("#compropago_send_sms").val()
+    send_sms = $("#compropago_send_sms").is(":checked")
     sputnik.makeCompropagoDeposit store, Number(amount), send_sms
 
 $('#chatButton').click ->

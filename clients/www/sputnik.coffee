@@ -254,7 +254,7 @@ class window.Sputnik extends EventEmitter
           payment_type: store
           send_sms: send_sms
           currency: "MXN"
-
+        @log "compropago charge: #{charge}"
         @call("make_compropago_deposit", charge).then \
             (@ticket) =>
                 @log "compropago deposit ticket: #{ticket}"
