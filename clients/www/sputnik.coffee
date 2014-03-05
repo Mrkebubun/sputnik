@@ -224,7 +224,6 @@ class window.Sputnik extends EventEmitter
         # TODO: account for contract denominator
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
 
-
     # order manipulation
     placeOrder: (quantity, price, ticker, side) =>
         order =
@@ -248,6 +247,13 @@ class window.Sputnik extends EventEmitter
                 @emit "cancel_order_fail", error
 
     # deposits and withdrawals
+    makeCompropagoDeposit: (store, amount) =>
+        @call("make_compropago_deposit", store, amount).then \
+            (@ticket) =>
+                @log "compropago deposit ticket: #{ticket}"
+                @emit "compropago_deposit_success", ticket
+            , (error) =>
+                @emit "compropago_deposit_fail", error
 
     getAddress: (contract) =>
     newAddress: (contract) =>
