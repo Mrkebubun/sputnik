@@ -499,17 +499,22 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if charge['product_price'] != int(charge['product_price']):
             return [False, (0, "Invalid MXN quantity sent")]
 
-        charge['customer_name'] = self.username
-        charge['customer_email'] = ''
-        charge['product_name'] = ''
-        charge['product_id'] = ''
-        charge['image_url'] = ''
+        def _cb(result):
+            denominator = result[0][0]
+            charge['product_price'] = charge['product_price'] / denominator
+            charge['customer_name'] = self.username
+            charge['customer_email'] = ''
+            charge['product_name'] = ''
+            charge['product_id'] = ''
+            charge['image_url'] = ''
 
-        c = compropago.Charge.from_dict(charge)
-        self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+            c = compropago.Charge.from_dict(charge)
+            bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+            return [True, bill]
 
-        # todo: return instructions for the user
+            # todo: return instructions for the user
 
+        dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
 
     @exportRpc("get_new_address")

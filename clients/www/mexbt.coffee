@@ -217,3 +217,9 @@ sputnik.on "positions", (positions) ->
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+
+sputnik.on "compropago_deposit_success", (message) ->
+    alert message
+
+sputnik.on "compropago_deposit_fail", (error) ->
+    alert message

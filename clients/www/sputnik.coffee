@@ -260,6 +260,7 @@ class window.Sputnik extends EventEmitter
                 @log "compropago deposit ticket: #{ticket}"
                 @emit "compropago_deposit_success", ticket
             , (error) =>
+                @error "compropago error: #{error}"
                 @emit "compropago_deposit_fail", error
 
 
