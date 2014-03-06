@@ -32,6 +32,7 @@
         <td>{{position.contract.ticker}}</td>
         <td>{{position.position}}</td>
         <td>{{position.reference_price}}</td>
+        {% if debug %}
         <td>
             <form action="/adjust_position" method="get">
                 <input type="text" name="adjustment">
@@ -39,6 +40,7 @@
                 <input type="hidden" name="contract" value="{{position.contract.ticker}}">
             </form>
         </td>
+        {% endif %}
     </tr>
     {% endfor %}
 </table>

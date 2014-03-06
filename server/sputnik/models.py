@@ -120,7 +120,7 @@ class Addresses(db.Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
-    currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', name='currency_types'), nullable=False)
+    currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', 'mxn', name='currency_types'), nullable=False)
     address = Column(String, nullable=False)
     active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)

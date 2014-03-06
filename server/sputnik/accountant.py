@@ -35,6 +35,10 @@ class Accountant:
         self.session = session
         self.debug = debug
         self.btc = self.get_contract("BTC")
+        # TODO: Get deposit limits from DB
+        self.deposit_limits = { 'btc': 1000000,
+                                'mxn': 600000
+        }
         self.safe_prices = {}
         self.engines = {}
         for contract in session.query(models.Contract).filter_by(
@@ -318,9 +322,18 @@ class Accountant:
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             user_cash_position.position += deposit
+
+            # TODO: Put deposit limits into the DB
+            # TODO: If a deposit failed, we have to refund the money somehow
+            deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
+            if user_cash_position.postion > deposit_limit:
+                logging.error("Deposit failed for address=%s because user exceeded deposit limit=%d" %
+                              (address, deposit_limit))
+                return False
+
             total_deposited_at_address.accounted_for = total_received
-            total_deposited_at_address - session.merge(total_deposited_at_address)
-            user_cash_position = session.add(user_cash_position)
+            session.add(total_deposited_at_address)
+            session.add(user_cash_position)
             session.commit()
 
             return True

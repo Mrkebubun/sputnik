@@ -32,7 +32,7 @@ sputnik.on "auth_success", (username) ->
 
 sputnik.on "cookie", (uid) ->
     sputnik.log "cookie: " + uid
-    document.cookie = "login" + "=" + login.value + ":" + uid
+    document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
