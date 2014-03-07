@@ -111,7 +111,6 @@ class Administrator:
         return user
 
     def get_positions(self):
-        self.session.expire_all()
         positions = self.session.query(models.Position).all()
         return positions
 
