@@ -52,6 +52,24 @@
     </div>
 </div>
 
+<div id="deposit_btc_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Deposit Address</h4>
+            </div>
+            <div class="modal-body">
+                <legend><a id="btc_deposit_address"></a></legend>
+                <div id="btc_deposit_qrcode"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                    id="new_address_button"><span class="ladda-label">New Address</span></button>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="compropago_modal">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -150,7 +168,7 @@
             <div id="BTCpos"></div>
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
-            <li><a href="#">Deposit</a></li>
+            <li><a href="#" id="deposit_btc">Deposit</a></li>
             <li><a href="#">Withdraw</a></li>
         </ul>
     </li>

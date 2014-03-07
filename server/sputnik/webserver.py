@@ -524,13 +524,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the new address
         """
         validate(currency, {"type": "string"})
-        currency = currency[:MAX_TICKER_LENGTH]
+        # Make sure the currency is lowercase here
+        currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _get_new_address(txn, username):
             res = txn.query(
-                "SELECT addresses.id, addresses.address FROM addresses, contracts WHERE "
-                "addresses.username IS NULL AND addresses.active=FALSE AND addresses.currency=contracts.id "
-                "AND contracts.ticker=%s"
+                "SELECT id, address FROM addresses WHERE "
+                "username IS NULL AND active=FALSE AND currency=%s"
                 " ORDER BY id LIMIT 1", (currency,))
             if not res:
                 logging.error("Out of addresses!")
@@ -540,8 +540,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
             txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
                         (username, a_id))
-            # TODO: Update to new API
-            return a_address
+            return [True, a_address]
 
         return dbpool.runInteraction(_get_new_address, self.username)
 
@@ -552,21 +551,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: said current address
         """
         validate(currency, {"type": "string"})
-        currency = currency[:MAX_TICKER_LENGTH]
+        # Make sure currency is lower-cased
+        currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _cb(result):
             if not result:
                 logging.warning(
                     "we did not manage to get the current address associated with a user,"
                     " something's wrong")
-                return ""
+                return [False, (0, "No address associated with user %s" % self.username)]
             else:
-                return result[0][0]
+                return [True, result[0][0]]
 
-        # TODO: Update to new API
         return dbpool.runQuery(
-            "SELECT addresses.address FROM addresses, contracts WHERE"
-            " username=%s AND active=TRUE AND addresses.currency=contracts.id AND contracts.ticker=%s"
+            "SELECT address FROM addresses WHERE"
+            " username=%s AND active=TRUE AND currency=%s"
             " ORDER BY id LIMIT 1", (self.username, currency)).addCallback(_cb)
 
     @exportRpc("withdraw")

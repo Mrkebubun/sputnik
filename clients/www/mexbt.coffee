@@ -90,7 +90,14 @@ $("#logout").click (event) ->
     location.reload()
 
 $('#deposit_mxn').click (event) ->
-    $('#compropago_modal').modal()
+    $('#compropago_modal').modal('show')
+
+$('#deposit_btc').click (event) ->
+    sputnik.getAddress('BTC')
+    $('#deposit_btc_modal').modal('show')
+
+$('#new_address_button').click (event) ->
+    sputnik.newAddress('BTC')
 
 $("#compropago_pay_button").click (event) ->
     event.preventDefault()
@@ -223,3 +230,10 @@ sputnik.on "compropago_deposit_success", (message) ->
 
 sputnik.on "compropago_deposit_fail", (error) ->
     alert message
+
+sputnik.on "address", (info) ->
+  # We only support BTC here
+  address = info[1]
+  $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
+  $('#btc_deposit_qrcode').empty()
+  $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
