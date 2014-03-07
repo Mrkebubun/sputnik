@@ -263,9 +263,18 @@ class window.Sputnik extends EventEmitter
                 @error "compropago error: #{error}"
                 @emit "compropago_deposit_fail", error
 
-
     getAddress: (contract) =>
+      @call("get_current_address", contract).then \
+        (address) =>
+          @log "address for #{contract}: #{address}"
+          @emit "address", [contract, address]
+
     newAddress: (contract) =>
+      @call("get_new_address", contract).then \
+        (address) =>
+          @log "new address for #{contract}: #{address}"
+          @emit "address", [contract, address]
+
     withdraw: (contract, address, amount) =>
 
         # account/position information
