@@ -274,6 +274,9 @@ class window.Sputnik extends EventEmitter
         (address) =>
           @log "new address for #{contract}: #{address}"
           @emit "address", [contract, address]
+        , (error) =>
+          @log "new address failure for #{contract}: #{error}"
+          @emit "new_address_fail", error
 
     withdraw: (contract, address, amount) =>
 

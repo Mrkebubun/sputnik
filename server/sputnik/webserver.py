@@ -534,7 +534,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 " ORDER BY id LIMIT 1", (currency,))
             if not res:
                 logging.error("Out of addresses!")
-                raise Exception("Out of addresses")
+                return [False, (0, "Out of addresses!")]
 
             a_id, a_address = res[0][0], res[0][1]
             txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
