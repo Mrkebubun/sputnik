@@ -14,5 +14,11 @@ contracts modify BTC/MXN contract_type cash_pair
 contracts modify BTC/MXN tick_size 100
 contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
+accounts add marketmaker
+accounts add randomtrader
+accounts position marketmaker BTC 1000000000
+accounts position marketmaker MXN 1000000
+accounts position randomtrader BTC 1000000000
+accounts position randomtrader MXN 1000000
 EOF
 
