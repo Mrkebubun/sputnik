@@ -157,7 +157,8 @@ class AdminWebUI(Resource):
         positions = self.administrator.get_positions()
         position_totals = collections.defaultdict(int)
         for position in positions:
-            position_totals[position.contract.ticker] += position.position
+            if position.position is not None:
+                position_totals[position.contract.ticker] += position.position
 
         t = Template(open('admin_templates/audit.html', 'r').read())
         rendered = t.render(position_totals=position_totals)
