@@ -2,24 +2,67 @@
 <html>
 <head>
     <title>User List</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    <script type="text/coffeescript">
+        $ ->
+            rows = $("#users").children("tbody").children("tr")
+
+            $("#search").keyup ->
+                term = $.trim $(@).val().toLowerCase()
+                rows.hide()
+                if $("#exact").prop("checked")
+                    for row in rows
+                        for line in $(row).text().split "\n"
+                            if $.trim(line) is term
+                                $(row).show()
+                else
+                    for row in rows
+                        if $(row).text().search(term) > -1
+                            $(row).show()
+
+            $("#exact").change -> $("#search").keyup()
+    </script>
 </head>
 <body>
-<a href="/audit">Audit</a>
-<table>
-    <tr>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Nickname</th>
-    </tr>
+<ul class="nav nav-tabs">
+  <li class="active"><a href="#">Users</a></li>
+  <li><a href="/audit">Audit</a></li>
+  <li><a href="#">Fees</a></li>
+</ul>
+<br>
+<div class="container">
+<div class="panel panel-primary">
+<div class="panel-heading">User list</div>
+<div class="panel-body">
+<form role="form" action="#">
+<div class="form-group">
+<input type="search" id="search" autocomplete="off" placeholder="Search">
+<div class="checkbox">
+<label>
+<input type="checkbox" id="exact"> Exact match
+</label>
+</div>
+</div>
+</form>
+<table id="users" class="table table-hover">
+    <thead>
+        <tr><th>Username</th><th>Email</th><th>Nickname</th></tr>
+    </thead>
+    <tbody>
     {% for user in users %}
-    <tr>
-        <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
-        <!-- TODO: Change this to connecto to zendesk to contact user -->
-        <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
-        <td>{{user.nickname}}</td>
-        <td></td>
-    </tr>
+        <tr>
+            <td><a href="/user_details?username={{user.username}}">{{user.username}}</a></td>
+            <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
+            <td>{{user.nickname}}</td>
+        </tr>
     {% endfor %}
+    </tbody>
 </table>
+</div>
+</div>
+</div>
 </body>
 </html>
