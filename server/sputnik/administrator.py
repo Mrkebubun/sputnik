@@ -23,7 +23,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
 
-from jinja2 import Template
+from jinja2 import Template, Environment, FileSystemLoader
 
 import logging
 
@@ -119,6 +119,7 @@ class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator):
         self.administrator = administrator
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
 
     def render_GET(self, request):
@@ -135,14 +136,14 @@ class AdminWebUI(Resource):
 
     def user_list(self):
         users = self.administrator.get_users()
-        t = Template(open('admin_templates/user_list.html', 'r').read())
+        t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
 
     def user_details(self, request):
         params = parse_qs(urlparse(request.uri).query)
 
         user = self.administrator.get_user(params['username'][0])
-        t = Template(open('admin_templates/user_details.html', 'r').read())
+        t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug)
         return rendered
 
@@ -160,7 +161,7 @@ class AdminWebUI(Resource):
             if position.position is not None:
                 position_totals[position.contract.ticker] += position.position
 
-        t = Template(open('admin_templates/audit.html', 'r').read())
+        t = self.jinja_env.get_template('audit.html')
         rendered = t.render(position_totals=position_totals)
         return rendered
 

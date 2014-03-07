@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    {% block coffeescript %}
+    <script type="text/coffeescript">
+    </script>
+    {% endblock %}
+</head>
+<body>
+    <ul class="nav nav-tabs">
+      <li {% block users_active %}{% endblock %}><a href="/">Users</a></li>
+      <li {% block audit_active %}{% endblock %}><a href="/audit">Audit</a></li>
+      <li {% block fees_active %}{% endblock %}><a href="/fees">Fees</a></li>
+    </ul>
+    <div class="container">
+        <div class="panel panel-primary">
+            <div class="panel-heading">{% block panel_title %}{% endblock %}</div>
+            <div class="panel-body">
+                {% block panel_body %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
