@@ -528,10 +528,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _get_new_address(txn, username):
-            res = txn.execute(
+            txn.execute(
                 "SELECT id, address FROM addresses WHERE "
                 "username IS NULL AND active=FALSE AND currency=%s"
                 " ORDER BY id LIMIT 1", (currency,))
+            res = txn.fetchall()
             if not res:
                 logging.error("Out of addresses!")
                 return [False, (0, "Out of addresses!")]
