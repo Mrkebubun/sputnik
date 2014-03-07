@@ -24,3 +24,6 @@ upgrade:
 install: deps
 	install/install.py install
 
+tar: config build
+	tar -cf sputnik.tar install dist Makefile
+
