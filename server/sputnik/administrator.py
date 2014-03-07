@@ -99,6 +99,9 @@ class Administrator:
         logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
 
+    def expire_all(self):
+        self.session.expire_all()
+
     def get_users(self):
         users = self.session.query(models.User).all()
         return users
@@ -108,6 +111,7 @@ class Administrator:
         return user
 
     def get_positions(self):
+        self.session.expire_all()
         positions = self.session.query(models.Position).all()
         return positions
 
@@ -135,11 +139,16 @@ class AdminWebUI(Resource):
             return "Request received: %s" % request.uri
 
     def user_list(self):
+        # We dont need to expire here because the user_list doesn't show
+        # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
 
     def user_details(self, request):
+        # We are getting trades and positions which things other than the administrator
+        # are modifying, so we need to do an expire here
+        self.administrator.expire_all()
         params = parse_qs(urlparse(request.uri).query)
 
         user = self.administrator.get_user(params['username'][0])
@@ -154,6 +163,9 @@ class AdminWebUI(Resource):
         return self.user_details(request)
 
     def audit(self):
+        # We are getting trades and positions which things other than the administrator
+        # are modifying, so we need to do an expire here
+        self.administrator.expire_all()
         # TODO: Do this in SQLalchemy
         positions = self.administrator.get_positions()
         position_totals = collections.defaultdict(int)
