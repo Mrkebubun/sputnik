@@ -23,6 +23,10 @@
                         if $(row).text().search(term) > -1
                             $(row).show()
 
+            # restripe
+            $("tr").removeClass("alternate")
+            $("tr:not(.hide):odd").addClass("alternate")
+
             $("#exact").change -> $("#search").keyup()
     </script>
 </head>
@@ -47,7 +51,7 @@
 </div>
 </div>
 </form>
-<table id="users" class="table table-hover">
+<table id="users" class="table table-striped table-hover">
     <thead>
         <tr><th>Username</th><th>Email</th><th>Nickname</th></tr>
     </thead>
