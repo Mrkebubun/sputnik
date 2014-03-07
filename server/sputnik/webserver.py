@@ -528,7 +528,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _get_new_address(txn, username):
-            res = txn.query(
+            res = txn.execute(
                 "SELECT id, address FROM addresses WHERE "
                 "username IS NULL AND active=FALSE AND currency=%s"
                 " ORDER BY id LIMIT 1", (currency,))
