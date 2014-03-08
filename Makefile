@@ -4,26 +4,29 @@ endif
 
 .PHONY: config deps build install upgrade
 
-all: config build
+all: dist
 
 clean:
 	rm -r dist
 
-config:
-	install/install.py config
-
 deps:
 	install/install.py deps
+
+config:
+	install/install.py config
 
 build:
 	install/install.py build
 
-upgrade:
-	install/install.py upgrade
+dist: config build
+	install/install.py dist
 
-install: deps
+tar: dist
+	tar -cf sputnik.tar install dist Makefile
+
+install:
 	install/install.py install
 
-tar: config build
-	tar -cf sputnik.tar install dist Makefile
+upgrade:
+	install/install.py upgrade
 
