@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 import config
 import compropago
-
+from collections import OrderedDict
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -120,6 +120,54 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
+    @exportRpc("get_OLHCV")
+    def get_OLHCV(self, ticker, period, start_timestamp, end_timestamp):
+        validate(ticker, {"type", "string"})
+        validate(period, {"type", "string"})
+        validate(start_timestamp, {"type", "number"})
+        validate(end_timestamp, {"type", "number"})
+
+        from_dt = util.timestamp_to_dt(start_timestamp)
+        to_dt = util.timestamp_to_dt(end_timestamp)
+        period_map = {'minute': 60,
+                      'hour': 3600,
+                      'day': 3600 * 24}
+        period_seconds = period_map[period]
+        period_micros = period_seconds * 1e6
+
+        def _cb(result):
+            aggregation = {}
+
+            for trade in result:
+                end_period = int(trade[1] / period_micros) * period_micros + period_micros - 1
+                if end_period not in aggregation:
+                    aggregation = {'open': trade[2],
+                                   'low': trade[2],
+                                   'high': trade[2],
+                                   'close': trade[2],
+                                   'volume': trade[3],
+                                   'vwap': trade[3]
+                    }
+                else:
+                    aggregation[end_period]['low'] = min(trade[2], aggregation[end_period]['low'])
+                    aggregation[end_period]['high'] = max(trade[2], aggregation[end_period]['high'])
+                    aggregation[end_period]['close'] = trade[2]
+                    aggregation[end_period]['vwap'] = ( aggregation[end_period]['vwap'] * \
+                                                        aggregation[end_period]['volume'] + trade[3] * trade[2] ) / \
+                                                    aggregation[end_period]['volume'] + trade[3]
+                    aggregation[end_period]['volume'] += trade[3]
+
+            return aggregation
+
+        return dbpool.runQuery(
+            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
+            "AND trades.timestamp <= %s ORDER BY trades.timestamp",
+            (ticker, from_dt, to_dt)
+        ).addCallback(_cb)
+
+
+
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
         """
@@ -147,7 +195,6 @@ class PublicInterface:
             return [True, [{'contract': r[0], 'price': r[2], 'quantity': r[3],
                                   'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
 
-        #todo implement time_span checks
         return dbpool.runQuery(
             "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
             "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
