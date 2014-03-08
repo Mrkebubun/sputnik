@@ -120,33 +120,33 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
-    @exportRpc("get_OLHCV")
-    def get_OLHCV(self, ticker, period, start_timestamp, end_timestamp):
-        validate(ticker, {"type", "string"})
-        validate(period, {"type", "string"})
-        validate(start_timestamp, {"type", "number"})
-        validate(end_timestamp, {"type", "number"})
+    @exportRpc("get_ohlcv")
+    def get_ohlcv(self, ticker, period, start_timestamp, end_timestamp):
+        validate(ticker, {"type": "string"})
+        validate(period, {"type": "string"})
+        validate(start_timestamp, {"type": "number"})
+        validate(end_timestamp, {"type": "number"})
 
         from_dt = util.timestamp_to_dt(start_timestamp)
         to_dt = util.timestamp_to_dt(end_timestamp)
         period_map = {'minute': 60,
                       'hour': 3600,
                       'day': 3600 * 24}
-        period_seconds = period_map[period]
-        period_micros = period_seconds * 1e6
+        period_seconds = int(period_map[period])
+        period_micros = int(period_seconds * 1000000)
 
         def _cb(result):
             aggregation = {}
 
             for trade in result:
-                end_period = int(trade[1] / period_micros) * period_micros + period_micros - 1
+                end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
                 if end_period not in aggregation:
-                    aggregation = {'open': trade[2],
-                                   'low': trade[2],
-                                   'high': trade[2],
-                                   'close': trade[2],
-                                   'volume': trade[3],
-                                   'vwap': trade[3]
+                    aggregation[end_period] = {'open': trade[2],
+                                               'low': trade[2],
+                                               'high': trade[2],
+                                               'close': trade[2],
+                                               'volume': trade[3],
+                                               'vwap': trade[2]
                     }
                 else:
                     aggregation[end_period]['low'] = min(trade[2], aggregation[end_period]['low'])
@@ -154,7 +154,7 @@ class PublicInterface:
                     aggregation[end_period]['close'] = trade[2]
                     aggregation[end_period]['vwap'] = ( aggregation[end_period]['vwap'] * \
                                                         aggregation[end_period]['volume'] + trade[3] * trade[2] ) / \
-                                                    aggregation[end_period]['volume'] + trade[3]
+                                                      ( aggregation[end_period]['volume'] + trade[3] )
                     aggregation[end_period]['volume'] += trade[3]
 
             return aggregation
