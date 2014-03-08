@@ -55,7 +55,6 @@ sputnik.on "make_account_fail", (event) ->
 $("#login").click () ->
     $("#login_modal").modal()
 
-
 $("#login_button").click (event) ->
     event.preventDefault()
     $("#login_error").hide()
@@ -230,7 +229,7 @@ sputnik.on "compropago_deposit_success", (message) ->
     alert message
 
 sputnik.on "compropago_deposit_fail", (error) ->
-    alert message
+    alert error
 
 sputnik.on "address", (info) ->
     # We only support BTC here
