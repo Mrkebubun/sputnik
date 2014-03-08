@@ -1,0 +1,36 @@
+#!/bin/bash
+
+check_user()
+{
+    echo -n "Checking/adding user $1... "
+    if [ `cat /etc/passwd | grep ^$1:` ]
+    then
+        PASSWD=`cat /etc/passwd | grep ^$1: | cut -d: -f 6,7`
+        if [ X$PASSWD = X"$2:/bin/false" ]
+        then
+            echo ok.
+        else
+            echo failed.
+            echo "User $1 exists but with incorrect home or shell." 1>&2
+            exit 1
+        fi
+    else
+        if /usr/sbin/adduser --quiet --system --group --home=$2 $1
+        then
+            echo "ok."
+        else
+            echo "failed."
+            echo "Error: cannot create user $1." 1>&2
+            exit 1
+        fi
+    fi
+}
+
+
+if [ -n "$UPGRADE" ]; then
+    exit 0
+fi
+
+check_user $profile_user $profile_root
+#check_user $profile_bitcoin_user $profile_bitcoin_root
+
