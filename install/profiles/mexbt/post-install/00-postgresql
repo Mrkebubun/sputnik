@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ -n "$UPGRADE" ]; then
+    exit 0
+fi
+
+sudo -u postgres psql <<EOF
+create database sputnik;
+create user $profile_user;
+grant all privileges on database sputnik to $profile_user;
+EOF
+
