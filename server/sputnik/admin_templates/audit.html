@@ -1,16 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Audit</title>
-</head>
-<body>
-<table>
-    {% for ticker, position_total in position_totals.iteritems() %}
-    <tr>
-        <td>{{ticker}}</td>
-        <td>{{position_total}}</td>
-    </tr>
-    {% endfor %}
-</table>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+{% block audit_active %}class="active"{% endblock %}
+{% block panel_title %}Audit List{% endblock %}
+{% block panel_body %}
+    <table id="audit" class="table table-striped table-hover">
+        <thead>
+            <tr><th>Contract</th><th>Position</th></tr>
+        </thead>
+        <tbody>
+            {% for ticker, position_total in position_totals.iteritems() %}
+            <tr>
+                <td>{{ticker}}</td>
+                <td>{{position_total}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

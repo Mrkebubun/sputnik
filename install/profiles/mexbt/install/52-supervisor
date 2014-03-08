@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ln -sf $profile_conf/supervisor.conf /etc/supervisor/conf.d/sputnik.conf
+

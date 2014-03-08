@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 import config
 import compropago
-
+from collections import OrderedDict
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -120,6 +120,57 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
+    @exportRpc("get_ohlcv")
+    def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+                                                                                   datetime.timedelta(days=2)),
+                  end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
+        validate(ticker, {"type": "string"})
+        validate(period, {"type": "string"})
+        validate(start_timestamp, {"type": "number"})
+        validate(end_timestamp, {"type": "number"})
+
+        from_dt = util.timestamp_to_dt(start_timestamp)
+        to_dt = util.timestamp_to_dt(end_timestamp)
+        period_map = {'minute': 60,
+                      'hour': 3600,
+                      'day': 3600 * 24}
+        period_seconds = int(period_map[period])
+        period_micros = int(period_seconds * 1000000)
+
+        def _cb(result):
+            aggregation = {}
+
+            for trade in result:
+                end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
+                if end_period not in aggregation:
+                    aggregation[end_period] = {'contract': ticker,
+                                               'open': trade[2],
+                                               'low': trade[2],
+                                               'high': trade[2],
+                                               'close': trade[2],
+                                               'volume': trade[3],
+                                               'vwap': trade[2]
+                    }
+                else:
+                    aggregation[end_period]['low'] = min(trade[2], aggregation[end_period]['low'])
+                    aggregation[end_period]['high'] = max(trade[2], aggregation[end_period]['high'])
+                    aggregation[end_period]['close'] = trade[2]
+                    aggregation[end_period]['vwap'] = ( aggregation[end_period]['vwap'] * \
+                                                        aggregation[end_period]['volume'] + trade[3] * trade[2] ) / \
+                                                      ( aggregation[end_period]['volume'] + trade[3] )
+                    aggregation[end_period]['volume'] += trade[3]
+
+            return aggregation
+
+        return dbpool.runQuery(
+            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
+            "AND trades.timestamp <= %s ORDER BY trades.timestamp",
+            (ticker, from_dt, to_dt)
+        ).addCallback(_cb)
+
+
+
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
         """
@@ -147,7 +198,6 @@ class PublicInterface:
             return [True, [{'contract': r[0], 'price': r[2], 'quantity': r[3],
                                   'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
 
-        #todo implement time_span checks
         return dbpool.runQuery(
             "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
             "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
@@ -488,24 +538,33 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         validate(charge, {"type": "object", "properties":
             {
-                "product_price": {"type": "int", "required": "true"},
+                "product_price": {"type": "number", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
-                "sens_sms": {"type": "boolean", "required": "true"},
+                "send_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"}
                 #todo: add which store
             }
         })
-        charge['customer_name'] = self.username
-        charge['customer_email'] = ''
-        charge['product_name'] = ''
-        charge['product_id'] = ''
-        charge['image_url'] = ''
+        # Make sure we received an integer qty of MXN
+        if charge['product_price'] != int(charge['product_price']):
+            return [False, (0, "Invalid MXN quantity sent")]
 
-        c = compropago.Charge.from_dict(charge)
-        self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+        def _cb(result):
+            denominator = result[0][0]
+            charge['product_price'] = charge['product_price'] / denominator
+            charge['customer_name'] = self.username
+            charge['customer_email'] = ''
+            charge['product_name'] = ''
+            charge['product_id'] = ''
+            charge['image_url'] = ''
 
-        # todo: return instructions for the user
+            c = compropago.Charge.from_dict(charge)
+            bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+            return [True, bill]
 
+            # todo: return instructions for the user
+
+        dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
 
     @exportRpc("get_new_address")
@@ -515,24 +574,24 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: the new address
         """
         validate(currency, {"type": "string"})
-        currency = currency[:MAX_TICKER_LENGTH]
+        # Make sure the currency is lowercase here
+        currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _get_new_address(txn, username):
-            res = txn.query(
-                "SELECT addresses.id, addresses.address FROM addresses, contracts WHERE "
-                "addresses.username IS NULL AND addresses.active=FALSE AND addresses.currency=contracts.id "
-                "AND contracts.ticker=%s"
+            txn.execute(
+                "SELECT id, address FROM addresses WHERE "
+                "username IS NULL AND active=FALSE AND currency=%s"
                 " ORDER BY id LIMIT 1", (currency,))
+            res = txn.fetchall()
             if not res:
                 logging.error("Out of addresses!")
-                raise Exception("Out of addresses")
+                return [False, (0, "Out of addresses!")]
 
             a_id, a_address = res[0][0], res[0][1]
             txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
             txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
                         (username, a_id))
-            # TODO: Update to new API
-            return a_address
+            return [True, a_address]
 
         return dbpool.runInteraction(_get_new_address, self.username)
 
@@ -543,21 +602,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :return: said current address
         """
         validate(currency, {"type": "string"})
-        currency = currency[:MAX_TICKER_LENGTH]
+        # Make sure currency is lower-cased
+        currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _cb(result):
             if not result:
                 logging.warning(
                     "we did not manage to get the current address associated with a user,"
                     " something's wrong")
-                return ""
+                return [False, (0, "No address associated with user %s" % self.username)]
             else:
-                return result[0][0]
+                return [True, result[0][0]]
 
-        # TODO: Update to new API
         return dbpool.runQuery(
-            "SELECT addresses.address FROM addresses, contracts WHERE"
-            " username=%s AND active=TRUE AND addresses.currency=contracts.id AND contracts.ticker=%s"
+            "SELECT address FROM addresses WHERE"
+            " username=%s AND active=TRUE AND currency=%s"
             " ORDER BY id LIMIT 1", (self.username, currency)).addCallback(_cb)
 
     @exportRpc("withdraw")

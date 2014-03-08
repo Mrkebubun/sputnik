@@ -32,7 +32,7 @@ sputnik.on "auth_success", (username) ->
 
 sputnik.on "cookie", (uid) ->
     sputnik.log "cookie: " + uid
-    document.cookie = "login" + "=" + login.value + ":" + uid
+    document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
 sputnik.on "auth_fail", ->
     ladda = Ladda.create $("#login_button")[0]
@@ -87,6 +87,25 @@ $("#logout").click (event) ->
     document.cookie = ''
     sputnik.logout()
     location.reload()
+
+$('#deposit_mxn').click (event) ->
+    $('#compropago_modal').modal('show')
+
+$('#deposit_btc').click (event) ->
+    sputnik.getAddress('BTC')
+    $('#deposit_btc_modal').modal('show')
+
+$('#new_address_button').click (event) ->
+    sputnik.newAddress('BTC')
+
+$("#compropago_pay_button").click (event) ->
+    event.preventDefault()
+    ladda = Ladda.create $("#compropago_pay_button")[0]
+    ladda.start()
+    store = $("#compropago_store").val()
+    amount = $("#compropago_amount").val()
+    send_sms = $("#compropago_send_sms").is(":checked")
+    sputnik.makeCompropagoDeposit store, Number(amount), send_sms
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value
@@ -166,6 +185,7 @@ sputnik.on "open", () ->
     sputnik.log "open"
     sputnik.getOrderBook "BTC/MXN"
     sputnik.getTradeHistory "BTC/MXN"
+    sputnik.getOHLCV "BTC/MXN"
     sputnik.follow "BTC/MXN"
 
     # Attempt a cookie login
@@ -204,3 +224,22 @@ sputnik.on "positions", (positions) ->
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+
+sputnik.on "compropago_deposit_success", (message) ->
+    alert message
+
+sputnik.on "compropago_deposit_fail", (error) ->
+    alert error
+
+sputnik.on "address", (info) ->
+    # We only support BTC here
+    address = info[1]
+    $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
+    $('#btc_deposit_qrcode').empty()
+    $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
+
+sputnik.on "ohlcv", (ohlcv) ->
+    for timestamp, entry of ohlcv
+        $('#low').text entry.low.toFixed(0)
+        $('#high').text entry.high.toFixed(0)
+        $('#vwap').text entry.vwap.toFixed(0)

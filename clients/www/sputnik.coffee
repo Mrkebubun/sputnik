@@ -152,6 +152,18 @@ class window.Sputnik extends EventEmitter
             new_object[key] = object[key]
         return new_object
 
+    ohlcvFromWire: (wire_ohlcv) =>
+        ticker = wire_ohlcv['contract']
+        ohlcv =
+            contract: ticker
+            open: @priceFromWire(ticker, wire_ohlcv['open'])
+            high: @priceFromWire(ticker, wire_ohlcv['high'])
+            low: @priceFromWire(ticker, wire_ohlcv['low'])
+            close: @priceFromWire(ticker, wire_ohlcv['close'])
+            volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
+            vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
+        return ohlcv
+
     positionFromWire: (wire_position) =>
         ticker = wire_position.contract
         position = @copy(wire_position)
@@ -224,7 +236,6 @@ class window.Sputnik extends EventEmitter
         # TODO: account for contract denominator
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
 
-
     # order manipulation
     placeOrder: (quantity, price, ticker, side) =>
         order =
@@ -249,11 +260,39 @@ class window.Sputnik extends EventEmitter
 
     # deposits and withdrawals
 
+    makeCompropagoDeposit: (store, amount, send_sms) =>
+        charge =
+          product_price: amount
+          payment_type: store
+          send_sms: send_sms
+          currency: "MXN"
+        @log "compropago charge: #{charge}"
+        @call("make_compropago_deposit", charge).then \
+            (@ticket) =>
+                @log "compropago deposit ticket: #{ticket}"
+                @emit "compropago_deposit_success", ticket
+            , (error) =>
+                @error "compropago error: #{error}"
+                @emit "compropago_deposit_fail", error
+
     getAddress: (contract) =>
+        @call("get_current_address", contract).then \
+            (address) =>
+                @log "address for #{contract}: #{address}"
+                @emit "address", [contract, address]
+
     newAddress: (contract) =>
+        @call("get_new_address", contract).then \
+            (address) =>
+                @log "new address for #{contract}: #{address}"
+                @emit "address", [contract, address]
+        , (error) =>
+            @log "new address failure for #{contract}: #{error}"
+            @emit "new_address_fail", error
+
     withdraw: (contract, address, amount) =>
 
-        # account/position information
+    # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
         @call("get_open_orders").then \
@@ -281,6 +320,9 @@ class window.Sputnik extends EventEmitter
 
     getTradeHistory: (ticker) =>
         @call("get_trade_history", ticker).then @onTradeHistory
+
+    getOHLCV: (ticker) =>
+        @call("get_ohlcv", ticker).then @onOHLCV
 
     # miscelaneous methods
 
@@ -376,7 +418,6 @@ class window.Sputnik extends EventEmitter
             @markets[ticker].asks = []
         @emit "markets", @markets
 
-
     # feeds
     onBook: (book) =>
         @log "book received: #{book}"
@@ -419,14 +460,19 @@ class window.Sputnik extends EventEmitter
         else
             @warn "no trades in history"
 
+    onOHLCV: (wire_ohlcv) =>
+        @log "ohlcv received: #{ohlcv}"
+        ohlcv = {}
+        for timestamp, entry of wire_ohlcv
+            ohlcv[timestamp] = @ohlcvFromWire(entry)
+        @emit "ohlcv", ohlcv
+
     onTrade: (trade) =>
         ticker = trade.contract
         @markets[ticker].trades.push trade
         @emit "trade", @tradeFromWire(trade)
         @cleanTradeHistory(ticker)
         @emitTradeHistory(ticker)
-
-
 
     onChat: (event) =>
         # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent

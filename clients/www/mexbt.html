@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.css">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.time.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
@@ -34,7 +35,7 @@
                 <form class="form-signin" role="form">
                     <input type="text" class="form-control" id="login_username" placeholder="Username" required
                            autofocus><br>
-                    <input type="password" class="form-control" id="login_password", placeholder="Password"
+                    <input type="password" class="form-control" id="login_password" placeholder="Password"
                     required><br>
                     <label class="checkbox">
                         <input type="checkbox" value="remember-me"> Remember me
@@ -51,6 +52,71 @@
         </div>
     </div>
 </div>
+
+<div id="deposit_btc_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Deposit Address</h4>
+            </div>
+            <div class="modal-body">
+                <legend><a id="btc_deposit_address"></a></legend>
+                <div id="btc_deposit_qrcode"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                    id="new_address_button"><span class="ladda-label">New Address</span></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="compropago_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit with compropago</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form" role="form">
+                    <label class="control-label" for="compropago_amount">Amount to deposit (MXN)</label>
+                    <input class="form-control" id="compropago_amount" type="number" min="0" max="10000" step="1" value="0"/>
+                    <label class="control-label" for="compropago_store">Choose a store</label>
+                    <select id="compropago_store" class="form-control">
+                        <option value="OXXO">oxxo</option>
+                        <option value="SEVEN_ELEVEN">Seven Eleven</option>
+                        <option value="EXTRA">Extra</option>
+                        <option value="WALMART">Walmart</option>
+                        <option value="SORIANA">Soriana</option>
+                        <option value="SAMS_CLUB">Sams Club</option>
+                        <option value="CHEDRAUI">Chedraui</option>
+                        <option value="BODEGA_AURRERA">Bodega Aurrera</option>
+                        <option value="SUPERAMA">Superama</option>
+                        <option value="ELEKTRA">Elektra</option>
+                        <option value="VIPS">Vips</option>
+                        <option value="EL_PORTON">El Porton</option>
+                        <option value="FARMACIA_BENAVIDES">Farmacia Benavides</option>
+                        <option value="FARMACIA_GUADALAJARA">Farmacia Guadalajara</option>
+                        <option value="FARMACIA_ESQUIVAR">Farmacia Esquivar</option>
+                        <option value="COPPEL">Coppel</option>
+                    </select>
+                    <label class="checkbox">
+                        <input type="checkbox" value="send_sms" id="compropago_send_sms"> Send SMS
+                    </label>
+                </form>
+                <div class="alert alert-warning" style="display:none" id="pay_error">
+                    Invalid payment
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="compropago_pay_button"><span class="ladda-label">Pay</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="register_modal">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -103,7 +169,7 @@
             <div id="BTCpos"></div>
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
-            <li><a href="#">Deposit</a></li>
+            <li><a href="#" id="deposit_btc">Deposit</a></li>
             <li><a href="#">Withdraw</a></li>
         </ul>
     </li>
@@ -112,7 +178,7 @@
             <div id="MXNpos"></div>
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
-            <li><a href="#">Deposit</a></li>
+            <li><a href="#" id="deposit_mxn">Deposit</a></li>
             <li><a href="#">Withdraw</a></li>
         </ul>
     </li>
@@ -246,26 +312,28 @@
     </div>
 </div>
 
-    <footer id="footer" class="navbar navbar-fixed-bottom">
-        <button id="chatCollapseButton" class="ladda-button" data-color="blue" data-size="xs" data-toggle="collapse" data-parent="#chatFooter" href="#chatZone"
-                class="btn" style="position:absolute; top:0; right:0;">chat
-            <i class="glyphicon glyphicon-chevron-up" id="chatCollapseIcon"></i></button>
-        <div id="chatZone" class="collapse">
-            <textarea readonly id="chatArea" class="chatText" cols="460" rows="10" ></textarea>
-            <div  class="input-append">
-                <input id="chatBox" class="chatInput" type="text" style="width:90%" >
-                <button id="chatButton" class="btn" type="button">Send</button>
-            </div>
-            <!--<button id="chatFooterButton" class="btn push" type="button" ><i class="icon-chevron-up"></i>Chat</button>-->
-            </div>
-    </footer>
-    <script language="JavaScript">
-        function toggleChevron(e) {
-                $('#chatCollapseIcon').toggleClass('glyphicon-chevron-down glyphicon-chevron-up');
-            }
-        $('#chatZone').on('hidden.bs.collapse', toggleChevron);
-        $('#chatZone').on('shown.bs.collapse', toggleChevron);
-    </script>
+
+
+<footer id="footer" class="navbar navbar-fixed-bottom">
+    <button id="chatCollapseButton" class="ladda-button" data-color="blue" data-size="xs" data-toggle="collapse" data-parent="#chatFooter" href="#chatZone"
+            class="btn" style="position:absolute; top:0; right:0;">chat
+        <i class="glyphicon glyphicon-chevron-up" id="chatCollapseIcon"></i></button>
+    <div id="chatZone" class="collapse">
+        <textarea readonly id="chatArea" class="chatText" cols="460" rows="10" ></textarea>
+        <div  class="input-append">
+            <input id="chatBox" class="chatInput" type="text" style="width:90%" >
+            <button id="chatButton" class="btn" type="button">Send</button>
+        </div>
+        <!--<button id="chatFooterButton" class="btn push" type="button" ><i class="icon-chevron-up"></i>Chat</button>-->
+        </div>
+</footer>
+<script language="JavaScript">
+    function toggleChevron(e) {
+            $('#chatCollapseIcon').toggleClass('glyphicon-chevron-down glyphicon-chevron-up');
+        }
+    $('#chatZone').on('hidden.bs.collapse', toggleChevron);
+    $('#chatZone').on('shown.bs.collapse', toggleChevron);
+</script>
 
 </body>
 </html>

@@ -9,6 +9,9 @@ def dt_to_timestamp(dt):
     timestamp = int(delta.total_seconds() * 1e6)
     return timestamp
 
+def timestamp_to_dt(timestamp):
+    return datetime.fromtimestamp(timestamp/1e6)
+
 def split_pair(pair):
     """
     Return the underlying pair of contracts in a cash_pair contract.
