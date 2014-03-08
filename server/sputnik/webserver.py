@@ -121,7 +121,9 @@ class PublicInterface:
         return [True, self.factory.markets]
 
     @exportRpc("get_ohlcv")
-    def get_ohlcv(self, ticker, period, start_timestamp, end_timestamp):
+    def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+                                                                                   datetime.timedelta(days=2)),
+                  end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
         validate(ticker, {"type": "string"})
         validate(period, {"type": "string"})
         validate(start_timestamp, {"type": "number"})
@@ -141,7 +143,8 @@ class PublicInterface:
             for trade in result:
                 end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
                 if end_period not in aggregation:
-                    aggregation[end_period] = {'open': trade[2],
+                    aggregation[end_period] = {'contract': ticker,
+                                               'open': trade[2],
                                                'low': trade[2],
                                                'high': trade[2],
                                                'close': trade[2],

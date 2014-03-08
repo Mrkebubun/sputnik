@@ -186,6 +186,7 @@ sputnik.on "open", () ->
     sputnik.log "open"
     sputnik.getOrderBook "BTC/MXN"
     sputnik.getTradeHistory "BTC/MXN"
+    sputnik.getOHLCV "BTC/MXN"
     sputnik.follow "BTC/MXN"
 
     # Attempt a cookie login
@@ -232,8 +233,14 @@ sputnik.on "compropago_deposit_fail", (error) ->
     alert message
 
 sputnik.on "address", (info) ->
-  # We only support BTC here
-  address = info[1]
-  $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
-  $('#btc_deposit_qrcode').empty()
-  $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
+    # We only support BTC here
+    address = info[1]
+    $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
+    $('#btc_deposit_qrcode').empty()
+    $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
+
+sputnik.on "ohlcv", (ohlcv) ->
+    for timestamp, entry of ohlcv
+        $('#low').text entry.low.toFixed(0)
+        $('#high').text entry.high.toFixed(0)
+        $('#vwap').text entry.vwap.toFixed(0)
