@@ -4,8 +4,8 @@
 cp -r $profile_git_root/dist/build/server $profile_root
 
 # copy over tools
-cp $profile_git_root/dist/build/tools/leo.py $profile_root/tools
-ln -s $profile_root/tools/leo.py $profile_root/tools/leo
+cp $profile_git_root/dist/build/tools/leo.py${profile_pycompiled} $profile_root/tools
+ln -s $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
 
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
@@ -17,4 +17,5 @@ cp $profile_git_root/dist/keys/* $profile_keys
 chown -R root:root $profile_root
 chmod -R ugo+rX $profile_root
 chmod +x $profile_root/server/sputnik/*.py${profile_pycompiled}
+chmod +x $profile_root/tools/*.py${profile_pycompiled}
 
