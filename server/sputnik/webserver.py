@@ -543,30 +543,29 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 "payment_type": {"type": "string", "required": "true"},
                 "send_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"},
-                "customer_phone": {"type": "string", "required": "true"}
-                "email": {"type": "string", "required": "true"}
-                #todo: add which store
+                "customer_phone": {"type": "string", "required": "true"},
+                "customer_email": {"type": "string", "required": "true"}
             }
         })
         # Make sure we received an integer qty of MXN
         if charge['product_price'] != int(charge['product_price']):
             return [False, (0, "Invalid MXN quantity sent")]
 
-        def _cb(result):
-            denominator = result[0][0]
-            charge['product_price'] = charge['product_price'] / denominator
-            charge['customer_name'] = self.username
-            charge['customer_phone'] = charge['customer_phone']
-            charge['customer_email'] = charge['email']
-            charge['product_name'] = 'bitcoins'
-            charge['product_id'] = ''
-            charge['image_url'] = ''
+#        def _cb(result):
+        #denominator = result[0][0]
+        charge['product_price'] = charge['product_price'] #/ denominator
+        charge['customer_name'] = self.username
+        charge['customer_phone'] = charge['customer_phone']
+        charge['customer_email'] = charge['customer_email']
+        charge['product_name'] = 'bitcoins'
+        charge['product_id'] = ''
+        charge['image_url'] = ''
 
-            c = compropago.Charge.from_dict(charge)
-            bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
-            return [True, bill]
+        c = compropago.Charge.from_dict(charge)
+        bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+        return [True, bill]
 
-        return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
+        #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
 
     @exportRpc("get_new_address")
