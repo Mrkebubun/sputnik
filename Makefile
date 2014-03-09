@@ -9,8 +9,6 @@ ifndef PROFILE
 export PROFILE=$(realpath install/profiles/git+postgres)
 endif
 
-# TARGETS
-
 .PHONY: config deps dist build install upgrade
 
 all: dist
@@ -33,8 +31,10 @@ dist: config build
 tar: dist
 	mkdir -p .tar/sputnik/install/profiles
 	cp -r dist .tar/sputnik
+	cp install/install.py .tar/sputnik/install
 	cp -r ${PROFILE} .tar/sputnik/install/profiles
-	cat Makefile > .tar/sputnik/Makefile
+	echo "install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
+	cat Makefile >> .tar/sputnik/Makefile
 
 install: deps
 	install/install.py install
