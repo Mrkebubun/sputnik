@@ -12,7 +12,7 @@ install()
     cd /usr/local/src
     wget $SOURCE
     tar -zxvf bitcoin-0.8.6-linux.tar.gz
-    cd bitcoin-0.8.6/src/src
+    cd bitcoin-0.8.6-linux/src/src
 
     sed -i 's/^USE_UPNP:=.*$/USE_UPNP:=-/' makefile.unix
     make -f makefile.unix
