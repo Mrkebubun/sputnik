@@ -27,6 +27,7 @@ from twisted.internet import reactor
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from jinja2 import Environment, FileSystemLoader
+import json
 
 import logging
 import autobahn, string, Crypto.Random.random
@@ -170,7 +171,22 @@ class AdminWebUI(Resource):
     def getChild(self, path, request):
         return self
 
+    def log(self, request):
+        line = '%s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        logging.info(line, request.getClientIP(),
+                     request.getUser(),
+                     request.method,
+                     request.uri,
+                     request.clientproto,
+                     request.code,
+                     request.sentLength or "-",
+                     request.getHeader("referer") or "-",
+                     request.getHeader("user-agent") or "-",
+                     request.getHeader("authorization") or "-",
+                     json.dumps(request.args))
+
     def render(self, request):
+        self.log(request)
         if request.path in ['/user_list', '/']:
             return self.user_list().encode('utf-8')
         elif request.path == '/audit':
