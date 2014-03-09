@@ -1,9 +1,11 @@
-ab = require "./autobahn.node.js"
-EventEmitter = require("./events").EventEmitter
+if module?
+    global.window = require "./window.js"
+    global.ab = global.window.ab
+    global.EventEmitter = require("./events").EventEmitter
 
 ### UI API ###
 
-class Sputnik extends EventEmitter
+class @Sputnik extends EventEmitter
 
     markets: {}
 
@@ -545,6 +547,6 @@ class Sputnik extends EventEmitter
 
         @emit "positions", positions
 
-module.exports =
-    Sputnik: Sputnik
-
+if module?
+    module.exports =
+        Sputnik: @Sputnik

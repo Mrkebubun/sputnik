@@ -3561,5 +3561,5 @@ ab.lookupWsSupport = function() {
 
 };
 
-module.exports = window.ab
+module.exports = window
 
