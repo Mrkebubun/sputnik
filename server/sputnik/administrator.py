@@ -17,10 +17,15 @@ import collections
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
-from twisted.web.resource import Resource
+from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
-from twisted.internet import reactor
+from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 
+from zope.interface import implements
+
+from twisted.internet import reactor
+from twisted.cred.portal import IRealm, Portal
+from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from jinja2 import Environment, FileSystemLoader
 
 import logging
@@ -156,10 +161,14 @@ class Administrator:
 
 class AdminWebUI(Resource):
     isLeaf = True
-    def __init__(self, administrator):
+    def __init__(self, administrator, avatarId):
         self.administrator = administrator
+        self.avatarId = avatarId
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
+
+    def getChild(self, path, request):
+        return self
 
     def render(self, request):
         if request.path in ['/user_list', '/']:
@@ -216,6 +225,17 @@ class AdminWebUI(Resource):
         rendered = t.render(position_totals=position_totals)
         return rendered
 
+class SimpleRealm(object):
+    implements(IRealm)
+
+    def __init__(self, administrator):
+        self.administrator = administrator
+
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        if IResource in interfaces:
+            return IResource, AdminWebUI(self.administrator, avatarId), lambda: None
+        raise NotImplementedError
+
 class WebserverExport:
     """
     For security reasons, the webserver only has access to a limit subset of
@@ -251,9 +271,11 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    admin_ui = AdminWebUI(administrator)
+    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='admin')]
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
+            [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
-    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(admin_ui),
+    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                       interface=config.get("administrator", "interface"))
     reactor.run()
 
