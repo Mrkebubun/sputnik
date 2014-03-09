@@ -8,3 +8,9 @@ python-psycopg2
 sudo
 supervisor
 binfmt-support
+tcl-dev
+libboost-filesystem-dev
+libboost-program-options-dev
+libboost-thread-dev
+libboost-dev
+tcl-dev
