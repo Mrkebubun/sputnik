@@ -184,11 +184,11 @@ class Accountant:
         # TODO: Make this configurable
 
         # Make sure the vendorshares is less than or equal to 1.0
-        assert(sum(self.vendorshareconfig.values()) <= 1.0)
+        assert(sum(self.vendor_share_config.values()) <= 1.0)
 
-        for ticker, fee in fees:
+        for ticker, fee in fees.iteritems():
             remaining_fee = fee
-            for vendor_name, vendor_share in self.vendorshareconfig:
+            for vendor_name, vendor_share in self.vendor_share_config.iteritems():
                 vendor_position = self.get_position(vendor_name, ticker)
                 vendor_credit = int(fee * vendor_share)
                 vendor_position.position += vendor_credit
@@ -202,8 +202,6 @@ class Accountant:
             remainder_account_position = self.position('remainder', ticker)
             remainder_account_position.position += remaining_fee
             session.add(remainder_account_position)
-
-        session.commit()
 
     def post_transaction(self, transaction):
         """
@@ -270,7 +268,7 @@ class Accountant:
             from_position.position -= from_delta_int
             to_position.position += signed_quantity
 
-            fees = util.get_fees(username, contract, from_delta_int, signed_quantity)
+            fees = util.get_fees(username, contract, abs(from_delta_int))
 
             # Credit fees to vendor
             self.credit_fees(fees)
@@ -281,8 +279,8 @@ class Accountant:
             if to_currency_ticker in fees:
                 to_position.position -= fees[to_currency_ticker]
 
-            session.merge(from_position)
-            session.merge(to_position)
+            session.add(from_position)
+            session.add(to_position)
 
         else:
             logging.error("Unknown contract type '%s'." %
