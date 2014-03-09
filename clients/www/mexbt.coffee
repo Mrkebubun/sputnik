@@ -11,6 +11,10 @@ uri = ws_protocol + "//" + hostname + ":8000"
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
+sputnik.on "log", (args...) -> ab.log args...
+sputnik.on "warn", (args...) -> ab.warn args...
+sputnik.on "error", (args...) -> ab.error args...
+
 sputnik.on "auth_success", (username) ->
     ladda = Ladda.create $("#login_button")[0]
     ladda.stop()
