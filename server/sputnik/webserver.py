@@ -542,7 +542,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 "product_price": {"type": "number", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
                 "send_sms": {"type": "boolean", "required": "true"},
-                "currency": {"type": "string", "required": "true"}
+                "currency": {"type": "string", "required": "true"},
+                "customer_phone": {"type": "string", "required": "true"}
+                "email": {"type": "string", "required": "true"}
                 #todo: add which store
             }
         })
@@ -554,8 +556,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             denominator = result[0][0]
             charge['product_price'] = charge['product_price'] / denominator
             charge['customer_name'] = self.username
-            charge['customer_email'] = ''
-            charge['product_name'] = ''
+            charge['customer_phone'] = charge['customer_phone']
+            charge['customer_email'] = charge['email']
+            charge['product_name'] = 'bitcoins'
             charge['product_id'] = ''
             charge['image_url'] = ''
 
@@ -563,9 +566,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
             return [True, bill]
 
-            # todo: return instructions for the user
-
-        dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
+        return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
 
     @exportRpc("get_new_address")

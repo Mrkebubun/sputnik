@@ -33,8 +33,9 @@ class Charge:
 
     @staticmethod
     def from_dict(x):
-        return Charge(x['product_price'], x['customer_name'], x['customer_email'], x['payment_type'],
-                      x['send_sms'], x['currency'], x['product_name'], x['product_id'], x['image_url'])
+        return Charge(x['product_price'], x['customer_name'], x['customer_email'], x['customer_phone'],
+                      x['payment_type'], x['send_sms'], x['currency'], x['product_name'], x['product_id'],
+                      x['image_url'])
 
 
 
@@ -61,7 +62,7 @@ class Compropago:
         self.unpad = lambda s: s[0:-ord(s[-1])]
 
     def create_bill(self, charge):
-        charge.username = self.make_public_handle(charge.customer_name)
+        charge.customer_name = self.make_public_handle(charge.customer_name)
         r = requests.post(self.charge_URL,
                           data=json.dumps(charge.__dict__),
                           headers=self.headers, auth=(self.key, ''))
