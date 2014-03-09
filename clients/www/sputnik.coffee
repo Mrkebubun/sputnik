@@ -275,12 +275,14 @@ class window.Sputnik extends EventEmitter
 
     # deposits and withdrawals
 
-    makeCompropagoDeposit: (store, amount, send_sms) =>
+    makeCompropagoDeposit: (store, amount, send_sms, customer_phone) =>
         charge =
           product_price: amount
           payment_type: store
           send_sms: send_sms
           currency: "MXN"
+          customer_phone: customer_phone
+
         @log "compropago charge: #{charge}"
         @call("make_compropago_deposit", charge).then \
             (@ticket) =>
@@ -389,13 +391,10 @@ class window.Sputnik extends EventEmitter
 
     # logging
     log: (obj) =>
-        console.log obj
         @emit "log", obj
     warn: (obj) ->
-        console.warn obj
         @emit "warn", obj
     error: (obj) ->
-        console.error obj
         @emit "error", obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
