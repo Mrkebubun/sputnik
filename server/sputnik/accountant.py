@@ -176,30 +176,6 @@ class Accountant:
             session.commit()
             return True
 
-    def get_cash_fees(self, username, contract, from_delta_int):
-        """
-        Given a transaction, figure out how much fees need to be paid and
-        what accounts those fees need to go to
-        :param transaction: the transaction object
-        :return: dict
-        """
-
-        # Right now fees are very simple, just 20bps of the total from_currency amount
-        # user account.
-        # Not implemented for anything but cash_pair
-        # TODO: Make fees based on transaction size
-        # TODO: Give some users different fee schedules
-        # TODO: Give some contracts different fee schedules
-        # TODO: make the fee user accounts configurable in config file
-        # TODO: Put fee schedule and user levels into DB
-        # TODO: Create fees for futures and predictions
-        if contract.contract_type == "cash_pair":
-            from_currency_ticker, to_currency_ticker = util.split_pair(contract.ticker)
-            fees = round(from_delta_int * 0.002)
-            return { from_currency_ticker: fees }
-        else:
-            # Only cash_pair is implemented for now
-            raise NotImplementedError
 
     def credit_fees(self, fees):
         """
@@ -290,13 +266,20 @@ class Accountant:
             from_delta_int = int(from_delta_float)
             if from_delta_float != from_delta_int:
                 logging.error("Position change is not an integer.")
-            fees = self.get_cash_fees(username, contract, from_delta_int)
+
+            from_position.position -= from_delta_int
+            to_position.position += signed_quantity
+
+            fees = util.get_fees(username, contract, from_delta_int, signed_quantity)
 
             # Credit fees to vendor
             self.credit_fees(fees)
 
-            from_position.position -= from_delta_int + fees[from_currency_ticker]
-            to_position.position += signed_quantity
+            # Deduct fees from user
+            if from_currency_ticker in fees:
+                from_position.position -= fees[from_currency_ticker]
+            if to_currency_ticker in fees:
+                to_position.position -= fees[to_currency_ticker]
 
             session.merge(from_position)
             session.merge(to_position)
