@@ -52,6 +52,19 @@ sputnik.on "make_account_fail", (event) ->
     $("#register_error").text(reason)
     $("#register_error").show()
 
+# compropago modal success and error
+sputnik.on "compropago_deposit_success", (event) ->
+  $('#compropago_modal').modal 'hide'
+
+sputnik.on "compropago_deposit_fail", (event) ->
+  ladda = Ladda.create $('#compropago_pay_button')[0]
+  ladda.stop()
+  [code, reason] = event
+  $('#compropago_error').text(reason)
+  $('#compropago_error').show()
+
+
+
 $("#login").click () ->
     $("#login_modal").modal()
 
@@ -101,7 +114,7 @@ $("#change_profile_button").click (event) ->
     sputnik.changeProfile(new_nickname.value, new_email.value)
 
 $('#deposit_mxn').click (event) ->
-    $('#compropago_modal').modal('show')
+    $('#compropago_modal').modal 'show'
 
 $('#deposit_btc').click (event) ->
     sputnik.getAddress('BTC')
@@ -117,7 +130,9 @@ $("#compropago_pay_button").click (event) ->
     store = $("#compropago_store").val()
     amount = $("#compropago_amount").val()
     send_sms = $("#compropago_send_sms").is(":checked")
-    sputnik.makeCompropagoDeposit store, Number(amount), send_sms
+    customer_phone = $('#compropago_phone').val()
+
+    sputnik.makeCompropagoDeposit store, Number(amount), send_sms, customer_phone
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value
@@ -236,12 +251,6 @@ sputnik.on "positions", (positions) ->
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
-
-sputnik.on "compropago_deposit_success", (message) ->
-    alert message
-
-sputnik.on "compropago_deposit_fail", (error) ->
-    alert error
 
 sputnik.on "address", (info) ->
     # We only support BTC here
