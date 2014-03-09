@@ -161,7 +161,7 @@ class PublicInterface:
                                                       ( aggregation[end_period]['volume'] + trade[3] )
                     aggregation[end_period]['volume'] += trade[3]
 
-            return aggregation
+            return [True, aggregation]
 
         return dbpool.runQuery(
             "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
