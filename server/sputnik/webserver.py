@@ -563,7 +563,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         c = compropago.Charge.from_dict(charge)
         bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
-        return [True, bill]
+        #todo return false if there is a problem here
+        instructions = bill['payment_instructions']
+        # do not return bill as the payment_id should remain private to us
+        return [True, instructions]
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
@@ -945,7 +948,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
 
-        self.compropago = compropago.Compropago("")
+        self.compropago = compropago.Compropago("sk_test_5b82f569d4833add")
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):

@@ -64,11 +64,12 @@ class Compropago:
     def create_bill(self, charge):
         charge.customer_name = self.make_public_handle(charge.customer_name)
         r = requests.post(self.charge_URL,
-                          data=json.dumps(charge.__dict__),
+                          data=json.dumps({k:v for (k,v) in charge.__dict__.iteritems() if v}),
                           headers=self.headers, auth=(self.key, ''))
 
 
         return r.json()
+        #todo: handle timeouts, handle non 200 response codes, handle 200: {result: False}, make deferred
 
 
     def get_bill(self, payment_id):
