@@ -715,25 +715,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param old_password_hash: current password
         :param new_password_hash: new password
         """
-
-        raise NotImplementedError()
-        # sanitize
-        # validate(old_password_hash, {"type": "string"})
-        # validate(new_password_hash, {"type": "string"})
-        #
-        # if old_password_hash == self.user.password_hash:
-        #     try:
-        #         self.user.password_hash = new_password_hash
-        #         self.session.add(self.user)
-        #         self.session.commit()
-        #
-        #         return {'retval': True}
-        #     except Exception as e:
-        #         self.session.rollback()
-        #         return {'retval': False, 'error': str(e), 'traceback': traceback.format_exc()}
-        # else:
-        #     return {'retval': False, 'error': "Invalid password", 'traceback': None}
-
+        validate(old_password_hash, {"type": "string"})
+        validate(new_password_hash, {"type": "string"})
+        return self.administrator.reset_password_hash(self.username, old_password_hash, new_password_hash)
 
     @exportRpc("get_open_orders")
     def get_open_orders(self):

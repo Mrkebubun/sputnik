@@ -26,13 +26,15 @@ from twisted.internet import reactor
 from jinja2 import Template, Environment, FileSystemLoader
 
 import logging
-
+import autobahn, string, Crypto.Random.random
 
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
+FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+
 
 
 def session_aware(func):
@@ -87,7 +89,7 @@ class Administrator:
     @session_aware
     def change_profile(self, username, profile):
         user = self.session.query(models.User).filter_by(
-            username=username).first()
+            username=username).one()
         if not user:
             raise NO_SUCH_USER
 
@@ -98,6 +100,40 @@ class Administrator:
         self.session.commit()
         logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
+
+    @session_aware
+    def reset_password_plaintext(self, username, new_password):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        alphabet = string.digits + string.lowercase
+        num = Crypto.Random.random.getrandbits(64)
+        salt = ""
+        while num != 0:
+            num, i = divmod(num, len(alphabet))
+            salt = alphabet[i] + salt
+        extra = {"salt":salt, "keylen":32, "iterations":1000}
+        password = autobahn.wamp.WampCraProtocol.deriveKey(new_password, extra)
+        user.password = "%s:%s" % (salt, password)
+        self.session.add(user)
+        self.session.commit()
+        return [True, None]
+
+    @session_aware
+    def reset_password_hash(self, username, old_password_hash, new_password_hash):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if user.password != old_password_hash:
+            raise FAILED_PASSWORD_CHANGE
+
+        user.password = new_password_hash
+
+        self.session.add(user)
+        self.session.commit()
+        return [True, None]
 
     def expire_all(self):
         self.session.expire_all()
@@ -134,6 +170,8 @@ class AdminWebUI(Resource):
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             return self.user_details(request).encode('utf-8')
+        elif request.path == '/reset_password':
+            return self.reset_password(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -143,6 +181,11 @@ class AdminWebUI(Resource):
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
+
+    def reset_password(self, request):
+        params = parse_qs(urlparse(request.uri).query)
+        self.administrator.reset_password_plaintext(params['username'][0], params['new_password'][0])
+        return self.user_details(request)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator

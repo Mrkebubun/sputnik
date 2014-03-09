@@ -18,6 +18,15 @@
             <!-- TODO: CHange this to connecto to zendesk to contact user -->
             <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         </tr>
+        <tr>
+            <td>Password Reset</td>
+            <td>
+                <form action="/reset_password" method="get">
+                    <input type="text" name="new_password">
+                    <input type="hidden" name="username" value="{{user.username}}">
+                </form>
+            </td>
+        </tr>
     </tbody>
 </table>
 
