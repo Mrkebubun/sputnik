@@ -444,11 +444,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
         # moved from onSessionOpen
-        # should the registration of these wait till after onAuth?  And should they only be for the specifc user?
+        # should the registration of these wait till after onAuth?  And should they only be for the specific user?
         #  Pretty sure yes.
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/feeds/fees#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
@@ -904,6 +905,15 @@ class EngineExport:
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/orders#%s" % user, order)
 
+class AccountantExport:
+    def __init__(self, webserver):
+        self.webserver = webserver
+
+    @export
+    def fee(self, user, fee):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/fees#%s" % user, fee)
+
 class PepsiColaServerFactory(WampServerFactory):
     """
     Simple broadcast server broadcasting any message it receives to all
@@ -925,8 +935,12 @@ class PepsiColaServerFactory(WampServerFactory):
         self.public_interface = PublicInterface(self)
 
         self.engine_export = EngineExport(self)
+        self.accountant_export = AccountantExport(self)
         pull_share_async(self.engine_export,
                          config.get("webserver", "engine_export"))
+        pull_share_async(self.accountant_export,
+                         config.get("webserver", "accountant_export"))
+
         self.accountant = dealer_proxy_async(
             config.get("accountant", "webserver_export"))
         self.administrator = dealer_proxy_async(

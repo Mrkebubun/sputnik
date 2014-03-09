@@ -132,6 +132,7 @@ class window.Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
+            @subscribe "fees#" + @username, @onFee
         catch error
             @log error
 
@@ -514,8 +515,15 @@ class window.Sputnik extends EventEmitter
 
         @emit "orders", orders
 
+    onFee: (fee) =>
+        @log "fee received: #{fee}"
+        @emit "fee", @positionFromWire(fee)
+        @positions[fee.contract].position -= fee.position
+        @emitPositions
+
     # My positions and available margin get updated with fills
     onFill: (fill) =>
+        @log "fill received: #{fill}"
         @emit "fill", @tradeFromWire(fill)
         [contract, source, target] = @cstFromTicker(fill.contract)
         if contract.contract_type == "cash_pair"
@@ -528,6 +536,9 @@ class window.Sputnik extends EventEmitter
         else
             @error "only cash_pair contracts implemented in onFill"
 
+        @emitPositions
+
+    emitPositions: () =>
         positions = {}
         for ticker, position of @positions
             positions[ticker] = @positionFromWire(position)
