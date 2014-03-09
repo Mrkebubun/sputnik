@@ -143,7 +143,8 @@ class PublicInterface:
             for trade in result:
                 end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
                 if end_period not in aggregation:
-                    aggregation[end_period] = {'contract': ticker,
+                    aggregation[end_period] = {'period': period,
+                                               'contract': ticker,
                                                'open': trade[2],
                                                'low': trade[2],
                                                'high': trade[2],
