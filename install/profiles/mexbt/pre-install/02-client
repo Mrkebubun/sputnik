@@ -1,0 +1,6 @@
+#!/bin/bash
+
+mkdir -p ${profile_git_root}/dist/clients/www
+cd clients/www
+cp -H index.html mexbt.coffee sputnik.coffee favicon.ico ${profile_git_root}/dist/clients/www
+
