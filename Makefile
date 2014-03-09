@@ -33,8 +33,10 @@ tar: dist
 	cp -r dist .tar/sputnik
 	cp install/install.py .tar/sputnik/install
 	cp -r ${PROFILE} .tar/sputnik/install/profiles
-	echo "install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
+	echo "PROFILE=install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
 	cat Makefile >> .tar/sputnik/Makefile
+	cd .tar && tar -cf ../sputnik.tar dist install Makefile
+	rm -r .tar
 
 install: deps
 	install/install.py install
