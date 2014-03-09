@@ -19,6 +19,7 @@ class TradingBot(WampCraClientProtocol):
         self.base_uri = self.getUri()
         self.markets = {}
         self.orders = {}
+        self.last_internal_id = 0
         self.username = None
 
     def action(self):
@@ -116,8 +117,15 @@ class TradingBot(WampCraClientProtocol):
         if id in self.orders and (order['is_cancelled'] or order['quantity_left'] == 0):
             del self.orders[id]
         else:
-            if order['quantity_left'] > 0:
-                self.orders[id] = order
+            # Try to find it in internal orders
+            for search_id, search_order in self.orders.iteritems():
+                if isinstance(search_id, basestring) and search_id.startswith('internal_'):
+                    if (order['quantity'] == search_order['quantity'] and
+                        order['side'] == search_order['side'] and
+                        order['contract'] == search_order['contract'] and
+                        order['price'] == search_order['price']):
+                        del self.orders[search_id]
+                        self.orders[id] = order
 
         pprint(["Order", topicUri, order])
 
@@ -216,6 +224,11 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/place_order", ord)
         d.addCallbacks(self.onPlaceOrder, self.onRpcError)
 
+        self.last_internal_id += 1
+        ord['quantity_left'] = ord['quantity']
+        ord['is_cancelled'] = False
+        self.orders['internal_%d' % self.last_internal_id] = ord
+
     def chat(self, message):
         print "chatting: ", message
         self.publish(self.base_uri + "/feeds/chat", message)
@@ -228,6 +241,7 @@ class TradingBot(WampCraClientProtocol):
         print "cancel order: %d" % id
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
         d.addCallbacks(pprint, self.onRpcError)
+        del self.orders[id]
 
 
 if __name__ == '__main__':
