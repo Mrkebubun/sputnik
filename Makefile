@@ -35,7 +35,7 @@ tar: dist
 	cp -r ${PROFILE} .tar/sputnik/install/profiles
 	echo "PROFILE=install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
 	cat Makefile >> .tar/sputnik/Makefile
-	cd .tar && tar -cf ../sputnik.tar dist install Makefile
+	cd .tar && tar -cf ../sputnik.tar sputnik
 	rm -r .tar
 
 install: deps
