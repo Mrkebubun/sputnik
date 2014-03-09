@@ -1,6 +1,9 @@
+ab = require "./autobahn.node.js"
+EventEmitter = require("./events").EventEmitter
+
 ### UI API ###
 
-class window.Sputnik extends EventEmitter
+class Sputnik extends EventEmitter
 
     markets: {}
 
@@ -275,14 +278,12 @@ class window.Sputnik extends EventEmitter
 
     # deposits and withdrawals
 
-    makeCompropagoDeposit: (store, amount, send_sms, customer_phone) =>
+    makeCompropagoDeposit: (store, amount, send_sms) =>
         charge =
           product_price: amount
           payment_type: store
           send_sms: send_sms
           currency: "MXN"
-          customer_phone: customer_phone
-
         @log "compropago charge: #{charge}"
         @call("make_compropago_deposit", charge).then \
             (@ticket) =>
@@ -543,3 +544,7 @@ class window.Sputnik extends EventEmitter
             positions[ticker] = @positionFromWire(position)
 
         @emit "positions", positions
+
+module.exports =
+    Sputnik: Sputnik
+

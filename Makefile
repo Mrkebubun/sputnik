@@ -1,3 +1,10 @@
+HOST=$(shell hostname)
+ifeq (${HOST},cube)
+ifndef PROFILE
+export PROFILE=$(realpath install/profiles/sputnik)
+endif
+endif
+
 ifndef PROFILE
 export PROFILE=$(realpath install/profiles/git+postgres)
 endif
