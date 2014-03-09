@@ -194,12 +194,14 @@ class Accountant:
                 vendor_position.position += vendor_credit
                 remaining_fee -= vendor_credit
                 session.add(vendor_position)
+                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
 
             # There might be some fee leftover due to rounding,
             # we have an account for that guy
             # Once that balance gets large we distribute it manually to the
             # various share holders
-            remainder_account_position = self.position('remainder', ticker)
+            remainder_account_position = self.get_position('remainder', ticker)
+            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             remainder_account_position.position += remaining_fee
             session.add(remainder_account_position)
 
@@ -276,8 +278,11 @@ class Accountant:
             # Deduct fees from user
             if from_currency_ticker in fees:
                 from_position.position -= fees[from_currency_ticker]
+                logging.debug("Deducting %d %s from user %s" % (fees[from_currency_ticker], from_currency_ticker,
+                                                                username))
             if to_currency_ticker in fees:
                 to_position.position -= fees[to_currency_ticker]
+                logging.debug("Deducting %d %s from user %s" % (fees[to_currency_ticker], to_currency_ticker, username))
 
             session.add(from_position)
             session.add(to_position)
