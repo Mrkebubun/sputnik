@@ -24,7 +24,7 @@ sputnik.on "auth_success", (username) ->
     $("#mxn_balance").toggle()
     $("#btc_balance").toggle()
     $("#login_name").text username
-    $("#account").toggle()
+    $("#account_menu").toggle()
     $("#buy_panel").toggle()
     $("#sell_panel").toggle()
     $("#orders_panel").toggle()
@@ -54,7 +54,6 @@ sputnik.on "make_account_fail", (event) ->
 
 $("#login").click () ->
     $("#login_modal").modal()
-
 
 $("#login_button").click (event) ->
     event.preventDefault()
@@ -89,8 +88,27 @@ $("#logout").click (event) ->
     sputnik.logout()
     location.reload()
 
+$("#account").click (event) ->
+    $("#account_modal").modal()
+
+$("#change_password_button").click (event) ->
+    if new_password.value != new_password_confirm.value
+        alert "Passwords do not match"
+    else
+        sputnik.changePassword(old_password.value, new_password.value)
+
+$("#change_profile_button").click (event) ->
+    sputnik.changeProfile(new_nickname.value, new_email.value)
+
 $('#deposit_mxn').click (event) ->
-    $('#compropago_modal').modal()
+    $('#compropago_modal').modal('show')
+
+$('#deposit_btc').click (event) ->
+    sputnik.getAddress('BTC')
+    $('#deposit_btc_modal').modal('show')
+
+$('#new_address_button').click (event) ->
+    sputnik.newAddress('BTC')
 
 $("#compropago_pay_button").click (event) ->
     event.preventDefault()
@@ -179,6 +197,7 @@ sputnik.on "open", () ->
     sputnik.log "open"
     sputnik.getOrderBook "BTC/MXN"
     sputnik.getTradeHistory "BTC/MXN"
+    sputnik.getOHLCV "BTC/MXN"
     sputnik.follow "BTC/MXN"
 
     # Attempt a cookie login
@@ -217,3 +236,28 @@ sputnik.on "positions", (positions) ->
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+
+sputnik.on "compropago_deposit_success", (message) ->
+    alert message
+
+sputnik.on "compropago_deposit_fail", (error) ->
+    alert error
+
+sputnik.on "address", (info) ->
+    # We only support BTC here
+    address = info[1]
+    $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
+    $('#btc_deposit_qrcode').empty()
+    $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
+
+sputnik.on "ohlcv", (ohlcv) ->
+    for timestamp, entry of ohlcv
+        $('#low').text entry.low.toFixed(0)
+        $('#high').text entry.high.toFixed(0)
+        $('#vwap').text entry.vwap.toFixed(0)
+
+sputnik.on "password_change_success", (info) ->
+    alert "Password successfully changed"
+
+sputnik.on "password_change_fail", (error) ->
+    alert "Password change fail: #{error}"

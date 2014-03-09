@@ -13,7 +13,7 @@ from Crypto.Cipher import AES
 
 class Charge:
     def __init__(self,
-                  product_price,
+                 product_price,
                  customer_name,
                  customer_email,
                  customer_phone,
@@ -139,13 +139,12 @@ class Compropago:
 
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
-     abtest = Compropago('sk_test_5b82f569d4833add')
-     bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
-     print bill
-    # status = abtest.get_bill(bill['payment_id'])
-    # print status
-    # abtest.validate_response(status)
-    # #print abtest.get_all()
-     pass
+    abtest = Compropago('sk_test_5b82f569d4833add')
+    bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
+    print bill
+    status = abtest.get_bill(bill['payment_id'])
+    print status
+    abtest.validate_response(status)
+    print abtest.get_all()
 
 

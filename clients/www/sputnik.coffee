@@ -44,10 +44,10 @@ class window.Sputnik extends EventEmitter
     makeAccount: (username, secret, email) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
-        authextra =
+        @authextra =
             salt: salt
             iterations: 1000
-        password = ab.deriveKey secret, authextra
+        password = ab.deriveKey secret, @authextra
 
         @call("make_account", username, password, salt, email).then \
             (result) =>
@@ -69,12 +69,26 @@ class window.Sputnik extends EventEmitter
 
         @session.authreq(login).then \
             (challenge) =>
-                authextra = JSON.parse(challenge).authextra
-                secret = ab.deriveKey(password, authextra)
+                @authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(password, @authextra)
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
                 @wtf "Failed login: Could not authenticate: #{error}."
+
+    changePassword: (old_password, new_password) =>
+        if not @authenticated
+            @wtf "Not logged in."
+
+        old_secret = ab.deriveKey(old_password, @authextra)
+        new_secret = ab.deriveKey(new_password, @authextra)
+        @call("change_password", old_secret, new_secret).then \
+            (message) =>
+                @log "password changed successfully"
+                @emit "change_password_success", message
+            , (error) =>
+                @error "password change error: #{error}"
+                @emit "change_password_fail", error
 
     restoreSession: (uid) =>
         if not @session?
@@ -118,6 +132,7 @@ class window.Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
+            @subscribe "fees#" + @username, @onFee
         catch error
             @log error
 
@@ -151,6 +166,18 @@ class window.Sputnik extends EventEmitter
         for key of object
             new_object[key] = object[key]
         return new_object
+
+    ohlcvFromWire: (wire_ohlcv) =>
+        ticker = wire_ohlcv['contract']
+        ohlcv =
+            contract: ticker
+            open: @priceFromWire(ticker, wire_ohlcv['open'])
+            high: @priceFromWire(ticker, wire_ohlcv['high'])
+            low: @priceFromWire(ticker, wire_ohlcv['low'])
+            close: @priceFromWire(ticker, wire_ohlcv['close'])
+            volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
+            vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
+        return ohlcv
 
     positionFromWire: (wire_position) =>
         ticker = wire_position.contract
@@ -260,14 +287,27 @@ class window.Sputnik extends EventEmitter
                 @log "compropago deposit ticket: #{ticket}"
                 @emit "compropago_deposit_success", ticket
             , (error) =>
+                @error "compropago error: #{error}"
                 @emit "compropago_deposit_fail", error
 
-
     getAddress: (contract) =>
+        @call("get_current_address", contract).then \
+            (address) =>
+                @log "address for #{contract}: #{address}"
+                @emit "address", [contract, address]
+
     newAddress: (contract) =>
+        @call("get_new_address", contract).then \
+            (address) =>
+                @log "new address for #{contract}: #{address}"
+                @emit "address", [contract, address]
+        , (error) =>
+            @log "new address failure for #{contract}: #{error}"
+            @emit "new_address_fail", error
+
     withdraw: (contract, address, amount) =>
 
-        # account/position information
+    # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
         @call("get_open_orders").then \
@@ -295,6 +335,9 @@ class window.Sputnik extends EventEmitter
 
     getTradeHistory: (ticker) =>
         @call("get_trade_history", ticker).then @onTradeHistory
+
+    getOHLCV: (ticker) =>
+        @call("get_ohlcv", ticker).then @onOHLCV
 
     # miscelaneous methods
 
@@ -390,7 +433,6 @@ class window.Sputnik extends EventEmitter
             @markets[ticker].asks = []
         @emit "markets", @markets
 
-
     # feeds
     onBook: (book) =>
         @log "book received: #{book}"
@@ -433,14 +475,19 @@ class window.Sputnik extends EventEmitter
         else
             @warn "no trades in history"
 
+    onOHLCV: (wire_ohlcv) =>
+        @log "ohlcv received: #{ohlcv}"
+        ohlcv = {}
+        for timestamp, entry of wire_ohlcv
+            ohlcv[timestamp] = @ohlcvFromWire(entry)
+        @emit "ohlcv", ohlcv
+
     onTrade: (trade) =>
         ticker = trade.contract
         @markets[ticker].trades.push trade
         @emit "trade", @tradeFromWire(trade)
         @cleanTradeHistory(ticker)
         @emitTradeHistory(ticker)
-
-
 
     onChat: (event) =>
         # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent
@@ -468,8 +515,15 @@ class window.Sputnik extends EventEmitter
 
         @emit "orders", orders
 
+    onFee: (fee) =>
+        @log "fee received: #{fee}"
+        @emit "fee", @positionFromWire(fee)
+        @positions[fee.contract].position -= fee.position
+        @emitPositions
+
     # My positions and available margin get updated with fills
     onFill: (fill) =>
+        @log "fill received: #{fill}"
         @emit "fill", @tradeFromWire(fill)
         [contract, source, target] = @cstFromTicker(fill.contract)
         if contract.contract_type == "cash_pair"
@@ -482,6 +536,9 @@ class window.Sputnik extends EventEmitter
         else
             @error "only cash_pair contracts implemented in onFill"
 
+        @emitPositions
+
+    emitPositions: () =>
         positions = {}
         for ticker, position of @positions
             positions[ticker] = @positionFromWire(position)

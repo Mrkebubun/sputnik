@@ -16,7 +16,7 @@ import models
 import margin
 import util
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
@@ -39,6 +39,10 @@ class Accountant:
         self.deposit_limits = { 'btc': 1000000,
                                 'mxn': 600000
         }
+        # TODO: Make this configurable
+        self.vendor_share_config = { 'm2': 0.5,
+                                     'mexbt': 0.5
+        }
         self.safe_prices = {}
         self.engines = {}
         for contract in session.query(models.Contract).filter_by(
@@ -54,6 +58,8 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
             port = 4200 + contract.id
             self.engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" % port)
+
+        self.webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
 
     def get_user(self, username):
         """
@@ -172,6 +178,35 @@ class Accountant:
             session.commit()
             return True
 
+
+    def credit_fees(self, fees):
+        """
+        Credit fees to the people operating the exchange
+        """
+        # TODO: Make this configurable
+
+        # Make sure the vendorshares is less than or equal to 1.0
+        assert(sum(self.vendor_share_config.values()) <= 1.0)
+
+        for ticker, fee in fees.iteritems():
+            remaining_fee = fee
+            for vendor_name, vendor_share in self.vendor_share_config.iteritems():
+                vendor_position = self.get_position(vendor_name, ticker)
+                vendor_credit = int(fee * vendor_share)
+                vendor_position.position += vendor_credit
+                remaining_fee -= vendor_credit
+                session.add(vendor_position)
+                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
+
+            # There might be some fee leftover due to rounding,
+            # we have an account for that guy
+            # Once that balance gets large we distribute it manually to the
+            # various share holders
+            remainder_account_position = self.get_position('remainder', ticker)
+            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
+            remainder_account_position.position += remaining_fee
+            session.add(remainder_account_position)
+
     def post_transaction(self, transaction):
         """
         Update the database to reflect that the given trade happened
@@ -237,8 +272,31 @@ class Accountant:
             from_position.position -= from_delta_int
             to_position.position += signed_quantity
 
-            session.merge(from_position)
-            session.merge(to_position)
+            # TODO: Move this fee logic outside of "if cash_pair"
+            fees = util.get_fees(username, contract, abs(from_delta_int))
+
+            # Credit fees to vendor
+            self.credit_fees(fees)
+
+            # Deduct fees from user
+            if from_currency_ticker in fees:
+                from_position.position -= fees[from_currency_ticker]
+                logging.debug("Deducting %d %s from user %s" % (fees[from_currency_ticker], from_currency_ticker,
+                                                                username))
+            if to_currency_ticker in fees:
+                to_position.position -= fees[to_currency_ticker]
+                logging.debug("Deducting %d %s from user %s" % (fees[to_currency_ticker], to_currency_ticker, username))
+
+            # Tell the user that he got charged a fee
+            for ticker, fee in fees.iteritems():
+                self.webserver.fees(username, {'contract': ticker,
+                                               'position': fee,
+                                               'reference_price': 0 # The reference price doesn't matter here
+                                                                    # but we need it to make it a valid 'position'
+                } )
+
+            session.add(from_position)
+            session.add(to_position)
 
         else:
             logging.error("Unknown contract type '%s'." %

@@ -213,11 +213,15 @@ class Installer:
         # make build directory
         build_root = os.path.join(self.git_root, "dist", "build")
         build_server = os.path.join(build_root, "server", "sputnik")
+        build_tools = os.path.join(build_root, "tools")
         shutil.rmtree(build_server, True)
+        shutil.rmtree(build_tools, True)
 
         # byte-compile compile
         server_source = os.path.join(self.git_root, "server", "sputnik")
+        tools_source = os.path.join(self.git_root, "tools")
         compileall.compile_dir(server_source)
+        compileall.compile_dir(tools_source)
         
         # copy files
         def ignore(path, names):
@@ -227,16 +231,17 @@ class Installer:
                     ignored.append(name)
             return ignored
         shutil.copytree(server_source, build_server, ignore=ignore)
+        shutil.copytree(tools_source, build_tools, ignore=ignore)
 
-    def make_install(self):
-        # do pre-install
-        self.log("Running pre-install scripts...\n")
+    def make_stage(self, stage):
+        # do stage
+        self.log("Running %s scripts...\n" % stage)
         try: 
             for line in sorted(os.listdir(
-                    os.path.join(self.profile, "pre-install"))):
+                    os.path.join(self.profile, stage))):
                 script = line.strip()
                 script_name = script.lstrip("0123456789-")
-                script_path = os.path.join(self.profile, "pre-install", script)
+                script_path = os.path.join(self.profile, stage, script)
                 self.log("Running %s... " % script_name)
                 if self.run([script_path]) == 0:
                     self.log("done.\n")
@@ -245,43 +250,14 @@ class Installer:
                     self.error("Unable to run %s.\n" % script_name)
                     self.abort()
         except OSError:
-            self.log("No pre-install scripts found.\n")
+            self.log("No %s scripts found.\n" % stage)
        
-        # do install
-        self.log("Running install scripts...\n")
-        try: 
-            for line in sorted(os.listdir(
-                    os.path.join(self.profile, "install"))):
-                script = line.strip()
-                script_name = script.lstrip("0123456789-")
-                script_path = os.path.join(self.profile, "install", script)
-                self.log("Running %s... " % script_name)
-                if self.run([script_path]) == 0:
-                    self.log("done.\n")
-                else:
-                    self.log("failed.\n")
-                    self.error("Unable to run %s.\n" % script_name)
-                    self.abort()
-        except OSError:
-            self.log("No install scripts found.\n")
-
-        # do post-install
-        self.log("Running post-install scripts...\n")
-        try: 
-            for line in sorted(os.listdir(
-                    os.path.join(self.profile, "post-install"))):
-                script = line.strip()
-                script_name = script.lstrip("0123456789-")
-                script_path = os.path.join(self.profile, "post-install", script)
-                self.log("Running %s... " % script_name)
-                if self.run([script_path]) == 0:
-                    self.log("done.\n")
-                else:
-                    self.log("failed.\n")
-                    self.error("Unable to run %s.\n" % script_name)
-                    self.abort()
-        except OSError:
-            self.log("No post-install scripts found.\n")
+    def make_dist(self):
+        self.make_stage("pre-install")
+ 
+    def make_install(self):
+        self.make_stage("install")
+        self.make_stage("post-install")
 
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
@@ -327,6 +303,8 @@ def main():
             installer.make_deps()
         elif mode == "build":
             installer.make_build()
+        elif mode == "dist":
+            installer.make_dist()
         elif mode == "install":
             installer.make_install()
         elif mode == "upgrade":

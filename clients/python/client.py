@@ -6,7 +6,9 @@ from twisted.internet import reactor, ssl
 
 from autobahn.websocket import connectWS
 from autobahn.wamp import WampClientFactory, WampCraClientProtocol
+from datetime import datetime, timedelta
 
+uri = 'ws://localhost:8000'
 class TradingBot(WampCraClientProtocol):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
@@ -27,6 +29,12 @@ class TradingBot(WampCraClientProtocol):
 
     def getUsernamePassword(self):
         return ['testuser1', 'testuser1']
+
+    def getUri(self):
+        return uri
+
+    def startAutomation(self):
+        pass
 
     """
     reactive events - on* 
@@ -71,6 +79,7 @@ class TradingBot(WampCraClientProtocol):
                 self.subBook(ticker)
                 self.subTrades(ticker)
                 self.subSafePrices(ticker)
+                self.getOHLCV(ticker)
         return event
 
     def onBook(self, topicUri, event):
@@ -122,6 +131,9 @@ class TradingBot(WampCraClientProtocol):
         pprint(["Chat", topicUri, event])
 
     def onPlaceOrder(self, event):
+        pprint(event)
+
+    def onOHLCV(self, event):
         pprint(event)
 
     def onRpcError(self, event):
@@ -184,6 +196,14 @@ class TradingBot(WampCraClientProtocol):
         # store cache of open orders update asynchronously
         d = self.call(self.base_uri + "/rpc/get_open_orders")
         d.addCallbacks(self.onOpenOrders, self.onRpcError)
+
+    def getOHLCV(self, ticker, period="day", start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+        epoch = datetime.utcfromtimestamp(0)
+        start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
+        end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
+
+        d = self.call(self.base_uri + "/rpc/get_ohlcv", ticker, period, start_timestamp, end_timestamp)
+        d.addCallbacks(self.onOHLCV, self.onRpcError)
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}

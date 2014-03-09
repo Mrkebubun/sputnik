@@ -14,12 +14,16 @@
       <w>crossfilter</w>
       <w>dbname</w>
       <w>dbpool</w>
+      <w>endblock</w>
       <w>endfor</w>
+      <w>jinja</w>
       <w>jsonschema</w>
       <w>keylen</w>
       <w>marketmaker</w>
+      <w>mexbt</w>
       <w>minified</w>
       <w>mkdir</w>
+      <w>ohlcv</w>
       <w>onetimepass</w>
       <w>postgresql</w>
       <w>psql</w>

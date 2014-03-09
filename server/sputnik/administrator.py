@@ -17,22 +17,22 @@ import collections
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
-from urlparse import parse_qs, urlparse
-
 from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
 
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 
 import logging
-
+import autobahn, string, Crypto.Random.random
 
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
+FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+
 
 
 def session_aware(func):
@@ -87,7 +87,7 @@ class Administrator:
     @session_aware
     def change_profile(self, username, profile):
         user = self.session.query(models.User).filter_by(
-            username=username).first()
+            username=username).one()
         if not user:
             raise NO_SUCH_USER
 
@@ -98,6 +98,45 @@ class Administrator:
         self.session.commit()
         logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
+
+    @session_aware
+    def reset_password_plaintext(self, username, new_password):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        alphabet = string.digits + string.lowercase
+        num = Crypto.Random.random.getrandbits(64)
+        salt = ""
+        while num != 0:
+            num, i = divmod(num, len(alphabet))
+            salt = alphabet[i] + salt
+        extra = {"salt":salt, "keylen":32, "iterations":1000}
+        password = autobahn.wamp.WampCraProtocol.deriveKey(new_password, extra)
+        user.password = "%s:%s" % (salt, password)
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def reset_password_hash(self, username, old_password_hash, new_password_hash):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        [salt, hash] = user.password.split(':')
+
+        if hash != old_password_hash:
+            raise FAILED_PASSWORD_CHANGE
+
+        user.password = "%s:%s" % (salt, new_password_hash)
+
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    def expire_all(self):
+        self.session.expire_all()
 
     def get_users(self):
         users = self.session.query(models.User).all()
@@ -119,9 +158,10 @@ class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator):
         self.administrator = administrator
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
 
-    def render_GET(self, request):
+    def render(self, request):
         if request.path in ['/user_list', '/']:
             return self.user_list().encode('utf-8')
         elif request.path == '/audit':
@@ -130,36 +170,49 @@ class AdminWebUI(Resource):
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             return self.user_details(request).encode('utf-8')
+        elif request.path == '/reset_password':
+            return self.reset_password(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
     def user_list(self):
+        # We dont need to expire here because the user_list doesn't show
+        # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
-        t = Template(open('admin_templates/user_list.html').read())
+        t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
 
-    def user_details(self, request):
-        params = parse_qs(urlparse(request.uri).query)
+    def reset_password(self, request):
+        self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
+        return self.user_details(request)
 
-        user = self.administrator.get_user(params['username'][0])
-        t = Template(open('admin_templates/user_details.html', 'r').read())
+    def user_details(self, request):
+        # We are getting trades and positions which things other than the administrator
+        # are modifying, so we need to do an expire here
+        self.administrator.expire_all()
+
+        user = self.administrator.get_user(request.args['username'][0])
+        t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug)
         return rendered
 
     def adjust_position(self, request):
-        params = parse_qs(urlparse(request.uri).query)
-        self.administrator.adjust_position(params['username'][0], params['contract'][0],
-                                           int(params['adjustment'][0]))
+        self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
+                                           int(request.args['adjustment'][0]))
         return self.user_details(request)
 
     def audit(self):
+        # We are getting trades and positions which things other than the administrator
+        # are modifying, so we need to do an expire here
+        self.administrator.expire_all()
         # TODO: Do this in SQLalchemy
         positions = self.administrator.get_positions()
         position_totals = collections.defaultdict(int)
         for position in positions:
-            position_totals[position.contract.ticker] += position.position
+            if position.position is not None:
+                position_totals[position.contract.ticker] += position.position
 
-        t = Template(open('admin_templates/audit.html', 'r').read())
+        t = self.jinja_env.get_template('audit.html')
         rendered = t.render(position_totals=position_totals)
         return rendered
 
@@ -179,6 +232,10 @@ class WebserverExport:
     @export
     def change_profile(self, username, profile):
         return self.administrator.change_profile(username, profile)
+
+    @export
+    def reset_password_hash(self, username, old_password_hash, new_password_hash):
+        return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
