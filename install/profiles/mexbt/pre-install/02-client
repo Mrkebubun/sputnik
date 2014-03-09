@@ -2,5 +2,9 @@
 
 mkdir -p ${profile_git_root}/dist/clients/www
 cd ${profile_git_root}/clients/www
-cp -H index.html mexbt.coffee sputnik.coffee favicon.ico ${profile_git_root}/dist/clients/www
+
+# TODO: Change this to only copy over the .js
+# TODO: Don't copy over min.js, but index.html needs it right now for EventEmitter.min.js
+
+cp -rH min.js index.html mexbt.coffee sputnik.coffee favicon.ico ${profile_git_root}/dist/clients/www
 
