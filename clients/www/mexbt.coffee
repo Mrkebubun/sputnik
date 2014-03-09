@@ -88,6 +88,18 @@ $("#logout").click (event) ->
     sputnik.logout()
     location.reload()
 
+$("#account").click (event) ->
+    $("#account_modal").modal()
+
+$("#change_password_button").click (event) ->
+    if new_password.value != new_password_confirm.value
+        alert "Passwords do not match"
+    else
+        sputnik.changePassword(old_password.value, new_password.value)
+
+$("#change_profile_button").click (event) ->
+    sputnik.changeProfile(new_nickname.value, new_email.value)
+
 $('#deposit_mxn').click (event) ->
     $('#compropago_modal').modal('show')
 
@@ -243,3 +255,9 @@ sputnik.on "ohlcv", (ohlcv) ->
         $('#low').text entry.low.toFixed(0)
         $('#high').text entry.high.toFixed(0)
         $('#vwap').text entry.vwap.toFixed(0)
+
+sputnik.on "password_change_success", (info) ->
+    alert "Password successfully changed"
+
+sputnik.on "password_change_fail", (error) ->
+    alert "Password change fail: #{error}"

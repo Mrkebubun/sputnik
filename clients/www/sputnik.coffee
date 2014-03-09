@@ -76,6 +76,23 @@ class window.Sputnik extends EventEmitter
             , (error) =>
                 @wtf "Failed login: Could not authenticate: #{error}."
 
+    changePassword: (old_password, new_password) =>
+        if not @authenticated
+            @wtf "Not logged in."
+
+        @session.authreq(@username).then \
+            (challenge) =>
+                authextra = JSON.parse(challenge).authextra
+                old_secret = ab.deriveKey(old_password, authextra)
+                new_secret = ab.deriveKey(new_password, authextra)
+                @call("change_password", old_secret, new_secret).then \
+                    (message) =>
+                        @log "password changed successfully"
+                        @emit "change_password_success", message
+                    , (error) =>
+                        @error "password change error: #{error}"
+                        @emit "change_password_fail", error
+
     restoreSession: (uid) =>
         if not @session?
             @wtf "Not connected."
