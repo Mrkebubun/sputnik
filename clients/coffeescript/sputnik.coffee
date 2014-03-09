@@ -392,13 +392,10 @@ class Sputnik extends EventEmitter
 
     # logging
     log: (obj) =>
-        console.log obj
         @emit "log", obj
     warn: (obj) ->
-        console.warn obj
         @emit "warn", obj
     error: (obj) ->
-        console.error obj
         @emit "error", obj
     wtf: (obj) => # What a Terrible Failure
         @error obj
