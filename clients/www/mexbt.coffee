@@ -134,9 +134,10 @@ $("#compropago_pay_button").click (event) ->
     store = $("#compropago_store").val()
     amount = $("#compropago_amount").val()
     send_sms = $("#compropago_send_sms").is(":checked")
+    customer_email = $('#compropago_email').val()
     customer_phone = $('#compropago_phone').val()
 
-    sputnik.makeCompropagoDeposit store, Number(amount), send_sms, customer_phone
+    sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value
