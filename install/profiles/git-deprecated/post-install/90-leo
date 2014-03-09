@@ -20,5 +20,8 @@ accounts position marketmaker BTC 1000000000
 accounts position marketmaker MXN 1000000
 accounts position randomtrader BTC 1000000000
 accounts position randomtrader MXN 1000000
+accounts add mexbt
+accounts add m2
+accounts add remainder
 EOF
 
