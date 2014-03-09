@@ -118,7 +118,7 @@ class window.Sputnik extends EventEmitter
                 @emit "cookie", uid
 
     onAuthSuccess: (permissions) =>
-        ab.log("authenticated!", JSON.stringify(permissions))
+        @log("authenticated!", JSON.stringify(permissions))
         @authenticated = true
 
         @getProfile()
