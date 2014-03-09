@@ -14,3 +14,5 @@ libboost-program-options-dev
 libboost-thread-dev
 libboost-dev
 libstdc++6-4.7-dev
+libssl-dev
+openssl
