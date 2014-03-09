@@ -17,13 +17,11 @@ import collections
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
-from urlparse import parse_qs, urlparse
-
 from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
 
-from jinja2 import Template, Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader
 
 import logging
 import autobahn, string, Crypto.Random.random
@@ -163,7 +161,7 @@ class AdminWebUI(Resource):
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
 
-    def render_GET(self, request):
+    def render(self, request):
         if request.path in ['/user_list', '/']:
             return self.user_list().encode('utf-8')
         elif request.path == '/audit':
@@ -185,25 +183,22 @@ class AdminWebUI(Resource):
         return t.render(users=users)
 
     def reset_password(self, request):
-        params = parse_qs(urlparse(request.uri).query)
-        self.administrator.reset_password_plaintext(params['username'][0], params['new_password'][0])
+        self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
         return self.user_details(request)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
         self.administrator.expire_all()
-        params = parse_qs(urlparse(request.uri).query)
 
-        user = self.administrator.get_user(params['username'][0])
+        user = self.administrator.get_user(request.args['username'][0])
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug)
         return rendered
 
     def adjust_position(self, request):
-        params = parse_qs(urlparse(request.uri).query)
-        self.administrator.adjust_position(params['username'][0], params['contract'][0],
-                                           int(params['adjustment'][0]))
+        self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
+                                           int(request.args['adjustment'][0]))
         return self.user_details(request)
 
     def audit(self):

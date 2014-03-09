@@ -21,7 +21,7 @@
         <tr>
             <td>Password Reset</td>
             <td>
-                <form action="/reset_password" method="get">
+                <form action="/reset_password" method="post">
                     <input type="text" name="new_password">
                     <input type="hidden" name="username" value="{{user.username}}">
                 </form>
@@ -47,7 +47,7 @@
             <td>{{position.reference_price}}</td>
             {% if debug %}
             <td>
-                <form action="/adjust_position" method="get">
+                <form action="/adjust_position" method="post">
                     <input type="text" name="adjustment">
                     <input type="hidden" name="username" value="{{user.username}}">
                     <input type="hidden" name="contract" value="{{position.contract.ticker}}">
