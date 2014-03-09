@@ -24,7 +24,7 @@ sputnik.on "auth_success", (username) ->
     $("#mxn_balance").toggle()
     $("#btc_balance").toggle()
     $("#login_name").text username
-    $("#account").toggle()
+    $("#account_menu").toggle()
     $("#buy_panel").toggle()
     $("#sell_panel").toggle()
     $("#orders_panel").toggle()

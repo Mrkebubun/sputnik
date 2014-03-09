@@ -44,10 +44,10 @@ class window.Sputnik extends EventEmitter
     makeAccount: (username, secret, email) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
-        authextra =
+        @authextra =
             salt: salt
             iterations: 1000
-        password = ab.deriveKey secret, authextra
+        password = ab.deriveKey secret, @authextra
 
         @call("make_account", username, password, salt, email).then \
             (result) =>
@@ -69,8 +69,8 @@ class window.Sputnik extends EventEmitter
 
         @session.authreq(login).then \
             (challenge) =>
-                authextra = JSON.parse(challenge).authextra
-                secret = ab.deriveKey(password, authextra)
+                @authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(password, @authextra)
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
@@ -80,18 +80,15 @@ class window.Sputnik extends EventEmitter
         if not @authenticated
             @wtf "Not logged in."
 
-        @session.authreq(@username).then \
-            (challenge) =>
-                authextra = JSON.parse(challenge).authextra
-                old_secret = ab.deriveKey(old_password, authextra)
-                new_secret = ab.deriveKey(new_password, authextra)
-                @call("change_password", old_secret, new_secret).then \
-                    (message) =>
-                        @log "password changed successfully"
-                        @emit "change_password_success", message
-                    , (error) =>
-                        @error "password change error: #{error}"
-                        @emit "change_password_fail", error
+        old_secret = ab.deriveKey(old_password, @authextra)
+        new_secret = ab.deriveKey(new_password, @authextra)
+        @call("change_password", old_secret, new_secret).then \
+            (message) =>
+                @log "password changed successfully"
+                @emit "change_password_success", message
+            , (error) =>
+                @error "password change error: #{error}"
+                @emit "change_password_fail", error
 
     restoreSession: (uid) =>
         if not @session?

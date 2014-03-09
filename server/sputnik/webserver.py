@@ -718,7 +718,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
-        return self.administrator.reset_password_hash(self.username, old_password_hash, new_password_hash)
+        d = self.factory.administrator.reset_password_hash(self.username, old_password_hash, new_password_hash)
+
+        def onResetSuccess(result):
+            return [True, None]
+
+        def onResetFail(failure):
+            return [False, failure.value.args]
+
+        return d.addCallbacks(onResetSuccess, onResetFail)
 
     @exportRpc("get_open_orders")
     def get_open_orders(self):

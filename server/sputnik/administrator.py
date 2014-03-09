@@ -118,7 +118,7 @@ class Administrator:
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
-        return [True, None]
+        return True
 
     @session_aware
     def reset_password_hash(self, username, old_password_hash, new_password_hash):
@@ -126,14 +126,16 @@ class Administrator:
         if not user:
             raise NO_SUCH_USER
 
-        if user.password != old_password_hash:
+        [salt, hash] = user.password.split(':')
+
+        if hash != old_password_hash:
             raise FAILED_PASSWORD_CHANGE
 
-        user.password = new_password_hash
+        user.password = "%s:%s" % (salt, new_password_hash)
 
         self.session.add(user)
         self.session.commit()
-        return [True, None]
+        return True
 
     def expire_all(self):
         self.session.expire_all()
@@ -235,6 +237,10 @@ class WebserverExport:
     @export
     def change_profile(self, username, profile):
         return self.administrator.change_profile(username, profile)
+
+    @export
+    def reset_password_hash(self, username, old_password_hash, new_password_hash):
+        return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
