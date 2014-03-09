@@ -135,7 +135,7 @@ class AdminWebUI(Resource):
 
     def user_list(self):
         users = self.administrator.get_users()
-        t = Template(open('admin_templates/user_list.html', 'r').read())
+        t = Template(open('admin_templates/user_list.html').read())
         return t.render(users=users)
 
     def user_details(self, request):

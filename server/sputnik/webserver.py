@@ -187,7 +187,6 @@ class PublicInterface:
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
-
     @exportRpc
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
@@ -488,9 +487,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         validate(charge, {"type": "object", "properties":
             {
-                "product_price": {"type": "int", "required": "true"},
+                "product_price": {"type": "number", "required": "true"},
                 "payment_type": {"type": "string", "required": "true"},
-                "sens_sms": {"type": "boolean", "required": "true"},
+                "send_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"}
                 #todo: add which store
             }

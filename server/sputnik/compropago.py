@@ -13,7 +13,7 @@ from Crypto.Cipher import AES
 
 class Charge:
     def __init__(self,
-                 price,
+                  product_price,
                  customer_name,
                  customer_email,
                  customer_phone,
@@ -23,7 +23,7 @@ class Charge:
                  product_name='MEXBT',
                  product_id='MXN',
                  image_url='http://www.sputnik.com/BC_Logo_.png'):
-        self.price, self.currency = price, currency
+        self.product_price, self.currency = product_price, currency
         self.customer_name, self.customer_email, self.customer_phone = customer_name, customer_email, customer_phone
         self.payment_type, self.send_sms = payment_type, send_sms
         self.product_name, self.product_id = product_name, product_id
@@ -33,7 +33,7 @@ class Charge:
 
     @staticmethod
     def from_dict(x):
-        return Charge(x['price'], x['customer_name'], x['customer_email'], x['payment_type'],
+        return Charge(x['product_price'], x['customer_name'], x['customer_email'], x['payment_type'],
                       x['send_sms'], x['currency'], x['product_name'], x['product_id'], x['image_url'])
 
 
@@ -139,12 +139,13 @@ class Compropago:
 
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
-    abtest = Compropago('sk_test_5b82f569d4833add')
-    bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
-    print bill
-    status = abtest.get_bill(bill['payment_id'])
-    print status
-    abtest.validate_response(status)
-    print abtest.get_all()
+     abtest = Compropago('sk_test_5b82f569d4833add')
+     bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
+     print bill
+    # status = abtest.get_bill(bill['payment_id'])
+    # print status
+    # abtest.validate_response(status)
+    # #print abtest.get_all()
+     pass
 
 
