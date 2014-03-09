@@ -238,7 +238,6 @@ class PublicInterface:
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
-
     @exportRpc
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
