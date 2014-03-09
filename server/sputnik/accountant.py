@@ -195,6 +195,9 @@ class Accountant:
                 vendor_credit = int(fee * vendor_share)
                 vendor_position.position += vendor_credit
                 remaining_fee -= vendor_credit
+                self.webserver.fee(vendor_name, {'contract': ticker,
+                                                 'position': -vendor_credit,
+                                                 'reference_price': 0})
                 session.add(vendor_position)
                 logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
 
@@ -205,6 +208,9 @@ class Accountant:
             remainder_account_position = self.get_position('remainder', ticker)
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             remainder_account_position.position += remaining_fee
+            self.webserver.fee('remainder', {'contract': ticker,
+                                             'position': -remaining_fee,
+                                             'reference_price': 0})
             session.add(remainder_account_position)
 
     def post_transaction(self, transaction):
