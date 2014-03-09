@@ -1,5 +1,5 @@
 [program:bitcoind]
-command = /usr/bin/bitcoind -conf=/srv/bitcoind/bitcoin.conf
+command = /usr/local/sbin/bitcoind -conf=/srv/bitcoind/bitcoin.conf
 autorestart = true
 exitcodes = 0
 user = bitcoind

@@ -4,9 +4,10 @@
       <sourceFilesUrls>
         <item url="file://$PROJECT_DIR$/clients/www/mexbt.js" />
         <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
+        <item url="file://$PROJECT_DIR$/dist/clients/www/mexbt.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
-        <item url="file://$PROJECT_DIR$/clients/www/raw_ui.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/raw_ui.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/events.js" />
       </sourceFilesUrls>
     </properties>
@@ -24,9 +25,10 @@
       <root url="file://$PROJECT_DIR$/clients/www/test.js" />
       <root url="file://$PROJECT_DIR$/clients/www/mexbt.js" />
       <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
+      <root url="file://$PROJECT_DIR$/dist/clients/www/mexbt.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
-      <root url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
       <root url="file://$PROJECT_DIR$/clients/www/raw_ui.js" />
+      <root url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/events.js" />
     </CLASSES>
     <SOURCES />
