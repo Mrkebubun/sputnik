@@ -561,12 +561,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         charge['product_id'] = ''
         charge['image_url'] = ''
 
-        c = compropago.Charge.from_dict(charge)
-        bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+        c = compropago.Charge(**charge)
+        d = self.factory.compropago.create_bill(c)
         #todo return false if there is a problem here
-        instructions = bill['payment_instructions']
-        # do not return bill as the payment_id should remain private to us
-        return [True, instructions]
+        d.addCallback(lambda bill: [True, bill["payment_instructions"]])
+        d.addErrback(lambda x: [False, (0, "Something went wrong.")])
+        return d
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
