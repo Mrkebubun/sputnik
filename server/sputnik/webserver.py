@@ -30,6 +30,7 @@ import hashlib
 import uuid
 import util
 from zmq_util import export, pull_share_async, dealer_proxy_async
+import base64
 
 from jsonschema import validate
 from twisted.python import log
@@ -695,7 +696,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def _cb(result):
             if not result:
                 return [False, (0, "get profile failed")]
-            return [True, {'nickname': result[0][0], 'email': result[0][1]}]
+
+            combined_string = "%s:%s:%s:%d" % (self.username, result[0][0], result[0][1],
+                                               util.dt_to_timestamp(datetime.datetime.combine(datetime.date.today(),
+                                                                                     datetime.datetime.min.time())))
+
+            user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'user_hash': user_hash}]
 
         return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
@@ -717,7 +724,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.administrator.change_profile(self.username, profile)
 
         def onProfileSuccess(result):
-            return [True, profile]
+            return self.get_profile()
 
         def onProfileFail(failure):
             return [False, failure.value.args]
