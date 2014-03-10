@@ -5,5 +5,5 @@ Twisted>=12.0.0
 autobahn==0.6.4
 onetimepass==0.2.2
 bitcoin-python==0.3
-requests
 Jinja2
+treq
