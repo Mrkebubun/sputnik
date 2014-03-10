@@ -10,9 +10,15 @@
         <tbody>
             {% for ticker, position_total in position_totals.iteritems() %}
             <tr>
-                <td>{{ticker}}</td>
-                <td>{{position_total}}</td>
+                <th>{{ticker}}</th>
+                <th>{{position_total}}</th>
             </tr>
+                {% for position in positions_by_ticker[ticker] %}
+                <tr>
+                    <td>{{position.user.user_hash}}</td>
+                    <td>{{position.position}}</td>
+                </tr>
+                {% endfor %}
             {% endfor %}
         </tbody>
     </table>
