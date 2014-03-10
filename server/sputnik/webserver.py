@@ -561,9 +561,24 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         charge['product_id'] = ''
         charge['image_url'] = ''
 
-        c = compropago.Charge.from_dict(charge)
-        bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
-        return [True, bill]
+        c = compropago.Charge(**charge)
+        d = self.factory.compropago.create_bill(c)
+
+        def process_bill(bill):
+            # do not return bill as the payment_id should remain private to us
+            def save_bill(txn):
+                payment_id = bill['payment_id']
+                instructions = bill['payment_instructions']
+                address = 'compropago_%s' % payment_id
+                txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
+                return [True, instructions]
+
+            return dbpool.runInteraction(save_bill)
+
+        d.addCallback(process_bill)
+        d.addErrback(lambda e: [False, (0, str(e))])
+        return d
+
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
@@ -945,7 +960,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
 
-        self.compropago = compropago.Compropago("")
+        self.compropago = compropago.Compropago("sk_test_5b82f569d4833add")
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):

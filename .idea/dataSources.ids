@@ -1,21 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component name="dataSourceStorage">
-  <data-source source="LOCAL" name="Data Source" product="PostgreSQL" version="9.1.11" jdbc-version="4.0" driver-name="PostgreSQL Native Driver" driver-version="PostgreSQL 9.2 JDBC4 (build 1002)" uuid="77566593-c56b-4cab-881f-ddaebafcd8e9">
+  <data-source source="LOCAL" name="Data Source" uuid="77566593-c56b-4cab-881f-ddaebafcd8e9">
+    <database-info product="PostgreSQL" version="9.1.11" jdbc-version="4.0" driver-name="PostgreSQL Native Driver" driver-version="PostgreSQL 9.2 JDBC4 (build 1002)">
+      <identifier-quote-string>&quot;</identifier-quote-string>
+    </database-info>
     <case-sensitivity plain-identifiers="lower" quoted-identifiers="exact"/>
-    <identifier-quote-string>&quot;</identifier-quote-string>
-    <synchronize>true</synchronize>
-    <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-    <jdbc-url>jdbc:postgresql:sputnik</jdbc-url>
-    <user-name>pycharm</user-name>
-    <user-password>dfdadfd3dfc9dfc2dfcbdfd8dfc7</user-password>
-    <libraries>
-      <library>
-        <url>jar://$PROJECT_DIR$/postgresql-9.2-1002.jdbc4.jar!/</url>
-      </library>
-      <library>
-        <url>file://$PROJECT_DIR$/postgresql-driver-license.txt</url>
-      </library>
-    </libraries>
     <schema name="information_schema" catalog="sputnik"/>
     <schema name="pg_catalog" catalog="sputnik"/>
     <schema name="public" catalog="sputnik"/>
@@ -2194,6 +2183,177 @@
       <column name="viewname" sqlType="name" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
       <column name="viewowner" sqlType="name" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
       <column name="definition" sqlType="text" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+    </table>
+    <table name="addresses" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgnYWRkcmVzc2VzX2lkX3NlcSc6OnJlZ2NsYXNzKQ==" autoIncrement="true"/>
+      <column name="username" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="currency" sqlType="currency_types" length="2147483647" precision="0" nullable="false" jdbcType="1111"/>
+      <column name="address" sqlType="varchar" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="active" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7" def="ZmFsc2U="/>
+      <column name="accounted_for" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5" def="MDo6YmlnaW50"/>
+      <primary-key name="addresses_pkey" columns="id"/>
+      <foreign-key name="addresses_username_fkey" columns="username" ref-table="users" ref-schema="public" ref-catalog="" ref-columns="username" update-rule="3" delete-rule="3" deferrability="2"/>
+      <index name="addresses_address_key" unique="true" columns="address"/>
+    </table>
+    <table name="addresses_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+    </table>
+    <table name="contracts" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgnY29udHJhY3RzX2lkX3NlcSc6OnJlZ2NsYXNzKQ==" autoIncrement="true"/>
+      <column name="ticker" sqlType="varchar" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="description" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="full_description" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="active" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7" def="dHJ1ZQ=="/>
+      <column name="contract_type" sqlType="contract_types" length="2147483647" precision="0" nullable="false" jdbcType="1111"/>
+      <column name="tick_size" sqlType="int4" length="10" precision="0" nullable="false" jdbcType="4" def="MQ=="/>
+      <column name="lot_size" sqlType="int4" length="10" precision="0" nullable="false" jdbcType="4" def="MQ=="/>
+      <column name="denominator" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5" def="MTo6YmlnaW50"/>
+      <column name="expiration" sqlType="timestamp" length="29" precision="6" nullable="true" jdbcType="93"/>
+      <column name="inverse_quotes" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7" def="ZmFsc2U="/>
+      <column name="margin_high" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="margin_low" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <primary-key name="contracts_pkey" columns="id"/>
+      <exported-key name="orders_contract_id_fkey" table="orders" schema="public" catalog="sputnik" columns="contract_id"/>
+      <exported-key name="positions_contract_id_fkey" table="positions" schema="public" catalog="sputnik" columns="contract_id"/>
+      <exported-key name="trades_contract_id_fkey" table="trades" schema="public" catalog="sputnik" columns="contract_id"/>
+      <exported-key name="withdrawals_currency_id_fkey" table="withdrawals" schema="public" catalog="sputnik" columns="currency_id"/>
+      <index name="contracts_ticker_key" unique="true" columns="ticker"/>
+    </table>
+    <table name="contracts_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+    </table>
+    <table name="orders" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgnb3JkZXJzX2lkX3NlcSc6OnJlZ2NsYXNzKQ==" autoIncrement="true"/>
+      <column name="username" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="contract_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="quantity" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="quantity_left" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="price" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="side" sqlType="side_types" length="2147483647" precision="0" nullable="true" jdbcType="1111"/>
+      <column name="is_cancelled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="accepted" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7" def="ZmFsc2U="/>
+      <column name="timestamp" sqlType="timestamp" length="29" precision="6" nullable="true" jdbcType="93"/>
+      <primary-key name="orders_pkey" columns="id"/>
+      <foreign-key name="orders_contract_id_fkey" columns="contract_id" ref-table="contracts" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+      <foreign-key name="orders_username_fkey" columns="username" ref-table="users" ref-schema="public" ref-catalog="" ref-columns="username" update-rule="3" delete-rule="3" deferrability="2"/>
+      <exported-key name="trades_aggressive_order_id_fkey" table="trades" schema="public" catalog="sputnik" columns="aggressive_order_id"/>
+      <exported-key name="trades_passive_order_id_fkey" table="trades" schema="public" catalog="sputnik" columns="passive_order_id"/>
+    </table>
+    <table name="orders_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+    </table>
+    <table name="positions" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgncG9zaXRpb25zX2lkX3NlcSc6OnJlZ2NsYXNzKQ==" autoIncrement="true"/>
+      <column name="username" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="contract_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="position" sqlType="int8" length="19" precision="0" nullable="true" jdbcType="-5"/>
+      <column name="reference_price" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5" def="MDo6YmlnaW50"/>
+      <primary-key name="positions_pkey" columns="id"/>
+      <foreign-key name="positions_contract_id_fkey" columns="contract_id" ref-table="contracts" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+      <foreign-key name="positions_username_fkey" columns="username" ref-table="users" ref-schema="public" ref-catalog="" ref-columns="username" update-rule="3" delete-rule="3" deferrability="2"/>
+      <index name="positions_username_contract_id_key" unique="true" columns="username,contract_id"/>
+    </table>
+    <table name="positions_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+    </table>
+    <table name="trades" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgndHJhZGVzX2lkX3NlcSc6OnJlZ2NsYXNzKQ==" autoIncrement="true"/>
+      <column name="quantity" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="price" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="timestamp" sqlType="timestamp" length="29" precision="6" nullable="true" jdbcType="93"/>
+      <column name="contract_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="aggressive_order_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="passive_order_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <primary-key name="trades_pkey" columns="id"/>
+      <foreign-key name="trades_contract_id_fkey" columns="contract_id" ref-table="contracts" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+      <foreign-key name="trades_aggressive_order_id_fkey" columns="aggressive_order_id" ref-table="orders" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+      <foreign-key name="trades_passive_order_id_fkey" columns="passive_order_id" ref-table="orders" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+    </table>
+    <table name="trades_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+    </table>
+    <table name="users" schema="public" catalog="sputnik" type="TABLE">
+      <column name="username" sqlType="varchar" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="password" sqlType="varchar" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="totp" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="nickname" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="email" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="active" sqlType="bool" length="1" precision="0" nullable="true" jdbcType="-7" def="dHJ1ZQ=="/>
+      <primary-key name="users_pkey" columns="username"/>
+      <exported-key name="addresses_username_fkey" table="addresses" schema="public" catalog="sputnik" columns="username"/>
+      <exported-key name="orders_username_fkey" table="orders" schema="public" catalog="sputnik" columns="username"/>
+      <exported-key name="positions_username_fkey" table="positions" schema="public" catalog="sputnik" columns="username"/>
+      <exported-key name="withdrawals_username_fkey" table="withdrawals" schema="public" catalog="sputnik" columns="username"/>
+    </table>
+    <table name="withdrawals" schema="public" catalog="sputnik" type="TABLE">
+      <column name="id" sqlType="serial" length="10" precision="0" nullable="false" jdbcType="4" def="bmV4dHZhbCgnd2l0aGRyYXdhbHNfaWRfc2VxJzo6cmVnY2xhc3Mp" autoIncrement="true"/>
+      <column name="username" sqlType="varchar" length="2147483647" precision="0" nullable="true" jdbcType="12"/>
+      <column name="address" sqlType="varchar" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="currency_id" sqlType="int4" length="10" precision="0" nullable="true" jdbcType="4"/>
+      <column name="amount" sqlType="int8" length="19" precision="0" nullable="true" jdbcType="-5"/>
+      <column name="pending" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7" def="dHJ1ZQ=="/>
+      <column name="entered" sqlType="timestamp" length="29" precision="6" nullable="false" jdbcType="93"/>
+      <column name="completed" sqlType="timestamp" length="29" precision="6" nullable="true" jdbcType="93"/>
+      <primary-key name="withdrawals_pkey" columns="id"/>
+      <foreign-key name="withdrawals_currency_id_fkey" columns="currency_id" ref-table="contracts" ref-schema="public" ref-catalog="" ref-columns="id" update-rule="3" delete-rule="3" deferrability="2"/>
+      <foreign-key name="withdrawals_username_fkey" columns="username" ref-table="users" ref-schema="public" ref-catalog="" ref-columns="username" update-rule="3" delete-rule="3" deferrability="2"/>
+    </table>
+    <table name="withdrawals_id_seq" schema="public" catalog="sputnik" type="SEQUENCE">
+      <column name="sequence_name" sqlType="name" length="2147483647" precision="0" nullable="false" jdbcType="12"/>
+      <column name="last_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="start_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="increment_by" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="max_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="min_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="cache_value" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="log_cnt" sqlType="int8" length="19" precision="0" nullable="false" jdbcType="-5"/>
+      <column name="is_cycled" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
+      <column name="is_called" sqlType="bool" length="1" precision="0" nullable="false" jdbcType="-7"/>
     </table>
     <procedure name="_pg_char_max_length" schema="information_schema" catalog="sputnik" type="2">
       <prototype>
