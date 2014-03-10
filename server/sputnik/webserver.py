@@ -563,10 +563,22 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         c = compropago.Charge(**charge)
         d = self.factory.compropago.create_bill(c)
-        #todo return false if there is a problem here
-        d.addCallback(lambda bill: [True, bill["payment_instructions"]])
-        d.addErrback(lambda x: [False, (0, "Something went wrong.")])
+
+        def process_bill(bill):
+            # do not return bill as the payment_id should remain private to us
+            def save_bill(txn):
+                payment_id = bill['payment_id']
+                instructions = bill['payment_instructions']
+                address = 'compropago_%s' % payment_id
+                txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
+                return [True, instructions]
+
+            return dbpool.runInteraction(save_bill)
+
+        d.addCallback(process_bill)
+        d.addErrback(lambda e: [False, (0, str(e))])
         return d
+
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 

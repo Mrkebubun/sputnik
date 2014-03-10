@@ -145,13 +145,16 @@ class CompropagoHook(Resource):
         json_string = request.content.getvalue()
         #todo: re-request from compropago ourselves to avoid being fed
         #spoofed information
+
+        logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
         try:
+            logging.info('validating the response')
             payment_info = self.compropago.validate_response(json.loads(json_string))
             self.cashier.process_compropago_payment(payment_info)
         except ValidationError:
             logging.error("Error in the input %s" % json_string)
             return ErrorPage()
-        logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
+
 
 
         return "OK"
