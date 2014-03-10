@@ -129,11 +129,11 @@ $("#change_profile_button").click (event) ->
 
 $('#deposit_mxn').click (event) ->
     $('#compropago_error').hide()
-    $('#compropago_modal').modal 'show'
+    $('#compropago_modal').modal()
 
 $('#deposit_btc').click (event) ->
     sputnik.getAddress('BTC')
-    $('#deposit_btc_modal').modal('show')
+    $('#deposit_btc_modal').modal()
 
 $('#new_address_button').click (event) ->
     sputnik.newAddress('BTC')
