@@ -280,11 +280,13 @@ class @Sputnik extends EventEmitter
 
     # deposits and withdrawals
 
-    makeCompropagoDeposit: (store, amount, send_sms) =>
+    makeCompropagoDeposit: (store, amount, customer_email, send_sms, customer_phone) =>
         charge =
           product_price: amount
           payment_type: store
+          customer_email: customer_email
           send_sms: send_sms
+          customer_phone: customer_phone
           currency: "MXN"
         @log "compropago charge: #{charge}"
         @call("make_compropago_deposit", charge).then \
