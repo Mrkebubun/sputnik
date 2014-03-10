@@ -753,10 +753,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
                            'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
 
-        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
-                               "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
-                               "WHERE orders.contract_id=contracts.id AND orders.username=%s " +
-                               "AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(
+        return dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
+                               'orders.timestamp, orders.side, orders.id FROM orders, contracts '
+                               'WHERE orders.contract_id=contracts.id AND orders.username=%s '
+                               'AND orders.quantity_left > 0 '
+                               'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (self.username,)).addCallback(
             _cb)
 
 
