@@ -44,7 +44,7 @@ class Cashier():
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
-        self.compropago = Compropago()
+        self.compropago = Compropago(self)
 
     def notify_accountant(self, address, total_received):
         # tells the accountant an address has an updated "total received" amount

@@ -12,8 +12,8 @@ sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
 sputnik.on "log", (args...) -> ab.log args...
-sputnik.on "warn", (args...) -> ab.warn args...
-sputnik.on "error", (args...) -> ab.error args...
+sputnik.on "warn", (args...) -> ab.log args...
+sputnik.on "error", (args...) -> ab.log args...
 
 sputnik.on "auth_success", (username) ->
     ladda = Ladda.create $("#login_button")[0]
@@ -58,7 +58,17 @@ sputnik.on "make_account_fail", (event) ->
 
 # compropago modal success and error
 sputnik.on "compropago_deposit_success", (event) ->
+  ladda = Ladda.create $("#compropago_pay_button")[0]
+  ladda.stop()
+
+  $('#compropago_confirm').text(event['note_confirmation'])
+  $('#compropago_step_1').text(event['step_1'])
+  $('#compropago_step_2').text(event['step_2'])
+  $('#compropago_step_3').text(event['step_3'])
+  $('#compropago_expiration').text(event['note_expiration_date'])
+  $('#compropago_comition').text(event['note_extra_comition'])
   $('#compropago_modal').modal 'hide'
+  $('#compropago_confirm_modal').modal 'show'
 
 sputnik.on "compropago_deposit_fail", (event) ->
   ladda = Ladda.create $('#compropago_pay_button')[0]
@@ -118,6 +128,7 @@ $("#change_profile_button").click (event) ->
     sputnik.changeProfile(new_nickname.value, new_email.value)
 
 $('#deposit_mxn').click (event) ->
+    $('#compropago_error').hide()
     $('#compropago_modal').modal 'show'
 
 $('#deposit_btc').click (event) ->
@@ -134,9 +145,10 @@ $("#compropago_pay_button").click (event) ->
     store = $("#compropago_store").val()
     amount = $("#compropago_amount").val()
     send_sms = $("#compropago_send_sms").is(":checked")
+    customer_email = $('#compropago_email').val()
     customer_phone = $('#compropago_phone').val()
 
-    sputnik.makeCompropagoDeposit store, Number(amount), send_sms, customer_phone
+    sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value

@@ -12,7 +12,9 @@ postgresql-9.2-1002.jdbc4.jar
 sqlitejdbc-v056.jar
 zentus-sqlite-license.txt
 postgresql-driver-license.txt
-clients/www/sputnik.js
+sputnik.js
 clients/www/node_modules
 clients/www/raw_ui.js
-clients/www/mexbt.js
+mexbt.js
+events.js
+client.js

@@ -1,4 +1,3 @@
 #!/bin/bash
 
-supervisorctl reload
-
+/etc/init.d/supervisor restart
