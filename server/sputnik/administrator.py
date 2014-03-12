@@ -23,14 +23,17 @@ from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 
 from zope.interface import implements
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.cred.portal import IRealm, Portal
-from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
+from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse, ICredentialsChecker
+from twisted.cred.credentials import IUsernameHashedPassword
+from twisted.cred import error as credError
 from jinja2 import Environment, FileSystemLoader
 import json
 
 import logging
 import autobahn, string, Crypto.Random.random
+import sqlalchemy.orm.exc
 
 class AdministratorException(Exception): pass
 
@@ -162,9 +165,10 @@ class Administrator:
 
 class AdminWebUI(Resource):
     isLeaf = True
-    def __init__(self, administrator, avatarId):
+    def __init__(self, administrator, avatarId, avatarLevel):
         self.administrator = administrator
         self.avatarId = avatarId
+        self.avatarLevel = avatarLevel
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
 
@@ -172,8 +176,10 @@ class AdminWebUI(Resource):
         return self
 
     def log(self, request):
-        line = '%s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
-        logging.info(line, request.getClientIP(),
+        line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        logging.info(line,
+                     self.avatarId,
+                     request.getClientIP(),
                      request.getUser(),
                      request.method,
                      request.uri,
@@ -187,22 +193,30 @@ class AdminWebUI(Resource):
 
     def render(self, request):
         self.log(request)
-        if request.path in ['/user_list', '/']:
-            # Level 1
-            return self.user_list().encode('utf-8')
+        if request.path is '/':
+            if self.avatarLevel < 1:
+                return self.login_page().encode('utf-8')
+            else:
+                return self.user_list().encode('utf-8')
         elif request.path == '/audit':
             # Level 0
             return self.audit().encode('utf-8')
-        elif request.path == '/adjust_position' and self.administrator.debug:
+        elif request.path is '/user_list' and self.avatarLevel > 0:
+            # Level 1
+            return self.user_list().encode('utf-8')
+        elif request.path == '/adjust_position' and \
+                self.administrator.debug and \
+                self.avatarLevel > 4:
             # Level 5
             return self.adjust_position(request).encode('utf-8')
-        elif request.path == '/user_details':
+        elif request.path == '/user_details' and self.avatarLevel > 0:
+            # Level 1
             return self.user_details(request).encode('utf-8')
-        elif request.path == '/reset_password':
+        elif request.path == '/reset_password' and self.avatarLevel > 1:
             # Level 2
             return self.reset_password(request).encode('utf-8')
         else:
-            return "Request received: %s" % request.uri
+            return "Invalid request: %s" % request.uri
 
     def user_list(self):
         # We dont need to expire here because the user_list doesn't show
@@ -248,15 +262,40 @@ class AdminWebUI(Resource):
         rendered = t.render(positions_by_ticker=positions_by_ticker, position_totals=position_totals)
         return rendered
 
+class PasswordChecker:
+    implements(ICredentialsChecker)
+    credentialInterfaces = (IUsernameHashedPassword,)
+
+    def __init__(self, session):
+        self.session = session
+
+    def requestAvatarId(self, credentials):
+        username = credentials.username
+        try:
+            admin_user = self.session.query(models.Administrator).filter(username=username).one()
+        except sqlalchemy.orm.exc.NoResultFound as e:
+            return defer.fail(credError.UnauthorizedLogin("No such user"))
+
+        if credentials.checkPassword(username.password):
+            return defer.succeed(username)
+        else:
+            return defer.fail("Bad password")
+
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator):
+    def __init__(self, administrator, session):
         self.administrator = administrator
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
-            return IResource, AdminWebUI(self.administrator, avatarId), lambda: None
+            if avatarId is checkers.ANONYMOUS:
+                avatarLevel = 0
+            else:
+                admin_user = self.session.query(models.Administrator).filter(username=username).one()
+                avatarLevel = admin_user.level
+
+            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel), lambda: None
         raise NotImplementedError
 
 class WebserverExport:
@@ -294,7 +333,7 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='admin')]
+    checkers = [PasswordChecker(session)]
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
