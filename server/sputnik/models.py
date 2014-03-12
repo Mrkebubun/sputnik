@@ -2,13 +2,35 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Enum, DateTime
 import database as db
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+import Crypto.Random.random
 
 __author__ = 'satosushi'
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
 import util
 import hashlib
 import base64
+
+class ResetToken(db.Base):
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+    __tablename__ = 'reset_tokens'
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String, ForeignKey('users.username'))
+    user = relationship('User')
+    token = Column(String)
+    expiration = Column(DateTime)
+    used = Column(Boolean)
+
+    def __init__(self, username, hours_to_expiry=2):
+        self.username = username
+        self.expiration = datetime.utcnow() + timedelta(hours=hours_to_expiry)
+        bits = Crypto.Random.random.getrandbits(128)
+        self.token = str(bits)
+        self.used = False
+
+    def __repr__(self):
+        return "<ResetToken"
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})

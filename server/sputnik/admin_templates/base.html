@@ -12,11 +12,8 @@
     {% endblock %}
 </head>
 <body>
-    <ul class="nav nav-tabs">
-      <li {% block users_active %}{% endblock %}><a href="/">Users</a></li>
-      <li {% block audit_active %}{% endblock %}><a href="/audit">Audit</a></li>
-      <li {% block fees_active %}{% endblock %}><a href="/fees">Fees</a></li>
-    </ul>
+    {% block nav_tabs %}
+    {% endblock %}
     <br>
     <div class="container">
         <div class="panel panel-primary">

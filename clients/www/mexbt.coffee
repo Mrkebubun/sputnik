@@ -77,8 +77,6 @@ sputnik.on "compropago_deposit_fail", (event) ->
   $('#compropago_error').text(reason)
   $('#compropago_error').show()
 
-
-
 $("#login").click () ->
     $("#login_modal").modal()
 
@@ -90,6 +88,10 @@ $("#login_button").click (event) ->
     username = $("#login_username").val()
     password = $("#login_password").val()
     sputnik.authenticate username, password
+
+$('#get_reset_token').click (event) ->
+    username = $("#login_username").val()
+    sputnik.getResetToken(username)
 
 $("#register").click () ->
     $("#register_modal").modal()

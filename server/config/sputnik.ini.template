@@ -36,8 +36,14 @@ debug = ${debug}
 [administrator]
 webserver_export = tcp://127.0.0.1:4601
 UI_port = 8080
-interface = 127.0.0.1
+interface = ${webserver_interface}
+address = ${webserver_address}
 debug = ${debug}
+ssl = ${use_ssl}
+ssl_key = ${keys}/server.key
+ssl_cert = ${keys}/server.crt
+ssl_cert_chain = ${keys}/server.chain
+email = ${administrator_email}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501

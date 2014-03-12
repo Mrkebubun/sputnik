@@ -96,6 +96,13 @@ class @Sputnik extends EventEmitter
                 @error "password change error: #{error}"
                 @emit "change_password_fail", error
 
+    getResetToken: (username) =>
+        @call("get_reset_token", username).then \
+            (success) =>
+                @emit "get_reset_token_success", success
+            , (error) =>
+                @emit "get_reset_token_fail", error
+
     restoreSession: (uid) =>
         if not @session?
             @wtf "Not connected."

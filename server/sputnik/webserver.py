@@ -171,7 +171,17 @@ class PublicInterface:
             (ticker, from_dt, to_dt)
         ).addCallback(_cb)
 
+    @exportRpc("get_reset_token")
+    def get_reset_token(self, username):
+        d = self.factory.administrator.get_reset_token(username)
 
+        def onTokenSuccess(result):
+            return [True, None]
+
+        def onTokenFail(failure):
+            return [False, failure.value.args]
+
+        d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):

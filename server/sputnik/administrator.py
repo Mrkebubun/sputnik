@@ -14,6 +14,7 @@ import config
 import database
 import models
 import collections
+from datetime import datetime
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
@@ -28,17 +29,21 @@ from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from jinja2 import Environment, FileSystemLoader
 import json
+import smtplib
 
 import logging
 import autobahn, string, Crypto.Random.random
+import sqlalchemy.orm.exc
+from email.mime.text import MIMEText
 
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
+INVALID_TOKEN = AdministratorException(4, "No such token found.")
+EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
-
 
 
 def session_aware(func):
@@ -59,6 +64,16 @@ class Administrator:
         self.session = session
         self.accountant = accountant
         self.debug = debug
+        self.jinja_env = Environment(loader=FileSystemLoader('email_templates'))
+        self.from_email = config.get("administrator", "email")
+        if config.getboolean("administrator", "ssl"):
+            protocol = 'https'
+        else:
+            protocol = 'http'
+
+        self.base_uri = "%s://%s:%d" % (protocol,
+                                        config.get("administrator", "address"),
+                                        config.getint("administrator", "UI_port"))
 
     @session_aware
     def make_account(self, username, password):
@@ -105,11 +120,32 @@ class Administrator:
         logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
 
+    def check_token(self, username, input_token):
+        token_good = False
+        found_tokens = self.session.query(models.ResetToken).filter_by(token=input_token, username=username).all()
+        if not len(found_tokens):
+            raise INVALID_TOKEN
+        for token in found_tokens:
+            if token.expiration > datetime.utcnow() and not token.used:
+                token_good = True
+                break
+
+        if not token_good:
+            raise EXPIRED_TOKEN
+
+        return token
+
     @session_aware
-    def reset_password_plaintext(self, username, new_password):
+    def reset_password_plaintext(self, username, new_password, input_token=None, require_token=True):
         user = self.session.query(models.User).filter_by(username=username).one()
         if not user:
             raise NO_SUCH_USER
+
+        if require_token:
+            token = self.check_token(username, input_token)
+
+            token.used = True
+            self.session.add(token)
 
         alphabet = string.digits + string.lowercase
         num = Crypto.Random.random.getrandbits(64)
@@ -126,8 +162,9 @@ class Administrator:
 
     @session_aware
     def reset_password_hash(self, username, old_password_hash, new_password_hash):
-        user = self.session.query(models.User).filter_by(username=username).one()
-        if not user:
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+        except sqlalchemy.orm.exc.NoResultFound:
             raise NO_SUCH_USER
 
         [salt, hash] = user.password.split(':')
@@ -139,6 +176,36 @@ class Administrator:
 
         self.session.add(user)
         self.session.commit()
+        return True
+
+    @session_aware
+    def get_reset_token(self, username, hours_to_expiry=2):
+        try:
+            user = self.session.query(models.User).filter(models.User.username == username).one()
+        except sqlalchemy.orm.exc.NoResultFound:
+            raise NO_SUCH_USER
+
+        token = models.ResetToken(username, hours_to_expiry)
+        self.session.add(token)
+        self.session.commit()
+
+        logging.debug("Created token: %s" % token)
+        # Now email the token
+        t = self.jinja_env.get_template('reset_password.email')
+        content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                           username=username, base_uri=self.base_uri).encode('utf-8')
+
+        # Now email the token
+        msg = MIMEText(content)
+        msg['Subject'] = 'Reset password link enclosed'
+        msg['From'] = self.from_email
+        msg['To'] = '<%s> %s' % (user.email, user.nickname)
+        logging.debug("Sending mail: %s" % msg.as_string())
+        s = smtplib.SMTP('localhost')
+        s.sendmail(self.from_email, [user.email], msg.as_string())
+        s.quit()
+
+
         return True
 
     def expire_all(self):
@@ -193,14 +260,21 @@ class AdminWebUI(Resource):
         elif request.path == '/audit':
             # Level 0
             return self.audit().encode('utf-8')
+        elif request.path == '/reset_user_password':
+            # Level 0
+            return self.reset_password(request, require_token=True).encode('utf-8')
+        elif request.path == '/query_reset_password':
+            # Level 0
+            return self.query_reset_password(request).encode('utf-8')
         elif request.path == '/adjust_position' and self.administrator.debug:
             # Level 5
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
+            # Level 1
             return self.user_details(request).encode('utf-8')
         elif request.path == '/reset_password':
             # Level 2
-            return self.reset_password(request).encode('utf-8')
+            return self.reset_password(request, require_token=False).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -211,9 +285,30 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
 
-    def reset_password(self, request):
-        self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
-        return self.user_details(request)
+    def query_reset_password(self, request):
+        try:
+            self.administrator.check_token(request.args['username'][0], request.args['token'][0])
+        except AdministratorException as e:
+            t = self.jinja_env.get_template('reset_password_fail.html')
+            return t.render(username=request.args['username'][0], exception=str(e))
+
+        t = self.jinja_env.get_template('query_reset_password.html')
+        return t.render(username=request.args['username'][0], token=request.args['token'][0])
+
+    def reset_password(self, request, require_token=True):
+        if require_token:
+            try:
+                self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0],
+                                                           input_token=request.args['token'][0], require_token=True)
+                t = self.jinja_env.get_template('reset_password_success.html')
+                return t.render(username=request.args['username'][0])
+            except AdministratorException as e:
+                t = self.jinja.env.get_template('reset_password_fail.html')
+                return t.render(username=request.args['username'][0], exception=str(e))
+        else:
+            self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0],
+                                                        require_token=False)
+            return self.user_details(request)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
@@ -280,7 +375,13 @@ class WebserverExport:
     def reset_password_hash(self, username, old_password_hash, new_password_hash):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
 
+    @export
+    def get_reset_token(self, username):
+        return self.administrator.get_reset_token(username)
+
 if __name__ == "__main__":
+    # TODO: Check the use_ssl config for the webserver and turn SSL on/off
+    # I don't think we need a separate administrator ssl config
     logging.basicConfig(level=logging.DEBUG)
 
     session = database.make_session()

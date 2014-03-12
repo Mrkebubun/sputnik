@@ -2,6 +2,9 @@
 {% block title %}{{user.username}}{% endblock %}
 {% block panel_title %}{{user.username}}{% endblock %}
 {% block panel_body %}
+{% block nav_tabs %}
+{% include "navtabs.html" %}
+{% endblock %}
 
 <table id="user_info" class="table table-striped table-hover">
     <tbody>
