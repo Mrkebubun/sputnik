@@ -449,7 +449,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/feeds/fees#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
@@ -918,11 +917,6 @@ class EngineExport:
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
 
     @export
-    def fill(self, user, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
-
-    @export
     def order(self, user, order):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/orders#%s" % user, order)
@@ -932,9 +926,9 @@ class AccountantExport:
         self.webserver = webserver
 
     @export
-    def fee(self, user, fee):
+    def fill(self, user, trade):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/fees#%s" % user, fee)
+            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
 
 class PepsiColaServerFactory(WampServerFactory):
     """

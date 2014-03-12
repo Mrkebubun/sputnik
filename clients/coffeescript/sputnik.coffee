@@ -138,7 +138,6 @@ class @Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
-            @subscribe "fees#" + @username, @onFee
         catch error
             @log error
 
@@ -223,6 +222,18 @@ class @Sputnik extends EventEmitter
         trade.wire_timestamp = wire_trade.timestamp
         trade.timestamp = @timeFormat(wire_trade.timestamp)
         return trade
+
+    fillFromWire: (wire_fill) =>
+        ticker = wire_fill.contract
+        fill = @copy(wire_fill)
+        fill.fees = @copy(wire_fill.fees)
+        fill.price = @priceFromWire(ticker, wire_fill.price)
+        fill.quantity = @quantityFromWire(ticker, wire_fill.quantity)
+        fill.wire_timestamp = wire_fill.timestamp
+        fill.timestamp = @timeFormat(wire_fill.timestamp)
+        for fee_ticker, fee of wire_fill.fees
+            fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
+        return fill
 
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -520,16 +531,10 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
-    onFee: (fee) =>
-        @log "fee received: #{fee}"
-        @emit "fee", @positionFromWire(fee)
-        @positions[fee.contract].position -= fee.position
-        @emitPositions
-
     # My positions and available margin get updated with fills
     onFill: (fill) =>
         @log "fill received: #{fill}"
-        @emit "fill", @tradeFromWire(fill)
+        @emit "fill", @fillFromWire(fill)
         [contract, source, target] = @cstFromTicker(fill.contract)
         if contract.contract_type == "cash_pair"
             if fill.side == "SELL"
@@ -538,6 +543,10 @@ class @Sputnik extends EventEmitter
                 sign = 1
             @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
             @positions[target.ticker].position += fill.quantity * sign
+
+            for ticker, fee of fill.fees
+                @positions[ticker].position -= fee
+
         else
             @error "only cash_pair contracts implemented in onFill"
 

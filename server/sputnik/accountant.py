@@ -208,9 +208,6 @@ class Accountant:
             remainder_account_position = self.get_position('remainder', ticker)
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             remainder_account_position.position += remaining_fee
-            self.webserver.fee('remainder', {'contract': ticker,
-                                             'position': -remaining_fee,
-                                             'reference_price': 0})
             session.add(remainder_account_position)
 
     def post_transaction(self, transaction):
@@ -225,6 +222,10 @@ class Accountant:
         ticker = transaction["contract"]
         price = transaction["price"]
         signed_quantity = transaction["signed_quantity"]
+        quantity = transaction["quantity"]
+        order_id = transaction["order_id"]
+        side = transaction["side"]
+        timestamp = transaction["timestamp"]
 
         contract = self.get_contract(ticker)
 
@@ -250,6 +251,9 @@ class Accountant:
             session.merge(cash_position)
             session.merge(future_position)
 
+            # TODO: Implement fees
+            fees = None
+
         elif contract.contract_type == "prediction":
             cash_position = self.get_position(username, "BTC")
             prediction_position = self.get_position(username, ticker)
@@ -259,6 +263,9 @@ class Accountant:
 
             session.merge(cash_position)
             session.merge(prediction_position)
+
+            # TODO: Implement fees
+            fees = None
 
         elif contract.contract_type == "cash_pair":
             from_currency_ticker, to_currency_ticker = util.split_pair(ticker)
@@ -293,20 +300,23 @@ class Accountant:
                 to_position.position -= fees[to_currency_ticker]
                 logging.debug("Deducting %d %s from user %s" % (fees[to_currency_ticker], to_currency_ticker, username))
 
-            # Tell the user that he got charged a fee
-            for ticker, fee in fees.iteritems():
-                self.webserver.fees(username, {'contract': ticker,
-                                               'position': fee,
-                                               'reference_price': 0 # The reference price doesn't matter here
-                                                                    # but we need it to make it a valid 'position'
-                } )
-
             session.add(from_position)
             session.add(to_position)
 
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
+
+        fill = {'contract': ticker,
+             'id': order_id,
+             'quantity': quantity,
+             'price': price,
+             'side': side,
+             'timestamp': timestamp,
+             'fees': fees
+            }
+        self.webserver.fill(username, fill)
+        logging.debug('to ws: ' + str({"fills": [username, fill]}))
 
         session.commit()
 
