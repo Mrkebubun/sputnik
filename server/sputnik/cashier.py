@@ -40,7 +40,7 @@ class Cashier():
         self.testnet = config.get('cashier', 'testnet')
         self.cold_wallet_address = 'xxxx'
         self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
-        self.accountant = dealer_proxy_async(config.get("accountant", "webserver_export"))
+        self.accountant = dealer_proxy_async(config.get("accountant", "cashier_export"))
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
