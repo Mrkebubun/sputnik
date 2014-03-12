@@ -38,6 +38,7 @@ USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
 
 
 
@@ -62,6 +63,12 @@ class Administrator:
 
     @session_aware
     def make_account(self, username, password):
+        user_count = self.session.query(models.User).count()
+        # TODO: Make this configurable
+        if user_count > 100:
+            logging.error("User limit reached")
+            raise USER_LIMIT_REACHED
+
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
