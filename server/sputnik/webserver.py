@@ -37,13 +37,13 @@ from twisted.python import log
 from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
 from twisted.web.static import File
-from autobahn.websocket import listenWS
-from autobahn.wamp import exportRpc, \
+from autobahn.twisted.websocket import listenWS
+from autobahn.wamp1.protocol import exportRpc, \
     WampCraProtocol, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
 
-from autobahn.wamp import CallHandler
+from autobahn.wamp1.protocol import CallHandler
 
 from OpenSSL import SSL
 
