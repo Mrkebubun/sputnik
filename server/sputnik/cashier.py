@@ -192,9 +192,9 @@ if __name__ == '__main__':
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
-    reactor.listenTCP(config.get("cashier", "public_port"), Site(public_server),
+    reactor.listenTCP(config.getint("cashier", "public_port"), Site(public_server),
                       interface=config.get("cashier", "public_interface"))
-    reactor.listenTCP(config.get("cashier", "private_port"), Site(private_server),
+    reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 
     reactor.run()

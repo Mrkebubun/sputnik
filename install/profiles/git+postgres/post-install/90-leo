@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -n "$UPGRADE" ]; then
+    exit 0
+fi
+
 cd $profile_conf
 cat << EOF | $profile_root/tools/leo 
 database init
