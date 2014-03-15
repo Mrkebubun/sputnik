@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cp $PROFILE/res/https /etc/apache2/conf.d
+
