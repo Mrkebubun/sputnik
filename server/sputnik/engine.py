@@ -153,18 +153,21 @@ class Order(object):
 
         for o in [self, other_order]:
             signed_quantity = -o.side * quantity
-            accountant.post_transaction(
-                {
-                    'username':o.username,
+            transaction = {
+                    'username': o.username,
                     'contract': contract_name,
                     'signed_quantity': signed_quantity,
+                    'quantity': quantity,
                     'price': matching_price,
-                    'contract_type': db_orders[0].contract.contract_type
+                    'contract_type': db_orders[0].contract.contract_type,
+                    'order_id': o.id,
+                    'timestamp': util.dt_to_timestamp(trade.timestamp),
+                    'side': OrderSide.name(o.side)
                 }
-            )
-            # Send an order update and a fill message
-            webserver.order(o.username,
-                {'contract': contract_name,
+            accountant.post_transaction(transaction)
+            print 'to acct: ',str({'post_transaction': transaction})
+            # Send an order update
+            order = {'contract': contract_name,
                  'id': o.id,
                  'quantity': o.quantity,
                  'quantity_left': o.quantity_left,
@@ -173,16 +176,10 @@ class Order(object):
                  # TODO: is hardcoding 'False' in here correct?
                  'is_cancelled': False,
                  'timestamp': util.dt_to_timestamp(o.timestamp)
-                 })
-            webserver.fill(o.username,
-                {'contract': contract_name,
-                 'id': o.id,
-                 'quantity': quantity,
-                 'price': matching_price,
-                 'side': OrderSide.name(o.side),
-                 'timestamp': util.dt_to_timestamp(trade.timestamp)
-                })
-            print 'test 1:  ',str({'fill': [o.username, {'contract': contract_name, 'id': o.id, 'quantity': quantity, 'price': matching_price}]})
+                 }
+            webserver.order(o.username, order)
+
+            print 'to ws: ',str({'orders': [o.username, order]})
 
     def cancel(self):
         """

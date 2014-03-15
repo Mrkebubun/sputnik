@@ -30,19 +30,20 @@ import hashlib
 import uuid
 import util
 from zmq_util import export, pull_share_async, dealer_proxy_async
+import base64
 
 from jsonschema import validate
 from twisted.python import log
 from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
 from twisted.web.static import File
-from autobahn.websocket import listenWS
-from autobahn.wamp import exportRpc, \
+from autobahn.twisted.websocket import listenWS
+from autobahn.wamp1.protocol import exportRpc, \
     WampCraProtocol, \
     WampServerFactory, \
     WampCraServerProtocol, exportSub, exportPub
 
-from autobahn.wamp import CallHandler
+from autobahn.wamp1.protocol import CallHandler
 
 from OpenSSL import SSL
 
@@ -448,7 +449,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/feeds/fees#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
@@ -561,22 +561,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         charge['product_id'] = ''
         charge['image_url'] = ''
 
-        c = compropago.Charge.from_dict(charge)
-        bill = self.factory.compropago.create_bill(c) #todo, use deferred in making compropago calls
+        c = compropago.Charge(**charge)
+        d = self.factory.compropago.create_bill(c)
 
-        def _cb(txn, bill):
-            payment_id = bill['payment_id']
-            instructions = bill['payment_instructions']
-            address = 'compropago_%s' % payment_id
-            txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)",
-                        (self.username, address, 0, True, 'MXN'))
-            return [True, instructions]
+        def process_bill(bill):
+            # do not return bill as the payment_id should remain private to us
+            def save_bill(txn):
+                payment_id = bill['payment_id']
+                instructions = bill['payment_instructions']
+                address = 'compropago_%s' % payment_id
+                txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
+                return [True, instructions]
 
-        return dbpool.runInteraction(_cb, bill)
+            return dbpool.runInteraction(save_bill)
 
-        #todo return false if there is a problem here
-
-        # do not return bill as the payment_id should remain private to us
+        d.addCallback(process_bill)
+        d.addErrback(lambda e: [False, (0, str(e))])
+        return d
 
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
@@ -694,7 +695,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def _cb(result):
             if not result:
                 return [False, (0, "get profile failed")]
-            return [True, {'nickname': result[0][0], 'email': result[0][1]}]
+
+            combined_string = "%s:%s:%s:%d" % (self.username, result[0][0], result[0][1],
+                                               util.dt_to_timestamp(datetime.datetime.combine(datetime.date.today(),
+                                                                                     datetime.datetime.min.time())))
+
+            user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'user_hash': user_hash}]
 
         return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
@@ -716,7 +723,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.administrator.change_profile(self.username, profile)
 
         def onProfileSuccess(result):
-            return [True, profile]
+            return self.get_profile()
 
         def onProfileFail(failure):
             return [False, failure.value.args]
@@ -752,10 +759,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
                            'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
 
-        return dbpool.runQuery("SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, " +
-                               "orders.timestamp, orders.side, orders.id FROM orders, contracts " +
-                               "WHERE orders.contract_id=contracts.id AND orders.username=%s " +
-                               "AND orders.accepted=TRUE AND orders.is_cancelled=FALSE", (self.username,)).addCallback(
+        return dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
+                               'orders.timestamp, orders.side, orders.id FROM orders, contracts '
+                               'WHERE orders.contract_id=contracts.id AND orders.username=%s '
+                               'AND orders.quantity_left > 0 '
+                               'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (self.username,)).addCallback(
             _cb)
 
 
@@ -909,11 +917,6 @@ class EngineExport:
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
 
     @export
-    def fill(self, user, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
-
-    @export
     def order(self, user, order):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/orders#%s" % user, order)
@@ -923,9 +926,9 @@ class AccountantExport:
         self.webserver = webserver
 
     @export
-    def fee(self, user, fee):
+    def fill(self, user, trade):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/fees#%s" % user, fee)
+            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
 
 class PepsiColaServerFactory(WampServerFactory):
     """

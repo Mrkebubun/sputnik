@@ -5,7 +5,7 @@ cp -r $profile_git_root/dist/build/server $profile_root
 
 # copy over tools
 cp $profile_git_root/dist/build/tools/leo.py${profile_pycompiled} $profile_root/tools
-ln -s $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
+ln -sf $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
 
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf

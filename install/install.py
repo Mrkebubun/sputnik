@@ -31,6 +31,7 @@ class Installer:
         self.parser = ConfigParser.ConfigParser()
         self.parser.set("DEFAULT", "git_root", self.git_root)
         self.parser.set("DEFAULT", "user", getpass.getuser())
+        self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
         parsed = self.parser.read(os.path.join(profile, "profile.ini"))
         if len(parsed) != 1:
             raise Exception("Cannot read profile.")

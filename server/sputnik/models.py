@@ -2,11 +2,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Enum, DateTime
 import database as db
-from datetime import datetime
+from datetime import datetime, date
 
 __author__ = 'satosushi'
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
-
+import util
+import hashlib
+import base64
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
@@ -90,6 +92,15 @@ class User(db.Base):
     addresses = relationship("Addresses", back_populates="user")
     withdrawals = relationship("Withdrawal", back_populates="user")
 
+    @property
+    def user_hash(self):
+        combined_string = "%s:%s:%s:%d" % (self.username, self.nickname, self.email,
+                                           util.dt_to_timestamp(datetime.combine(date.today(),
+                                                                                 datetime.min.time())))
+
+        user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
+        return user_hash
+
     def __init__(self, username, password, email="", nickname="anonymous"):
         self.username = username
         self.password = password
@@ -120,6 +131,7 @@ class Addresses(db.Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
+    # TODO: Make this a foreign key
     currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', 'mxn', name='currency_types'), nullable=False)
     address = Column(String, nullable=False)
     active = Column(Boolean, nullable=False, server_default=sql.false())

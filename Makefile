@@ -6,7 +6,7 @@ endif
 endif
 
 ifndef PROFILE
-export PROFILE=$(realpath install/profiles/git+postgres)
+export PROFILE=$(realpath install/profiles/git)
 endif
 
 .PHONY: config deps dist build install upgrade

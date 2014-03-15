@@ -38,6 +38,7 @@ USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
 
 
 
@@ -62,6 +63,12 @@ class Administrator:
 
     @session_aware
     def make_account(self, username, password):
+        user_count = self.session.query(models.User).count()
+        # TODO: Make this configurable
+        if user_count > 100:
+            logging.error("User limit reached")
+            raise USER_LIMIT_REACHED
+
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
@@ -188,14 +195,18 @@ class AdminWebUI(Resource):
     def render(self, request):
         self.log(request)
         if request.path in ['/user_list', '/']:
+            # Level 1
             return self.user_list().encode('utf-8')
         elif request.path == '/audit':
+            # Level 0
             return self.audit().encode('utf-8')
         elif request.path == '/adjust_position' and self.administrator.debug:
+            # Level 5
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             return self.user_details(request).encode('utf-8')
         elif request.path == '/reset_password':
+            # Level 2
             return self.reset_password(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
@@ -233,12 +244,15 @@ class AdminWebUI(Resource):
         # TODO: Do this in SQLalchemy
         positions = self.administrator.get_positions()
         position_totals = collections.defaultdict(int)
+        positions_by_ticker = collections.defaultdict(list)
         for position in positions:
             if position.position is not None:
                 position_totals[position.contract.ticker] += position.position
 
+            positions_by_ticker[position.contract.ticker].append(position)
+
         t = self.jinja_env.get_template('audit.html')
-        rendered = t.render(position_totals=position_totals)
+        rendered = t.render(positions_by_ticker=positions_by_ticker, position_totals=position_totals)
         return rendered
 
 class SimpleRealm(object):

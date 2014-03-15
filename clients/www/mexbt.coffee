@@ -129,11 +129,11 @@ $("#change_profile_button").click (event) ->
 
 $('#deposit_mxn').click (event) ->
     $('#compropago_error').hide()
-    $('#compropago_modal').modal 'show'
+    $('#compropago_modal').modal()
 
 $('#deposit_btc').click (event) ->
     sputnik.getAddress('BTC')
-    $('#deposit_btc_modal').modal('show')
+    $('#deposit_btc_modal').modal()
 
 $('#new_address_button').click (event) ->
     sputnik.newAddress('BTC')
@@ -286,3 +286,9 @@ sputnik.on "password_change_success", (info) ->
 
 sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
+
+sputnik.on "profile", (profile) ->
+    $('#profile').text "#{profile.nickname} - #{profile.email} - #{profile.user_hash}"
+
+sputnik.on "fill", (fill) ->
+    alert "Fill Received: #{fill}"

@@ -5,11 +5,10 @@ import datetime
 __author__ = 'satosushi'
 
 import json
-import requests
+import treq
 
 from jsonschema import validate
 from Crypto.Cipher import AES
-
 
 class Charge:
     def __init__(self,
@@ -29,7 +28,8 @@ class Charge:
         self.product_name, self.product_id = product_name, product_id
         self.image_url = image_url
 
-
+    def json(self):
+        return json.dumps({k:v for (k,v) in self.__dict__.iteritems() if v})
 
     @staticmethod
     def from_dict(x):
@@ -63,23 +63,20 @@ class Compropago:
 
     def create_bill(self, charge):
         charge.customer_name = self.make_public_handle(charge.customer_name)
-        r = requests.post(self.charge_URL,
-                          data=json.dumps({k:v for (k,v) in charge.__dict__.iteritems() if v}),
-                          headers=self.headers, auth=(self.key, ''))
-
-
-        return r.json()
+        d = treq.post(self.charge_URL,
+                      data=charge.json(),
+                      headers=self.headers, auth=(self.key, ''))
         #todo: handle timeouts, handle non 200 response codes, handle 200: {result: False}, make deferred
+        return d.addCallback(treq.json_content)
 
 
     def get_bill(self, payment_id):
-        r = requests.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
-        return r.json()
+        d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
+        return d.addCallback(treq.json_content)
 
     def get_all(self):
-        r = requests.get(self.charge_URL, auth=(self.key, ''))
-        print r.text
-        return r.json()
+        d = treq.get(self.charge_URL, auth=(self.key, ''))
+        return d.addCallback(treq.json_content)
 
     def validate_response(self, payment_info):
         t = lambda x: dict(type=x, required=True)

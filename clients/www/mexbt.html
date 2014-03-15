@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.css">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.time.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
@@ -136,6 +137,50 @@
     </div>
 </div>
 
+<div id="deposit_btc_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Address</h4>
+            </div>
+            <div class="modal-body">
+                <legend><a id="btc_deposit_address"></a></legend>
+                <div id="btc_deposit_qrcode"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="new_address_button"><span class="ladda-label">New Address</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="account_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Account</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-signin" role="form">
+                    <input type="password" class="form-control" id="old_password" placeholder="Old Password" required>
+                    <input type="password" class="form-control" id="new_password" placeholder="New Password" required>
+                    <input type="password" class="form-control" id="new_password_confirm" placeholder="Confirm New Password" required>
+                </form>
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="change_password_button"><span class="ladda-label">Change Password</span></button>
+                <form class="form-signin" role="form">
+                    <input type="text" class="form-control" id="new_nickname" placeholder="New Nickname">
+                    <input type="text" class="form-control" id="new_email" placeholder="New Email">
+                </form>
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="change_profile_button"><span class="ladda-label">Change Profile</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="register_modal">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -173,6 +218,7 @@
     <li style="padding: 15px 10px; color:958881;">Low: <b id="low"></b></li>
     <li style="padding: 15px 10px; color:958881;">High: <b id="high"></b></li>
     <li style="padding: 15px 10px; color:958881;">VWAP: <b id="vwap"></b></li>
+    <li style="padding: 15px 10px; color:958881;" class="pull-center"><b id="profile"></b></li>
     <li class="pull-right"><a id="login" href="#" style="padding: 15px 10px;">Log in</a></li>
     <li class="pull-right"><a id="register" href="#" style="padding: 15px 10px;">Register</a></li>
     <li id="account_menu" class="dropdown pull-right" style="display:none;">
@@ -188,7 +234,7 @@
             <div id="BTCpos"></div>
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
-            <li><a href="#">Deposit</a></li>
+            <li><a href="#" id="deposit_btc">Deposit</a></li>
             <li><a href="#">Withdraw</a></li>
         </ul>
     </li>
@@ -227,7 +273,7 @@
                             <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
                                                                               id="buy_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
                     </form>
                 </div>
             </div>
@@ -266,7 +312,7 @@
                             <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
                                                                                id="sell_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-warning pull-right" id="sellButton">Sell</button>
+                        <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
                     </form>
                 </div>
             </div>

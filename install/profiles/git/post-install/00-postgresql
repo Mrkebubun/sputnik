@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ -n "$UPGRADE" ]; then
+    exit 0
+else
+
+# TODO: make sure no one is accessing this and then remove
+# /usr/bin/dropdb --if-exists sputnik
+
+/usr/bin/psql <<EOF
+create database sputnik;
+create user $profile_user;
+grant all privileges on database sputnik to $profile_user;
+alter role $profile_user with login;
+create user pycharm with password 'pycharm';
+grant all privileges on database sputnik to pycharm;
+EOF
+
