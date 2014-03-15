@@ -2,9 +2,11 @@
 
 if [ -n "$UPGRADE" ]; then
     exit 0
-fi
+else
 
-sudo -u postgres psql <<EOF
+/usr/bin/dropdb --if-exists sputnik
+
+/usr/bin/psql <<EOF
 create database sputnik;
 create user $profile_user;
 grant all privileges on database sputnik to $profile_user;
