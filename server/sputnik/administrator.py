@@ -1,4 +1,4 @@
-#!/usr/bin/python
+!/usr/bin/python
 
 """
 The administrator modifies database objects. It is allowed to access User
@@ -30,7 +30,9 @@ from jinja2 import Environment, FileSystemLoader
 import json
 
 import logging
-import autobahn, string, Crypto.Random.random
+import string, Crypto.Random.random
+
+from autobahn.wamp1.protocol import WampCraProtocol
 
 class AdministratorException(Exception): pass
 
@@ -125,7 +127,7 @@ class Administrator:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password = autobahn.wamp.WampCraProtocol.deriveKey(new_password, extra)
+        password = WampCraProtocol.deriveKey(new_password, extra)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
