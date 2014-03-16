@@ -1,4 +1,4 @@
-!/usr/bin/python
+#!/usr/bin/python
 
 """
 The administrator modifies database objects. It is allowed to access User
