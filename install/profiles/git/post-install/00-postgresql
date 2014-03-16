@@ -7,7 +7,7 @@ fi
 # TODO: make sure no one is accessing this and then remove
 # /usr/bin/dropdb --if-exists sputnik
 
-/usr/bin/psql <<EOF
+sudo -u postgres psql <<EOF
 create database sputnik;
 create user $profile_user;
 grant all privileges on database sputnik to $profile_user;
