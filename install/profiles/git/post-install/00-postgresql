@@ -2,7 +2,7 @@
 
 if [ -n "$UPGRADE" ]; then
     exit 0
-else
+fi
 
 # TODO: make sure no one is accessing this and then remove
 # /usr/bin/dropdb --if-exists sputnik
