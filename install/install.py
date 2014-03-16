@@ -294,7 +294,7 @@ def main():
  
         if not os.path.isdir(dist):
             os.mkdir(dist)
-        os.chdir(os.path.join(here, "..", "dist"))
+        os.chdir(dist)
 
         installer = Installer(profile)    
         
