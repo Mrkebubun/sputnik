@@ -37,7 +37,7 @@ debug = ${debug}
 [administrator]
 webserver_export = tcp://127.0.0.1:4601
 UI_port = 8080
-interface = 127.0.0.1
+interface = ${webserver_interface}
 debug = ${debug}
 
 [safe_price_forwarder]
