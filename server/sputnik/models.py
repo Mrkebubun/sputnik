@@ -86,6 +86,8 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
+    admin_level = Column(Integer, server_default="0")
+    user_level = Column(Integer, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

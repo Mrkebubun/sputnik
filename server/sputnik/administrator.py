@@ -25,7 +25,7 @@ from zope.interface import implements
 
 from twisted.internet import reactor, defer
 from twisted.cred.portal import IRealm, Portal
-from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse, ICredentialsChecker
+from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
 from twisted.cred.credentials import IUsernameHashedPassword
 from twisted.cred import error as credError
 from jinja2 import Environment, FileSystemLoader
@@ -173,6 +173,7 @@ class AdminWebUI(Resource):
         Resource.__init__(self)
 
     def getChild(self, path, request):
+        self.log(request)
         return self
 
     def log(self, request):
@@ -192,33 +193,20 @@ class AdminWebUI(Resource):
                      json.dumps(request.args))
 
     def render(self, request):
-        self.log(request)
-        if request.path is '/':
-            if self.avatarLevel < 1:
-                return self.login_page().encode('utf-8')
-            else:
-                return self.user_list().encode('utf-8')
-        elif request.path == '/audit':
-            # Level 0
-            return self.audit().encode('utf-8')
-        elif request.path is '/user_list' and self.avatarLevel > 0:
-            # Level 1
-            return self.user_list().encode('utf-8')
-        elif request.path == '/adjust_position' and \
-                self.administrator.debug and \
-                self.avatarLevel > 4:
-            # Level 5
-            return self.adjust_position(request).encode('utf-8')
-        elif request.path == '/user_details' and self.avatarLevel > 0:
-            # Level 1
-            return self.user_details(request).encode('utf-8')
-        elif request.path == '/reset_password' and self.avatarLevel > 1:
-            # Level 2
-            return self.reset_password(request).encode('utf-8')
-        else:
-            return "Invalid request: %s" % request.uri
+        resources = [{'/': self.login_page,
+                      '/audit': self.audit},
+                     {'/': self.user_list,
+                      '/user_details': self.user_details},
+                     {'/reset_password': self.reset_password},
+                    {},
+                    {},
+                     {'/adjust_position': self.adjust_position}]
+        resource_list = {}
+        for level in range(0, len(resources) + 1):
+            resource_list.update(resources[level])
 
-    def user_list(self):
+
+    def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
@@ -244,7 +232,7 @@ class AdminWebUI(Resource):
                                            int(request.args['adjustment'][0]))
         return self.user_details(request)
 
-    def audit(self):
+    def audit(self, request):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
         self.administrator.expire_all()
@@ -272,7 +260,7 @@ class PasswordChecker:
     def requestAvatarId(self, credentials):
         username = credentials.username
         try:
-            admin_user = self.session.query(models.Administrator).filter(username=username).one()
+            admin_user = self.session.query(models.User).filter(username=username).one()
         except sqlalchemy.orm.exc.NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such user"))
 
@@ -292,8 +280,8 @@ class SimpleRealm(object):
             if avatarId is checkers.ANONYMOUS:
                 avatarLevel = 0
             else:
-                admin_user = self.session.query(models.Administrator).filter(username=username).one()
-                avatarLevel = admin_user.level
+                user = self.session.query(models.User).filter(username=avatarId).one()
+                avatarLevel = user.admin_level
 
             return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel), lambda: None
         raise NotImplementedError
@@ -333,7 +321,7 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [PasswordChecker(session)]
+    checkers = [PasswordChecker(session), AllowAnonymousAccess()]
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
