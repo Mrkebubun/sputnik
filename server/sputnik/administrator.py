@@ -14,6 +14,7 @@ import config
 import database
 import models
 import collections
+from webserver import ChainedOpenSSLContextFactory
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
@@ -35,12 +36,15 @@ import logging
 import autobahn, string, Crypto.Random.random
 import sqlalchemy.orm.exc
 
+from autobahn.wamp1.protocol import WampCraProtocol
+
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
 
 
 
@@ -65,6 +69,12 @@ class Administrator:
 
     @session_aware
     def make_account(self, username, password):
+        user_count = self.session.query(models.User).count()
+        # TODO: Make this configurable
+        if user_count > 100:
+            logging.error("User limit reached")
+            raise USER_LIMIT_REACHED
+
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
@@ -121,7 +131,7 @@ class Administrator:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password = autobahn.wamp.WampCraProtocol.deriveKey(new_password, extra)
+        password = WampCraProtocol.deriveKey(new_password, extra)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
@@ -325,7 +335,18 @@ if __name__ == "__main__":
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
-    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
-                      interface=config.get("administrator", "interface"))
+    # SSL
+    if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+        reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          contextFactory,
+                          interface=config.get("administrator", "interface"))
+    else:
+        reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          interface=config.get("administrator", "interface"))
+
     reactor.run()
 

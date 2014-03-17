@@ -64,20 +64,19 @@ class Compropago:
     def create_bill(self, charge):
         charge.customer_name = self.make_public_handle(charge.customer_name)
         d = treq.post(self.charge_URL,
-                          data=charge.json(),
-                          headers=self.headers, auth=(self.key, ''))
+                      data=charge.json(),
+                      headers=self.headers, auth=(self.key, ''))
         #todo: handle timeouts, handle non 200 response codes, handle 200: {result: False}, make deferred
         return d.addCallback(treq.json_content)
 
 
     def get_bill(self, payment_id):
-        r = requests.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
-        return r.json()
+        d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
+        return d.addCallback(treq.json_content)
 
     def get_all(self):
-        r = requests.get(self.charge_URL, auth=(self.key, ''))
-        print r.text
-        return r.json()
+        d = treq.get(self.charge_URL, auth=(self.key, ''))
+        return d.addCallback(treq.json_content)
 
     def validate_response(self, payment_info):
         t = lambda x: dict(type=x, required=True)

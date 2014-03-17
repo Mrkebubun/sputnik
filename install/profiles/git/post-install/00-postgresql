@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ -n "$UPGRADE" ]; then
+    exit 0
+fi
+
+# TODO: make sure no one is accessing this and then remove
+# /usr/bin/dropdb --if-exists sputnik
+
 sudo -u postgres psql <<EOF
 create database sputnik;
 create user $profile_user;

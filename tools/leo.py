@@ -7,7 +7,7 @@ import getpass
 import string
 import shlex
 import textwrap
-import autobahn.wamp
+import autobahn.wamp1.protocol
 import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -72,7 +72,7 @@ class AccountManager:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password = autobahn.wamp.WampCraProtocol.deriveKey(secret, extra)
+        password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(secret, extra)
         self.modify(username, "password", "%s:%s" % (salt, password))
 
     def position(self, username, ticker_or_id, value):

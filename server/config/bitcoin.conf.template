@@ -1,7 +1,7 @@
 rpcuser=bitcoinrpc
 rpcpassword=
-datadir=/data/bitcoind
+datadir=${bitcoin_data}
 printtoconsole=1
 gen=0
 maxconnections=10
-testnet=0
+testnet=${testnet}

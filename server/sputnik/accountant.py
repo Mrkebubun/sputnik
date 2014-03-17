@@ -385,13 +385,15 @@ class Accountant:
         :return: whether that succeeded
         """
         try:
-            logging.log('received %d at %s' % (total_received, address))
+            logging.debug('received %d at %s' % (total_received, address))
 
             #query for db objects we want to update
             total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
+            contract = session.query(models.Contract).filter_by(ticker=total_deposited_at_address.currency.upper()).one()
+
             user_cash_position = session.query(models.Position).filter_by(
                 username=total_deposited_at_address.username,
-                contract=total_deposited_at_address.currency).one()
+                contract_id=contract.id).one()
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
@@ -400,7 +402,7 @@ class Accountant:
             # TODO: Put deposit limits into the DB
             # TODO: If a deposit failed, we have to refund the money somehow
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
-            if user_cash_position.postion > deposit_limit:
+            if user_cash_position.position > deposit_limit:
                 logging.error("Deposit failed for address=%s because user exceeded deposit limit=%d" %
                               (address, deposit_limit))
                 return False

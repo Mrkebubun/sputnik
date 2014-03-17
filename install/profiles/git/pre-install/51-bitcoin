@@ -4,12 +4,14 @@ if [ -n "$UPGRADE" ]; then
     exit 0
 fi
 
-chown $profile_user:$profile_bitcoin_user $profile_conf/bitcoin.conf
+# Not running sudo
+#chown $profile_user:$profile_bitcoin_user $profile_conf/bitcoin.conf
 chmod 440 $profile_conf/bitcoin.conf
 
 # set bitcoin home and data dir permissions
 mkdir -p $profile_bitcoin_data
-chown $profile_bitcoin_user:$profile_bitcoin_user $profile_bitcoin_data
+# Not running sudo
+#chown $profile_bitcoin_user:$profile_bitcoin_user $profile_bitcoin_data
 chmod 700 $profile_bitcoin_data $profile_bitcoin_root
 ln -sf $profile_conf/bitcoin.conf $profile_bitcoin_root/bitcoin.conf
 
@@ -17,7 +19,8 @@ USER_HOME=`eval echo ~$profile_user`
 
 # make .bitcoin dir for sputnik
 mkdir -p $USER_HOME/.bitcoin
-chown $profile_user:$profile_user $USER_HOME/.bitcoin
+# Not running sudo
+#chown $profile_user:$profile_user $USER_HOME/.bitcoin
 chmod 700 ~$profile_user/.bitcoin
 ln -sf $profile_conf/bitcoin.conf $USER_HOME/.bitcoin
 

@@ -148,10 +148,9 @@
                 <legend><a id="btc_deposit_address"></a></legend>
                 <div id="btc_deposit_qrcode"></div>
             </div>
-        </div>
-        <div class="modal-footer">
-            <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                    id="new_address_button"><span class="ladda-label">New Address</span></button>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="new_address_button"><span class="ladda-label">New Address</span></button>
+            </div>
         </div>
     </div>
 </div>
@@ -167,7 +166,7 @@
                 <form class="form-signin" role="form">
                     <input type="password" class="form-control" id="old_password" placeholder="Old Password" required>
                     <input type="password" class="form-control" id="new_password" placeholder="New Password" required>
-                    <input type="password" class="form-control" id="new_password_confirm" placeholder="Confirm New Password" required
+                    <input type="password" class="form-control" id="new_password_confirm" placeholder="Confirm New Password" required>
                 </form>
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="change_password_button"><span class="ladda-label">Change Password</span></button>
@@ -274,7 +273,7 @@
                             <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
                                                                               id="buy_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
                     </form>
                 </div>
             </div>
@@ -313,7 +312,7 @@
                             <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
                                                                                id="sell_quantity" placeholder="">
                         </div>
-                        <button type="submit" class="btn btn-warning pull-right" id="sellButton">Sell</button>
+                        <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
                     </form>
                 </div>
             </div>

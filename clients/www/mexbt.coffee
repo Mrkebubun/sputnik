@@ -288,7 +288,7 @@ sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
 
 sputnik.on "profile", (profile) ->
-    $('#profile').text "#{profile.nickname} - #{profile.email} - #{profile.user_hash}"
+    $('#profile').text "#{profile.nickname} AuditKey: #{profile.user_hash}"
 
 sputnik.on "fill", (fill) ->
     alert "Fill Received: #{fill}"

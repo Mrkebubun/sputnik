@@ -30,8 +30,8 @@ from pprint import pprint
 from twisted.python import log
 from twisted.internet import reactor, ssl
 
-from autobahn.websocket import connectWS
-from autobahn.wamp import WampClientFactory, WampCraClientProtocol
+from autobahn.twisted.websocket import connectWS
+from autobahn.wamp1.protocol import WampClientFactory, WampCraClientProtocol
 from datetime import datetime, timedelta
 
 uri = 'ws://localhost:8000'

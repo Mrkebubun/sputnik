@@ -11,7 +11,7 @@ import bitcoinrpc
 from compropago import Compropago
 
 import config
-from zmq_util import dealer_proxy_async
+from zmq_util import push_proxy_async
 import models
 import database as db
 from jsonschema import ValidationError
@@ -40,7 +40,7 @@ class Cashier():
         self.testnet = config.get('cashier', 'testnet')
         self.cold_wallet_address = 'xxxx'
         self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
-        self.accountant = dealer_proxy_async(config.get("accountant", "cashier_export"))
+        self.accountant = push_proxy_async(config.get("accountant", "cashier_export"))
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
@@ -57,13 +57,13 @@ class Cashier():
         logging.info('notifying the accountant that %s received %d' % (address, total_received))
         # note that this is *only* a notification to the accountant. We know at this point
         # that this address has received *at least* total_received. It will be up to the accountant
-        # to update the "accounted_for" column to the total_received value while simulateously
+        # to update the "accounted_for" column to the total_received value while simultaneously
         # increasing a user's position. We might not have caught *all of the deposited* money
         # but that can happen later and we're guaranteed to never miss a deposit in the long run
         # or to double credit someone incorrectly. Increasing "accounted_for" and increasing
         # the position is an atomic transaction. Cashier is *only telling* the accountant
         # what the state of the bitcoin client is.
-        self.accountant.deposit_cash({'address': address, 'total_received': total_received})
+        self.accountant.deposit_cash(address, total_received)
 
     def check_for_crypto_deposits(self, currency='btc'):
         """
@@ -115,7 +115,9 @@ class Cashier():
         @param payment_info: object representing a payment
         """
         address = 'compropago_%s' % payment_info['id']
-        self.notify_accountant(address, payment_info['amount'])
+        # Convert pesos to pesocents
+        # TODO: Actually get the denominator from the DB
+        self.notify_accountant(address, payment_info['amount'] * 100)
 
     def notify_pending_withdrawal(self):
         """
@@ -132,11 +134,12 @@ class CompropagoHook(Resource):
     """
     isLeaf = True
 
-    def __init__(self, cashier_):
+    def __init__(self, cashier_, compropago_):
         Resource.__init__(self)
         self.cashier = cashier_
+        self.compropago = compropago_
 
-    def render_POST(self, request):
+    def render(self, request):
         """
         Compropago will post transaction details to us
         @param request: a json object representing the transaction details
@@ -155,6 +158,15 @@ class CompropagoHook(Resource):
             logging.error("Error in the input %s" % json_string)
             return ErrorPage()
 
+        # TODO: Go back to cgo and make sure they have this payment
+        # id = response['id']
+        # d = self.compropago.get_bill(id)
+        # TODO: Add verification of what compropago sends back
+        # d.addCallback(self.compropago.validate_response)
+        # def error(result):
+        #     logging.error("Error in the input %s" % error)
+        #     return ErrorPage()
+        # d.addCallbacks(self.cashier.process_compropago_payment, error)
 
 
         return "OK"
@@ -186,15 +198,16 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
+    compropago = Compropago(config.get("cashier", "compropago_key"))
 
     public_server = Resource()
-    public_server.putChild('compropago', CompropagoHook(cashier))
+    public_server.putChild('compropago', CompropagoHook(cashier, compropago))
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
-    reactor.listenTCP(config.get("cashier", "public_port"), Site(public_server),
+    reactor.listenTCP(config.getint("cashier", "public_port"), Site(public_server),
                       interface=config.get("cashier", "public_interface"))
-    reactor.listenTCP(config.get("cashier", "private_port"), Site(private_server),
+    reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 
     reactor.run()
