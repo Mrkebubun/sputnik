@@ -156,7 +156,7 @@ class CompropagoHook(Resource):
             self.cashier.process_compropago_payment(payment_info)
         except ValidationError:
             logging.error("Error in the input %s" % json_string)
-            return ErrorPage()
+            return ErrorPage(500, json_string, "")
 
         # TODO: Go back to cgo and make sure they have this payment
         # id = response['id']
