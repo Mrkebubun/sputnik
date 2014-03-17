@@ -565,6 +565,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.compropago.create_bill(c)
 
         def process_bill(bill):
+            self.factory.compropago.validate_bill(bill)
+
             # do not return bill as the payment_id should remain private to us
             def save_bill(txn):
                 payment_id = bill['payment_id']

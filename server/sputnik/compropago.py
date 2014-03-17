@@ -40,7 +40,6 @@ class Charge:
 
 
 class Compropago:
-
     def make_public_handle(self, username):
         iv = Random.new().read(AES.block_size)
         return (iv + AES.new(self.aes_key, AES.MODE_CBC, iv).encrypt(self.pad(username))).encode('hex')
@@ -69,6 +68,39 @@ class Compropago:
         #todo: handle timeouts, handle non 200 response codes, handle 200: {result: False}, make deferred
         return d.addCallback(treq.json_content)
 
+    def validate_bill(self, bill):
+        t = lambda x: dict(type=x, required=True)
+        validate(bill, {
+            'type': 'object',
+            'required': True,
+            'properties': {
+                'creation_date': t('string'),
+                'expiration_date': t('string'),
+                'payment_id': t('string'),
+                'payment_instructions': {'type': 'object',
+                                         'required': True,
+                                         'properties': {
+                                             'description': t('string'),
+                                             'note_confirmation': t('string'),
+                                             'note_expiration_date': t('string'),
+                                             'step_1': t('string'),
+                                             'step_2': t('string'),
+                                             'step_3': t('string')
+                                         }
+                                         },
+                'payment_status': t('string'),
+                'product_information': {'type': 'object',
+                                        'required': True,
+                                        'properties': {
+                                            'product_id': t('string'),
+                                            'product_name': t('string'),
+                                            'product_price': t('string')
+                                        }
+                },
+                'short_payment_id': t('string')
+                }
+        })
+        return bill
 
     def get_bill(self, payment_id):
         d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
@@ -82,20 +114,12 @@ class Compropago:
         t = lambda x: dict(type=x, required=True)
         validate(payment_info, {
             'type': 'object',
-            'properties': {
-                'object': t('string'),
-                'type': {'type': ['string', 'null']},
-                'data': {'type': 'object',
-                         'required': True,
-                         'properties': {
-                             'object': {'type': 'object',
-                                        'required': True,
+            'required': True,
+
                                         'properties': {
                                             'id': t('string'),
-                                            'short_id': t('string'),
-                                            'store_mode': t('string'),
                                             'object': t('string'),
-                                            'created': t('string'),
+                                            'created_at': t('string'),
                                             'paid': t('boolean'),
                                             'amount': t('string'),
                                             'currency': t('string'),
@@ -123,7 +147,7 @@ class Compropago:
                                                                     'success_url': t('string'),
                                                                     'customer_name': t('string'),
                                                                     'customer_email': t('string'),
-                                                                    'customer_phone': t('string'),
+                                                                    'customer_phone': t('string')
                                                                 }
                                             },
                                             'captured': t('boolean'),
@@ -132,8 +156,8 @@ class Compropago:
                                             'amount_refunded': t('number'),
                                             'description': t('string'),
                                             'dispute': {'type': ['string', 'null'], 'required': True}
-                                        }}}}}})
-        return payment_info['data']['object']
+                                        }})
+        return payment_info
 
 
 # 'sk_test_5b82f569d4833add'
