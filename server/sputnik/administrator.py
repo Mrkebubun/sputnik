@@ -14,6 +14,7 @@ import config
 import database
 import models
 import collections
+from webserver import ChainedOpenSSLContextFactory
 
 from zmq_util import export, router_share_async, dealer_proxy_async
 
@@ -307,7 +308,18 @@ if __name__ == "__main__":
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
-    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
-                      interface=config.get("administrator", "interface"))
+    # SSL
+    if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+        reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          contextFactory,
+                          interface=config.get("administrator", "interface"))
+    else:
+        reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          interface=config.get("administrator", "interface"))
+
     reactor.run()
 
