@@ -48,7 +48,7 @@ class Accountant:
         for contract in session.query(models.Contract).filter_by(
                 active=True).all():
             try:
-                last_trade = session.query(models.Trade).filter_by(
+                last_trade = self.session.query(models.Trade).filter_by(
                     contract=contract).order_by(
                     models.Trade.timestamp.desc()).first()
                 self.safe_prices[contract.ticker] = int(last_trade.price)
@@ -111,14 +111,24 @@ class Accountant:
         position = self.get_position(username, contract)
         old_position = position.position
         position.position += adjustment
+
+        adjustment_position = self.get_position('system', contract)
+
+        journal = models.Journal('Adjustment')
+        credit = models.Posting(journal, position, adjustment)
+        debit = models.Posting(journal, adjustment_position, adjustment)
+
         try:
-            session.add(position)
-            session.commit()
+            self.session.add(journal)
+            self.session.add(credit)
+            self.session.add(debit)
+            self.session.add(position)
+            self.session.commit()
             logging.info("Position for %s/%s modified from %d to %d" %
                          (username, contract, old_position, position.position))
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
-            session.rollback()
+            self.session.rollback()
 
     def get_position(self, username, contract, reference_price=0):
         """
@@ -168,18 +178,18 @@ class Accountant:
             #   rejected, using an enum
 
             logging.info("Order rejected due to margin.")
-            session.delete(order)
-            session.commit()
+            self.session.delete(order)
+            self.session.commit()
             return False
         else:
             logging.info("Order accepted.")
             order.accepted = True
-            session.merge(order)
-            session.commit()
+            self.session.merge(order)
+            self.session.commit()
             return True
 
 
-    def credit_fees(self, fees):
+    def charge_fees(self, fees, username):
         """
         Credit fees to the people operating the exchange
         """
@@ -187,9 +197,16 @@ class Accountant:
 
         # Make sure the vendorshares is less than or equal to 1.0
         assert(sum(self.vendor_share_config.values()) <= 1.0)
+        journal = models.Journal('Fee')
 
         for ticker, fee in fees.iteritems():
             remaining_fee = fee
+            user_position = self.get_position(username, ticker)
+            debit = models.Posting(journal, user_position, -fee)
+            user_position.position -= fee
+            self.session.add(debit)
+            self.session.add(user_position)
+
             for vendor_name, vendor_share in self.vendor_share_config.iteritems():
                 vendor_position = self.get_position(vendor_name, ticker)
                 vendor_credit = int(fee * vendor_share)
@@ -198,7 +215,9 @@ class Accountant:
                 self.webserver.fee(vendor_name, {'contract': ticker,
                                                  'position': -vendor_credit,
                                                  'reference_price': 0})
-                session.add(vendor_position)
+                credit = models.Posting(journal, vendor_position, vendor_credit)
+                self.session.add(vendor_position)
+                self.session.add(credit)
                 logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
 
             # There might be some fee leftover due to rounding,
@@ -208,7 +227,11 @@ class Accountant:
             remainder_account_position = self.get_position('remainder', ticker)
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             remainder_account_position.position += remaining_fee
-            session.add(remainder_account_position)
+            credit = models.Posting(journal, remainder_account_position, remaining_fee)
+            self.session.add(credit)
+            self.session.add(remainder_account_position)
+
+        self.session.commit()
 
     def post_transaction(self, transaction):
         """
@@ -218,54 +241,66 @@ class Accountant:
         """
         logging.info("Processing transaction %s." % transaction)
 
-        username = transaction["username"]
+        aggressive_username = transaction["aggressive_username"]
+        passive_username = transaction["passive_username"]
         ticker = transaction["contract"]
         price = transaction["price"]
-        signed_quantity = transaction["signed_quantity"]
         quantity = transaction["quantity"]
-        order_id = transaction["order_id"]
+        aggressive_order_id = transaction["aggressive_order_id"]
+        passive_order_id = transaction["passive_order_id"]
         side = transaction["side"]
         timestamp = transaction["timestamp"]
+        journal = models.Journal('Trade', timestamp=timestamp,
+                                 notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
+                                                                       passive_order_id))
 
         contract = self.get_contract(ticker)
 
         if contract.contract_type == "futures":
-            logging.debug("This is a futures trade.")
-            cash_position = self.get_position(username, "BTC")
-            future_position = self.get_position(username, ticker, price)
+            raise NotImplementedError
 
-            # mark to current price as if everything had been entered at that
-            #   price and profit had been realized
-            cash_position.position += \
-                (price - future_position.reference_price) * \
-                future_position.position
-            future_position.reference_price = price
-
-            # note that even though we're transferring money to the account,
-            #   this money may not be withdrawable because the margin will
-            #   raise depending on the distance of the price to the safe price
-
-            # then change the quantity
-            future_position.position += signed_quantity
-
-            session.merge(cash_position)
-            session.merge(future_position)
-
-            # TODO: Implement fees
-            fees = None
+            # logging.debug("This is a futures trade.")
+            # aggressive_cash_position = self.get_position(aggressive_username, "BTC")
+            # aggressive_future_position = self.get_position(aggressive_username, ticker, price)
+            #
+            # # mark to current price as if everything had been entered at that
+            # #   price and profit had been realized
+            # aggressive_cash_position.position += \
+            #     (price - aggressive_future_position.reference_price) * \
+            #     aggressive_future_position.position
+            # aggressive_future_position.reference_price = price
+            # aggressive_cash_position.position += \
+            #     (price - aggressive_future_position.reference_price) * \
+            #     aggressive_future_position.position
+            # aggressive_future_position.reference_price = price
+            #
+            # # note that even though we're transferring money to the account,
+            # #   this money may not be withdrawable because the margin will
+            # #   raise depending on the distance of the price to the safe price
+            #
+            # # then change the quantity
+            # future_position.position += signed_quantity
+            #
+            # self.session.merge(cash_position)
+            # self.session.merge(future_position)
+            #
+            # # TODO: Implement fees
+            # fees = None
 
         elif contract.contract_type == "prediction":
-            cash_position = self.get_position(username, "BTC")
-            prediction_position = self.get_position(username, ticker)
+            raise NotImplementedError
 
-            cash_position.position -= signed_quantity * price
-            prediction_position.position += signed_quantity
-
-            session.merge(cash_position)
-            session.merge(prediction_position)
-
-            # TODO: Implement fees
-            fees = None
+            # cash_position = self.get_position(username, "BTC")
+            # prediction_position = self.get_position(username, ticker)
+            #
+            # cash_position.position -= signed_quantity * price
+            # prediction_position.position += signed_quantity
+            #
+            # self.session.merge(cash_position)
+            # self.session.merge(prediction_position)
+            #
+            # # TODO: Implement fees
+            # fees = None
 
         elif contract.contract_type == "cash_pair":
             from_currency_ticker, to_currency_ticker = util.split_pair(ticker)
@@ -273,52 +308,90 @@ class Accountant:
             from_currency = self.get_contract(from_currency_ticker)
             to_currency = self.get_contract(to_currency_ticker)
 
-            from_position = self.get_position(username, from_currency)
-            to_position = self.get_position(username, to_currency)
-
-            from_delta_float = float(signed_quantity * price) / \
+            from_quantity_float = float(quantity * price) / \
                                (contract.denominator * to_currency.denominator)
-            from_delta_int = int(from_delta_float)
-            if from_delta_float != from_delta_int:
+            from_quantity_int = int(from_quantity_float)
+            if from_quantity_float != from_quantity_int:
                 logging.error("Position change is not an integer.")
 
-            from_position.position -= from_delta_int
-            to_position.position += signed_quantity
+            # Aggressive user
+            aggressive_from_position = self.get_position(aggressive_username, from_currency)
+            aggressive_to_position = self.get_position(aggressive_username, to_currency)
+
+            passive_from_position = self.get_position(passive_username, from_currency)
+            passive_to_position = self.get_position(passive_username, to_currency)
+
+            if side == 'BUY':
+                sign = 1
+            else:
+                sign = -1
+
+            aggressive_from_position.position -= sign * from_quantity_int
+            aggressive_debit = models.Posting(journal, aggressive_from_position, -sign * from_quantity_int)
+            aggressive_to_position.position += sign * quantity
+            aggressive_credit = models.Posting(journal, aggressive_from_position, sign * quantity)
+
+            passive_from_position.position += sign * from_quantity_int
+            passive_credit = models.Posting(journal, passive_from_position, sign * from_quantity_int)
+            passive_to_position.position -= sign * quantity
+            passive_debit = models.Posting(journal, passive_to_position, sign * quantity)
+
+            self.session.add(aggressive_from_position)
+            self.session.add(aggressive_to_position)
+            self.session.add(passive_from_position)
+            self.session.add(passive_to_position)
+
+            # Double-entry
+            self.session.add(passive_debit)
+            self.session.add(passive_credit)
+            self.session.add(aggressive_credit)
+            self.session.add(aggressive_debit)
+            self.session.add(journal)
+            self.session.commit()
 
             # TODO: Move this fee logic outside of "if cash_pair"
-            fees = util.get_fees(username, contract, abs(from_delta_int))
+            aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
+            passive_fees = util.get_fees(passive_username, contract, abs(from_quantity_int))
+
 
             # Credit fees to vendor
-            self.credit_fees(fees)
+            self.charge_fees(aggressive_fees, aggressive_username)
+            self.charge_fees(passive_fees, passive_username)
 
-            # Deduct fees from user
-            if from_currency_ticker in fees:
-                from_position.position -= fees[from_currency_ticker]
-                logging.debug("Deducting %d %s from user %s" % (fees[from_currency_ticker], from_currency_ticker,
-                                                                username))
-            if to_currency_ticker in fees:
-                to_position.position -= fees[to_currency_ticker]
-                logging.debug("Deducting %d %s from user %s" % (fees[to_currency_ticker], to_currency_ticker, username))
+            aggressive_fill = {'contract': ticker,
+                               'id': aggressive_order_id,
+                               'quantity': quantity,
+                               'price': price,
+                               'side': side,
+                               'timestamp': timestamp,
+                               'fees': aggressive_fees
+            }
+            self.webserver.fill(aggressive_username, aggressive_fill)
+            logging.debug('to ws: ' + str({"fills": [aggressive_username, aggressive_fill]}))
 
-            session.add(from_position)
-            session.add(to_position)
+            if side == 'SELL':
+                passive_side = 'BUY'
+            else:
+                passive_side = 'SELL'
+
+            passive_fill = {'contract': ticker,
+                 'id': passive_order_id,
+                 'quantity': quantity,
+                 'price': price,
+                 'side': passive_side,
+                 'timestamp': timestamp,
+                 'fees': passive_fees
+                }
+            self.webserver.fill(passive_username, passive_fill)
+            logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
 
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
 
-        fill = {'contract': ticker,
-             'id': order_id,
-             'quantity': quantity,
-             'price': price,
-             'side': side,
-             'timestamp': timestamp,
-             'fees': fees
-            }
-        self.webserver.fill(username, fill)
-        logging.debug('to ws: ' + str({"fills": [username, fill]}))
 
-        session.commit()
+
+
 
 
     def cancel_order(self, order_id):

@@ -9,6 +9,7 @@ from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
 import util
 import hashlib
 import base64
+import collections
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
@@ -118,6 +119,46 @@ class User(db.Base):
         return {"username": self.username, "password": self.password,
                 "email": self.email, "nickname":self.nickname}
 
+class Journal(db.Base):
+    __tablename__ = 'journal'
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+
+    id = Column(Integer, primary_key=True)
+    type = Column(String, Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
+                               'Trade', 'Fee',
+                               name='journal_types'), nullable=False)
+    timestamp = Column(DateTime)
+    notes = Column(String)
+    postings = relationship('Posting', back_populates="journal")
+
+    def __init__(self, type, timestamp=datetime.utcnow(), notes=None):
+        self.type = type
+        self.timestamp = timestamp
+        self.notes = None
+
+    def audit(self):
+        sums = collections.defaultdict(collections.defaultdict(int))
+        for posting in self.postings:
+            contract_name = posting.position.contract.ticker
+            position_type = posting.position.position_type
+            sums[contract_name][position_type] += posting.quantity
+
+
+class Posting(db.Base):
+    __tablename__ = 'posting'
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+
+    id = Column(Integer, primary_key=True)
+    journal_id = Column(Integer, ForeignKey('journal.id'))
+    journal = relationship('Journal')
+    position_id = Column(Integer, ForeignKey('positions.id'))
+    position = relationship('Position')
+    quantity = Column(BigInteger)
+
+    def __init__(self, journal, position, quantity):
+        self.journal = journal
+        self.position = position
+        self.quantity = quantity
 
 class Addresses(db.Base):
     """
@@ -147,7 +188,8 @@ class Addresses(db.Base):
 class Position(db.Base):
     __tablename__ = 'positions'
 
-    __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
+    __table_args__ = (schema.UniqueConstraint('username', 'contract_id', 'position_type',
+                                              'description'),
             {'extend_existing': True, 'sqlite_autoincrement': True})
 
     id = Column(Integer, primary_key=True)
@@ -157,6 +199,8 @@ class Position(db.Base):
     contract = relationship('Contract')
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
+    position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
+    description = Column(String)
 
     def __init__(self, user, contract, position=0):
         self.user, self.contract = user, contract
