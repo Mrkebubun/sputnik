@@ -36,7 +36,7 @@ class Accountant:
         self.debug = debug
         self.btc = self.get_contract("BTC")
         # TODO: Get deposit limits from DB
-        self.deposit_limits = { 'btc': 1000000,
+        self.deposit_limits = { 'btc': 10000000,
                                 'mxn': 600000
         }
         # TODO: Make this configurable
