@@ -5,7 +5,7 @@ import logging
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 
 import bitcoinrpc
 from compropago import Compropago
@@ -16,6 +16,7 @@ import models
 import database as db
 from jsonschema import ValidationError
 
+from OpenSSL import SSL
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -44,7 +45,7 @@ class Cashier():
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
-        self.compropago = Compropago(self)
+        self.compropago = Compropago(config.get("cashier", "compropago_key"))
 
     def notify_accountant(self, address, total_received):
         # tells the accountant an address has an updated "total received" amount
@@ -64,6 +65,27 @@ class Cashier():
         # the position is an atomic transaction. Cashier is *only telling* the accountant
         # what the state of the bitcoin client is.
         self.accountant.deposit_cash(address, total_received)
+
+    def update_address(self, address):
+        # TODO: find a better way of doing this
+        if address.startswith("compropago"):
+            payment_id = address.split("_", 1)[1]
+            def error(failure):
+                logging.warn("Could not get bill for id: %s. %s" % (payment_id, str(failure)))
+
+            # Fetch the REAL bill from Compropago.
+            d = self.compropago.get_bill(payment_id)
+            d.addCallbacks(self.process_compropago_payment, error)
+
+            # You can add an errback for process_compropago_payment here.
+            # Alternatively, error handle inside the method itself (recommended)
+        else:
+            # TODO: do not assume BTC
+            # TODO: add error checks
+            total_received = self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations)
+            accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
+            if total_received > accounted_for:
+                self.notify_accountant(address, total_received)
 
     def check_for_crypto_deposits(self, currency='btc'):
         """
@@ -134,10 +156,10 @@ class CompropagoHook(Resource):
     """
     isLeaf = True
 
-    def __init__(self, cashier_, compropago_):
+    def __init__(self, cashier):
         Resource.__init__(self)
-        self.cashier = cashier_
-        self.compropago = compropago_
+        self.cashier = cashier
+        self.compropago = cashier.compropago
 
     def render(self, request):
         """
@@ -146,28 +168,18 @@ class CompropagoHook(Resource):
         @return: anything as long as it's code 200
         """
         json_string = request.content.getvalue()
-        #todo: re-request from compropago ourselves to avoid being fed
-        #spoofed information
-
-        logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
         try:
-            logging.info('validating the response')
-            payment_info = self.compropago.validate_response(json.loads(json_string))
-            self.cashier.process_compropago_payment(payment_info)
-        except ValidationError:
-            logging.error("Error in the input %s" % json_string)
-            return ErrorPage(500, json_string, "")
+            cgo_notification = json.loads(json_string)
+            bill = self.compropago.parse_existing_bill(cgo_notification)
+        except ValueError:
+            logging.warn("Received undecodable object from Compropago: %s" % json_string)
+            return "OK"
+        except:
+            logging.warn("Received unexpected object from Compropago: %s" % json_string)
+            return "OK"
 
-        # TODO: Go back to cgo and make sure they have this payment
-        # id = response['id']
-        # d = self.compropago.get_bill(id)
-        # TODO: Add verification of what compropago sends back
-        # d.addCallback(self.compropago.validate_response)
-        # def error(result):
-        #     logging.error("Error in the input %s" % error)
-        #     return ErrorPage()
-        # d.addCallbacks(self.cashier.process_compropago_payment, error)
-
+        payment_id = bill["id"]
+        self.cashier.update_address("compropago_" + payment_id)
 
         return "OK"
 
@@ -194,19 +206,48 @@ class BitcoinNotify(Resource):
         return "OK"
 
 
+class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
+    def __init__(self, privateKeyFileName, certificateChainFileName,
+                 sslmethod=SSL.SSLv23_METHOD):
+        self.privateKeyFileName = privateKeyFileName
+        self.certificateChainFileName = certificateChainFileName
+        self.sslmethod = sslmethod
+        self.cacheContext()
+
+    def cacheContext(self):
+        ctx = SSL.Context(self.sslmethod)
+        ctx.use_certificate_chain_file(self.certificateChainFileName)
+        ctx.use_privatekey_file(self.privateKeyFileName)
+        self._context = ctx
+
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
-    compropago = Compropago(config.get("cashier", "compropago_key"))
 
     public_server = Resource()
-    public_server.putChild('compropago', CompropagoHook(cashier, compropago))
+    public_server.putChild('compropago', CompropagoHook(cashier))
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
-    reactor.listenTCP(config.getint("cashier", "public_port"), Site(public_server),
+
+    key = config.get("webserver", "ssl_key")
+    cert = config.get("webserver", "ssl_cert")
+    cert_chain = config.get("webserver", "ssl_cert_chain")
+    # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+    contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+
+    if config.getboolean("webserver", "ssl"):
+        reactor.listenSSL(config.getint("cashier", "public_port"),
+                      Site(public_server), contextFactory,
                       interface=config.get("cashier", "public_interface"))
+    else:
+        reactor.listenTCP(config.getint("cashier", "public_port"),
+                      Site(public_server),
+                      interface=config.get("cashier", "public_interface"))
+        
     reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 

@@ -565,8 +565,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.compropago.create_bill(c)
 
         def process_bill(bill):
-            self.factory.compropago.validate_bill(bill)
-
             # do not return bill as the payment_id should remain private to us
             def save_bill(txn):
                 payment_id = bill['payment_id']
@@ -577,8 +575,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             return dbpool.runInteraction(save_bill)
 
+        def error(failure):
+            logging.warn("Could not create bill: %s" % str(failure))
+            # TODO: set a correct error code
+            return [False, (0, "We are unable to connect to Compropago. Please try again later. We are sorry for the inconvenience.")]
+
         d.addCallback(process_bill)
-        d.addErrback(lambda e: [False, (0, str(e))])
+        d.addErrback(error)
         return d
 
 
@@ -964,7 +967,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
 
-        self.compropago = compropago.Compropago("sk_test_5b82f569d4833add")
+        self.compropago = compropago.Compropago(config.get("cashier", "compropago_key"))
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):

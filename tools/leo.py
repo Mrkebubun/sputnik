@@ -172,9 +172,25 @@ class AddressManager:
     def __init__(self, session):
         self.session = session
 
-    def add(self, address):
-        address = models.Addresses(None, "btc", address)
+    def add(self, currency, address):
+        address = models.Addresses(None, currency, address)
         self.session.add(address)
+
+    def list(self, currency):
+        addresses = self.session.query(models.Addresses).filter_by(
+                currency=currency).all()
+        for address in addresses:
+            print address.address
+       
+    def query(self, currency, address):
+        address = self.session.query(models.Addresses).filter_by(
+                currency=currency, address=address).one()
+        print "Address: %s" % address.address
+        print "\tActive: %s" % address.active
+        print "\tCurrency: %s" % address.currency
+        if address.user != None:
+            print "\tBelongs to: %s" % address.user.username
+        print "\tAccounted for: %s" % address.accounted_for
 
 class DatabaseManager:
     def __init__(self, session):
