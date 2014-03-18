@@ -109,7 +109,7 @@ class Accountant:
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         position = self.get_position(username, contract)
-        adjustment_position = self.get_position('system', contract)
+        adjustment_position = self.get_position('adjustments', contract)
 
         journal = models.Journal('Adjustment')
 
@@ -131,7 +131,7 @@ class Accountant:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
 
-    def get_position(self, username, contract, reference_price=0):
+    def get_position(self, username, ticker, reference_price=0):
         """
         Return a user's position for a contact. If it does not exist,
             initialize it.
@@ -141,10 +141,10 @@ class Accountant:
         :return: the position object
         """
         logging.debug("Looking up position for %s on %s." %
-                      (username, contract))
+                      (username, ticker))
 
         user = self.get_user(username)
-        contract = self.get_contract(contract)
+        contract = self.get_contract(ticker)
 
         try:
             return self.session.query(models.Position).filter_by(
@@ -338,12 +338,16 @@ class Accountant:
             passive_debit = models.Posting(journal, passive_to_position, sign * quantity, 'debit')
 
             # Double-entry
-            self.session.add(passive_debit)
-            self.session.add(passive_credit)
-            self.session.add(aggressive_credit)
-            self.session.add(aggressive_debit)
-            self.session.add(journal)
-            logging.info("Journal Entry: %s" % journal)
+            self.session.add_all([passive_debit,
+                                  passive_credit,
+                                  aggressive_debit,
+                                  aggressive_credit,
+                                  passive_from_position,
+                                  passive_to_position,
+                                  aggressive_from_position,
+                                  aggressive_to_position,
+                                  journal])
+            logging.info("Journal: %s" % journal)
             self.session.commit()
 
             # TODO: Move this fee logic outside of "if cash_pair"
@@ -442,6 +446,20 @@ class Accountant:
             # TODO: Fix to use exceptions
             return [False, (0, "Not enough margin")]
 
+    def transfer_position(self, ticker, from_user, to_user, quantity):
+        try:
+            journal = models.Journal('Transfer')
+            from_position = self.get_position(from_user, ticker)
+            to_position = self.get_position(to_user, ticker)
+            debit = models.Posting(journal, from_position, quantity, 'debit')
+            credit = models.Posting(journal, to_position, quantity, 'credit')
+            self.session.add_all([from_position, to_position, debit, credit, journal])
+            self.session.commit()
+            logging.info("Journal: %s" % journal)
+        except Exception as e:
+            logging.error("Transfer position failed: %s" % e)
+            self.session.rollback()
+
     def deposit_cash(self, address, total_received):
         """
         Deposits cash
@@ -462,22 +480,26 @@ class Accountant:
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
-            user_cash_position.position += deposit
+            journal = models.Journal('Deposit')
+            bank_position = self.get_position('cash', contract.ticker)
+            debit = models.Posting(journal, bank_position, deposit, 'debit')
 
             # TODO: Put deposit limits into the DB
-            # TODO: If a deposit failed, we have to refund the money somehow
+            # TODO: If a deposit failed, it goes into the 'deposit_overflow' account
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
-            if new_position > deposit_limit:
+            if user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                session.commit()
-
-                return False
+                overflow_position = self.get_position('deposit_overflow', contract.ticker)
+                credit = models.Posting(journal, overflow_position, deposit, 'credit')
+                self.session.add(overflow_position)
             else:
-                user_cash_position.position = new_position
-                session.add(user_cash_position)
-                session.commit()
-                return True
+                credit = models.Posting(journal, user_cash_position, deposit, 'credit')
+                self.session.add(user_cash_position)
+
+            self.session.add_all([debit, credit, journal])
+            self.session.commit()
+            logging.info("Journal: %s" % journal)
         except:
             session.rollback()
             logging.error(
