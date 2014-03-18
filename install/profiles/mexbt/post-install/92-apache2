@@ -4,9 +4,9 @@ cp $PROFILE/res/https-redirect /etc/apache2/conf.d
 a2enmod ssl
 a2ensite default-ssl
 
-sed -i "s|^.*SSLCertificateFile.*$|SSLCertificateFile ${profile_keys}\/server.crt|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^.*SSLCertificateKeyFile.*$|SSLCertificateKeyFile ${profile_keys}\/server.key|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^.*SSLCertificateChainFile.*$|SSLCertificateChainFile ${profile_keys}\/server.chain|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^.*ServerName.*$|ServerName ${profile_webserver_address}|" /etc/apache2/sites-available/000-default.conf
+sed -i "s|^(\s*)#?SSLCertificateFile.*\.pem$|\1SSLCertificateFile ${profile_keys}\/server.crt|" /etc/apache2/sites-available/default-ssl.conf
+sed -i "s|^(\s*)#?SSLCertificateKeyFile.*\.key$|\1SSLCertificateKeyFile ${profile_keys}\/server.key|" /etc/apache2/sites-available/default-ssl.conf
+sed -i "s|^(\s*)#?SSLCertificateChainFile.*\.crt$|\1SSLCertificateChainFile ${profile_keys}\/server.chain|" /etc/apache2/sites-available/default-ssl.conf
+sed -i "s|^(\s*)#?ServerName.*$|\1ServerName ${profile_webserver_address}|" /etc/apache2/sites-available/000-default.conf
 
 service apache2 restart
