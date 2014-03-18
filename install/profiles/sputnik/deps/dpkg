@@ -8,3 +8,4 @@ python-psycopg2
 sudo
 supervisor
 binfmt-support
+curl

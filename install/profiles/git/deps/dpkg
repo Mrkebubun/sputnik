@@ -5,3 +5,4 @@ python-psycopg2
 sudo
 supervisor
 postgresql
+curl
