@@ -279,6 +279,7 @@ def main():
     profile = options.profile or os.environ.get("PROFILE")
     if profile:
         profile = os.path.abspath(profile)
+        os.environ["PROFILE"] = profile
 
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
