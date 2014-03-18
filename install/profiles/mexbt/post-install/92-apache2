@@ -2,11 +2,12 @@
 
 cp $PROFILE/res/https-redirect /etc/apache2/conf.d
 a2enmod ssl
-a2ensite default-ssl
+a2dissite 000-default
 
-sed -i "s|^(\s*)#?SSLCertificateFile.*\.pem$|\1SSLCertificateFile ${profile_keys}\/server.crt|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^(\s*)#?SSLCertificateKeyFile.*\.key$|\1SSLCertificateKeyFile ${profile_keys}\/server.key|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^(\s*)#?SSLCertificateChainFile.*\.crt$|\1SSLCertificateChainFile ${profile_keys}\/server.chain|" /etc/apache2/sites-available/default-ssl.conf
-sed -i "s|^(\s*)#?ServerName.*$|\1ServerName ${profile_webserver_address}|" /etc/apache2/sites-available/000-default.conf
+sed -e "s|SERVER_NAME|${profile_webserver_address}|" $PROFILE/res/000-default.conf > /etc/apache2/sites-available/sputnik.conf
+sed -e "s|KEYS_DIRECTORY|${profile_keys}|" $PROFILE/res/default-ssl.conf > /etc/apache2/sites-available/sputnik-ssl.conf
+
+a2ensite sputnik
+a2ensite sputnik-ssl
 
 service apache2 restart
