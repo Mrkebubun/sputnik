@@ -5,7 +5,7 @@ import logging
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 
 import bitcoinrpc
 from compropago import Compropago
@@ -16,6 +16,7 @@ import models
 import database as db
 from jsonschema import ValidationError
 
+from OpenSSL import SSL
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -151,6 +152,7 @@ class CompropagoHook(Resource):
             bill = self.compropago.parse_existing_bill(cgo_notification)
         except ValueError:
             logging.warn("Received undecodable object from Compropago: %s" % json_string)
+            return "OK"
         except:
             logging.warn("Received unexpected object from Compropago: %s" % json_string)
             return "OK"
@@ -192,6 +194,22 @@ class BitcoinNotify(Resource):
         return "OK"
 
 
+class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
+    def __init__(self, privateKeyFileName, certificateChainFileName,
+                 sslmethod=SSL.SSLv23_METHOD):
+        self.privateKeyFileName = privateKeyFileName
+        self.certificateChainFileName = certificateChainFileName
+        self.sslmethod = sslmethod
+        self.cacheContext()
+
+    def cacheContext(self):
+        ctx = SSL.Context(self.sslmethod)
+        ctx.use_certificate_chain_file(self.certificateChainFileName)
+        ctx.use_privatekey_file(self.privateKeyFileName)
+        self._context = ctx
+
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
@@ -203,7 +221,15 @@ if __name__ == '__main__':
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
-    reactor.listenTCP(config.getint("cashier", "public_port"), Site(public_server),
+
+    key = config.get("webserver", "ssl_key")
+    cert = config.get("webserver", "ssl_cert")
+    cert_chain = config.get("webserver", "ssl_cert_chain")
+    # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+    contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+
+    reactor.listenSSL(config.getint("cashier", "public_port"),
+                      Site(public_server), contextFactory,
                       interface=config.get("cashier", "public_interface"))
     reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
