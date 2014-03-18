@@ -304,7 +304,7 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='admin')]
+    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='lFRAwzNkNeo')]
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
