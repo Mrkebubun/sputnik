@@ -5,7 +5,7 @@ public_interface = 127.0.0.1
 private_port = 8282
 private_interface = 127.0.0.1
 testnet = ${testnet}
-compropago_key = KEY
+compropago_key = ${compropago_key}
 
 [engine]
 base_port = 4200
@@ -36,8 +36,8 @@ debug = ${debug}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4601
-UI_port = 8080
-interface = 127.0.0.1
+UI_port = ${administrator_port}
+interface = ${webserver_interface}
 debug = ${debug}
 
 [safe_price_forwarder]

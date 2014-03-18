@@ -4,4 +4,3 @@ datadir=${bitcoin_data}
 printtoconsole=1
 gen=0
 maxconnections=10
-testnet=${testnet}

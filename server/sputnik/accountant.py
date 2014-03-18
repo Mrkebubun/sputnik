@@ -36,7 +36,7 @@ class Accountant:
         self.debug = debug
         self.btc = self.get_contract("BTC")
         # TODO: Get deposit limits from DB
-        self.deposit_limits = { 'btc': 1000000,
+        self.deposit_limits = { 'btc': 10000000,
                                 'mxn': 600000
         }
         # TODO: Make this configurable
@@ -462,23 +462,22 @@ class Accountant:
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
-
-            journal = models.Journal('Deposit')
+            user_cash_position.position += deposit
 
             # TODO: Put deposit limits into the DB
             # TODO: If a deposit failed, we have to refund the money somehow
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
-            if user_cash_position.position > deposit_limit:
-                logging.error("Deposit failed for address=%s because user exceeded deposit limit=%d" %
-                              (address, deposit_limit))
+            if new_position > deposit_limit:
+                logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
+                              (deposit, address, total_deposited_at_address.username, deposit_limit))
+                session.commit()
+
                 return False
-
-            total_deposited_at_address.accounted_for = total_received
-            session.add(total_deposited_at_address)
-            session.add(user_cash_position)
-            session.commit()
-
-            return True
+            else:
+                user_cash_position.position = new_position
+                session.add(user_cash_position)
+                session.commit()
+                return True
         except:
             session.rollback()
             logging.error(
