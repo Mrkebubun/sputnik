@@ -146,28 +146,26 @@ class CompropagoHook(Resource):
         @return: anything as long as it's code 200
         """
         json_string = request.content.getvalue()
-        #todo: re-request from compropago ourselves to avoid being fed
-        #spoofed information
-
-        logging.info('we got a compropago confirmation, do something about it: %s' % json_string)
         try:
-            logging.info('validating the response')
-            payment_info = self.compropago.validate_response(json.loads(json_string))
-            self.cashier.process_compropago_payment(payment_info)
-        except ValidationError:
-            logging.error("Error in the input %s" % json_string)
-            return ErrorPage(500, json_string, "")
+            cgo_notification = json.loads(json_string)
+            bill = self.compropago.parse_existing_bill(cgo_notification)
+        except ValueError:
+            logging.warn("Received undecodable object from Compropago: %s" % json_string)
+        except:
+            logging.warn("Received unexpected object from Compropago: %s" % json_string)
+            return "OK"
 
-        # TODO: Go back to cgo and make sure they have this payment
-        # id = response['id']
-        # d = self.compropago.get_bill(id)
-        # TODO: Add verification of what compropago sends back
-        # d.addCallback(self.compropago.validate_response)
-        # def error(result):
-        #     logging.error("Error in the input %s" % error)
-        #     return ErrorPage()
-        # d.addCallbacks(self.cashier.process_compropago_payment, error)
+        payment_id = bill["id"]
 
+        def error(failure):
+            logging.warn("Could not get bill for id: %s. %s" % (payment_id, str(failure)))
+
+        # Fetch the REAL bill from Compropago.
+        d = self.compropago.get_bill(payment_id)
+        d.addCallbacks(self.cashier.process_compropago_payment, error)
+
+        # You can add an errback for process_compropago_payment here.
+        # Alternatively, error handle inside the method itself (recommended)
 
         return "OK"
 
@@ -198,7 +196,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
-    compropago = Compropago(config.get("cashier", "compropago_key"))
+    #compropago = Compropago(config.get("cashier", "compropago_key"))
+    compropago = Compropago("sk_test_5b82f569d4833add")
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier, compropago))

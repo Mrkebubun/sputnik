@@ -7,6 +7,8 @@ __author__ = 'satosushi'
 import json
 import treq
 
+import logging
+
 from jsonschema import validate
 from Crypto.Cipher import AES
 
@@ -60,51 +62,131 @@ class Compropago:
         self.pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
         self.unpad = lambda s: s[0:-ord(s[-1])]
 
+    def parse_existing_bill(self, bill):
+        validate(bill,
+            {
+                "type": "object",
+                "required": True,
+                "properties":
+                {
+                    "data":
+                    {
+                        "type": "object",
+                        "required": True,
+                        "properties":
+                        {
+                            "object":
+                            {
+                                "type": "object",
+                                "required": True,
+                                "properties":
+                                {
+                                    "id": {"type":"string", "required":True},
+                                    "paid": {"type":"boolean", "required":True},
+                                    "amount": {"type":"string", "required":True}
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        bill = bill["data"]["object"]
+        return {"id": bill["id"].encode("utf-8"), "payment_id": bill["id"].encode("utf-8"), "paid": bool(bill["paid"]), "amount": float(bill["amount"])}
+
+    def parse_new_bill(self, bill):
+        validate(bill,
+        {
+            "type": "object",
+            "required": True,
+            "properties":
+            {
+                "payment_id": {"type":"string", "required":True},
+                "payment_instructions":
+                {
+                    "type": "object",
+                    "required": True,
+                    "properties":
+                    {
+                        "description": {"type":"string", "required":True},
+                        "note_confirmation": {"type":"string", "required":True},
+                        "note_expiration_date": {"type":"string", "required":True},
+                        "step_1": {"type":"string", "required":True},
+                        "step_2": {"type":"string", "required":True},
+                        "step_3": {"type":"string", "required":True}
+                    }
+                }
+            }
+        })
+        return {"id": bill["payment_id"].encode("utf-8"), "payment_id":bill["payment_id"].encode("utf-8"), "payment_instructions":bill["payment_instructions"]}
+
     def create_bill(self, charge):
         charge.customer_name = self.make_public_handle(charge.customer_name)
         d = treq.post(self.charge_URL,
                       data=charge.json(),
                       headers=self.headers, auth=(self.key, ''))
-        #todo: handle timeouts, handle non 200 response codes, handle 200: {result: False}, make deferred
-        return d.addCallback(treq.json_content)
 
-    def validate_bill(self, bill):
-        t = lambda x: dict(type=x, required=True)
-        validate(bill, {
-            'type': 'object',
-            'required': True,
-            'properties': {
-                'creation_date': t('string'),
-                'expiration_date': t('string'),
-                'payment_id': t('string'),
-                'payment_instructions': {'type': 'object',
-                                         'required': True,
-                                         'properties': {
-                                             'description': t('string'),
-                                             'note_confirmation': t('string'),
-                                             'note_expiration_date': t('string'),
-                                             'step_1': t('string'),
-                                             'step_2': t('string'),
-                                             'step_3': t('string')
-                                         }
-                                         },
-                'payment_status': t('string'),
-                'product_information': {'type': 'object',
-                                        'required': True,
-                                        'properties': {
-                                            'product_id': t('string'),
-                                            'product_name': t('string'),
-                                            'product_price': t('string')
-                                        }
-                },
-                'short_payment_id': t('string')
-                }
-        })
-        return bill
+        def handle_response(response):
+            def parse_content(content):
+                if response.code != 200:
+                    # this should happen sufficiently rarely enough that it is
+                    # worth logging here in addition to the failure
+                    logging.warn("Received code: %s from Compropago for charge: %s. Content follows: %s" % (response.code, str(charge), content))
+                    raise Exception("Compropago returned code: %s." % response.code)
+                else:
+                    # TODO: Once we are sure what Compropago returns,
+                    # remove this spam
+                    logging.info("Received 200 OK from Compropago. Charge: %s. Content follows: %s" % (str(charge), content))
+                    # if the JSON cannot be decoded, let the error float up
+                    cgo_bill = json.loads(content)
+                    if "type" in cgo_bill and cgo_bill["type"] == "error":
+                        raise Exception("Compropago error: %s" % str(cgo_bill))
+                    return cgo_bill
+            return response.content().addCallback(parse_content)
+
+        # if there is a timeout of other network error, let it float up
+        d.addCallback(handle_response)
+
+
+        # if there is a timeout of other network error, let it float up
+        d.addCallback(handle_response)
+
+        # filter chain for successful method call follows
+        d.addCallback(self.parse_new_bill)
+
+        # Do not add any errbacks _HERE_, let the caller do that.
+
+        return d
 
     def get_bill(self, payment_id):
         d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
-        return d.addCallback(treq.json_content)
+
+        def handle_response(response):
+            def parse_content(content):
+                if response.code != 200:
+                    # this should happen sufficiently rarely enough that it is
+                    # worth logging here in addition to the failure
+                    logging.warn("Received code: %s from Compropago for bill: %s. Content follows: %s" % (response.code, payment_id, content))
+                    raise Exception("Compropago returned code: %s." % response.code)
+                else:
+                    # TODO: Once we are sure what Compropago returns,
+                    # remove this spam
+                    logging.info("Received 200 OK from Compropago. Bill: %s. Content follows: %s" % (payment_id, content))
+                    # if the JSON cannot be decoded, let the error float up
+                    cgo_bill = json.loads(content)
+                    if "type" in cgo_bill and cgo_bill["type"] == "error":
+                        raise Exception("Compropago error: %s" % str(cgo_bill))
+                    return cgo_bill
+            return response.content().addCallback(parse_content)
+
+        # if there is a timeout of other network error, let it float up
+        d.addCallback(handle_response)
+
+        # filter chain for successful method call follows
+        d.addCallback(self.parse_existing_bill)
+
+        # Do not add any errbacks _HERE_, let the caller do that.
+
+        return d
 
     def get_all(self):
         d = treq.get(self.charge_URL, auth=(self.key, ''))
@@ -160,14 +242,22 @@ class Compropago:
         return payment_info
 
 
+def main():
+    abtest = Compropago('sk_test_5b82f569d4833add')
+    d = abtest.get_bill("78b0bf0a-1f5e-4c00-b2e8-d29df8af8765")
+    def foo(x):
+        print x
+    d.addCallback(abtest.parse_bill)
+    d.addCallback(foo)
+#    bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
+#    print bill
+#    status = abtest.get_bill(bill['payment_id'])
+#    print status
+#    abtest.validate_response(status)
+#    print abtest.get_all()
+
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
-    abtest = Compropago('sk_test_5b82f569d4833add')
-    bill = abtest.create_bill(Charge(11000, 'Satoshi Nakamoto', 'satoshi@bitcoin.it', '2221515801', 'OXXO'))
-    print bill
-    status = abtest.get_bill(bill['payment_id'])
-    print status
-    abtest.validate_response(status)
-    print abtest.get_all()
-
-
+    from twisted.internet import reactor
+    main()
+    reactor.run()
