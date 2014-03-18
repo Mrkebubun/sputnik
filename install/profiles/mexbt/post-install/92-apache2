@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cp $PROFILE/res/https /etc/apache2/conf.d
+cp $profile_root/$PROFILE/res/https-redirect /etc/apache2/conf.d
 
