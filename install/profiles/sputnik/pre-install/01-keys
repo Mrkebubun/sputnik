@@ -6,5 +6,5 @@ fi
 
 mkdir -p $profile_git_root/dist/keys
 cd $profile_git_root/server/keys
-cp server.key server.chain $profile_git_root/dist/keys
+cp server.key server.crt server.chain $profile_git_root/dist/keys
 
