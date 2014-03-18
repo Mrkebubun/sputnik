@@ -87,6 +87,7 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
+    default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -218,9 +219,10 @@ class Position(db.Base):
     description = Column(String)
     postings = relationship("Posting", back_populates="position")
 
-    def __init__(self, user, contract):
+    def __init__(self, user, contract, position=0):
         self.user, self.contract = user, contract
-        self.position = 0
+        self.position = position
+        self.position_type = self.user.default_position_type
 
     def audit(self):
         """Make sure that the sum of all postings for this position sum to the position

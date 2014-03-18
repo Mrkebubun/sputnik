@@ -24,6 +24,9 @@ accounts add remainder
 accounts add bank
 accounts add deposit_overflow
 accounts add adjustments
+accounts modify bank default_position_type Asset
+accounts modify deposit_overflow default_position_type Asset
+accounts modify adjustments default_position_type Asset
 accounts add marketmaker
 accounts password marketmaker marketmaker
 accounts add randomtrader
