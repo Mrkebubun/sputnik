@@ -1,7 +1,11 @@
 #!/bin/sh
 
-cp $PROFILE/res/https-redirect /etc/apache2/conf.d
+cp $PROFILE/res/https-redirect.conf /etc/apache2/conf-available
+
+a2enconf https-redirect
+
 a2enmod ssl
+a2enmod rewrite
 a2dissite 000-default
 
 sed -e "s|SERVER_NAME|${profile_webserver_address}|" $PROFILE/res/000-default.conf > /etc/apache2/sites-available/sputnik.conf
