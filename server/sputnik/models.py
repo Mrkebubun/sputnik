@@ -137,6 +137,14 @@ class Journal(db.Base):
         self.timestamp = timestamp
         self.notes = None
 
+    def __repr__(self):
+        header = "<Journal('%s', '%s', '%s')>\n" % (self.type, self.timestamp, self.notes)
+        postings = ""
+        for posting in self.postings:
+            postings += "\t%s\n" % posting
+        footer = "</Journal>"
+        return header + postings + footer
+
     def audit(self):
         """Make sure that every position's postings sum to 0
         """
@@ -158,6 +166,9 @@ class Posting(db.Base):
     position_id = Column(Integer, ForeignKey('positions.id'))
     position = relationship('Position', backpopulates="postings")
     quantity = Column(BigInteger)
+
+    def __repr__(self):
+        return "<Posting('%s', %d))>" % (self.position, self.quantity)
 
     def __init__(self, journal, position, quantity, side):
         self.journal = journal
@@ -231,8 +242,8 @@ class Position(db.Base):
         assert(sum == self.position)
 
     def __repr__(self):
-        return "<Position('%s','%s',%d>" \
-               % (self.contract.__repr__(), self.user.__repr__(), self.position)
+        return "<Position('%s', '%s','%s',%d>" \
+               % (self.position_type, self.contract.__repr__(), self.user.__repr__(), self.position)
 
 
 class Withdrawal(db.Base):
