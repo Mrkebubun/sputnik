@@ -1,7 +1,7 @@
 [cashier]
 bitcoin_conf = ${conf}/bitcoin.conf
 public_port = 8181
-public_interface = 127.0.0.1
+public_interface = ${webserver_interface}
 private_port = 8282
 private_interface = 127.0.0.1
 testnet = ${testnet}
