@@ -123,7 +123,8 @@ class Compropago:
         charge.customer_name = self.make_public_handle(charge.customer_name)
         d = treq.post(self.charge_URL,
                       data=charge.json(),
-                      headers=self.headers, auth=(self.key, ''))
+                      headers=self.headers, auth=(self.key, ''),
+                      timeout=5)
 
         def handle_response(response):
             def parse_content(content):
@@ -143,9 +144,8 @@ class Compropago:
                     return cgo_bill
             return response.content().addCallback(parse_content)
 
-        # if there is a timeout of other network error, let it float up
+        # if there is a timeout or other network error, let it float up
         d.addCallback(handle_response)
-
 
         # if there is a timeout of other network error, let it float up
         d.addCallback(handle_response)
@@ -158,7 +158,8 @@ class Compropago:
         return d
 
     def get_bill(self, payment_id):
-        d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''))
+        d = treq.get(self.charge_URL + '/' + payment_id, auth=(self.key, ''),
+                     timeout=5)
 
         def handle_response(response):
             def parse_content(content):
@@ -178,7 +179,7 @@ class Compropago:
                     return cgo_bill
             return response.content().addCallback(parse_content)
 
-        # if there is a timeout of other network error, let it float up
+        # if there is a timeout or other network error, let it float up
         d.addCallback(handle_response)
 
         # filter chain for successful method call follows

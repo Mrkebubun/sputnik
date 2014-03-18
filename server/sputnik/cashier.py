@@ -196,8 +196,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
-    #compropago = Compropago(config.get("cashier", "compropago_key"))
-    compropago = Compropago("sk_test_5b82f569d4833add")
+    compropago = Compropago(config.get("cashier", "compropago_key"))
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier, compropago))
