@@ -32,8 +32,8 @@ import sys
 from twisted.python import log
 from twisted.internet import reactor, ssl, task
 
-from autobahn.websocket import connectWS
-from autobahn.wamp import WampClientFactory
+from autobahn.twisted.websocket import connectWS
+from autobahn.wamp1.protocol import WampClientFactory
 
 from client import TradingBot
 import urllib2
