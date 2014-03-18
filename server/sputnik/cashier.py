@@ -66,6 +66,27 @@ class Cashier():
         # what the state of the bitcoin client is.
         self.accountant.deposit_cash(address, total_received)
 
+    def update_address(self, address):
+        # TODO: find a better way of doing this
+        if address.startswith("compropago"):
+            payment_id = address.split("_", 1)[1]
+            def error(failure):
+                logging.warn("Could not get bill for id: %s. %s" % (payment_id, str(failure)))
+
+            # Fetch the REAL bill from Compropago.
+            d = self.compropago.get_bill(payment_id)
+            d.addCallbacks(self.process_compropago_payment, error)
+
+            # You can add an errback for process_compropago_payment here.
+            # Alternatively, error handle inside the method itself (recommended)
+        else:
+            # TODO: do not assume BTC
+            # TODO: add error checks
+            total_received = self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations)
+            accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
+            if total_received > accounted_for:
+                self.notify_accountant(address, total_received)
+
     def check_for_crypto_deposits(self, currency='btc'):
         """
         Checks for crypto deposits in a crypto currency that offers
@@ -135,10 +156,10 @@ class CompropagoHook(Resource):
     """
     isLeaf = True
 
-    def __init__(self, cashier_, compropago_):
+    def __init__(self, cashier):
         Resource.__init__(self)
-        self.cashier = cashier_
-        self.compropago = compropago_
+        self.cashier = cashier
+        self.compropago = cashier.compropago
 
     def render(self, request):
         """
@@ -158,16 +179,7 @@ class CompropagoHook(Resource):
             return "OK"
 
         payment_id = bill["id"]
-
-        def error(failure):
-            logging.warn("Could not get bill for id: %s. %s" % (payment_id, str(failure)))
-
-        # Fetch the REAL bill from Compropago.
-        d = self.compropago.get_bill(payment_id)
-        d.addCallbacks(self.cashier.process_compropago_payment, error)
-
-        # You can add an errback for process_compropago_payment here.
-        # Alternatively, error handle inside the method itself (recommended)
+        self.cashier.update_address("compropago_" + payment_id)
 
         return "OK"
 
@@ -216,7 +228,7 @@ if __name__ == '__main__':
     cashier = Cashier()
 
     public_server = Resource()
-    public_server.putChild('compropago', CompropagoHook(cashier, compropago))
+    public_server.putChild('compropago', CompropagoHook(cashier))
     private_server = Resource()
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
@@ -227,9 +239,15 @@ if __name__ == '__main__':
     # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
     contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
 
-    reactor.listenSSL(config.getint("cashier", "public_port"),
+    if config.getboolean("webserver", "ssl"):
+        reactor.listenSSL(config.getint("cashier", "public_port"),
                       Site(public_server), contextFactory,
                       interface=config.get("cashier", "public_interface"))
+    else:
+        reactor.listenTCP(config.getint("cashier", "public_port"),
+                      Site(public_server),
+                      interface=config.get("cashier", "public_interface"))
+        
     reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 
