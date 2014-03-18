@@ -17,6 +17,6 @@ USER_HOME=`eval echo ~$profile_user`
 mkdir -p $USER_HOME/.bitcoin
 # Not running sudo
 #chown $profile_user:$profile_user $USER_HOME/.bitcoin
-chmod 700 ~$profile_user/.bitcoin
+chmod 700 $USER_HOME/.bitcoin
 ln -sf $profile_conf/bitcoin.conf $USER_HOME/.bitcoin
 
