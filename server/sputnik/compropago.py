@@ -147,9 +147,6 @@ class Compropago:
         # if there is a timeout or other network error, let it float up
         d.addCallback(handle_response)
 
-        # if there is a timeout of other network error, let it float up
-        d.addCallback(handle_response)
-
         # filter chain for successful method call follows
         d.addCallback(self.parse_new_bill)
 
