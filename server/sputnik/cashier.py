@@ -45,7 +45,7 @@ class Cashier():
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
-        self.compropago = Compropago(self)
+        self.compropago = Compropago(config.get("cashier", "compropago_key"))
 
     def notify_accountant(self, address, total_received):
         # tells the accountant an address has an updated "total received" amount
@@ -214,7 +214,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
-    compropago = Compropago(config.get("cashier", "compropago_key"))
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier, compropago))
