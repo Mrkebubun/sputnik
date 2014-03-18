@@ -137,12 +137,15 @@ class Journal(db.Base):
         self.notes = None
 
     def audit(self):
-        sums = collections.defaultdict(collections.defaultdict(int))
+        """Make sure that every position's postings sum to 0
+        """
+        sums = collections.defaultdict(0)
         for posting in self.postings:
-            contract_name = posting.position.contract.ticker
-            position_type = posting.position.position_type
-            sums[contract_name][position_type] += posting.quantity
+            ticker = posting.position.contract.ticker
+            sums[ticker] += posting.quantity
 
+        for ticker, sum in sums:
+            assert(sum == 0)
 
 class Posting(db.Base):
     __tablename__ = 'posting'
@@ -152,13 +155,25 @@ class Posting(db.Base):
     journal_id = Column(Integer, ForeignKey('journal.id'))
     journal = relationship('Journal')
     position_id = Column(Integer, ForeignKey('positions.id'))
-    position = relationship('Position')
+    position = relationship('Position', backpopulates="postings")
     quantity = Column(BigInteger)
 
-    def __init__(self, journal, position, quantity):
+    def __init__(self, journal, position, quantity, side):
         self.journal = journal
         self.position = position
-        self.quantity = quantity
+        if side is 'debit':
+            if self.position.position_type is 'Asset':
+                sign = 1
+            else:
+                sign = -1
+        else:
+            if self.position.position_type is 'Asset':
+                sign = 1
+            else:
+                sign = -1
+
+        self.quantity = sign * quantity
+        self.position.position += sign * quantity
 
 class Addresses(db.Base):
     """
@@ -201,10 +216,17 @@ class Position(db.Base):
     reference_price = Column(BigInteger, nullable=False, server_default="0")
     position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
     description = Column(String)
+    postings = relationship("Posting", back_populates="position")
 
-    def __init__(self, user, contract, position=0):
+    def __init__(self, user, contract):
         self.user, self.contract = user, contract
-        self.position = position
+        self.position = 0
+
+    def audit(self):
+        """Make sure that the sum of all postings for this position sum to the position
+        """
+        sum = sum([x.quantity for x in self.postings])
+        assert(sum == self.position)
 
     def __repr__(self):
         return "<Position('%s','%s',%d>" \

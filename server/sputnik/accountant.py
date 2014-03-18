@@ -109,23 +109,24 @@ class Accountant:
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         position = self.get_position(username, contract)
-        old_position = position.position
-        position.position += adjustment
-
         adjustment_position = self.get_position('system', contract)
 
         journal = models.Journal('Adjustment')
-        credit = models.Posting(journal, position, adjustment)
-        debit = models.Posting(journal, adjustment_position, adjustment)
+
+        # Credit the user's account
+        credit = models.Posting(journal, position, adjustment, 'credit')
+
+        # Debit the system account
+        debit = models.Posting(journal, adjustment_position, adjustment, 'debit')
 
         try:
+            self.session.add(position)
+            self.session.add(adjustment_position)
             self.session.add(journal)
             self.session.add(credit)
             self.session.add(debit)
-            self.session.add(position)
             self.session.commit()
-            logging.info("Position for %s/%s modified from %d to %d" %
-                         (username, contract, old_position, position.position))
+            logging.info("Journal entry: %s" % journal)
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -200,37 +201,41 @@ class Accountant:
         journal = models.Journal('Fee')
 
         for ticker, fee in fees.iteritems():
-            remaining_fee = fee
+
             user_position = self.get_position(username, ticker)
-            debit = models.Posting(journal, user_position, -fee)
-            user_position.position -= fee
+
+            # Debit the fee from the user's account
+            debit = models.Posting(journal, user_position, fee, 'debit')
+            logging.debug("Debiting user %s with fee %d %s" % (username, fee, ticker))
             self.session.add(debit)
             self.session.add(user_position)
 
+            remaining_fee = fee
             for vendor_name, vendor_share in self.vendor_share_config.iteritems():
                 vendor_position = self.get_position(vendor_name, ticker)
                 vendor_credit = int(fee * vendor_share)
-                vendor_position.position += vendor_credit
+
                 remaining_fee -= vendor_credit
-                self.webserver.fee(vendor_name, {'contract': ticker,
-                                                 'position': -vendor_credit,
-                                                 'reference_price': 0})
-                credit = models.Posting(journal, vendor_position, vendor_credit)
+
+                # Credit the fee to the vendor's account
+                credit = models.Posting(journal, vendor_position, vendor_credit, 'credit')
+                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
                 self.session.add(vendor_position)
                 self.session.add(credit)
-                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
 
             # There might be some fee leftover due to rounding,
             # we have an account for that guy
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_account_position = self.get_position('remainder', ticker)
-            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
-            remainder_account_position.position += remaining_fee
             credit = models.Posting(journal, remainder_account_position, remaining_fee)
+            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
+
             self.session.add(credit)
             self.session.add(remainder_account_position)
 
+        self.session.add(journal)
+        logging.info("Journal: %s" % journal)
         self.session.commit()
 
     def post_transaction(self, transaction):
@@ -326,20 +331,11 @@ class Accountant:
             else:
                 sign = -1
 
-            aggressive_from_position.position -= sign * from_quantity_int
-            aggressive_debit = models.Posting(journal, aggressive_from_position, -sign * from_quantity_int)
-            aggressive_to_position.position += sign * quantity
-            aggressive_credit = models.Posting(journal, aggressive_from_position, sign * quantity)
+            aggressive_debit = models.Posting(journal, aggressive_from_position, sign * from_quantity_int, 'debit')
+            aggressive_credit = models.Posting(journal, aggressive_from_position, sign * quantity, 'credit')
 
-            passive_from_position.position += sign * from_quantity_int
-            passive_credit = models.Posting(journal, passive_from_position, sign * from_quantity_int)
-            passive_to_position.position -= sign * quantity
-            passive_debit = models.Posting(journal, passive_to_position, sign * quantity)
-
-            self.session.add(aggressive_from_position)
-            self.session.add(aggressive_to_position)
-            self.session.add(passive_from_position)
-            self.session.add(passive_to_position)
+            passive_credit = models.Posting(journal, passive_from_position, sign * from_quantity_int, 'credit')
+            passive_debit = models.Posting(journal, passive_to_position, sign * quantity, 'debit')
 
             # Double-entry
             self.session.add(passive_debit)
@@ -347,12 +343,12 @@ class Accountant:
             self.session.add(aggressive_credit)
             self.session.add(aggressive_debit)
             self.session.add(journal)
+            logging.info("Journal Entry: %s" % journal)
             self.session.commit()
 
             # TODO: Move this fee logic outside of "if cash_pair"
             aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
             passive_fees = util.get_fees(passive_username, contract, abs(from_quantity_int))
-
 
             # Credit fees to vendor
             self.charge_fees(aggressive_fees, aggressive_username)
@@ -388,10 +384,6 @@ class Accountant:
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
-
-
-
-
 
 
     def cancel_order(self, order_id):
@@ -470,7 +462,8 @@ class Accountant:
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
-            user_cash_position.position += deposit
+
+            journal = models.Journal('Deposit')
 
             # TODO: Put deposit limits into the DB
             # TODO: If a deposit failed, we have to refund the money somehow
