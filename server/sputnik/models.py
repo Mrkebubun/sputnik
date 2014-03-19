@@ -175,12 +175,12 @@ class Posting(db.Base):
         self.journal = journal
         self.position = position
         if side is 'debit':
-            if self.position.position_type is 'Asset':
+            if self.position.position_type == 'Asset':
                 sign = 1
             else:
                 sign = -1
         else:
-            if self.position.position_type is 'Asset':
+            if self.position.position_type == 'Asset':
                 sign = -1
             else:
                 sign = 1
@@ -244,8 +244,8 @@ class Position(db.Base):
         assert(sum == self.position)
 
     def __repr__(self):
-        return "<Position('%s', '%s','%s',%d>" \
-               % (self.position_type, self.contract.__repr__(), self.user.__repr__(), self.position)
+        return "<Position('%s', '%s', '%s','%s',%d>" \
+               % (self.position_type, self.description, self.contract.__repr__(), self.user.__repr__(), self.position)
 
 
 class Withdrawal(db.Base):

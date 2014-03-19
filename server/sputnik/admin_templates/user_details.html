@@ -86,7 +86,7 @@ $ ->
             {% if debug %}
                 <td>
                     <form action="/adjust_position" method="post">
-                        <input type="text" name="adjustment" placeholder="Quantity">
+                        <input type="text" name="quantity" placeholder="Quantity">
                         <input type="hidden" name="username" value="{{user.username}}">
                         <input type="hidden" name="contract" value="{{position.contract.ticker}}">
                         <input type="hidden" name="description" value="{{position.description}}">

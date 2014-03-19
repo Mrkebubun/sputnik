@@ -109,7 +109,7 @@ class Accountant:
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         position = self.get_position(username, contract, description=description)
-        adjustment_position = self.get_position('system', contract, 'Adjustment')
+        adjustment_position = self.get_position('system', contract, description='Adjustment')
 
         journal = models.Journal('Adjustment')
 
