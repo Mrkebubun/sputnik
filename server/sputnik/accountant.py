@@ -224,7 +224,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_account_position = self.get_position('remainder', ticker)
-            credit = models.Posting(journal, remainder_account_position, remaining_fee)
+            credit = models.Posting(journal, remainder_account_position, remaining_fee, 'credit')
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
 
             self.session.add(credit)
@@ -251,7 +251,7 @@ class Accountant:
         passive_order_id = transaction["passive_order_id"]
         side = transaction["side"]
         timestamp = transaction["timestamp"]
-        journal = models.Journal('Trade', timestamp=timestamp,
+        journal = models.Journal('Trade', timestamp=util.timestamp_to_dt(timestamp),
                                  notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
                                                                        passive_order_id))
 
@@ -328,7 +328,7 @@ class Accountant:
                 sign = -1
 
             aggressive_debit = models.Posting(journal, aggressive_from_position, sign * from_quantity_int, 'debit')
-            aggressive_credit = models.Posting(journal, aggressive_from_position, sign * quantity, 'credit')
+            aggressive_credit = models.Posting(journal, aggressive_to_position, sign * quantity, 'credit')
 
             passive_credit = models.Posting(journal, passive_from_position, sign * from_quantity_int, 'credit')
             passive_debit = models.Posting(journal, passive_to_position, sign * quantity, 'debit')

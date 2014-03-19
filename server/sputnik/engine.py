@@ -161,10 +161,11 @@ class Order(object):
                 'contract_type': db_orders[0].contract.contract_type,
                 'aggressive_order_id': self.id,
                 'passive_order_id': other_order.id,
-                'timestamp': util.dt_to_timestamp(trade.timestamp)
+                'timestamp': util.dt_to_timestamp(trade.timestamp),
+                'side': OrderSide.name(self.side)
             }
         accountant.post_transaction(transaction)
-        print 'to acct: ',str({'post_transaction': transaction}
+        print 'to acct: ',str({'post_transaction': transaction})
 
         for o in [self, other_order]:
             # Send an order update
