@@ -4,6 +4,7 @@ public_port = 8181
 public_interface = ${webserver_interface}
 private_port = 8282
 private_interface = 127.0.0.1
+administrator_export = tcp://127.0.0.1:4132
 testnet = ${testnet}
 compropago_key = ${compropago_key}
 
