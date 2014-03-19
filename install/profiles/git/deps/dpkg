@@ -6,3 +6,4 @@ sudo
 supervisor
 postgresql
 curl
+tcl-dev
