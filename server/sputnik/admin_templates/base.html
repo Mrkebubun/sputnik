@@ -18,13 +18,6 @@
       <li {% block fees_active %}{% endblock %}><a href="/fees">Fees</a></li>
     </ul>
     <br>
-    <div class="container">
-        <div class="panel panel-primary">
-            <div class="panel-heading">{% block panel_title %}{% endblock %}</div>
-            <div class="panel-body">
-                {% block panel_body %}{% endblock %}
-            </div>
-        </div>
-    </div>
+    {% block body %}{% endblock %}
 </body>
 </html>

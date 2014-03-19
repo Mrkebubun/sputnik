@@ -16,7 +16,7 @@ import models
 import collections
 from webserver import ChainedOpenSSLContextFactory
 
-from zmq_util import export, router_share_async, dealer_proxy_async
+from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -62,9 +62,10 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, debug=False):
+    def __init__(self, session, accountant, cashier, debug=False):
         self.session = session
         self.accountant = accountant
+        self.cashier = cashier
         self.debug = debug
 
     @session_aware
@@ -206,7 +207,8 @@ class AdminWebUI(Resource):
         resources = [{'/': self.login_page,
                       '/audit': self.audit},
                      {'/': self.user_list,
-                      '/user_details': self.user_details},
+                      '/user_details': self.user_details,
+                      '/rescan_address': self.rescan_address},
                      {'/reset_password': self.reset_password},
                     {},
                     {},
@@ -240,6 +242,10 @@ class AdminWebUI(Resource):
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
                                            int(request.args['adjustment'][0]))
+        return self.user_details(request)
+
+    def rescan_address(self, request):
+        self.administrator.cashier.rescan_address(request.args['address'][0])
         return self.user_details(request)
 
     def audit(self, request):
@@ -284,6 +290,7 @@ class SimpleRealm(object):
 
     def __init__(self, administrator, session):
         self.administrator = administrator
+        self.session = session
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
@@ -324,8 +331,9 @@ if __name__ == "__main__":
 
     debug = config.getboolean("administrator", "debug")
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
+    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, debug)
+    administrator = Administrator(session, accountant, cashier, debug)
     webserver_export = WebserverExport(administrator)
 
     router_share_async(webserver_export,

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-exit 0
-
 if [ -n "$UPGRADE" ]; then
     exit 0
 fi

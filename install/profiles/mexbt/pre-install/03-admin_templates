@@ -1,5 +1,3 @@
 #!/bin/bash
 
-mkdir -p ${profile_git_root}/dist/admin_templates
-
-cp -rH ${profile_git_root}/server/sputnik/admin_templates ${profile_git_root}/dist/admin_templates
+cp -rH ${profile_git_root}/server/sputnik/admin_templates ${profile_git_root}/dist

@@ -1,0 +1,33 @@
+#!/bin/bash
+
+SOURCE=https://bitcoin.org/bin/0.8.6/bitcoin-0.8.6-linux.tar.gz
+
+check()
+{
+    which bitcoind
+}
+
+install()
+{
+    cd /usr/local/src
+    wget $SOURCE
+    tar -zxvf bitcoin-0.8.6-linux.tar.gz
+    cd bitcoin-0.8.6-linux/src/src
+
+    sed -i 's/^USE_UPNP:=.*$/USE_UPNP:=-/' makefile.unix
+    make -f makefile.unix
+    cp bitcoind /usr/local/sbin
+}
+
+case $1 in
+    check)
+        check
+        ;;
+    install)
+        install
+        ;;
+    *)
+        echo "usage: $0 check|install"
+        ;;
+esac
+
