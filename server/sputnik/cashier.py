@@ -11,7 +11,7 @@ import bitcoinrpc
 from compropago import Compropago
 
 import config
-from zmq_util import push_proxy_async
+from zmq_util import push_proxy_async, pull_share_async, export
 import models
 import database as db
 from jsonschema import ValidationError
@@ -66,7 +66,11 @@ class Cashier():
         # what the state of the bitcoin client is.
         self.accountant.deposit_cash(address, total_received)
 
-    def update_address(self, address):
+    def rescan_address(self, address):
+        # TODO: find out why this is unicode
+        # probably because of the way txZMQ does things
+        address = address.encode("utf-8")
+        logging.info("Scaning address %s for updates." % address)
         # TODO: find a better way of doing this
         if address.startswith("compropago"):
             payment_id = address.split("_", 1)[1]
@@ -179,7 +183,7 @@ class CompropagoHook(Resource):
             return "OK"
 
         payment_id = bill["id"]
-        self.cashier.update_address("compropago_" + payment_id)
+        self.cashier.rescan_address("compropago_" + payment_id)
 
         return "OK"
 
@@ -221,11 +225,23 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         self._context = ctx
 
 
+class AdministratorExport:
+    def __init__(self, cashier):
+        self.cashier = cashier
+
+    @export
+    def rescan_address(self, address):
+        self.cashier.rescan_address(address)
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     cashier = Cashier()
+    administrator_export = AdministratorExport(cashier)
+
+    pull_share_async(administrator_export,
+                     config.get("cashier", "administrator_export"))
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier))

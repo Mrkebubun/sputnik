@@ -88,8 +88,15 @@
             </div>
             <div class="modal-body">
                 <form class="form" role="form">
-                    <label class="control-label" for="compropago_amount">Amount to deposit (MXN)</label>
-                    <input class="form-control" id="compropago_amount" type="number" min="0" max="10000" step="1" value="0"/>
+                    <emph style="color:red;">
+                        Your deposited balance may not exceed 600 MXN in beta. If you attempt a deposit beyond that
+                        limit, your account will not be credited and you will have to contact customer service
+                        to receive a refund of the funds you attempted to deposit.
+                    </emph>
+                    <label class="control-label" for="compropago_amount">
+                        Amount to deposit (MXN)
+                    </label>
+                    <input class="form-control" id="compropago_amount" type="number" min="0" max="600" step="1" value="0"/>
                     <label class="control-label" for="compropago_store">Choose a store</label>
                     <select id="compropago_store" class="form-control">
                         <option value="OXXO">oxxo</option>
@@ -118,12 +125,6 @@
                         <label class="control-label" for="compropago_phone">phone number</label>
                         <input class="form-control" id="compropago_phone" type="tel" name="compropago_phone" value=""/>
                     </div>
-                    <script language="javascript">
-                         $('#compropago_send_sms').on('click', function() {
-                            $('#compropago_phone_input_zone').toggleClass('hidden show');
-                         });
-
-                    </script>
                 </form>
                 <div class="alert alert-warning" style="display:none" id="compropago_error">
                     Payment error
@@ -133,6 +134,11 @@
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="compropago_pay_button"><span class="ladda-label">Pay</span></button>
             </div>
+            <script language="javascript">
+                $('#compropago_send_sms').on('click', function() {
+                    $('#compropago_phone_input_zone').toggleClass('hidden show');
+                });
+            </script>
         </div>
     </div>
 </div>
@@ -145,11 +151,32 @@
                 <h4 class="modal-title">Deposit Address</h4>
             </div>
             <div class="modal-body">
+                <emph style="color:red;">
+                    Your deposited balance may not exceed 0.1BTC in beta. If you attempt a deposit beyond that
+                    limit, your account will not be credited and you will have to contact customer service
+                    to receive a refund of the funds you attempted to deposit.
+                </emph>
                 <legend><a id="btc_deposit_address"></a></legend>
                 <div id="btc_deposit_qrcode"></div>
             </div>
             <div class="modal-footer">
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="new_address_button"><span class="ladda-label">New Address</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_disabled_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    During the beta, withdrawals are disabled. At full release, withdrawals will be enabled.
+                </emph>
             </div>
         </div>
     </div>
@@ -235,7 +262,7 @@
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
             <li><a href="#" id="deposit_btc">Deposit</a></li>
-            <li><a href="#">Withdraw</a></li>
+            <li><a href="#" id="withdraw_btc">Withdraw</a></li>
         </ul>
     </li>
     <li id="mxn_balance" class="dropdown pull-right" style="display:none;">
@@ -244,7 +271,7 @@
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
             <li><a href="#" id="deposit_mxn">Deposit</a></li>
-            <li><a href="#">Withdraw</a></li>
+            <li><a href="#" id="withdraw_mxn">Withdraw</a></li>
         </ul>
     </li>
 </ul>
@@ -388,6 +415,9 @@
         <div  class="input-append">
             <input id="chatBox" class="chatInput" type="text" style="width:90%" >
             <button id="chatButton" class="btn" type="button">Send</button>
+            <script>
+                $('#chatBox').keypress(function(e){if (e.keyCode== 13) {$('#chatButton').click()} return e;});
+            </script>
         </div>
         <!--<button id="chatFooterButton" class="btn push" type="button" ><i class="icon-chevron-up"></i>Chat</button>-->
         </div>

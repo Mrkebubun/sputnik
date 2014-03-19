@@ -26,8 +26,11 @@
     </script>
 {% endblock %}
 {% block users_active %}class="active"{% endblock %}
-{% block panel_title %}User List{% endblock %}
-{% block panel_body %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">User List</div>
+    <div class="panel-body">
     <form role="form" action="#">
     <div class="form-group">
         <input type="search" id="search" autocomplete="off" placeholder="Search">
@@ -52,5 +55,8 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+</div>
+</div>
 {% endblock %}
 
