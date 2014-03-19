@@ -478,7 +478,7 @@ class Accountant:
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             journal = models.Journal('Deposit')
-            bank_position = self.get_position('system', contract.ticker, 'OnlineCash')
+            bank_position = self.get_position('system', contract.ticker, description='OnlineCash')
             debit = models.Posting(journal, bank_position, deposit, 'debit')
 
             # TODO: Put deposit limits into the DB
@@ -489,7 +489,7 @@ class Accountant:
             if user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, 'DepositOverflow')
+                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
                 credit = models.Posting(journal, overflow_position, deposit, 'credit')
                 self.session.add(overflow_position)
             else:
