@@ -692,7 +692,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return dbpool.runQuery(
             "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price "
-            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s "
+            "AND positions.description = 'User'",
             (self.username,)).addCallback(_cb)
 
     @exportRpc("get_profile")
