@@ -88,12 +88,14 @@
             </div>
             <div class="modal-body">
                 <form class="form" role="form">
-                    <label class="control-label" for="compropago_amount">Amount to deposit (MXN)
-                        <emph style="color:red;">
+                    <emph style="color:red;">
                         Your deposited balance may not exceed 600 MXN in beta. If you attempt a deposit beyond that
                         limit, your account will not be credited and you will have to contact customer service
                         to receive a refund of the funds you attempted to deposit.
-                        </emph></label>
+                    </emph>
+                    <label class="control-label" for="compropago_amount">
+                        Amount to deposit (MXN)
+                    </label>
                     <input class="form-control" id="compropago_amount" type="number" min="0" max="600" step="1" value="0"/>
                     <label class="control-label" for="compropago_store">Choose a store</label>
                     <select id="compropago_store" class="form-control">
@@ -151,14 +153,30 @@
             <div class="modal-body">
                 <emph style="color:red;">
                     Your deposited balance may not exceed 0.1BTC in beta. If you attempt a deposit beyond that
-                        limit, your account will not be credited and you will have to contact customer service
-                        to receive a refund of the funds you attempted to deposit.
+                    limit, your account will not be credited and you will have to contact customer service
+                    to receive a refund of the funds you attempted to deposit.
                 </emph>
                 <legend><a id="btc_deposit_address"></a></legend>
                 <div id="btc_deposit_qrcode"></div>
             </div>
             <div class="modal-footer">
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="new_address_button"><span class="ladda-label">New Address</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_disabled_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    During the beta, withdrawals are disabled. At full release, withdrawals will be enabled.
+                </emph>
             </div>
         </div>
     </div>
@@ -244,7 +262,7 @@
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
             <li><a href="#" id="deposit_btc">Deposit</a></li>
-            <li><a href="#">Withdraw</a></li>
+            <li><a href="#" id="withdraw_btc">Withdraw</a></li>
         </ul>
     </li>
     <li id="mxn_balance" class="dropdown pull-right" style="display:none;">
@@ -253,7 +271,7 @@
         </b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
             <li><a href="#" id="deposit_mxn">Deposit</a></li>
-            <li><a href="#">Withdraw</a></li>
+            <li><a href="#" id="withdraw_mxn">Withdraw</a></li>
         </ul>
     </li>
 </ul>

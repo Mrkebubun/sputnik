@@ -135,6 +135,12 @@ $('#deposit_btc').click (event) ->
     sputnik.getAddress('BTC')
     $('#deposit_btc_modal').modal()
 
+$('#withdraw_mxn').click (event) ->
+    $('#withdraw_disabled_modal').modal()
+
+$('#withdraw_btc').click (event) ->
+    $('#withdraw_disabled_modal').modal()
+
 $('#new_address_button').click (event) ->
     sputnik.newAddress('BTC')
 
