@@ -291,4 +291,4 @@ sputnik.on "profile", (profile) ->
     $('#profile').text "#{profile.nickname} AuditKey: #{profile.user_hash}"
 
 sputnik.on "fill", (fill) ->
-    alert "Fill Received: #{fill}"
+    console.log "Fill Received: #{fill}"
