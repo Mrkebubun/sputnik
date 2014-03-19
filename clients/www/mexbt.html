@@ -389,6 +389,9 @@
         <div  class="input-append">
             <input id="chatBox" class="chatInput" type="text" style="width:90%" >
             <button id="chatButton" class="btn" type="button">Send</button>
+            <script>
+                $('#chatBox').keypress(function(e){if (e.keyCode== 13) {$('#chatButton').click()} return e;});
+            </script>
         </div>
         <!--<button id="chatFooterButton" class="btn push" type="button" ><i class="icon-chevron-up"></i>Chat</button>-->
         </div>
