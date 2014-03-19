@@ -89,7 +89,11 @@
             <div class="modal-body">
                 <form class="form" role="form">
                     <label class="control-label" for="compropago_amount">Amount to deposit (MXN)
-                        <emph style="color:red;">your deposited balance may not exceed 600 MXN in beta</emph></label>
+                        <emph style="color:red;">
+                        Your deposited balance may not exceed 600 MXN in beta. If you attempt a deposit beyond that
+                        limit, your account will not be credited and you will have to contact customer service
+                        to receive a refund of the funds you attempted to deposit.
+                        </emph></label>
                     <input class="form-control" id="compropago_amount" type="number" min="0" max="600" step="1" value="0"/>
                     <label class="control-label" for="compropago_store">Choose a store</label>
                     <select id="compropago_store" class="form-control">
@@ -145,7 +149,11 @@
                 <h4 class="modal-title">Deposit Address</h4>
             </div>
             <div class="modal-body">
-                <emph style="color:red;">your deposited balance may not exceed 0.1BTC in beta</emph>
+                <emph style="color:red;">
+                    Your deposited balance may not exceed 0.1BTC in beta. If you attempt a deposit beyond that
+                        limit, your account will not be credited and you will have to contact customer service
+                        to receive a refund of the funds you attempted to deposit.
+                </emph>
                 <legend><a id="btc_deposit_address"></a></legend>
                 <div id="btc_deposit_qrcode"></div>
             </div>
