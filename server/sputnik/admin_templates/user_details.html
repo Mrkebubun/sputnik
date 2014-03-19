@@ -52,26 +52,41 @@ $ ->
         <tr>
             <th>Contract</th>
             <th>Position</th>
+            <th>Description</th>
+            <th>Type</th>
             <th>Reference Price</th>
-            <th>Adjust</th>
+            {% if debug %}
+                <th>Adjust</th>
+            {% endif }
         </tr>
     </thead>
     <tbody>
         {% for position in user.positions %}
         <tr>
+            <td><span class="caret btn-link" onclick="show({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
             <td>{{position.position}}</td>
+            <td>{{position.description}}</td>
+            <td>{{position.position_type}}</td>
             <td>{{position.reference_price}}</td>
             {% if debug %}
-            <td>
-                <form action="/adjust_position" method="post">
-                    <input type="text" name="adjustment">
-                    <input type="hidden" name="username" value="{{user.username}}">
-                    <input type="hidden" name="contract" value="{{position.contract.ticker}}">
-                </form>
-            </td>
+                <td>
+                    <form action="/adjust_position" method="post">
+                        <input type="text" name="adjustment">
+                        <input type="hidden" name="username" value="{{user.username}}">
+                        <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                    </form>
+                </td>
             {% endif %}
         </tr>
+            {% for posting in position.postings %}
+            <tr name="postings_{{position.id}}" style="display:none;">
+                <td>{{posting.journal.timestamp}}</td>
+                <td>{{posting.quantity}}</td>
+                <td>{{posting.journal.notes}}</td>
+                <td>{{posting.journal.type}}</td>
+            </tr>
+            {% endfor %}
         {% endfor %}
     </tbody>
 </table>
