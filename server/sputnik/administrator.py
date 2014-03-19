@@ -162,9 +162,26 @@ class Administrator:
         users = self.session.query(models.User).all()
         return users
 
+    def get_admin_users(self):
+        admin_users = self.session.query(models.AdminUser).all()
+        return admin_users
+
     def get_user(self, username):
         user = self.session.query(models.User).filter(models.User.username == username).one()
         return user
+
+    def set_admin_level(self, username, level):
+        user = self.session.query(models.AdminUser).filter(models.AdminUser.username == username).one()
+        user.level = level
+        self.session.add(user)
+        self.session.commit(user)
+        return True
+
+    def new_admin_user(self, username, password, level):
+        user = models.AdminUser(username, password, level)
+        self.session.add(user)
+        self.session.commit()
+        return True
 
     def get_positions(self):
         positions = self.session.query(models.Position).all()
@@ -204,19 +221,33 @@ class AdminWebUI(Resource):
                      json.dumps(request.args))
 
     def render(self, request):
-        resources = [{'/': self.login_page,
-                      '/audit': self.audit},
+        resources = [
+                    # Level 0
+                     {'/': self.no_privileges},
+                    # Level 1
                      {'/': self.user_list,
                       '/user_details': self.user_details,
-                      '/rescan_address': self.rescan_address},
+                      '/rescan_address': self.rescan_address,
+                      '/admin': self.admin,
+                      '/reset_admin_password': self.reset_admin_password
+                     },
+                    # Level 2
                      {'/reset_password': self.reset_password},
-                    {},
-                    {},
-                     {'/adjust_position': self.adjust_position}]
+                    # Level 3
+                     {},
+                    # Level 4
+                     {},
+                    # Level 5
+                     {'/admin': self.admin_list,
+                      '/new_admin_user': self.new_admin_user,
+                      '/set_admin_level': self.set_admin_level,
+                      '/force_reset_admin_password': self.force_reset_admin_password,
+                      '/adjust_position': self.adjust_position}]
         resource_list = {}
-        for level in range(0, len(resources) + 1):
+        for level in range(0, self.avatarLevel+1):
             resource_list.update(resources[level])
 
+        return resource_list[request.path](request).encode('utf-8')
 
     def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
@@ -228,6 +259,18 @@ class AdminWebUI(Resource):
     def reset_password(self, request):
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
         return self.user_details(request)
+
+    def reset_admin_password(self, request):
+        self.administrator.reset_admin_password(self.avatarId, request.args['password'][0])
+        return self.admin(request)
+
+    def force_reset_admin_password(self, request):
+        self.administrator.reset_admin_password(request.args['username'][0], request.args['password'][0])
+        return self.admin_list(request)
+
+    def admin(self, request):
+        t = self.jinja_env.get_template('admin.html')
+        return t.render(username=self.avatarId)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
@@ -248,6 +291,20 @@ class AdminWebUI(Resource):
         self.administrator.cashier.rescan_address(request.args['address'][0])
         return self.user_details(request)
 
+    def admin_list(self, request):
+        admin_users = self.administrator.get_admin_users()
+        t = self.jinja_env.get_template('admin_list.html')
+        return t.render(admin_users=admin_users)
+
+    def new_admin_user(self, request):
+        self.administrator.new_admin_user(request.args['username'][0], request.args['password'][0],
+                                          int(request.args['level'][0]))
+        return self.admin_list(request)
+
+    def set_admin_level(self, request):
+        self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
+        return self.admin_list(request)
+
     def audit(self, request):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
@@ -266,7 +323,7 @@ class AdminWebUI(Resource):
         rendered = t.render(positions_by_ticker=positions_by_ticker, position_totals=position_totals)
         return rendered
 
-class PasswordChecker:
+class PasswordChecker(object):
     implements(ICredentialsChecker)
     credentialInterfaces = (IUsernameHashedPassword,)
 
@@ -276,11 +333,11 @@ class PasswordChecker:
     def requestAvatarId(self, credentials):
         username = credentials.username
         try:
-            admin_user = self.session.query(models.User).filter(username=username).one()
+            admin_user = self.session.query(models.AdminUser).filter(username=username).one()
         except sqlalchemy.orm.exc.NoResultFound as e:
-            return defer.fail(credError.UnauthorizedLogin("No such user"))
+            return defer.fail(credError.UnauthorizedLogin("No such administrator"))
 
-        if credentials.checkPassword(username.password):
+        if credentials.checkPassword(admin_user.password):
             return defer.succeed(username)
         else:
             return defer.fail("Bad password")
@@ -294,11 +351,8 @@ class SimpleRealm(object):
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
-            if avatarId is checkers.ANONYMOUS:
-                avatarLevel = 0
-            else:
-                user = self.session.query(models.User).filter(username=avatarId).one()
-                avatarLevel = user.admin_level
+            user = self.session.query(models.AdminUser).filter(username=avatarId).one()
+            avatarLevel = user.level
 
             return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel), lambda: None
         raise NotImplementedError
@@ -339,7 +393,7 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [PasswordChecker(session), AllowAnonymousAccess()]
+    checkers = [PasswordChecker(session)]
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 

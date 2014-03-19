@@ -76,6 +76,20 @@ class Order(db.Base):
         self.timestamp = datetime.utcnow()
         self.is_cancelled = False
 
+class AdminUser(db.Base):
+    __tablename__ = 'admin_users'
+    __table_args__ = {'extend_existing': True}
+
+    username = Column(String, primary_key=True)
+    password = Column(String, nullable=False)
+    totp = Column(String)
+    level = Column(Integer, server_default="0")
+
+    def __init__(self, username, password, level):
+        self.username = username
+        self.password = password
+        self.level = level
+
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}
@@ -86,8 +100,7 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
-    admin_level = Column(Integer, server_default="0")
-    user_level = Column(Integer, server_default="0")
+    level = Column(Integer, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

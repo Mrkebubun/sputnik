@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Administrator List{% endblock %}
+{% block admin_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">Admin Tasks</div>
+        <div class="panel-body">
+            <form action="/reset_admin_password" method="post">
+                <input type="hidden" name="username" placeholder="Username">
+                <input type="password" name="password" placeholder="Password">
+                <button type="submit">Reset Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
