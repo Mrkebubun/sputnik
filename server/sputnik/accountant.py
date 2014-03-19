@@ -120,13 +120,9 @@ class Accountant:
         debit = models.Posting(journal, adjustment_position, adjustment, 'debit')
 
         try:
-            self.session.add(position)
-            self.session.add(adjustment_position)
-            self.session.add(journal)
-            self.session.add(credit)
-            self.session.add(debit)
+            self.session.add_all([position, adjustment_position, credit, debit])
+            self.add_journal(journal)
             self.session.commit()
-            logging.info("Journal entry: %s" % journal)
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -189,6 +185,10 @@ class Accountant:
             self.session.commit()
             return True
 
+    def add_journal(self, journal):
+        self.session.add(journal)
+        logging.info("Auditing journal: %s" % journal)
+        journal.audit()
 
     def charge_fees(self, fees, username):
         """
@@ -234,8 +234,7 @@ class Accountant:
             self.session.add(credit)
             self.session.add(remainder_account_position)
 
-        self.session.add(journal)
-        logging.info("Journal: %s" % journal)
+        self.add_journal(journal)
         self.session.commit()
 
     def post_transaction(self, transaction):
@@ -345,9 +344,8 @@ class Accountant:
                                   passive_from_position,
                                   passive_to_position,
                                   aggressive_from_position,
-                                  aggressive_to_position,
-                                  journal])
-            logging.info("Journal: %s" % journal)
+                                  aggressive_to_position])
+            self.add_journal(journal)
             self.session.commit()
 
             # TODO: Move this fee logic outside of "if cash_pair"
@@ -453,7 +451,8 @@ class Accountant:
             to_position = self.get_position(to_user, ticker)
             debit = models.Posting(journal, from_position, quantity, 'debit')
             credit = models.Posting(journal, to_position, quantity, 'credit')
-            self.session.add_all([from_position, to_position, debit, credit, journal])
+            self.session.add_all([from_position, to_position, debit, credit])
+            self.add_journal(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
         except Exception as e:
@@ -497,9 +496,9 @@ class Accountant:
                 credit = models.Posting(journal, user_cash_position, deposit, 'credit')
                 self.session.add(user_cash_position)
 
-            self.session.add_all([debit, credit, journal])
+            self.session.add_all([debit, credit])
+            self.add_journal(journal)
             self.session.commit()
-            logging.info("Journal: %s" % journal)
         except:
             session.rollback()
             logging.error(
