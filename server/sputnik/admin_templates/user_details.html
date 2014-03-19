@@ -65,6 +65,7 @@ $ ->
     <tbody>
         {% for position in user.positions %}
         <tr>
+            <!-- TODO: Get this caret to actually work -->
             <td><span class="caret btn-link" onclick="show({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
             <td>{{position.position}}</td>
@@ -94,12 +95,24 @@ $ ->
                 </td>
             {% endif %}
         </tr>
+            <tr name="postings_{{position.id}}">
+                <th></th>
+                <th>Ledger</th>
+                <th>Quantity</th>
+                <th>Notes</th>
+                <th>Type</th>
+                <th></th>
+                <th>Timestamp</th>
+            </tr>
             {% for posting in position.postings %}
-            <tr name="postings_{{position.id}}" style="display:none;">
-                <td>{{posting.journal.timestamp}}</td>
+            <tr name="postings_{{position.id}}">
+                <td></td>
+                <td></td>
                 <td>{{posting.quantity}}</td>
                 <td>{{posting.journal.notes}}</td>
                 <td>{{posting.journal.type}}</td>
+                <td></td>
+                <td>{{posting.journal.timestamp}}</td>
             </tr>
             {% endfor %}
         {% endfor %}
