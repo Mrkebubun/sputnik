@@ -55,9 +55,10 @@ $ ->
             <th>Description</th>
             <th>Type</th>
             <th>Reference Price</th>
+            <th>Transfer</th>
             {% if debug %}
                 <th>Adjust</th>
-            {% endif }
+            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -69,12 +70,24 @@ $ ->
             <td>{{position.description}}</td>
             <td>{{position.position_type}}</td>
             <td>{{position.reference_price}}</td>
+            <td>
+                <form action="/transfer_position" method="post" name="transfer_{{position.id}}" style="display:none;">
+                    <input type="text" name="quantity" placeholder="Quantity">
+                    <input type="text" name="to_user" placeholder="To Account User">
+                    <input type="text" name="to_description" placeholder="Account Description">
+                    <input type="hidden" name="from_user" value="{{user.username}}">
+                    <input type="hidden" name="username" value="{{user.username}}">
+                    <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                    <input type="hidden" name="from_description" value="{{position.description}}">
+                </form>
+            </td>
             {% if debug %}
                 <td>
                     <form action="/adjust_position" method="post">
-                        <input type="text" name="adjustment">
+                        <input type="text" name="adjustment" placeholder="Quantity">
                         <input type="hidden" name="username" value="{{user.username}}">
                         <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                        <input type="hidden" name="description" value="{{position.description}}">
                     </form>
                 </td>
             {% endif %}

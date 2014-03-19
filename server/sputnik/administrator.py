@@ -167,9 +167,15 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
-    def adjust_position(self, username, ticker, adjustment):
-        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, adjustment))
-        self.accountant.adjust_position(username, ticker, adjustment)
+    def adjust_position(self, username, ticker, adjustment, description):
+        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, adjustment, description))
+        self.accountant.adjust_position(username, ticker, adjustment, description)
+
+    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
+        logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
+            quantity, ticker, from_user, from_description, to_user, to_description))
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -203,7 +209,7 @@ class AdminWebUI(Resource):
             return self.user_list().encode('utf-8')
         elif request.path == '/balance_sheet':
             # Level 0
-            return self.audit().encode('utf-8')
+            return self.balance_sheet().encode('utf-8')
         elif request.path == '/adjust_position' and self.administrator.debug:
             # Level 5
             return self.adjust_position(request).encode('utf-8')
@@ -214,6 +220,9 @@ class AdminWebUI(Resource):
         elif request.path == '/reset_password':
             # Level 2
             return self.reset_password(request).encode('utf-8')
+        elif request.path == '/transfer_position':
+            # Level 4
+            return self.transfer_position(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
 
@@ -240,7 +249,13 @@ class AdminWebUI(Resource):
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['adjustment'][0]))
+                                           int(request.args['adjustment'][0]), request.args['description'][0])
+        return self.user_details(request)
+
+    def transfer_position(self, request):
+        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+                                             request.args['to_user'][0], request.args['quantity'][0],
+                                             request.args['from_description'][0], request.args['to_description'][0])
         return self.user_details(request)
 
     def rescan_address(self, request):

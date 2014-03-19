@@ -33,17 +33,17 @@ class AccountManager:
         print "\t\tpassword:\t%s" % user.password
         print "\t\ttotp:\t\t%s" % user.totp
         print "\t\tactive:\t\t%s" % user.active
+        print "\t\tdefault_position_type:\t\t%s" % user.default_position_type
         print "\tPositions:"
         for position in user.positions:
-            prefix = "%s(%s):" % (position.contract.ticker,
-                                  position.contract.id)
+            prefix = "%s(%s)-%s/%s:" % (position.contract.ticker,
+                                        position.contract.id,
+                                        position.position_type,
+                                        position.description)
             print "\t\t%s\t%s" % (prefix.ljust(10), position.position)
 
     def add(self, username):
         user = models.User(username, "")
-        btc = self.session.query(models.Contract).filter_by(
-                ticker="BTC").first()
-        position = models.Position(user, btc, 0)
         self.session.add(user)
 
     def delete(self, username):
@@ -76,28 +76,24 @@ class AccountManager:
         self.modify(username, "password", "%s:%s" % (salt, password))
 
     def position(self, username, ticker_or_id, value):
-        # We only permit position editing if we are in debug
-        if config.getboolean("accountant", "debug"):
-            user = self.session.query(models.User).filter_by(
-                    username=username).first()
-            if user == None:
-                raise Exception("User '%s' not found." % username)
-            contract = ContractManager.resolve(self.session, ticker_or_id)
-            if contract == None:
-                raise Exception("Contract '%s' not found." % ticker_or_id)
-            position = self.session.query(models.Position).filter_by(
-                    user=user, contract=contract).first()
-            if position == None:
-                if value != "delete":
-                    self.session.add(models.Position(user, contract, value))
-            else:
-                if value == "delete":
-                    self.session.delete(position)
-                else:
-                    position.position = value
-                    self.session.merge(position)
+        user = self.session.query(models.User).filter_by(
+                username=username).first()
+        if user == None:
+            raise Exception("User '%s' not found." % username)
+        contract = ContractManager.resolve(self.session, ticker_or_id)
+        if contract == None:
+            raise Exception("Contract '%s' not found." % ticker_or_id)
+        position = self.session.query(models.Position).filter_by(
+                user=user, contract=contract).first()
+        if position == None:
+            if value != "delete":
+                self.session.add(models.Position(user, contract, value))
         else:
-            raise NotImplementedError
+            if value == "delete":
+                self.session.delete(position)
+            else:
+                position.position = value
+                self.session.merge(position)
 
 class ContractManager:
     def __init__(self, session):

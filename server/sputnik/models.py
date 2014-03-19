@@ -87,7 +87,8 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
-    default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
+    default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
+                                   default='Liability')
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -164,7 +165,7 @@ class Posting(db.Base):
     journal_id = Column(Integer, ForeignKey('journal.id'))
     journal = relationship('Journal')
     position_id = Column(Integer, ForeignKey('positions.id'))
-    position = relationship('Position', backpopulates="postings")
+    position = relationship('Position', back_populates="postings")
     quantity = Column(BigInteger)
 
     def __repr__(self):
@@ -226,7 +227,7 @@ class Position(db.Base):
     contract = relationship('Contract')
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
-    position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
+    position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False, default='Liability')
     description = Column(String, default='User')
     postings = relationship("Posting", back_populates="position")
 

@@ -105,10 +105,10 @@ class Accountant:
         except NoResultFound:
             raise AccountantException("Could not resolve contract '%s'." % ticker)
 
-    def adjust_position(self, username, contract, adjustment):
+    def adjust_position(self, username, contract, adjustment, description='User'):
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
-        position = self.get_position(username, contract)
+        position = self.get_position(username, contract, description=description)
         adjustment_position = self.get_position('system', contract, 'Adjustment')
 
         journal = models.Journal('Adjustment')
@@ -444,11 +444,11 @@ class Accountant:
             # TODO: Fix to use exceptions
             return [False, (0, "Not enough margin")]
 
-    def transfer_position(self, ticker, from_user, to_user, quantity):
+    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
         try:
             journal = models.Journal('Transfer')
-            from_position = self.get_position(from_user, ticker)
-            to_position = self.get_position(to_user, ticker)
+            from_position = self.get_position(from_user, ticker, description=from_description)
+            to_position = self.get_position(to_user, ticker, description=to_description)
             debit = models.Posting(journal, from_position, quantity, 'debit')
             credit = models.Posting(journal, to_position, quantity, 'credit')
             self.session.add_all([from_position, to_position, debit, credit])
@@ -579,8 +579,13 @@ class AdministratorExport:
         self.accountant.clear_contract(ticker)
 
     @export
-    def adjust_position(self, username, ticker, adjustment):
-        self.accountant.adjust_position(username, ticker, adjustment)
+    def adjust_position(self, username, ticker, adjustment, description):
+        self.accountant.adjust_position(username, ticker, adjustment, description)
+
+    @export
+    def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
+        self.accountant.transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
