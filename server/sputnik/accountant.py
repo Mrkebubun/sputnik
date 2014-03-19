@@ -468,12 +468,12 @@ class Accountant:
             logging.debug('received %d at %s' % (total_received, address))
 
             #query for db objects we want to update
+            # TODO: Currency should be a foreignkey into contracts so this weirdness is not required
             total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
             contract = session.query(models.Contract).filter_by(ticker=total_deposited_at_address.currency.upper()).one()
 
-            user_cash_position = session.query(models.Position).filter_by(
-                username=total_deposited_at_address.username,
-                contract_id=contract.id).one()
+            user_cash_position = self.get_position(total_deposited_at_address.username,
+                                                   contract.ticker)
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
@@ -482,12 +482,14 @@ class Accountant:
             debit = models.Posting(journal, bank_position, deposit, 'debit')
 
             # TODO: Put deposit limits into the DB
-            # TODO: If a deposit failed, it goes into the 'deposit_overflow' account
+            # If a deposit failed, it goes into that user's 'deposit_overflow' account
+            # that way the user still 'owns' the money and we can eventually refund him
+            # but he can't trade with it
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
             if user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                overflow_position = self.get_position('system', contract.ticker, 'DepositOverflow')
+                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, 'DepositOverflow')
                 credit = models.Posting(journal, overflow_position, deposit, 'credit')
                 self.session.add(overflow_position)
             else:
