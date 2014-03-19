@@ -76,24 +76,28 @@ class AccountManager:
         self.modify(username, "password", "%s:%s" % (salt, password))
 
     def position(self, username, ticker_or_id, value):
-        user = self.session.query(models.User).filter_by(
-                username=username).first()
-        if user == None:
-            raise Exception("User '%s' not found." % username)
-        contract = ContractManager.resolve(self.session, ticker_or_id)
-        if contract == None:
-            raise Exception("Contract '%s' not found." % ticker_or_id)
-        position = self.session.query(models.Position).filter_by(
-                user=user, contract=contract).first()
-        if position == None:
-            if value != "delete":
-                self.session.add(models.Position(user, contract, value))
-        else:
-            if value == "delete":
-                self.session.delete(position)
+        # We only permit position editing if we are in debug
+        if config.getboolean("accountant", "debug"):
+            user = self.session.query(models.User).filter_by(
+                    username=username).first()
+            if user == None:
+                raise Exception("User '%s' not found." % username)
+            contract = ContractManager.resolve(self.session, ticker_or_id)
+            if contract == None:
+                raise Exception("Contract '%s' not found." % ticker_or_id)
+            position = self.session.query(models.Position).filter_by(
+                    user=user, contract=contract).first()
+            if position == None:
+                if value != "delete":
+                    self.session.add(models.Position(user, contract, value))
             else:
-                position.position = value
-                self.session.merge(position)
+                if value == "delete":
+                    self.session.delete(position)
+                else:
+                    position.position = value
+                    self.session.merge(position)
+        else:
+            raise NotImplementedError
 
 class ContractManager:
     def __init__(self, session):

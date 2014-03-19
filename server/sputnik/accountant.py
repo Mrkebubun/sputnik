@@ -109,7 +109,7 @@ class Accountant:
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         position = self.get_position(username, contract)
-        adjustment_position = self.get_position('adjustments', contract)
+        adjustment_position = self.get_position('system', contract, 'Adjustment')
 
         journal = models.Journal('Adjustment')
 
@@ -131,7 +131,7 @@ class Accountant:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
 
-    def get_position(self, username, ticker, reference_price=0):
+    def get_position(self, username, ticker, reference_price=0, description="User"):
         """
         Return a user's position for a contact. If it does not exist,
             initialize it.
@@ -148,11 +148,11 @@ class Accountant:
 
         try:
             return self.session.query(models.Position).filter_by(
-                user=user, contract=contract).one()
+                user=user, contract=contract, description=description).one()
         except NoResultFound:
-            logging.debug("Creating new position for %s on %s." %
-                          (username, contract))
-            position = models.Position(user, contract)
+            logging.debug("Creating new position %s for %s on %s." %
+                          (description, username, contract))
+            position = models.Position(user, contract, description=description)
             position.reference_price = reference_price
             self.session.add(position)
             return position
@@ -481,7 +481,7 @@ class Accountant:
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             journal = models.Journal('Deposit')
-            bank_position = self.get_position('cash', contract.ticker)
+            bank_position = self.get_position('system', contract.ticker, 'OnlineCash')
             debit = models.Posting(journal, bank_position, deposit, 'debit')
 
             # TODO: Put deposit limits into the DB
@@ -490,7 +490,7 @@ class Accountant:
             if user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                overflow_position = self.get_position('deposit_overflow', contract.ticker)
+                overflow_position = self.get_position('system', contract.ticker, 'DepositOverflow')
                 credit = models.Posting(journal, overflow_position, deposit, 'credit')
                 self.session.add(overflow_position)
             else:

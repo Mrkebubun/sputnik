@@ -215,7 +215,7 @@ class Addresses(db.Base):
 class Position(db.Base):
     __tablename__ = 'positions'
 
-    __table_args__ = (schema.UniqueConstraint('username', 'contract_id', 'position_type',
+    __table_args__ = (schema.UniqueConstraint('username', 'contract_id',
                                               'description'),
             {'extend_existing': True, 'sqlite_autoincrement': True})
 
@@ -227,12 +227,13 @@ class Position(db.Base):
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
     position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False)
-    description = Column(String)
+    description = Column(String, default='User')
     postings = relationship("Posting", back_populates="position")
 
-    def __init__(self, user, contract, position=0):
+    def __init__(self, user, contract, position=0, description='User'):
         self.user, self.contract = user, contract
         self.position = position
+        self.description = description
         self.position_type = self.user.default_position_type
 
     def audit(self):
