@@ -88,8 +88,9 @@
             </div>
             <div class="modal-body">
                 <form class="form" role="form">
-                    <label class="control-label" for="compropago_amount">Amount to deposit (MXN)</label>
-                    <input class="form-control" id="compropago_amount" type="number" min="0" max="10000" step="1" value="0"/>
+                    <label class="control-label" for="compropago_amount">Amount to deposit (MXN)
+                        <emph style="color:red;">your deposited balance may not exceed 600 MXN in beta</emph></label>
+                    <input class="form-control" id="compropago_amount" type="number" min="0" max="600" step="1" value="0"/>
                     <label class="control-label" for="compropago_store">Choose a store</label>
                     <select id="compropago_store" class="form-control">
                         <option value="OXXO">oxxo</option>
@@ -118,12 +119,6 @@
                         <label class="control-label" for="compropago_phone">phone number</label>
                         <input class="form-control" id="compropago_phone" type="tel" name="compropago_phone" value=""/>
                     </div>
-                    <script language="javascript">
-                         $('#compropago_send_sms').on('click', function() {
-                            $('#compropago_phone_input_zone').toggleClass('hidden show');
-                         });
-
-                    </script>
                 </form>
                 <div class="alert alert-warning" style="display:none" id="compropago_error">
                     Payment error
@@ -133,6 +128,11 @@
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="compropago_pay_button"><span class="ladda-label">Pay</span></button>
             </div>
+            <script language="javascript">
+                $('#compropago_send_sms').on('click', function() {
+                    $('#compropago_phone_input_zone').toggleClass('hidden show');
+                });
+            </script>
         </div>
     </div>
 </div>
@@ -145,6 +145,7 @@
                 <h4 class="modal-title">Deposit Address</h4>
             </div>
             <div class="modal-body">
+                <emph style="color:red;">your deposited balance may not exceed 0.1BTC in beta</emph>
                 <legend><a id="btc_deposit_address"></a></legend>
                 <div id="btc_deposit_qrcode"></div>
             </div>
