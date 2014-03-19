@@ -167,9 +167,9 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
-    def adjust_position(self, username, ticker, adjustment, description):
-        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, adjustment, description))
-        self.accountant.adjust_position(username, ticker, adjustment, description)
+    def adjust_position(self, username, ticker, quantity, description):
+        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, quantity, description))
+        self.accountant.adjust_position(username, ticker, quantity, description)
 
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
         logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
@@ -249,12 +249,12 @@ class AdminWebUI(Resource):
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['adjustment'][0]), request.args['description'][0])
+                                           int(request.args['quantity'][0]), request.args['description'][0])
         return self.user_details(request)
 
     def transfer_position(self, request):
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], request.args['quantity'][0],
+                                             request.args['to_user'][0], int(request.args['quantity'][0]),
                                              request.args['from_description'][0], request.args['to_description'][0])
         return self.user_details(request)
 

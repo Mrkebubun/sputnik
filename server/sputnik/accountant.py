@@ -105,7 +105,7 @@ class Accountant:
         except NoResultFound:
             raise AccountantException("Could not resolve contract '%s'." % ticker)
 
-    def adjust_position(self, username, contract, adjustment, description='User'):
+    def adjust_position(self, username, contract, quantity, description='User'):
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         position = self.get_position(username, contract, description=description)
@@ -114,15 +114,16 @@ class Accountant:
         journal = models.Journal('Adjustment')
 
         # Credit the user's account
-        credit = models.Posting(journal, position, adjustment, 'credit')
+        credit = models.Posting(journal, position, quantity, 'credit')
 
         # Debit the system account
-        debit = models.Posting(journal, adjustment_position, adjustment, 'debit')
+        debit = models.Posting(journal, adjustment_position, quantity, 'debit')
 
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
-            self.add_journal(journal)
+            self.session.add(journal)
             self.session.commit()
+            logging.info("Journal: %s" % journal)
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -136,8 +137,8 @@ class Accountant:
         :param reference_price: the (optional) reference price for the position
         :return: the position object
         """
-        logging.debug("Looking up position for %s on %s." %
-                      (username, ticker))
+        logging.debug("Looking up %s position for %s on %s." %
+                      (description, username, ticker))
 
         user = self.get_user(username)
         contract = self.get_contract(ticker)
@@ -185,11 +186,6 @@ class Accountant:
             self.session.commit()
             return True
 
-    def add_journal(self, journal):
-        self.session.add(journal)
-        logging.info("Auditing journal: %s" % journal)
-        journal.audit()
-
     def charge_fees(self, fees, username):
         """
         Credit fees to the people operating the exchange
@@ -234,8 +230,9 @@ class Accountant:
             self.session.add(credit)
             self.session.add(remainder_account_position)
 
-        self.add_journal(journal)
+        self.session.add(journal)
         self.session.commit()
+        logging.info("Journal: %s" % journal)
 
     def post_transaction(self, transaction):
         """
@@ -345,8 +342,9 @@ class Accountant:
                                   passive_to_position,
                                   aggressive_from_position,
                                   aggressive_to_position])
-            self.add_journal(journal)
+            self.session.add(journal)
             self.session.commit()
+            logging.info("Journal: %s" % journal)
 
             # TODO: Move this fee logic outside of "if cash_pair"
             aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
@@ -452,7 +450,7 @@ class Accountant:
             debit = models.Posting(journal, from_position, quantity, 'debit')
             credit = models.Posting(journal, to_position, quantity, 'credit')
             self.session.add_all([from_position, to_position, debit, credit])
-            self.add_journal(journal)
+            self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
         except Exception as e:
@@ -497,8 +495,9 @@ class Accountant:
                 self.session.add(user_cash_position)
 
             self.session.add_all([debit, credit])
-            self.add_journal(journal)
+            self.session.add(journal)
             self.session.commit()
+            logging.info("Journal: %s" % journal)
         except:
             session.rollback()
             logging.error(
@@ -579,12 +578,12 @@ class AdministratorExport:
         self.accountant.clear_contract(ticker)
 
     @export
-    def adjust_position(self, username, ticker, adjustment, description):
-        self.accountant.adjust_position(username, ticker, adjustment, description)
+    def adjust_position(self, username, ticker, quantity, description):
+        self.accountant.adjust_position(username, ticker, quantity, description)
 
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
-        self.accountant.transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description)
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
 
 if __name__ == "__main__":

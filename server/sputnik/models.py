@@ -149,7 +149,7 @@ class Journal(db.Base):
     def audit(self):
         """Make sure that every position's postings sum to 0
         """
-        sums = collections.defaultdict(0)
+        sums = collections.defaultdict(int)
         for posting in self.postings:
             ticker = posting.position.contract.ticker
             sums[ticker] += posting.quantity
@@ -181,9 +181,9 @@ class Posting(db.Base):
                 sign = -1
         else:
             if self.position.position_type is 'Asset':
-                sign = 1
-            else:
                 sign = -1
+            else:
+                sign = 1
 
         self.quantity = sign * quantity
         self.position.position += sign * quantity
