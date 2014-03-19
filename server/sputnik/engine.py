@@ -163,8 +163,9 @@ class Order(object):
                 'passive_order_id': other_order.id,
                 'timestamp': util.dt_to_timestamp(trade.timestamp)
             }
+        accountant.post_transaction(transaction)
+        print 'to acct: ',str({'post_transaction': transaction}
 
-        print 'to acct: ',str({'post_transaction': transaction})
         for o in [self, other_order]:
             # Send an order update
             order = {'contract': contract_name,
