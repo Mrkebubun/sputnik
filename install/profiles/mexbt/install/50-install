@@ -7,15 +7,18 @@ cp -r $profile_git_root/dist/build/server $profile_root
 cp $profile_git_root/dist/build/tools/leo.py${profile_pycompiled} $profile_root/tools
 cp $profile_git_root/dist/build/tools/generate_new_btc_addresses.py${profile_pycompiled} $profile_root/tools
 ln -sf $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
-ln -sf $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/generate_new_btc_addresses
+ln -sf $profile_root/tools/generate_new_btc_addresses.py${profile_pycompiled} $profile_root/tools/generate_new_btc_addresses
 
 
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
 
-# copy over keys
-cp $profile_git_root/dist/keys/* $profile_keys
-
+if [ -n "$UPGRADE" ]; then
+   echo "Not copying keys"
+else
+   # copy over keys
+   cp $profile_git_root/dist/keys/* $profile_keys
+fi
 # change permissions
 chown -R root:root $profile_root
 chmod -R ugo+rX $profile_root

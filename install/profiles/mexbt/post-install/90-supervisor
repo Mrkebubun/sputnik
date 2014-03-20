@@ -1,3 +1,6 @@
 #!/bin/bash
 
 /etc/init.d/supervisor restart
+
+# ?
+exit 0
