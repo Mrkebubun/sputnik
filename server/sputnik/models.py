@@ -146,6 +146,7 @@ class Journal(db.Base):
         footer = "</Journal>"
         return header + postings + footer
 
+    @property
     def audit(self):
         """Make sure that every position's postings sum to 0
         """
@@ -154,8 +155,11 @@ class Journal(db.Base):
             ticker = posting.position.contract.ticker
             sums[ticker] += posting.quantity
 
-        for ticker, sum in sums:
-            assert(sum == 0)
+        for audited in sums.itervalues():
+            if audited != 0:
+                return False
+
+        return True
 
 class Posting(db.Base):
     __tablename__ = 'posting'
@@ -171,7 +175,7 @@ class Posting(db.Base):
     def __repr__(self):
         return "<Posting('%s', %d))>" % (self.position, self.quantity)
 
-    def __init__(self, journal, position, quantity, side):
+    def __init__(self, journal, position, quantity, side, update_position=True):
         self.journal = journal
         self.position = position
         if side is 'debit':
@@ -186,7 +190,9 @@ class Posting(db.Base):
                 sign = 1
 
         self.quantity = sign * quantity
-        self.position.position += sign * quantity
+
+        if update_position:
+            self.position.position += sign * quantity
 
 class Addresses(db.Base):
     """
@@ -237,15 +243,18 @@ class Position(db.Base):
         self.description = description
         self.position_type = self.user.default_position_type
 
-    def audit(self):
+    @property
+    def position_calculated(self):
         """Make sure that the sum of all postings for this position sum to the position
         """
-        sum = sum([x.quantity for x in self.postings])
-        assert(sum == self.position)
+        calculated = sum([x.quantity for x in self.postings])
+        return calculated
 
     def __repr__(self):
-        return "<Position('%s', '%s', '%s','%s',%d>" \
-               % (self.position_type, self.description, self.contract.__repr__(), self.user.__repr__(), self.position)
+        return "<Position('%s', '%s', '%s','%s',%d,%d>" \
+               % (self.position_type, self.description, self.contract.__repr__(), self.user.__repr__(),
+                  self.position,
+                  self.position_calculated)
 
 
 class Withdrawal(db.Base):

@@ -124,6 +124,8 @@ class Accountant:
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
+            if not journal.audit:
+                raise AccountantException('Journal audit failure')
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -233,6 +235,8 @@ class Accountant:
         self.session.add(journal)
         self.session.commit()
         logging.info("Journal: %s" % journal)
+        if not journal.audit:
+            raise AccountantException('Journal audit failure')
 
     def post_transaction(self, transaction):
         """
@@ -345,6 +349,8 @@ class Accountant:
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
+            if not journal.audit:
+                raise AccountantException('Journal audit failure')
 
             # TODO: Move this fee logic outside of "if cash_pair"
             aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
@@ -453,6 +459,8 @@ class Accountant:
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
+            if not journal.audit:
+                raise AccountantException('Journal audit failure')
         except Exception as e:
             logging.error("Transfer position failed: %s" % e)
             self.session.rollback()
@@ -500,6 +508,8 @@ class Accountant:
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
+            if not journal.audit:
+                raise AccountantException('Journal audit failure')
         except:
             session.rollback()
             logging.error(
