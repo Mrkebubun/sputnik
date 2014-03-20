@@ -13,7 +13,7 @@ a2dissite 000-default
 sed -e "s|SERVER_NAME|${profile_webserver_address}|" $PROFILE/res/000-default.conf > /etc/apache2/sites-available/sputnik.conf
 sed -e "s|KEYS_DIRECTORY|${profile_keys}|" $PROFILE/res/default-ssl.conf > /etc/apache2/sites-available/sputnik-ssl.conf
 
-a2ensite sputnik
-a2ensite sputnik-ssl
+/usr/sbin/a2ensite sputnik.conf
+/usr/sbin/a2ensite sputnik-ssl.conf
 
 service apache2 restart
