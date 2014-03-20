@@ -37,6 +37,10 @@ class Installer:
             raise Exception("Cannot read profile.")
 
         self.config = dict(self.parser.items("profile"))
+        version = self.version()
+        self.config["git_hash"] = version[0]
+        self.config["git_date"] = version[1]
+        self.config["git_tag"] = version[2]
         
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
@@ -260,6 +264,19 @@ class Installer:
         self.make_stage("install")
         self.make_stage("post-install")
 
+    def version(self):
+        p = subprocess.Popen(
+                ["/usr/bin/git", "log", "--pretty=format:%H%n%aD"],
+                stdin=None, stdout=subprocess.PIPE,
+                stderr=self.logfile)
+        hash = p.stdout.readline().rstrip()
+        date = p.stdout.readline().rstrip()
+        p = subprocess.Popen(["/usr/bin/git", "describe", "--always", "--tags"],
+                             stdin=None, stdout=subprocess.PIPE,
+                             stderr=self.logfile)
+        tag = p.stdout.readline().rstrip()
+        return [hash, date, tag]
+
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
                              stdout=self.logfile, stderr=self.logfile)
@@ -318,6 +335,8 @@ def main():
         elif mode == "env":
             for key, value in installer.config.iteritems():
                 print "export profile_%s=\"%s\"" % (key, value)
+        elif mode == "version":
+            print installer.version()
         else:
             sys.stderr.write("Install mode not recognized.\n")
             sys.stderr.flush()

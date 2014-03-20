@@ -45,3 +45,7 @@ debug = ${debug}
 zmq_frontend_address = tcp://127.0.0.1:4501
 zmq_backend_address = tcp://127.0.0.1:4502
 
+[version]
+git_hash = ${git_hash}
+git_date = ${git_date}
+git_tag = ${git_tag}
