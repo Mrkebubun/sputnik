@@ -6,5 +6,5 @@ fi
 
 # wait until everything starts up
 sleep 10
-sudo -u sputnik $profile_root/tools/generate_new_btc_addresses.py
+sudo -u sputnik $profile_root/tools/generate_new_btc_addresses
 
