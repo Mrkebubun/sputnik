@@ -544,19 +544,27 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 "send_sms": {"type": "boolean", "required": "true"},
                 "currency": {"type": "string", "required": "true"},
                 "customer_phone": {"type": "string", "required": "true"},
-                "customer_email": {"type": "string", "required": "true"}
+                "customer_email": {"type": "string", "required": "true"},
+                "customer_phone_company": {"type": "string", "required": "true"}
             }
         })
         # Make sure we received an integer qty of MXN
         if charge['product_price'] != int(charge['product_price']):
             return [False, (0, "Invalid MXN quantity sent")]
 
-#        def _cb(result):
-        #denominator = result[0][0]
-        charge['product_price'] = charge['product_price'] #/ denominator
+        if charge['customer_phone_company'] not in compropago.Compropago.phone_companies:
+            return [False, (0, "Invalid phone company")]
+
+        if charge['payment_type'] not in compropago.Compropago.payment_types:
+            return [False, (0, "Invalid payment type")]
+
+        phone_company = charge['customer_phone_company']
+        charge['customer_phone'] = filter(str.isdigit, charge['customer_phone'])
+
+
+        del charge['customer_phone_company']
+
         charge['customer_name'] = self.username
-        charge['customer_phone'] = charge['customer_phone']
-        charge['customer_email'] = charge['customer_email']
         charge['product_name'] = 'bitcoins'
         charge['product_id'] = ''
         charge['image_url'] = ''
@@ -570,10 +578,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 payment_id = bill['payment_id']
                 instructions = bill['payment_instructions']
                 address = 'compropago_%s' % payment_id
+                if charge['send_sms']:
+                    self.compropago.send_sms(payment_id, charge['customer_phone'], phone_company)
                 txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
                 return [True, instructions]
 
             return dbpool.runInteraction(save_bill)
+
+
+        def send_sms():
+
+
 
         def error(failure):
             logging.warn("Could not create bill: %s" % str(failure))
