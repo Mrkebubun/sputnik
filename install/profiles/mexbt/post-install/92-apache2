@@ -4,9 +4,7 @@ if [ -n "$UPGRADE" ]; then
     exit 0
 fi
 
-cp $PROFILE/res/https-redirect.conf /etc/apache2/conf-available
-
-a2enconf https-redirect
+cp $PROFILE/res/https-redirect.conf /etc/apache2/conf.d
 
 a2enmod ssl
 a2enmod rewrite
