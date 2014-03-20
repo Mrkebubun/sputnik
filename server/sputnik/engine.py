@@ -9,7 +9,7 @@ parser.add_option("-c", "--config", dest="filename",
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
-    
+
 import logging
 import util
 
@@ -260,7 +260,7 @@ book = {'bid': {}, 'ask': {}}
 best = {'bid': None, 'ask': None}
 
 # first cancel all old pending orders
-for order in db_session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
+for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
     order.is_cancelled = True
     db_session.merge(order)
     # Tell the users that their order has been cancelled
@@ -279,13 +279,13 @@ def publish_order_book():
              'asks': []
     }
     for price in sorted(book['bid'].iterkeys()):
-        published_book['bids'].append({ 'price': price,
-                                        'quantity': sum([x.quantity for x in book['bid'][price]])
+        published_book['bids'].append({'price': price,
+                                        'quantity': sum([x.quantity_left for x in book['bid'][price]])
         })
 
     for price in sorted(book['ask'].iterkeys(), reverse=True):
-        published_book['asks'].append({ 'price': price,
-                                        'quantity': sum([x.quantity for x in book['ask'][price]])
+        published_book['asks'].append({'price': price,
+                                        'quantity': sum([x.quantity_left for x in book['ask'][price]])
         })
 
     webserver.book(contract_name, published_book)
@@ -298,7 +298,7 @@ def pretty_print_book():
     """
     return '***\n%s\n***' % '\n-----\n'.join(
         '\n'.join(
-            str(level) + ":" + '+'.join(str(order.quantity) for order in book[side][level])
+            str(level) + ":" + '+'.join(str(order.quantity_left) for order in book[side][level])
             for level in sorted(book[side], reverse=True))
         for side in ['ask', 'bid'])
 
