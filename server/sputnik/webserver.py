@@ -677,7 +677,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("get_positions")
-    def get_positions(self):
+    def get_positions(self, description='User'):
         """
         Returns the user's positions
         :return: a dictionary representing the user's positions in various tickers
@@ -692,8 +692,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return dbpool.runQuery(
             "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price "
-            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
-            (self.username,)).addCallback(_cb)
+            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s "
+            "AND positions.description=%s",
+            (self.username, description)).addCallback(_cb)
 
     @exportRpc("get_profile")
     def get_profile(self):

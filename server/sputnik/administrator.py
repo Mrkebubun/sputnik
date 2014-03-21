@@ -187,9 +187,19 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
-    def adjust_position(self, username, ticker, adjustment):
-        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, adjustment))
-        self.accountant.adjust_position(username, ticker, adjustment)
+    def get_journal(self, journal_id):
+        journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
+        return journal
+
+    def adjust_position(self, username, ticker, quantity, description):
+        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, quantity, description))
+        self.accountant.adjust_position(username, ticker, quantity, description)
+
+    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
+        logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
+            quantity, ticker, from_user, from_description, to_user, to_description))
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -249,7 +259,13 @@ class AdminWebUI(Resource):
 
         return resource_list[request.path](request).encode('utf-8')
 
-    def user_list(self, request):
+    def ledger(self, request):
+        journal_id = request.args['id'][0]
+        journal = self.administrator.get_journal(journal_id)
+        t = self.jinja_env.get_template('ledger.html')
+        return t.render(journal=journal)
+
+    def user_list(self):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
@@ -284,7 +300,13 @@ class AdminWebUI(Resource):
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['adjustment'][0]))
+                                           int(request.args['quantity'][0]), request.args['description'][0])
+        return self.user_details(request)
+
+    def transfer_position(self, request):
+        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+                                             request.args['to_user'][0], int(request.args['quantity'][0]),
+                                             request.args['from_description'][0], request.args['to_description'][0])
         return self.user_details(request)
 
     def rescan_address(self, request):
@@ -305,22 +327,29 @@ class AdminWebUI(Resource):
         self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
         return self.admin_list(request)
 
-    def audit(self, request):
+    def balance_sheet(self):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
         self.administrator.expire_all()
         # TODO: Do this in SQLalchemy
         positions = self.administrator.get_positions()
-        position_totals = collections.defaultdict(int)
-        positions_by_ticker = collections.defaultdict(list)
+        asset_totals = collections.defaultdict(int)
+        liability_totals = collections.defaultdict(int)
+        assets_by_ticker = collections.defaultdict(list)
+        liabilities_by_ticker = collections.defaultdict(list)
+
         for position in positions:
             if position.position is not None:
-                position_totals[position.contract.ticker] += position.position
+                if position.position_type == 'Asset':
+                    asset_totals[position.contract.ticker] += position.position
+                    assets_by_ticker[position.contract.ticker].append(position)
+                else:
+                    liability_totals[position.contract.ticker] += position.position
+                    liabilities_by_ticker[position.contract.ticker].append(position)
 
-            positions_by_ticker[position.contract.ticker].append(position)
-
-        t = self.jinja_env.get_template('audit.html')
-        rendered = t.render(positions_by_ticker=positions_by_ticker, position_totals=position_totals)
+        t = self.jinja_env.get_template('balance_sheet.html')
+        rendered = t.render(assets_by_ticker=assets_by_ticker, asset_totals=asset_totals,
+                            liabilities_by_ticker=liabilities_by_ticker, liability_totals=liability_totals)
         return rendered
 
 class PasswordChecker(object):

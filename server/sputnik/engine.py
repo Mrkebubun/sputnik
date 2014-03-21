@@ -151,35 +151,36 @@ class Order(object):
              'timestamp': util.dt_to_timestamp(trade.timestamp)
             })
 
+        # The accountant needs to post both sides of the transaction at once
+        transaction = {
+                'aggressive_username': self.username,
+                'passive_username': other_order.username,
+                'contract': contract_name,
+                'quantity': quantity,
+                'price': matching_price,
+                'contract_type': db_orders[0].contract.contract_type,
+                'aggressive_order_id': self.id,
+                'passive_order_id': other_order.id,
+                'timestamp': util.dt_to_timestamp(trade.timestamp),
+                'side': OrderSide.name(self.side)
+            }
+        accountant.post_transaction(transaction)
+        print 'to acct: ',str({'post_transaction': transaction})
+
         for o in [self, other_order]:
-            signed_quantity = -o.side * quantity
-            transaction = {
-                    'username': o.username,
-                    'contract': contract_name,
-                    'signed_quantity': signed_quantity,
-                    'quantity': quantity,
-                    'price': matching_price,
-                    'contract_type': db_orders[0].contract.contract_type,
-                    'order_id': o.id,
-                    'timestamp': util.dt_to_timestamp(trade.timestamp),
-                    'side': OrderSide.name(o.side)
-                }
-            accountant.post_transaction(transaction)
-            print 'to acct: ',str({'post_transaction': transaction})
             # Send an order update
             order = {'contract': contract_name,
-                 'id': o.id,
-                 'quantity': o.quantity,
-                 'quantity_left': o.quantity_left,
-                 'price': o.price,
-                 'side': OrderSide.name(o.side),
-                 # TODO: is hardcoding 'False' in here correct?
-                 'is_cancelled': False,
-                 'timestamp': util.dt_to_timestamp(o.timestamp)
-                 }
+                     'id': o.id,
+                     'quantity': o.quantity,
+                     'quantity_left': o.quantity_left,
+                     'price': o.price,
+                     'side': OrderSide.name(o.side),
+                     # TODO: is hardcoding 'False' in here correct?
+                     'is_cancelled': False,
+                     'timestamp': util.dt_to_timestamp(o.timestamp)
+            }
             webserver.order(o.username, order)
-
-            print 'to ws: ',str({'orders': [o.username, order]})
+            print 'to ws: ', str({'orders': [o.username, order]})
 
     def cancel(self):
         """

@@ -21,13 +21,12 @@ contracts modify BTC/MXN denominator 1
 accounts add mexbt
 accounts add m2
 accounts add remainder
+accounts add system
+accounts modify system default_position_type Asset
+
 accounts add marketmaker
 accounts password marketmaker marketmaker
 accounts add randomtrader
 accounts password randomtrader randomtrader
-accounts position marketmaker BTC 1000000000
-accounts position marketmaker MXN 1000000
-accounts position randomtrader BTC 1000000000
-accounts position randomtrader MXN 1000000
 EOF
 
