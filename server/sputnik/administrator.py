@@ -244,9 +244,9 @@ class AdminWebUI(Resource):
                     # Level 2
                      {'/reset_password': self.reset_password},
                     # Level 3
-                     {},
+                     {'/ledger': self.ledger },
                     # Level 4
-                     {},
+                     {'/transfer_position', self.transfer_position},
                     # Level 5
                      {'/admin': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
