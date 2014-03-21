@@ -9,6 +9,7 @@ from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
 import util
 import hashlib
 import base64
+import collections
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
@@ -86,6 +87,8 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
+    default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
+                                   default='Liability')
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -118,6 +121,89 @@ class User(db.Base):
         return {"username": self.username, "password": self.password,
                 "email": self.email, "nickname":self.nickname}
 
+class Journal(db.Base):
+    __tablename__ = 'journal'
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+
+    id = Column(Integer, primary_key=True)
+    type = Column(String, Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
+                               'Trade', 'Fee',
+                               name='journal_types'), nullable=False)
+    timestamp = Column(DateTime)
+    notes = Column(String)
+    postings = relationship('Posting', back_populates="journal")
+
+    def __init__(self, type, postings, timestamp=None, notes=None):
+        self.type = type
+        self.timestamp = timestamp
+        self.notes = notes
+        self.postings = postings
+        if timestamp is None:
+            self.timestamp = datetime.utcnow()
+        else:
+            self.timestamp = timestamp
+
+        if not self.audit:
+            raise Exception("Journal audit failed for %s" % self)
+
+    def __repr__(self):
+        header = "<Journal('%s', '%s', '%s')>\n" % (self.type, self.timestamp, self.notes)
+        postings = ""
+        for posting in self.postings:
+            postings += "\t%s\n" % posting
+        footer = "</Journal>"
+        return header + postings + footer
+
+    @property
+    def audit(self):
+        """Make sure that every position's postings sum to 0
+        """
+        sums = collections.defaultdict(int)
+        for posting in self.postings:
+            ticker = posting.position.contract.ticker
+            if posting.position.position_type == 'Asset':
+                sign = 1
+            else:
+                sign = -1
+            sums[ticker] += sign * posting.quantity
+
+        for audited in sums.itervalues():
+            if audited != 0:
+                return False
+
+        return True
+
+class Posting(db.Base):
+    __tablename__ = 'posting'
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+
+    id = Column(Integer, primary_key=True)
+    journal_id = Column(Integer, ForeignKey('journal.id'))
+    journal = relationship('Journal')
+    position_id = Column(Integer, ForeignKey('positions.id'))
+    position = relationship('Position', back_populates="postings")
+    quantity = Column(BigInteger)
+
+    def __repr__(self):
+        return "<Posting('%s', %d))>" % (self.position, self.quantity)
+
+    def __init__(self, position, quantity, side, update_position=True):
+        self.position = position
+        if side is 'debit':
+            if self.position.position_type == 'Asset':
+                sign = 1
+            else:
+                sign = -1
+        else:
+            if self.position.position_type == 'Asset':
+                sign = -1
+            else:
+                sign = 1
+
+        self.quantity = sign * quantity
+
+        if update_position:
+            self.position.position += sign * quantity
 
 class Addresses(db.Base):
     """
@@ -147,7 +233,8 @@ class Addresses(db.Base):
 class Position(db.Base):
     __tablename__ = 'positions'
 
-    __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
+    __table_args__ = (schema.UniqueConstraint('username', 'contract_id',
+                                              'description'),
             {'extend_existing': True, 'sqlite_autoincrement': True})
 
     id = Column(Integer, primary_key=True)
@@ -157,14 +244,28 @@ class Position(db.Base):
     contract = relationship('Contract')
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
+    position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False, default='Liability')
+    description = Column(String, default='User')
+    postings = relationship("Posting", back_populates="position")
 
-    def __init__(self, user, contract, position=0):
+    def __init__(self, user, contract, position=0, description='User'):
         self.user, self.contract = user, contract
         self.position = position
+        self.description = description
+        self.position_type = self.user.default_position_type
+
+    @property
+    def position_calculated(self):
+        """Make sure that the sum of all postings for this position sum to the position
+        """
+        calculated = sum([x.quantity for x in self.postings])
+        return calculated
 
     def __repr__(self):
-        return "<Position('%s','%s',%d>" \
-               % (self.contract.__repr__(), self.user.__repr__(), self.position)
+        return "<Position('%s', '%s', '%s','%s',%d,%d>" \
+               % (self.position_type, self.description, self.contract.__repr__(), self.user.__repr__(),
+                  self.position,
+                  self.position_calculated)
 
 
 class Withdrawal(db.Base):

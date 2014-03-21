@@ -50,28 +50,71 @@ $ ->
 <table id="positions" class="table table-striped table-hover">
     <thead>
         <tr>
+            <th></th>
             <th>Contract</th>
             <th>Position</th>
+            <th>Description</th>
+            <th>Type</th>
             <th>Reference Price</th>
-            <th>Adjust</th>
+            <th>Transfer</th>
+            {% if debug %}
+                <th>Adjust</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
         {% for position in user.positions %}
         <tr>
+            <!-- TODO: Get this caret to actually work -->
+            <td><span class="caret btn-link" onclick="show({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
             <td>{{position.position}}</td>
+            <td>{{position.description}}</td>
+            <td>{{position.position_type}}</td>
             <td>{{position.reference_price}}</td>
-            {% if debug %}
             <td>
-                <form action="/adjust_position" method="post">
-                    <input type="text" name="adjustment">
+                <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
+                    <input type="text" name="quantity" placeholder="Quantity">
+                    <input type="text" name="to_user" placeholder="To Account User">
+                    <input type="text" name="to_description" placeholder="Account Description">
+                    <input type="hidden" name="from_user" value="{{user.username}}">
                     <input type="hidden" name="username" value="{{user.username}}">
                     <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                    <input type="hidden" name="from_description" value="{{position.description}}">
+                    <button type="submit">Transfer</button>
                 </form>
             </td>
+            {% if debug %}
+                <td>
+                    <form action="/adjust_position" method="post">
+                        <input type="text" name="quantity" placeholder="Quantity">
+                        <input type="hidden" name="username" value="{{user.username}}">
+                        <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                        <input type="hidden" name="description" value="{{position.description}}">
+                    </form>
+                </td>
             {% endif %}
         </tr>
+            <tr name="postings_{{position.id}}">
+                <th></th>
+                <th>Ledger</th>
+                <th>Quantity</th>
+                <th>Notes</th>
+                <th>Type</th>
+                <th></th>
+                <th>Timestamp</th>
+            </tr>
+            {% for posting in position.postings %}
+            <tr name="postings_{{position.id}}">
+                <td></td>
+                <td><a href="/ledger?id={{posting.journal_id}}">{{posting.journal_id}}</a></td>
+                <td>{{posting.quantity}}</td>
+                <td>{{posting.journal.notes}}</td>
+                <td>{{posting.journal.type}}</td>
+                <td></td>
+                <td>{{posting.journal.timestamp}}</td>
+            </tr>
+            {% endfor %}
         {% endfor %}
     </tbody>
 </table>
@@ -113,7 +156,7 @@ $ ->
         {% for trade in order.aggressive_trades %}
         <tr name="trades_{{order.id}}" style="display:none;">
             <td></td>
-            <td></td>
+            <th>Fill</th>
             <td>{{trade.quantity}}</td>
             <td></td>
             <td>{{trade.price}}</td>
@@ -124,7 +167,7 @@ $ ->
         {% for trade in order.passive_trades %}
         <tr name="trades_{{order.id}}" style="display:none;">
             <td></td>
-            <td></td>
+            <th>Fill</th>
             <td>{{trade.quantity}}</td>
             <td></td>
             <td>{{trade.price}}</td>

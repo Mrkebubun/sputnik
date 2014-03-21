@@ -14,8 +14,7 @@
 <body>
     <ul class="nav nav-tabs">
       <li {% block users_active %}{% endblock %}><a href="/">Users</a></li>
-      <li {% block audit_active %}{% endblock %}><a href="/audit">Audit</a></li>
-      <li {% block fees_active %}{% endblock %}><a href="/fees">Fees</a></li>
+      <li {% block balance_sheet_active %}{% endblock %}><a href="/balance_sheet">Balance Sheet</a></li>
     </ul>
     <br>
     {% block body %}{% endblock %}
