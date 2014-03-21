@@ -133,10 +133,18 @@ class Journal(db.Base):
     notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, timestamp=datetime.utcnow(), notes=None):
+    def __init__(self, type, postings, timestamp=None, notes=None):
         self.type = type
         self.timestamp = timestamp
-        self.notes = None
+        self.notes = notes
+        self.postings = postings
+        if timestamp is None:
+            self.timestamp = datetime.utcnow()
+        else:
+            self.timestamp = timestamp
+
+        if not self.audit:
+            raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
         header = "<Journal('%s', '%s', '%s')>\n" % (self.type, self.timestamp, self.notes)
@@ -153,7 +161,11 @@ class Journal(db.Base):
         sums = collections.defaultdict(int)
         for posting in self.postings:
             ticker = posting.position.contract.ticker
-            sums[ticker] += posting.quantity
+            if posting.position.position_type == 'Asset':
+                sign = 1
+            else:
+                sign = -1
+            sums[ticker] += sign * posting.quantity
 
         for audited in sums.itervalues():
             if audited != 0:
@@ -175,8 +187,7 @@ class Posting(db.Base):
     def __repr__(self):
         return "<Posting('%s', %d))>" % (self.position, self.quantity)
 
-    def __init__(self, journal, position, quantity, side, update_position=True):
-        self.journal = journal
+    def __init__(self, position, quantity, side, update_position=True):
         self.position = position
         if side is 'debit':
             if self.position.position_type == 'Asset':

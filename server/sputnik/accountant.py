@@ -111,21 +111,18 @@ class Accountant:
         position = self.get_position(username, contract, description=description)
         adjustment_position = self.get_position('system', contract, description='Adjustment')
 
-        journal = models.Journal('Adjustment')
-
         # Credit the user's account
-        credit = models.Posting(journal, position, quantity, 'credit')
+        credit = models.Posting(position, quantity, 'credit')
 
         # Debit the system account
-        debit = models.Posting(journal, adjustment_position, quantity, 'debit')
+        debit = models.Posting(adjustment_position, quantity, 'debit')
 
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
+            journal = models.Journal('Adjustment', [credit, debit])
+            logging.info("Journal: %s" % journal)
             self.session.add(journal)
             self.session.commit()
-            logging.info("Journal: %s" % journal)
-            if not journal.audit:
-                raise AccountantException('Journal audit failure')
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -196,16 +193,17 @@ class Accountant:
 
         # Make sure the vendorshares is less than or equal to 1.0
         assert(sum(self.vendor_share_config.values()) <= 1.0)
-        journal = models.Journal('Fee')
+        postings = []
 
         for ticker, fee in fees.iteritems():
 
             user_position = self.get_position(username, ticker)
 
             # Debit the fee from the user's account
-            debit = models.Posting(journal, user_position, fee, 'debit')
+            debit = models.Posting(user_position, fee, 'debit')
             logging.debug("Debiting user %s with fee %d %s" % (username, fee, ticker))
             self.session.add(debit)
+            postings.append(debit)
             self.session.add(user_position)
 
             remaining_fee = fee
@@ -216,27 +214,27 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                credit = models.Posting(journal, vendor_position, vendor_credit, 'credit')
+                credit = models.Posting(vendor_position, vendor_credit, 'credit')
                 logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
                 self.session.add(vendor_position)
                 self.session.add(credit)
+                postings.append(credit)
 
             # There might be some fee leftover due to rounding,
             # we have an account for that guy
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_account_position = self.get_position('remainder', ticker)
-            credit = models.Posting(journal, remainder_account_position, remaining_fee, 'credit')
+            credit = models.Posting( remainder_account_position, remaining_fee, 'credit')
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
-
             self.session.add(credit)
+            postings.append(credit)
             self.session.add(remainder_account_position)
 
+        journal = models.Journal('Fee', postings)
         self.session.add(journal)
         self.session.commit()
         logging.info("Journal: %s" % journal)
-        if not journal.audit:
-            raise AccountantException('Journal audit failure')
 
     def post_transaction(self, transaction):
         """
@@ -255,9 +253,6 @@ class Accountant:
         passive_order_id = transaction["passive_order_id"]
         side = transaction["side"]
         timestamp = transaction["timestamp"]
-        journal = models.Journal('Trade', timestamp=util.timestamp_to_dt(timestamp),
-                                 notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
-                                                                       passive_order_id))
 
         contract = self.get_contract(ticker)
 
@@ -331,11 +326,16 @@ class Accountant:
             else:
                 sign = -1
 
-            aggressive_debit = models.Posting(journal, aggressive_from_position, sign * from_quantity_int, 'debit')
-            aggressive_credit = models.Posting(journal, aggressive_to_position, sign * quantity, 'credit')
+            aggressive_debit = models.Posting(aggressive_from_position, sign * from_quantity_int, 'debit')
+            aggressive_credit = models.Posting(aggressive_to_position, sign * quantity, 'credit')
 
-            passive_credit = models.Posting(journal, passive_from_position, sign * from_quantity_int, 'credit')
-            passive_debit = models.Posting(journal, passive_to_position, sign * quantity, 'debit')
+            passive_credit = models.Posting(passive_from_position, sign * from_quantity_int, 'credit')
+            passive_debit = models.Posting(passive_to_position, sign * quantity, 'debit')
+
+            postings = [aggressive_credit,
+                        aggressive_debit,
+                        passive_credit,
+                        passive_debit]
 
             # Double-entry
             self.session.add_all([passive_debit,
@@ -346,11 +346,12 @@ class Accountant:
                                   passive_to_position,
                                   aggressive_from_position,
                                   aggressive_to_position])
+            journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
+                                    notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
+                                                                        passive_order_id))
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
-            if not journal.audit:
-                raise AccountantException('Journal audit failure')
 
             # TODO: Move this fee logic outside of "if cash_pair"
             aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
@@ -450,17 +451,15 @@ class Accountant:
 
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
         try:
-            journal = models.Journal('Transfer')
             from_position = self.get_position(from_user, ticker, description=from_description)
             to_position = self.get_position(to_user, ticker, description=to_description)
-            debit = models.Posting(journal, from_position, quantity, 'debit')
-            credit = models.Posting(journal, to_position, quantity, 'credit')
+            debit = models.Posting(from_position, quantity, 'debit')
+            credit = models.Posting(to_position, quantity, 'credit')
             self.session.add_all([from_position, to_position, debit, credit])
+            journal = models.Journal('Transfer', [debit, credit])
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
-            if not journal.audit:
-                raise AccountantException('Journal audit failure')
         except Exception as e:
             logging.error("Transfer position failed: %s" % e)
             self.session.rollback()
@@ -485,9 +484,10 @@ class Accountant:
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
-            journal = models.Journal('Deposit')
+            postings = []
             bank_position = self.get_position('system', contract.ticker, description='OnlineCash')
-            debit = models.Posting(journal, bank_position, deposit, 'debit')
+            debit = models.Posting(bank_position, deposit, 'debit')
+            postings.append(debit)
 
             # TODO: Put deposit limits into the DB
             # If a deposit failed, it goes into that user's 'deposit_overflow' account
@@ -498,18 +498,18 @@ class Accountant:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
                 overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
-                credit = models.Posting(journal, overflow_position, deposit, 'credit')
+                credit = models.Posting(overflow_position, deposit, 'credit')
                 self.session.add(overflow_position)
             else:
-                credit = models.Posting(journal, user_cash_position, deposit, 'credit')
+                credit = models.Posting(user_cash_position, deposit, 'credit')
                 self.session.add(user_cash_position)
 
-            self.session.add_all([debit, credit])
+            postings.append(credit)
+            self.session.add_all(postings)
+            journal = models.Journal('Deposit', postings)
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
-            if not journal.audit:
-                raise AccountantException('Journal audit failure')
         except:
             session.rollback()
             logging.error(

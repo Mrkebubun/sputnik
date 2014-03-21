@@ -107,7 +107,7 @@ $ ->
             {% for posting in position.postings %}
             <tr name="postings_{{position.id}}">
                 <td></td>
-                <td></td>
+                <td>{{posting.journal_id}}</td>
                 <td>{{posting.quantity}}</td>
                 <td>{{posting.journal.notes}}</td>
                 <td>{{posting.journal.type}}</td>

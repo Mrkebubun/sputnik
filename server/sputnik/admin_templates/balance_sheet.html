@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Audit{% endblock %}
+{% block title %}Balance Sheet{% endblock %}
 {% block balance_sheet_active %}class="active"{% endblock %}
 {% block body %}
 <div class="container">
 <div class="panel panel-primary">
-    <div class="panel-heading">Audit List</div>
+    <div class="panel-heading">Balance Sheet</div>
     <div class="panel-body">
     Assets
     <table id="assets" class="table table-striped table-hover">
         <thead>
-            <tr><th>Contract</th><th>Position</th></tr>
+            <tr><th>Contract</th><th>Position</th><th>Description</th></tr>
         </thead>
         <tbody>
             {% for ticker, position_total in asset_totals.iteritems() %}
@@ -30,7 +30,7 @@
     Liabilities
     <table id="liabilities" class="table table-striped table-hover">
         <thead>
-            <tr><th>Contract</th><th>Position</th></tr>
+            <tr><th>Contract</th><th>Position</th><th>Description</th></tr>
         </thead>
         <tbody>
             {% for ticker, position_total in liability_totals.iteritems() %}

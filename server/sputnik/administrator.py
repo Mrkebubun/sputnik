@@ -275,7 +275,7 @@ class AdminWebUI(Resource):
 
         for position in positions:
             if position.position is not None:
-                if position.position_type is 'Asset':
+                if position.position_type == 'Asset':
                     asset_totals[position.contract.ticker] += position.position
                     assets_by_ticker[position.contract.ticker].append(position)
                 else:

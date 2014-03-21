@@ -23,9 +23,10 @@ positions = session.query(models.Position).filter_by(description='User').all()
 system_user = session.query(models.User).filter_by(username='system').one()
 
 # which to adjust
-adjust = False
+# adjust = False
 #adjust = 'positions'
 #adjust = 'ledger'
+adjust = True
 
 def get_system_position(contract, description):
     try:
@@ -66,12 +67,11 @@ for position in positions:
                 session.commit()
                 print "Updated Position: %s" % position
             elif choice == 'J':
-                journal = models.Journal('Adjustment')
-                credit = models.Posting(journal, position, difference, 'credit', update_position=False)
-
+                credit = models.Posting(position, difference, 'credit', update_position=False)
                 system_position = get_system_position(position.contract, 'Adjustment')
-                debit = models.Posting(journal, position, difference, 'debit')
+                debit = models.Posting(system_position, difference, 'debit')
                 session.add_all([position, system_position, credit, debit])
+                journal = models.Journal('Adjustment', [credit, debit])
                 session.add(journal)
                 session.commit()
                 print journal
