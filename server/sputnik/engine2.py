@@ -33,6 +33,7 @@ class Order:
         self.id = id
         self.contract = contract
         self.quantity = quantity
+        self.quantity_left = quantity
         self.price = price
         self.side = side
         self.username = username
@@ -44,7 +45,7 @@ class Order:
         return (self.price - other.price) * self.side <= 0
 
     def __str__(self):
-        return "%sOrder(price=%s, quantity=%s, id=%d)" % ("Bid" if self.side < 0 else "Ask", self.price, self.quantity, self.id)
+        return "%sOrder(price=%s, quantity=%s/%s, id=%d)" % ("Bid" if self.side < 0 else "Ask", self.price, self.quantity_left, self.quantity, self.id)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -128,7 +129,7 @@ class Engine:
     def process(self, order):
 
         # Loop until the order or the opposite side is exhausted.
-        while order.quantity > 0:
+        while order.quantity_left > 0:
 
             # If the other side has run out of orders, break.
             if not self.orderbook[-order.side]:
@@ -159,14 +160,14 @@ class Engine:
             # At this point, the trade has been successful.
 
             # If the passive order is used up, remove it.
-            if passive_order.quantity <= 0:
+            if passive_order.quantity_left <= 0:
                 heapq.heappop(self.orderbook[passive_order.side])
                 del self.ordermap[passive_order.id]
 
 
         # If order is not completely filled, push remainder onto heap and make
         #   an entry in the map.
-        if order.quantity > 0:
+        if order.quantity_left > 0:
             heapq.heappush(self.orderbook[order.side], order)
             self.ordermap[order.id] = order
 
@@ -179,7 +180,7 @@ class Engine:
     def match(self, order, passive_order):
 
         # Calculate trading quantity and price.
-        quantity = min(order.quantity, passive_order.quantity)
+        quantity = min(order.quantity_left, passive_order.quantity_left)
         signed_quantity = quantity * order.side
         price = passive_order.price
 
@@ -212,8 +213,8 @@ class Engine:
             raise e
         
         # Adjust orders on the books
-        order.quantity -= quantity
-        passive_order.quantity -= quantity
+        order.quantity_left -= quantity
+        passive_order.quantity_left -= quantity
 
         # Notify listeners.
         self.notify_trade_success(order, passive_order, price, signed_quantity)
@@ -384,12 +385,12 @@ class LoggingListener:
         for i in range(length):
             try:
                 ask = self.engine.orderbook["Ask"][i]
-                ask_str = "{:<5} {:<5}".format(ask.price, ask.quantity)
+                ask_str = "{:<5} {:<5}".format(ask.price, ask.quantity_left)
             except:
                 ask_str = "           "
             try:
                 bid = self.engine.orderbook["Bid"][i]
-                bid_str = "{:>5} {:>5}".format(bid.price, bid.quantity)
+                bid_str = "{:>5} {:>5}".format(bid.price, bid.quantity_left)
             except:
                 bid_str = "           "
             logging.debug("{}     {}".format(bid_str, ask_str))
@@ -500,26 +501,26 @@ if __name__ == "__main__":
     engine_socket = context.socket(zmq.PULL)
     engine_socket.bind('tcp://127.0.0.1:%d' % (config.getint("engine", "base_port") + contract_id))
 
-    webserver_socket = context.socket(zmq.PUSH)
-    webserver_socket.connect(config.get("webserver", "zmq_address"))
+    #webserver_socket = context.socket(zmq.PUSH)
+    #webserver_socket.connect(config.get("webserver", "zmq_address"))
 
-    accountant_socket = context.socket(zmq.PUSH)
-    accountant_socket.connect(config.get("accountant", "zmq_address"))
+    #accountant_socket = context.socket(zmq.PUSH)
+    #accountant_socket.connect(config.get("accountant", "zmq_address"))
 
-    forwarder_socket = context.socket(zmq.PUB)
-    forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
+    #forwarder_socket = context.socket(zmq.PUB)
+    #forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
 
     engine = Engine(engine_socket, session, args[0])
 
     logger = LoggingListener(engine)
-    webserver_notifier = WebserverNotifier(engine, webserver_socket)
-    accountant_notifier = AccountantNotifier(engine, accountant_socket)
-    safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
+    #webserver_notifier = WebserverNotifier(engine, webserver_socket)
+    #accountant_notifier = AccountantNotifier(engine, accountant_socket)
+    #safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
 
     engine.add_listener(logger)
-    engine.add_listener(webserver_notifier)
-    engine.add_listener(accountant_notifier)
-    engine.add_listener(safeprice_notifier)
+    #engine.add_listener(webserver_notifier)
+    #engine.add_listener(accountant_notifier)
+    #engine.add_listener(safeprice_notifier)
 
     engine.run()
 
