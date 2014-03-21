@@ -86,7 +86,7 @@ class Cashier():
         else:
             # TODO: do not assume BTC
             # TODO: add error checks
-            total_received = self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations)
+            total_received = int(self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
             accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
             if total_received > accounted_for:
                 self.notify_accountant(address, total_received)
