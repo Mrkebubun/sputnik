@@ -167,6 +167,10 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
+    def get_journal(self, journal_id):
+        journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
+        return journal
+
     def adjust_position(self, username, ticker, quantity, description):
         logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, quantity, description))
         self.accountant.adjust_position(username, ticker, quantity, description)
@@ -215,6 +219,8 @@ class AdminWebUI(Resource):
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             return self.user_details(request).encode('utf-8')
+        elif request.path == '/ledger':
+            return self.ledger(request).encode('utf-8')
         elif request.path == '/rescan_address':
             return self.rescan_address(request).encode('utf-8')
         elif request.path == '/reset_password':
@@ -225,6 +231,12 @@ class AdminWebUI(Resource):
             return self.transfer_position(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
+
+    def ledger(self, request):
+        journal_id = request.args['id'][0]
+        journal = self.administrator.get_journal(journal_id)
+        t = self.jinja_env.get_template('ledger.html')
+        return t.render(journal=journal)
 
     def user_list(self):
         # We dont need to expire here because the user_list doesn't show
