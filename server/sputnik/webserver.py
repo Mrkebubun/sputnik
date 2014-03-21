@@ -218,17 +218,18 @@ class PublicInterface:
             return [False, (0, "No book for %s." % ticker)]
 
     @exportRpc
-    def make_account(self, username, password, salt, email):
+    def make_account(self, username, password, salt, email, nickname):
 
         # sanitize
         validate(username, {"type": "string"})
         validate(password, {"type": "string"})
         validate(salt, {"type": "string"})
         validate(email, {"type": "string"})
+        validate(nickname, {"type": "string"})
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
-        profile = {"email": email, "nickname": "anonymous"}
+        profile = {"email": email, "nickname": nickname}
         self.factory.administrator.change_profile(username, profile)
 
         def onAccountSuccess(result):

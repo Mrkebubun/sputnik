@@ -102,7 +102,8 @@ $("#register_button").click (event) ->
     username = $("#register_username").val()
     password = $("#register_password").val()
     email = $("#register_email").val()
-    sputnik.makeAccount username, password, email
+    nickname = $("#register_nickname").val()
+    sputnik.makeAccount username, password, email, nickname
 
 $("#buyButton").click ->
     sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')

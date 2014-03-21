@@ -55,7 +55,7 @@ class @Sputnik extends EventEmitter
             iterations: 1000
         password = ab.deriveKey secret, @authextra
 
-        @call("make_account", username, password, salt, email).then \
+        @call("make_account", username, password, salt, email, nickname).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
