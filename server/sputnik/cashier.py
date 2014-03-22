@@ -144,7 +144,7 @@ class Cashier():
         # Convert pesos to pesocents
         # TODO: Actually get the denominator from the DB
         amount = self.compropago.amount_after_fees(float(payment_info['amount']) * 100)
-        self.notify_accountant(address, float(payment_info['amount']) * 100)
+        self.notify_accountant(address, float(payment_info['amount']) )
 
     def notify_pending_withdrawal(self):
         """
