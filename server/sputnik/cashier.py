@@ -143,6 +143,7 @@ class Cashier():
         address = 'compropago_%s' % payment_info['id']
         # Convert pesos to pesocents
         # TODO: Actually get the denominator from the DB
+        amount = self.compropago.amount_after_fees(float(payment_info['amount']) * 100)
         self.notify_accountant(address, float(payment_info['amount']) * 100)
 
     def notify_pending_withdrawal(self):
@@ -263,7 +264,7 @@ if __name__ == '__main__':
         reactor.listenTCP(config.getint("cashier", "public_port"),
                       Site(public_server),
                       interface=config.get("cashier", "public_interface"))
-        
+
     reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 

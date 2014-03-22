@@ -587,9 +587,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return dbpool.runInteraction(save_bill)
 
 
-        def send_sms():
-
-
 
         def error(failure):
             logging.warn("Could not create bill: %s" % str(failure))

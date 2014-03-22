@@ -377,6 +377,8 @@ class Accountant:
             # TODO: Fix to use exceptions
             return [False, (0, "Not enough margin")]
 
+    def withdraw_cash(self, ):
+
     def deposit_cash(self, address, total_received):
         """
         Deposits cash

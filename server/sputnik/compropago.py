@@ -8,6 +8,7 @@ import json
 import treq
 
 import logging
+import math
 
 from jsonschema import validate
 from Crypto.Cipher import AES
@@ -49,6 +50,13 @@ class Compropago:
         "FARMACIA_BENAVIDES", "FARMACIA_GUADALAJARA", "FARMACIA_ESQUIVAR", "COPPEL"]
 
     phone_companies = ["", "TELCEL","MOVISTAT","ISUACELL","UNEFON","NEXTEL"]
+
+
+    def amount_after_fees(self, amount):
+        fee = math.ceil(0.029 * amount + 300)
+        tax = math.ceil(fee*1.16)
+        return amount - fee - tax
+
 
     def send_sms(self, id, customer_phone, customer_company_phone):
         d = treq.post('%(url)/%(id)/sms' % {'url': self.base_URL, 'id': id},
