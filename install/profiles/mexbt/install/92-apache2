@@ -1,9 +1,5 @@
 #!/bin/sh
 
-if [ -n "$UPGRADE" ]; then
-    exit 0
-fi
-
 cp $PROFILE/res/https-redirect.conf /etc/apache2/conf.d
 
 a2enmod ssl
@@ -17,3 +13,4 @@ sed -e "s|KEYS_DIRECTORY|${profile_keys}|" $PROFILE/res/default-ssl.conf > /etc/
 /usr/sbin/a2ensite sputnik-ssl.conf
 
 service apache2 restart
+

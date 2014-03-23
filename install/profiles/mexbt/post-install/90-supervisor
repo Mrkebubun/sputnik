@@ -1,6 +1,4 @@
 #!/bin/bash
 
-/etc/init.d/supervisor restart
+service supervisor restart
 
-# ?
-exit 0
