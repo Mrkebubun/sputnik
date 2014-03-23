@@ -3,6 +3,8 @@ import json
 from optparse import OptionParser
 import logging
 
+
+
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
 from twisted.internet import reactor, ssl
@@ -236,7 +238,7 @@ class AdministratorExport:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     cashier = Cashier()
     administrator_export = AdministratorExport(cashier)

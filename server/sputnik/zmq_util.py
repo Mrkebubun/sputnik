@@ -11,7 +11,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from functools import partial
 
 
-logging.getLogger().setLevel(logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass
@@ -56,7 +56,7 @@ class Export:
             raise RemoteCallException("Arguments are not a list.")
         if not isinstance(kwargs, dict):
             raise RemoteCallException("Keyword arguments are not a dict.")
-        
+
         return method_name, args, kwargs
 
     def encode(self, success, value):
@@ -80,7 +80,7 @@ class Export:
             except:
                 success = False
                 value = "Result could not be serialized."
-        
+
         if success:
             return json.dumps({"success":success, "result":value})
         return json.dumps({"success":success, "exception":value})
@@ -100,7 +100,7 @@ class SyncExport(Export):
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
         return method(self.wrapped, *args, **kwargs)
- 
+
 class AsyncPullExport(AsyncExport):
     def __init__(self, wrapped, connection):
         AsyncExport.__init__(self, wrapped)
@@ -120,7 +120,7 @@ class AsyncPullExport(AsyncExport):
         def exception(failure):
             logging.warn("Caught exception in method %s." % method_name)
             logging.warn(failure)
-        
+
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
 
@@ -208,7 +208,7 @@ class SyncRouterExport(SyncExport):
         except Exception, e:
             exception(e)
 
- 
+
 def router_share_async(obj, address):
     socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     return AsyncRouterExport(obj, socket)
@@ -250,7 +250,7 @@ class Proxy:
         success = response.get("success", None)
         if success == None:
             raise Exception("Missing success status.")
-        
+
         if success:
             return success, response.get("result", None)
 
@@ -292,7 +292,7 @@ class Proxy:
                 if success:
                     return result
                 raise result
-            
+
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
                 d.addCallback(parse_result)
@@ -316,11 +316,11 @@ class DealerProxyAsync(Proxy):
                     timeout.cancel()
                 return result
             d.addBoth(cancelTimeout)
-        return d        
- 
+        return d
+
 class PushProxyAsync(Proxy):
     def send(self, message):
-        return self._connection.push(message) 
+        return self._connection.push(message)
 
 class DealerProxySync(Proxy):
     def __init__(self, connection, timeout=1):
@@ -344,10 +344,10 @@ class DealerProxySync(Proxy):
         if success:
             return result
         raise result
- 
+
 class PushProxySync(Proxy):
     def send(self, message):
-        self._connection.send(message) 
+        self._connection.send(message)
         return None
 
 def dealer_proxy_async(address):

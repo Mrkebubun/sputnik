@@ -8,6 +8,7 @@ import json
 import treq
 
 import logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s')
 import math
 
 from jsonschema import validate
