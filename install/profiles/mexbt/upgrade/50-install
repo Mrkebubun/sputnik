@@ -13,9 +13,6 @@ ln -sf $profile_root/tools/generate_new_btc_addresses.py${profile_pycompiled} $p
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
 
-# copy over keys
-cp $profile_git_root/dist/keys/* $profile_keys
-
 # change permissions
 chown -R root:root $profile_root
 chmod -R ugo+rX $profile_root

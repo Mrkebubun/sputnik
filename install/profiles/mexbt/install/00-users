@@ -26,11 +26,6 @@ check_user()
     fi
 }
 
-
-if [ -n "$UPGRADE" ]; then
-    exit 0
-fi
-
 check_user $profile_user $profile_root
 check_user $profile_bitcoin_user $profile_bitcoin_root
 
