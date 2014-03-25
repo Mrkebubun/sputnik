@@ -82,6 +82,8 @@ sputnik.on "compropago_deposit_fail", (event) ->
 $("#login").click () ->
     $("#login_modal").modal()
 
+$("#login_modal").keypress (e) -> $("#login_button").click() if e.which is 13
+
 $("#login_button").click (event) ->
     event.preventDefault()
     $("#login_error").hide()
