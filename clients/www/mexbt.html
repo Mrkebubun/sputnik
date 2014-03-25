@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
@@ -440,12 +441,12 @@
 <footer id="footer" class="navbar navbar-fixed-bottom">
     <a style="padding: 15px 10px; color:958881;" href="mailto:support@mexbt.zendesk.com">Contact Us</a>
     <button id="chatCollapseButton" class="ladda-button" data-color="blue" data-size="xs" data-toggle="collapse" data-parent="#chatFooter" href="#chatZone"
-            class="btn" style="position:absolute; top:0; right:0;">chat
+            class="btn">chat
         <i class="glyphicon glyphicon-chevron-up" id="chatCollapseIcon"></i></button>
     <div id="chatZone" class="collapse">
         <textarea readonly id="chatArea" class="chatText" cols="460" rows="10" ></textarea>
         <div  class="input-append">
-            <input id="chatBox" class="chatInput" type="text" style="width:90%" >
+            <input id="chatBox" class="chatInput" type="text">
             <button id="chatButton" class="btn" type="button">Send</button>
             <script>
                 $('#chatBox').keypress(function(e){if (e.keyCode== 13) {$('#chatButton').click()} return e;});
