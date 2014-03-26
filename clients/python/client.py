@@ -144,7 +144,7 @@ class TradingBot(WampCraClientProtocol):
             del self.orders[id]
         else:
             # Try to find it in internal orders
-            for search_id, search_order in self.orders.iteritems():
+            for search_id, search_order in self.orders.items():
                 if isinstance(search_id, basestring) and search_id.startswith('internal_'):
                     if (order['quantity'] == search_order['quantity'] and
                         order['side'] == search_order['side'] and
