@@ -37,10 +37,6 @@ class Installer:
             raise Exception("Cannot read profile.")
 
         self.config = dict(self.parser.items("profile"))
-        version = self.version()
-        self.config["git_hash"] = version[0]
-        self.config["git_date"] = version[1]
-        self.config["git_tag"] = version[2]
         
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
@@ -64,7 +60,12 @@ class Installer:
 
     def make_config(self):
         self.log("Creating config files.\n")
-        
+       
+        version = self.version()
+        self.config["git_hash"] = version[0]
+        self.config["git_date"] = version[1]
+        self.config["git_tag"] = version[2]
+
         shutil.rmtree("config", True)
         os.mkdir("config")
 
