@@ -46,6 +46,23 @@ class AccountManager:
         user = models.User(username, "")
         self.session.add(user)
 
+    def position(self, username, ticker_or_id):
+        """Initialize a position to 0"""
+        user = self.session.query(models.User).filter_by(
+                username=username).first()
+        if user == None:
+            raise Exception("User '%s' not found." % username)
+        contract = ContractManager.resolve(self.session, ticker_or_id)
+        if contract == None:
+            raise Exception("Contract '%s' not found." % ticker_or_id)
+        position = self.session.query(models.Position).filter_by(
+                user=user, contract=contract, description='User').first()
+        if position == None:
+            self.session.add(models.Position(user, contract, 0))
+        else:
+            raise Exception("Position %s/%s/%s already exists" % (user, contract, 'User'))
+
+
     def delete(self, username):
         user = self.session.query(models.User).filter_by(
                 username=username).one()
