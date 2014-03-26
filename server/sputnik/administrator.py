@@ -167,16 +167,18 @@ class Administrator:
         return admin_users
 
     def get_user(self, username):
-        user = self.session.query(models.User).filter(models.User.username == username).one()
+        user = self.session.query(models.User).filter_by(username=username).one()
         return user
 
+    @session_aware
     def set_admin_level(self, username, level):
-        user = self.session.query(models.AdminUser).filter(models.AdminUser.username == username).one()
+        user = self.session.query(models.AdminUser).filter_by(username=username).one()
         user.level = level
         self.session.add(user)
-        self.session.commit(user)
+        self.session.commit()
         return True
 
+    @session_aware
     def new_admin_user(self, username, password, level):
         user = models.AdminUser(username, password, level)
         self.session.add(user)
@@ -231,9 +233,8 @@ class AdminWebUI(Resource):
                      json.dumps(request.args))
 
     def render(self, request):
+        self.log(request)
         resources = [
-                    # Level 0
-                     {'/': self.no_privileges},
                     # Level 1
                      {'/': self.user_list,
                       '/user_details': self.user_details,
@@ -244,20 +245,24 @@ class AdminWebUI(Resource):
                     # Level 2
                      {'/reset_password': self.reset_password},
                     # Level 3
-                     {'/ledger': self.ledger },
+                     {'/balance_sheet': self.balance_sheet,
+                      '/ledger': self.ledger },
                     # Level 4
-                     {'/transfer_position', self.transfer_position},
+                     {'/transfer_position': self.transfer_position},
                     # Level 5
-                     {'/admin': self.admin_list,
+                     {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
                       '/set_admin_level': self.set_admin_level,
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/adjust_position': self.adjust_position}]
         resource_list = {}
-        for level in range(0, self.avatarLevel+1):
-            resource_list.update(resources[level])
-
-        return resource_list[request.path](request).encode('utf-8')
+        for level in range(0, self.avatarLevel):
+            resource_list.update(resources[level-1])
+        try:
+            resource = resource_list[request.path]
+            return resource(request).encode('utf-8')
+        except KeyError:
+            return None
 
     def ledger(self, request):
         journal_id = request.args['id'][0]
@@ -265,7 +270,7 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('ledger.html')
         return t.render(journal=journal)
 
-    def user_list(self):
+    def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
@@ -327,7 +332,7 @@ class AdminWebUI(Resource):
         self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
         return self.admin_list(request)
 
-    def balance_sheet(self):
+    def balance_sheet(self, request):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
         self.administrator.expire_all()
@@ -362,7 +367,7 @@ class PasswordChecker(object):
     def requestAvatarId(self, credentials):
         username = credentials.username
         try:
-            admin_user = self.session.query(models.AdminUser).filter(username=username).one()
+            admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
         except sqlalchemy.orm.exc.NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such administrator"))
 
@@ -380,11 +385,15 @@ class SimpleRealm(object):
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
-            user = self.session.query(models.AdminUser).filter(username=avatarId).one()
-            avatarLevel = user.level
+            try:
+                user = self.session.query(models.AdminUser).filter_by(username=avatarId).one()
+                avatarLevel = user.level
+            except Exception as e:
+                print "Exception: %s" % e
 
             return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel), lambda: None
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
 
 class WebserverExport:
     """
@@ -423,7 +432,7 @@ if __name__ == "__main__":
         config.get("administrator", "webserver_export"))
 
     checkers = [PasswordChecker(session)]
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
     # SSL

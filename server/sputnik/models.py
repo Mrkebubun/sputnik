@@ -103,7 +103,6 @@ class User(db.Base):
     active = Column(Boolean, server_default=sql.true())
     default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability')
-    level = Column(Integer, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

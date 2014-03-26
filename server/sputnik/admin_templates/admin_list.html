@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Administrator List{% endblock %}
-{% block admin_active %}class="active"{% endblock %}
+{% block admin_list_active %}class="active"{% endblock %}
 {% block body %}
 <div class="container">
     <div class="panel panel-primary">
@@ -24,11 +24,12 @@
                             <form action="/set_admin_level" method="post">
                                 <input type="hidden" name="username" value="{{user.username}}">
                                 <select name="level">
-                                    {% range number from 0 to 5 %}
+                                    {% set range = [ 1, 2, 3, 4, 5 ] %}
+                                    {% for number in range %}
                                         <option value="{{number}}" {% if number == user.level %}selected{% endif %}>
                                             {{number}}
                                     </option>
-                                    {% endrange %}
+                                    {% endfor %}
                                 </select>
                                 <button type="submit">Change</button>
                             </form>
