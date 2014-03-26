@@ -104,7 +104,8 @@ $("#register_button").click (event) ->
     username = $("#register_username").val()
     password = $("#register_password").val()
     email = $("#register_email").val()
-    sputnik.makeAccount username, password, email
+    nickname = $("#register_nickname").val()
+    sputnik.makeAccount username, password, email, nickname
 
 $("#buyButton").click ->
     sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
@@ -137,6 +138,12 @@ $('#deposit_btc').click (event) ->
     sputnik.getAddress('BTC')
     $('#deposit_btc_modal').modal()
 
+$('#withdraw_mxn').click (event) ->
+    $('#withdraw_disabled_modal').modal()
+
+$('#withdraw_btc').click (event) ->
+    $('#withdraw_disabled_modal').modal()
+
 $('#new_address_button').click (event) ->
     sputnik.newAddress('BTC')
 
@@ -149,8 +156,10 @@ $("#compropago_pay_button").click (event) ->
     send_sms = $("#compropago_send_sms").is(":checked")
     customer_email = $('#compropago_email').val()
     customer_phone = $('#compropago_phone').val()
+    customer_phone_company = $('#compropago_phone_company').val()
 
-    sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone
+    if (Number(amount) < 600)
+      sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone, customer_phone_company
 
 $('#chatButton').click ->
     chat_return = sputnik.chat chatBox.value
@@ -290,7 +299,7 @@ sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
 
 sputnik.on "profile", (profile) ->
-    $('#profile').text "#{profile.nickname} - #{profile.email} - #{profile.user_hash}"
+    $('#profile').text "#{profile.nickname} AuditKey: #{profile.user_hash}"
 
 sputnik.on "fill", (fill) ->
-    alert "Fill Received: #{fill}"
+    console.log "Fill Received: #{fill}"

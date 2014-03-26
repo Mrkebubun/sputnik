@@ -15,8 +15,9 @@ import database
 import models
 import collections
 from datetime import datetime
+from webserver import ChainedOpenSSLContextFactory
 
-from zmq_util import export, router_share_async, dealer_proxy_async
+from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -36,6 +37,8 @@ import autobahn, string, Crypto.Random.random
 import sqlalchemy.orm.exc
 from email.mime.text import MIMEText
 
+from autobahn.wamp1.protocol import WampCraProtocol
+
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
@@ -44,6 +47,8 @@ FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 INVALID_TOKEN = AdministratorException(4, "No such token found.")
 EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
+USER_LIMIT_REACHED = AdministratorException(6, "User limit reached")
+
 
 
 def session_aware(func):
@@ -60,9 +65,10 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, debug=False):
+    def __init__(self, session, accountant, cashier, debug=False):
         self.session = session
         self.accountant = accountant
+        self.cashier = cashier
         self.debug = debug
         self.jinja_env = Environment(loader=FileSystemLoader('email_templates'))
         self.from_email = config.get("administrator", "email")
@@ -77,6 +83,12 @@ class Administrator:
 
     @session_aware
     def make_account(self, username, password):
+        user_count = self.session.query(models.User).count()
+        # TODO: Make this configurable
+        if user_count > 100:
+            logging.error("User limit reached")
+            raise USER_LIMIT_REACHED
+
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
@@ -154,7 +166,7 @@ class Administrator:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password = autobahn.wamp.WampCraProtocol.deriveKey(new_password, extra)
+        password = WampCraProtocol.deriveKey(new_password, extra)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
@@ -223,9 +235,19 @@ class Administrator:
         positions = self.session.query(models.Position).all()
         return positions
 
-    def adjust_position(self, username, ticker, adjustment):
-        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, adjustment))
-        self.accountant.adjust_position(username, ticker, adjustment)
+    def get_journal(self, journal_id):
+        journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
+        return journal
+
+    def adjust_position(self, username, ticker, quantity, description):
+        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, quantity, description))
+        self.accountant.adjust_position(username, ticker, quantity, description)
+
+    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
+        logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
+            quantity, ticker, from_user, from_description, to_user, to_description))
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -257,7 +279,7 @@ class AdminWebUI(Resource):
         if request.path in ['/user_list', '/']:
             # Level 1
             return self.user_list().encode('utf-8')
-        elif request.path == '/audit':
+        elif request.path == '/balance_sheet':
             # Level 0
             return self.audit().encode('utf-8')
         elif request.path == '/reset_user_password':
@@ -266,17 +288,32 @@ class AdminWebUI(Resource):
         elif request.path == '/query_reset_password':
             # Level 0
             return self.query_reset_password(request).encode('utf-8')
+            return self.balance_sheet().encode('utf-8')
         elif request.path == '/adjust_position' and self.administrator.debug:
             # Level 5
             return self.adjust_position(request).encode('utf-8')
         elif request.path == '/user_details':
             # Level 1
             return self.user_details(request).encode('utf-8')
+        elif request.path == '/ledger':
+            return self.ledger(request).encode('utf-8')
+        elif request.path == '/rescan_address':
+            return self.rescan_address(request).encode('utf-8')
         elif request.path == '/reset_password':
             # Level 2
             return self.reset_password(request, require_token=False).encode('utf-8')
+            return self.reset_password(request).encode('utf-8')
+        elif request.path == '/transfer_position':
+            # Level 4
+            return self.transfer_position(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
+
+    def ledger(self, request):
+        journal_id = request.args['id'][0]
+        journal = self.administrator.get_journal(journal_id)
+        t = self.jinja_env.get_template('ledger.html')
+        return t.render(journal=journal)
 
     def user_list(self):
         # We dont need to expire here because the user_list doesn't show
@@ -322,25 +359,42 @@ class AdminWebUI(Resource):
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['adjustment'][0]))
+                                           int(request.args['quantity'][0]), request.args['description'][0])
         return self.user_details(request)
 
-    def audit(self):
+    def transfer_position(self, request):
+        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+                                             request.args['to_user'][0], int(request.args['quantity'][0]),
+                                             request.args['from_description'][0], request.args['to_description'][0])
+        return self.user_details(request)
+
+    def rescan_address(self, request):
+        self.administrator.cashier.rescan_address(request.args['address'][0])
+        return self.user_details(request)
+
+    def balance_sheet(self):
         # We are getting trades and positions which things other than the administrator
         # are modifying, so we need to do an expire here
         self.administrator.expire_all()
         # TODO: Do this in SQLalchemy
         positions = self.administrator.get_positions()
-        position_totals = collections.defaultdict(int)
-        positions_by_ticker = collections.defaultdict(list)
+        asset_totals = collections.defaultdict(int)
+        liability_totals = collections.defaultdict(int)
+        assets_by_ticker = collections.defaultdict(list)
+        liabilities_by_ticker = collections.defaultdict(list)
+
         for position in positions:
             if position.position is not None:
-                position_totals[position.contract.ticker] += position.position
+                if position.position_type == 'Asset':
+                    asset_totals[position.contract.ticker] += position.position
+                    assets_by_ticker[position.contract.ticker].append(position)
+                else:
+                    liability_totals[position.contract.ticker] += position.position
+                    liabilities_by_ticker[position.contract.ticker].append(position)
 
-            positions_by_ticker[position.contract.ticker].append(position)
-
-        t = self.jinja_env.get_template('audit.html')
-        rendered = t.render(positions_by_ticker=positions_by_ticker, position_totals=position_totals)
+        t = self.jinja_env.get_template('balance_sheet.html')
+        rendered = t.render(assets_by_ticker=assets_by_ticker, asset_totals=asset_totals,
+                            liabilities_by_ticker=liabilities_by_ticker, liability_totals=liability_totals)
         return rendered
 
 class SimpleRealm(object):
@@ -380,26 +434,36 @@ class WebserverExport:
         return self.administrator.get_reset_token(username)
 
 if __name__ == "__main__":
-    # TODO: Check the use_ssl config for the webserver and turn SSL on/off
-    # I don't think we need a separate administrator ssl config
     logging.basicConfig(level=logging.DEBUG)
 
     session = database.make_session()
 
     debug = config.getboolean("administrator", "debug")
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
+    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, debug)
+    administrator = Administrator(session, accountant, cashier, debug)
     webserver_export = WebserverExport(administrator)
 
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='admin')]
+    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='lFRAwzNkNeo')]
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
             [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
 
-    reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
-                      interface=config.get("administrator", "interface"))
+    # SSL
+    if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+        reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          contextFactory,
+                          interface=config.get("administrator", "interface"))
+    else:
+        reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
+                          interface=config.get("administrator", "interface"))
+
     reactor.run()
 

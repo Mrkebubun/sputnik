@@ -12,16 +12,11 @@
     {% endblock %}
 </head>
 <body>
-    {% block nav_tabs %}
-    {% endblock %}
+    <ul class="nav nav-tabs">
+      <li {% block users_active %}{% endblock %}><a href="/">Users</a></li>
+      <li {% block balance_sheet_active %}{% endblock %}><a href="/balance_sheet">Balance Sheet</a></li>
+    </ul>
     <br>
-    <div class="container">
-        <div class="panel panel-primary">
-            <div class="panel-heading">{% block panel_title %}{% endblock %}</div>
-            <div class="panel-body">
-                {% block panel_body %}{% endblock %}
-            </div>
-        </div>
-    </div>
+    {% block body %}{% endblock %}
 </body>
 </html>

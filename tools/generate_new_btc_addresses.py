@@ -9,9 +9,11 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from sputnik import database, models
 import bitcoinrpc
 import getpass
+from sputnik import config
 
 db_session = database.make_session(username=getpass.getuser())
-conn = bitcoinrpc.connect_to_local('../dist/config/bitcoin.conf')
+print config.get("cashier","bitcoin_conf")
+conn = bitcoinrpc.connect_to_local(config.get("cashier", "bitcoin_conf"))
 
 #conn.walletpassphrase('pass',10, dont_raise=True)
 conn.keypoolrefill()

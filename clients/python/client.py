@@ -30,8 +30,8 @@ from pprint import pprint
 from twisted.python import log
 from twisted.internet import reactor, ssl
 
-from autobahn.websocket import connectWS
-from autobahn.wamp import WampClientFactory, WampCraClientProtocol
+from autobahn.twisted.websocket import connectWS
+from autobahn.wamp1.protocol import WampClientFactory, WampCraClientProtocol
 from datetime import datetime, timedelta
 
 uri = 'ws://localhost:8000'
@@ -144,7 +144,7 @@ class TradingBot(WampCraClientProtocol):
             del self.orders[id]
         else:
             # Try to find it in internal orders
-            for search_id, search_order in self.orders.iteritems():
+            for search_id, search_order in self.orders.items():
                 if isinstance(search_id, basestring) and search_id.startswith('internal_'):
                     if (order['quantity'] == search_order['quantity'] and
                         order['side'] == search_order['side'] and
@@ -264,7 +264,7 @@ class TradingBot(WampCraClientProtocol):
         cancels an order by its id.
         :param id: order id
         """
-        print "cancel order: %d" % id
+        print "cancel order: %s" % id
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
         d.addCallbacks(pprint, self.onRpcError)
         del self.orders[id]

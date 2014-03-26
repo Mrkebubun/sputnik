@@ -5,6 +5,8 @@ postgresql
 python-dev
 python-pip
 python-psycopg2
+python-crypto
+python-openssl
 sudo
 supervisor
 binfmt-support
@@ -16,3 +18,4 @@ libboost-dev
 libstdc++6-4.7-dev
 libssl-dev
 openssl
+curl

@@ -7,7 +7,7 @@ import getpass
 import string
 import shlex
 import textwrap
-import autobahn.wamp
+import autobahn.wamp1.protocol
 import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -33,17 +33,17 @@ class AccountManager:
         print "\t\tpassword:\t%s" % user.password
         print "\t\ttotp:\t\t%s" % user.totp
         print "\t\tactive:\t\t%s" % user.active
+        print "\t\tdefault_position_type:\t\t%s" % user.default_position_type
         print "\tPositions:"
         for position in user.positions:
-            prefix = "%s(%s):" % (position.contract.ticker,
-                                  position.contract.id)
+            prefix = "%s(%s)-%s/%s:" % (position.contract.ticker,
+                                        position.contract.id,
+                                        position.position_type,
+                                        position.description)
             print "\t\t%s\t%s" % (prefix.ljust(10), position.position)
 
     def add(self, username):
         user = models.User(username, "")
-        btc = self.session.query(models.Contract).filter_by(
-                ticker="BTC").first()
-        position = models.Position(user, btc, 0)
         self.session.add(user)
 
     def delete(self, username):
@@ -72,28 +72,8 @@ class AccountManager:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password = autobahn.wamp.WampCraProtocol.deriveKey(secret, extra)
+        password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(secret, extra)
         self.modify(username, "password", "%s:%s" % (salt, password))
-
-    def position(self, username, ticker_or_id, value):
-        user = self.session.query(models.User).filter_by(
-                username=username).first()
-        if user == None:
-            raise Exception("User '%s' not found." % username)
-        contract = ContractManager.resolve(self.session, ticker_or_id)
-        if contract == None:
-            raise Exception("Contract '%s' not found." % ticker_or_id)
-        position = self.session.query(models.Position).filter_by(
-                user=user, contract=contract).first()
-        if position == None:
-            if value != "delete":
-                self.session.add(models.Position(user, contract, value))
-        else:
-            if value == "delete":
-                self.session.delete(position)
-            else:
-                position.position = value
-                self.session.merge(position)
 
 class ContractManager:
     def __init__(self, session):
@@ -146,16 +126,6 @@ class ContractManager:
         contract = models.Contract(ticker)
         self.session.add(contract)
 
-    def delete(self, ticker_or_id):
-        contract = self.resolve(self.session, ticker_or_id)
-        if contract == None:
-            raise Exception("Contract '%s' not found." % ticker_or_id)
-        positions = self.session.query(models.Position).filter_by(
-                contract=contract).all()
-        for position in positions:
-            self.session.delete(position)
-        self.session.delete(contract)
-
     def list(self):
         contracts = self.session.query(models.Contract).all()
         for contract in contracts:
@@ -172,9 +142,25 @@ class AddressManager:
     def __init__(self, session):
         self.session = session
 
-    def add(self, address):
-        address = models.Addresses(None, "btc", address)
+    def add(self, currency, address):
+        address = models.Addresses(None, currency, address)
         self.session.add(address)
+
+    def list(self, currency):
+        addresses = self.session.query(models.Addresses).filter_by(
+                currency=currency).all()
+        for address in addresses:
+            print address.address
+       
+    def query(self, currency, address):
+        address = self.session.query(models.Addresses).filter_by(
+                currency=currency, address=address).one()
+        print "Address: %s" % address.address
+        print "\tActive: %s" % address.active
+        print "\tCurrency: %s" % address.currency
+        if address.user != None:
+            print "\tBelongs to: %s" % address.user.username
+        print "\tAccounted for: %s" % address.accounted_for
 
 class DatabaseManager:
     def __init__(self, session):

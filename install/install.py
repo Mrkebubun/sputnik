@@ -31,11 +31,16 @@ class Installer:
         self.parser = ConfigParser.ConfigParser()
         self.parser.set("DEFAULT", "git_root", self.git_root)
         self.parser.set("DEFAULT", "user", getpass.getuser())
+        self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
         parsed = self.parser.read(os.path.join(profile, "profile.ini"))
         if len(parsed) != 1:
             raise Exception("Cannot read profile.")
 
         self.config = dict(self.parser.items("profile"))
+        version = self.version()
+        self.config["git_hash"] = version[0]
+        self.config["git_date"] = version[1]
+        self.config["git_tag"] = version[2]
         
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
@@ -259,6 +264,23 @@ class Installer:
         self.make_stage("install")
         self.make_stage("post-install")
 
+    def make_upgrade(self):
+        self.make_stage("upgrade")
+        self.make_stage("post-install")
+
+    def version(self):
+        p = subprocess.Popen(
+                ["/usr/bin/git", "log", "--pretty=format:%H%n%aD"],
+                stdin=None, stdout=subprocess.PIPE,
+                stderr=self.logfile)
+        hash = p.stdout.readline().rstrip()
+        date = p.stdout.readline().rstrip()
+        p = subprocess.Popen(["/usr/bin/git", "describe", "--always", "--tags"],
+                             stdin=None, stdout=subprocess.PIPE,
+                             stderr=self.logfile)
+        tag = p.stdout.readline().rstrip()
+        return [hash, date, tag]
+
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
                              stdout=self.logfile, stderr=self.logfile)
@@ -278,6 +300,7 @@ def main():
     profile = options.profile or os.environ.get("PROFILE")
     if profile:
         profile = os.path.abspath(profile)
+        os.environ["PROFILE"] = profile
 
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
@@ -293,7 +316,7 @@ def main():
  
         if not os.path.isdir(dist):
             os.mkdir(dist)
-        os.chdir(os.path.join(here, "..", "dist"))
+        os.chdir(dist)
 
         installer = Installer(profile)    
         
@@ -309,13 +332,15 @@ def main():
             installer.make_install()
         elif mode == "upgrade":
             installer.env["UPGRADE"] = "upgrade"
-            installer.make_install()
+            installer.make_upgrade()
         elif mode == "vars":
             for key, value in installer.config.iteritems():
                 print "%s%s" % ((key + ":").ljust(20), value)
         elif mode == "env":
             for key, value in installer.config.iteritems():
                 print "export profile_%s=\"%s\"" % (key, value)
+        elif mode == "version":
+            print installer.version()
         else:
             sys.stderr.write("Install mode not recognized.\n")
             sys.stderr.flush()

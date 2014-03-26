@@ -1,12 +1,12 @@
 [program:bitcoind]
-command = /usr/local/sbin/bitcoind -conf=/srv/bitcoind/bitcoin.conf
+command = /usr/local/sbin/bitcoind -conf=${conf}/bitcoin.conf -walletnotify="/usr/bin/curl 'http://localhost:8282/bitcoin'"
 autorestart = true
 exitcodes = 0
-user = bitcoind
+user = ${bitcoin_user}
 redirect_stderr = true
-stdout_logfile = /srv/bitcoind/debug.log
-directory = /srv/bitcoind
-environment = HOME="/srv/bitcoind"
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${bitcoin_root}
+environment = HOME="${bitcoin_root}"
 
 [program:cashier]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini

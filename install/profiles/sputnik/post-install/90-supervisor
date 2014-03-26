@@ -1,5 +1,5 @@
 #!/bin/bash
 
-/etc/init.d/supervisor restart
-
+#/etc/init.d/supervisor restart
+supervisorctl reload
 

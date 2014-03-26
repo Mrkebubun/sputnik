@@ -1,10 +1,12 @@
 [cashier]
 bitcoin_conf = ${conf}/bitcoin.conf
 public_port = 8181
-public_interface = 127.0.0.1
+public_interface = ${webserver_interface}
 private_port = 8282
 private_interface = 127.0.0.1
-testnet = true
+administrator_export = tcp://127.0.0.1:4132
+testnet = ${testnet}
+compropago_key = ${compropago_key}
 
 [engine]
 base_port = 4200
@@ -35,17 +37,16 @@ debug = ${debug}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4601
-UI_port = 8080
+UI_port = ${administrator_port}
 interface = ${webserver_interface}
 address = ${webserver_address}
 debug = ${debug}
-ssl = ${use_ssl}
-ssl_key = ${keys}/server.key
-ssl_cert = ${keys}/server.crt
-ssl_cert_chain = ${keys}/server.chain
-email = ${administrator_email}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501
 zmq_backend_address = tcp://127.0.0.1:4502
 
+[version]
+git_hash = ${git_hash}
+git_date = ${git_date}
+git_tag = ${git_tag}

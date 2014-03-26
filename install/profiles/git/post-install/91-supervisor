@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ -n "$UPGRADE" ]; then
+    ${profile_root}/dist/sctl reload
+else
+    ${profile_root}/dist/launch
+fi

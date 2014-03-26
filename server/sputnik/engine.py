@@ -9,7 +9,7 @@ parser.add_option("-c", "--config", dest="filename",
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
-    
+
 import logging
 import util
 
@@ -151,35 +151,36 @@ class Order(object):
              'timestamp': util.dt_to_timestamp(trade.timestamp)
             })
 
+        # The accountant needs to post both sides of the transaction at once
+        transaction = {
+                'aggressive_username': self.username,
+                'passive_username': other_order.username,
+                'contract': contract_name,
+                'quantity': quantity,
+                'price': matching_price,
+                'contract_type': db_orders[0].contract.contract_type,
+                'aggressive_order_id': self.id,
+                'passive_order_id': other_order.id,
+                'timestamp': util.dt_to_timestamp(trade.timestamp),
+                'side': OrderSide.name(self.side)
+            }
+        accountant.post_transaction(transaction)
+        print 'to acct: ',str({'post_transaction': transaction})
+
         for o in [self, other_order]:
-            signed_quantity = -o.side * quantity
-            transaction = {
-                    'username': o.username,
-                    'contract': contract_name,
-                    'signed_quantity': signed_quantity,
-                    'quantity': quantity,
-                    'price': matching_price,
-                    'contract_type': db_orders[0].contract.contract_type,
-                    'order_id': o.id,
-                    'timestamp': util.dt_to_timestamp(trade.timestamp),
-                    'side': OrderSide.name(o.side)
-                }
-            accountant.post_transaction(transaction)
-            print 'to acct: ',str({'post_transaction': transaction})
             # Send an order update
             order = {'contract': contract_name,
-                 'id': o.id,
-                 'quantity': o.quantity,
-                 'quantity_left': o.quantity_left,
-                 'price': o.price,
-                 'side': OrderSide.name(o.side),
-                 # TODO: is hardcoding 'False' in here correct?
-                 'is_cancelled': False,
-                 'timestamp': util.dt_to_timestamp(o.timestamp)
-                 }
+                     'id': o.id,
+                     'quantity': o.quantity,
+                     'quantity_left': o.quantity_left,
+                     'price': o.price,
+                     'side': OrderSide.name(o.side),
+                     # TODO: is hardcoding 'False' in here correct?
+                     'is_cancelled': False,
+                     'timestamp': util.dt_to_timestamp(o.timestamp)
+            }
             webserver.order(o.username, order)
-
-            print 'to ws: ',str({'orders': [o.username, order]})
+            print 'to ws: ', str({'orders': [o.username, order]})
 
     def cancel(self):
         """
@@ -260,7 +261,7 @@ book = {'bid': {}, 'ask': {}}
 best = {'bid': None, 'ask': None}
 
 # first cancel all old pending orders
-for order in db_session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=contract_id):
+for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
     order.is_cancelled = True
     db_session.merge(order)
     # Tell the users that their order has been cancelled
@@ -279,13 +280,13 @@ def publish_order_book():
              'asks': []
     }
     for price in sorted(book['bid'].iterkeys()):
-        published_book['bids'].append({ 'price': price,
-                                        'quantity': sum([x.quantity for x in book['bid'][price]])
+        published_book['bids'].append({'price': price,
+                                        'quantity': sum([x.quantity_left for x in book['bid'][price]])
         })
 
     for price in sorted(book['ask'].iterkeys(), reverse=True):
-        published_book['asks'].append({ 'price': price,
-                                        'quantity': sum([x.quantity for x in book['ask'][price]])
+        published_book['asks'].append({'price': price,
+                                        'quantity': sum([x.quantity_left for x in book['ask'][price]])
         })
 
     webserver.book(contract_name, published_book)
@@ -298,7 +299,7 @@ def pretty_print_book():
     """
     return '***\n%s\n***' % '\n-----\n'.join(
         '\n'.join(
-            str(level) + ":" + '+'.join(str(order.quantity) for order in book[side][level])
+            str(level) + ":" + '+'.join(str(order.quantity_left) for order in book[side][level])
             for level in sorted(book[side], reverse=True))
         for side in ['ask', 'bid'])
 
