@@ -26,7 +26,11 @@ accounts modify system default_position_type Asset
 
 accounts add marketmaker
 accounts password marketmaker marketmaker
+accounts position marketmaker BTC
+accounts position marketmaker MXN
 accounts add randomtrader
 accounts password randomtrader randomtrader
+accounts position randomtrader BTC
+accounts position randomtrader MXN
 EOF
 
