@@ -34,6 +34,9 @@ sputnik.on "auth_success", (username) ->
     $("#orders_panel").toggle()
     sputnik.getCookie()
 
+sputnik.on "change_password_token", (args) ->
+    $('#change_password_token_modal').modal "show"
+
 sputnik.on "cookie", (uid) ->
     sputnik.log "cookie: " + uid
     document.cookie = "login" + "=" + sputnik?.username + ":" + uid
@@ -126,6 +129,11 @@ $("#change_password_button").click (event) ->
         alert "Passwords do not match"
     else
         sputnik.changePassword(old_password.value, new_password.value)
+
+$("#change_password_token_button").click (event) ->
+    if new_password_token.value != new_password_token_confirm.value
+        alert "Passwords do not match"
+    sputnik.changePasswordToken(new_password_token.value)
 
 $("#change_profile_button").click (event) ->
     sputnik.changeProfile(new_nickname.value, new_email.value)

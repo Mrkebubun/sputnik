@@ -250,6 +250,24 @@ class PublicInterface:
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
+    @exportRpc("change_password_token")
+    def change_password_token(self, username, new_password_hash, token):
+        """
+        Changes a users password.  Leaves salt and two factor untouched.
+        """
+        validate(username, {"type": "string"})
+        validate(new_password_hash, {"type": "string"})
+        validate(token, {"type", "string"})
+        d = self.factory.administrator.reset_password_hash(self.username, None, new_password_hash, token=token)
+
+        def onResetSuccess(result):
+            return [True, None]
+
+        def onResetFail(failure):
+            return [False, failure.value.args]
+
+        return d.addCallbacks(onResetSuccess, onResetFail)
+
     @exportRpc
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]

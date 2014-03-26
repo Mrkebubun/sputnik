@@ -69,6 +69,22 @@ class @Sputnik extends EventEmitter
         @call("change_profile", email, nickname).then (@profile) =>
             @emit "profile", @profile
 
+    processHash: () =>
+        hash = window.location.hash.substring(1).split('&')
+        @log "Got hash: #{hash}"
+        args = {}
+        for entry in hash
+            pair = entry.split('=')
+            key = decodeURIComponent(pair[0])
+            value = decodeURIComponent(pair[1])
+            args[key] = value
+
+        if args.function?
+            if args.function == 'change_password_token'
+                @username = args.username
+                @token = args.token
+                @emit "change_password_token", args
+
     authenticate: (login, password) =>
         if not @session?
             @wtf "Not connected."
@@ -81,6 +97,23 @@ class @Sputnik extends EventEmitter
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
                 @wtf "Failed login: Could not authenticate: #{error}."
+
+    changePasswordToken: (new_password) =>
+        if not @session?
+            @wtf "Not connected."
+
+        @session.authreq(@username).then \
+            (challenge) =>
+                @authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(new_password, @authextra)
+
+                @call("change_password_token", @username, secret, @token).then \
+                    (message) =>
+                        @log "password change successfully"
+                        @emit "change_password_success", message
+                    , (error) =>
+                        @log "password change error: #{error}"
+                        @emit "change_password_fail", error
 
     changePassword: (old_password, new_password) =>
         if not @authenticated
@@ -428,6 +461,7 @@ class @Sputnik extends EventEmitter
     # connection events
     onOpen: (@session) =>
         @log "Connected to #{@uri}."
+        @processHash()
 
         @call("get_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
