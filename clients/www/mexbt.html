@@ -93,10 +93,20 @@
                         limit, your account will not be credited and you will have to contact customer service
                         to receive a refund of the funds you attempted to deposit.
                     </emph>
-                    <label class="control-label" for="compropago_amount">
-                        Amount to deposit (MXN)
-                    </label>
-                    <input class="form-control" id="compropago_amount" type="number" min="0" max="600" step="1" value="0"/>
+                    <!--<label class="control-label" for="compropago_amount">-->
+                        <!--Amount to deposit (MXN)-->
+                    <!--</label>-->
+                    <!---->
+                    <table class="table">
+                        <tr>
+                            <td>Amount to deposit</td>
+                            <td><input class="form-control" id="compropago_amount" type="number" min="4" max="600" step="1" value="0"/></td>
+                        </tr>
+                        <tr><td>Compropago deposit fee (2.9% + MXN 3.00)</td><td id="cgo_deposit_fee"></td></tr>
+                        <tr><td>Sales tax</td><td id="cgo_fee_tax"></td></tr>
+                        <tr><td>Amount you will be credited on MexBT</td><td><strong id="cgo_credit"></strong></td></tr>
+                    </table>
+
                     <label class="control-label" for="compropago_store">Choose a store</label>
                     <select id="compropago_store" class="form-control">
                         <option value="OXXO">oxxo</option>
@@ -124,6 +134,14 @@
                     <div class="hidden" id="compropago_phone_input_zone">
                         <label class="control-label" for="compropago_phone">phone number</label>
                         <input class="form-control" id="compropago_phone" type="tel" name="compropago_phone" value=""/>
+                        <label class="control-label" for="compropago_phone_company">Phone company</label>
+                        <select id="compropago_phone_company" class="form-control">
+                            <option value="TELCEL">telcel</option>
+                            <option value="MOVISTAR">movistar</option>
+                            <option value="ISUACELL">isuacell</option>
+                            <option value="UNEFON">unefon</option>
+                            <option value="NEXTEL">nextel</option>
+                        </select>
                     </div>
                 </form>
                 <div class="alert alert-warning" style="display:none" id="compropago_error">
@@ -138,6 +156,19 @@
                 $('#compropago_send_sms').on('click', function() {
                     $('#compropago_phone_input_zone').toggleClass('hidden show');
                 });
+                var update_amount = function (e) {
+                    var amount = Number($('#compropago_amount').val());
+                    if (amount!=amount)
+                        amount = 0;
+                    var fee_tax = Math.ceil( amount * 2.9 + 300.0)/100.0;
+                    var sales_tax = Math.ceil( fee_tax * 16.0)/100.0;
+                    $('#cgo_deposit_fee').text(fee_tax.toFixed(2));
+                    $('#cgo_fee_tax').text(sales_tax.toFixed(2));
+                    $('#cgo_credit').text(Math.max(0,(amount-fee_tax-sales_tax)).toFixed(2)+" MXN");
+                }
+
+                $('#compropago_amount').change(update_amount);
+                $('#compropago_amount').keyup(update_amount);
             </script>
         </div>
     </div>
@@ -306,7 +337,7 @@
             </div>
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Buys</strong></h3>
+                    <h3 class="panel-title"><strong>Bids</strong></h3>
                 </div>
 
                 <div class="panel-body">
@@ -345,7 +376,7 @@
             </div>
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Sells</strong></h3>
+                    <h3 class="panel-title"><strong>Asks</strong></h3>
                 </div>
                 <div class="panel-body">
                     <table class="table table-striped table-hover">

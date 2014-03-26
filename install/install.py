@@ -264,6 +264,10 @@ class Installer:
         self.make_stage("install")
         self.make_stage("post-install")
 
+    def make_upgrade(self):
+        self.make_stage("upgrade")
+        self.make_stage("post-install")
+
     def version(self):
         p = subprocess.Popen(
                 ["/usr/bin/git", "log", "--pretty=format:%H%n%aD"],
@@ -328,7 +332,7 @@ def main():
             installer.make_install()
         elif mode == "upgrade":
             installer.env["UPGRADE"] = "upgrade"
-            installer.make_install()
+            installer.make_upgrade()
         elif mode == "vars":
             for key, value in installer.config.iteritems():
                 print "%s%s" % ((key + ":").ljust(20), value)

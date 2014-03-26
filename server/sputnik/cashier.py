@@ -38,7 +38,6 @@ class Cashier():
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
         """
-        self.testnet = config.get('cashier', 'testnet')
         self.cold_wallet_address = 'xxxx'
         self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
         self.accountant = push_proxy_async(config.get("accountant", "cashier_export"))
@@ -86,7 +85,7 @@ class Cashier():
         else:
             # TODO: do not assume BTC
             # TODO: add error checks
-            total_received = self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations)
+            total_received = int(self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
             accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
             if total_received > accounted_for:
                 self.notify_accountant(address, total_received)
@@ -143,7 +142,8 @@ class Cashier():
         address = 'compropago_%s' % payment_info['id']
         # Convert pesos to pesocents
         # TODO: Actually get the denominator from the DB
-        self.notify_accountant(address, float(payment_info['amount']) * 100)
+        amount = self.compropago.amount_after_fees(float(payment_info['amount']) * 100)
+        self.notify_accountant(address, float(payment_info['amount']) )
 
     def notify_pending_withdrawal(self):
         """
@@ -263,7 +263,7 @@ if __name__ == '__main__':
         reactor.listenTCP(config.getint("cashier", "public_port"),
                       Site(public_server),
                       interface=config.get("cashier", "public_interface"))
-        
+
     reactor.listenTCP(config.getint("cashier", "private_port"), Site(private_server),
                       interface=config.get("cashier", "private_interface"))
 

@@ -8,6 +8,7 @@ import json
 import treq
 
 import logging
+import math
 
 from jsonschema import validate
 from Crypto.Cipher import AES
@@ -42,6 +43,63 @@ class Charge:
 
 
 class Compropago:
+
+
+    payment_types = ["OXXO", "SEVEN_ELEVEN", "EXTRA", "WALMART", "SORIANA", "SAMS_CLUB",
+         "CHEDRAUI", "BODEGA_AURRERA", "SUPERAMA", "ELEKTRA", "VIPS", "EL_PORTON",
+        "FARMACIA_BENAVIDES", "FARMACIA_GUADALAJARA", "FARMACIA_ESQUIVAR", "COPPEL"]
+
+    phone_companies = ["", "TELCEL","MOVISTAT","ISUACELL","UNEFON","NEXTEL"]
+
+
+    def amount_after_fees(self, amount):
+        fee = math.ceil(0.029 * amount + 300)
+        tax = math.ceil(fee*1.16)
+        return max(amount - fee - tax, 0)
+
+
+    def send_sms(self, id, customer_phone, customer_company_phone):
+        d = treq.post('%(url)/%(id)/sms' % {'url': self.base_URL, 'id': id},
+                      data={'customer_phone': customer_phone,
+                            'customer_company_phone': customer_company_phone},
+                      headers=self.headers, auth=(self.key, ''),
+                      timeout=5)
+
+        def handle_response(response):
+            def parse_content(content):
+                if response.code != 200:
+                    # this should happen sufficiently rarely enough that it is
+                    # worth logging here in addition to the failure
+                    logging.warn("Received code: %s from Compropago for sending sms to %s for charge: %s" %
+                                 (response.code, customer_phone, str(id)))
+                    raise Exception("Compropago returned code: %s." % response.code)
+                else:
+                    # TODO: Once we are sure what Compropago returns,
+                    # remove this spam
+                    logging.info("Received 200 OK from Compropago for sending sms to %s for charge: %s" % (customer_phone,str(id)))
+                    # if the JSON cannot be decoded, let the error float up
+                    cgo_sms_response = json.loads(content)
+                    return cgo_sms_response
+            return response.content().addCallback(parse_content)
+
+        # if there is a timeout or other network error, let it float up
+        d.addCallback(handle_response)
+
+        # filter chain for successful method call follows
+        d.addCallback(self.sms_response)
+        # Do not add any errbacks _HERE_, let the caller do that.
+
+        return d
+
+    def sms_response(self, resp):
+        # validate(resp, {"type": "object",
+        #                 "required": True,
+        #                 "properties":{"type": {"type": "string", "required": True}}})
+        # resp["type"]
+        pass
+
+
+
     def make_public_handle(self, username):
         iv = Random.new().read(AES.block_size)
         return (iv + AES.new(self.aes_key, AES.MODE_CBC, iv).encrypt(self.pad(username))).encode('hex')
@@ -55,6 +113,7 @@ class Compropago:
     charge_URL = base_URL + '/v1/charges'
     headers = {'Accept': 'application/compropago+json',
                'Content-Type': 'application/json'}
+
 
     def __init__(self, key):
         self.key = key
