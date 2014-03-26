@@ -38,7 +38,6 @@ class Cashier():
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
         """
-        self.testnet = config.get('cashier', 'testnet')
         self.cold_wallet_address = 'xxxx'
         self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
         self.accountant = push_proxy_async(config.get("accountant", "cashier_export"))
