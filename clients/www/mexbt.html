@@ -164,7 +164,7 @@
                     var sales_tax = Math.ceil( fee_tax * 16.0)/100.0;
                     $('#cgo_deposit_fee').text(fee_tax.toFixed(2));
                     $('#cgo_fee_tax').text(sales_tax.toFixed(2));
-                    $('#cgo_credit').text((amount-fee_tax-sales_tax).toFixed(2)+" MXN");
+                    $('#cgo_credit').text(Math.max(0,(amount-fee_tax-sales_tax)).toFixed(2)+" MXN");
                 }
 
                 $('#compropago_amount').change(update_amount);

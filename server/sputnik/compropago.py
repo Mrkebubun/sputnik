@@ -55,7 +55,7 @@ class Compropago:
     def amount_after_fees(self, amount):
         fee = math.ceil(0.029 * amount + 300)
         tax = math.ceil(fee*1.16)
-        return amount - fee - tax
+        return max(amount - fee - tax, 0)
 
 
     def send_sms(self, id, customer_phone, customer_company_phone):
