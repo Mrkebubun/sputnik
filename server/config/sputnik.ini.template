@@ -41,6 +41,7 @@ UI_port = ${administrator_port}
 interface = ${webserver_interface}
 address = ${webserver_address}
 debug = ${debug}
+email = ${administrator_email}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4501

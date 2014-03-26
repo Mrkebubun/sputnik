@@ -70,16 +70,16 @@ class Administrator:
         self.accountant = accountant
         self.cashier = cashier
         self.debug = debug
-        self.jinja_env = Environment(loader=FileSystemLoader('email_templates'))
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         self.from_email = config.get("administrator", "email")
-        if config.getboolean("administrator", "ssl"):
+        if config.getboolean("webserver", "ssl"):
             protocol = 'https'
         else:
             protocol = 'http'
 
         self.base_uri = "%s://%s:%d" % (protocol,
-                                        config.get("administrator", "address"),
-                                        config.getint("administrator", "UI_port"))
+                                        config.get("webserver", "ws_address"),
+                                        config.getint("webserver", "ws_port"))
 
     @session_aware
     def make_account(self, username, password):
@@ -148,16 +148,10 @@ class Administrator:
         return token
 
     @session_aware
-    def reset_password_plaintext(self, username, new_password, input_token=None, require_token=True):
+    def reset_password_plaintext(self, username, new_password):
         user = self.session.query(models.User).filter_by(username=username).one()
         if not user:
             raise NO_SUCH_USER
-
-        if require_token:
-            token = self.check_token(username, input_token)
-
-            token.used = True
-            self.session.add(token)
 
         alphabet = string.digits + string.lowercase
         num = Crypto.Random.random.getrandbits(64)
@@ -173,7 +167,7 @@ class Administrator:
         return True
 
     @session_aware
-    def reset_password_hash(self, username, old_password_hash, new_password_hash):
+    def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         try:
             user = self.session.query(models.User).filter_by(username=username).one()
         except sqlalchemy.orm.exc.NoResultFound:
@@ -181,8 +175,13 @@ class Administrator:
 
         [salt, hash] = user.password.split(':')
 
-        if hash != old_password_hash:
+        if hash != old_password_hash and token is None:
             raise FAILED_PASSWORD_CHANGE
+        else:
+            # Check token
+            token = self.check_token(username, token)
+            token.used = True
+            self.session.add(token)
 
         user.password = "%s:%s" % (salt, new_password_hash)
 
@@ -216,7 +215,6 @@ class Administrator:
         s = smtplib.SMTP('localhost')
         s.sendmail(self.from_email, [user.email], msg.as_string())
         s.quit()
-
 
         return True
 
@@ -280,14 +278,6 @@ class AdminWebUI(Resource):
             # Level 1
             return self.user_list().encode('utf-8')
         elif request.path == '/balance_sheet':
-            # Level 0
-            return self.audit().encode('utf-8')
-        elif request.path == '/reset_user_password':
-            # Level 0
-            return self.reset_password(request, require_token=True).encode('utf-8')
-        elif request.path == '/query_reset_password':
-            # Level 0
-            return self.query_reset_password(request).encode('utf-8')
             return self.balance_sheet().encode('utf-8')
         elif request.path == '/adjust_position' and self.administrator.debug:
             # Level 5
@@ -296,12 +286,12 @@ class AdminWebUI(Resource):
             # Level 1
             return self.user_details(request).encode('utf-8')
         elif request.path == '/ledger':
+            # ?
             return self.ledger(request).encode('utf-8')
         elif request.path == '/rescan_address':
             return self.rescan_address(request).encode('utf-8')
         elif request.path == '/reset_password':
             # Level 2
-            return self.reset_password(request, require_token=False).encode('utf-8')
             return self.reset_password(request).encode('utf-8')
         elif request.path == '/transfer_position':
             # Level 4
@@ -322,30 +312,9 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('user_list.html')
         return t.render(users=users)
 
-    def query_reset_password(self, request):
-        try:
-            self.administrator.check_token(request.args['username'][0], request.args['token'][0])
-        except AdministratorException as e:
-            t = self.jinja_env.get_template('reset_password_fail.html')
-            return t.render(username=request.args['username'][0], exception=str(e))
-
-        t = self.jinja_env.get_template('query_reset_password.html')
-        return t.render(username=request.args['username'][0], token=request.args['token'][0])
-
-    def reset_password(self, request, require_token=True):
-        if require_token:
-            try:
-                self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0],
-                                                           input_token=request.args['token'][0], require_token=True)
-                t = self.jinja_env.get_template('reset_password_success.html')
-                return t.render(username=request.args['username'][0])
-            except AdministratorException as e:
-                t = self.jinja.env.get_template('reset_password_fail.html')
-                return t.render(username=request.args['username'][0], exception=str(e))
-        else:
-            self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0],
-                                                        require_token=False)
-            return self.user_details(request)
+    def reset_password(self, request):
+        self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
+        return self.user_details(request)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
