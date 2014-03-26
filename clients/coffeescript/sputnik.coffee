@@ -83,7 +83,7 @@ class @Sputnik extends EventEmitter
             if args.function == 'change_password_token'
                 @username = args.username
                 @token = args.token
-                @emit "change_password_token", args
+                @emit args['function'], args
 
     authenticate: (login, password) =>
         if not @session?
@@ -111,6 +111,10 @@ class @Sputnik extends EventEmitter
                     (message) =>
                         @log "password change successfully"
                         @emit "change_password_success", message
+
+                        # Reconnect so we can log in
+                        @close()
+                        @connect()
                     , (error) =>
                         @log "password change error: #{error}"
                         @emit "change_password_fail", error

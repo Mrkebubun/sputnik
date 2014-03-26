@@ -395,8 +395,8 @@ class WebserverExport:
         return self.administrator.change_profile(username, profile)
 
     @export
-    def reset_password_hash(self, username, old_password_hash, new_password_hash):
-        return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
+    def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
+        return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash, token=token)
 
     @export
     def get_reset_token(self, username):

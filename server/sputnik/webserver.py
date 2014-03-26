@@ -257,8 +257,8 @@ class PublicInterface:
         """
         validate(username, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
-        validate(token, {"type", "string"})
-        d = self.factory.administrator.reset_password_hash(self.username, None, new_password_hash, token=token)
+        validate(token, {"type": "string"})
+        d = self.factory.administrator.reset_password_hash(username, None, new_password_hash, token=token)
 
         def onResetSuccess(result):
             return [True, None]
