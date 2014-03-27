@@ -557,6 +557,40 @@ class Accountant:
         except:
             session.rollback()
 
+    def change_permission_group(self, username, id):
+        try:
+            logging.debug("Changing permission group for %s to %d" % (username, id))
+            user = self.get_user(username)
+            user.permission_group_id = id
+            self.session.add(user)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            session.rollback()
+
+    def new_permission_group(self, name):
+        try:
+            logging.debug("Creating new permission group %s" % name)
+            permission_group = models.PermissionGroup(name)
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            session.rollback()
+
+    def modify_permission_group(self, id, permissions):
+        try:
+            logging.debug("Modifying permission group %d to %s" % (id, permissions))
+            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
+            permission_group.trade = 'trade' in permissions
+            permission_group.withdraw = 'withdraw' in permissions
+            permission_group.deposit = 'deposit' in permissions
+            permission_group.login = 'login' in permissions
+            session.add(permission_group)
+            session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            session.rollback()
 
 class WebserverExport:
     def __init__(self, accountant):
@@ -609,6 +643,17 @@ class AdministratorExport:
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
+    @export
+    def change_permission_group(self, username, id):
+        self.accountant.change_permission_group(username, id)
+
+    @export
+    def new_permission_group(self, name):
+        self.accountant.new_permission_group(name)
+
+    @export
+    def modify_permission_group(self, id, permissions):
+        self.accountant.modify_permission_group(id, permissions)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

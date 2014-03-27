@@ -175,14 +175,6 @@ class Administrator:
         user = self.session.query(models.User).filter(models.User.username == username).one()
         return user
 
-    @session_aware
-    def change_permission_group(self, username, id):
-        user = self.get_user(username)
-        user.permission_group_id = id
-        self.session.add(user)
-        self.session.commit()
-        return True
-
     def get_positions(self):
         positions = self.session.query(models.Position).all()
         return positions
@@ -204,27 +196,17 @@ class Administrator:
         permission_groups = self.session.query(models.PermissionGroup).all()
         return permission_groups
 
-    @session_aware
+    def change_permission_group(self, username, id):
+        logging.debug("Changing permission group for %s to %d" % (username, id))
+        self.accountant.change_permission_group(username, id)
+
     def new_permission_group(self, name):
-        permission_group = models.PermissionGroup(name)
-        self.session.add(permission_group)
-        self.session.commit()
-        return True
+        logging.debug("Creating new permission group %s" % name)
+        self.accountant.new_permission_group(name)
 
-    @session_aware
     def modify_permission_group(self, id, permissions):
-        permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
-        permission_group.trade = 'trade' in permissions
-        permission_group.withdraw = 'withdraw' in permissions
-        permission_group.deposit = 'deposit' in permissions
-        permission_group.login = 'login' in permissions
-        session.add(permission_group)
-        session.commit()
-        return True
-
-    def get_permissions(self, username):
-        user = self.get_user(username)
-        return user.permissions.__dict__()
+        logging.debug("Modifying permission group %d to %s" % (id, permissions))
+        self.accountant.modify_permission_group(id, permissions)
 
 
 class AdminWebUI(Resource):
@@ -291,6 +273,7 @@ class AdminWebUI(Resource):
             return "Request received: %s" % request.uri
 
     def permission_groups(self, request):
+        self.administrator.expire_all()
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
         return t.render(permission_groups=permission_groups)
@@ -300,14 +283,14 @@ class AdminWebUI(Resource):
         return self.permission_groups(request)
 
     def modify_permission_group(self, request):
-        id = request.args['id'][0]
+        id = int(request.args['id'][0])
         permissions = request.args['permissions']
         self.administrator.modify_permission_group(id, permissions)
         return self.permission_groups(request)
 
     def change_permission_group(self, request):
         username = request.args['username'][0]
-        id = request.args['id'][0]
+        id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
         return self.user_details(request)
 
@@ -355,10 +338,8 @@ class AdminWebUI(Resource):
         return self.user_details(request)
 
     def balance_sheet(self):
-        # We are getting trades and positions which things other than the administrator
-        # are modifying, so we need to do an expire here
-        self.administrator.expire_all()
         # TODO: Do this in SQLalchemy
+        self.administrator.expire_all()
         positions = self.administrator.get_positions()
         asset_totals = collections.defaultdict(int)
         liability_totals = collections.defaultdict(int)
