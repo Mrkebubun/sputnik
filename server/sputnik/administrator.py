@@ -42,6 +42,7 @@ NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
+TICKET_EXISTS = AdministratorException(8, "Ticket already exists")
 
 
 
@@ -152,6 +153,17 @@ class Administrator:
         self.session.commit()
         return True
 
+    @session_aware
+    def register_support_ticket(self, username, foreign_key, type):
+        ticket_exists = self.session.query(models.SupportTicket).filter_by(foreign_key=foreign_key).count()
+        if ticket_exists > 0:
+            raise TICKET_EXISTS
+        else:
+            ticket = models.SupportTicket(username, foreign_key, type)
+            self.session.add(ticket)
+            self.session.commit()
+            return True
+
     def expire_all(self):
         self.session.expire_all()
 
@@ -162,6 +174,14 @@ class Administrator:
     def get_user(self, username):
         user = self.session.query(models.User).filter(models.User.username == username).one()
         return user
+
+    @session_aware
+    def change_permission_group(self, username, id):
+        user = self.get_user(username)
+        user.permission_group_id = id
+        self.session.add(user)
+        self.session.commit()
+        return True
 
     def get_positions(self):
         positions = self.session.query(models.Position).all()
@@ -179,6 +199,32 @@ class Administrator:
         logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
             quantity, ticker, from_user, from_description, to_user, to_description))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
+    def get_permission_groups(self):
+        permission_groups = self.session.query(models.PermissionGroup).all()
+        return permission_groups
+
+    @session_aware
+    def new_permission_group(self, name):
+        permission_group = models.PermissionGroup(name)
+        self.session.add(permission_group)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def modify_permission_group(self, id, permissions):
+        permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
+        permission_group.trade = 'trade' in permissions
+        permission_group.withdraw = 'withdraw' in permissions
+        permission_group.deposit = 'deposit' in permissions
+        permission_group.login = 'login' in permissions
+        session.add(permission_group)
+        session.commit()
+        return True
+
+    def get_permissions(self, username):
+        user = self.get_user(username)
+        return user.permissions.__dict__()
 
 
 class AdminWebUI(Resource):
@@ -226,11 +272,44 @@ class AdminWebUI(Resource):
         elif request.path == '/reset_password':
             # Level 2
             return self.reset_password(request).encode('utf-8')
+        elif request.path == '/change_permission_group':
+            # Level 3
+            return self.change_permission_group(request).encode('utf-8')
         elif request.path == '/transfer_position':
             # Level 4
             return self.transfer_position(request).encode('utf-8')
+        elif request.path == '/permission_groups':
+            # Level 2
+            return self.permission_groups(request).encode('utf-8')
+        elif request.path == '/modify_permission_group':
+            # Level 4
+            return self.modify_permission_group(request).encode('utf-8')
+        elif request.path == '/new_permission_group':
+            # Level 4
+            return self.new_permission_group(request).encode('utf-8')
         else:
             return "Request received: %s" % request.uri
+
+    def permission_groups(self, request):
+        permission_groups = self.administrator.get_permission_groups()
+        t = self.jinja_env.get_template('permission_groups.html')
+        return t.render(permission_groups=permission_groups)
+
+    def new_permission_group(self, request):
+        self.administrator.new_permission_group(request.args['name'][0])
+        return self.permission_groups(request)
+
+    def modify_permission_group(self, request):
+        id = request.args['id'][0]
+        permissions = request.args['permissions']
+        self.administrator.modify_permission_group(id, permissions)
+        return self.permission_groups(request)
+
+    def change_permission_group(self, request):
+        username = request.args['username'][0]
+        id = request.args['id'][0]
+        self.administrator.change_permission_group(username, id)
+        return self.user_details(request)
 
     def ledger(self, request):
         journal_id = request.args['id'][0]
@@ -255,8 +334,9 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
+        permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, debug=self.administrator.debug)
+        rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
         return rendered
 
     def adjust_position(self, request):
@@ -330,6 +410,14 @@ class WebserverExport:
     @export
     def reset_password_hash(self, username, old_password_hash, new_password_hash):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
+
+    @export
+    def register_support_ticket(self, username, foreign_key, type):
+        return self.administrator.register_support_ticket(username, foreign_key, type)
+
+    @export
+    def get_permissions(self, username):
+        return self.administrator.get_permissions(username)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
