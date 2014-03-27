@@ -99,10 +99,10 @@
                         <!--Amount to deposit (MXN)-->
                     <!--</label>-->
                     <!---->
-                    <table class="table">
+                    <table  class="table">
                         <tr>
-                            <td>Amount to deposit</td>
-                            <td><input class="form-control" id="compropago_amount" type="number" min="4" max="600" step="1" value="0"/></td>
+                            <td>Amount to deposit<span class="help-block" id="cgo_amount_help"></span></td>
+                            <td id="cgo_amount_bill"><input class="form-control" id="compropago_amount" type="number" min="100" max="600" step="1" value="0"/></td>
                         </tr>
                         <tr><td>Compropago deposit fee (2.9% + MXN 3.00)</td><td id="cgo_deposit_fee"></td></tr>
                         <tr><td>Sales tax</td><td id="cgo_fee_tax"></td></tr>
@@ -152,23 +152,57 @@
             </div>
             <div class="modal-footer">
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                        id="compropago_pay_button"><span class="ladda-label">Pay</span></button>
+                        id="compropago_pay_button" disabled="true"><span class="ladda-label">Pay</span></button>
             </div>
-            <script language="javascript">
+            <script type="text/javascript">
                 $('#compropago_send_sms').on('click', function() {
                     $('#compropago_phone_input_zone').toggleClass('hidden show');
                 });
                 var update_amount = function (e) {
                     var amount = Number($('#compropago_amount').val());
-                    if (amount!=amount)
-                        amount = 0;
-                    var fee_tax = Math.ceil( amount * 2.9 + 300.0)/100.0;
-                    var sales_tax = Math.ceil( fee_tax * 16.0)/100.0;
-                    $('#cgo_deposit_fee').text(fee_tax.toFixed(2));
-                    $('#cgo_fee_tax').text(sales_tax.toFixed(2));
-                    $('#cgo_credit').text((amount-fee_tax-sales_tax).toFixed(2)+" MXN");
-                }
+                    if (amount!=amount || amount==0) { // if it's not a number don't say anything
+                        $('#cgo_amount_bill').removeClass('has-error');
+                        $('#cgo_amount_bill').removeClass('has-success');
 
+                        $('#cgo_amount_help').text('');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                        return;
+                    }
+                    var fee = Math.ceil( amount * (amount<2500?2.9:2.5) + 300.0)/100.0;
+                    var sales_tax = Math.ceil( fee * 16.0)/100.0;
+                    if (amount < 100) {
+
+                        $('#cgo_amount_bill').removeClass('has-success');
+                        $('#cgo_amount_bill').addClass('has-error');
+
+                        $('#cgo_amount_help').text('You must deposit at least 100 MXN');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                    } else if (amount > 600) {
+                        $('#cgo_amount_bill').removeClass('has-success');
+                        $('#cgo_amount_bill').addClass('has-error');
+
+                        $('#cgo_amount_help').text('You may not deposit more than 600 MXN');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                    } else {
+                        $('#cgo_amount_bill').removeClass('has-error');
+                        $('#cgo_amount_bill').addClass('has-success');
+
+                        $('#cgo_amount_help').text('');
+                        $('#cgo_deposit_fee').text(fee.toFixed(2));
+                        $('#cgo_fee_tax').text(sales_tax.toFixed(2));
+                        $('#cgo_credit').text((amount-fee-sales_tax).toFixed(2)+" MXN");
+                        $('#compropago_pay_button').prop('disabled',false)
+                    }
+                }
                 $('#compropago_amount').change(update_amount);
                 $('#compropago_amount').keyup(update_amount);
             </script>
