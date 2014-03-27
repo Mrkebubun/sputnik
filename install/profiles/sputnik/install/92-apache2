@@ -1,9 +1,5 @@
 #!/bin/sh
 
-if [ -n "$UPGRADE" ]; then
-    exit 0
-fi
-
 cp $PROFILE/res/https-redirect.conf /etc/apache2/conf-available
 
 a2enconf https-redirect
@@ -19,3 +15,4 @@ a2ensite sputnik
 a2ensite sputnik-ssl
 
 service apache2 restart
+
