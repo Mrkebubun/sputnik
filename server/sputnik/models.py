@@ -110,6 +110,15 @@ class PermissionGroup(db.Base):
     def __init__(self, name):
         self.name = name
 
+    @property
+    def dict(self):
+        return {'name': self.name,
+                'trade': self.trade,
+                'deposit': self.deposit,
+                'withdraw': self.withdraw,
+                'login': self.login
+        }
+
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}

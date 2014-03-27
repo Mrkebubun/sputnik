@@ -29,6 +29,8 @@ import logging
 class AccountantException(Exception):
     pass
 
+INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
+TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 
 class Accountant:
     def __init__(self, session, debug):
@@ -162,10 +164,12 @@ class Accountant:
         """
         logging.info("Trying to accept order %s." % order)
 
-        user = self.get_user(order.username)
+        user = order.user
         if not user.permissions.trade:
             logging.info("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
-            return False
+            self.session.delete(order)
+            self.session.commit()
+            raise TRADE_NOT_PERMITTED
 
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
@@ -182,13 +186,12 @@ class Accountant:
             logging.info("Order rejected due to margin.")
             self.session.delete(order)
             self.session.commit()
-            return False
+            raise INSUFFICIENT_MARGIN
         else:
             logging.info("Order accepted.")
             order.accepted = True
             self.session.merge(order)
             self.session.commit()
-            return True
 
     def charge_fees(self, fees, username):
         """
@@ -448,11 +451,11 @@ class Accountant:
             session.rollback()
             raise e
 
-        if self.accept_order(o):
+        try:
+            self.accept_order(o)
             return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
-        else:
-            # TODO: Fix to use exceptions
-            return [False, (0, "Not enough margin")]
+        except AccountantException as e:
+            return [False, e.args]
 
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
         try:
@@ -523,7 +526,7 @@ class Accountant:
             self.session.commit()
             logging.info("Journal: %s" % journal)
         except:
-            session.rollback()
+            self.session.rollback()
             logging.error(
                 "Updating user position failed for address=%s and total_received=%d" % (address, total_received))
             return False
@@ -553,9 +556,9 @@ class Accountant:
                     order["side"] = 1  # buy
                 #order["price"] = details["price"] #todo what's that missing details?
                 self.place_order(order)
-            session.commit()
+            self.session.commit()
         except:
-            session.rollback()
+            self.session.rollback()
 
     def change_permission_group(self, username, id):
         try:
@@ -576,7 +579,7 @@ class Accountant:
             self.session.commit()
         except Exception as e:
             logging.error("Error: %s" % e)
-            session.rollback()
+            self.session.rollback()
 
     def modify_permission_group(self, id, permissions):
         try:
@@ -586,11 +589,16 @@ class Accountant:
             permission_group.withdraw = 'withdraw' in permissions
             permission_group.deposit = 'deposit' in permissions
             permission_group.login = 'login' in permissions
-            session.add(permission_group)
-            session.commit()
+            self.session.add(permission_group)
+            self.session.commit()
         except Exception as e:
             logging.error("Error: %s" % e)
-            session.rollback()
+            self.session.rollback()
+
+    def get_permissions(self, username):
+        user = self.get_user(username)
+        permissions = user.permissions.dict
+        return permissions
 
 class WebserverExport:
     def __init__(self, accountant):
@@ -603,6 +611,10 @@ class WebserverExport:
     @export
     def cancel_order(self, order_id):
         return self.accountant.cancel_order(order_id)
+
+    @export
+    def get_permissions(self, username):
+        return self.accountant.get_permissions(username)
 
 
 class EngineExport:

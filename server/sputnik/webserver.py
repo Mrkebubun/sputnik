@@ -359,9 +359,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
         # Check for login permissions
-        return self.factory.administrator.get_permissions(username).addCallbacks(_cb_perms)
-
-
+        return self.factory.accountant.get_permissions(username).addCallbacks(_cb_perms)
 
 
     def getAuthSecret(self, auth_key):

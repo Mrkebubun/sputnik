@@ -284,7 +284,10 @@ class AdminWebUI(Resource):
 
     def modify_permission_group(self, request):
         id = int(request.args['id'][0])
-        permissions = request.args['permissions']
+        if 'permissions' in request.args:
+            permissions = request.args['permissions']
+        else:
+            permissions = []
         self.administrator.modify_permission_group(id, permissions)
         return self.permission_groups(request)
 
