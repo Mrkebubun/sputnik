@@ -82,13 +82,13 @@ class AdminUser(db.Base):
     __table_args__ = {'extend_existing': True}
 
     username = Column(String, primary_key=True)
-    password = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
     totp = Column(String)
     level = Column(Integer, server_default="0")
 
-    def __init__(self, username, password, level):
+    def __init__(self, username, password_hash, level):
         self.username = username
-        self.password = password
+        self.password_hash = password_hash
         self.level = level
 
 class User(db.Base):

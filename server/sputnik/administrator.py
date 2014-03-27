@@ -27,16 +27,18 @@ from zope.interface import implements
 from twisted.internet import reactor, defer
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
-from twisted.cred.credentials import IUsernameHashedPassword
+from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
+from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
 import json
 
 import logging
-import autobahn, string, Crypto.Random.random
-import sqlalchemy.orm.exc
+import string, Crypto.Random.random
+from sqlalchemy.orm.exc import NoResultFound
 
 from autobahn.wamp1.protocol import WampCraProtocol
+import hashlib
 
 class AdministratorException(Exception): pass
 
@@ -45,6 +47,7 @@ NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
+ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is already taken")
 
 
 
@@ -180,7 +183,39 @@ class Administrator:
 
     @session_aware
     def new_admin_user(self, username, password, level):
+        if self.session.query(models.AdminUser).filter_by(username=username).count() > 0:
+            raise ADMIN_USERNAME_TAKEN
+
         user = models.AdminUser(username, password, level)
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def reset_admin_password(self, username, old_password_hash, new_password_hash):
+        try:
+            user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        # If the pw is blank, don't check
+        if user.password_hash != "":
+            if user.password_hash != old_password_hash:
+                raise FAILED_PASSWORD_CHANGE
+
+        user.password_hash = new_password_hash
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def force_reset_admin_password(self, username, new_password_hash):
+        try:
+            user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        user.password_hash = new_password_hash
         self.session.add(user)
         self.session.commit()
         return True
@@ -205,12 +240,21 @@ class Administrator:
 
 class AdminWebUI(Resource):
     isLeaf = True
-    def __init__(self, administrator, avatarId, avatarLevel):
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
         self.administrator = administrator
         self.avatarId = avatarId
         self.avatarLevel = avatarLevel
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
+        self.digest_factory = digest_factory
         Resource.__init__(self)
+
+
+    def calc_ha1(self, password, username=None):
+        if username is None:
+            username = self.avatarId
+
+        realm = self.digest_factory.digest.authenticationRealm
+        return calcHA1('md5', username, realm, password, None, None)
 
     def getChild(self, path, request):
         self.log(request)
@@ -235,12 +279,15 @@ class AdminWebUI(Resource):
     def render(self, request):
         self.log(request)
         resources = [
+                    # Level 0
+                    { '/': self.admin,
+                      '/reset_admin_password': self.reset_admin_password
+                    },
                     # Level 1
                      {'/': self.user_list,
                       '/user_details': self.user_details,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
-                      '/reset_admin_password': self.reset_admin_password
                      },
                     # Level 2
                      {'/reset_password': self.reset_password},
@@ -256,8 +303,8 @@ class AdminWebUI(Resource):
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/adjust_position': self.adjust_position}]
         resource_list = {}
-        for level in range(0, self.avatarLevel):
-            resource_list.update(resources[level-1])
+        for level in range(0, self.avatarLevel+1):
+            resource_list.update(resources[level])
         try:
             resource = resource_list[request.path]
             return resource(request).encode('utf-8')
@@ -282,11 +329,14 @@ class AdminWebUI(Resource):
         return self.user_details(request)
 
     def reset_admin_password(self, request):
-        self.administrator.reset_admin_password(self.avatarId, request.args['password'][0])
+        self.administrator.reset_admin_password(self.avatarId, self.calc_ha1(request.args['old_password'][0]),
+                                                self.calc_ha1(request.args['new_password'][0]))
         return self.admin(request)
 
     def force_reset_admin_password(self, request):
-        self.administrator.reset_admin_password(request.args['username'][0], request.args['password'][0])
+        self.administrator.reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+                                                                                      username=request.args['username'][0]))
+
         return self.admin_list(request)
 
     def admin(self, request):
@@ -324,7 +374,8 @@ class AdminWebUI(Resource):
         return t.render(admin_users=admin_users)
 
     def new_admin_user(self, request):
-        self.administrator.new_admin_user(request.args['username'][0], request.args['password'][0],
+        self.administrator.new_admin_user(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+                                                                                     username=request.args['username'][0]),
                                           int(request.args['level'][0]))
         return self.admin_list(request)
 
@@ -359,7 +410,7 @@ class AdminWebUI(Resource):
 
 class PasswordChecker(object):
     implements(ICredentialsChecker)
-    credentialInterfaces = (IUsernameHashedPassword,)
+    credentialInterfaces = (IUsernameDigestHash,)
 
     def __init__(self, session):
         self.session = session
@@ -368,10 +419,15 @@ class PasswordChecker(object):
         username = credentials.username
         try:
             admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
-        except sqlalchemy.orm.exc.NoResultFound as e:
+        except NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such administrator"))
 
-        if credentials.checkPassword(admin_user.password):
+        # Allow login if there is no password. Use this for
+        # setup only
+        if admin_user.password_hash == "":
+            return defer.succeed(username)
+
+        if credentials.checkHash(admin_user.password_hash):
             return defer.succeed(username)
         else:
             return defer.fail("Bad password")
@@ -379,19 +435,24 @@ class PasswordChecker(object):
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator, session):
+    def __init__(self, administrator, session, digest_factory):
         self.administrator = administrator
         self.session = session
+        self.digest_factory = digest_factory
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
             try:
                 user = self.session.query(models.AdminUser).filter_by(username=avatarId).one()
-                avatarLevel = user.level
+                # If the pw isn't set yet, only allow level 0 access
+                if user.password_hash == "":
+                    avatarLevel = 0
+                else:
+                    avatarLevel = user.level
             except Exception as e:
                 print "Exception: %s" % e
 
-            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel), lambda: None
+            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
         else:
             raise NotImplementedError
 
@@ -432,8 +493,10 @@ if __name__ == "__main__":
         config.get("administrator", "webserver_export"))
 
     checkers = [PasswordChecker(session)]
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session), checkers),
-            [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
+    digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
+                                 checkers),
+            [digest_factory])
 
     # SSL
     if config.getboolean("webserver", "ssl"):
