@@ -120,7 +120,7 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
-    permission_group_id = Column(Integer, ForeignKey('permission_groups.id'))
+    permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
 
     default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability')

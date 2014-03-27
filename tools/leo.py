@@ -16,6 +16,15 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from sputnik import config
 from sputnik import database, models
 
+class PermissionsManager:
+    def __init__(self, session):
+        self.session = session
+
+    def new(self, name):
+        permission_group = models.PermissionGroup(name)
+        self.session.add(permission_group)
+        self.session.commit()
+
 class AccountManager:
     def __init__(self, session):
         self.session = session
@@ -193,7 +202,8 @@ class LowEarthOrbit:
             "accounts": AccountManager(session),
             "contracts": ContractManager(session),
             "addresses": AddressManager(session),
-            "database": DatabaseManager(session)
+            "database": DatabaseManager(session),
+            "permissions": PermissionsManager(session)
         }
 
     def parse(self, line):
