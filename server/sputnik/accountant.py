@@ -162,6 +162,11 @@ class Accountant:
         """
         logging.info("Trying to accept order %s." % order)
 
+        user = self.get_user(order.username)
+        if not user.permissions.trade:
+            logging.info("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
+            return False
+
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
 
@@ -481,6 +486,7 @@ class Accountant:
 
             user_cash_position = self.get_position(total_deposited_at_address.username,
                                                    contract.ticker)
+            user = self.get_user(total_deposited_at_address.user)
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
@@ -494,7 +500,13 @@ class Accountant:
             # that way the user still 'owns' the money and we can eventually refund him
             # but he can't trade with it
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
-            if user_cash_position.position + deposit > deposit_limit:
+            if not user.permissions.deposit:
+                logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
+                              (deposit, address, user.username))
+                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
+                credit = models.Posting(overflow_position, deposit, 'credit')
+                self.session.add(overflow_position)
+            elif user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
                 overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')

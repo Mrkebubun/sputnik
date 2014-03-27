@@ -334,24 +334,35 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         else:
             username = auth_key
 
-        # TODO: SECURITY: This is susceptible to a timing attack.
-        def _cb(result):
-            if result:
-                salt, password_hash = result[0][0].split(":")
-                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+        def _cb_perms(result):
+            if result['login']:
+                # TODO: SECURITY: This is susceptible to a timing attack.
+                def _cb(result):
+                    if result:
+                        salt, password_hash = result[0][0].split(":")
+                        authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+                    else:
+                        noise = hashlib.md5("super secret" + username + "even more secret")
+                        salt = noise.hexdigest()[:8]
+                        authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+
+                    # SECURITY: If they know the cookie, it is alright for them to know
+                    #   the username. They can log in anyway.
+                    return {"authextra": authextra,
+                            "permissions": {"pubsub": [], "rpc": [], "username": username}}
+
+                return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
+                                       (username,)).addCallback(_cb)
             else:
-                noise = hashlib.md5("super secret" + username + "even more secret")
-                salt = noise.hexdigest()[:8]
-                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+                logging.error("User %s not permitted to login" % username)
+                return {"authextra": "",
+                        "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
-            # SECURITY: If they know the cookie, it is alright for them to know
-            #   the username. They can log in anyway.
-            return {"authextra": authextra,
-                    "permissions": {"pubsub": [], "rpc": [], "username": username}}
+        # Check for login permissions
+        return self.factory.administrator.get_permissions(username).addCallbacks(_cb_perms)
 
 
-        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
-                               (username,)).addCallback(_cb)
+
 
     def getAuthSecret(self, auth_key):
         """
