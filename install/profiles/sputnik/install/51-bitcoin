@@ -14,15 +14,5 @@ chown $profile_user:$profile_user $USER_HOME/.bitcoin
 chmod 700 $USER_HOME/.bitcoin
 ln -sf $profile_conf/bitcoin.conf $USER_HOME/.bitcoin
 
-# generate bitcoin password
-BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
-sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" $profile_conf/bitcoin.conf
-
-if [ -n "$profile_testnet" ]; then
-    echo "testnet=1" >> $profile_conf/bitcoin.conf
-fi
-
-chown $profile_bitcoin_user:$profile_user $profile_conf/bitcoin.conf
-chmod 440 $profile_conf/bitcoin.conf
 
 

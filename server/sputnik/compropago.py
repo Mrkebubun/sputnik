@@ -53,10 +53,16 @@ class Compropago:
     phone_companies = ["", "TELCEL","MOVISTAT","ISUACELL","UNEFON","NEXTEL"]
 
 
+
     def amount_after_fees(self, amount):
-        fee = math.ceil(0.029 * amount + 300)
+        if amount < 361:
+            logging.error("attempted a compropago deposit of %d. Deposit must be more than 361 and less than 1800000"
+                          % amount)
+            raise "Invalid compropago amount"
+
+        fee = math.ceil((2.9 if amount < 2500 else 2.5)/100 * amount + 300)
         tax = math.ceil(fee*1.16)
-        return amount - fee - tax
+        return int(amount - fee - tax)
 
 
     def send_sms(self, id, customer_phone, customer_company_phone):
