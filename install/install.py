@@ -65,6 +65,8 @@ class Installer:
         self.config["git_hash"] = version[0]
         self.config["git_date"] = version[1]
         self.config["git_tag"] = version[2]
+        self.config["git_branch"] = version[3]
+        self.config["dbname"] = "sputnik_" + version[3].replace("-", "_")
 
         shutil.rmtree("config", True)
         os.mkdir("config")
@@ -271,7 +273,7 @@ class Installer:
 
     def version(self):
         p = subprocess.Popen(
-                ["/usr/bin/git", "log", "--pretty=format:%H%n%aD"],
+                ["/usr/bin/git", "log", "--pretty=format:%H%n%aD", "-1"],
                 stdin=None, stdout=subprocess.PIPE,
                 stderr=self.logfile)
         hash = p.stdout.readline().rstrip()
@@ -280,7 +282,11 @@ class Installer:
                              stdin=None, stdout=subprocess.PIPE,
                              stderr=self.logfile)
         tag = p.stdout.readline().rstrip()
-        return [hash, date, tag]
+        p = subprocess.Popen(["/usr/bin/git", "rev-parse", "--abbrev-ref",
+                              "HEAD"], stdin=None, stdout=subprocess.PIPE,
+                              stderr=self.logfile)
+        branch = p.stdout.readline().rstrip()
+        return [hash, date, tag, branch]
 
     def run(self, args):
         p = subprocess.Popen(args, env=self.env, stdin=None,
