@@ -11,6 +11,7 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 import util
 
 import zmq
@@ -22,9 +23,6 @@ from datetime import datetime
 db_session = db.make_session()
 
 context = zmq.Context()
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class SafePricePublisher(object):

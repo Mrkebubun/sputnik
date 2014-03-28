@@ -8,6 +8,7 @@ import json
 import treq
 
 import logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s')
 import math
 
 from jsonschema import validate
@@ -24,7 +25,7 @@ class Charge:
                  currency='MXN',
                  product_name='MEXBT',
                  product_id='MXN',
-                 image_url='http://www.sputnik.com/BC_Logo_.png'):
+                 image_url='https://www.sputnik.com/bitcoin.jpg'):
         self.product_price, self.currency = product_price, currency
         self.customer_name, self.customer_email, self.customer_phone = customer_name, customer_email, customer_phone
         self.payment_type, self.send_sms = payment_type, send_sms
@@ -53,9 +54,14 @@ class Compropago:
 
 
     def amount_after_fees(self, amount):
-        fee = math.ceil(0.029 * amount + 300)
+        if amount < 361:
+            logging.error("attempted a compropago deposit of %d. Deposit must be more than 361 and less than 1800000"
+                          % amount)
+            raise "Invalid compropago amount"
+
+        fee = math.ceil((2.9 if amount < 2500 else 2.5)/100 * amount + 300)
         tax = math.ceil(fee*1.16)
-        return max(amount - fee - tax, 0)
+        return max(int(amount - fee - tax),0)
 
 
     def send_sms(self, id, customer_phone, customer_company_phone):

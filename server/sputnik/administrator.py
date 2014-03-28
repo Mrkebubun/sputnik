@@ -35,6 +35,8 @@ from jinja2 import Environment, FileSystemLoader
 import json
 
 import logging
+
+
 import string, Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -481,7 +483,7 @@ class WebserverExport:
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     session = database.make_session()
 
