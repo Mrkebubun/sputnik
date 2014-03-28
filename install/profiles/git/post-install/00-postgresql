@@ -5,14 +5,14 @@ if [ -n "$UPGRADE" ]; then
 fi
 
 # TODO: make sure no one is accessing this and then remove
-# /usr/bin/dropdb --if-exists sputnik
+# /usr/bin/dropdb --if-exists $profile_dbname
 
 sudo -u postgres psql <<EOF
-create database sputnik;
+create database $profile_dbname;
 create user $profile_user;
-grant all privileges on database sputnik to $profile_user;
+grant all privileges on database $profile_dbname to $profile_user;
 alter role $profile_user with login;
 create user pycharm with password 'pycharm';
-grant all privileges on database sputnik to pycharm;
+grant all privileges on database $profile_dbname to pycharm;
 EOF
 
