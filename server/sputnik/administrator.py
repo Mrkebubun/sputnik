@@ -430,7 +430,7 @@ class PasswordChecker(object):
         if credentials.checkHash(admin_user.password_hash):
             return defer.succeed(username)
         else:
-            return defer.fail("Bad password")
+            return defer.fail(credError.UnauthorizedLogin("Bad password"))
 
 class SimpleRealm(object):
     implements(IRealm)
