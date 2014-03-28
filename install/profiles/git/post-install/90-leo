@@ -35,5 +35,7 @@ accounts add randomtrader
 accounts password randomtrader randomtrader
 accounts position randomtrader BTC
 accounts position randomtrader MXN
+
+admin add admin
 EOF
 

@@ -668,7 +668,7 @@ class AdministratorExport:
         self.accountant.modify_permission_group(id, permissions)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     session = database.make_session()
     debug = config.getboolean("accountant", "debug")

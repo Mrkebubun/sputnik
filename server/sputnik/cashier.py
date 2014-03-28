@@ -3,6 +3,8 @@ import json
 from optparse import OptionParser
 import logging
 
+
+
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
 from twisted.internet import reactor, ssl
@@ -142,8 +144,13 @@ class Cashier():
         address = 'compropago_%s' % payment_info['id']
         # Convert pesos to pesocents
         # TODO: Actually get the denominator from the DB
-        amount = self.compropago.amount_after_fees(float(payment_info['amount']) * 100)
-        self.notify_accountant(address, float(payment_info['amount']) )
+        cents = float(payment_info['amount'])*100
+        if cents != int(cents):
+            logging.error("payment from compropago doesn't seem to be an integer number of cents: %f" % cents)
+            raise "error couldn't process compropago payment, amount not a number of cents"
+
+        amount = self.compropago.amount_after_fees(cents)
+        self.notify_accountant(address, amount)
 
     def notify_pending_withdrawal(self):
         """
@@ -235,7 +242,7 @@ class AdministratorExport:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     cashier = Cashier()
     administrator_export = AdministratorExport(cashier)

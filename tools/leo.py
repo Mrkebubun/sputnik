@@ -25,6 +25,19 @@ class PermissionsManager:
         self.session.add(permission_group)
         self.session.commit()
 
+class AdminManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, username, password_hash="", level=5):
+        user = self.session.query(models.AdminUser).filter_by(username=username).first()
+        if user is not None:
+            raise Exception("Admin user %s already exists" % username)
+        else:
+            user = models.AdminUser(username, password_hash, level)
+            self.session.add(user)
+            self.session.commit()
+
 class AccountManager:
     def __init__(self, session):
         self.session = session
@@ -204,6 +217,7 @@ class LowEarthOrbit:
             "addresses": AddressManager(session),
             "database": DatabaseManager(session),
             "permissions": PermissionsManager(session)
+            "admin": AdminManager(session)
         }
 
     def parse(self, line):
