@@ -16,6 +16,7 @@ sputnik.js
 clients/www/node_modules
 clients/www/raw_ui.js
 mexbt.js
+mexbt.css
 events.js
 client.js
 sputnik.tar
