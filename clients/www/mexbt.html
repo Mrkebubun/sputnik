@@ -100,10 +100,10 @@
                         <!--Amount to deposit (MXN)-->
                     <!--</label>-->
                     <!---->
-                    <table class="table">
+                    <table  class="table">
                         <tr>
-                            <td>Amount to deposit</td>
-                            <td><input class="form-control" id="compropago_amount" type="number" min="4" max="600" step="1" value="0"/></td>
+                            <td>Amount to deposit<span class="help-block" id="cgo_amount_help"></span></td>
+                            <td id="cgo_amount_bill"><input class="form-control" id="compropago_amount" type="number" min="100" max="600" step="1" value="0"/></td>
                         </tr>
                         <tr><td>Compropago deposit fee (2.9% + MXN 3.00)</td><td id="cgo_deposit_fee"></td></tr>
                         <tr><td>Sales tax</td><td id="cgo_fee_tax"></td></tr>
@@ -153,9 +153,9 @@
             </div>
             <div class="modal-footer">
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                        id="compropago_pay_button"><span class="ladda-label">Pay</span></button>
+                        id="compropago_pay_button" disabled="true"><span class="ladda-label">Pay</span></button>
             </div>
-            <script language="javascript">
+            <script type="text/javascript">
                 $('#compropago_send_sms').on('click', function() {
                     $('#compropago_phone_input_zone').toggleClass('hidden show');
                 });
