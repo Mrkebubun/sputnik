@@ -27,9 +27,6 @@ www_port = 8888
 www_root = ${www_root}
 debug = ${debug}
 base_uri = ${base_uri}
-recaptcha_public_key = ${recaptcha_public_key}
-recaptcha_private_key = ${recaptcha_private_key}
-
 
 [accountant]
 engine_export = tcp://127.0.0.1:4432
