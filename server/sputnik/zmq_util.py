@@ -193,7 +193,7 @@ class SyncRouterExport(SyncExport):
                 [sender_id, message_id, "", self.encode(False, e)])
 
         def result(value):
-            logging.info("Got result for method %s." % method_name)
+            logging.info("Got result for method %s id: %s-%s" % (method_name, message_id, sender_id))
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(True, value)])
 

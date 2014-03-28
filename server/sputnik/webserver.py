@@ -121,6 +121,10 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
+    @exportRpc("get_audit")
+    def get_audit(self):
+        return self.factory.accountant.get_audit()
+
     @exportRpc("get_ohlcv")
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                                                    datetime.timedelta(days=2)),

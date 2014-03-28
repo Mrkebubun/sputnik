@@ -19,7 +19,7 @@ from webserver import ChainedOpenSSLContextFactory
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
 from twisted.web.resource import Resource, IResource
-from twisted.web.server import Site
+from twisted.web.server import Site, NOT_DONE_YET
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 
 from zope.interface import implements
@@ -180,6 +180,8 @@ class Administrator:
             quantity, ticker, from_user, from_description, to_user, to_description))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
+    def get_balance_sheet(self):
+        return self.accountant.get_balance_sheet()
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -210,25 +212,25 @@ class AdminWebUI(Resource):
         self.log(request)
         if request.path in ['/user_list', '/']:
             # Level 1
-            return self.user_list().encode('utf-8')
+            return self.user_list()
         elif request.path == '/balance_sheet':
             # Level 0
-            return self.balance_sheet().encode('utf-8')
+            return self.balance_sheet(request)
         elif request.path == '/adjust_position' and self.administrator.debug:
             # Level 5
-            return self.adjust_position(request).encode('utf-8')
+            return self.adjust_position(request)
         elif request.path == '/user_details':
-            return self.user_details(request).encode('utf-8')
+            return self.user_details(request)
         elif request.path == '/ledger':
-            return self.ledger(request).encode('utf-8')
+            return self.ledger(request)
         elif request.path == '/rescan_address':
-            return self.rescan_address(request).encode('utf-8')
+            return self.rescan_address(request)
         elif request.path == '/reset_password':
             # Level 2
-            return self.reset_password(request).encode('utf-8')
+            return self.reset_password(request)
         elif request.path == '/transfer_position':
             # Level 4
-            return self.transfer_position(request).encode('utf-8')
+            return self.transfer_position(request)
         else:
             return "Request received: %s" % request.uri
 
@@ -236,14 +238,14 @@ class AdminWebUI(Resource):
         journal_id = request.args['id'][0]
         journal = self.administrator.get_journal(journal_id)
         t = self.jinja_env.get_template('ledger.html')
-        return t.render(journal=journal)
+        return t.render(journal=journal).encode('utf-8')
 
     def user_list(self):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
-        return t.render(users=users)
+        return t.render(users=users).encode('utf-8')
 
     def reset_password(self, request):
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
@@ -257,7 +259,7 @@ class AdminWebUI(Resource):
         user = self.administrator.get_user(request.args['username'][0])
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug)
-        return rendered
+        return rendered.encode('utf-8')
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
@@ -274,30 +276,15 @@ class AdminWebUI(Resource):
         self.administrator.cashier.rescan_address(request.args['address'][0])
         return self.user_details(request)
 
-    def balance_sheet(self):
-        # We are getting trades and positions which things other than the administrator
-        # are modifying, so we need to do an expire here
-        self.administrator.expire_all()
-        # TODO: Do this in SQLalchemy
-        positions = self.administrator.get_positions()
-        asset_totals = collections.defaultdict(int)
-        liability_totals = collections.defaultdict(int)
-        assets_by_ticker = collections.defaultdict(list)
-        liabilities_by_ticker = collections.defaultdict(list)
+    def balance_sheet(self, request):
+        def _cb(balance_sheet):
+            t = self.jinja_env.get_template('balance_sheet.html')
+            rendered = t.render(balance_sheet=balance_sheet)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
 
-        for position in positions:
-            if position.position is not None:
-                if position.position_type == 'Asset':
-                    asset_totals[position.contract.ticker] += position.position
-                    assets_by_ticker[position.contract.ticker].append(position)
-                else:
-                    liability_totals[position.contract.ticker] += position.position
-                    liabilities_by_ticker[position.contract.ticker].append(position)
-
-        t = self.jinja_env.get_template('balance_sheet.html')
-        rendered = t.render(assets_by_ticker=assets_by_ticker, asset_totals=asset_totals,
-                            liabilities_by_ticker=liabilities_by_ticker, liability_totals=liability_totals)
-        return rendered
+        self.administrator.get_balance_sheet().addCallbacks(_cb)
+        return NOT_DONE_YET
 
 class SimpleRealm(object):
     implements(IRealm)

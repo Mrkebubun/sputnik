@@ -15,6 +15,7 @@ import database
 import models
 import margin
 import util
+import collections
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
 
@@ -545,6 +546,44 @@ class Accountant:
         except:
             session.rollback()
 
+    def get_balance_sheet(self):
+        positions = self.session.query(models.Position).all()
+        balance_sheet = {'assets': {},
+                         'liabilities': {}
+        }
+
+        for position in positions:
+            if position.position is not None:
+                if position.position_type == 'Asset':
+                    side = balance_sheet['assets']
+                else:
+                    side = balance_sheet['liabilities']
+
+                position_details = { 'username': position.user.username,
+                                                                    'hash': position.user.user_hash,
+                                                                    'position': position.position,
+                                                                    'description': position.description
+                }
+                if position.contract.ticker in side:
+                    side[position.contract.ticker]['total'] += position.position
+                    side[position.contract.ticker]['positions_raw'].append(position_details)
+                else:
+                    side[position.contract.ticker] = {'total': position.position,
+                                                      'positions_raw': [position_details],
+                                                      'contract': position.contract.ticker}
+
+        return balance_sheet
+
+    def get_audit(self):
+        balance_sheet = self.get_balance_sheet()
+        for side in balance_sheet.values():
+            for ticker, details in side:
+                details['positions'] = collections.defaultdict(int)
+                for position in details['positions_raw']:
+                    details['positions'][position['hash']] += position['position']
+                del details['positions_raw']
+
+        return balance_sheet
 
 class WebserverExport:
     def __init__(self, accountant):
@@ -557,6 +596,10 @@ class WebserverExport:
     @export
     def cancel_order(self, order_id):
         return self.accountant.cancel_order(order_id)
+
+    @export
+    def get_audit(self):
+        return self.accounant.get_audit()
 
 
 class EngineExport:
@@ -596,6 +639,10 @@ class AdministratorExport:
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
+    @export
+    def get_balance_sheet(self):
+        return self.accountant.get_balance_sheet()
 
 
 if __name__ == "__main__":
