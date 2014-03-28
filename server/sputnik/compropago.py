@@ -25,7 +25,7 @@ class Charge:
                  currency='MXN',
                  product_name='MEXBT',
                  product_id='MXN',
-                 image_url='http://www.sputnik.com/BC_Logo_.png'):
+                 image_url='https://www.sputnik.com/bitcoin.jpg'):
         self.product_price, self.currency = product_price, currency
         self.customer_name, self.customer_email, self.customer_phone = customer_name, customer_email, customer_phone
         self.payment_type, self.send_sms = payment_type, send_sms
