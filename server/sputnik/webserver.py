@@ -1001,7 +1001,7 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
     chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))

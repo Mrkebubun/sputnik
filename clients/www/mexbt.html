@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
@@ -19,6 +20,7 @@
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
+    <script src="ui.coffee" type="text/coffeescript"></script>
     <script src="mexbt.coffee" type="text/coffeescript"></script>
     <title>MexBT Trading Platform</title>
 </head>
@@ -164,7 +166,7 @@
                     var sales_tax = Math.ceil( fee_tax * 16.0)/100.0;
                     $('#cgo_deposit_fee').text(fee_tax.toFixed(2));
                     $('#cgo_fee_tax').text(sales_tax.toFixed(2));
-                    $('#cgo_credit').text(Math.max(0,(amount-fee_tax-sales_tax)).toFixed(2)+" MXN");
+                    $('#cgo_credit').text((amount-fee_tax-sales_tax).toFixed(2)+" MXN");
                 }
 
                 $('#compropago_amount').change(update_amount);
