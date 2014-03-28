@@ -21,6 +21,7 @@ from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
+from twisted.web.error import Error
 
 from zope.interface import implements
 
@@ -309,7 +310,9 @@ class AdminWebUI(Resource):
             resource = resource_list[request.path]
             return resource(request).encode('utf-8')
         except KeyError:
-            return None
+            # Take me to /
+            request.path = '/'
+            return self.render(request)
 
     def ledger(self, request):
         journal_id = request.args['id'][0]
