@@ -216,7 +216,7 @@ class LowEarthOrbit:
             "contracts": ContractManager(session),
             "addresses": AddressManager(session),
             "database": DatabaseManager(session),
-            "permissions": PermissionsManager(session)
+            "permissions": PermissionsManager(session),
             "admin": AdminManager(session)
         }
 
