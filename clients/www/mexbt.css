@@ -2,25 +2,17 @@
   padding: 15px 10px;
   color: #958881;
 }
+
 #chatCollapseButton {
   position: absolute;
   top: 0;
   right: 0;
 }
+
 footer.navbar {
   min-height: 38px;
 }
+
 #chatBox {
   width: 90%;
-}
-#account_modal .tab-content {
-  padding-top: 20px;
-}
-#account_modal .form-inline .form-group {
-  margin-left: 0;
-  margin-right: 0;
-}
-#account_modal input[type=file] {
-  padding-top: 10px;
-  padding-bottom: 40px;
 }
