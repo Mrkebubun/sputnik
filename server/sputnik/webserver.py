@@ -227,6 +227,11 @@ class PublicInterface:
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
 
+        # IMPORTANT, sanitize user input!
+        username = cgi.escape(username)
+        nickname = cgi.escape(nickname)
+        email = cgi.escape(email)
+
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
         profile = {"email": email, "nickname": nickname}
@@ -736,6 +741,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # TODO: make sure nickname is appropriate
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
+        email = cgi.escape(email)
+        nickname = cgi.escape(email)
 
         profile = {"email": email, "nickname": nickname}
         d = self.factory.administrator.change_profile(self.username, profile)
