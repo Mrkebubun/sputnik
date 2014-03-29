@@ -269,6 +269,12 @@ class @Sputnik extends EventEmitter
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
 
     # order manipulation
+    canPlaceOrder: (quantity, price, ticker, side) =>
+      #TODO: fix after arthurb fixes @calculateMargin
+      [low_margin, high_margin] = @calculateMargin()
+      cash_position = @positions["BTC"].position
+      return high_margin <= cash_position.position
+
     placeOrder: (quantity, price, ticker, side) =>
         order =
             quantity: quantity
@@ -560,6 +566,64 @@ class @Sputnik extends EventEmitter
 
         @emit "positions", positions
 
+    calculateMargin: (positions = @positions, open_orders = @orders ###, safe_prices###) =>
+      return [0,0]
+      #HACK pending #330 arthurb fix CS margin function
+      low_margin = 0
+      high_margin = 0
+      margins = {}
+      for key of positions
+        position = positions[key]
+        continue  if position.contract_type is "cash"
+
+        #todo:temporary hack, resolve this more cleanly...
+        #         what happens if we have positions in an inactive market?
+        #
+        continue  unless position.ticker of MARKETS
+        max_position = position.position
+        min_position = position.position
+        j = 0
+
+        while j < open_orders.length
+          order = open_orders[j]
+          if order.ticker is position.ticker
+            max_position += order.quantity  if order.side is "BUY"
+            min_position -= order.quantity  if order.side is "SELL"
+          ++j
+#        if MARKETS[position.ticker].contract_type is "futures"
+#          safe_price = safe_prices[position.ticker]
+#          low_max = Math.abs(max_position) * MARKETS[position.ticker].margin_low * safe_price / 100 + max_position * (position.reference_price - safe_price)
+#          low_min = Math.abs(min_position) * MARKETS[position.ticker].margin_low * safe_price / 100 + min_position * (position.reference_price - safe_price)
+#          high_max = Math.abs(max_position) * MARKETS[position.ticker].margin_high * safe_price / 100 + max_position * (position.reference_price - safe_price)
+#          high_min = Math.abs(min_position) * MARKETS[position.ticker].margin_high * safe_price / 100 + min_position * (position.reference_price - safe_price)
+#          high_margin += Math.max(high_max, high_min)
+#          low_margin += Math.max(low_max, low_min)
+#          margins[position.ticker] = [Math.max(high_max, high_min), Math.max(low_max, low_min)]
+#        if MARKETS[position.ticker].contract_type is "prediction"
+#          payoff = MARKETS[position.ticker].final_payoff
+#          max_spent = 0
+#          max_received = 0
+#          j = 0
+#
+#          while j < open_orders.length
+#            order = open_orders[j]
+#            if order.ticker is position.ticker
+#              max_spent += order.quantity * order.price  if order.side is "BUY"
+#              max_received += order.quantity * order.price  if order.side is "SELL"
+#            ++j
+#          worst_short_cover = Math.max(-min_position, 0) * payoff
+#          best_short_cover = Math.max(-max_position, 0) * payoff
+#          additional_margin = Math.max(max_spent + best_short_cover, -max_received + worst_short_cover)
+#          low_margin += additional_margin
+#          high_margin += additional_margin
+#          margins[position.ticker] = [additional_margin, additional_margin]
+        if contract.contract_type == 'cash'
+          cash_position[contract.ticker] = position.position
+      margins["total"] = [low_margin, high_margin]
+      return margins
+
+
+      #return [low_margin, high_margin];
 if module?
     module.exports =
         Sputnik: @Sputnik

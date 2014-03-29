@@ -107,6 +107,19 @@ $("#register_button").click (event) ->
     nickname = $("#register_nickname").val()
     sputnik.makeAccount username, password, email, nickname
 
+$("#buy_price").keypress ->
+  if sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
+    $("#buy_panel alert:visible").slideUp()
+  else
+    $("#buy_panel alert").slideDown()
+
+$("#sell_price").keypress ->
+  if sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
+    $("#sell_panel alert:visible").slideUp()
+  else
+    $("#sell_panel alert").slideDown()
+
+
 $("#buyButton").click ->
     sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
 

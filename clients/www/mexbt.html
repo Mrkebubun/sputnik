@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="ui.css"/>
     <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -366,7 +367,11 @@
                             <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
                                                                               id="buy_quantity" placeholder="">
                         </div>
-                        <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        <div>
+                            <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+                            <button disabled type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        </div>
+
                     </form>
                 </div>
             </div>
@@ -405,6 +410,8 @@
                             <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
                                                                                id="sell_quantity" placeholder="">
                         </div>
+                        <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+
                         <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
                     </form>
                 </div>
