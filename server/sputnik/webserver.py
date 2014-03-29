@@ -82,10 +82,12 @@ class RateLimitedCallHandler(CallHandler):
 
 MAX_TICKER_LENGTH = 100
 
-
 class AdministratorExport:
     pass
 
+
+def malicious_looking(w):
+    return any(x in w for x in '<>&')
 
 class PublicInterface:
     def __init__(self, factory):
@@ -227,10 +229,8 @@ class PublicInterface:
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
 
-        # IMPORTANT, sanitize user input!
-        username = cgi.escape(username)
-        nickname = cgi.escape(nickname)
-        email = cgi.escape(email)
+        if malicious_looking(email) or malicious_looking(nickname) or malicious_looking(username):
+            return [False, "malicious looking input"]
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
@@ -741,8 +741,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # TODO: make sure nickname is appropriate
         validate(email, {"type": "string"})
         validate(nickname, {"type": "string"})
-        email = cgi.escape(email)
-        nickname = cgi.escape(email)
+
+        if malicious_looking(email) or malicious_looking(nickname):
+            return [False, "malicious looking input"]
 
         profile = {"email": email, "nickname": nickname}
         d = self.factory.administrator.change_profile(self.username, profile)
