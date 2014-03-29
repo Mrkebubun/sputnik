@@ -32,11 +32,18 @@ class Installer:
         self.parser.set("DEFAULT", "git_root", self.git_root)
         self.parser.set("DEFAULT", "user", getpass.getuser())
         self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
-        parsed = self.parser.read(os.path.join(profile, "profile.ini"))
+        profile_ini = os.path.join(profile, "profile.ini")
+        config_status = os.path.join(self.git_root, "dist", "config.status")
+        parsed = self.parser.read(profile_ini)
         if len(parsed) != 1:
             raise Exception("Cannot read profile.")
+        parsed = self.parser.read(config_status)
 
         self.config = dict(self.parser.items("profile"))
+        if len(parsed) == 1:
+            self.config.update(dict(self.parser.items("git")))
+            dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
+            self.config["dbname"] = dbname
         
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
@@ -110,6 +117,17 @@ class Installer:
                 template = string.Template(template_file.read())
                 out.write(template.substitute(self.config))
             out.close()
+
+        # make config.status
+        out = open("config.status", "w")
+        status = ConfigParser.SafeConfigParser()
+        status.add_section("git")
+        status.set("git", "git_hash", version[0])
+        status.set("git", "git_date", version[1])
+        status.set("git", "git_tag", version[2])
+        status.set("git", "git_branch", version[3])
+        status.write(out)
+        out.close()
 
     def check_dpkg(self, name):
         # We can actually query this using the python 'apt' module.
