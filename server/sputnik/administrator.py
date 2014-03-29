@@ -178,7 +178,8 @@ class AdminWebUI(Resource):
     def __init__(self, administrator, avatarId):
         self.administrator = administrator
         self.avatarId = avatarId
-        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'),
+                                     autoescape=True)
         Resource.__init__(self)
 
     def getChild(self, path, request):
