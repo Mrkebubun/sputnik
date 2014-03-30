@@ -1,13 +1,12 @@
 import config
 
-from twisted.internet import protocol
-from twsited.reactor import internet
+from twisted.internet import reactor, protocol
 
 class SendmailProtocol(protocol.ProcessProtocol):
     def __init__(self, message):
-        from_ = config.get("alerts", "from")
-        to = config.get("alerts", "to")
-        subject = config.get("alerts", "subject")
+        from_ = "From: " + config.get("alerts", "from")
+        to = "To: " + config.get("alerts", "to")
+        subject = "Subject: " + config.get("alerts", "subject")
         self.data = "\n".join([from_, to, subject, "", message, ""])
 
     def connectionMade(self):
