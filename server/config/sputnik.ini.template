@@ -47,6 +47,11 @@ debug = ${debug}
 zmq_frontend_address = tcp://127.0.0.1:4500
 zmq_backend_address = tcp://127.0.0.1:4520
 
+[alerts]
+from = sputnik@sputnikmkt.com
+to = yury@sputnikmkt.com
+subject = Alert
+
 [version]
 git_hash = ${git_hash}
 git_date = ${git_date}
