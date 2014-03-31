@@ -15,6 +15,7 @@ import database
 import models
 import collections
 from webserver import ChainedOpenSSLContextFactory
+from zendesk import Zendesk
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
@@ -66,10 +67,11 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False):
+    def __init__(self, session, accountant, cashier, zendesk, debug=False):
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
+        self.zendesk = zendesk
         self.debug = debug
 
     @session_aware
@@ -159,17 +161,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
-    def register_support_ticket(self, username, foreign_key, type):
-        ticket_exists = self.session.query(models.SupportTicket).filter_by(foreign_key=foreign_key).count()
-        if ticket_exists > 0:
-            raise TICKET_EXISTS
-        else:
-            ticket = models.SupportTicket(username, foreign_key, type)
-            self.session.add(ticket)
-            self.session.commit()
-            return True
-
     def expire_all(self):
         self.session.expire_all()
 
@@ -184,6 +175,20 @@ class Administrator:
     def get_user(self, username):
         user = self.session.query(models.User).filter_by(username=username).one()
         return user
+
+    @session_aware
+    def create_kyc_ticket(self, username, attachments):
+        user = self.session.query(models.User).filter_by(username=username).one()
+
+        def store_in_db(ticket_number):
+            ticket = models.SupportTicket(username, ticket_number, 'KYC')
+            self.session.add(ticket)
+            self.session.commit()
+            return True
+
+        d = self.zendesk.create_ticket(user, "New KYC Submission", "Please see documents attached",
+                                       attachments)
+        d.addCallback(store_in_db)
 
     @session_aware
     def set_admin_level(self, username, level):
@@ -265,6 +270,14 @@ class Administrator:
         logging.debug("Modifying permission group %d to %s" % (id, permissions))
         self.accountant.modify_permission_group(id, permissions)
 
+class TicketCreator(Resource):
+    isLeaf = True
+    def __init__(self, administrator):
+        self.administrator = administrator
+
+    def getChild(self, path, request):
+        self.log(request)
+        return self
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -557,7 +570,9 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, cashier, debug)
+    zendesk = Zendesk(config.get("administrator", "zendesk_domain", "zendesk_token", "zendesk_email"))
+
+    administrator = Administrator(session, accountant, cashier, zendesk, debug)
     webserver_export = WebserverExport(administrator)
 
     router_share_async(webserver_export,

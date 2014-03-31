@@ -464,19 +464,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
                         (self.username,)).addCallback(_cb)
 
-    @exportRpc("register_support_ticket")
-    def register_support_ticket(self, ticket_key, ticket_type):
-        d = self.factory.administrator.register_support_ticket(self.username, ticket_key, ticket_type)
-
-        def onTicketSuccess(result):
-            return [True, None]
-
-        def onTicketFail(failure):
-            return [False, failure.value.args]
-
-        d.addCallbacks(onTicketSuccess, onTicketFail)
-        return d
-
     @exportRpc("get_permissions")
     def get_permissions(self):
         d = self.factory.administrator.get_permissions(self.username)
