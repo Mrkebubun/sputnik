@@ -285,7 +285,8 @@ class AdminWebUI(Resource):
         self.administrator = administrator
         self.avatarId = avatarId
         self.avatarLevel = avatarLevel
-        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'),
+                                     autoescape=True)
         self.digest_factory = digest_factory
         Resource.__init__(self)
 

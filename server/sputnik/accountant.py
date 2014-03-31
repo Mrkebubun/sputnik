@@ -491,6 +491,10 @@ class Accountant:
                                                    contract.ticker)
             user = self.get_user(total_deposited_at_address.user)
 
+            # update address
+            total_deposited_at_address.accounted_for = total_received
+            session.add(total_deposited_at_address)
+
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             postings = []
