@@ -204,7 +204,11 @@ class Administrator:
         try:
             user = self.session.query(models.User).filter(models.User.username == username).one()
         except sqlalchemy.orm.exc.NoResultFound:
-            raise NO_SUCH_USER
+            # If we have no user, we will silently fail because we don't want to
+            # create a username oracle
+            # We should log this though
+            logging.debug("get_reset_token: No such user %s" % username)
+            return True
 
         token = models.ResetToken(username, hours_to_expiry)
         self.session.add(token)
