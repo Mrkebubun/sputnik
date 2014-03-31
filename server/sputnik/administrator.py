@@ -186,14 +186,15 @@ class Administrator:
             raise NO_SUCH_USER
 
         def store_in_db(ticket_number):
-            ticket = models.SupportTicket(username, ticket_number, 'KYC')
+            ticket = models.SupportTicket(username, ticket_number, 'Compliance')
             self.session.add(ticket)
             self.session.commit()
             return True
 
-        d = self.zendesk.create_ticket(user, "New KYC Submission", "Please see documents attached",
+        d = self.zendesk.create_ticket(user, "New compliance document submission", "Please see documents attached",
                                        attachments)
         d.addCallback(store_in_db)
+        return d
 
     @session_aware
     def set_admin_level(self, username, level):
@@ -307,7 +308,7 @@ class TicketServer(Resource):
 
         d = self.administrator.create_kyc_ticket(username, attachments)
 
-        def _cb(self, request):
+        def _cb(result):
             request.write("Complete")
             request.finish()
 

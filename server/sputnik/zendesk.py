@@ -19,7 +19,7 @@ class Zendesk(object):
             ticket = {"ticket": {"requester": {"name": user.nickname,
                                                "email": user.email },
                                  "subject": subject,
-                                 "comment": {"body": comment, "uploads": [str(t) for t in tokens] }}}
+                                 "comment": {"body": comment, "uploads": [str(t[1]) for t in tokens] }}}
             def handle_response(response):
                 def parse_content(content):
                     if response.code != 201:
@@ -45,7 +45,7 @@ class Zendesk(object):
 
         deferreds = []
         for attachment in attachments:
-            d = self.upload_file(attachment['name'], attachment['type'], attachment['data'])
+            d = self.upload_file(attachment['filename'], attachment['type'], attachment['data'])
             deferreds.append(d)
 
         dl = defer.DeferredList(deferreds)
