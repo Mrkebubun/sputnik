@@ -4,16 +4,15 @@ public_port = 8181
 public_interface = ${webserver_interface}
 private_port = 8282
 private_interface = 127.0.0.1
-administrator_export = tcp://127.0.0.1:4132
-testnet = ${testnet}
+administrator_export = tcp://127.0.0.1:4160
 compropago_key = ${compropago_key}
 
 [engine]
 base_port = 4200
 
 [webserver]
-engine_export = tcp://127.0.0.1:10000
-accountant_export = tcp://127.0.0.1:4701
+engine_export = tcp://127.0.0.1:4720
+accountant_export = tcp://127.0.0.1:4740
 interface = ${webserver_interface}
 ws_address = ${webserver_address}
 ws_port = 8000
@@ -27,16 +26,19 @@ www_port = 8888
 www_root = ${www_root}
 debug = ${debug}
 base_uri = ${base_uri}
+recaptcha_public_key = ${recaptcha_public_key}
+recaptcha_private_key = ${recaptcha_private_key}
+
 
 [accountant]
-engine_export = tcp://127.0.0.1:4432
-webserver_export = tcp://127.0.0.1:4433
-cashier_export = tcp://127.0.0.1:4434
-administrator_export = tcp://127.0.0.1:4435
+engine_export = tcp://127.0.0.1:4420
+webserver_export = tcp://127.0.0.1:4470
+cashier_export = tcp://127.0.0.1:4410
+administrator_export = tcp://127.0.0.1:4460
 debug = ${debug}
 
 [administrator]
-webserver_export = tcp://127.0.0.1:4601
+webserver_export = tcp://127.0.0.1:4670
 UI_port = ${administrator_port}
 interface = ${webserver_interface}
 address = ${webserver_address}
@@ -44,8 +46,13 @@ debug = ${debug}
 email = ${administrator_email}
 
 [safe_price_forwarder]
-zmq_frontend_address = tcp://127.0.0.1:4501
-zmq_backend_address = tcp://127.0.0.1:4502
+zmq_frontend_address = tcp://127.0.0.1:4500
+zmq_backend_address = tcp://127.0.0.1:4520
+
+[alerts]
+from = sputnik@sputnikmkt.com
+to = yury@sputnikmkt.com
+subject = Alert
 
 [version]
 git_hash = ${git_hash}

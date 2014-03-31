@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 import config
 import compropago
-from collections import OrderedDict
+import recaptcha
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -886,6 +886,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return self.factory.accountant.cancel_order(order_id)
 
+    # so we actually never need to call a "verify captcha" function, the captcha parameters are just passed
+    # as part as any other rpc that wants to be captcha protected. Leaving this code as an example though
+    # @exportRpc("verify_captcha")
+    # def verify_captcha(self, challenge, response):
+    #     validate(challenge, {"type": "string"})
+    #     validate(response, {"type": "string"})
+    #     return self.factory.recaptacha.verify(self.getClientIP(), challenge, response)
+
+
     @exportSub("chat")
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):
         """
@@ -1010,6 +1019,9 @@ class PepsiColaServerFactory(WampServerFactory):
             config.get("administrator", "webserver_export"))
 
         self.compropago = compropago.Compropago(config.get("cashier", "compropago_key"))
+        self.recaptcha = recaptcha.ReCaptcha(
+            private_key=config.get("webserver", "recaptcha_private_key"),
+            public_key=config.get("webserver", "recaptcha_public_key"))
 
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
@@ -1029,7 +1041,7 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
     chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))

@@ -47,7 +47,7 @@ class @Sputnik extends EventEmitter
 
     # authentication and account management
 
-    makeAccount: (username, secret, email) =>
+    makeAccount: (username, secret, email, nickname) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
         @authextra =

@@ -482,6 +482,10 @@ class Accountant:
             user_cash_position = self.get_position(total_deposited_at_address.username,
                                                    contract.ticker)
 
+            # update address
+            total_deposited_at_address.accounted_for = total_received
+            session.add(total_deposited_at_address)
+
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             postings = []
@@ -599,7 +603,7 @@ class AdministratorExport:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     session = database.make_session()
     debug = config.getboolean("accountant", "debug")

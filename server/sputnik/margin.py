@@ -5,7 +5,7 @@ import logging
 import util
 import collections
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
 def calculate_margin(username, session, safe_prices, order_id=None):
     """
