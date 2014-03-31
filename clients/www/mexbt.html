@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="clients/www/mexbt.less"/>
     <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,9 +49,13 @@
                 <div class="alert alert-warning" style="display:none" id="login_error">
                     Incorrect username or password.
                 </div>
-                <a href="#" id="get_reset_token">Email me a password reset link</a>
+                <div id="reset_token_sent" class="alert alert-info">
+                    Check your email. Contact customer support for further assistance...
+                </div>
+                <a href="#" id="get_reset_token">Email me a password reset link for this username</a>
             </div>
             <div class="modal-footer">
+
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="login_button"><span class="ladda-label">Login</span></button>
             </div>

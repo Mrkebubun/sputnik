@@ -242,6 +242,15 @@ $ ->
     $('#account_modal').change (e) ->
       $(e.target).parents('.tab-pane').data('dirty', yes)
 
+    $('#get_reset_token').click ->
+      $('#login_modal input,a,label,button').slideUp()
+      sputnik.getResetToken($('#login_username').val())
+      $('#reset_token_sent').show()
+      setTimeout(
+        -> $("#login_modal").modal "hide"
+      ,
+        5000)
+
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
     updatePlot(trade_history['BTC/MXN'])
