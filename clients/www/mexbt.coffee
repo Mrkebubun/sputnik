@@ -77,8 +77,6 @@ sputnik.on "compropago_deposit_fail", (event) ->
   $('#compropago_error').text(reason)
   $('#compropago_error').show()
 
-
-
 $("#login").click () ->
     $("#login_modal").modal()
 
@@ -107,18 +105,29 @@ $("#register_button").click (event) ->
     nickname = $("#register_nickname").val()
     sputnik.makeAccount username, password, email, nickname
 
+canBuy = () ->
+    if sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
+        $("#buy_panel alert:visible").slideUp()
+    else
+        $("#buy_panel alert").slideDown()
+
+    canSell = () ->
+    if sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
+        $("#sell_panel alert:visible").slideUp()
+    else
+        $("#sell_panel alert").slideDown()
+
 $("#buy_price").keyup ->
-  if sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
-    $("#buy_panel alert:visible").slideUp()
-  else
-    $("#buy_panel alert").slideDown()
+    canBuy()
 
 $("#sell_price").keyup ->
-  if sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
-    $("#sell_panel alert:visible").slideUp()
-  else
-    $("#sell_panel alert").slideDown()
+    canSell()
 
+$("#buy_quantity").keyup ->
+    canBuy()
+
+$("#sell_quantity").keyup ->
+    canSell()
 
 $("#buyButton").click ->
     sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
