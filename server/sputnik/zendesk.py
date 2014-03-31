@@ -43,17 +43,16 @@ class Zendesk(object):
             d.addCallback(handle_response)
             return d
 
-
         deferreds = []
         for attachment in attachments:
-            d = self.upload_file(attachment)
+            d = self.upload_file(attachment['name'], attachment['type'], attachment['data'])
             deferreds.append(d)
 
         dl = defer.DeferredList(deferreds)
         dl.addCallback(uploads_done)
         return dl
 
-    def upload_file(self, file_data):
+    def upload_file(self, name, content_type, file_data):
         def handle_response(response):
             def parse_content(content):
                 if response.code != 201:
@@ -67,10 +66,8 @@ class Zendesk(object):
 
             return response.content().addCallback(parse_content)
 
-        # Use a random filename
-        filename = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
-        d = treq.post("https://%s.zendesk.com/api/v2/uploads.json?filename=%s" % (self.domain, filename), data=file_data,
-                      headers={"Content-Type": "application/binary"},
+        d = treq.post("https://%s.zendesk.com/api/v2/uploads.json?filename=%s" % (self.domain, name), data=file_data,
+                      headers={"Content-Type": content_type},
                       auth=("%s/token" % self.api_username, self.api_token))
         d.addCallback(handle_response)
         return d

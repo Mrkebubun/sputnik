@@ -23,6 +23,8 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.error import Error
+from twisted.web.server import NOT_DONE_YET
+import cgi
 
 from zope.interface import implements
 
@@ -178,7 +180,10 @@ class Administrator:
 
     @session_aware
     def create_kyc_ticket(self, username, attachments):
-        user = self.session.query(models.User).filter_by(username=username).one()
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
 
         def store_in_db(ticket_number):
             ticket = models.SupportTicket(username, ticket_number, 'KYC')
@@ -270,14 +275,50 @@ class Administrator:
         logging.debug("Modifying permission group %d to %s" % (id, permissions))
         self.accountant.modify_permission_group(id, permissions)
 
-class TicketCreator(Resource):
+class TicketServer(Resource):
     isLeaf = True
     def __init__(self, administrator):
         self.administrator = administrator
+        Resource.__init__(self)
 
     def getChild(self, path, request):
         self.log(request)
         return self
+
+    def create_kyc_ticket(self, request):
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+
+        username = fields['username'].value
+        attachments = []
+        file_fields = fields['file']
+        if not isinstance(file_fields, list):
+            file_fields = [file_fields]
+
+        for field in file_fields:
+            attachments.append({"filename": field.filename,
+                                "data": field.value,
+                                "type": field.type})
+
+        d = self.administrator.create_kyc_ticket(username, attachments)
+
+        def _cb(self, request):
+            request.write("Complete")
+            request.finish()
+
+        d.addCallbacks(_cb)
+        return NOT_DONE_YET
+
+    def render(self, request):
+            if request.path == '/create_kyc_ticket':
+                return self.create_kyc_ticket(request)
+            else:
+                return None
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -571,7 +612,9 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    zendesk = Zendesk(config.get("administrator", "zendesk_domain", "zendesk_token", "zendesk_email"))
+    zendesk = Zendesk(config.get("administrator", "zendesk_domain"),
+                      config.get("administrator", "zendesk_token"),
+                      config.get("administrator", "zendesk_email"))
 
     administrator = Administrator(session, accountant, cashier, zendesk, debug)
     webserver_export = WebserverExport(administrator)
@@ -585,6 +628,8 @@ if __name__ == "__main__":
                                  checkers),
             [digest_factory])
 
+    ticket_server = TicketServer(administrator)
+
     # SSL
     if config.getboolean("webserver", "ssl"):
         key = config.get("webserver", "ssl_key")
@@ -594,9 +639,16 @@ if __name__ == "__main__":
         reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           contextFactory,
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenSSL(config.getint("administrator", "ticket_port"), Site(resource=ticket_server),
+                                        contextFactory,
+                                        interface=config.get("administrator", "interface"))
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenTCP(config.getint("administrator", "ticket_port"), Site(ticket_server),
+                                        interface=config.get("administrator", "interface"))
 
     reactor.run()
 
