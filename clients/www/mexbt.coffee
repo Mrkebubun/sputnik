@@ -316,3 +316,6 @@ sputnik.on "profile", (profile) ->
 
 sputnik.on "fill", (fill) ->
     console.log "Fill Received: #{fill}"
+
+sputnik.on "place_order_fail", (error) ->
+    alert "Place order failed: #{error[1]}"
