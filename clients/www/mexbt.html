@@ -52,10 +52,9 @@
                 <div id="reset_token_sent" class="alert alert-info">
                     Check your email. Contact customer support for further assistance...
                 </div>
-                <a href="#" id="get_reset_token">Email me a password reset link for this username</a>
             </div>
             <div class="modal-footer">
-
+                <button class="ladda-button" data-color="" data-size="xs" id="get_reset_token">Password reset for user</button>
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="login_button"><span class="ladda-label">Login</span></button>
             </div>
@@ -268,6 +267,9 @@
                     <input type="password" class="form-control" id="new_password_token" placeholder="New Password" required>
                     <input type="password" class="form-control" id="new_password_token_confirm" placeholder="Confirm New Password" required>
                 </form>
+                <div class="alert alert-info">Great! Now just enter your new password and we'll be all set.</div>
+            </div>
+            <div class="modal-footer">
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="change_password_token_button"><span class="ladda-label">Change Password</span></button>
             </div>

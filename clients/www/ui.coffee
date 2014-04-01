@@ -243,7 +243,7 @@ $ ->
       $(e.target).parents('.tab-pane').data('dirty', yes)
 
     $('#get_reset_token').click ->
-      $('#login_modal input,a,label,button').slideUp()
+      $('#login_modal').find('input,a,label,button').slideUp()
       sputnik.getResetToken($('#login_username').val())
       $('#reset_token_sent').show()
       setTimeout(
