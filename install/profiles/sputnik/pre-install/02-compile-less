@@ -1,0 +1,8 @@
+#!/bin/sh
+
+cd ${profile_git_root}/clients/www
+for i in `ls *.less`
+do
+    /usr/local/bin/lessc $i > `echo $i | sed s/\.less$/.css/`
+done
+
