@@ -18,7 +18,9 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.js"></script>
     <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
-    <script type="text/javascript" src="http://www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
+    <script src="//www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
@@ -305,10 +307,10 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="audit_secret" class="col-xs-3 control-label">Audit Secret</label>
+                                <label for="audit_hash" class="col-xs-3 control-label">Audit Hash</label>
 
                                 <div class="col-xs-9">
-                                    <input readonly id="audit_secret" type="text" class="form-control col-sm-10">
+                                    <input readonly id="audit_hash" type="text" class="form-control col-sm-10">
                                 </div>
                             </div>
                             <div class="form-group">

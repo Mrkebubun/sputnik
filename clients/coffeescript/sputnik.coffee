@@ -17,6 +17,7 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
+        audit_hash: null
     chat_messages: []
 
     constructor: (@uri) ->
@@ -63,11 +64,24 @@ class @Sputnik extends EventEmitter
 
     getProfile: () =>
         @call("get_profile").then (@profile) =>
+            @updateAuditHash()
             @emit "profile", @profile
 
     changeProfile: (nickname, email) =>
         @call("change_profile", email, nickname).then (@profile) =>
+            @updateAuditHash()
             @emit "profile", @profile
+
+    updateAuditHash: () =>
+        secret = @profile.audit_secret
+        username = @username
+        email = @profile.email
+        nickname = @profile.nickname
+        now = new Date()
+        now.setUTCHours(0,0,0,0)
+        timestamp = now.getTime() * 1000
+        string = "#{secret}:#{username}:#{nickname}:#{email}:#{timestamp}"
+        @profile.audit_hash = CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')

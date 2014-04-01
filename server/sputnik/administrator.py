@@ -94,8 +94,8 @@ class Administrator:
             protocol = 'http'
 
         self.base_uri = "%s://%s:%d" % (protocol,
-                                        config.get("webserver", "ws_address"),
-                                        config.getint("webserver", "ws_port"))
+                                        config.get("webserver", "www_address"),
+                                        config.getint("webserver", "www_port"))
 
     @session_aware
     def make_account(self, username, password):

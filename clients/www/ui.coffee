@@ -319,6 +319,7 @@ sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
 
 sputnik.on "profile", (profile) ->
+    $('#audit_hash').val profile.audit_hash
     $('#audit_secret').val profile.audit_secret
     $('#new_nickname').val profile.nickname
     $('#new_email').val profile.email
