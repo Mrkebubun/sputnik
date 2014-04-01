@@ -15,6 +15,7 @@ import database
 import models
 import margin
 import util
+import collections
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
 
@@ -29,6 +30,8 @@ import logging
 class AccountantException(Exception):
     pass
 
+INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
+TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 
 class Accountant:
     def __init__(self, session, debug):
@@ -162,6 +165,13 @@ class Accountant:
         """
         logging.info("Trying to accept order %s." % order)
 
+        user = order.user
+        if not user.permissions.trade:
+            logging.info("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
+            self.session.delete(order)
+            self.session.commit()
+            raise TRADE_NOT_PERMITTED
+
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
 
@@ -177,13 +187,12 @@ class Accountant:
             logging.info("Order rejected due to margin.")
             self.session.delete(order)
             self.session.commit()
-            return False
+            raise INSUFFICIENT_MARGIN
         else:
             logging.info("Order accepted.")
             order.accepted = True
             self.session.merge(order)
             self.session.commit()
-            return True
 
     def charge_fees(self, fees, username):
         """
@@ -443,11 +452,11 @@ class Accountant:
             session.rollback()
             raise e
 
-        if self.accept_order(o):
+        try:
+            self.accept_order(o)
             return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
-        else:
-            # TODO: Fix to use exceptions
-            return [False, (0, "Not enough margin")]
+        except AccountantException as e:
+            return [False, e.args]
 
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
         try:
@@ -481,6 +490,7 @@ class Accountant:
 
             user_cash_position = self.get_position(total_deposited_at_address.username,
                                                    contract.ticker)
+            user = self.get_user(total_deposited_at_address.user)
 
             # update address
             total_deposited_at_address.accounted_for = total_received
@@ -498,7 +508,13 @@ class Accountant:
             # that way the user still 'owns' the money and we can eventually refund him
             # but he can't trade with it
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
-            if user_cash_position.position + deposit > deposit_limit:
+            if not user.permissions.deposit:
+                logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
+                              (deposit, address, user.username))
+                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
+                credit = models.Posting(overflow_position, deposit, 'credit')
+                self.session.add(overflow_position)
+            elif user_cash_position.position + deposit > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
                 overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
@@ -515,7 +531,7 @@ class Accountant:
             self.session.commit()
             logging.info("Journal: %s" % journal)
         except:
-            session.rollback()
+            self.session.rollback()
             logging.error(
                 "Updating user position failed for address=%s and total_received=%d" % (address, total_received))
             return False
@@ -545,9 +561,113 @@ class Accountant:
                     order["side"] = 1  # buy
                 #order["price"] = details["price"] #todo what's that missing details?
                 self.place_order(order)
-            session.commit()
+            self.session.commit()
         except:
+            self.session.rollback()
+
+    def change_permission_group(self, username, id):
+        try:
+            logging.debug("Changing permission group for %s to %d" % (username, id))
+            user = self.get_user(username)
+            user.permission_group_id = id
+            self.session.add(user)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
             session.rollback()
+
+    def new_permission_group(self, name):
+        try:
+            logging.debug("Creating new permission group %s" % name)
+            permission_group = models.PermissionGroup(name)
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            self.session.rollback()
+
+    # These two should go into the ledger process. We should
+    # only run this once per day and cache the result
+    def get_balance_sheet(self):
+        positions = self.session.query(models.Position).all()
+        balance_sheet = {'assets': {},
+                         'liabilities': {}
+        }
+
+        for position in positions:
+            if position.position is not None:
+                if position.position_type == 'Asset':
+                    side = balance_sheet['assets']
+                else:
+                    side = balance_sheet['liabilities']
+
+                position_details = { 'username': position.user.username,
+                                                                    'hash': position.user.user_hash,
+                                                                    'position': position.position,
+                                                                    'description': position.description
+                }
+                if position.contract.ticker in side:
+                    side[position.contract.ticker]['total'] += position.position
+                    side[position.contract.ticker]['positions_raw'].append(position_details)
+                else:
+                    side[position.contract.ticker] = {'total': position.position,
+                                                      'positions_raw': [position_details],
+                                                      'contract': position.contract.ticker}
+
+        return balance_sheet
+
+    def get_audit(self):
+        balance_sheet = self.get_balance_sheet()
+        for side in balance_sheet.values():
+            for ticker, details in side.iteritems():
+                details['positions'] = collections.defaultdict(int)
+                for position in details['positions_raw']:
+                    details['positions'][position['hash']] += position['position']
+                del details['positions_raw']
+
+        return balance_sheet
+
+    def get_ledger(self, username, from_timestamp, to_timestamp):
+        from_dt = util.timestamp_to_dt(from_timestamp)
+        to_dt = util.timestamp_to_dt(to_timestamp)
+
+        # Get positions for user
+        user = self.get_user(username)
+        ledgers = []
+        for position in user.positions:
+            # Now get the postings that are relevant
+            postings = self.session.query(models.Posting).filter_by(position=position).join(models.Journal).filter(
+                models.Journal.timestamp <= to_dt,
+                models.Journal.timestamp >= from_dt
+            )
+            for posting in postings:
+                ledgers.append({'contract': posting.position.contract.ticker,
+                                'account_description': posting.position.description,
+                                'account_type': posting.position.type,
+                                'notes': posting.journal.notes,
+                                'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+                                'quantity': posting.quantity,
+                                'type': posting.journal.type})
+        return ledgers
+
+    def modify_permission_group(self, id, permissions):
+        try:
+            logging.debug("Modifying permission group %d to %s" % (id, permissions))
+            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
+            permission_group.trade = 'trade' in permissions
+            permission_group.withdraw = 'withdraw' in permissions
+            permission_group.deposit = 'deposit' in permissions
+            permission_group.login = 'login' in permissions
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            self.session.rollback()
+
+    def get_permissions(self, username):
+        user = self.get_user(username)
+        permissions = user.permissions.dict
+        return permissions
 
 
 class WebserverExport:
@@ -561,6 +681,18 @@ class WebserverExport:
     @export
     def cancel_order(self, order_id):
         return self.accountant.cancel_order(order_id)
+
+    @export
+    def get_permissions(self, username):
+        return self.accountant.get_permissions(username)
+
+    @export
+    def get_audit(self):
+        return self.accountant.get_audit()
+
+    @export
+    def get_ledger(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_ledger(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:
@@ -601,6 +733,21 @@ class AdministratorExport:
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
+    @export
+    def get_balance_sheet(self):
+        return self.accountant.get_balance_sheet()
+
+    @export
+    def change_permission_group(self, username, id):
+        self.accountant.change_permission_group(username, id)
+
+    @export
+    def new_permission_group(self, name):
+        self.accountant.new_permission_group(name)
+
+    @export
+    def modify_permission_group(self, id, permissions):
+        self.accountant.modify_permission_group(id, permissions)
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

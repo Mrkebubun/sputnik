@@ -22,7 +22,8 @@ ssl_key = ${keys}/server.key
 ssl_cert = ${keys}/server.crt
 ssl_cert_chain = ${keys}/server.chain
 www = ${use_www}
-www_port = 8888
+www_address = ${webserver_address}
+www_port = ${webserver_port}
 www_root = ${www_root}
 debug = ${debug}
 base_uri = ${base_uri}
@@ -39,9 +40,16 @@ debug = ${debug}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4670
+accountant_export = tcp://127.0.0.1:4640
 UI_port = ${administrator_port}
+ticket_port = 8980
+zendesk_token = zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy
+zendesk_email = sameer@m2.io
+zendesk_domain = mexbt
 interface = ${webserver_interface}
+address = ${webserver_address}
 debug = ${debug}
+email = ${administrator_email}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4500

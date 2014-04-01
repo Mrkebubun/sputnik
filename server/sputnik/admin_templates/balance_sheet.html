@@ -1,25 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Balance Sheet{% endblock %}
 {% block balance_sheet_active %}class="active"{% endblock %}
+{% block coffeescript %}
+<!-- TODO: Make the carets work -->
+<script type="text/coffeescript">
+$ ->
+    window.show = (id) ->
+        $("tr['#{id}']").toggle()
+
+</script>
+{% endblock %}
 {% block body %}
 <div class="container">
 <div class="panel panel-primary">
     <div class="panel-heading">Balance Sheet</div>
     <div class="panel-body">
-    Assets
-    <table id="assets" class="table table-striped table-hover">
+    {% for label, side in balance_sheet.iteritems() %}
+    {{label}}
+    <table id="{{label}}" class="table table-striped table-hover">
         <thead>
-            <tr><th>Contract</th><th>Position</th><th>Description</th></tr>
+            <tr><th></th><th>Contract</th><th>Quantity</th></tr>
         </thead>
         <tbody>
-            {% for ticker, position_total in asset_totals.iteritems() %}
+            {% for ticker, details in side.iteritems() %}
             <tr>
+                <td><span class="caret btn-link" onclick="show('{{label}}_{{ticker}}')"></span></td>
                 <th>{{ticker}}</th>
-                <th>{{position_total}}</th>
+                <th>{{details.total}}</th>
             </tr>
-                {% for position in assets_by_ticker[ticker] %}
-                <tr>
-                    <td>{{position.user.username}}</td>
+            <tr name="{{label}}_{{ticker}}">
+                <th>User</th>
+                <th>Quantity</th>
+                <th>Description</th>
+            </tr>
+                {% for position in details.positions_raw %}
+                <tr name="{{label}}_{{ticker}}">
+                    <td>{{position.username}}</td>
                     <td>{{position.position}}</td>
                     <td>{{position.description}}</td>
                 </tr>
@@ -27,27 +43,7 @@
             {% endfor %}
         </tbody>
     </table>
-    Liabilities
-    <table id="liabilities" class="table table-striped table-hover">
-        <thead>
-            <tr><th>Contract</th><th>Position</th><th>Description</th></tr>
-        </thead>
-        <tbody>
-            {% for ticker, position_total in liability_totals.iteritems() %}
-            <tr>
-                <th>{{ticker}}</th>
-                <th>{{position_total}}</th>
-            </tr>
-                {% for position in liabilities_by_ticker[ticker] %}
-                <tr>
-                    <td>{{position.user.username}}</td>
-                    <td>{{position.position}}</td>
-                    <td>{{position.description}}</td>
-                </tr>
-                {% endfor %}
-            {% endfor %}
-        </tbody>
-    </table>
+    {% endfor %}
     </div>
 </div>
 </div>

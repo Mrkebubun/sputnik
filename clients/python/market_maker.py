@@ -43,13 +43,13 @@ import time
 
 uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
-    def getUsernamePassword(self):
-        return ['marketmaker', 'marketmaker']
+    username = 'marketmaker'
+    password = 'marketmaker'
 
     def getUri(self):
         return uri
 
-    def startAutomation(self):
+    def startAutomationAfterAuth(self):
         rate = 1
 
         self.btcmxn_bid = None
@@ -62,6 +62,9 @@ class MarketMakerBot(TradingBot):
         self.monitor_orders.start(rate * 0.1)
 
         return True
+
+    def startAutomation(self):
+        self.authenticate()
 
     # See if we have any orders on a given side
     def cancelOrders(self, side):

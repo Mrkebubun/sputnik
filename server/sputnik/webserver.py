@@ -121,6 +121,10 @@ class PublicInterface:
     def get_markets(self):
         return [True, self.factory.markets]
 
+    @exportRpc("get_audit")
+    def get_audit(self):
+        return self.factory.accountant.get_audit()
+
     @exportRpc("get_ohlcv")
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                                                    datetime.timedelta(days=2)),
@@ -171,7 +175,17 @@ class PublicInterface:
             (ticker, from_dt, to_dt)
         ).addCallback(_cb)
 
+    @exportRpc("get_reset_token")
+    def get_reset_token(self, username):
+        d = self.factory.administrator.get_reset_token(username)
 
+        def onTokenSuccess(result):
+            return [True, None]
+
+        def onTokenFail(failure):
+            return [False, failure.value.args]
+
+        d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
@@ -239,6 +253,24 @@ class PublicInterface:
             return [False, failure.value.args]
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
+
+    @exportRpc("change_password_token")
+    def change_password_token(self, username, new_password_hash, token):
+        """
+        Changes a users password.  Leaves salt and two factor untouched.
+        """
+        validate(username, {"type": "string"})
+        validate(new_password_hash, {"type": "string"})
+        validate(token, {"type": "string"})
+        d = self.factory.administrator.reset_password_hash(username, None, new_password_hash, token=token)
+
+        def onResetSuccess(result):
+            return [True, None]
+
+        def onResetFail(failure):
+            return [False, failure.value.args]
+
+        return d.addCallbacks(onResetSuccess, onResetFail)
 
     @exportRpc
     def get_chat_history(self):
@@ -334,24 +366,33 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         else:
             username = auth_key
 
-        # TODO: SECURITY: This is susceptible to a timing attack.
-        def _cb(result):
-            if result:
-                salt, password_hash = result[0][0].split(":")
-                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+        def _cb_perms(result):
+            if result['login']:
+                # TODO: SECURITY: This is susceptible to a timing attack.
+                def _cb(result):
+                    if result:
+                        salt, password_hash = result[0][0].split(":")
+                        authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+                    else:
+                        noise = hashlib.md5("super secret" + username + "even more secret")
+                        salt = noise.hexdigest()[:8]
+                        authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+
+                    # SECURITY: If they know the cookie, it is alright for them to know
+                    #   the username. They can log in anyway.
+                    return {"authextra": authextra,
+                            "permissions": {"pubsub": [], "rpc": [], "username": username}}
+
+                return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
+                                       (username,)).addCallback(_cb)
             else:
-                noise = hashlib.md5("super secret" + username + "even more secret")
-                salt = noise.hexdigest()[:8]
-                authextra = {'salt': salt, 'keylen': 32, 'iterations': 1000}
+                logging.error("User %s not permitted to login" % username)
+                return {"authextra": "",
+                        "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
-            # SECURITY: If they know the cookie, it is alright for them to know
-            #   the username. They can log in anyway.
-            return {"authextra": authextra,
-                    "permissions": {"pubsub": [], "rpc": [], "username": username}}
+        # Check for login permissions
+        return self.factory.accountant.get_permissions(username).addCallbacks(_cb_perms)
 
-
-        return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
-                               (username,)).addCallback(_cb)
 
     def getAuthSecret(self, auth_key):
         """
@@ -454,6 +495,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
                         (self.username,)).addCallback(_cb)
+
+    @exportRpc("get_permissions")
+    def get_permissions(self):
+        d = self.factory.administrator.get_permissions(self.username)
+        def onGetPermsSuccess(result):
+            return [True, result]
+
+        def onGetPermsFail(failure):
+            return [False, failure.value.args]
+
+        d.addCallbacks(onGetPermsSuccess, onGetPermsFail)
+        return d
 
     @exportRpc("get_cookie")
     def get_cookie(self):
@@ -562,7 +615,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         phone_company = charge['customer_phone_company']
         charge['customer_phone'] = filter(str.isdigit, charge['customer_phone'])
 
-
         del charge['customer_phone_company']
 
         charge['customer_name'] = self.username
@@ -600,6 +652,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
+    @exportRpc("get_ledger")
+    def get_ledger(self, from_timestamp, to_timestamp):
+        return self.factory.accountant.get_ledger(self.username, from_timestamp, to_timestamp)
 
     @exportRpc("get_new_address")
     def get_new_address(self, currency):
@@ -715,14 +770,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if not result:
                 return [False, (0, "get profile failed")]
 
-            combined_string = "%s:%s:%s:%d" % (self.username, result[0][0], result[0][1],
-                                               util.dt_to_timestamp(datetime.datetime.combine(datetime.date.today(),
-                                                                                     datetime.datetime.min.time())))
 
-            user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
-            return [True, {'nickname': result[0][0], 'email': result[0][1], 'user_hash': user_hash}]
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2]}]
 
-        return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
+        return dbpool.runQuery("SELECT nickname, email, audit_secret FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
 
     @exportRpc("change_profile")

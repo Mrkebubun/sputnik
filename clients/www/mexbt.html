@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="clients/www/mexbt.less"/>
     <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +18,9 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.js"></script>
     <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
-    <script type="text/javascript" src="http://www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
+    <script src="//www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
@@ -48,8 +51,12 @@
                 <div class="alert alert-warning" style="display:none" id="login_error">
                     Incorrect username or password.
                 </div>
+                <div id="reset_token_sent" class="alert alert-info">
+                    Check your email. Contact customer support for further assistance...
+                </div>
             </div>
             <div class="modal-footer">
+                <button class="ladda-button" data-color="" data-size="xs" id="get_reset_token">Password reset for user</button>
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="login_button"><span class="ladda-label">Login</span></button>
             </div>
@@ -250,6 +257,28 @@
     </div>
 </div>
 
+<div class="modal fade" id="change_password_token_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Reset Password</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-signin" role="form">
+                    <input type="password" class="form-control" id="new_password_token" placeholder="New Password" required>
+                    <input type="password" class="form-control" id="new_password_token_confirm" placeholder="Confirm New Password" required>
+                </form>
+                <div class="alert alert-info">Great! Now just enter your new password and we'll be all set.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="change_password_token_button"><span class="ladda-label">Change Password</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="account_modal">
 
     <div class="modal-dialog">
@@ -278,10 +307,10 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="audit_key" class="col-xs-3 control-label">Audit Key</label>
+                                <label for="audit_hash" class="col-xs-3 control-label">Audit Hash</label>
 
                                 <div class="col-xs-9">
-                                    <input readonly id="audit_key" type="text" class="form-control col-sm-10">
+                                    <input readonly id="audit_hash" type="text" class="form-control col-sm-10">
                                 </div>
                             </div>
                             <div class="form-group">

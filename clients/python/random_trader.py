@@ -40,13 +40,13 @@ import random, string
 
 uri = 'wss://sputnikmkt.com:8000'
 class RandomBot(TradingBot):
-    def getUsernamePassword(self):
-        return ['randomtrader', 'randomtrader']
+    username = 'randomtrader'
+    password = 'randomtrader'
 
     def getUri(self):
         return uri
 
-    def startAutomation(self):
+    def startAutomationAfterAuth(self):
         rate = 1
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
@@ -59,6 +59,9 @@ class RandomBot(TradingBot):
         self.cancel_orders.start(2.5 * rate)
 
         return True
+
+    def startAutomation(self):
+        self.authenticate()
 
     def placeRandomOrder(self):
         random_markets = []

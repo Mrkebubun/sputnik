@@ -16,7 +16,8 @@ class @Sputnik extends EventEmitter
     profile:
         email: null
         nickname: null
-        user_hash: null
+        audit_secret: null
+        audit_hash: null
     chat_messages: []
 
     constructor: (@uri) ->
@@ -63,11 +64,40 @@ class @Sputnik extends EventEmitter
 
     getProfile: () =>
         @call("get_profile").then (@profile) =>
+            @updateAuditHash()
             @emit "profile", @profile
 
     changeProfile: (nickname, email) =>
         @call("change_profile", email, nickname).then (@profile) =>
+            @updateAuditHash()
             @emit "profile", @profile
+
+    updateAuditHash: () =>
+        secret = @profile.audit_secret
+        username = @username
+        email = @profile.email
+        nickname = @profile.nickname
+        now = new Date()
+        now.setUTCHours(0,0,0,0)
+        timestamp = now.getTime() * 1000
+        string = "#{secret}:#{username}:#{nickname}:#{email}:#{timestamp}"
+        @profile.audit_hash = CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
+
+    processHash: () =>
+        hash = window.location.hash.substring(1).split('&')
+        @log "Got hash: #{hash}"
+        args = {}
+        for entry in hash
+            pair = entry.split('=')
+            key = decodeURIComponent(pair[0])
+            value = decodeURIComponent(pair[1])
+            args[key] = value
+
+        if args.function?
+            if args.function == 'change_password_token'
+                @username = args.username
+                @token = args.token
+                @emit args['function'], args
 
     authenticate: (login, password) =>
         if not @session?
@@ -82,6 +112,27 @@ class @Sputnik extends EventEmitter
             , (error) =>
                 @wtf "Failed login: Could not authenticate: #{error}."
 
+    changePasswordToken: (new_password) =>
+        if not @session?
+            @wtf "Not connected."
+
+        @session.authreq(@username).then \
+            (challenge) =>
+                @authextra = JSON.parse(challenge).authextra
+                secret = ab.deriveKey(new_password, @authextra)
+
+                @call("change_password_token", @username, secret, @token).then \
+                    (message) =>
+                        @log "password change successfully"
+                        @emit "change_password_success", message
+
+                        # Reconnect so we can log in
+                        @close()
+                        @connect()
+                    , (error) =>
+                        @log "password change error: #{error}"
+                        @emit "change_password_fail", error
+
     changePassword: (old_password, new_password) =>
         if not @authenticated
             @wtf "Not logged in."
@@ -95,6 +146,13 @@ class @Sputnik extends EventEmitter
             , (error) =>
                 @error "password change error: #{error}"
                 @emit "change_password_fail", error
+
+    getResetToken: (username) =>
+        @call("get_reset_token", username).then \
+            (success) =>
+                @emit "get_reset_token_success", success
+            , (error) =>
+                @emit "get_reset_token_fail", error
 
     restoreSession: (uid) =>
         if not @session?
@@ -421,6 +479,7 @@ class @Sputnik extends EventEmitter
     # connection events
     onOpen: (@session) =>
         @log "Connected to #{@uri}."
+        @processHash()
 
         @call("get_markets").then @onMarkets, @wtf
         @subscribe "chat", @onChat
