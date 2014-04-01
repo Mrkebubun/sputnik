@@ -15,23 +15,31 @@ import database
 import models
 import collections
 from webserver import ChainedOpenSSLContextFactory
+from zendesk import Zendesk
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
 from twisted.web.resource import Resource, IResource
-from twisted.web.server import Site, NOT_DONE_YET
+from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
+from twisted.web.error import Error
+from twisted.web.server import NOT_DONE_YET
+import cgi
 
 from zope.interface import implements
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.cred.portal import IRealm, Portal
-from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
+from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
+from twisted.cred.credentials import IUsernameDigestHash
+from twisted.cred import error as credError
+from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
 import json
 
 import logging
 import string, Crypto.Random.random
+from sqlalchemy.orm.exc import NoResultFound
 
 from autobahn.wamp1.protocol import WampCraProtocol
 
@@ -42,6 +50,8 @@ NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
+ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is already taken")
+TICKET_EXISTS = AdministratorException(8, "Ticket already exists")
 
 
 
@@ -59,10 +69,11 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False):
+    def __init__(self, session, accountant, cashier, zendesk, debug=False):
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
+        self.zendesk = zendesk
         self.debug = debug
 
     @session_aware
@@ -159,9 +170,78 @@ class Administrator:
         users = self.session.query(models.User).all()
         return users
 
+    def get_admin_users(self):
+        admin_users = self.session.query(models.AdminUser).all()
+        return admin_users
+
     def get_user(self, username):
-        user = self.session.query(models.User).filter(models.User.username == username).one()
+        user = self.session.query(models.User).filter_by(username=username).one()
         return user
+
+    @session_aware
+    def create_kyc_ticket(self, username, attachments):
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        def store_in_db(ticket_number):
+            ticket = models.SupportTicket(username, ticket_number, 'Compliance')
+            self.session.add(ticket)
+            self.session.commit()
+            return True
+
+        d = self.zendesk.create_ticket(user, "New compliance document submission", "Please see documents attached",
+                                       attachments)
+        d.addCallback(store_in_db)
+        return d
+
+    @session_aware
+    def set_admin_level(self, username, level):
+        user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        user.level = level
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def new_admin_user(self, username, password, level):
+        if self.session.query(models.AdminUser).filter_by(username=username).count() > 0:
+            raise ADMIN_USERNAME_TAKEN
+
+        user = models.AdminUser(username, password, level)
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def reset_admin_password(self, username, old_password_hash, new_password_hash):
+        try:
+            user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        # If the pw is blank, don't check
+        if user.password_hash != "":
+            if user.password_hash != old_password_hash:
+                raise FAILED_PASSWORD_CHANGE
+
+        user.password_hash = new_password_hash
+        self.session.add(user)
+        self.session.commit()
+        return True
+
+    @session_aware
+    def force_reset_admin_password(self, username, new_password_hash):
+        try:
+            user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        user.password_hash = new_password_hash
+        self.session.add(user)
+        self.session.commit()
+        return True
 
     def get_positions(self):
         positions = self.session.query(models.Position).all()
@@ -182,21 +262,95 @@ class Administrator:
 
     def get_balance_sheet(self):
         return self.accountant.get_balance_sheet()
+    def get_permission_groups(self):
+        permission_groups = self.session.query(models.PermissionGroup).all()
+        return permission_groups
 
-class AdminWebUI(Resource):
+    def change_permission_group(self, username, id):
+        logging.debug("Changing permission group for %s to %d" % (username, id))
+        self.accountant.change_permission_group(username, id)
+
+    def new_permission_group(self, name):
+        logging.debug("Creating new permission group %s" % name)
+        self.accountant.new_permission_group(name)
+
+    def modify_permission_group(self, id, permissions):
+        logging.debug("Modifying permission group %d to %s" % (id, permissions))
+        self.accountant.modify_permission_group(id, permissions)
+
+class TicketServer(Resource):
     isLeaf = True
-    def __init__(self, administrator, avatarId):
+    def __init__(self, administrator):
         self.administrator = administrator
-        self.avatarId = avatarId
-        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         Resource.__init__(self)
 
     def getChild(self, path, request):
+        self.log(request)
+        return self
+
+    def create_kyc_ticket(self, request):
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+
+        username = fields['username'].value
+        attachments = []
+        file_fields = fields['file']
+        if not isinstance(file_fields, list):
+            file_fields = [file_fields]
+
+        for field in file_fields:
+            attachments.append({"filename": field.filename,
+                                "data": field.value,
+                                "type": field.type})
+
+        d = self.administrator.create_kyc_ticket(username, attachments)
+
+        def _cb(result):
+            request.write("Complete")
+            request.finish()
+
+        d.addCallbacks(_cb)
+        return NOT_DONE_YET
+
+    def render(self, request):
+            if request.path == '/create_kyc_ticket':
+                return self.create_kyc_ticket(request)
+            else:
+                return None
+
+class AdminWebUI(Resource):
+    isLeaf = True
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
+        self.administrator = administrator
+        self.avatarId = avatarId
+        self.avatarLevel = avatarLevel
+        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'),
+                                     autoescape=True)
+        self.digest_factory = digest_factory
+        Resource.__init__(self)
+
+
+    def calc_ha1(self, password, username=None):
+        if username is None:
+            username = self.avatarId
+
+        realm = self.digest_factory.digest.authenticationRealm
+        return calcHA1('md5', username, realm, password, None, None)
+
+    def getChild(self, path, request):
+        self.log(request)
         return self
 
     def log(self, request):
-        line = '%s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
-        logging.info(line, request.getClientIP(),
+        line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        logging.info(line,
+                     self.avatarId,
+                     request.getClientIP(),
                      request.getUser(),
                      request.method,
                      request.uri,
@@ -210,46 +364,104 @@ class AdminWebUI(Resource):
 
     def render(self, request):
         self.log(request)
-        if request.path in ['/user_list', '/']:
-            # Level 1
-            return self.user_list()
-        elif request.path == '/balance_sheet':
-            # Level 0
-            return self.balance_sheet(request)
-        elif request.path == '/adjust_position' and self.administrator.debug:
-            # Level 5
-            return self.adjust_position(request)
-        elif request.path == '/user_details':
-            return self.user_details(request)
-        elif request.path == '/ledger':
-            return self.ledger(request)
-        elif request.path == '/rescan_address':
-            return self.rescan_address(request)
-        elif request.path == '/reset_password':
-            # Level 2
-            return self.reset_password(request)
-        elif request.path == '/transfer_position':
-            # Level 4
-            return self.transfer_position(request)
+        resources = [
+                    # Level 0
+                    { '/': self.admin,
+                      '/reset_admin_password': self.reset_admin_password
+                    },
+                    # Level 1
+                     {'/': self.user_list,
+                      '/user_details': self.user_details,
+                      '/rescan_address': self.rescan_address,
+                      '/admin': self.admin,
+                     },
+                    # Level 2
+                     {'/reset_password': self.reset_password,
+                      '/permission_groups': self.permission_groups,
+                      '/change_permission_group': self.change_permission_group
+                     },
+                    # Level 3
+                     {'/balance_sheet': self.balance_sheet,
+                      '/ledger': self.ledger,
+                      '/new_permission_group': self.new_permission_group,
+                      '/modify_permission_group': self.modify_permission_group
+                     },
+                    # Level 4
+                     {'/transfer_position': self.transfer_position},
+                    # Level 5
+                     {'/admin_list': self.admin_list,
+                      '/new_admin_user': self.new_admin_user,
+                      '/set_admin_level': self.set_admin_level,
+                      '/force_reset_admin_password': self.force_reset_admin_password,
+                      '/adjust_position': self.adjust_position}]
+        
+        resource_list = {}
+        for level in range(0, self.avatarLevel+1):
+            resource_list.update(resources[level])
+        try:
+            resource = resource_list[request.path]
+            return resource(request).encode('utf-8')
+        except KeyError:
+            # Take me to /
+            request.path = '/'
+            return self.render(request)
+
+    def permission_groups(self, request):
+        self.administrator.expire_all()
+        permission_groups = self.administrator.get_permission_groups()
+        t = self.jinja_env.get_template('permission_groups.html')
+        return t.render(permission_groups=permission_groups)
+
+    def new_permission_group(self, request):
+        self.administrator.new_permission_group(request.args['name'][0])
+        return self.permission_groups(request)
+
+    def modify_permission_group(self, request):
+        id = int(request.args['id'][0])
+        if 'permissions' in request.args:
+            permissions = request.args['permissions']
         else:
-            return "Request received: %s" % request.uri
+            permissions = []
+        self.administrator.modify_permission_group(id, permissions)
+        return self.permission_groups(request)
+
+    def change_permission_group(self, request):
+        username = request.args['username'][0]
+        id = int(request.args['id'][0])
+        self.administrator.change_permission_group(username, id)
+        return self.user_details(request)
 
     def ledger(self, request):
         journal_id = request.args['id'][0]
         journal = self.administrator.get_journal(journal_id)
         t = self.jinja_env.get_template('ledger.html')
-        return t.render(journal=journal).encode('utf-8')
+        return t.render(journal=journal)
 
-    def user_list(self):
+    def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
-        return t.render(users=users).encode('utf-8')
+        return t.render(users=users)
 
     def reset_password(self, request):
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
         return self.user_details(request)
+
+    def reset_admin_password(self, request):
+        self.administrator.reset_admin_password(self.avatarId, self.calc_ha1(request.args['old_password'][0]),
+                                                self.calc_ha1(request.args['new_password'][0]))
+        return self.admin(request)
+
+    def force_reset_admin_password(self, request):
+        self.administrator.reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+                                                                                      username=request.args['username'][0]))
+
+        return self.admin_list(request)
+
+    def admin(self, request):
+        t = self.jinja_env.get_template('admin.html')
+        return t.render(username=self.avatarId)
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
@@ -257,9 +469,10 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
+        permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, debug=self.administrator.debug)
-        return rendered.encode('utf-8')
+        rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
+        return rendered
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
@@ -282,20 +495,83 @@ class AdminWebUI(Resource):
             rendered = t.render(balance_sheet=balance_sheet)
             request.write(rendered.encode('utf-8'))
             request.finish()
+            
+    def admin_list(self, request):
+        admin_users = self.administrator.get_admin_users()
+        t = self.jinja_env.get_template('admin_list.html')
+        return t.render(admin_users=admin_users)
+
+    def new_admin_user(self, request):
+        self.administrator.new_admin_user(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+                                                                                     username=request.args['username'][0]),
+                                          int(request.args['level'][0]))
+        return self.admin_list(request)
+
+    def set_admin_level(self, request):
+        self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
+        return self.admin_list(request)
+
+    def balance_sheet(self, request):
+        # We are getting trades and positions which things other than the administrator
+        # are modifying, so we need to do an expire here
+        self.administrator.expire_all()
+        # TODO: Do this in SQLalchemy
+        positions = self.administrator.get_positions()
+        asset_totals = collections.defaultdict(int)
+        liability_totals = collections.defaultdict(int)
+        assets_by_ticker = collections.defaultdict(list)
+        liabilities_by_ticker = collections.defaultdict(list)
 
         self.administrator.get_balance_sheet().addCallbacks(_cb)
         return NOT_DONE_YET
 
+class PasswordChecker(object):
+    implements(ICredentialsChecker)
+    credentialInterfaces = (IUsernameDigestHash,)
+
+    def __init__(self, session):
+        self.session = session
+
+    def requestAvatarId(self, credentials):
+        username = credentials.username
+        try:
+            admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound as e:
+            return defer.fail(credError.UnauthorizedLogin("No such administrator"))
+
+        # Allow login if there is no password. Use this for
+        # setup only
+        if admin_user.password_hash == "":
+            return defer.succeed(username)
+
+        if credentials.checkHash(admin_user.password_hash):
+            return defer.succeed(username)
+        else:
+            return defer.fail(credError.UnauthorizedLogin("Bad password"))
+
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator):
+    def __init__(self, administrator, session, digest_factory):
         self.administrator = administrator
+        self.session = session
+        self.digest_factory = digest_factory
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
-            return IResource, AdminWebUI(self.administrator, avatarId), lambda: None
-        raise NotImplementedError
+            try:
+                user = self.session.query(models.AdminUser).filter_by(username=avatarId).one()
+                # If the pw isn't set yet, only allow level 0 access
+                if user.password_hash == "":
+                    avatarLevel = 0
+                else:
+                    avatarLevel = user.level
+            except Exception as e:
+                print "Exception: %s" % e
+
+            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
+        else:
+            raise NotImplementedError
 
 class WebserverExport:
     """
@@ -318,8 +594,16 @@ class WebserverExport:
     def reset_password_hash(self, username, old_password_hash, new_password_hash):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash)
 
+    @export
+    def register_support_ticket(self, username, foreign_key, type):
+        return self.administrator.register_support_ticket(username, foreign_key, type)
+
+    @export
+    def get_permissions(self, username):
+        return self.administrator.get_permissions(username)
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     session = database.make_session()
 
@@ -327,15 +611,23 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, cashier, debug)
+    zendesk = Zendesk(config.get("administrator", "zendesk_domain"),
+                      config.get("administrator", "zendesk_token"),
+                      config.get("administrator", "zendesk_email"))
+
+    administrator = Administrator(session, accountant, cashier, zendesk, debug)
     webserver_export = WebserverExport(administrator)
 
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
 
-    checkers = [InMemoryUsernamePasswordDatabaseDontUse(admin='lFRAwzNkNeo')]
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator), checkers),
-            [DigestCredentialFactory('md5', 'Sputnik Admin Interface')])
+    checkers = [PasswordChecker(session)]
+    digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
+                                 checkers),
+            [digest_factory])
+
+    ticket_server = TicketServer(administrator)
 
     # SSL
     if config.getboolean("webserver", "ssl"):
@@ -346,9 +638,16 @@ if __name__ == "__main__":
         reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           contextFactory,
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenSSL(config.getint("administrator", "ticket_port"), Site(resource=ticket_server),
+                                        contextFactory,
+                                        interface=config.get("administrator", "interface"))
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenTCP(config.getint("administrator", "ticket_port"), Site(ticket_server),
+                                        interface=config.get("administrator", "interface"))
 
     reactor.run()
 

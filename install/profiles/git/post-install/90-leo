@@ -18,6 +18,9 @@ contracts modify BTC/MXN contract_type cash_pair
 contracts modify BTC/MXN tick_size 100
 contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
+
+permissions new Default
+
 accounts add mexbt
 accounts add m2
 accounts add remainder
@@ -32,5 +35,7 @@ accounts add randomtrader
 accounts password randomtrader randomtrader
 accounts position randomtrader BTC
 accounts position randomtrader MXN
+
+admin add admin
 EOF
 
