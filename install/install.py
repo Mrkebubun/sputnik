@@ -136,8 +136,8 @@ class Installer:
 
         return self.run(["/usr/bin/dpkg", "-s", name]) == 0
 
-    def check_source(self, name):
-        return self.run([os.path.join(self.profile, "deps", "source", name),
+    def check_source(self, name, stage="deps"):
+        return self.run([os.path.join(self.profile, stage, "source", name),
             "check"]) == 0
 
     def check_python(self, name):
@@ -155,6 +155,12 @@ class Installer:
         req.check_if_exists()
         return req.satisfied_by != None
 
+    def check_node(self, name):
+        # we can use npm to check for packages, but this works too,
+        # and does not require grep'ing for the name in the output
+        return self.run(["/usr/local/bin/node", "-e",
+            "'require(\"%s\")'" % name]) == 0
+
     def install_dpkg(self, name):
         return self.run(["/usr/bin/apt-get", "-y", "install", name])
 
@@ -165,13 +171,22 @@ class Installer:
     def install_python(self, name):
         return self.run(["/usr/bin/pip", "install", name])
 
-    def make_deps(self):
-        self.log("Installing dependencies...\n")
+    def install_node(self, name):
+        return self.run(["/usr/local/bin/npm", "install", "-g", name])
+
+    def make_dep_stage(self, stage):
+        stage_name = stage + " "
+        if stage == "deps":
+            stage_name = ""
+        stage_dir = stage
+        if stage == "build":
+            stage_dir = "build-deps"
+        self.log("Installing %sdependencies...\n" % stage_name)
 
         # make dpkg deps
-        self.log("Installing dpkg dependencies...\n")
+        self.log("Installing dpkg %sdependencies...\n" % stage_name)
         try:
-            with open(os.path.join(self.profile, "deps", "dpkg")) as deps:
+            with open(os.path.join(self.profile, stage_dir, "dpkg")) as deps:
                 for line in deps:
                     package = line.strip()
                     if not self.check_dpkg(package):
@@ -187,19 +202,19 @@ class Installer:
                     else:
                         self.log("%s installed.\n" % package)
         except IOError:
-            self.log("No dpkg dependencies found.")
+            self.log("No dpkg %sdependencies found.\n" % stage_name)
 
         # make source deps
-        self.log("Installing source dependencies...\n")
+        self.log("Installing source %sdependencies...\n" % stage_name)
         try: 
             for line in sorted(os.listdir(
-                    os.path.join(self.profile, "deps", "source"))):
+                    os.path.join(self.profile, stage_dir, "source"))):
                 package = line.strip()
-                if not self.check_source(package):
+                if not self.check_source(package, stage_dir):
                     package_name = package.lstrip("0123456789-")
                     self.log("%s not installed. Installing... " % package_name)
                     self.install_source(package)
-                    if self.check_source(package):
+                    if self.check_source(package, stage_dir):
                         self.log("done.\n")
                     else:
                         self.log("failed.\n")
@@ -209,12 +224,12 @@ class Installer:
                 else:
                     self.log("%s installed.\n" % package)
         except OSError:
-            self.log("No source dependencies found.\n")
+            self.log("No source %sdependencies found.\n" % stage_name)
 
         # make python deps
-        self.log("Installing python dependencies...\n")
+        self.log("Installing python %sdependencies...\n" % stage_name)
         try:
-            with open(os.path.join(self.profile, "deps", "python")) as deps:
+            with open(os.path.join(self.profile, stage_dir, "python")) as deps:
                 for line in deps:
                     package = line.strip()
                     if not self.check_python(package):
@@ -230,7 +245,34 @@ class Installer:
                     else:
                         self.log("%s installed.\n" % package)
         except IOError:
-            self.log("No python dependencies found.\n")
+            self.log("No python %sdependencies found.\n" % stage_name)
+
+        # make node deps
+        self.log("Installing node %sdependencies...\n" % stage_name)
+        try:
+            with open(os.path.join(self.profile, stage_dir, "node")) as deps:
+                for line in deps:
+                    package = line.strip()
+                    if not self.check_node(package):
+                        self.log("%s not installed. Installing... " % package)
+                        self.install_node(package)
+                        if self.check_node(package):
+                            self.log("done.\n")
+                        else:
+                            self.log("failed.\n")
+                            self.error("Error: unable to install %s.\n" %
+                                        package)
+                            self.abort()
+                    else:
+                        self.log("%s installed.\n" % package)
+        except IOError:
+            self.log("No node %sdependencies found.\n" % stage_name)
+
+    def make_deps(self):
+        self.make_dep_stage("deps")
+
+    def make_build_deps(self):
+        self.make_dep_stage("build")
 
     def make_build(self):
         if not self.config.get("pycompiled"):
@@ -347,6 +389,8 @@ def main():
         
         if mode == "config":
             installer.make_config()
+        elif mode == "build-deps":
+            installer.make_build_deps()
         elif mode == "deps":
             installer.make_deps()
         elif mode == "build":
