@@ -99,6 +99,48 @@ class Order(db.Base):
         self.timestamp = datetime.utcnow()
         self.is_cancelled = False
 
+class SupportTicket(db.Base):
+    __tablename__ = 'support_tickets'
+    __table_args__ = {'extend_existing': True}
+
+    foreign_key = Column(String, primary_key=True)
+    username = Column(String, ForeignKey('users.username'))
+    user = relationship('User', back_populates='support_tickets')
+    type = Column(Enum('Compliance', name='ticket_types'))
+
+    @property
+    def closed(self):
+        # TODO: Check support system and see if it is closed or not
+        return False
+
+    def __init__(self, username, foreign_key, type):
+        self.foreign_key = foreign_key
+        self.username = username
+        self.type = type
+
+class PermissionGroup(db.Base):
+    __tablename__ = 'permission_groups'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+    trade = Column(Boolean, server_default=sql.false())
+    deposit = Column(Boolean, server_default=sql.false())
+    withdraw = Column(Boolean, server_default=sql.false())
+    login = Column(Boolean, server_default=sql.true())
+
+    def __init__(self, name):
+        self.name = name
+
+    @property
+    def dict(self):
+        return {'name': self.name,
+                'trade': self.trade,
+                'deposit': self.deposit,
+                'withdraw': self.withdraw,
+                'login': self.login
+        }
+
 class AdminUser(db.Base):
     __tablename__ = 'admin_users'
     __table_args__ = {'extend_existing': True}
@@ -123,6 +165,8 @@ class User(db.Base):
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
+    permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
+
     default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability')
 
@@ -130,6 +174,8 @@ class User(db.Base):
     orders = relationship("Order", back_populates="user")
     addresses = relationship("Addresses", back_populates="user")
     withdrawals = relationship("Withdrawal", back_populates="user")
+    support_tickets = relationship("SupportTicket", back_populates="user")
+    permissions = relationship("PermissionGroup")
 
     @property
     def user_hash(self):

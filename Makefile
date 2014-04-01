@@ -16,6 +16,9 @@ all: dist
 clean:
 	rm -r dist
 
+build-deps:
+	install/install.py build-deps
+
 deps:
 	install/install.py deps
 

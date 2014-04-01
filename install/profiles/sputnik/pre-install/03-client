@@ -4,7 +4,6 @@ mkdir -p ${profile_git_root}/dist/clients/www
 cd ${profile_git_root}/clients/www
 
 # TODO: Don't copy over min.js, but index.html needs it right now for EventEmitter.min.js
-# TODO: Only copy the compiled files (i.e. no .coffee or .less files)
 
-cp -rH *.js *.coffee *.html *.ico *.css *.less ${profile_git_root}/dist/clients/www
+cp -rH *.js *.coffee *.html *.ico *.css ${profile_git_root}/dist/clients/www
 

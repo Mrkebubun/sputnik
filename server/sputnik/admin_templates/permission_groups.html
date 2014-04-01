@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Permissions{% endblock %}
+{% block permission_groups_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">Permissions</div>
+    <div class="panel-body">
+        <form action="/new_permission_group" method="post">
+            New Permission Group:
+            <input type="textarea" name="name">
+        </form>
+        <table id="permission_groups" class="table table-striped table-hover">
+            <thead>
+                <tr><th>Name</th><th>Trade</th><th>Withdraw</th><th>Deposit</th><th>Login</th></tr>
+            </thead>
+            <tbody>
+                {% for permission_group in permission_groups %}
+                <tr>
+                    <form action="/modify_permission_group#{{permission_group.id}}" method="post">
+                        <td>
+                            <a id="{{permission_group.id}}">{{permission_group.name}}</a>
+                            <input type="hidden" name="id" value="{{permission_group.id}}">
+                        </td>
+                        <td>
+                            <input type="checkbox" name="permissions" value="trade" {% if permission_group.trade %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="permissions" value="withdraw" {% if permission_group.withdraw %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="permissions" value="deposit" {% if permission_group.deposit %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="permissions" value="login" {% if permission_group.login %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <button type="submit">Update</button>
+                        </td>
+                   </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}
