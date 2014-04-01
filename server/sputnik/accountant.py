@@ -585,30 +585,14 @@ class Accountant:
         except Exception as e:
             logging.error("Error: %s" % e)
             self.session.rollback()
+
+    # These two should go into the ledger process. We should
+    # only run this once per day and cache the result
     def get_balance_sheet(self):
         positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
                          'liabilities': {}
         }
-
-    def modify_permission_group(self, id, permissions):
-        try:
-            logging.debug("Modifying permission group %d to %s" % (id, permissions))
-            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
-            permission_group.trade = 'trade' in permissions
-            permission_group.withdraw = 'withdraw' in permissions
-            permission_group.deposit = 'deposit' in permissions
-            permission_group.login = 'login' in permissions
-            self.session.add(permission_group)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            self.session.rollback()
-
-    def get_permissions(self, username):
-        user = self.get_user(username)
-        permissions = user.permissions.dict
-        return permissions
 
         for position in positions:
             if position.position is not None:
@@ -643,6 +627,49 @@ class Accountant:
 
         return balance_sheet
 
+    def get_ledger(self, username, contract, from_timestamp, to_timestamp):
+        from_dt = util.timestamp_to_dt(from_timestamp)
+        to_dt = util.timestamp_to_dt(to_timestamp)
+
+        # Get positions for user
+        user = self.get_user(username)
+        ledgers = []
+        for position in user.positions:
+            # Now get the postings that are relevant
+            postings = self.session.query(models.Posting).filter_by(position=position).filter(
+                models.Posting.journal.timestamp <= to_dt,
+                models.Posting.journal.timestamp >= from_dt
+            )
+            for posting in postings:
+                ledgers.append({'contract': posting.position.contract.ticker,
+                                'account_description': posting.position.description,
+                                'account_type': posting.position.type,
+                                'notes': posting.journal.notes,
+                                'timestamp': util.dt_to_timestamp(posting.journal.notes),
+                                'quantity': posting.quantity,
+                                'type': posting.journal.type})
+        return ledgers
+
+    def modify_permission_group(self, id, permissions):
+        try:
+            logging.debug("Modifying permission group %d to %s" % (id, permissions))
+            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
+            permission_group.trade = 'trade' in permissions
+            permission_group.withdraw = 'withdraw' in permissions
+            permission_group.deposit = 'deposit' in permissions
+            permission_group.login = 'login' in permissions
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            self.session.rollback()
+
+    def get_permissions(self, username):
+        user = self.get_user(username)
+        permissions = user.permissions.dict
+        return permissions
+
+
 class WebserverExport:
     def __init__(self, accountant):
         self.accountant = accountant
@@ -658,10 +685,14 @@ class WebserverExport:
     @export
     def get_permissions(self, username):
         return self.accountant.get_permissions(username)
+
     @export
     def get_audit(self):
-        return self.accounant.get_audit()
+        return self.accountant.get_audit()
 
+    @export
+    def get_ledger(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_ledger(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:

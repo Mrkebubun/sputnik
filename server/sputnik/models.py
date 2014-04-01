@@ -10,6 +10,7 @@ import util
 import hashlib
 import base64
 import collections
+from Crypto.Random.random import getrandbits
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
@@ -144,9 +145,9 @@ class User(db.Base):
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
-
     default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability')
+    audit_secret = Column(String)
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -157,7 +158,7 @@ class User(db.Base):
 
     @property
     def user_hash(self):
-        combined_string = "%s:%s:%s:%d" % (self.username, self.nickname, self.email,
+        combined_string = "%s:%s:%s:%s:%d" % (self.audit_secret, self.username, self.nickname, self.email,
                                            util.dt_to_timestamp(datetime.combine(date.today(),
                                                                                  datetime.min.time())))
 
@@ -169,6 +170,7 @@ class User(db.Base):
         self.password = password
         self.email = email
         self.nickname = nickname
+        self.audit_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
 
     def __repr__(self):
         return "User('%s', '%s', '%s', '%s')" \

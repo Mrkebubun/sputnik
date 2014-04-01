@@ -587,7 +587,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         phone_company = charge['customer_phone_company']
         charge['customer_phone'] = filter(str.isdigit, charge['customer_phone'])
 
-
         del charge['customer_phone_company']
 
         charge['customer_name'] = self.username
@@ -625,6 +624,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
+    @exportRpc("get_ledger")
+    def get_ledger(self, from_timestamp, to_timestamp):
+        return self.factory.accountant.get_ledger(self.username, from_timestamp, to_timestamp)
 
     @exportRpc("get_new_address")
     def get_new_address(self, currency):
@@ -740,14 +742,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if not result:
                 return [False, (0, "get profile failed")]
 
-            combined_string = "%s:%s:%s:%d" % (self.username, result[0][0], result[0][1],
-                                               util.dt_to_timestamp(datetime.datetime.combine(datetime.date.today(),
-                                                                                     datetime.datetime.min.time())))
 
-            user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
-            return [True, {'nickname': result[0][0], 'email': result[0][1], 'user_hash': user_hash}]
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2]}]
 
-        return dbpool.runQuery("SELECT nickname, email FROM users WHERE username=%s", (self.username,)).addCallback(
+        return dbpool.runQuery("SELECT nickname, email, audit_secret FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
 
     @exportRpc("change_profile")

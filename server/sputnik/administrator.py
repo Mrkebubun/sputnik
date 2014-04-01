@@ -432,6 +432,7 @@ class AdminWebUI(Resource):
         return self.user_details(request)
 
     def ledger(self, request):
+        self.administrator.expire_all()
         journal_id = request.args['id'][0]
         journal = self.administrator.get_journal(journal_id)
         t = self.jinja_env.get_template('ledger.html')
@@ -512,15 +513,11 @@ class AdminWebUI(Resource):
         return self.admin_list(request)
 
     def balance_sheet(self, request):
-        # We are getting trades and positions which things other than the administrator
-        # are modifying, so we need to do an expire here
-        self.administrator.expire_all()
-        # TODO: Do this in SQLalchemy
-        positions = self.administrator.get_positions()
-        asset_totals = collections.defaultdict(int)
-        liability_totals = collections.defaultdict(int)
-        assets_by_ticker = collections.defaultdict(list)
-        liabilities_by_ticker = collections.defaultdict(list)
+        def _cb(balance_sheet):
+            t = self.jinja_env.get_template('balance_sheet.html')
+            rendered = t.render(balance_sheet=balance_sheet)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
 
         self.administrator.get_balance_sheet().addCallbacks(_cb)
         return NOT_DONE_YET
