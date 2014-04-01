@@ -16,6 +16,7 @@ import models
 import collections
 from datetime import datetime
 from webserver import ChainedOpenSSLContextFactory
+from zendesk import Zendesk
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
@@ -23,6 +24,8 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.error import Error
+from twisted.web.server import NOT_DONE_YET
+import cgi
 
 from zope.interface import implements
 
@@ -46,7 +49,6 @@ import string, Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 
 from autobahn.wamp1.protocol import WampCraProtocol
-import hashlib
 
 class AdministratorException(Exception): pass
 
@@ -56,8 +58,11 @@ FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 INVALID_TOKEN = AdministratorException(4, "No such token found.")
 EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
-USER_LIMIT_REACHED = AdministratorException(6, "User limit reached")
-ADMIN_USERNAME_TAKEN = AdministratorException(7, "Administrator username is already taken")
+USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
+ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is already taken")
+TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
+USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
+ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
 
 
 
@@ -75,10 +80,11 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False):
+    def __init__(self, session, accountant, cashier, zendesk, debug=False):
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
+        self.zendesk = zendesk
         self.debug = debug
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         self.from_email = config.get("administrator", "email")
@@ -248,6 +254,24 @@ class Administrator:
         return user
 
     @session_aware
+    def create_kyc_ticket(self, username, attachments):
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+        except NoResultFound:
+            raise NO_SUCH_USER
+
+        def store_in_db(ticket_number):
+            ticket = models.SupportTicket(username, ticket_number, 'Compliance')
+            self.session.add(ticket)
+            self.session.commit()
+            return True
+
+        d = self.zendesk.create_ticket(user, "New compliance document submission", "Please see documents attached",
+                                       attachments)
+        d.addCallback(store_in_db)
+        return d
+
+    @session_aware
     def set_admin_level(self, username, level):
         user = self.session.query(models.AdminUser).filter_by(username=username).one()
         user.level = level
@@ -311,6 +335,66 @@ class Administrator:
             quantity, ticker, from_user, from_description, to_user, to_description))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
+    def get_permission_groups(self):
+        permission_groups = self.session.query(models.PermissionGroup).all()
+        return permission_groups
+
+    def change_permission_group(self, username, id):
+        logging.debug("Changing permission group for %s to %d" % (username, id))
+        self.accountant.change_permission_group(username, id)
+
+    def new_permission_group(self, name):
+        logging.debug("Creating new permission group %s" % name)
+        self.accountant.new_permission_group(name)
+
+    def modify_permission_group(self, id, permissions):
+        logging.debug("Modifying permission group %d to %s" % (id, permissions))
+        self.accountant.modify_permission_group(id, permissions)
+
+class TicketServer(Resource):
+    isLeaf = True
+    def __init__(self, administrator):
+        self.administrator = administrator
+        Resource.__init__(self)
+
+    def getChild(self, path, request):
+        self.log(request)
+        return self
+
+    def create_kyc_ticket(self, request):
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+
+        username = fields['username'].value
+        attachments = []
+        file_fields = fields['file']
+        if not isinstance(file_fields, list):
+            file_fields = [file_fields]
+
+        for field in file_fields:
+            attachments.append({"filename": field.filename,
+                                "data": field.value,
+                                "type": field.type})
+
+        d = self.administrator.create_kyc_ticket(username, attachments)
+
+        def _cb(result):
+            request.write("Complete")
+            request.finish()
+
+        d.addCallbacks(_cb)
+        return NOT_DONE_YET
+
+    def render(self, request):
+            if request.path == '/create_kyc_ticket':
+                return self.create_kyc_ticket(request)
+            else:
+                return None
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -365,10 +449,16 @@ class AdminWebUI(Resource):
                       '/admin': self.admin,
                      },
                     # Level 2
-                     {'/reset_password': self.reset_password},
+                     {'/reset_password': self.reset_password,
+                      '/permission_groups': self.permission_groups,
+                      '/change_permission_group': self.change_permission_group
+                     },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
-                      '/ledger': self.ledger },
+                      '/ledger': self.ledger,
+                      '/new_permission_group': self.new_permission_group,
+                      '/modify_permission_group': self.modify_permission_group
+                     },
                     # Level 4
                      {'/transfer_position': self.transfer_position},
                     # Level 5
@@ -377,6 +467,7 @@ class AdminWebUI(Resource):
                       '/set_admin_level': self.set_admin_level,
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/adjust_position': self.adjust_position}]
+        
         resource_list = {}
         for level in range(0, self.avatarLevel+1):
             resource_list.update(resources[level])
@@ -387,6 +478,31 @@ class AdminWebUI(Resource):
             # Take me to /
             request.path = '/'
             return self.render(request)
+
+    def permission_groups(self, request):
+        self.administrator.expire_all()
+        permission_groups = self.administrator.get_permission_groups()
+        t = self.jinja_env.get_template('permission_groups.html')
+        return t.render(permission_groups=permission_groups)
+
+    def new_permission_group(self, request):
+        self.administrator.new_permission_group(request.args['name'][0])
+        return self.permission_groups(request)
+
+    def modify_permission_group(self, request):
+        id = int(request.args['id'][0])
+        if 'permissions' in request.args:
+            permissions = request.args['permissions']
+        else:
+            permissions = []
+        self.administrator.modify_permission_group(id, permissions)
+        return self.permission_groups(request)
+
+    def change_permission_group(self, request):
+        username = request.args['username'][0]
+        id = int(request.args['id'][0])
+        self.administrator.change_permission_group(username, id)
+        return self.user_details(request)
 
     def ledger(self, request):
         journal_id = request.args['id'][0]
@@ -426,8 +542,9 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
+        permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, debug=self.administrator.debug)
+        rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
         return rendered
 
     def adjust_position(self, request):
@@ -558,6 +675,14 @@ class WebserverExport:
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
 
+    @export
+    def register_support_ticket(self, username, foreign_key, type):
+        return self.administrator.register_support_ticket(username, foreign_key, type)
+
+    @export
+    def get_permissions(self, username):
+        return self.administrator.get_permissions(username)
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
@@ -567,7 +692,11 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, cashier, debug)
+    zendesk = Zendesk(config.get("administrator", "zendesk_domain"),
+                      config.get("administrator", "zendesk_token"),
+                      config.get("administrator", "zendesk_email"))
+
+    administrator = Administrator(session, accountant, cashier, zendesk, debug)
     webserver_export = WebserverExport(administrator)
 
     router_share_async(webserver_export,
@@ -579,6 +708,8 @@ if __name__ == "__main__":
                                  checkers),
             [digest_factory])
 
+    ticket_server = TicketServer(administrator)
+
     # SSL
     if config.getboolean("webserver", "ssl"):
         key = config.get("webserver", "ssl_key")
@@ -588,9 +719,16 @@ if __name__ == "__main__":
         reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           contextFactory,
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenSSL(config.getint("administrator", "ticket_port"), Site(resource=ticket_server),
+                                        contextFactory,
+                                        interface=config.get("administrator", "interface"))
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+        reactor.listenTCP(config.getint("administrator", "ticket_port"), Site(ticket_server),
+                                        interface=config.get("administrator", "interface"))
 
     reactor.run()
 

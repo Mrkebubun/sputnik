@@ -32,6 +32,20 @@ $ ->
             <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         </tr>
         <tr>
+            <td>Permissions Group</td>
+            <td>
+                <form action="/change_permission_group" method="post">
+                    <select name="id">
+                        {% for permission_group in permission_groups %}
+                        <option value="{{permission_group.id}}" {% if user.permission_group_id == permission_group.id %}selected{% endif %}>{{permission_group.name}}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="username" value="{{user.username}}">
+                    <button type="submit">Change</button>
+                </form>
+            </td>
+        </tr>
+        <tr>
             <td>Password Reset</td>
             <td>
                 <form action="/reset_password" method="post">
@@ -45,6 +59,31 @@ $ ->
     </div>
 </div>
 </div>
+
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">Open support tickets for {{user.username}}</div>
+        <div class="panel-body">
+            <table id="support_tickets" class="table table-stripes table-hover">
+                <thead>
+                    <th>Foreign Key</th>
+                    <th>Type</th>
+                </thead>
+                <tbody>
+                    {% for support_ticket in user.support_tickets %}
+                    {% if not support_ticket.closed %}
+                    <tr>
+                        <!-- TODO: Remove zendesk/mexbt hardcoding here -->
+                        <td><a href="https://mexbt.zendesk.com/agent/#/tickets/{{support_ticket.foreign_key}}">{{support_ticket.foreign_key}}</a></td>
+                        <td>{{support_ticket.type}}</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+</div>
+
 
 <div class="container">
 <div class="panel panel-primary">
