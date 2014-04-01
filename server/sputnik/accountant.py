@@ -15,6 +15,7 @@ import database
 import models
 import margin
 import util
+import collections
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
 
@@ -585,6 +586,70 @@ class Accountant:
             logging.error("Error: %s" % e)
             self.session.rollback()
 
+    # These two should go into the ledger process. We should
+    # only run this once per day and cache the result
+    def get_balance_sheet(self):
+        positions = self.session.query(models.Position).all()
+        balance_sheet = {'assets': {},
+                         'liabilities': {}
+        }
+
+        for position in positions:
+            if position.position is not None:
+                if position.position_type == 'Asset':
+                    side = balance_sheet['assets']
+                else:
+                    side = balance_sheet['liabilities']
+
+                position_details = { 'username': position.user.username,
+                                                                    'hash': position.user.user_hash,
+                                                                    'position': position.position,
+                                                                    'description': position.description
+                }
+                if position.contract.ticker in side:
+                    side[position.contract.ticker]['total'] += position.position
+                    side[position.contract.ticker]['positions_raw'].append(position_details)
+                else:
+                    side[position.contract.ticker] = {'total': position.position,
+                                                      'positions_raw': [position_details],
+                                                      'contract': position.contract.ticker}
+
+        return balance_sheet
+
+    def get_audit(self):
+        balance_sheet = self.get_balance_sheet()
+        for side in balance_sheet.values():
+            for ticker, details in side.iteritems():
+                details['positions'] = collections.defaultdict(int)
+                for position in details['positions_raw']:
+                    details['positions'][position['hash']] += position['position']
+                del details['positions_raw']
+
+        return balance_sheet
+
+    def get_ledger(self, username, from_timestamp, to_timestamp):
+        from_dt = util.timestamp_to_dt(from_timestamp)
+        to_dt = util.timestamp_to_dt(to_timestamp)
+
+        # Get positions for user
+        user = self.get_user(username)
+        ledgers = []
+        for position in user.positions:
+            # Now get the postings that are relevant
+            postings = self.session.query(models.Posting).filter_by(position=position).join(models.Journal).filter(
+                models.Journal.timestamp <= to_dt,
+                models.Journal.timestamp >= from_dt
+            )
+            for posting in postings:
+                ledgers.append({'contract': posting.position.contract.ticker,
+                                'account_description': posting.position.description,
+                                'account_type': posting.position.type,
+                                'notes': posting.journal.notes,
+                                'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+                                'quantity': posting.quantity,
+                                'type': posting.journal.type})
+        return ledgers
+
     def modify_permission_group(self, id, permissions):
         try:
             logging.debug("Modifying permission group %d to %s" % (id, permissions))
@@ -604,6 +669,7 @@ class Accountant:
         permissions = user.permissions.dict
         return permissions
 
+
 class WebserverExport:
     def __init__(self, accountant):
         self.accountant = accountant
@@ -619,6 +685,14 @@ class WebserverExport:
     @export
     def get_permissions(self, username):
         return self.accountant.get_permissions(username)
+
+    @export
+    def get_audit(self):
+        return self.accountant.get_audit()
+
+    @export
+    def get_ledger(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_ledger(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:
@@ -658,6 +732,10 @@ class AdministratorExport:
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+
+    @export
+    def get_balance_sheet(self):
+        return self.accountant.get_balance_sheet()
 
     @export
     def change_permission_group(self, username, id):

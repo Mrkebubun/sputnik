@@ -31,8 +31,12 @@ from twisted.python import log
 from twisted.internet import reactor, ssl
 
 from autobahn.twisted.websocket import connectWS
-from autobahn.wamp1.protocol import WampClientFactory, WampCraClientProtocol
+from autobahn.wamp1.protocol import WampClientFactory, WampCraClientProtocol, WampCraProtocol
 from datetime import datetime, timedelta
+import random
+import string
+import Crypto.Random.random
+
 
 uri = 'ws://localhost:8000'
 class TradingBot(WampCraClientProtocol):
@@ -40,13 +44,14 @@ class TradingBot(WampCraClientProtocol):
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
    """
+    username = 'testuser1'
+    password = 'testuser1'
 
     def __init__(self):
         self.base_uri = self.getUri()
         self.markets = {}
         self.orders = {}
         self.last_internal_id = 0
-        self.username = None
 
     def action(self):
         '''
@@ -55,7 +60,7 @@ class TradingBot(WampCraClientProtocol):
         return True
 
     def getUsernamePassword(self):
-        return ['testuser1', 'testuser1']
+        return [self.username, self.password]
 
     def getUri(self):
         return uri
@@ -63,22 +68,24 @@ class TradingBot(WampCraClientProtocol):
     def startAutomation(self):
         pass
 
+    def startAutomationAfterAuth(self):
+        pass
+
     """
     reactive events - on* 
     """
 
     def onSessionOpen(self):
-        ## "authenticate" as anonymous
-        ##
-        #d = self.authenticate()
         self.getMarkets()
         self.subChat()
-        ## authenticate as "foobar" with password "secret"
-        ##
-        [self.username, password] = self.getUsernamePassword()
-        d = self.authenticate(authKey=self.username,
-                              authExtra=None,
-                              authSecret=password)
+        self.startAutomation()
+
+    def authenticate(self):
+        [username, password] = self.getUsernamePassword()
+        d = WampCraClientProtocol.authenticate(self,
+                                               authKey=username,
+                                               authExtra=None,
+                                               authSecret=password)
 
         d.addCallbacks(self.onAuthSuccess, self.onAuthError)
 
@@ -91,8 +98,7 @@ class TradingBot(WampCraClientProtocol):
         self.subFills()
         self.getOpenOrders()
 
-        self.startAutomation()
-
+        self.startAutomationAfterAuth()
 
     def onAuthError(self, e):
         uri, desc, details = e.value.args
@@ -173,6 +179,15 @@ class TradingBot(WampCraClientProtocol):
     def onRpcError(self, event):
         pprint(["RpcError", event.value.args])
 
+    def onAudit(self, event):
+        pprint(event)
+
+    def onMakeAccount(self, event):
+        pprint(event)
+
+    def onLedger(self, event):
+        pprint(event)
+
     """
     Subscriptions
     """
@@ -207,9 +222,8 @@ class TradingBot(WampCraClientProtocol):
         print 'subscribe to: ', uri
 
     """
-    RPC calls
+    RPC Calls
     """
-
     def getNewAddress(self):
         d = self.call(self.base_uri + "/rpc/get_new_address")
         d.addCallbacks(pprint, self.onRpcError)
@@ -231,6 +245,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/get_open_orders")
         d.addCallbacks(self.onOpenOrders, self.onRpcError)
 
+    def getAudit(self):
+        d = self.call(self.base_uri + "/rpc/get_audit")
+        d.addCallbacks(self.onAudit, self.onRpcError)
+
     def getOHLCV(self, ticker, period="day", start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
@@ -238,6 +256,26 @@ class TradingBot(WampCraClientProtocol):
 
         d = self.call(self.base_uri + "/rpc/get_ohlcv", ticker, period, start_timestamp, end_timestamp)
         d.addCallbacks(self.onOHLCV, self.onRpcError)
+
+    def makeAccount(self, username, password, email, nickname):
+        alphabet = string.digits + string.lowercase
+        num = Crypto.Random.random.getrandbits(64)
+        salt = ""
+        while num != 0:
+            num, i = divmod(num, len(alphabet))
+            salt = alphabet[i] + salt
+        extra = {"salt":salt, "keylen":32, "iterations":1000}
+        password_hash = WampCraProtocol.deriveKey(password, extra)
+        d = self.call(self.base_uri + "/rpc/make_account", username, password_hash, salt, email, nickname)
+        d.addCallbacks(self.onMakeAccount, self.onRpcError)
+
+    def getLedger(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+        epoch = datetime.utcfromtimestamp(0)
+        start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
+        end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
+
+        d = self.call(self.base_uri + "/rpc/get_ledger", start_timestamp, end_timestamp)
+        d.addCallbacks(self.onLedger, self.onRpcError)
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
@@ -270,6 +308,25 @@ class TradingBot(WampCraClientProtocol):
         del self.orders[id]
 
 
+class BasicBot(TradingBot):
+    def onMakeAccount(self, event):
+        TradingBot.onMakeAccount(self, event)
+        self.authenticate()
+
+
+    def startAutomation(self):
+        # Test the audit
+        self.getAudit()
+
+        # Now make an account
+        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.makeAccount(self.username, self.password, "Test User", "test@m2.io")
+
+    def startAutomationAfterAuth(self):
+        self.getLedger()
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
@@ -280,7 +337,7 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     factory = WampClientFactory("ws://localhost:8000", debugWamp=debug)
-    factory.protocol = TradingBot
+    factory.protocol = BasicBot
 
     # null -> ....
     if factory.isSecure:

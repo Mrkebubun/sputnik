@@ -335,6 +335,8 @@ class Administrator:
             quantity, ticker, from_user, from_description, to_user, to_description))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
 
+    def get_balance_sheet(self):
+        return self.accountant.get_balance_sheet()
     def get_permission_groups(self):
         permission_groups = self.session.query(models.PermissionGroup).all()
         return permission_groups
@@ -473,7 +475,7 @@ class AdminWebUI(Resource):
             resource_list.update(resources[level])
         try:
             resource = resource_list[request.path]
-            return resource(request).encode('utf-8')
+            return resource(request)
         except KeyError:
             # Take me to /
             request.path = '/'
@@ -483,7 +485,7 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
-        return t.render(permission_groups=permission_groups)
+        return t.render(permission_groups=permission_groups).encode('utf-8')
 
     def new_permission_group(self, request):
         self.administrator.new_permission_group(request.args['name'][0])
@@ -505,17 +507,18 @@ class AdminWebUI(Resource):
         return self.user_details(request)
 
     def ledger(self, request):
+        self.administrator.expire_all()
         journal_id = request.args['id'][0]
         journal = self.administrator.get_journal(journal_id)
         t = self.jinja_env.get_template('ledger.html')
-        return t.render(journal=journal)
+        return t.render(journal=journal).encode('utf-8')
 
     def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
-        return t.render(users=users)
+        return t.render(users=users).encode('utf-8')
 
     def reset_password(self, request):
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
@@ -534,7 +537,7 @@ class AdminWebUI(Resource):
 
     def admin(self, request):
         t = self.jinja_env.get_template('admin.html')
-        return t.render(username=self.avatarId)
+        return t.render(username=self.avatarId).encode('utf-8')
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
@@ -545,7 +548,7 @@ class AdminWebUI(Resource):
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
-        return rendered
+        return rendered.encode('utf-8')
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
@@ -565,7 +568,7 @@ class AdminWebUI(Resource):
     def admin_list(self, request):
         admin_users = self.administrator.get_admin_users()
         t = self.jinja_env.get_template('admin_list.html')
-        return t.render(admin_users=admin_users)
+        return t.render(admin_users=admin_users).encode('utf-8')
 
     def new_admin_user(self, request):
         self.administrator.new_admin_user(request.args['username'][0], self.calc_ha1(request.args['password'][0],
@@ -578,29 +581,14 @@ class AdminWebUI(Resource):
         return self.admin_list(request)
 
     def balance_sheet(self, request):
-        # We are getting trades and positions which things other than the administrator
-        # are modifying, so we need to do an expire here
-        self.administrator.expire_all()
-        # TODO: Do this in SQLalchemy
-        positions = self.administrator.get_positions()
-        asset_totals = collections.defaultdict(int)
-        liability_totals = collections.defaultdict(int)
-        assets_by_ticker = collections.defaultdict(list)
-        liabilities_by_ticker = collections.defaultdict(list)
+        def _cb(balance_sheet):
+            t = self.jinja_env.get_template('balance_sheet.html')
+            rendered = t.render(balance_sheet=balance_sheet)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
 
-        for position in positions:
-            if position.position is not None:
-                if position.position_type == 'Asset':
-                    asset_totals[position.contract.ticker] += position.position
-                    assets_by_ticker[position.contract.ticker].append(position)
-                else:
-                    liability_totals[position.contract.ticker] += position.position
-                    liabilities_by_ticker[position.contract.ticker].append(position)
-
-        t = self.jinja_env.get_template('balance_sheet.html')
-        rendered = t.render(assets_by_ticker=assets_by_ticker, asset_totals=asset_totals,
-                            liabilities_by_ticker=liabilities_by_ticker, liability_totals=liability_totals)
-        return rendered
+        self.administrator.get_balance_sheet().addCallbacks(_cb)
+        return NOT_DONE_YET
 
 class PasswordChecker(object):
     implements(ICredentialsChecker)

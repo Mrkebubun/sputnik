@@ -16,7 +16,7 @@ class @Sputnik extends EventEmitter
     profile:
         email: null
         nickname: null
-        user_hash: null
+        audit_secret: null
     chat_messages: []
 
     constructor: (@uri) ->
