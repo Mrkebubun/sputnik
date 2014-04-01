@@ -8,3 +8,6 @@
     contentType: false,
     type: 'POST',
     success: (data) -> alert(data)
+
+$ ->
+  $('#chatBox').keypress (e)-> $('#chatButton').click() if e.keyCode == 13

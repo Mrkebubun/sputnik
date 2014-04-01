@@ -13,8 +13,43 @@ footer.navbar {
   min-height: 38px;
 }
 
-#chatBox {
-  width: 90%;
+/*
+.chat-entry {
+  display: table;
+  width: 100%;
+
+  * {
+    display: table-cell;
+  }
+
+  input[type="text"] {
+    width: 100%;
+  }
+
+  input,button {
+    box-sizing: border-box;
+  }
+}
+*/
+
+.chat-entry {
+  display: table;
+  width: 100%;
+}
+
+.chat-control {
+  display: table-cell;
+  input[type="text"] {
+    width: 100%;
+  }
+}
+
+.chat-control:first-child {
+  width: 100%;
+}
+
+.chat-control {
+  box-sizing: border-box;
 }
 
 #account_modal {
