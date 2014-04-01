@@ -33,7 +33,7 @@ class Cashier():
     the accountant. It does so by offering a public hook for Compropago and a private
     hook to the bitcoin client
     """
-    minimum_confirmations = 0
+    minimum_confirmations = 6
 
     def __init__(self):
         """
