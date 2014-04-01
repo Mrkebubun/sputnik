@@ -619,7 +619,7 @@ class Accountant:
     def get_audit(self):
         balance_sheet = self.get_balance_sheet()
         for side in balance_sheet.values():
-            for ticker, details in side:
+            for ticker, details in side.iteritems():
                 details['positions'] = collections.defaultdict(int)
                 for position in details['positions_raw']:
                     details['positions'][position['hash']] += position['position']
@@ -627,7 +627,7 @@ class Accountant:
 
         return balance_sheet
 
-    def get_ledger(self, username, contract, from_timestamp, to_timestamp):
+    def get_ledger(self, username, from_timestamp, to_timestamp):
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
@@ -636,16 +636,16 @@ class Accountant:
         ledgers = []
         for position in user.positions:
             # Now get the postings that are relevant
-            postings = self.session.query(models.Posting).filter_by(position=position).filter(
-                models.Posting.journal.timestamp <= to_dt,
-                models.Posting.journal.timestamp >= from_dt
+            postings = self.session.query(models.Posting).filter_by(position=position).join(models.Journal).filter(
+                models.Journal.timestamp <= to_dt,
+                models.Journal.timestamp >= from_dt
             )
             for posting in postings:
                 ledgers.append({'contract': posting.position.contract.ticker,
                                 'account_description': posting.position.description,
                                 'account_type': posting.position.type,
                                 'notes': posting.journal.notes,
-                                'timestamp': util.dt_to_timestamp(posting.journal.notes),
+                                'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
                                 'quantity': posting.quantity,
                                 'type': posting.journal.type})
         return ledgers

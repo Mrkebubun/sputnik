@@ -400,7 +400,7 @@ class AdminWebUI(Resource):
             resource_list.update(resources[level])
         try:
             resource = resource_list[request.path]
-            return resource(request).encode('utf-8')
+            return resource(request)
         except KeyError:
             # Take me to /
             request.path = '/'
@@ -410,7 +410,7 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
-        return t.render(permission_groups=permission_groups)
+        return t.render(permission_groups=permission_groups).encode('utf-8')
 
     def new_permission_group(self, request):
         self.administrator.new_permission_group(request.args['name'][0])
@@ -436,14 +436,14 @@ class AdminWebUI(Resource):
         journal_id = request.args['id'][0]
         journal = self.administrator.get_journal(journal_id)
         t = self.jinja_env.get_template('ledger.html')
-        return t.render(journal=journal)
+        return t.render(journal=journal).encode('utf-8')
 
     def user_list(self, request):
         # We dont need to expire here because the user_list doesn't show
         # anything that is modified by anyone but the administrator
         users = self.administrator.get_users()
         t = self.jinja_env.get_template('user_list.html')
-        return t.render(users=users)
+        return t.render(users=users).encode('utf-8')
 
     def reset_password(self, request):
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
@@ -462,7 +462,7 @@ class AdminWebUI(Resource):
 
     def admin(self, request):
         t = self.jinja_env.get_template('admin.html')
-        return t.render(username=self.avatarId)
+        return t.render(username=self.avatarId).encode('utf-8')
 
     def user_details(self, request):
         # We are getting trades and positions which things other than the administrator
@@ -473,7 +473,7 @@ class AdminWebUI(Resource):
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
-        return rendered
+        return rendered.encode('utf-8')
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
@@ -490,17 +490,10 @@ class AdminWebUI(Resource):
         self.administrator.cashier.rescan_address(request.args['address'][0])
         return self.user_details(request)
 
-    def balance_sheet(self, request):
-        def _cb(balance_sheet):
-            t = self.jinja_env.get_template('balance_sheet.html')
-            rendered = t.render(balance_sheet=balance_sheet)
-            request.write(rendered.encode('utf-8'))
-            request.finish()
-            
     def admin_list(self, request):
         admin_users = self.administrator.get_admin_users()
         t = self.jinja_env.get_template('admin_list.html')
-        return t.render(admin_users=admin_users)
+        return t.render(admin_users=admin_users).encode('utf-8')
 
     def new_admin_user(self, request):
         self.administrator.new_admin_user(request.args['username'][0], self.calc_ha1(request.args['password'][0],
