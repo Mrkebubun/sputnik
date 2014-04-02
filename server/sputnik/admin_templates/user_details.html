@@ -23,6 +23,10 @@ $ ->
             <td>{{user.username}}</td>
         </tr>
         <tr>
+            <td>Type</td>
+            <td>{{user.type}}</td>
+        </tr>
+        <tr>
             <td>Nickname</td>
             <td>{{user.nickname}}</td>
         </tr>
@@ -95,8 +99,6 @@ $ ->
             <th></th>
             <th>Contract</th>
             <th>Position</th>
-            <th>Description</th>
-            <th>Type</th>
             <th>Reference Price</th>
         </tr>
     </thead>
@@ -106,33 +108,28 @@ $ ->
             <td><span class="caret btn-link" onclick="show_postings({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
             <td>{{position.position}}</td>
-            <td>{{position.description}}</td>
-            <td>{{position.position_type}}</td>
             <td>{{position.reference_price}}</td>
         </tr>
             <tr name="postings_{{position.id}}" style="display:none;">
                 <td></td>
-                <td>
-                    Transfer Position:
+                <td colspan="2">
+                    Transfer:
                     <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
-                        <input type="text" name="quantity" placeholder="Quantity"><br>
-                        <input type="text" name="to_user" placeholder="To Account User"><br>
-                        <input type="text" name="to_description" placeholder="Account Description"><br>
+                        <input type="text" name="quantity" placeholder="Quantity">
+                        <input type="text" name="to_user" placeholder="To User">
                         <input type="hidden" name="from_user" value="{{user.username}}">
                         <input type="hidden" name="username" value="{{user.username}}">
                         <input type="hidden" name="contract" value="{{position.contract.ticker}}">
-                        <input type="hidden" name="from_description" value="{{position.description}}">
                         <button type="submit">Transfer</button>
                     </form>
                 </td>
                 {% if debug %}
-                <td>
-                    Adjust Position:
+                <td colspan="2">
+                    Adjust:
                     <form action="/adjust_position" method="post">
                         <input type="text" name="quantity" placeholder="Quantity">
                         <input type="hidden" name="username" value="{{user.username}}">
                         <input type="hidden" name="contract" value="{{position.contract.ticker}}">
-                        <input type="hidden" name="description" value="{{position.description}}">
                     </form>
                 </td>
                 {% endif %}
@@ -146,7 +143,7 @@ $ ->
                 <th></th>
                 <th>Timestamp</th>
             </tr>
-            {% for posting in position.postings %}
+            {% for posting in postings_by_ticker[position.contract.ticker] %}
             <tr name="postings_{{position.id}}" style="display:none;">
                 <td></td>
                 <td><a href="/ledger?id={{posting.journal_id}}">{{posting.journal_id}}</a></td>

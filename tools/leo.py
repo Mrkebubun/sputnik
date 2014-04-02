@@ -15,28 +15,33 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 from sputnik import config
 from sputnik import database, models
+from sqlalchemy.orm.exc import NoResultFound
 
 class PermissionsManager:
     def __init__(self, session):
         self.session = session
 
-    def new(self, name):
-        permission_group = models.PermissionGroup(name)
-        self.session.add(permission_group)
-        self.session.commit()
+    def add(self, name):
+        try:
+            group = self.session.query(models.PermissionGroup).filter_by(name=name).one()
+        except NoResultFound:
+            group = models.PermissionGroup(name)
+            self.session.add(group)
+        else:
+            print "PermissionGroup %s already exists" % group
 
 class AdminManager:
     def __init__(self, session):
         self.session = session
 
     def add(self, username, password_hash="", level=5):
-        user = self.session.query(models.AdminUser).filter_by(username=username).first()
-        if user is not None:
-            raise Exception("Admin user %s already exists" % username)
-        else:
+        try:
+            user = self.session.query(models.AdminUser).filter_by(username=username).one()
+        except NoResultFound:
             user = models.AdminUser(username, password_hash, level)
             self.session.add(user)
-            self.session.commit()
+        else:
+            print "AdminUser %s already exists" % user
 
 class AccountManager:
     def __init__(self, session):
@@ -55,18 +60,21 @@ class AccountManager:
         print "\t\tpassword:\t%s" % user.password
         print "\t\ttotp:\t\t%s" % user.totp
         print "\t\tactive:\t\t%s" % user.active
-        print "\t\tdefault_position_type:\t\t%s" % user.default_position_type
+        print "\t\ttype:\t\t%s" % user.type
         print "\tPositions:"
         for position in user.positions:
             prefix = "%s(%s)-%s/%s:" % (position.contract.ticker,
-                                        position.contract.id,
-                                        position.position_type,
-                                        position.description)
+                                        position.contract.id)
             print "\t\t%s\t%s" % (prefix.ljust(10), position.position)
 
     def add(self, username):
-        user = models.User(username, "")
-        self.session.add(user)
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+        except NoResultFound:
+            user = models.User(username, "")
+            self.session.add(user)
+        else:
+            print "User %s already exists" % user
 
     def position(self, username, ticker_or_id):
         """Initialize a position to 0"""
@@ -78,7 +86,7 @@ class AccountManager:
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         position = self.session.query(models.Position).filter_by(
-                user=user, contract=contract, description='User').first()
+                user=user, contract=contract).first()
         if position == None:
             self.session.add(models.Position(user, contract, 0))
         else:
@@ -162,8 +170,13 @@ class ContractManager:
             print "\t\texpiration:\t%s" % contract.expiration
 
     def add(self, ticker):
-        contract = models.Contract(ticker)
-        self.session.add(contract)
+        try:
+            contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        except NoResultFound:
+            contract = models.Contract(ticker)
+            self.session.add(contract)
+        else:
+            print "Contract %s already exists" % contract
 
     def list(self):
         contracts = self.session.query(models.Contract).all()

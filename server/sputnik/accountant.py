@@ -109,17 +109,22 @@ class Accountant:
         except NoResultFound:
             raise AccountantException("Could not resolve contract '%s'." % ticker)
 
-    def adjust_position(self, username, contract, quantity, description='User'):
+    def adjust_position(self, username, ticker, quantity):
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
-        position = self.get_position(username, contract, description=description)
-        adjustment_position = self.get_position('system', contract, description='Adjustment')
+        user = self.get_user(username)
+        contract = self.get_contract(ticker)
+        position = self.get_position(username, ticker)
+        adjustment_user = self.get_user('adjustments')
+        adjustment_position = self.get_position('adjustments', ticker)
 
         # Credit the user's account
-        credit = models.Posting(position, quantity, 'credit')
+        credit = models.Posting(user, contract, quantity, 'credit', update_position=True,
+                                position=position)
 
         # Debit the system account
-        debit = models.Posting(adjustment_position, quantity, 'debit')
+        debit = models.Posting(adjustment_user, contract, quantity, 'debit', update_position=True,
+                               position=adjustment_position)
 
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
@@ -131,7 +136,7 @@ class Accountant:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
 
-    def get_position(self, username, ticker, reference_price=0, description="User"):
+    def get_position(self, username, ticker, reference_price=0):
         """
         Return a user's position for a contact. If it does not exist,
             initialize it.
@@ -140,19 +145,19 @@ class Accountant:
         :param reference_price: the (optional) reference price for the position
         :return: the position object
         """
-        logging.debug("Looking up %s position for %s on %s." %
-                      (description, username, ticker))
+        logging.debug("Looking up position for %s on %s." %
+                      (username, ticker))
 
         user = self.get_user(username)
         contract = self.get_contract(ticker)
 
         try:
             return self.session.query(models.Position).filter_by(
-                user=user, contract=contract, description=description).one()
+                user=user, contract=contract).one()
         except NoResultFound:
-            logging.debug("Creating new position %s for %s on %s." %
-                          (description, username, contract))
-            position = models.Position(user, contract, description=description)
+            logging.debug("Creating new position for %s on %s." %
+                          (username, contract))
+            position = models.Position(user, contract)
             position.reference_price = reference_price
             self.session.add(position)
             return position
@@ -207,10 +212,13 @@ class Accountant:
 
         for ticker, fee in fees.iteritems():
 
+            user = self.get_user(username)
             user_position = self.get_position(username, ticker)
+            contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            debit = models.Posting(user_position, fee, 'debit')
+            debit = models.Posting(user, contract, fee, 'debit', update_position=True,
+                                   position=user_position)
             logging.debug("Debiting user %s with fee %d %s" % (username, fee, ticker))
             self.session.add(debit)
             postings.append(debit)
@@ -218,13 +226,15 @@ class Accountant:
 
             remaining_fee = fee
             for vendor_name, vendor_share in self.vendor_share_config.iteritems():
+                vendor_user = self.get_user(vendor_name)
                 vendor_position = self.get_position(vendor_name, ticker)
                 vendor_credit = int(fee * vendor_share)
 
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                credit = models.Posting(vendor_position, vendor_credit, 'credit')
+                credit = models.Posting(vendor_user, contract, vendor_credit, 'credit', update_position=True,
+                                        position=vendor_position)
                 logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
                 self.session.add(vendor_position)
                 self.session.add(credit)
@@ -234,12 +244,14 @@ class Accountant:
             # we have an account for that guy
             # Once that balance gets large we distribute it manually to the
             # various share holders
-            remainder_account_position = self.get_position('remainder', ticker)
-            credit = models.Posting( remainder_account_position, remaining_fee, 'credit')
+            remainder_position = self.get_position('remainder', ticker)
+            remainder_user = self.get_user('remainder')
+            credit = models.Posting(remainder_user, contract, remaining_fee, 'credit', update_position=True,
+                                    position=remainder_position)
             logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             self.session.add(credit)
             postings.append(credit)
-            self.session.add(remainder_account_position)
+            self.session.add(remainder_position)
 
         journal = models.Journal('Fee', postings)
         self.session.add(journal)
@@ -325,6 +337,9 @@ class Accountant:
                 logging.error("Position change is not an integer.")
 
             # Aggressive user
+            aggressive_user = self.get_user(aggressive_username)
+            passive_user = self.get_user(passive_username)
+
             aggressive_from_position = self.get_position(aggressive_username, from_currency)
             aggressive_to_position = self.get_position(aggressive_username, to_currency)
 
@@ -336,11 +351,15 @@ class Accountant:
             else:
                 sign = -1
 
-            aggressive_debit = models.Posting(aggressive_from_position, sign * from_quantity_int, 'debit')
-            aggressive_credit = models.Posting(aggressive_to_position, sign * quantity, 'credit')
+            aggressive_debit = models.Posting(aggressive_user, from_currency, sign * from_quantity_int, 'debit',
+                                              update_position=True, position=aggressive_from_position)
+            aggressive_credit = models.Posting(aggressive_user, to_currency, sign * quantity, 'credit',
+                                               update_position=True, position=aggressive_to_position)
 
-            passive_credit = models.Posting(passive_from_position, sign * from_quantity_int, 'credit')
-            passive_debit = models.Posting(passive_to_position, sign * quantity, 'debit')
+            passive_credit = models.Posting(passive_user, from_currency, sign * from_quantity_int, 'credit',
+                                            update_position=True, position=passive_from_position)
+            passive_debit = models.Posting(passive_user, to_currency, sign * quantity, 'debit',
+                                           update_position=True, position=passive_to_position)
 
             postings = [aggressive_credit,
                         aggressive_debit,
@@ -459,12 +478,20 @@ class Accountant:
         except AccountantException as e:
             return [False, e.args]
 
-    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
+    def transfer_position(self, ticker, from_username, to_username, quantity):
         try:
-            from_position = self.get_position(from_user, ticker, description=from_description)
-            to_position = self.get_position(to_user, ticker, description=to_description)
-            debit = models.Posting(from_position, quantity, 'debit')
-            credit = models.Posting(to_position, quantity, 'credit')
+            from_user = self.get_user(from_username)
+            to_user = self.get_user(to_username)
+
+            from_position = self.get_position(from_user, ticker)
+            to_position = self.get_position(to_user, ticker)
+
+            contract = self.get_contract(ticker)
+
+            debit = models.Posting(from_user, contract, quantity, 'debit', update_position=True,
+                                   position=from_position)
+            credit = models.Posting(to_user, contract, quantity, 'credit', update_position=True,
+                                    position=to_position)
             self.session.add_all([from_position, to_position, debit, credit])
             journal = models.Journal('Transfer', [debit, credit])
             self.session.add(journal)
@@ -500,41 +527,53 @@ class Accountant:
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
             postings = []
-            bank_position = self.get_position('system', contract.ticker, description='OnlineCash')
-            debit = models.Posting(bank_position, deposit, 'debit')
+            bank_position = self.get_position('onlinecash', contract)
+            bank_user = self.get_user('onlinecash')
+            debit = models.Posting(bank_user, contract, deposit, 'debit', update_position=True,
+                                   position=bank_position)
+            self.session.add(bank_position)
             postings.append(debit)
 
-            # TODO: Put deposit limits into the DB
-            # If a deposit failed, it goes into that user's 'deposit_overflow' account
-            # that way the user still 'owns' the money and we can eventually refund him
-            # but he can't trade with it
+            credit = models.Posting(user, contract, deposit, 'credit', update_position=True,
+                                    position=user_cash_position)
+            postings.append(credit)
+
             deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
+            excess_deposit = 0
             if not user.permissions.deposit:
                 logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
                               (deposit, address, user.username))
-                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
-                credit = models.Posting(overflow_position, deposit, 'credit')
-                self.session.add(overflow_position)
-            elif user_cash_position.position + deposit > deposit_limit:
+
+                # The user's not permitted to deposit at all. The excess deposit is the entire value
+                excess_deposit = deposit
+            elif user_cash_position.position > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                overflow_position = self.get_position(total_deposited_at_address.username, contract.ticker, description='DepositOverflow')
-                credit = models.Posting(overflow_position, deposit, 'credit')
-                self.session.add(overflow_position)
-            else:
-                credit = models.Posting(user_cash_position, deposit, 'credit')
-                self.session.add(user_cash_position)
+                excess_deposit = user_cash_position.position - deposit_limit
 
-            postings.append(credit)
+            if excess_deposit > 0:
+                # There was an excess deposit, transfer that amount into overflow cash
+                excess_debit = models.Posting(user, contract, excess_deposit, 'debit', update_position=True,
+                                       position=user_cash_position)
+                depositoverflow_user = self.get_user('depositoverflow')
+                depositoverflow_position = self.get_position('depositoverflow', contract)
+                excess_credit = models.Posting(depositoverflow_user, contract, excess_deposit, 'credit', update_position=True,
+                                        position=depositoverflow_position)
+
+                postings.append(excess_debit)
+                postings.append(excess_credit)
+                self.session.add(depositoverflow_position)
+
+            self.session.add(user_cash_position)
             self.session.add_all(postings)
-            journal = models.Journal('Deposit', postings)
+            journal = models.Journal('Deposit', postings, notes=address)
             self.session.add(journal)
             self.session.commit()
             logging.info("Journal: %s" % journal)
-        except:
+        except Exception as e:
             self.session.rollback()
             logging.error(
-                "Updating user position failed for address=%s and total_received=%d" % (address, total_received))
+                "Updating user position failed for address=%s and total_received=%d: %s" % (address, total_received, e))
             return False
 
     def clear_contract(self, ticker):
@@ -597,15 +636,14 @@ class Accountant:
 
         for position in positions:
             if position.position is not None:
-                if position.position_type == 'Asset':
+                if position.user.type == 'Asset':
                     side = balance_sheet['assets']
                 else:
                     side = balance_sheet['liabilities']
 
                 position_details = { 'username': position.user.username,
                                                                     'hash': position.user.user_hash,
-                                                                    'position': position.position,
-                                                                    'description': position.description
+                                                                    'position': position.position
                 }
                 if position.contract.ticker in side:
                     side[position.contract.ticker]['total'] += position.position
@@ -634,23 +672,17 @@ class Accountant:
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
-        # Get positions for user
-        user = self.get_user(username)
         ledgers = []
-        for position in user.positions:
-            # Now get the postings that are relevant
-            postings = self.session.query(models.Posting).filter_by(position=position).join(models.Journal).filter(
-                models.Journal.timestamp <= to_dt,
-                models.Journal.timestamp >= from_dt
-            )
-            for posting in postings:
-                ledgers.append({'contract': posting.position.contract.ticker,
-                                'account_description': posting.position.description,
-                                'account_type': posting.position.type,
-                                'notes': posting.journal.notes,
-                                'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
-                                'quantity': posting.quantity,
-                                'type': posting.journal.type})
+        postings = self.session.query(models.Posting).filter_by(username=username).join(models.Journal).filter(
+            models.Journal.timestamp <= to_dt,
+            models.Journal.timestamp >= from_dt
+        )
+        for posting in postings:
+            ledgers.append({'contract': posting.contract.ticker,
+                            'notes': posting.journal.notes,
+                            'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+                            'quantity': posting.quantity,
+                            'type': posting.journal.type})
         return ledgers
 
     def modify_permission_group(self, id, permissions):
@@ -729,12 +761,12 @@ class AdministratorExport:
         self.accountant.clear_contract(ticker)
 
     @export
-    def adjust_position(self, username, ticker, quantity, description):
-        self.accountant.adjust_position(username, ticker, quantity, description)
+    def adjust_position(self, username, ticker, quantity):
+        self.accountant.adjust_position(username, ticker, quantity)
 
     @export
-    def transfer_position(self, ticker, from_user, to_user, quantity, from_description, to_description):
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+    def transfer_position(self, ticker, from_user, to_user, quantity):
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
 
     @export
     def get_balance_sheet(self):

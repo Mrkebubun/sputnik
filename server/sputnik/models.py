@@ -142,6 +142,9 @@ class PermissionGroup(db.Base):
                 'login': self.login
         }
 
+    def __repr__(self):
+        return "PermissionGroup('%s')" % self.dict
+
 class AdminUser(db.Base):
     __tablename__ = 'admin_users'
     __table_args__ = {'extend_existing': True}
@@ -167,7 +170,7 @@ class User(db.Base):
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
-    default_position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
+    type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability')
     audit_secret = Column(String)
 
@@ -177,6 +180,7 @@ class User(db.Base):
     withdrawals = relationship("Withdrawal", back_populates="user")
     support_tickets = relationship("SupportTicket", back_populates="user")
     permissions = relationship("PermissionGroup")
+    postings = relationship("Posting", back_populates="user")
 
     @property
     def user_hash(self):
@@ -221,7 +225,8 @@ class Journal(db.Base):
         self.type = type
         self.timestamp = timestamp
         self.notes = notes
-        self.postings = postings
+        # Don't include zero qty line items
+        self.postings = [p for p in postings if p.quantity != 0]
         if timestamp is None:
             self.timestamp = datetime.utcnow()
         else:
@@ -244,8 +249,8 @@ class Journal(db.Base):
         """
         sums = collections.defaultdict(int)
         for posting in self.postings:
-            ticker = posting.position.contract.ticker
-            if posting.position.position_type == 'Asset':
+            ticker = posting.contract.ticker
+            if posting.user.type == 'Asset':
                 sign = 1
             else:
                 sign = -1
@@ -262,24 +267,27 @@ class Posting(db.Base):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
+    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract = relationship('Contract')
     journal_id = Column(Integer, ForeignKey('journal.id'))
     journal = relationship('Journal')
-    position_id = Column(Integer, ForeignKey('positions.id'))
-    position = relationship('Position', back_populates="postings")
+    username = Column(String, ForeignKey('users.username'))
+    user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
 
     def __repr__(self):
-        return "<Posting('%s', %d))>" % (self.position, self.quantity)
+        return "<Posting('%s', '%s', %d))>" % (self.contract, self.user, self.quantity)
 
-    def __init__(self, position, quantity, side, update_position=True):
-        self.position = position
+    def __init__(self, user, contract, quantity, side, update_position=False, position=None):
+        self.user = user
+        self.contract = contract
         if side is 'debit':
-            if self.position.position_type == 'Asset':
+            if self.user.type == 'Asset':
                 sign = 1
             else:
                 sign = -1
         else:
-            if self.position.position_type == 'Asset':
+            if self.user.type == 'Asset':
                 sign = -1
             else:
                 sign = 1
@@ -287,7 +295,8 @@ class Posting(db.Base):
         self.quantity = sign * quantity
 
         if update_position:
-            self.position.position += sign * quantity
+            assert(self.contract == position.contract)
+            position.position += sign * quantity
 
 class Addresses(db.Base):
     """
@@ -317,8 +326,7 @@ class Addresses(db.Base):
 class Position(db.Base):
     __tablename__ = 'positions'
 
-    __table_args__ = (schema.UniqueConstraint('username', 'contract_id',
-                                              'description'),
+    __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
             {'extend_existing': True, 'sqlite_autoincrement': True})
 
     id = Column(Integer, primary_key=True)
@@ -328,28 +336,22 @@ class Position(db.Base):
     contract = relationship('Contract')
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
-    position_type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False, default='Liability')
-    description = Column(String, default='User')
-    postings = relationship("Posting", back_populates="position")
 
-    def __init__(self, user, contract, position=0, description='User'):
+    def __init__(self, user, contract, position=0):
         self.user, self.contract = user, contract
         self.position = position
-        self.description = description
-        self.position_type = self.user.default_position_type
 
     @property
     def position_calculated(self):
         """Make sure that the sum of all postings for this position sum to the position
         """
-        calculated = sum([x.quantity for x in self.postings])
+        calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
         return calculated
 
     def __repr__(self):
         return "<Position('%s', '%s', '%s','%s',%d,%d>" \
-               % (self.position_type, self.description, self.contract.__repr__(), self.user.__repr__(),
-                  self.position,
-                  self.position_calculated)
+               % (self.contract.__repr__(), self.user.__repr__(),
+                  self.position)
 
 
 class Withdrawal(db.Base):

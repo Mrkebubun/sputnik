@@ -19,8 +19,8 @@ from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
 
 session = database.make_session()
-positions = session.query(models.Position).filter_by(description='User').all()
-system_user = session.query(models.User).filter_by(username='system').one()
+positions = session.query(models.Position).all()
+adjustment_user = session.query(models.User).filter_by(username='adjustments').one()
 
 # which to adjust
 # adjust = False
@@ -28,14 +28,14 @@ system_user = session.query(models.User).filter_by(username='system').one()
 #adjust = 'ledger'
 adjust = True
 
-def get_system_position(contract, description):
+def get_adjustment_position(contract):
     try:
         position = session.query(models.Position).filter_by(
-                user=system_user, contract=contract, description=description).one()
+                user=adjustment_user, contract=contract).one()
         return position
     except NoResultFound:
-        print "Creating new position %s for %s on %s." % (description, system_user.username, contract.ticker)
-        position = models.Position(system_user, contract, description=description)
+        print "Creating new position for %s on %s." % (adjustment_user.username, contract.ticker)
+        position = models.Position(adjustment_user, contract)
         position.reference_price = 0
         session.add(position)
         return position
@@ -67,10 +67,11 @@ for position in positions:
                 session.commit()
                 print "Updated Position: %s" % position
             elif choice == 'J':
-                credit = models.Posting(position, difference, 'credit', update_position=False)
-                system_position = get_system_position(position.contract, 'Adjustment')
-                debit = models.Posting(system_position, difference, 'debit')
-                session.add_all([position, system_position, credit, debit])
+                credit = models.Posting(position.user, contract, difference, 'credit')
+                adjustment_position = get_adjustment_position(position.contract)
+                debit = models.Posting(adjustment_user, contract, difference, 'debit', update_position=True,
+                                       position=adjustment_position)
+                session.add_all([position, adjustment_position, credit, debit])
                 journal = models.Journal('Adjustment', [credit, debit])
                 session.add(journal)
                 session.commit()

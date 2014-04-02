@@ -31,13 +31,11 @@ $ ->
             <tr name="{{label}}_{{ticker}}">
                 <th>User</th>
                 <th>Quantity</th>
-                <th>Description</th>
             </tr>
                 {% for position in details.positions_raw %}
                 <tr name="{{label}}_{{ticker}}">
                     <td>{{position.username}}</td>
                     <td>{{position.position}}</td>
-                    <td>{{position.description}}</td>
                 </tr>
                 {% endfor %}
             {% endfor %}

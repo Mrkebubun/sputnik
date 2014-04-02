@@ -24,15 +24,14 @@
         </table>
         <table id="postings" class="table table-striped table-hover">
             <thead>
-                <tr><th>Position</th><th>Type</th><th>Description</th><th>User</th><th>Quantity</th></tr>
+                <tr><th>Position</th><th>Type</th><th>User</th><th>Quantity</th></tr>
             </thead>
             <tbody>
                 {% for posting in journal.postings %}
                 <tr>
-                    <td>{{posting.position.contract.ticker}}</td>
-                    <td>{{posting.position.position_type}}</td>
-                    <td>{{posting.position.description}}</td>
-                    <td><a href="/user_details?username={{posting.position.username}}">{{posting.position.username}}</a></td>
+                    <td>{{posting.contract.ticker}}</td>
+                    <td>{{posting.user.type}}</td>
+                    <td><a href="/user_details?username={{posting.user.username}}">{{posting.user.username}}</a></td>
                     <td>{{posting.quantity}}</td>
                 </tr>
                 {% endfor %}

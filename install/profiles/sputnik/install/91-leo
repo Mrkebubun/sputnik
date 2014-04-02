@@ -13,6 +13,9 @@ contracts modify BTC/MXN contract_type cash_pair
 contracts modify BTC/MXN tick_size 100
 contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
+
+permissions add Default
+
 accounts add mexbt
 accounts add m2
 accounts add remainder
@@ -24,5 +27,25 @@ accounts position marketmaker BTC 1000000000
 accounts position marketmaker MXN 1000000
 accounts position randomtrader BTC 1000000000
 accounts position randomtrader MXN 1000000
+
+accounts add onlinecash
+accounts modify onlinecash type Asset
+
+accounts add depositoverflow
+accounts modify depositoverflow type Liability
+
+accounts add adjustments
+accounts modify adjustments Asset
+
+accounts add marketmaker
+accounts password marketmaker marketmaker
+accounts position marketmaker BTC
+accounts position marketmaker MXN
+accounts add randomtrader
+accounts password randomtrader randomtrader
+accounts position randomtrader BTC
+accounts position randomtrader MXN
+
+admin add admin
 EOF
 

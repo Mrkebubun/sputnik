@@ -251,7 +251,16 @@ class Administrator:
 
     def get_user(self, username):
         user = self.session.query(models.User).filter_by(username=username).one()
+
         return user
+
+    def get_postings_by_ticker(self, user):
+        # Group my user's postings by contract
+        postings_by_ticker = collections.defaultdict(list)
+        for posting in user.postings:
+            postings_by_ticker[posting.contract.ticker].append(posting)
+
+        return postings_by_ticker
 
     @session_aware
     def create_kyc_ticket(self, username, attachments):
@@ -326,14 +335,14 @@ class Administrator:
         journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
         return journal
 
-    def adjust_position(self, username, ticker, quantity, description):
-        logging.debug("Calling adjust position for %s: %s/%d - %s" % (username, ticker, quantity, description))
-        self.accountant.adjust_position(username, ticker, quantity, description)
+    def adjust_position(self, username, ticker, quantity):
+        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
+        self.accountant.adjust_position(username, ticker, quantity)
 
-    def transfer_position(self, ticker, from_user, to_user, quantity, from_description='User', to_description='User'):
-        logging.debug("Transferring %d of %s from %s/%s to %s/%s" % (
-            quantity, ticker, from_user, from_description, to_user, to_description))
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity, from_description, to_description)
+    def transfer_position(self, ticker, from_user, to_user, quantity):
+        logging.debug("Transferring %d of %s from %s to %s" % (
+            quantity, ticker, from_user, to_user))
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
 
     def get_balance_sheet(self):
         return self.accountant.get_balance_sheet()
@@ -545,20 +554,21 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
+        postings_by_ticker = self.administrator.get_postings_by_ticker(user)
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, debug=self.administrator.debug, permission_groups=permission_groups)
+        rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
+                            debug=self.administrator.debug, permission_groups=permission_groups)
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['quantity'][0]), request.args['description'][0])
+                                           int(request.args['quantity'][0]))
         return self.user_details(request)
 
     def transfer_position(self, request):
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], int(request.args['quantity'][0]),
-                                             request.args['from_description'][0], request.args['to_description'][0])
+                                             request.args['to_user'][0], int(request.args['quantity'][0]))
         return self.user_details(request)
 
     def rescan_address(self, request):

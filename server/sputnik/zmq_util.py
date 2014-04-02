@@ -43,6 +43,7 @@ class Export:
         method_name = request.get("method", None)
         args = request.get("args", [])
         kwargs = request.get("kwargs", {})
+        logging.debug("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         # look up method
         method = self.mapper.get(method_name, None)
@@ -81,6 +82,7 @@ class Export:
                 success = False
                 value = "Result could not be serialized."
 
+        logging.debug("success=%d, value=%s" % (success, json.dumps(value)))
         if success:
             return json.dumps({"success":success, "result":value})
         return json.dumps({"success":success, "exception":value})
@@ -238,7 +240,7 @@ class Proxy:
         self._connection = connection
 
     def decode(self, message):
-        logging.debug("Decoding message...")
+        logging.debug("Decoding message... %s" % message)
 
         # deserialize
         try:
@@ -273,6 +275,7 @@ class Proxy:
 
     def encode(self, method_name, args, kwargs):
         logging.debug("Encoding message...")
+        logging.debug("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         return json.dumps({"method":method_name, "args":args, "kwargs":kwargs})
 
