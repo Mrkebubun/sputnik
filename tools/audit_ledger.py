@@ -55,7 +55,7 @@ for position in positions:
     if difference != 0:
         # Mention problem
         print "Audit failure for %s" % position
-        for posting in position.postings:
+        for posting in position.user.postings:
             print "\t%s" % posting
 
         # Run an adjustment

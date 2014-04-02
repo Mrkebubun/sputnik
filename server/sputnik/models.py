@@ -30,7 +30,8 @@ class ResetToken(db.Base):
         self.used = False
 
     def __repr__(self):
-        return "<ResetToken"
+        return "<ResetToken('%s', '%s', '%s', used=%d)>" % \
+               (self.username, self.token, self.expiration, self.used)
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
@@ -98,6 +99,10 @@ class Order(db.Base):
         self.timestamp = datetime.utcnow()
         self.is_cancelled = False
 
+    def __repr__(self):
+        return "<Order('%s', '%s', %d (%d), %d, '%s')>" % \
+               (self.user, self.contract, self.quantity, self.quantity_left, self.side)
+
 class SupportTicket(db.Base):
     __tablename__ = 'support_tickets'
     __table_args__ = {'extend_existing': True}
@@ -118,6 +123,10 @@ class SupportTicket(db.Base):
         self.nonce = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
         self.username = username
         self.type = type
+
+    def __repr__(self):
+        return "<SupportTicket('%s', '%s', '%s', '%s')>" % \
+               (self.username, self.foreign_key, self.type, self.nonce)
 
 class PermissionGroup(db.Base):
     __tablename__ = 'permission_groups'
@@ -143,7 +152,7 @@ class PermissionGroup(db.Base):
         }
 
     def __repr__(self):
-        return "PermissionGroup('%s')" % self.dict
+        return "<PermissionGroup('%s')>" % self.dict
 
 class AdminUser(db.Base):
     __tablename__ = 'admin_users'
@@ -159,6 +168,9 @@ class AdminUser(db.Base):
         self.password_hash = password_hash
         self.level = level
 
+    def __repr__(self):
+        return "<AdminUser('%s', %d)>" % (self.user, self.level)
+
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}
@@ -171,7 +183,7 @@ class User(db.Base):
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
     type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
-                                   default='Liability')
+                                   default='Liability', server_default="Liability")
     audit_secret = Column(String)
 
     positions = relationship("Position", back_populates="user")
@@ -199,11 +211,8 @@ class User(db.Base):
         self.audit_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
 
     def __repr__(self):
-        return "User('%s', '%s', '%s', '%s')" \
-                % (self.username, self.password, self.email, self.nickname)
-
-    def __str__(self):
-        return "User('%s','%s')" % (self.username, self.email)
+        return "<User('%s', '%s', '%s')>" \
+                % (self.username, self.email, self.nickname)
 
     def to_obj(self):
         return {"username": self.username, "password": self.password,
@@ -214,9 +223,9 @@ class Journal(db.Base):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
-    type = Column(String, Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
-                               'Trade', 'Fee',
-                               name='journal_types'), nullable=False)
+    type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
+                        'Trade', 'Fee',
+                        name='journal_types'), nullable=False)
     timestamp = Column(DateTime)
     notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
@@ -276,7 +285,7 @@ class Posting(db.Base):
     quantity = Column(BigInteger)
 
     def __repr__(self):
-        return "<Posting('%s', '%s', %d))>" % (self.contract, self.user, self.quantity)
+        return "<Posting('%s', '%s', %d)>" % (self.contract, self.user, self.quantity)
 
     def __init__(self, user, contract, quantity, side, update_position=False, position=None):
         self.user = user
@@ -320,8 +329,8 @@ class Addresses(db.Base):
         self.user, self.currency, self.address = user, currency, address
 
     def __repr__(self):
-        return "<Wallet('%s','%s', %s>" \
-               % (self.user.__repr__(), self.currency.__repr__(), self.address)
+        return "<Wallet('%s','%s', %s)>" \
+               % (self.user, self.currency, self.address)
 
 class Position(db.Base):
     __tablename__ = 'positions'
@@ -349,8 +358,8 @@ class Position(db.Base):
         return calculated
 
     def __repr__(self):
-        return "<Position('%s', '%s', '%s','%s',%d,%d>" \
-               % (self.contract.__repr__(), self.user.__repr__(),
+        return "<Position('%s', '%s', %d)>" \
+               % (self.contract, self.user,
                   self.position)
 
 
@@ -374,8 +383,8 @@ class Withdrawal(db.Base):
         self.entered = datetime.utcnow()
 
     def __repr__(self):
-        return "<Withdrawal('%s','%s','%s',%d>" \
-               % (self.currency.__repr__(), self.user.__repr__(), self.address, self.amount)
+        return "<Withdrawal('%s','%s','%s',%d)>" \
+               % (self.currency, self.user, self.address, self.amount)
 
 class Trade(db.Base):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
@@ -404,5 +413,5 @@ class Trade(db.Base):
         self.quantity = quantity
 
     def __repr__(self):
-        return '<Trade(%s:%d@%d>' % (self.contract.ticker, self.price, self.quantity)
+        return '<Trade(%s:%d@%d)>' % (self.contract.ticker, self.price, self.quantity)
 
