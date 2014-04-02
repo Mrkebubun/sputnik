@@ -31,3 +31,7 @@ sputnik.on "change_password_success", ->
             $('#change_password_token_modal').modal "hide"
     ,
         5000)
+    success: (data) -> alert(data)
+
+$ ->
+  $('#chatBox').keypress (e)-> $('#chatButton').click() if e.keyCode == 13
