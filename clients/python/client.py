@@ -189,6 +189,9 @@ class TradingBot(WampCraClientProtocol):
     def onLedger(self, event):
         pprint(event)
 
+    def onSupportNonce(self, event):
+        pprint(event)
+
     """
     Subscriptions
     """
@@ -278,6 +281,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/get_ledger", start_timestamp, end_timestamp)
         d.addCallbacks(self.onLedger, self.onRpcError)
 
+    def requestSupportNonce(self, type='Compliance'):
+        d = self.call(self.base_uri + "/rpc/request_support_nonce", type)
+        d.addCallbacks(self.onSupportNonce, self.onRpcError)
+
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
         ord['contract'] = ticker
@@ -326,7 +333,7 @@ class BasicBot(TradingBot):
 
     def startAutomationAfterAuth(self):
         self.getLedger()
-
+        self.requestSupportNonce()
 
 if __name__ == '__main__':
 

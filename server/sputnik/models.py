@@ -3,7 +3,6 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Enum, DateTime
 import database as db
 from datetime import datetime, date, timedelta
-import Crypto.Random.random
 
 __author__ = 'satosushi'
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
@@ -27,8 +26,7 @@ class ResetToken(db.Base):
     def __init__(self, username, hours_to_expiry=2):
         self.username = username
         self.expiration = datetime.utcnow() + timedelta(hours=hours_to_expiry)
-        bits = Crypto.Random.random.getrandbits(128)
-        self.token = str(bits)
+        self.token = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
         self.used = False
 
     def __repr__(self):
@@ -104,7 +102,9 @@ class SupportTicket(db.Base):
     __tablename__ = 'support_tickets'
     __table_args__ = {'extend_existing': True}
 
-    foreign_key = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    nonce = Column(String, unique=True)
+    foreign_key = Column(String, unique=True)
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User', back_populates='support_tickets')
     type = Column(Enum('Compliance', name='ticket_types'))
@@ -114,8 +114,8 @@ class SupportTicket(db.Base):
         # TODO: Check support system and see if it is closed or not
         return False
 
-    def __init__(self, username, foreign_key, type):
-        self.foreign_key = foreign_key
+    def __init__(self, username, type):
+        self.nonce = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
         self.username = username
         self.type = type
 

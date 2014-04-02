@@ -63,6 +63,8 @@ ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is alre
 TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
 USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
 ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
+INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
+SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
 
 
 
@@ -263,19 +265,35 @@ class Administrator:
         return postings_by_ticker
 
     @session_aware
-    def create_kyc_ticket(self, username, attachments):
+    def request_support_nonce(self, username, type):
+        ticket = models.SupportTicket(username, type)
+        self.session.add(ticket)
+        self.session.commit()
+        return ticket.nonce
+
+    @session_aware
+    def create_kyc_ticket(self, username, nonce, attachments, data):
+        try:
+            ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type='Compliance').one()
+        except NoResultFound:
+            raise INVALID_SUPPORT_NONCE
+
+        if ticket.foreign_key is not None:
+            raise SUPPORT_NONCE_USED
+
         try:
             user = self.session.query(models.User).filter_by(username=username).one()
         except NoResultFound:
             raise NO_SUCH_USER
 
         def store_in_db(ticket_number):
-            ticket = models.SupportTicket(username, ticket_number, 'Compliance')
+            ticket.foreign_key = ticket_number
             self.session.add(ticket)
             self.session.commit()
             return True
 
-        d = self.zendesk.create_ticket(user, "New compliance document submission", "Please see documents attached",
+        d = self.zendesk.create_ticket(user, "New compliance document submission", json.dumps(data, indent=4,
+                                                                                              separators=(',', ': ')),
                                        attachments)
         d.addCallback(store_in_db)
         return d
@@ -382,6 +400,7 @@ class TicketServer(Resource):
                     )
 
         username = fields['username'].value
+        nonce = fields['nonce'].value
         attachments = []
         file_fields = fields['file']
         if not isinstance(file_fields, list):
@@ -392,10 +411,15 @@ class TicketServer(Resource):
                                 "data": field.value,
                                 "type": field.type})
 
-        d = self.administrator.create_kyc_ticket(username, attachments)
+        try:
+            data = json.loads(fields['data'].value)
+        except ValueError:
+            data = {'error': "Invalid json data: %s" % fields['data'].value }
+
+        d = self.administrator.create_kyc_ticket(username, nonce, attachments, data)
 
         def _cb(result):
-            request.write("Complete")
+            request.write("OK")
             request.finish()
 
         d.addCallbacks(_cb)
@@ -680,6 +704,10 @@ class WebserverExport:
     @export
     def get_permissions(self, username):
         return self.administrator.get_permissions(username)
+
+    @export
+    def request_support_nonce(self, username, type):
+        return self.administrator.request_support_nonce(username, type)
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

@@ -496,6 +496,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
                         (self.username,)).addCallback(_cb)
 
+    @exportRpc("request_support_nonce")
+    def request_support_nonce(self, type):
+        d = self.factory.administrator.request_support_nonce(self.username, type)
+        def onRequestSupportSuccess(result):
+            return [True, result]
+
+        def onRequestSupportFail(failure):
+            return [False, failure.value.args]
+
+        d.addCallbacks(onRequestSupportSuccess, onRequestSupportFail)
+        return d
+
     @exportRpc("get_permissions")
     def get_permissions(self):
         d = self.factory.administrator.get_permissions(self.username)
