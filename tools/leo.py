@@ -234,6 +234,7 @@ class LowEarthOrbit:
         }
 
     def parse(self, line):
+        print line
         tokens = line.split()
         if len(tokens) == 0:
             return
