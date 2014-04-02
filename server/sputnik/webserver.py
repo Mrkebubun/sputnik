@@ -655,7 +655,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     @exportRpc("get_ledger")
     def get_ledger(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                              datetime.timedelta(days=2)),
-                  to_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
+                  to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
         return self.factory.accountant.get_ledger(self.username, from_timestamp, to_timestamp)
 
     @exportRpc("get_new_address")
