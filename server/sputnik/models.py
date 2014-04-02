@@ -100,8 +100,8 @@ class Order(db.Base):
         self.is_cancelled = False
 
     def __repr__(self):
-        return "<Order('%s', '%s', %d (%d), %d, '%s')>" % \
-               (self.user, self.contract, self.quantity, self.quantity_left, self.side)
+        return "<Order('%s', '%s', %d, %d, '%s')>" % \
+               (self.user, self.contract, self.quantity, self.price, self.side)
 
 class SupportTicket(db.Base):
     __tablename__ = 'support_tickets'
