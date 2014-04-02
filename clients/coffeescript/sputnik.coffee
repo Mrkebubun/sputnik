@@ -64,7 +64,6 @@ class @Sputnik extends EventEmitter
 
     getProfile: () =>
         @call("get_profile").then (@profile) =>
-            @updateAuditHash()
             @emit "profile", @profile
 
     changeProfile: (nickname, email) =>
@@ -72,16 +71,23 @@ class @Sputnik extends EventEmitter
             @updateAuditHash()
             @emit "profile", @profile
 
-    updateAuditHash: () =>
+    getAudit: () =>
+        @call("get_audit").then (audit_details) =>
+            @emit "audit_details", audit_details
+            @emit "audit_hash", @getAuditHash(audit_details.timestamp)
+
+    getAuditHash: (timestamp) =>
         secret = @profile.audit_secret
         username = @username
         email = @profile.email
         nickname = @profile.nickname
-        now = new Date()
-        now.setUTCHours(0,0,0,0)
-        timestamp = now.getTime() * 1000
         string = "#{secret}:#{username}:#{nickname}:#{email}:#{timestamp}"
-        @profile.audit_hash = CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
+        return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
+
+    # TODO: Allow for start and endtimes
+    getLedger: () =>
+        @call("get_ledger").then (ledger) =>
+            @emit "ledger", ledger
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')

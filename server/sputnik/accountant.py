@@ -22,6 +22,7 @@ from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import DataError
+from datetime import datetime, date
 
 
 import logging
@@ -625,6 +626,8 @@ class Accountant:
                     details['positions'][position['hash']] += position['position']
                 del details['positions_raw']
 
+        balance_sheet['timestamp'] = util.dt_to_timestamp(datetime.combine(date.today(),
+                                                                         datetime.min.time()))
         return balance_sheet
 
     def get_ledger(self, username, from_timestamp, to_timestamp):

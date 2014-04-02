@@ -292,6 +292,8 @@
                     <li class="active"><a href="#user_information_tab" data-toggle="tab">User Information</a></li>
                     <li><a href="#change_password_tab" data-toggle="tab">Change Password</a></li>
                     <li><a href="#compliance_tab" data-toggle="tab">Compliance</a></li>
+                    <li><a href="#audit_tab" id="audit_tab_select" data-toggle="tab">Audit</a></li>
+                    <li><a href="#ledger_tab" id="ledger_tab_select" data-toggle="tab">Ledger</a></li>
                 </ul>
                 <div class="tab-content">
 
@@ -304,13 +306,6 @@
                                 <div class="col-xs-9">
                                     <input id="acct_management_username" readonly type="text"
                                            class="form-control col-sm-10" id="">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="audit_hash" class="col-xs-3 control-label">Audit Hash</label>
-
-                                <div class="col-xs-9">
-                                    <input readonly id="audit_hash" type="text" class="form-control col-sm-10">
                                 </div>
                             </div>
                             <div class="form-group">
@@ -363,7 +358,15 @@
                                 </div>
                             </div>
                         </form>
+                    </div>
 
+                    <div class="tab-pane" id="audit_tab">
+                        My Key: <div id="audit_hash"></div>
+                        Audit Details: <div id="audit_details"></div>
+                    </div>
+
+                    <div class="tab-pane" id="ledger_tab">
+                        Ledger<div id="ledger"></div>
                     </div>
 
                     <div class="tab-pane" id="compliance_tab">

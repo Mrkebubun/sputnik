@@ -653,7 +653,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
     @exportRpc("get_ledger")
-    def get_ledger(self, from_timestamp, to_timestamp):
+    def get_ledger(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+                                                             datetime.timedelta(days=2)),
+                  to_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
         return self.factory.accountant.get_ledger(self.username, from_timestamp, to_timestamp)
 
     @exportRpc("get_new_address")

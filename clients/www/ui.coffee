@@ -251,6 +251,12 @@ $ ->
       ,
         5000)
 
+    $('#audit_tab_select').click ->
+        sputnik.getAudit()
+
+    $('#ledger_tab_select').click ->
+        sputnik.getLedger()
+
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
     updatePlot(trade_history['BTC/MXN'])
@@ -319,10 +325,17 @@ sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
 
 sputnik.on "profile", (profile) ->
-    $('#audit_hash').val profile.audit_hash
-    $('#audit_secret').val profile.audit_secret
     $('#new_nickname').val profile.nickname
     $('#new_email').val profile.email
+
+sputnik.on "audit_details", (audit_details) ->
+    $('#audit_details').text audit_details
+
+sputnik.on "audit_hash", (audit_hash) ->
+    $('#audit_hash').text audit_hash
+
+sputnik.on "ledger", (ledger) ->
+    $('#ledger').text ledger
 
 sputnik.on "fill", (fill) ->
     console.log "Fill Received: #{fill}"
