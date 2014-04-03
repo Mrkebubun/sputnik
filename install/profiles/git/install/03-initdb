@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -n "$UPGRADE" ]; then
-    exit 0
-fi
-
 cat << EOF | $profile_root/tools/leo 
 database init
 contracts add BTC
