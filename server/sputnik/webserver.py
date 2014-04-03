@@ -13,7 +13,7 @@ import recaptcha
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-                  help="config file", default="../config/sputnik.ini")
+                  help="config file")
 (options, args) = parser.parse_args()
 
 if options.filename:
@@ -28,6 +28,7 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
+import random
 import util
 from zmq_util import export, pull_share_async, dealer_proxy_async
 import base64
@@ -436,12 +437,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
-            #
-            # However, if this is discovered, someone can use it to sign
-            # messages and authenticate as a nonexistent user
-            # TODO: patch autobahn to prevent this without having to leak
-            # information about user existence
-            return ":0xFA1CDA7A:"
+            return ":" + WampCraProtocol.deriveKey("foobar", {'salt': str(random.random())[2:], 'keylen': 32, 'iterations': 1})
 
         return dbpool.runQuery(
             'SELECT password, totp FROM users WHERE username=%s LIMIT 1', (auth_key,)
