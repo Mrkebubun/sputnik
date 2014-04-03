@@ -189,6 +189,7 @@ updateBuys = (data) ->
     best_bid = Math.max 0, (price for [price, quantity] in data)...
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
       $("#sell_price").val best_bid
+    $("#best_bid").text best_bid.toFixed(0)
 
 updateSells = (data) ->
     data.sort (a, b) ->
@@ -197,6 +198,7 @@ updateSells = (data) ->
     best_ask = Math.min (price for [price, quantity] in data)...
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
       $("#buy_price").val best_ask
+    $("#best_ask").text best_ask.toFixed(0)
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
