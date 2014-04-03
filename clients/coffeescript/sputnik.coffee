@@ -94,7 +94,7 @@ class @Sputnik extends EventEmitter
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')
-        @log "Got hash: #{hash}"
+        @log ["Hash", hash]
         args = {}
         for entry in hash
             pair = entry.split('=')
@@ -139,7 +139,7 @@ class @Sputnik extends EventEmitter
                         @close()
                         @connect()
                     , (error) =>
-                        @log "password change error: #{error}"
+                        @error "password change error", error
                         @emit "change_password_fail", error
 
     changePassword: (old_password, new_password) =>
@@ -153,7 +153,7 @@ class @Sputnik extends EventEmitter
                 @log "password changed successfully"
                 @emit "change_password_success", message
             , (error) =>
-                @error "password change error: #{error}"
+                @error ["password change error", error]
                 @emit "change_password_fail", error
 
     getResetToken: (username) =>
@@ -187,11 +187,11 @@ class @Sputnik extends EventEmitter
     getCookie: () =>
         @call("get_cookie").then \
             (uid) =>
-                @log("cookie: " + uid)
+                @log "cookie: " + uid
                 @emit "cookie", uid
 
     onAuthSuccess: (permissions) =>
-        @log("authenticated!", JSON.stringify(permissions))
+        @log ["authenticated", permissions]
         @authenticated = true
 
         @getProfile()
@@ -350,7 +350,7 @@ class @Sputnik extends EventEmitter
             price: price
             contract: ticker
             side: side
-        @log "placing order: #{order}"
+        @log ["placing order", order]
         @call("place_order", @orderToWire(order)).then \
             (res) =>
                 @emit "place_order_success", res
@@ -376,13 +376,13 @@ class @Sputnik extends EventEmitter
           customer_phone: customer_phone
           customer_phone_company: customer_phone_company
           currency: "MXN"
-        @log "compropago charge: #{charge}"
+        @log ["compropago charge",charge]
         @call("make_compropago_deposit", charge).then \
             (@ticket) =>
-                @log "compropago deposit ticket: #{ticket}"
+                @log ["compropago deposit ticket", ticket]
                 @emit "compropago_deposit_success", ticket
             , (error) =>
-                @error "compropago error: #{error}"
+                @error ["compropago error", error]
                 @emit "compropago_deposit_fail", error
 
     getAddress: (contract) =>
@@ -397,7 +397,7 @@ class @Sputnik extends EventEmitter
                 @log "new address for #{contract}: #{address}"
                 @emit "address", [contract, address]
         , (error) =>
-            @log "new address failure for #{contract}: #{error}"
+            @log ["new address failure for #{contract}", error]
             @emit "new_address_fail", error
 
     withdraw: (contract, address, amount) =>
@@ -407,7 +407,7 @@ class @Sputnik extends EventEmitter
     getOpenOrders: () =>
         @call("get_open_orders").then \
             (@orders) =>
-                @log "orders received: " + JSON.stringify(orders)
+                @log ["orders received", orders]
                 orders = {}
                 for id, order of @orders
                     if order.quantity_left > 0
@@ -418,7 +418,7 @@ class @Sputnik extends EventEmitter
     getPositions: () =>
         @call("get_positions").then \
             (@positions) =>
-                @log "positions received: " + JSON.stringify(@positions)
+                @log ["positions received", @positions]
                 positions = {}
                 for ticker, position of @positions
                     positions[ticker] = @positionFromWire(position)
@@ -449,8 +449,7 @@ class @Sputnik extends EventEmitter
     call: (method, params...) =>
         if not @session?
             return @wtf "Not connected."
-        str = JSON.stringify(params)
-        @log "Invoking RPC #{method}(#{str})"
+        @log ["RPC #{method}",params]
         d = ab.Deferred()
         @session.call("#{@uri}/rpc/#{method}", params...).then \
             (result) =>
@@ -480,7 +479,7 @@ class @Sputnik extends EventEmitter
     publish: (topic, message) =>
         if not @session?
             return @wtf "Not connected."
-        @log "Publishing #{message} on #{topic}"
+        @log [topic, message]
         @session.publish "#{@uri}/feeds/#{topic}", message, false
 
     # logging
@@ -529,7 +528,7 @@ class @Sputnik extends EventEmitter
 
     # feeds
     onBook: (book) =>
-        @log "book received: " + JSON.stringify(book)
+        @log ["book received", book]
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
@@ -560,7 +559,7 @@ class @Sputnik extends EventEmitter
         @emit "trade_history", trade_history
 
     onTradeHistory: (trade_history) =>
-        @log "trade_history received: " + JSON.stringify(trade_history)
+        @log ["trade_history received", trade_history]
         if trade_history.length > 0
             ticker = trade_history[0].contract
             @markets[ticker].trades = trade_history
@@ -570,7 +569,7 @@ class @Sputnik extends EventEmitter
             @warn "no trades in history"
 
     onOHLCV: (wire_ohlcv) =>
-        @log "ohlcv received: " + JSON.stringify(ohlcv)
+        @log ["ohlcv received", ohlcv]
         ohlcv = {}
         for timestamp, entry of wire_ohlcv
             ohlcv[timestamp] = @ohlcvFromWire(entry)
@@ -593,7 +592,7 @@ class @Sputnik extends EventEmitter
 
     # My orders get updated with orders
     onOrder: (order) =>
-        @log "Order received: " + JSON.stringify(order)
+        @log ["Order received", order]
         @emit "order", @orderFromWire(order)
 
         id = order.id
@@ -612,11 +611,11 @@ class @Sputnik extends EventEmitter
 
     # Fills don't update my cash, ledger feed does
     onFill: (fill) =>
-        @log "Fill received: " + JSON.stringify(fill)
+        @log ["Fill received", fill]
         @emit "fill", @fillFromWire(fill)
 
     onLedger: (ledger) =>
-        @log "Ledger received: " + JSON.stringify(ledger)
+        @log ["Ledger received", ledger]
         @positions[ledger.contract].position += ledger.quantity
         @emit "ledger", @ledgerFromWire(ledger)
 
