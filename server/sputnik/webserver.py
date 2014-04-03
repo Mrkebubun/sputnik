@@ -31,6 +31,7 @@ import uuid
 import random
 import util
 import json
+import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
 from zendesk import Zendesk
 
@@ -116,7 +117,27 @@ class PublicInterface:
 
                 if result[r[0]]['contract_type'] == 'prediction':
                     result[r[0]]['final_payoff'] = r[2]
+
             self.factory.markets = result
+            # Update the cache with the last 7 days of trades
+            to_dt = datetime.datetime.utcnow()
+            from_dt = to_dt - datetime.timedelta(days=7)
+
+
+
+            for ticker in self.factory.markets.keys():
+                def _cb2(result, ticker):
+                    trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
+                                                           'timestamp': util.dt_to_timestamp(r[1])} for r in result]
+                    self.factory.trade_history[ticker] = trades
+                    for period in ["minute", "hour", "day"]:
+                        for trade in trades:
+                            self.factory.update_ohlcv(trade, period=period)
+
+                dbpool.runQuery(
+                    "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s",
+                    (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
                                "tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
@@ -131,53 +152,25 @@ class PublicInterface:
 
     @exportRpc("get_ohlcv")
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
-                                                                                   datetime.timedelta(days=2)),
+                                                                                   datetime.timedelta(days=1)),
                   end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
         validate(ticker, {"type": "string"})
         validate(period, {"type": "string"})
         validate(start_timestamp, {"type": "number"})
         validate(end_timestamp, {"type": "number"})
 
-        from_dt = util.timestamp_to_dt(start_timestamp)
-        to_dt = util.timestamp_to_dt(end_timestamp)
         period_map = {'minute': 60,
                       'hour': 3600,
                       'day': 3600 * 24}
         period_seconds = int(period_map[period])
         period_micros = int(period_seconds * 1000000)
 
-        def _cb(result):
-            aggregation = {}
+        if period not in self.factory.ohlcv_history[ticker]:
+            return [False, (0, "No OHLCV records in memory")]
 
-            for trade in result:
-                end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
-                if end_period not in aggregation:
-                    aggregation[end_period] = {'period': period,
-                                               'contract': ticker,
-                                               'open': trade[2],
-                                               'low': trade[2],
-                                               'high': trade[2],
-                                               'close': trade[2],
-                                               'volume': trade[3],
-                                               'vwap': trade[2]
-                    }
-                else:
-                    aggregation[end_period]['low'] = min(trade[2], aggregation[end_period]['low'])
-                    aggregation[end_period]['high'] = max(trade[2], aggregation[end_period]['high'])
-                    aggregation[end_period]['close'] = trade[2]
-                    aggregation[end_period]['vwap'] = ( aggregation[end_period]['vwap'] * \
-                                                        aggregation[end_period]['volume'] + trade[3] * trade[2] ) / \
-                                                      ( aggregation[end_period]['volume'] + trade[3] )
-                    aggregation[end_period]['volume'] += trade[3]
-
-            return [True, aggregation]
-
-        return dbpool.runQuery(
-            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
-            "AND trades.timestamp <= %s ORDER BY trades.timestamp",
-            (ticker, from_dt, to_dt)
-        ).addCallback(_cb)
+        ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
+                  if key <= end_timestamp + period_micros and key >= start_timestamp }
+        return [True, ohlcv]
 
     @exportRpc("get_reset_token")
     def get_reset_token(self, username):
@@ -212,17 +205,14 @@ class PublicInterface:
         ticker = ticker[:MAX_TICKER_LENGTH]
 
         to_dt = datetime.datetime.utcnow()
-        from_dt = to_dt - datetime.timedelta(seconds=time_span)
+        to_timestamp = util.dt_to_timestamp(to_dt)
+        from_timestamp = util.dt_to_timestamp(to_dt - datetime.timedelta(seconds=time_span))
 
-        def _cb(result):
-            return [True, [{'contract': r[0], 'price': r[2], 'quantity': r[3],
-                                  'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
+        # Filter trade history
+        history = [i for i in self.factory.trade_history[ticker]
+                   if i['timestamp'] <= to_timestamp and i['timestamp'] >= from_timestamp]
 
-        return dbpool.runQuery(
-            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
-            "AND trades.timestamp <= %s",
-            (ticker, from_dt, to_dt)).addCallback(_cb)
+        return [True, history]
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):
@@ -1007,6 +997,9 @@ class EngineExport:
     def trade(self, ticker, trade):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
+        self.webserver.trade_history[ticker].append(trade)
+        for period in ["day", "hour", "minute"]:
+            self.webserver.update_ohlcv(trade, period=period)
 
     @export
     def order(self, user, order):
@@ -1043,6 +1036,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.all_books = {}
         self.safe_prices = {}
         self.markets = {}
+        self.trade_history = collections.defaultdict(list)
+        self.ohlcv_history = collections.defaultdict(dict)
         self.chats = []
         self.cookies = {}
         self.public_interface = PublicInterface(self)
@@ -1063,6 +1058,35 @@ class PepsiColaServerFactory(WampServerFactory):
         self.recaptcha = recaptcha.ReCaptcha(
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
+
+    def update_ohlcv(self, trade, period="day"):
+        period_map = {'minute': 60,
+                      'hour': 3600,
+                      'day': 3600 * 24}
+        period_seconds = int(period_map[period])
+        period_micros = int(period_seconds * 1000000)
+        ticker = trade['contract']
+        if period not in self.ohlcv_history[ticker]:
+            self.ohlcv_history[ticker][period] = {}
+
+        end_period = int(trade['timestamp'] / period_micros) * period_micros + period_micros - 1
+        if end_period not in self.ohlcv_history[ticker][period]:
+            self.ohlcv_history[ticker][period][end_period] = {'period': period,
+                                       'contract': ticker,
+                                       'open': trade['price'],
+                                       'low': trade['price'],
+                                       'high': trade['price'],
+                                       'close': trade['price'],
+                                       'volume': trade['quantity'],
+                                       'vwap': trade['price']}
+        else:
+            self.ohlcv_history[ticker][period][end_period]['low'] = min(trade['price'], self.ohlcv_history[ticker][period][end_period]['low'])
+            self.ohlcv_history[ticker][period][end_period]['high'] = max(trade['price'], self.ohlcv_history[ticker][period][end_period]['high'])
+            self.ohlcv_history[ticker][period][end_period]['close'] = trade['price']
+            self.ohlcv_history[ticker][period][end_period]['vwap'] = ( self.ohlcv_history[ticker][period][end_period]['vwap'] * \
+                                            self.ohlcv_history[ticker][period][end_period]['volume'] + trade['quantity'] * trade['price'] ) / \
+                                          ( self.ohlcv_history[ticker][period][end_period]['volume'] + trade['quantity'] )
+            self.ohlcv_history[ticker][period][end_period]['volume'] += trade['quantity']
 
 class TicketServer(Resource):
     isLeaf = True
