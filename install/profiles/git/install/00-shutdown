@@ -6,3 +6,6 @@
 # stop existing copy if it is running
 $profile_root/dist/sctl shutdown
 
+# wait
+sleep 1
+
