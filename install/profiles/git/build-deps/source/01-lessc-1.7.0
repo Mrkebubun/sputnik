@@ -8,7 +8,7 @@ check()
 
 install()
 {
-    /usr/local/sbin/npm install -g less@1.7.0
+    /usr/local/bin/npm install -g less@1.7.0
 }
 
 case $1 in
