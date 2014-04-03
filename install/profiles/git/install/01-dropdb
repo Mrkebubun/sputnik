@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# this may be a reinstall, so drop the db
+sudo -u postgres /usr/bin/dropdb -e $profile_dbname
+exit 0
+
