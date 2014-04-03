@@ -1,8 +1,10 @@
 @compliance_client_handler = (form) ->
   console.log "[mexbt:2 - form]", form
   fd = new FormData(form)
+  fd.append('username', $("#login_name").text())
+  fd.append('nonce', $("#login_name").text())
   $.ajax
-    url: 'script.php',
+    url: "#{location.protocol}//#{location.hostname}:8980/create_kyc_ticket",
     data: fd,
     processData: false,
     contentType: false,
