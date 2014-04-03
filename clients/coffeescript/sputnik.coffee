@@ -85,9 +85,12 @@ class @Sputnik extends EventEmitter
         return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
     # TODO: Allow for start and endtimes
-    getLedger: () =>
-        @call("get_ledger").then (ledger) =>
-            @emit "ledger", ledger
+    getLedgerHistory: () =>
+        @call("get_ledger_history").then (wire_ledger_history) =>
+            ledger_history = []
+            for ledger in wire_ledger_history
+                ledger_history.push @ledgerFromWire(ledger)
+            @emit "ledger_history", ledger_history
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')
@@ -202,6 +205,7 @@ class @Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
+            @subscribe "ledger#" + @username, @onLedger
         catch error
             @log error
 
@@ -298,6 +302,13 @@ class @Sputnik extends EventEmitter
         for fee_ticker, fee of wire_fill.fees
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
+
+    ledgerFromWire: (wire_ledger) =>
+        ledger = @copy(wire_ledger)
+        ticker = wire_ledger.contract
+        ledger.quantity = @quantityFromWire(ticker, wire_ledger.quantity)
+        ledger.timestamp = @timeFormat(wire_ledger.timestamp)
+        return ledger
 
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -396,7 +407,7 @@ class @Sputnik extends EventEmitter
     getOpenOrders: () =>
         @call("get_open_orders").then \
             (@orders) =>
-                @log("orders received: #{orders}")
+                @log "orders received: " + JSON.stringify(orders)
                 orders = {}
                 for id, order of @orders
                     if order.quantity_left > 0
@@ -407,7 +418,7 @@ class @Sputnik extends EventEmitter
     getPositions: () =>
         @call("get_positions").then \
             (@positions) =>
-                @log("positions received: #{@positions}")
+                @log "positions received: " + JSON.stringify(@positions)
                 positions = {}
                 for ticker, position of @positions
                     positions[ticker] = @positionFromWire(position)
@@ -517,7 +528,7 @@ class @Sputnik extends EventEmitter
 
     # feeds
     onBook: (book) =>
-        @log "book received: #{book}"
+        @log "book received: " + JSON.stringify(book)
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
@@ -548,7 +559,7 @@ class @Sputnik extends EventEmitter
         @emit "trade_history", trade_history
 
     onTradeHistory: (trade_history) =>
-        @log "trade_history received: #{trade_history}"
+        @log "trade_history received: " + JSON.stringify(trade_history)
         if trade_history.length > 0
             ticker = trade_history[0].contract
             @markets[ticker].trades = trade_history
@@ -558,7 +569,7 @@ class @Sputnik extends EventEmitter
             @warn "no trades in history"
 
     onOHLCV: (wire_ohlcv) =>
-        @log "ohlcv received: #{ohlcv}"
+        @log "ohlcv received: " + JSON.stringify(ohlcv)
         ohlcv = {}
         for timestamp, entry of wire_ohlcv
             ohlcv[timestamp] = @ohlcvFromWire(entry)
@@ -581,6 +592,7 @@ class @Sputnik extends EventEmitter
 
     # My orders get updated with orders
     onOrder: (order) =>
+        @log "Order received: " + JSON.stringify(order)
         @emit "order", @orderFromWire(order)
 
         id = order.id
@@ -597,28 +609,16 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
-    # My positions and available margin get updated with fills
+    # Fills don't update my cash, ledger feed does
     onFill: (fill) =>
-        @log "fill received: #{fill}"
+        @log "Fill received: " + JSON.stringify(fill)
         @emit "fill", @fillFromWire(fill)
-        [contract, source, target] = @cstFromTicker(fill.contract)
-        if contract.contract_type == "cash_pair"
-            if fill.side == "SELL"
-                sign = -1
-            else
-                sign = 1
-            @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
-            @positions[target.ticker].position += fill.quantity * sign
 
-            for ticker, fee of fill.fees
-                @positions[ticker].position -= fee
+    onLedger: (ledger) =>
+        @log "Ledger received: " + JSON.stringify(ledger)
+        @positions[ledger.contract].position += ledger.quantity
+        @emit "ledger", @ledgerFromWire(ledger)
 
-        else
-            @error "only cash_pair contracts implemented in onFill"
-
-        @emitPositions
-
-    emitPositions: () =>
         positions = {}
         for ticker, position of @positions
             positions[ticker] = @positionFromWire(position)

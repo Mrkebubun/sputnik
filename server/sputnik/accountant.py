@@ -65,6 +65,15 @@ class Accountant:
 
         self.webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
 
+    def publish_journal(self, journal):
+        for posting in journal.postings:
+            ledger = {'contract': posting.contract.ticker,
+                      'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+                      'quantity': posting.quantity,
+                      'type': posting.journal.type
+            }
+            self.webserver.ledger(posting.username, ledger)
+
     def get_user(self, username):
         """
         Return the User object corresponding to the username.
@@ -129,9 +138,10 @@ class Accountant:
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
             journal = models.Journal('Adjustment', [credit, debit])
-            logging.info("Journal: %s" % journal)
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
+            logging.info("Journal: %s" % journal)
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
@@ -256,6 +266,7 @@ class Accountant:
         journal = models.Journal('Fee', postings)
         self.session.add(journal)
         self.session.commit()
+        self.publish_journal(journal)
         logging.info("Journal: %s" % journal)
 
     def post_transaction(self, transaction):
@@ -380,6 +391,7 @@ class Accountant:
                                                                         passive_order_id))
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
 
             # TODO: Move this fee logic outside of "if cash_pair"
@@ -496,6 +508,7 @@ class Accountant:
             journal = models.Journal('Transfer', [debit, credit])
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
         except Exception as e:
             logging.error("Transfer position failed: %s" % e)
@@ -569,6 +582,7 @@ class Accountant:
             journal = models.Journal('Deposit', postings, notes=address)
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
         except Exception as e:
             self.session.rollback()
@@ -668,7 +682,7 @@ class Accountant:
                                                                          datetime.min.time()))
         return balance_sheet
 
-    def get_ledger(self, username, from_timestamp, to_timestamp):
+    def get_ledger_history(self, username, from_timestamp, to_timestamp):
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
@@ -726,8 +740,8 @@ class WebserverExport:
         return self.accountant.get_audit()
 
     @export
-    def get_ledger(self, username, from_timestamp, to_timestamp):
-        return self.accountant.get_ledger(username, from_timestamp, to_timestamp)
+    def get_ledger_history(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_ledger_history(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:

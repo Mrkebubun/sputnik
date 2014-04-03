@@ -97,6 +97,7 @@ class TradingBot(WampCraClientProtocol):
         print "Authentication Success!", permissions
         self.subOrders()
         self.subFills()
+        self.subLedger()
         self.getOpenOrders()
 
         self.startAutomationAfterAuth()
@@ -168,6 +169,9 @@ class TradingBot(WampCraClientProtocol):
         """
         pprint(["Fill", topicUri, event])
 
+    def onLedger(self, topicUri, event):
+        pprint(["Ledger", topicUri, event])
+
     def onChat(self, topicUri, event):
         pprint(["Chat", topicUri, event])
 
@@ -204,6 +208,11 @@ class TradingBot(WampCraClientProtocol):
         uri = "%s/feeds/fills#%s" % (self.base_uri, self.username)
         self.subscribe(uri, self.onFill)
         print 'subscribed to: ', uri
+
+    def subLedger(self):
+        uri = "%s/feeds/ledger#%s" % (self.base_uri, self.username)
+        self.subscribe(uri, self.onLedger)
+        print 'subecribed to: ', uri
 
     def subBook(self, ticker):
         uri = "%s/feeds/book#%s" % (self.base_uri, ticker)

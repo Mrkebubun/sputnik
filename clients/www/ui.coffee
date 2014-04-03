@@ -329,13 +329,10 @@ sputnik.on "profile", (profile) ->
     $('#new_email').val profile.email
 
 sputnik.on "audit_details", (audit_details) ->
-    $('#audit_details').text audit_details
+    $('#audit_details').text JSON.stringify(audit_details, undefined, 2)
 
 sputnik.on "audit_hash", (audit_hash) ->
     $('#audit_hash').text audit_hash
 
-sputnik.on "ledger", (ledger) ->
-    $('#ledger').text ledger
-
-sputnik.on "fill", (fill) ->
-    console.log "Fill Received: #{fill}"
+sputnik.on "ledger_history", (ledger_history) ->
+    $('#ledger_history').text JSON.stringify(ledger_history, null, 4)

@@ -121,7 +121,7 @@ class AsyncPullExport(AsyncExport):
 
         def exception(failure):
             logging.warn("Caught exception in method %s." % method_name)
-            logging.warn(failure)
+            logging.debug(failure)
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
@@ -281,7 +281,7 @@ class Proxy:
 
     def __getattr__(self, key):
         if key.startswith("__") and key.endswith("__"):
-            raise AttributeError
+            raise Exception(AttributeError)
 
         def remote_method(*args, **kwargs):
             message = self.encode(key, args, kwargs)
@@ -294,7 +294,7 @@ class Proxy:
                 success, result = self.decode(message)
                 if success:
                     return result
-                raise result
+                raise Exception(result)
 
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
@@ -346,7 +346,7 @@ class DealerProxySync(Proxy):
         success, result = self.decode(message)
         if success:
             return result
-        raise result
+        raise Exception(result)
 
 class PushProxySync(Proxy):
     def send(self, message):
