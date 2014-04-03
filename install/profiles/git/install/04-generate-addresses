@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -n "$UPGRADE" ]; then
-    exit 0
-fi
-
 # wait until everything starts up
-sleep 10
+sleep 5
 sudo -u $profile_user $profile_root/tools/generate_new_btc_addresses.py
