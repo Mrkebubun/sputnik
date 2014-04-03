@@ -111,11 +111,12 @@ canBuy = () ->
     else
         $("#buy_panel alert").slideDown()
 
-    canSell = () ->
+canSell = () ->
     if sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
         $("#sell_panel alert:visible").slideUp()
     else
         $("#sell_panel alert").slideDown()
+
 
 $("#buy_price").keyup ->
     canBuy()
