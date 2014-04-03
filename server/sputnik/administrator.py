@@ -16,14 +16,13 @@ import models
 import collections
 from datetime import datetime
 from webserver import ChainedOpenSSLContextFactory
-from zendesk import Zendesk
+
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
-from twisted.web.error import Error
 from twisted.web.server import NOT_DONE_YET
 import cgi
 
@@ -82,11 +81,10 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, zendesk, debug=False):
+    def __init__(self, session, accountant, cashier, debug=False):
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
-        self.zendesk = zendesk
         self.debug = debug
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
         self.from_email = config.get("administrator", "email")
@@ -271,32 +269,26 @@ class Administrator:
         self.session.commit()
         return ticket.nonce
 
-    @session_aware
-    def create_kyc_ticket(self, username, nonce, attachments, data):
+    def check_support_nonce(self, username, nonce, type):
         try:
-            ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type='Compliance').one()
+            ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type=type).one()
         except NoResultFound:
             raise INVALID_SUPPORT_NONCE
 
         if ticket.foreign_key is not None:
             raise SUPPORT_NONCE_USED
 
-        try:
-            user = self.session.query(models.User).filter_by(username=username).one()
-        except NoResultFound:
-            raise NO_SUCH_USER
+        return {'username': ticket.user.username,
+                'email': ticket.user.email,
+                'nickname': ticket.user.nickname}
 
-        def store_in_db(ticket_number):
-            ticket.foreign_key = ticket_number
+    def register_support_ticket(self, username, nonce, type, foreign_key):
+        if self.check_support_nonce(username, nonce, type):
+            ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type=type).one()
+            ticket.foreign_key = foreign_key
             self.session.add(ticket)
             self.session.commit()
             return True
-
-        d = self.zendesk.create_ticket(user, "New compliance document submission", json.dumps(data, indent=4,
-                                                                                              separators=(',', ': ')),
-                                       attachments)
-        d.addCallback(store_in_db)
-        return d
 
     @session_aware
     def set_admin_level(self, username, level):
@@ -379,57 +371,6 @@ class Administrator:
     def modify_permission_group(self, id, permissions):
         logging.debug("Modifying permission group %d to %s" % (id, permissions))
         self.accountant.modify_permission_group(id, permissions)
-
-class TicketServer(Resource):
-    isLeaf = True
-    def __init__(self, administrator):
-        self.administrator = administrator
-        Resource.__init__(self)
-
-    def getChild(self, path, request):
-        self.log(request)
-        return self
-
-    def create_kyc_ticket(self, request):
-        headers = request.getAllHeaders()
-        fields = cgi.FieldStorage(
-                    fp = request.content,
-                    headers = headers,
-                    environ= {'REQUEST_METHOD': request.method,
-                              'CONTENT_TYPE': headers['content-type'] }
-                    )
-
-        username = fields['username'].value
-        nonce = fields['nonce'].value
-        attachments = []
-        file_fields = fields['file']
-        if not isinstance(file_fields, list):
-            file_fields = [file_fields]
-
-        for field in file_fields:
-            attachments.append({"filename": field.filename,
-                                "data": field.value,
-                                "type": field.type})
-
-        try:
-            data = json.loads(fields['data'].value)
-        except ValueError:
-            data = {'error': "Invalid json data: %s" % fields['data'].value }
-
-        d = self.administrator.create_kyc_ticket(username, nonce, attachments, data)
-
-        def _cb(result):
-            request.write("OK")
-            request.finish()
-
-        d.addCallbacks(_cb)
-        return NOT_DONE_YET
-
-    def render(self, request):
-            if request.path == '/create_kyc_ticket':
-                return self.create_kyc_ticket(request)
-            else:
-                return None
 
 class AdminWebUI(Resource):
     isLeaf = True
@@ -709,6 +650,18 @@ class WebserverExport:
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
 
+class TicketServerExport:
+    def __init__(self, administrator):
+        self.administrator = administrator
+
+    @export
+    def check_support_nonce(self, username, nonce, type):
+        return self.administrator.check_support_nonce(username, nonce, type)
+
+    @export
+    def register_support_ticket(self, username, nonce, type, foreign_key):
+        return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
@@ -718,23 +671,20 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    zendesk = Zendesk(config.get("administrator", "zendesk_domain"),
-                      config.get("administrator", "zendesk_token"),
-                      config.get("administrator", "zendesk_email"))
-
-    administrator = Administrator(session, accountant, cashier, zendesk, debug)
+    administrator = Administrator(session, accountant, cashier, debug)
     webserver_export = WebserverExport(administrator)
+    ticketserver_export = TicketServerExport(administrator)
 
     router_share_async(webserver_export,
         config.get("administrator", "webserver_export"))
+    router_share_async(ticketserver_export,
+                       config.get("administrator", "ticketserver_export"))
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
                                  checkers),
             [digest_factory])
-
-    ticket_server = TicketServer(administrator)
 
     # SSL
     if config.getboolean("webserver", "ssl"):
@@ -745,16 +695,9 @@ if __name__ == "__main__":
         reactor.listenSSL(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           contextFactory,
                           interface=config.get("administrator", "interface"))
-
-        reactor.listenSSL(config.getint("administrator", "ticket_port"), Site(resource=ticket_server),
-                                        contextFactory,
-                                        interface=config.get("administrator", "interface"))
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
-
-        reactor.listenTCP(config.getint("administrator", "ticket_port"), Site(ticket_server),
-                                        interface=config.get("administrator", "interface"))
 
     reactor.run()
 

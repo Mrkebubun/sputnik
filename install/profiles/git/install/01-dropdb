@@ -1,6 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
 # this may be a reinstall, so drop the db
-sudo -u postgres /usr/bin/dropdb -e $profile_dbname
+# Confirm that we want to drop the db before dropping it!
+echo -n "DO YOU WANT TO DROP THE DB: $profile_dbname? "yes" to confirm:" > /dev/tty
+read -n 1 -r 
+if [[ $REPLY =~ ^yes$ ]]
+then
+  echo "Dropping DB: $profile_dbname" >/dev/tty
+  sudo -u postgres /usr/bin/dropdb -e $profile_dbname
+else
+  echo "Dropdb waived" >/dev/tty
+fi
+
 exit 0
 

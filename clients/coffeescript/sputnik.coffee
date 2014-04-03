@@ -449,7 +449,8 @@ class @Sputnik extends EventEmitter
     call: (method, params...) =>
         if not @session?
             return @wtf "Not connected."
-        @log "Invoking RPC #{method}(#{params})"
+        str = JSON.stringify(params)
+        @log "Invoking RPC #{method}(#{str})"
         d = ab.Deferred()
         @session.call("#{@uri}/rpc/#{method}", params...).then \
             (result) =>

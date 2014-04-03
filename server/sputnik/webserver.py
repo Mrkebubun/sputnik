@@ -30,13 +30,16 @@ import hashlib
 import uuid
 import random
 import util
+import json
 from zmq_util import export, pull_share_async, dealer_proxy_async
-import base64
+from zendesk import Zendesk
 
 from jsonschema import validate
 from twisted.python import log
 from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
+from twisted.web.server import NOT_DONE_YET
+from twisted.web.resource import Resource
 from twisted.web.static import File
 from autobahn.twisted.websocket import listenWS
 from autobahn.wamp1.protocol import exportRpc, \
@@ -1061,6 +1064,92 @@ class PepsiColaServerFactory(WampServerFactory):
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
+class TicketServer(Resource):
+    isLeaf = True
+    def __init__(self, administrator):
+        self.administrator = administrator
+        self.zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+        Resource.__init__(self)
+
+    def getChild(self, path, request):
+        self.log(request)
+        return self
+
+    def log(self, request):
+        line = '%s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        logging.info(line,
+                     request.getClientIP(),
+                     request.method,
+                     request.uri,
+                     request.clientproto,
+                     request.code,
+                     request.sentLength or "-",
+                     request.getHeader("referer") or "-",
+                     request.getHeader("user-agent") or "-",
+                     request.getHeader("authorization") or "-",
+                     json.dumps(request.args))
+
+    def create_kyc_ticket(self, request):
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+
+        username = fields['username'].value
+        nonce = fields['nonce'].value
+
+        def onFail(failure):
+            logging.error("unable to create support ticket: %s" % failure.value.args)
+            request.write("Failure: %s" % failure.value.args)
+            request.finish()
+
+        def onCheckSuccess(user):
+            attachments = []
+            file_fields = fields['file']
+            if not isinstance(file_fields, list):
+                file_fields = [file_fields]
+
+            for field in file_fields:
+                attachments.append({"filename": field.filename,
+                                    "data": field.value,
+                                    "type": field.type})
+
+            try:
+                data = json.loads(fields['data'].value)
+            except ValueError:
+                data = {'error': "Invalid json data: %s" % fields['data'].value }
+
+            def onCreateTicketSuccess(ticket_number):
+                def onRegisterTicketSuccess(result):
+                    logging.debug("Ticket registered successfully")
+                    request.write("OK")
+                    request.finish()
+
+                logging.debug("Ticket created: %s" % ticket_number)
+                d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
+                d3.addCallbacks(onRegisterTicketSuccess, onFail)
+
+
+            d2 = self.zendesk.create_ticket(user, "New compliance document submission",
+                                            json.dumps(data, indent=4,
+                                                       separators=(',', ': ')), attachments)
+            d2.addCallbacks(onCreateTicketSuccess, onFail)
+
+        d = self.administrator.check_support_nonce(username, nonce, 'Compliance')
+        d.addCallbacks(onCheckSuccess, onFail)
+        return NOT_DONE_YET
+
+    def render(self, request):
+            if request.path == '/create_kyc_ticket':
+                return self.create_kyc_ticket(request)
+            else:
+                return None
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
@@ -1120,6 +1209,17 @@ if __name__ == '__main__':
     factory.setProtocolOptions(maxMessagePayloadSize=1000)
 
     listenWS(factory, contextFactory, interface=interface)
+
+    administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    ticket_server =  TicketServer(administrator)
+
+    if config.getboolean("webserver", "ssl"):
+        reactor.listenSSL(config.getint("ticketserver", "ticket_port"), Site(resource=ticket_server),
+                                        contextFactory,
+                                        interface)
+    else:
+        reactor.listenTCP(config.getint("ticketserver", "ticket_port"), Site(ticket_server),
+                                        interface=interface)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))

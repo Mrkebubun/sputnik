@@ -282,12 +282,12 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onRpcError)
 
-    def getLedger(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+    def getLedgerHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
-        d = self.call(self.base_uri + "/rpc/get_ledger", start_timestamp, end_timestamp)
+        d = self.call(self.base_uri + "/rpc/get_ledger_history", start_timestamp, end_timestamp)
         d.addCallbacks(self.onLedger, self.onRpcError)
 
     def requestSupportNonce(self, type='Compliance'):
@@ -338,10 +338,10 @@ class BasicBot(TradingBot):
         # Now make an account
         self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "Test User", "test@m2.io")
+        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
-        self.getLedger()
+        self.getLedgerHistory()
         self.requestSupportNonce()
 
 if __name__ == '__main__':
