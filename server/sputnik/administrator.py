@@ -270,6 +270,7 @@ class Administrator:
         return ticket.nonce
 
     def check_support_nonce(self, username, nonce, type):
+        logging.debug("Checking nonce for %s: %s/%s" % (username, nonce, type))
         try:
             ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type=type).one()
         except NoResultFound:
@@ -288,6 +289,7 @@ class Administrator:
             ticket.foreign_key = foreign_key
             self.session.add(ticket)
             self.session.commit()
+            logging.debug("Registered foreign key: %s for %s" % (foreign_key, username))
             return True
 
     @session_aware
@@ -306,6 +308,7 @@ class Administrator:
         user = models.AdminUser(username, password, level)
         self.session.add(user)
         self.session.commit()
+        logging.info("Admin user %s created" % username)
         return True
 
     @session_aware
@@ -323,6 +326,7 @@ class Administrator:
         user.password_hash = new_password_hash
         self.session.add(user)
         self.session.commit()
+        logging.info("Admin user %s has password reset" % username)
         return True
 
     @session_aware
@@ -335,6 +339,7 @@ class Administrator:
         user.password_hash = new_password_hash
         self.session.add(user)
         self.session.commit()
+        logging.info("Admin user %s has password force reset" % username)
         return True
 
     def get_positions(self):
