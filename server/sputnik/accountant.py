@@ -153,7 +153,7 @@ class Accountant:
     def adjust_position(self, username, ticker, quantity):
         """Adjust a user's position, offsetting with the 'adjustment' account
 
-        :oaram username: The user
+        :param username: The user
         :type username: str, models.User
         :param ticker: The contract
         :type ticker: str, models.Contract

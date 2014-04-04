@@ -391,8 +391,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def getAuthSecret(self, auth_key):
         """
         :param auth_key: the login
-        :return: the auth secret for the given auth key or None when the auth key
-        does not exist
+        :return: the auth secret for the given auth key or None when the auth key does not exist
         """
 
         # check for a saved session

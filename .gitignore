@@ -20,4 +20,4 @@ mexbt.css
 events.js
 client.js
 sputnik.tar
-sphinx/build
+docs/build

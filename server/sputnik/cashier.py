@@ -163,11 +163,13 @@ class Cashier():
 class CompropagoHook(Resource):
     """
     Resource URL for compropago to give us callbacks
-    @param cashier_: instance of the cashier
     """
     isLeaf = True
 
     def __init__(self, cashier):
+        """
+        :param cashier: The cashier we talk to
+        """
         Resource.__init__(self)
         self.cashier = cashier
         self.compropago = cashier.compropago
