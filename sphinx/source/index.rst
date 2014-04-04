@@ -25,3 +25,4 @@ Accountant
 
 .. automodule:: accountant
    :members:
+   :undoc-members:
