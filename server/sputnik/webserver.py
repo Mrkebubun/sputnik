@@ -182,7 +182,7 @@ class PublicInterface:
         def onTokenFail(failure):
             return [False, failure.value.args]
 
-        d.addCallbacks(onTokenSuccess, onTokenFail)
+        return d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
