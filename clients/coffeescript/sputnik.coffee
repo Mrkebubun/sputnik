@@ -467,16 +467,18 @@ class @Sputnik extends EventEmitter
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
+        
+        contract = book.contract
+        ui_book = 
+            bids: (@bookRowFromWire(contract, order) for order in book.bids)
+            asks: (@bookRowFromWire(contract, order) for order in book.asks)
+            contract: contract
 
-        books = {}
-        for contract, market of @markets
-            if market.contract_type != "cash"
-                books[contract] =
-                    contract: contract
-                    bids: @bookRowFromWire(contract, order) for order in market.bids
-                    asks: @bookRowFromWire(contract, order) for order in market.asks
+        ui_book.bids.sort (a, b) -> b.price - a.price
+        ui_book.asks.sort (a, b) -> a.price - b.price
 
-        @emit "book", books
+        @log ui_book
+        @emit "book", ui_book
 
     # Make sure we only have the last hour of trades
     cleanTradeHistory: (ticker) =>
