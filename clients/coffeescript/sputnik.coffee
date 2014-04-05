@@ -477,7 +477,6 @@ class @Sputnik extends EventEmitter
         ui_book.bids.sort (a, b) -> b.price - a.price
         ui_book.asks.sort (a, b) -> a.price - b.price
 
-        @log ui_book
         @emit "book", ui_book
 
     # Make sure we only have the last hour of trades

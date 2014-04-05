@@ -8,6 +8,9 @@ else
 
 uri = ws_protocol + "//" + hostname + ":8000"
 
+window.best_ask = {price: 0, quantity: 0}
+window.best_bid = {price: 0, quantity: 0}
+
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
@@ -105,36 +108,49 @@ $("#register_button").click (event) ->
     nickname = $("#register_nickname").val()
     sputnik.makeAccount username, password, email, nickname
 
-canBuy = () ->
+
+withinAnOrderOfMagnitude = (x, y) ->
+    sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
+    orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
+    orderOfMag(x) == orderOfMag(y)
+
+$("#buy_price,buy_quantity").keyup ->
     if sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
         $("#buy_panel alert:visible").slideUp()
     else
         $("#buy_panel alert").slideDown()
 
-canSell = () ->
+$("#sell_price,#sell_quantity").keyup ->
     if sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
         $("#sell_panel alert:visible").slideUp()
     else
         $("#sell_panel alert").slideDown()
 
 
-$("#buy_price").keyup ->
-    canBuy()
-
-$("#sell_price").keyup ->
-    canSell()
-
-$("#buy_quantity").keyup ->
-    canBuy()
-
-$("#sell_quantity").keyup ->
-    canSell()
 
 $("#buyButton").click ->
-    sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
+    buy_quantity = Number($('#buy_quantity').val())
+    buy_price = Number($("#buy_price").val())
+
+    if buy_quantity == 0 or buy_price == 0
+        return true
+
+    if not withinAnOrderOfMagnitude(buy_price, best_bid.price)
+        return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
+
+    sputnik.placeOrder(buy_quantity, buy_price, 'BTC/MXN', 'BUY')
 
 $("#sellButton").click ->
-    sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'BTC/MXN', 'SELL')
+    sell_quantity = Number($('#sell_quantity').val())
+    sell_price = Number($("#sell_price").val())
+
+    if sell_quantity == 0 or sell_price == 0
+        return true
+
+    if not withinAnOrderOfMagnitude(sell_price, best_ask.price)
+        return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
+
+    sputnik.placeOrder(sell_quantity, sell_price, 'BTC/MXN', 'SELL')
 
 $("#logout").click (event) ->
     document.cookie = ''
@@ -197,20 +213,17 @@ updateTable = (id, data) ->
     $("##{id}").html rows.join("")
 
 updateBuys = (data) ->
-    data.sort (a, b) ->
-        b[0] - a[0]
     updateTable "buys", data
-    best_bid = Math.max 0, (price for [price, quantity] in data)...
+
+    #todo: debounce with futility counter
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-      $("#sell_price").val best_bid
+      $("#sell_price").val best_bid.price
 
 updateSells = (data) ->
-    data.sort (a, b) ->
-        a[0] - b[0]
     updateTable "sells", data
-    best_ask = Math.min (price for [price, quantity] in data)...
+    #todo: debounce with futility counter
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-      $("#buy_price").val best_ask
+      $("#buy_price").val best_ask.price
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
@@ -282,8 +295,16 @@ sputnik.on "session_expired", ->
     document.cookie = ''
 
 sputnik.on "book", (book) ->
-    updateBuys ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].bids)
-    updateSells ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].asks)
+    if book.contract is not "BTC/MXN"
+        return
+
+    if book.asks.length
+        window.best_ask = book.asks[0]
+    if book.bids.length
+        window.best_bid = book.bids[0]
+
+    updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
+    updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
 
 sputnik.on "orders", (orders) ->
     updateOrders orders
