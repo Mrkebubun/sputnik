@@ -1,10 +1,13 @@
 #!/bin/sh
 
 cp $PROFILE/res/https-redirect.conf /etc/apache2/conf-available
+cp $PROFILE/res/ticket-server-proxy.conf /etc/apache2/conf-available
 
 a2enconf https-redirect
+a2enconf ticket-server-proxy
 a2enmod ssl
 a2enmod rewrite
+a2enmod proxy
 
 a2dissite 000-default
 

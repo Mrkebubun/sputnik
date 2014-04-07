@@ -1106,7 +1106,6 @@ class TicketServer(Resource):
         Resource.__init__(self)
 
     def getChild(self, path, request):
-        self.log(request)
         return self
 
     def log(self, request):
@@ -1159,11 +1158,6 @@ class TicketServer(Resource):
             def onCreateTicketSuccess(ticket_number):
                 def onRegisterTicketSuccess(result):
                     logging.debug("Ticket registered successfully")
-                    self.setHeader('Access-Control-Allow-Origin', '*')
-                    self.setHeader('Access-Control-Allow-Methods', 'POST')
-                    self.setHeader('Access-Control-Allow-Headers',
-                                   'x-prototype-version,x-requested-with')
-
                     request.write("OK")
                     request.finish()
 
@@ -1182,10 +1176,11 @@ class TicketServer(Resource):
         return NOT_DONE_YET
 
     def render(self, request):
-            if request.path == '/create_kyc_ticket':
-                return self.create_kyc_ticket(request)
-            else:
-                return None
+        self.log(request)
+        if request.postpath[0] == 'create_kyc_ticket':
+            return self.create_kyc_ticket(request)
+        else:
+            return None
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
@@ -1201,9 +1196,7 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
 
-
 if __name__ == '__main__':
-
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     chat_log = logging.getLogger('chat_log')
 
@@ -1230,7 +1223,6 @@ if __name__ == '__main__':
         key = config.get("webserver", "ssl_key")
         cert = config.get("webserver", "ssl_cert")
         cert_chain = config.get("webserver", "ssl_cert_chain")
-        # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
         contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
 
     address = config.get("webserver", "ws_address")
@@ -1249,22 +1241,22 @@ if __name__ == '__main__':
     administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
     ticket_server =  TicketServer(administrator)
 
-    if config.getboolean("webserver", "ssl"):
-        reactor.listenSSL(config.getint("ticketserver", "ticket_port"), Site(resource=ticket_server),
-                                        contextFactory,
-                                        interface)
-    else:
-        reactor.listenTCP(config.getint("ticketserver", "ticket_port"), Site(ticket_server),
-                                        interface=interface)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))
+        web_dir.putChild('ticket_server', ticket_server)
         web = Site(web_dir)
         port = config.getint("webserver", "www_port")
         if config.getboolean("webserver", "ssl"):
             reactor.listenSSL(port, web, contextFactory, interface=interface)
         else:
             reactor.listenTCP(port, web, interface=interface)
+    else:
+        base_resource = Resource()
+        base_resource.putChild('ticket_server', ticket_server)
+        reactor.listenTCP(config.getint("ticketserver", "ticket_port"), Site(base_resource),
+                                        "127.0.0.1")
+
 
     reactor.run()
 
