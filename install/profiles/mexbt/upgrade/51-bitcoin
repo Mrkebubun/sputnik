@@ -15,13 +15,12 @@ chmod 700 $USER_HOME/.bitcoin
 ln -sf $profile_conf/bitcoin.conf $USER_HOME/.bitcoin
 
 # generate bitcoin password
-cd $profile_conf
 BITCOIND_PASSWORD=`openssl rand -base64 32 | tr +/ -_`
-sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" bitcoin.conf
+sed -i "s/\(rpcpassword=\).*/\1$BITCOIND_PASSWORD/" $profile_conf/bitcoin.conf
 
 # TODO: Support yes/1/TRUE/etc
 if [ "$profile_testnet" = 'true' ]; then
-    echo "testnet=1" >> bitcoin.conf
+    echo "testnet=1" >> $profile_conf/bitcoin.conf
 fi
 
 chmod 440 $profile_conf/bitcoin.conf

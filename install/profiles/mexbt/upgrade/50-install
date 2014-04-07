@@ -9,7 +9,6 @@ cp $profile_git_root/dist/build/tools/generate_new_btc_addresses.py${profile_pyc
 ln -sf $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
 ln -sf $profile_root/tools/generate_new_btc_addresses.py${profile_pycompiled} $profile_root/tools/generate_new_btc_addresses
 
-
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
 
