@@ -11,7 +11,6 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 import util
 
 import zmq
@@ -20,9 +19,6 @@ import database as db
 import models
 from datetime import datetime
 
-db_session = db.make_session()
-
-context = zmq.Context()
 
 
 class SafePricePublisher(object):
@@ -226,48 +222,6 @@ def update_best(side):
             best[side] = None
 
 
-# yuck
-contract_name = args[0]
-
-print 'contract name:   ',contract_name
-
-contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).one().id
-
-# set the port based on the contract id
-CONNECTOR_PORT = config.getint("engine", "base_port") + contract_id
-
-
-
-
-
-# will automatically pull order from requests
-#connector = context.socket(zmq.PULL)
-#connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
-
-# publishes book updates
-webserver = push_proxy_sync(config.get("webserver", "engine_export"))
-
-# push to the accountant
-accountant = push_proxy_sync(config.get("accountant", "engine_export"))
-
-# push to the safe price forwarder
-safe_price_forwarder = context.socket(zmq.PUB)
-safe_price_forwarder.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
-
-all_orders = {}
-book = {'bid': {}, 'ask': {}}
-best = {'bid': None, 'ask': None}
-
-# first cancel all old pending orders
-for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
-    order.is_cancelled = True
-    db_session.merge(order)
-    # Tell the users that their order has been cancelled
-    webserver.order(order.username, {'id': order.id, 'is_cancelled': True, 'contract': contract_name})
-
-db_session.commit()
-
-
 def publish_order_book():
     """
     publishes the order book to be consumed by the server
@@ -300,9 +254,6 @@ def pretty_print_book():
             str(level) + ":" + '+'.join(str(order.quantity_left) for order in book[side][level])
             for level in sorted(book[side], reverse=True))
         for side in ['ask', 'bid'])
-
-
-safe_price_publisher = SafePricePublisher()
 
 
 class ReplaceMeWithARealEngine:
@@ -398,6 +349,53 @@ class ReplaceMeWithARealEngine:
         # TODO: Fix to use exception error format
         return [True, order.id]
 
-engine = ReplaceMeWithARealEngine()
-router_share_sync(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)
+
+if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    db_session = db.make_session()
+
+    context = zmq.Context()
+
+    # yuck
+    contract_name = args[0]
+
+    print 'contract name:   ',contract_name
+
+    contract_id = db_session.query(models.Contract).filter_by(ticker=contract_name).one().id
+
+    # set the port based on the contract id
+    CONNECTOR_PORT = config.getint("engine", "base_port") + contract_id
+
+    # will automatically pull order from requests
+    #connector = context.socket(zmq.PULL)
+    #connector.bind('tcp://127.0.0.1:%d' % CONNECTOR_PORT)
+
+    # publishes book updates
+    webserver = push_proxy_sync(config.get("webserver", "engine_export"))
+
+    # push to the accountant
+    accountant = push_proxy_sync(config.get("accountant", "engine_export"))
+
+    # push to the safe price forwarder
+    safe_price_forwarder = context.socket(zmq.PUB)
+    safe_price_forwarder.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
+
+    all_orders = {}
+    book = {'bid': {}, 'ask': {}}
+    best = {'bid': None, 'ask': None}
+
+    # first cancel all old pending orders
+    for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
+        order.is_cancelled = True
+        db_session.merge(order)
+        # Tell the users that their order has been cancelled
+        webserver.order(order.username, {'id': order.id, 'is_cancelled': True, 'contract': contract_name})
+
+    db_session.commit()
+
+
+    safe_price_publisher = SafePricePublisher()
+
+    engine = ReplaceMeWithARealEngine()
+    router_share_sync(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)
 
