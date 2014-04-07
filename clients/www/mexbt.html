@@ -580,8 +580,6 @@
     <li style="padding: 15px 10px; color:958881;">Low: <b id="low"></b></li>
     <li style="padding: 15px 10px; color:958881;">High: <b id="high"></b></li>
     <li style="padding: 15px 10px; color:958881;">VWAP: <b id="vwap"></b></li>
-    <li style="padding: 15px 10px; color:958881;">Bid: <b id="best_bid"></b></li>
-    <li style="padding: 15px 10px; color:958881;">Ask: <b id="best_ask"></b></li>
     <li style="padding: 15px 10px; color:958881;" class="pull-center"><b id="profile"></b></li>
     <li class="pull-right"><a id="login" href="#" style="padding: 15px 10px;">Log in</a></li>
     <li class="pull-right"><a id="register" href="#" style="padding: 15px 10px;">Register</a></li>
@@ -637,7 +635,11 @@
                             <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
                                                                               id="buy_quantity" placeholder="">
                         </div>
-                        <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        <div>
+                            <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+                            <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        </div>
+
                     </form>
                 </div>
             </div>
@@ -676,6 +678,8 @@
                             <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
                                                                                id="sell_quantity" placeholder="">
                         </div>
+                        <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+
                         <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
                     </form>
                 </div>

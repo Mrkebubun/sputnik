@@ -347,6 +347,17 @@ class @Sputnik extends EventEmitter
         return Math.log(target.denominator / contract.lot_size) / Math.LN10
 
     # order manipulation
+    canPlaceOrder: (quantity, price, ticker, side) =>
+      new_order =
+          quantity: quantity
+          quantity_left: quantity
+          price: price
+          contract: ticker
+          side: side
+      [low_margin, high_margin] = @calculateMargin @orderToWire new_order
+      cash_position = @positions["BTC"].position
+      return high_margin <= cash_position.position
+
     placeOrder: (quantity, price, ticker, side) =>
         order =
             quantity: quantity
@@ -629,6 +640,46 @@ class @Sputnik extends EventEmitter
             positions[ticker] = @positionFromWire(position)
 
         @emit "positions", positions
+
+    calculateMargin: (new_order) =>
+        low_margin = 0
+        high_margin = 0
+        #TODO: add futures and contracts here
+
+        # cash positions
+        cash_spent = {}
+        for ticker of @markets
+            # "defaultdict"
+            if @markets[ticker].contract_type is "cash"
+                cash_spent[ticker] = 0
+
+        orders = (order for id, order of @orders)
+        if new_order?
+            orders.push new_order
+        for order in orders
+            if @markets[order.contract].contract_type is "cash_pair"
+                [target, source] = order.contract.split("/")
+                switch order.side
+                    when "BUY"
+                        # TODO: make sure to adjust for contract denominator
+                        transaction = order.quantity_left * order.price / 1e8
+                        cash_spent[source] += transaction
+                    when "SELL"
+                        cash_spent[target] += order.quantity_left
+
+        additional = 0
+        for ticker, spent of cash_spent
+            if ticker is "BTC"
+                additional += spent
+            else
+                position = @positions[ticker]?.position or 0
+                additional += if position >= spent then 0 else Math.pow(2, 48)
+
+        low_margin += additional
+        high_margin += additional
+
+        @log [low_margin, high_margin]
+        return [low_margin, high_margin]
 
 if module?
     module.exports =
