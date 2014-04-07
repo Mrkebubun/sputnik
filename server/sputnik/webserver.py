@@ -1151,6 +1151,11 @@ class TicketServer(Resource):
             def onCreateTicketSuccess(ticket_number):
                 def onRegisterTicketSuccess(result):
                     logging.debug("Ticket registered successfully")
+                    self.setHeader('Access-Control-Allow-Origin', '*')
+                    self.setHeader('Access-Control-Allow-Methods', 'POST')
+                    self.setHeader('Access-Control-Allow-Headers',
+                                   'x-prototype-version,x-requested-with')
+
                     request.write("OK")
                     request.finish()
 
