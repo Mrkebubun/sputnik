@@ -23,10 +23,10 @@ accounts add marketmaker
 accounts password marketmaker marketmaker
 accounts add randomtrader
 accounts password randomtrader randomtrader
-accounts position marketmaker BTC 1000000000
-accounts position marketmaker MXN 1000000
-accounts position randomtrader BTC 1000000000
-accounts position randomtrader MXN 1000000
+accounts position marketmaker BTC
+accounts position marketmaker MXN
+accounts position randomtrader BTC
+accounts position randomtrader MXN
 
 accounts add onlinecash
 accounts modify onlinecash type Asset

@@ -1,5 +1,9 @@
 #!/bin/bash
 
-#/etc/init.d/supervisor restart
-supervisorctl reload
+
+if [ -n "$UPGRADE" ]; then
+    exit 0
+else
+    service supervisor start
+fi
 

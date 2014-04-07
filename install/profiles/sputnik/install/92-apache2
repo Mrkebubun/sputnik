@@ -1,10 +1,8 @@
 #!/bin/sh
 
-cp $PROFILE/res/https-redirect.conf /etc/apache2/conf-available
-cp $PROFILE/res/ticket-server-proxy.conf /etc/apache2/conf-available
+cp $PROFILE/res/https-redirect.conf /etc/apache2/conf.d
+cp $PROFILE/res/ticket-server-proxy.conf /etc/apache2/conf.d
 
-a2enconf https-redirect
-a2enconf ticket-server-proxy
 a2enmod ssl
 a2enmod rewrite
 a2enmod proxy
@@ -14,8 +12,8 @@ a2dissite 000-default
 sed -e "s|SERVER_NAME|${profile_webserver_address}|" $PROFILE/res/000-default.conf > /etc/apache2/sites-available/sputnik.conf
 sed -e "s|KEYS_DIRECTORY|${profile_keys}|" $PROFILE/res/default-ssl.conf > /etc/apache2/sites-available/sputnik-ssl.conf
 
-a2ensite sputnik
-a2ensite sputnik-ssl
+a2ensite sputnik.conf
+a2ensite sputnik-ssl.conf
 
 service apache2 restart
 
