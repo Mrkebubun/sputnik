@@ -163,6 +163,9 @@ class @Sputnik extends EventEmitter
             , (error) =>
                 @emit "get_reset_token_fail", error
 
+    getRequestSupportNonce: (type, success, error) =>
+        @call("request_support_nonce", type).then success, error
+
     restoreSession: (uid) =>
         if not @session?
             @wtf "Not connected."
