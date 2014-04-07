@@ -289,8 +289,10 @@ sputnik.on "session_expired", ->
     document.cookie = ''
 
 sputnik.on "book", (book) ->
-    updateBuys ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].bids)
-    updateSells ([book_row.price, book_row.quantity] for book_row in book["BTC/MXN"].asks)
+    # Ignore other books
+    if book.contract == "BTC/MXN"
+        updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
+        updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
 
 sputnik.on "orders", (orders) ->
     updateOrders orders
