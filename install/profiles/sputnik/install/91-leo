@@ -39,15 +39,6 @@ accounts modify depositoverflow type Liability
 accounts add adjustments
 accounts modify adjustments type Asset
 
-accounts add marketmaker
-accounts password marketmaker marketmaker
-accounts position marketmaker BTC
-accounts position marketmaker MXN
-accounts add randomtrader
-accounts password randomtrader randomtrader
-accounts position randomtrader BTC
-accounts position randomtrader MXN
-
 admin add admin
 EOF
 

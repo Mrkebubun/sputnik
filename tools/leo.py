@@ -259,6 +259,7 @@ def main():
                 pass
         else:
             leo.parse(" ".join(sys.argv[1:]))
+
         session.commit()
     except Exception, e:
         print e
