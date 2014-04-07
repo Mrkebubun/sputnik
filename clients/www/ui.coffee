@@ -8,6 +8,9 @@ else
 
 uri = ws_protocol + "//" + hostname + ":8000"
 
+window.best_ask = {price: 0, quantity: 0}
+window.best_bid = {price: 0, quantity: 0}
+
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
@@ -78,8 +81,6 @@ sputnik.on "compropago_deposit_fail", (event) ->
   $('#compropago_error').text(reason)
   $('#compropago_error').show()
 
-
-
 $("#login").click () ->
     $("#login_modal").modal()
 
@@ -108,11 +109,46 @@ $("#register_button").click (event) ->
     nickname = $("#register_nickname").val()
     sputnik.makeAccount username, password, email, nickname
 
+withinAnOrderOfMagnitude = (x, y) ->
+    sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
+    orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
+    orderOfMag(x) == orderOfMag(y)
+
+$("#buy_price,buy_quantity").keyup ->
+    if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
+        $("#buy_panel alert:visible").slideUp()
+    else
+        $("#buy_panel alert").slideDown()
+
+$("#sell_price,#sell_quantity").keyup ->
+    if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
+        $("#sell_panel alert:visible").slideUp()
+    else
+        $("#sell_panel alert").slideDown()
+
 $("#buyButton").click ->
-    sputnik.placeOrder(Number(buy_quantity.value), Number(buy_price.value), 'BTC/MXN', 'BUY')
+    buy_quantity = Number($('#buy_quantity').val())
+    buy_price = Number($("#buy_price").val())
+
+    if buy_quantity == 0 or buy_price == 0
+        return true
+
+    if not withinAnOrderOfMagnitude(buy_price, best_bid.price)
+        return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
+
+    sputnik.placeOrder(buy_quantity, buy_price, 'BTC/MXN', 'BUY')
 
 $("#sellButton").click ->
-    sputnik.placeOrder(Number(sell_quantity.value), Number(sell_price.value), 'BTC/MXN', 'SELL')
+    sell_quantity = Number($('#sell_quantity').val())
+    sell_price = Number($("#sell_price").val())
+
+    if sell_quantity == 0 or sell_price == 0
+        return true
+
+    if not withinAnOrderOfMagnitude(sell_price, best_ask.price)
+        return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
+
+    sputnik.placeOrder(sell_quantity, sell_price, 'BTC/MXN', 'SELL')
 
 $("#logout").click (event) ->
     document.cookie = ''
@@ -124,21 +160,22 @@ $("#account").click (event) ->
 
 $("#save_changes_button").click (event) ->
     if $('#change_password_tab').data('dirty')
-      if $('#new_password').val() is $('#new_password_confirm').val()
-          alert "Passwords do not match"
-      else
-          sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
+        if $('#new_password').val() is $('#new_password_confirm').val()
+            alert "Passwords do not match"
+        else
+            sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
     if $('#user_information_tab').data('dirty')
-      sputnik.changeProfile($('#new_nickname').val(), $('#new_email').val())
+        sputnik.changeProfile($('#new_nickname').val(), $('#new_email').val())
 
     if $('#compliance_tab').data('dirty')
-      $('#compliance_tab form').submit (e)->
-        e.preventDefault()
-        compliance_client_handler($('#compliance_tab form').eq(0))
-      $('#compliance_tab form').submit()
+        $('#compliance_tab form').submit (e)->
+            e.preventDefault()
+            compliance_client_handler($('#compliance_tab form').eq(0))
+        $('#compliance_tab form').submit()
 
     $('#account_modal .tab-pane').data('dirty', no)
+
 $('#deposit_mxn').click (event) ->
     $('#compropago_error').hide()
     $('#compropago_modal').modal()
@@ -183,22 +220,17 @@ updateTable = (id, data) ->
     $("##{id}").html rows.join("")
 
 updateBuys = (data) ->
-    data.sort (a, b) ->
-        b[0] - a[0]
     updateTable "buys", data
-    best_bid = Math.max 0, (price for [price, quantity] in data)...
+
+    #todo: debounce with futility counter
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-      $("#sell_price").val best_bid
-    $("#best_bid").text best_bid.toFixed(0)
+      $("#sell_price").val best_bid.price
 
 updateSells = (data) ->
-    data.sort (a, b) ->
-        a[0] - b[0]
     updateTable "sells", data
-    best_ask = Math.min (price for [price, quantity] in data)...
+    #todo: debounce with futility counter
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-      $("#buy_price").val best_ask
-    $("#best_ask").text best_ask.toFixed(0)
+      $("#buy_price").val best_ask.price
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
@@ -289,10 +321,16 @@ sputnik.on "session_expired", ->
     document.cookie = ''
 
 sputnik.on "book", (book) ->
-    # Ignore other books
-    if book.contract == "BTC/MXN"
-        updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
-        updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
+    if book.contract is not "BTC/MXN"
+        return
+
+    if book.asks.length
+        window.best_ask = book.asks[0]
+    if book.bids.length
+        window.best_bid = book.bids[0]
+
+    updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
+    updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
 
 sputnik.on "orders", (orders) ->
     updateOrders orders
