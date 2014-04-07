@@ -1255,7 +1255,7 @@ if __name__ == '__main__':
         base_resource = Resource()
         base_resource.putChild('ticket_server', ticket_server)
         reactor.listenTCP(config.getint("ticketserver", "ticket_port"), Site(base_resource),
-                                        "127.0.0.1")
+                                        interface="127.0.0.1")
 
 
     reactor.run()

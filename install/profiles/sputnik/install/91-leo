@@ -37,7 +37,7 @@ accounts add depositoverflow
 accounts modify depositoverflow type Liability
 
 accounts add adjustments
-accounts modify adjustments Asset
+accounts modify adjustments type Asset
 
 accounts add marketmaker
 accounts password marketmaker marketmaker
