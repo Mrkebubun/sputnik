@@ -15,7 +15,9 @@ contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
 
 permissions add Default
+EOF
 
+cat << EOF | sudo -u sputnik $profile_root/tools/leo
 accounts add mexbt
 accounts add m2
 accounts add remainder
