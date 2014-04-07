@@ -41,7 +41,9 @@ class Installer:
 
         self.config = dict(self.parser.items("profile"))
         if len(parsed) == 1:
-            self.config.update(dict(self.parser.items("git")))
+            for key in dict(self.parser.items("git")):
+                if key not in self.config:
+                    self.config[key] = self.parser.get("git", key)
             dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
             self.config["dbname"] = dbname
         

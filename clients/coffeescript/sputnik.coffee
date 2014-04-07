@@ -85,13 +85,16 @@ class @Sputnik extends EventEmitter
         return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
     # TODO: Allow for start and endtimes
-    getLedger: () =>
-        @call("get_ledger").then (ledger) =>
-            @emit "ledger", ledger
+    getLedgerHistory: () =>
+        @call("get_ledger_history").then (wire_ledger_history) =>
+            ledger_history = []
+            for ledger in wire_ledger_history
+                ledger_history.push @ledgerFromWire(ledger)
+            @emit "ledger_history", ledger_history
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')
-        @log "Got hash: #{hash}"
+        @log ["Hash", hash]
         args = {}
         for entry in hash
             pair = entry.split('=')
@@ -136,7 +139,7 @@ class @Sputnik extends EventEmitter
                         @close()
                         @connect()
                     , (error) =>
-                        @log "password change error: #{error}"
+                        @error "password change error", error
                         @emit "change_password_fail", error
 
     changePassword: (old_password, new_password) =>
@@ -150,7 +153,7 @@ class @Sputnik extends EventEmitter
                 @log "password changed successfully"
                 @emit "change_password_success", message
             , (error) =>
-                @error "password change error: #{error}"
+                @error ["password change error", error]
                 @emit "change_password_fail", error
 
     getResetToken: (username) =>
@@ -184,11 +187,11 @@ class @Sputnik extends EventEmitter
     getCookie: () =>
         @call("get_cookie").then \
             (uid) =>
-                @log("cookie: " + uid)
+                @log "cookie: " + uid
                 @emit "cookie", uid
 
     onAuthSuccess: (permissions) =>
-        @log("authenticated!", JSON.stringify(permissions))
+        @log ["authenticated", permissions]
         @authenticated = true
 
         @getProfile()
@@ -202,6 +205,7 @@ class @Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
+            @subscribe "ledger#" + @username, @onLedger
         catch error
             @log error
 
@@ -299,6 +303,13 @@ class @Sputnik extends EventEmitter
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
 
+    ledgerFromWire: (wire_ledger) =>
+        ledger = @copy(wire_ledger)
+        ticker = wire_ledger.contract
+        ledger.quantity = @quantityFromWire(ticker, wire_ledger.quantity)
+        ledger.timestamp = @timeFormat(wire_ledger.timestamp)
+        return ledger
+
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
         quantity = quantity * target.denominator
@@ -339,7 +350,7 @@ class @Sputnik extends EventEmitter
             price: price
             contract: ticker
             side: side
-        @log "placing order: #{order}"
+        @log ["placing order", order]
         @call("place_order", @orderToWire(order)).then \
             (res) =>
                 @emit "place_order_success", res
@@ -365,13 +376,13 @@ class @Sputnik extends EventEmitter
           customer_phone: customer_phone
           customer_phone_company: customer_phone_company
           currency: "MXN"
-        @log "compropago charge: #{charge}"
+        @log ["compropago charge",charge]
         @call("make_compropago_deposit", charge).then \
             (@ticket) =>
-                @log "compropago deposit ticket: #{ticket}"
+                @log ["compropago deposit ticket", ticket]
                 @emit "compropago_deposit_success", ticket
             , (error) =>
-                @error "compropago error: #{error}"
+                @error ["compropago error", error]
                 @emit "compropago_deposit_fail", error
 
     getAddress: (contract) =>
@@ -386,7 +397,7 @@ class @Sputnik extends EventEmitter
                 @log "new address for #{contract}: #{address}"
                 @emit "address", [contract, address]
         , (error) =>
-            @log "new address failure for #{contract}: #{error}"
+            @log ["new address failure for #{contract}", error]
             @emit "new_address_fail", error
 
     withdraw: (contract, address, amount) =>
@@ -396,7 +407,7 @@ class @Sputnik extends EventEmitter
     getOpenOrders: () =>
         @call("get_open_orders").then \
             (@orders) =>
-                @log("orders received: #{orders}")
+                @log ["orders received", orders]
                 orders = {}
                 for id, order of @orders
                     if order.quantity_left > 0
@@ -407,7 +418,7 @@ class @Sputnik extends EventEmitter
     getPositions: () =>
         @call("get_positions").then \
             (@positions) =>
-                @log("positions received: #{@positions}")
+                @log ["positions received", @positions]
                 positions = {}
                 for ticker, position of @positions
                     positions[ticker] = @positionFromWire(position)
@@ -438,7 +449,7 @@ class @Sputnik extends EventEmitter
     call: (method, params...) =>
         if not @session?
             return @wtf "Not connected."
-        @log "Invoking RPC #{method}(#{params})"
+        @log ["RPC #{method}",params]
         d = ab.Deferred()
         @session.call("#{@uri}/rpc/#{method}", params...).then \
             (result) =>
@@ -468,7 +479,7 @@ class @Sputnik extends EventEmitter
     publish: (topic, message) =>
         if not @session?
             return @wtf "Not connected."
-        @log "Publishing #{message} on #{topic}"
+        @log [topic, message]
         @session.publish "#{@uri}/feeds/#{topic}", message, false
 
     # logging
@@ -517,20 +528,22 @@ class @Sputnik extends EventEmitter
 
     # feeds
     onBook: (book) =>
-        @log "book received: #{book}"
+        @log ["book received", book]
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
+        
+        contract = book.contract
+        ui_book = 
+            bids: (@bookRowFromWire(contract, order) for order in book.bids)
+            asks: (@bookRowFromWire(contract, order) for order in book.asks)
+            contract: contract
 
-        books = {}
-        for contract, market of @markets
-            if market.contract_type != "cash"
-                books[contract] =
-                    contract: contract
-                    bids: @bookRowFromWire(contract, order) for order in market.bids
-                    asks: @bookRowFromWire(contract, order) for order in market.asks
+        ui_book.bids.sort (a, b) -> b.price - a.price
+        ui_book.asks.sort (a, b) -> a.price - b.price
 
-        @emit "book", books
+        @log ui_book
+        @emit "book", ui_book
 
     # Make sure we only have the last hour of trades
     cleanTradeHistory: (ticker) =>
@@ -548,7 +561,7 @@ class @Sputnik extends EventEmitter
         @emit "trade_history", trade_history
 
     onTradeHistory: (trade_history) =>
-        @log "trade_history received: #{trade_history}"
+        @log ["trade_history received", trade_history]
         if trade_history.length > 0
             ticker = trade_history[0].contract
             @markets[ticker].trades = trade_history
@@ -558,7 +571,7 @@ class @Sputnik extends EventEmitter
             @warn "no trades in history"
 
     onOHLCV: (wire_ohlcv) =>
-        @log "ohlcv received: #{ohlcv}"
+        @log ["ohlcv received", ohlcv]
         ohlcv = {}
         for timestamp, entry of wire_ohlcv
             ohlcv[timestamp] = @ohlcvFromWire(entry)
@@ -581,6 +594,7 @@ class @Sputnik extends EventEmitter
 
     # My orders get updated with orders
     onOrder: (order) =>
+        @log ["Order received", order]
         @emit "order", @orderFromWire(order)
 
         id = order.id
@@ -597,28 +611,16 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
-    # My positions and available margin get updated with fills
+    # Fills don't update my cash, ledger feed does
     onFill: (fill) =>
-        @log "fill received: #{fill}"
+        @log ["Fill received", fill]
         @emit "fill", @fillFromWire(fill)
-        [contract, source, target] = @cstFromTicker(fill.contract)
-        if contract.contract_type == "cash_pair"
-            if fill.side == "SELL"
-                sign = -1
-            else
-                sign = 1
-            @positions[source.ticker].position -= fill.quantity * fill.price * sign / target.denominator
-            @positions[target.ticker].position += fill.quantity * sign
 
-            for ticker, fee of fill.fees
-                @positions[ticker].position -= fee
+    onLedger: (ledger) =>
+        @log ["Ledger received", ledger]
+        @positions[ledger.contract].position += ledger.quantity
+        @emit "ledger", @ledgerFromWire(ledger)
 
-        else
-            @error "only cash_pair contracts implemented in onFill"
-
-        @emitPositions
-
-    emitPositions: () =>
         positions = {}
         for ticker, position of @positions
             positions[ticker] = @positionFromWire(position)

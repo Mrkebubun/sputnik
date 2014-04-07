@@ -189,6 +189,7 @@ updateBuys = (data) ->
     best_bid = Math.max 0, (price for [price, quantity] in data)...
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
       $("#sell_price").val best_bid
+    $("#best_bid").text best_bid.toFixed(0)
 
 updateSells = (data) ->
     data.sort (a, b) ->
@@ -197,6 +198,7 @@ updateSells = (data) ->
     best_ask = Math.min (price for [price, quantity] in data)...
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
       $("#buy_price").val best_ask
+    $("#best_ask").text best_ask.toFixed(0)
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
@@ -260,6 +262,8 @@ $ ->
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
     updatePlot(trade_history['BTC/MXN'])
+    if trade_history.length > 0
+        $('#last').text trade_history[trade_history.length - 1].price.toFixed(0)
 
 sputnik.on "open", () ->
     sputnik.log "open"
@@ -329,13 +333,10 @@ sputnik.on "profile", (profile) ->
     $('#new_email').val profile.email
 
 sputnik.on "audit_details", (audit_details) ->
-    $('#audit_details').text audit_details
+    $('#audit_details').text JSON.stringify(audit_details, undefined, 2)
 
 sputnik.on "audit_hash", (audit_hash) ->
     $('#audit_hash').text audit_hash
 
-sputnik.on "ledger", (ledger) ->
-    $('#ledger').text ledger
-
-sputnik.on "fill", (fill) ->
-    console.log "Fill Received: #{fill}"
+sputnik.on "ledger_history", (ledger_history) ->
+    $('#ledger_history').text JSON.stringify(ledger_history, null, 4)

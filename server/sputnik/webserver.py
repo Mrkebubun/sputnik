@@ -13,7 +13,7 @@ import recaptcha
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-                  help="config file", default="../config/sputnik.ini")
+                  help="config file")
 (options, args) = parser.parse_args()
 
 if options.filename:
@@ -28,14 +28,19 @@ import time
 import onetimepass as otp
 import hashlib
 import uuid
+import random
 import util
+import json
+import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
-import base64
+from zendesk import Zendesk
 
 from jsonschema import validate
 from twisted.python import log
 from twisted.internet import reactor, task, ssl
 from twisted.web.server import Site
+from twisted.web.server import NOT_DONE_YET
+from twisted.web.resource import Resource
 from twisted.web.static import File
 from autobahn.twisted.websocket import listenWS
 from autobahn.wamp1.protocol import exportRpc, \
@@ -112,7 +117,27 @@ class PublicInterface:
 
                 if result[r[0]]['contract_type'] == 'prediction':
                     result[r[0]]['final_payoff'] = r[2]
+
             self.factory.markets = result
+            # Update the cache with the last 7 days of trades
+            to_dt = datetime.datetime.utcnow()
+            from_dt = to_dt - datetime.timedelta(days=7)
+
+
+
+            for ticker in self.factory.markets.keys():
+                def _cb2(result, ticker):
+                    trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
+                                                           'timestamp': util.dt_to_timestamp(r[1])} for r in result]
+                    self.factory.trade_history[ticker] = trades
+                    for period in ["minute", "hour", "day"]:
+                        for trade in trades:
+                            self.factory.update_ohlcv(trade, period=period)
+
+                dbpool.runQuery(
+                    "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s",
+                    (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
                                "tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
@@ -127,53 +152,25 @@ class PublicInterface:
 
     @exportRpc("get_ohlcv")
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
-                                                                                   datetime.timedelta(days=2)),
+                                                                                   datetime.timedelta(days=1)),
                   end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
         validate(ticker, {"type": "string"})
         validate(period, {"type": "string"})
         validate(start_timestamp, {"type": "number"})
         validate(end_timestamp, {"type": "number"})
 
-        from_dt = util.timestamp_to_dt(start_timestamp)
-        to_dt = util.timestamp_to_dt(end_timestamp)
         period_map = {'minute': 60,
                       'hour': 3600,
                       'day': 3600 * 24}
         period_seconds = int(period_map[period])
         period_micros = int(period_seconds * 1000000)
 
-        def _cb(result):
-            aggregation = {}
+        if period not in self.factory.ohlcv_history[ticker]:
+            return [False, (0, "No OHLCV records in memory")]
 
-            for trade in result:
-                end_period = int(util.dt_to_timestamp(trade[1]) / period_micros) * period_micros + period_micros - 1
-                if end_period not in aggregation:
-                    aggregation[end_period] = {'period': period,
-                                               'contract': ticker,
-                                               'open': trade[2],
-                                               'low': trade[2],
-                                               'high': trade[2],
-                                               'close': trade[2],
-                                               'volume': trade[3],
-                                               'vwap': trade[2]
-                    }
-                else:
-                    aggregation[end_period]['low'] = min(trade[2], aggregation[end_period]['low'])
-                    aggregation[end_period]['high'] = max(trade[2], aggregation[end_period]['high'])
-                    aggregation[end_period]['close'] = trade[2]
-                    aggregation[end_period]['vwap'] = ( aggregation[end_period]['vwap'] * \
-                                                        aggregation[end_period]['volume'] + trade[3] * trade[2] ) / \
-                                                      ( aggregation[end_period]['volume'] + trade[3] )
-                    aggregation[end_period]['volume'] += trade[3]
-
-            return [True, aggregation]
-
-        return dbpool.runQuery(
-            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
-            "AND trades.timestamp <= %s ORDER BY trades.timestamp",
-            (ticker, from_dt, to_dt)
-        ).addCallback(_cb)
+        ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
+                  if key <= end_timestamp + period_micros and key >= start_timestamp }
+        return [True, ohlcv]
 
     @exportRpc("get_reset_token")
     def get_reset_token(self, username):
@@ -185,7 +182,7 @@ class PublicInterface:
         def onTokenFail(failure):
             return [False, failure.value.args]
 
-        d.addCallbacks(onTokenSuccess, onTokenFail)
+        return d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
@@ -208,17 +205,14 @@ class PublicInterface:
         ticker = ticker[:MAX_TICKER_LENGTH]
 
         to_dt = datetime.datetime.utcnow()
-        from_dt = to_dt - datetime.timedelta(seconds=time_span)
+        to_timestamp = util.dt_to_timestamp(to_dt)
+        from_timestamp = util.dt_to_timestamp(to_dt - datetime.timedelta(seconds=time_span))
 
-        def _cb(result):
-            return [True, [{'contract': r[0], 'price': r[2], 'quantity': r[3],
-                                  'timestamp': util.dt_to_timestamp(r[1])} for r in result]]
+        # Filter trade history
+        history = [i for i in self.factory.trade_history[ticker]
+                   if i['timestamp'] <= to_timestamp and i['timestamp'] >= from_timestamp]
 
-        return dbpool.runQuery(
-            "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-            "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s "
-            "AND trades.timestamp <= %s",
-            (ticker, from_dt, to_dt)).addCallback(_cb)
+        return [True, history]
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):
@@ -397,8 +391,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def getAuthSecret(self, auth_key):
         """
         :param auth_key: the login
-        :return: the auth secret for the given auth key or None when the auth key
-        does not exist
+        :return: the auth secret for the given auth key or None when the auth key does not exist
         """
 
         # check for a saved session
@@ -436,12 +429,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
-            #
-            # However, if this is discovered, someone can use it to sign
-            # messages and authenticate as a nonexistent user
-            # TODO: patch autobahn to prevent this without having to leak
-            # information about user existence
-            return ":0xFA1CDA7A:"
+            return ":" + WampCraProtocol.deriveKey("foobar", {'salt': str(random.random())[2:], 'keylen': 32, 'iterations': 1})
 
         return dbpool.runQuery(
             'SELECT password, totp FROM users WHERE username=%s LIMIT 1', (auth_key,)
@@ -491,6 +479,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/feeds/ledger#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
@@ -664,11 +653,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
-    @exportRpc("get_ledger")
-    def get_ledger(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+    @exportRpc("get_ledger_history")
+    def get_ledger_history(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                              datetime.timedelta(days=2)),
                   to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
-        return self.factory.accountant.get_ledger(self.username, from_timestamp, to_timestamp)
+        return self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
 
     @exportRpc("get_new_address")
     def get_new_address(self, currency):
@@ -1007,6 +996,9 @@ class EngineExport:
     def trade(self, ticker, trade):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
+        self.webserver.trade_history[ticker].append(trade)
+        for period in ["day", "hour", "minute"]:
+            self.webserver.update_ohlcv(trade, period=period)
 
     @export
     def order(self, user, order):
@@ -1021,6 +1013,11 @@ class AccountantExport:
     def fill(self, user, trade):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
+
+    @export
+    def ledger(self, user, ledger):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/ledger#%s" % user, ledger)
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -1038,6 +1035,8 @@ class PepsiColaServerFactory(WampServerFactory):
         self.all_books = {}
         self.safe_prices = {}
         self.markets = {}
+        self.trade_history = collections.defaultdict(list)
+        self.ohlcv_history = collections.defaultdict(dict)
         self.chats = []
         self.cookies = {}
         self.public_interface = PublicInterface(self)
@@ -1059,6 +1058,121 @@ class PepsiColaServerFactory(WampServerFactory):
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
+    def update_ohlcv(self, trade, period="day"):
+        period_map = {'minute': 60,
+                      'hour': 3600,
+                      'day': 3600 * 24}
+        period_seconds = int(period_map[period])
+        period_micros = int(period_seconds * 1000000)
+        ticker = trade['contract']
+        if period not in self.ohlcv_history[ticker]:
+            self.ohlcv_history[ticker][period] = {}
+
+        end_period = int(trade['timestamp'] / period_micros) * period_micros + period_micros - 1
+        if end_period not in self.ohlcv_history[ticker][period]:
+            self.ohlcv_history[ticker][period][end_period] = {'period': period,
+                                       'contract': ticker,
+                                       'open': trade['price'],
+                                       'low': trade['price'],
+                                       'high': trade['price'],
+                                       'close': trade['price'],
+                                       'volume': trade['quantity'],
+                                       'vwap': trade['price']}
+        else:
+            self.ohlcv_history[ticker][period][end_period]['low'] = min(trade['price'], self.ohlcv_history[ticker][period][end_period]['low'])
+            self.ohlcv_history[ticker][period][end_period]['high'] = max(trade['price'], self.ohlcv_history[ticker][period][end_period]['high'])
+            self.ohlcv_history[ticker][period][end_period]['close'] = trade['price']
+            self.ohlcv_history[ticker][period][end_period]['vwap'] = ( self.ohlcv_history[ticker][period][end_period]['vwap'] * \
+                                            self.ohlcv_history[ticker][period][end_period]['volume'] + trade['quantity'] * trade['price'] ) / \
+                                          ( self.ohlcv_history[ticker][period][end_period]['volume'] + trade['quantity'] )
+            self.ohlcv_history[ticker][period][end_period]['volume'] += trade['quantity']
+
+class TicketServer(Resource):
+    isLeaf = True
+    def __init__(self, administrator):
+        self.administrator = administrator
+        self.zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+        Resource.__init__(self)
+
+    def getChild(self, path, request):
+        self.log(request)
+        return self
+
+    def log(self, request):
+        line = '%s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        logging.info(line,
+                     request.getClientIP(),
+                     request.method,
+                     request.uri,
+                     request.clientproto,
+                     request.code,
+                     request.sentLength or "-",
+                     request.getHeader("referer") or "-",
+                     request.getHeader("user-agent") or "-",
+                     request.getHeader("authorization") or "-",
+                     json.dumps(request.args))
+
+    def create_kyc_ticket(self, request):
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+
+        username = fields['username'].value
+        nonce = fields['nonce'].value
+
+        def onFail(failure):
+            logging.error("unable to create support ticket: %s" % failure.value.args)
+            request.write("Failure: %s" % failure.value.args)
+            request.finish()
+
+        def onCheckSuccess(user):
+            attachments = []
+            file_fields = fields['file']
+            if not isinstance(file_fields, list):
+                file_fields = [file_fields]
+
+            for field in file_fields:
+                attachments.append({"filename": field.filename,
+                                    "data": field.value,
+                                    "type": field.type})
+
+            try:
+                data = json.loads(fields['data'].value)
+            except ValueError:
+                data = {'error': "Invalid json data: %s" % fields['data'].value }
+
+            def onCreateTicketSuccess(ticket_number):
+                def onRegisterTicketSuccess(result):
+                    logging.debug("Ticket registered successfully")
+                    request.write("OK")
+                    request.finish()
+
+                logging.debug("Ticket created: %s" % ticket_number)
+                d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
+                d3.addCallbacks(onRegisterTicketSuccess, onFail)
+
+
+            d2 = self.zendesk.create_ticket(user, "New compliance document submission",
+                                            json.dumps(data, indent=4,
+                                                       separators=(',', ': ')), attachments)
+            d2.addCallbacks(onCreateTicketSuccess, onFail)
+
+        d = self.administrator.check_support_nonce(username, nonce, 'Compliance')
+        d.addCallbacks(onCheckSuccess, onFail)
+        return NOT_DONE_YET
+
+    def render(self, request):
+            if request.path == '/create_kyc_ticket':
+                return self.create_kyc_ticket(request)
+            else:
+                return None
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
@@ -1118,6 +1232,17 @@ if __name__ == '__main__':
     factory.setProtocolOptions(maxMessagePayloadSize=1000)
 
     listenWS(factory, contextFactory, interface=interface)
+
+    administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    ticket_server =  TicketServer(administrator)
+
+    if config.getboolean("webserver", "ssl"):
+        reactor.listenSSL(config.getint("ticketserver", "ticket_port"), Site(resource=ticket_server),
+                                        contextFactory,
+                                        interface)
+    else:
+        reactor.listenTCP(config.getint("ticketserver", "ticket_port"), Site(ticket_server),
+                                        interface=interface)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))

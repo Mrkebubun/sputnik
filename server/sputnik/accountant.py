@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+"""
+.. module:: accountant
+
+The accountant is responsible for user-specific data, except for login sorts of data, which are managed by the
+administrator. It is responsible for the following:
+
+* models.Position
+* models.PermissionGroup
+
+"""
 
 import config
 
@@ -35,7 +45,19 @@ INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
 TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 
 class Accountant:
+    """The Accountant primary class
+
+    """
     def __init__(self, session, debug):
+        """Initialize the Accountant
+
+        :param session: The SQL Alchemy session
+        :type session:
+        :param debug: Whether or not weird things can happen like position adjustment
+        :type debug: bool
+
+        """
+
         self.session = session
         self.debug = debug
         self.btc = self.get_contract("BTC")
@@ -65,11 +87,28 @@ class Accountant:
 
         self.webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
 
-    def get_user(self, username):
+    def publish_journal(self, journal):
+        """Takes a models.Journal and sends all its postings to the webserver
+
+        :param journal: The journal entry
+        :type journal: models.Journal
+
         """
-        Return the User object corresponding to the username.
+        for posting in journal.postings:
+            ledger = {'contract': posting.contract.ticker,
+                      'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+                      'quantity': posting.quantity,
+                      'type': posting.journal.type
+            }
+            self.webserver.ledger(posting.username, ledger)
+
+    def get_user(self, username):
+        """Return the User object corresponding to the username.
+
         :param username: the username to look up
-        :return: the User matching the username
+        :type username: str, models.User
+        :returns: models.User -- the User matching the username
+        :raises: AccountantException
         """
         logging.debug("Looking up username %s." % username)
 
@@ -86,7 +125,9 @@ class Accountant:
         """
         Return the Contract object corresponding to the ticker.
         :param ticker: the ticker to look up or a Contract id
-        :return: the last (id-wise) Contract object matching the ticker
+        :type ticker: str, models.Contract
+        :returns: models.Contract -- the Contract object matching the ticker
+        :raises: AccountantException
         """
         logging.debug("Looking up contract %s." % ticker)
 
@@ -110,6 +151,16 @@ class Accountant:
             raise AccountantException("Could not resolve contract '%s'." % ticker)
 
     def adjust_position(self, username, ticker, quantity):
+        """Adjust a user's position, offsetting with the 'adjustment' account
+
+        :param username: The user
+        :type username: str, models.User
+        :param ticker: The contract
+        :type ticker: str, models.Contract
+        :param quantity: the delta to apply
+        :type quantity: int
+
+        """
         if not self.debug:
             return [False, (0, "Position modification not allowed")]
         user = self.get_user(username)
@@ -129,21 +180,24 @@ class Accountant:
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
             journal = models.Journal('Adjustment', [credit, debit])
-            logging.info("Journal: %s" % journal)
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
+            logging.info("Journal: %s" % journal)
         except Exception as e:
             logging.error("Unable to modify position: %s" % e)
             self.session.rollback()
 
     def get_position(self, username, ticker, reference_price=0):
-        """
-        Return a user's position for a contact. If it does not exist,
-            initialize it.
+        """Return a user's position for a contact. If it does not exist, initialize it
+
         :param username: the username
-        :param contract: the contract ticker or id
+        :type username: str, models.User
+        :param ticker: the contract
+        :type ticker: str, models.User
         :param reference_price: the (optional) reference price for the position
-        :return: the position object
+        :type reference_price: int
+        :returns: models.Position -- the position object
         """
         logging.debug("Looking up position for %s on %s." %
                       (username, ticker))
@@ -163,11 +217,11 @@ class Accountant:
             return position
 
     def accept_order(self, order):
-        """
-        Accept the order if the user has sufficient margin. Otherwise, delete
-            the order.
+        """Accept the order if possible. Otherwise, delete the order
+
         :param order: Order object we wish to accept
-        :return success: True if there was sufficient margin, otherwise False
+        :type order: models.Order
+        :raises: INSUFFICIENT_MARGIN, TRADE_NOT_PERMITTED
         """
         logging.info("Trying to accept order %s." % order)
 
@@ -201,8 +255,12 @@ class Accountant:
             self.session.commit()
 
     def charge_fees(self, fees, username):
-        """
-        Credit fees to the people operating the exchange
+        """Credit fees to the people operating the exchange
+        :param fees: The fees to charge ticker-index dict of fees to charge
+        :type fees: dict
+        :param username: the user to charge
+        :type username: str, models.User
+
         """
         # TODO: Make this configurable
 
@@ -256,13 +314,14 @@ class Accountant:
         journal = models.Journal('Fee', postings)
         self.session.add(journal)
         self.session.commit()
+        self.publish_journal(journal)
         logging.info("Journal: %s" % journal)
 
     def post_transaction(self, transaction):
-        """
-        Update the database to reflect that the given trade happened
+        """Update the database to reflect that the given trade happened. Charge fees.
+
         :param transaction: the transaction object
-        :return: None
+        :type transaction: dict
         """
         logging.info("Processing transaction %s." % transaction)
 
@@ -380,6 +439,7 @@ class Accountant:
                                                                         passive_order_id))
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
 
             # TODO: Move this fee logic outside of "if cash_pair"
@@ -423,10 +483,11 @@ class Accountant:
 
 
     def cancel_order(self, order_id):
-        """
-        Cancel an order by id.
+        """Cancel an order by id.
+
         :param id: The order id to cancel
-        :return: None
+        :type id: int
+        :returns: tuple -- (True/False, Result/Error)
         """
         logging.info("Received request to cancel order id %d." % order_id)
 
@@ -438,10 +499,11 @@ class Accountant:
             return [False, (0, "No order %d found" % order_id)]
 
     def place_order(self, order):
-        """
-        Place an order
+        """Place an order
+
         :param order: dictionary representing the order to be placed
-        :return: id of the order placed or -1 if failure
+        :type order: dict
+        :returns: tuple -- (True/False, Result/Error)
         """
         user = self.get_user(order["username"])
         contract = self.get_contract(order["contract"])
@@ -479,6 +541,17 @@ class Accountant:
             return [False, e.args]
 
     def transfer_position(self, ticker, from_username, to_username, quantity):
+        """Transfer a position from one user to another
+
+        :param ticker: the contract
+        :type ticker: str, models.Contract
+        :param from_username: the user to transfer from
+        :type from_username: str, models.User
+        :param to_username: the user to transfer to
+        :type to_username: str, models.User
+        :param quantity: the qty to transfer
+        :type quantity: int
+        """
         try:
             from_user = self.get_user(from_username)
             to_user = self.get_user(to_username)
@@ -496,17 +569,18 @@ class Accountant:
             journal = models.Journal('Transfer', [debit, credit])
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
         except Exception as e:
             logging.error("Transfer position failed: %s" % e)
             self.session.rollback()
 
     def deposit_cash(self, address, total_received):
-        """
-        Deposits cash
-        :param address:
-        :param total_received:
-        :return: whether that succeeded
+        """Deposits cash
+        :param address: The address where the cash was deposited
+        :type address: str
+        :param total_received: how much total was received at that address
+        :type total_received: int
         """
         try:
             logging.debug('received %d at %s' % (total_received, address))
@@ -569,25 +643,30 @@ class Accountant:
             journal = models.Journal('Deposit', postings, notes=address)
             self.session.add(journal)
             self.session.commit()
+            self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
         except Exception as e:
             self.session.rollback()
             logging.error(
                 "Updating user position failed for address=%s and total_received=%d: %s" % (address, total_received, e))
-            return False
 
     def clear_contract(self, ticker):
+        """Deletes a contract
+
+        :param ticker: the contract to delete
+        :type ticker: str, models.Contract
+        """
         try:
             contract = self.get_contract(ticker)
             # disable new orders on contract
             contract.active = False
             # cancel all pending orders
-            orders = session.query(models.Order).filter_by(
+            orders = self.session.query(models.Order).filter_by(
                 contract=contract, is_cancelled=False).all()
             for order in orders:
                 self.cancel_order(order.id)
             # place orders on behalf of users
-            positions = session.query(models.Position).filter_by(
+            positions = self.session.query(models.Position).filter_by(
                 contract=contract).all()
             for position in positions:
                 order = {}
@@ -605,30 +684,14 @@ class Accountant:
         except:
             self.session.rollback()
 
-    def change_permission_group(self, username, id):
-        try:
-            logging.debug("Changing permission group for %s to %d" % (username, id))
-            user = self.get_user(username)
-            user.permission_group_id = id
-            self.session.add(user)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            session.rollback()
-
-    def new_permission_group(self, name):
-        try:
-            logging.debug("Creating new permission group %s" % name)
-            permission_group = models.PermissionGroup(name)
-            self.session.add(permission_group)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            self.session.rollback()
-
     # These two should go into the ledger process. We should
     # only run this once per day and cache the result
     def get_balance_sheet(self):
+        """Gets the balance sheet
+
+        :returns: dict -- the balance sheet
+        """
+
         positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
                          'liabilities': {}
@@ -656,6 +719,10 @@ class Accountant:
         return balance_sheet
 
     def get_audit(self):
+        """Gets the audit, which is the balance sheet but scrubbed of usernames
+
+        :returns: dict -- the audit
+        """
         balance_sheet = self.get_balance_sheet()
         for side in balance_sheet.values():
             for ticker, details in side.iteritems():
@@ -668,7 +735,18 @@ class Accountant:
                                                                          datetime.min.time()))
         return balance_sheet
 
-    def get_ledger(self, username, from_timestamp, to_timestamp):
+    def get_ledger_history(self, username, from_timestamp, to_timestamp):
+        """Get the history of a user's transactions
+
+        :param username: the user
+        :type username: str, models.User
+        :param from_timestamp: Starting time
+        :type from_timestamp: int
+        :param end_timestamp: Ending time
+        :type end_timestamp: int
+        :returns: list -- an array of ledger entries
+        """
+
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
@@ -685,7 +763,49 @@ class Accountant:
                             'type': posting.journal.type})
         return ledgers
 
+    def change_permission_group(self, username, id):
+        """Changes a user's permission group to something different
+
+        :param username: the user
+        :type username: str, models.User
+        :param id: the permission group id
+        :type id: int
+        """
+
+        try:
+            logging.debug("Changing permission group for %s to %d" % (username, id))
+            user = self.get_user(username)
+            user.permission_group_id = id
+            self.session.add(user)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            session.rollback()
+
+    def new_permission_group(self, name):
+        """Create a new permission group
+
+        :param name: the new group's name
+        :type name: str
+        """
+
+        try:
+            logging.debug("Creating new permission group %s" % name)
+            permission_group = models.PermissionGroup(name)
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            self.session.rollback()
+
     def modify_permission_group(self, id, permissions):
+        """Changes what a certain permission group can do
+
+        :param id: the id of that permission group
+        :type id: int
+        :param permissions: A dict of booleans keyed by the permission name
+        :type permissions: dict
+        """
         try:
             logging.debug("Modifying permission group %d to %s" % (id, permissions))
             permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
@@ -700,12 +820,21 @@ class Accountant:
             self.session.rollback()
 
     def get_permissions(self, username):
+        """Gets the permissions for a user
+
+        :param username: The user
+        :type username: str, models.User
+        :returns: dict -- a dict of the permissions for that user
+        """
         user = self.get_user(username)
         permissions = user.permissions.dict
         return permissions
 
 
 class WebserverExport:
+    """Accountant functions that are exposed to the webserver
+
+    """
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -726,11 +855,14 @@ class WebserverExport:
         return self.accountant.get_audit()
 
     @export
-    def get_ledger(self, username, from_timestamp, to_timestamp):
-        return self.accountant.get_ledger(username, from_timestamp, to_timestamp)
+    def get_ledger_history(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_ledger_history(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:
+    """Accountant functions exposed to the Engine
+
+    """
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -744,6 +876,9 @@ class EngineExport:
 
 
 class CashierExport:
+    """Accountant functions exposed to the cashier
+
+    """
     def __init__(self, accountant):
         self.accountant = accountant
 
@@ -753,6 +888,9 @@ class CashierExport:
 
 
 class AdministratorExport:
+    """Accountant functions exposed to the administrator
+
+    """
     def __init__(self, accountant):
         self.accountant = accountant
 

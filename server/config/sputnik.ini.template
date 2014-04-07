@@ -41,15 +41,18 @@ debug = ${debug}
 [administrator]
 webserver_export = tcp://127.0.0.1:4670
 accountant_export = tcp://127.0.0.1:4640
+ticketserver_export = tcp://127.0.0.1:4680
 UI_port = ${administrator_port}
-ticket_port = 8980
-zendesk_token = zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy
-zendesk_email = sameer@m2.io
-zendesk_domain = mexbt
 interface = ${webserver_interface}
 address = ${webserver_address}
 debug = ${debug}
 email = ${administrator_email}
+
+[ticketserver]
+ticket_port = 8980
+zendesk_token = zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy
+zendesk_email = sameer@m2.io
+zendesk_domain = mexbt
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4500

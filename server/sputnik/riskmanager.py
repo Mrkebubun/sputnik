@@ -30,17 +30,6 @@ from email.mime.text import MIMEText
 
 NAP_TIME_SECONDS = 10
 
-
-session = database.make_session()
-
-context = zmq.Context()
-safe_price_subscriber = context.socket(zmq.SUB)
-safe_price_subscriber.connect(config.get("safe_price_forwarder", "zmq_backend_address"))
-
-
-btc = session.query(models.Contract).filter_by(ticker='BTC').one()
-
-
 def email_user(user, cash_position, low_margin, high_margin, severe):
     content = open("margin_call_email.txt" if severe else "low_margin_email.txt", "r").read()
 
@@ -56,39 +45,47 @@ def email_user(user, cash_position, low_margin, high_margin, severe):
     s = smtplib.SMTP('localhost')
     s.sendmail('sputnik@sputnikmkt.com', [user.email], msg.as_string())
 
+if __name__ == "__main__":
+
+    session = database.make_session()
+
+    context = zmq.Context()
+    safe_price_subscriber = context.socket(zmq.SUB)
+    safe_price_subscriber.connect(config.get("safe_price_forwarder", "zmq_backend_address"))
 
 
+    btc = session.query(models.Contract).filter_by(ticker='BTC').one()
 
 
-low_margin_users = {}
-bad_margin_users = {}
+    low_margin_users = {}
+    bad_margin_users = {}
 
-# main loop
-while True:
+    # main loop
+    while True:
 
-    # todo we should loop on the union of of safe price and message from the accountant asking us to take action
-    safe_prices = safe_price_subscriber.recv_json()
-    for user in session.query(models.User).filter_by(active=True):
+        # todo we should loop on the union of of safe price and message from the accountant asking us to take action
+        safe_prices = safe_price_subscriber.recv_json()
+        for user in session.query(models.User).filter_by(active=True):
 
-        low_margin, high_margin = margin.calculate_margin(user.username, session, safe_prices)
-        cash_position = session.query(models.Position).filter_by(contract=btc, user=user).one()
+            low_margin, high_margin = margin.calculate_margin(user.username, session, safe_prices)
+            cash_position = session.query(models.Position).filter_by(contract=btc, user=user).one()
 
-        if cash_position < low_margin:
-            if user.username not in bad_margin_users:
-                bad_margin_users[user.username] = datetime.datetime.utcnow()
-                email_user(user, cash_position, high_margin, severe=True)
-                logging.warning("user %s's margin is below the low limit, margin call" % user.username)
+            if cash_position < low_margin:
+                if user.username not in bad_margin_users:
+                    bad_margin_users[user.username] = datetime.datetime.utcnow()
+                    email_user(user, cash_position, high_margin, severe=True)
+                    logging.warning("user %s's margin is below the low limit, margin call" % user.username)
 
-        elif cash_position < high_margin:
-            if user.username not in low_margin_users:
-                low_margin_users[user.username] = datetime.datetime.utcnow()
-                email_user(user, cash_position, high_margin, severe=False)
-                logging.warning("user %s's margin is low, sending a warning" % user.username)
+            elif cash_position < high_margin:
+                if user.username not in low_margin_users:
+                    low_margin_users[user.username] = datetime.datetime.utcnow()
+                    email_user(user, cash_position, high_margin, severe=False)
+                    logging.warning("user %s's margin is low, sending a warning" % user.username)
 
-        else:
-            del low_margin_users[user.username] # resolved
-            del bad_margin_users[user.username] # resolved
-            logging.info("user %s's margin is fine and dandy" % user.username)
+            else:
+                del low_margin_users[user.username] # resolved
+                del bad_margin_users[user.username] # resolved
+                logging.info("user %s's margin is fine and dandy" % user.username)
 
 
 
