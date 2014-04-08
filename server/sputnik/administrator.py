@@ -24,7 +24,6 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
-import cgi
 
 from zope.interface import implements
 
@@ -39,7 +38,7 @@ import json
 import smtplib
 
 import logging
-import autobahn, string, Crypto.Random.random
+import Crypto.Random.random
 import sqlalchemy.orm.exc
 from email.mime.text import MIMEText
 
