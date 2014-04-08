@@ -34,7 +34,7 @@ class PermissionsManager:
         group = self.session.query(models.PermissionGroup).filter_by(
                 name=name).first()
         if group == None:
-            raise Exception("Permission group '%s' not found." % username)
+            raise Exception("Permission group '%s' not found." % name)
         setattr(group, field, value)
         self.session.merge(group)
 
@@ -221,6 +221,14 @@ class AddressManager:
         if address.user != None:
             print "\tBelongs to: %s" % address.user.username
         print "\tAccounted for: %s" % address.accounted_for
+
+    def modify(self, address, field, value):
+        addr = self.session.query(models.Addresses).filter_by(
+                address=address).first()
+        if addr == None:
+            raise Exception("Address '%s' not found." % address)
+        setattr(addr, field, value)
+        self.session.merge(addr)
 
 class DatabaseManager:
     def __init__(self, session):
