@@ -87,6 +87,7 @@ class @Sputnik extends EventEmitter
     # TODO: Allow for start and endtimes
     getLedgerHistory: () =>
         @call("get_ledger_history").then (wire_ledger_history) =>
+            @log ["Ledger history", wire_ledger_history]
             ledger_history = []
             for ledger in wire_ledger_history
                 ledger_history.push @ledgerFromWire(ledger)
