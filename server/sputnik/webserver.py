@@ -150,7 +150,15 @@ class PublicInterface:
 
     @exportRpc("get_audit")
     def get_audit(self):
-        return self.factory.accountant.get_audit()
+        def _cb(result):
+            return [True, result]
+
+        def _cb_error(fail):
+            return [False, fail.value.message.message]
+
+        d = self.factory.accountant.get_audit()
+        d.addCallback(_cb)
+        d.addErrback(_cb_error)
 
     @exportRpc("get_ohlcv")
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
@@ -671,7 +679,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_ledger_history(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                              datetime.timedelta(days=2)),
                   to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
-        return self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
+
+        def _cb(result):
+            return [True, result]
+
+        def _cb_error(fail):
+            return [False, fail.value.message.message]
+
+        d = self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
+        d.addCallback(_cb)
+        d.addErrback(_cb_error)
 
     @exportRpc("get_new_address")
     def get_new_address(self, currency):

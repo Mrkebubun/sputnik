@@ -474,7 +474,7 @@ class @Sputnik extends EventEmitter
                 if result[0]
                     return d.resolve result[1]
                 else
-                    @warn "RPC call failed: #{result[1]}"
+                    @warn ["RPC call failed", result[1]]
                     return d.reject result[1]
             , (error) =>
                 @wtf "RPC Error: #{error.desc} in #{method}"

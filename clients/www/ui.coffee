@@ -383,6 +383,9 @@ sputnik.on "password_change_success", (info) ->
 sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
 
+sputnik.on "place_order_fail", (error) ->
+    alert "order placement failed: #{error[1]}"
+
 sputnik.on "profile", (profile) ->
     $('#new_nickname').val profile.nickname
     $('#new_email').val profile.email
