@@ -780,7 +780,7 @@ class Accountant:
             self.session.commit()
         except Exception as e:
             logging.error("Error: %s" % e)
-            session.rollback()
+            self.session.rollback()
 
     def new_permission_group(self, name):
         """Create a new permission group
