@@ -71,7 +71,7 @@ class Accountant:
         }
         self.safe_prices = {}
         self.engines = engines
-        for contract in session.query(models.Contract).filter_by(
+        for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
                 last_trade = self.session.query(models.Trade).filter_by(
@@ -490,7 +490,7 @@ class Accountant:
         logging.info("Received request to cancel order id %d." % order_id)
 
         try:
-            order = session.query(models.Order).filter_by(id=order_id).one()
+            order = self.session.query(models.Order).filter_by(id=order_id).one()
             return self.engines[order.contract.ticker].cancel_order(order_id)
         except NoResultFound:
             # TODO: Fix to use exceptions
@@ -525,11 +525,11 @@ class Accountant:
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
         try:
-            session.add(o)
-            session.commit()
+            self.session.add(o)
+            self.session.commit()
         except Exception as e:
             logging.error("Error adding data %s" % e)
-            session.rollback()
+            self.session.rollback()
             raise e
 
         try:
@@ -585,8 +585,8 @@ class Accountant:
 
             #query for db objects we want to update
             # TODO: Currency should be a foreignkey into contracts so this weirdness is not required
-            total_deposited_at_address = session.query(models.Addresses).filter_by(address=address).one()
-            contract = session.query(models.Contract).filter_by(ticker=total_deposited_at_address.currency.upper()).one()
+            total_deposited_at_address = self.session.query(models.Addresses).filter_by(address=address).one()
+            contract = self.session.query(models.Contract).filter_by(ticker=total_deposited_at_address.currency.upper()).one()
 
             user_cash_position = self.get_position(total_deposited_at_address.username,
                                                    contract.ticker)
@@ -594,7 +594,7 @@ class Accountant:
 
             # update address
             total_deposited_at_address.accounted_for = total_received
-            session.add(total_deposited_at_address)
+            self.session.add(total_deposited_at_address)
 
             #prepare cash deposit
             deposit = total_received - total_deposited_at_address.accounted_for
@@ -923,12 +923,11 @@ class AdministratorExport:
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
+    session = database.make_session()
     engines = {}
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       4200 + contract.id)
-
-    session = database.make_session()
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
