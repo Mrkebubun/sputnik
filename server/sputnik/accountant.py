@@ -48,7 +48,7 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, webserver, debug):
+    def __init__(self, session, engines, webserver, debug):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -70,7 +70,7 @@ class Accountant:
                                      'mexbt': 0.5
         }
         self.safe_prices = {}
-        self.engines = {}
+        self.engines = engines
         for contract in session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -82,8 +82,6 @@ class Accountant:
                 logging.warning(
                     "warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
                 self.safe_prices[contract.ticker] = 42
-            port = 4200 + contract.id
-            self.engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" % port)
 
         self.webserver = webserver
 
@@ -925,11 +923,16 @@ class AdministratorExport:
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
+    engines = {}
+    for contract in session.query(models.Contract).filter_by(active=True).all():
+        engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
+                                                      4200 + contract.id)
+
     session = database.make_session()
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
-    accountant = Accountant(session, webserver, debug=debug)
+    accountant = Accountant(session, engines, webserver, debug=debug)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
