@@ -112,12 +112,14 @@ def calculate_margin(username, session, safe_prices, order_id=None):
             if to_currency_ticker in fees:
                 max_cash_spent[to_currency_ticker] += fees[to_currency_ticker]
 
-    for cash_ticker in cash_position:
+    for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':
-            additional_margin = max_cash_spent['BTC']
+            additional_margin = max_spent
         else:
-            # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
-            additional_margin = 0 if max_cash_spent[cash_ticker] <= cash_position[cash_ticker] else 2**48
+            if cash_ticker in cash_position and max_spent <= cash_position[cash_ticker]:
+                additional_margin = 0
+            else:
+                additional_margin = 2**48
 
         low_margin += additional_margin
         high_margin += additional_margin
