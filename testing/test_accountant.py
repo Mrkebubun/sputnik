@@ -29,7 +29,7 @@ class FakeEngine(FakeProxy):
     def place_order(self, order):
         self.log.append(('place_order', (order), {}))
         # Always return a good fake result
-        return [True, 5]
+        return [True, order['id']]
 
 
 class TestAccountant(TestSputnik):
@@ -480,7 +480,16 @@ class TestWebserverExport(TestAccountant):
                                                     'price': 10000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
-        self.assertTrue(result[1])
+        self.assertTrue(result[0])
+        id = result[1]
+        from sputnik import models
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        self.assertEqual(order.username, 'test')
+        self.assertEqual(order.contract.ticker, 'BTC/MXN')
+        self.assertEqual(order.price, 10000)
+        self.assertEqual(order.quantity, 3000000)
+        self.assertEqual(order.side, 'SELL')
+
         self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
                                                                   {'contract': 3,
                                                                    'id': 1,
@@ -490,6 +499,8 @@ class TestWebserverExport(TestAccountant):
                                                                    'side': 1,
                                                                    'username': u'test'},
                                                                   {})]))
+
+
 
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -552,7 +563,16 @@ class TestWebserverExport(TestAccountant):
                                                     'price': 10000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
-        self.assertTrue(result[1])
+        self.assertTrue(result[0])
+        id = result[1]
+        from sputnik import models
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        self.assertEqual(order.username, 'test')
+        self.assertEqual(order.contract.ticker, 'BTC/MXN')
+        self.assertEqual(order.price, 10000)
+        self.assertEqual(order.quantity, 3000000)
+        self.assertEqual(order.side, 'SELL')
+
         self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
                                                                   {'contract': 3,
                                                                    'id': 1,
