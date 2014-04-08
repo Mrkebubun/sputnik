@@ -7,18 +7,17 @@ import logging
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor
 
 import bitcoinrpc
 from compropago import Compropago
+import util
 
 import config
 from zmq_util import push_proxy_async, pull_share_async, export
 import models
 import database as db
 from jsonschema import ValidationError
-
-from OpenSSL import SSL
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -239,32 +238,6 @@ class BitcoinNotify(Resource):
         return "OK"
 
 
-class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
-    def __init__(self, privateKeyFileName, certificateChainFileName,
-                 sslmethod=SSL.SSLv23_METHOD):
-        """Setup the SSL certs
-
-        :param privateKeyFileName: the private key
-        :type privateKeyFileName: str
-        :param certificateChainFileName: the cert chain
-        :type certificateChainFileName: str
-        :param sslmethod: which ssls are supported
-        """
-        self.privateKeyFileName = privateKeyFileName
-        self.certificateChainFileName = certificateChainFileName
-        self.sslmethod = sslmethod
-        self.cacheContext()
-
-    def cacheContext(self):
-        """Generate the SSL context and cache it
-
-        """
-        ctx = SSL.Context(self.sslmethod)
-        ctx.use_certificate_chain_file(self.certificateChainFileName)
-        ctx.use_privatekey_file(self.privateKeyFileName)
-        self._context = ctx
-
-
 class AdministratorExport:
     def __init__(self, cashier):
         """
@@ -298,7 +271,7 @@ if __name__ == '__main__':
     cert = config.get("webserver", "ssl_cert")
     cert_chain = config.get("webserver", "ssl_cert_chain")
     # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
-    contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+    contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
 
     if config.getboolean("webserver", "ssl"):
         reactor.listenSSL(config.getint("cashier", "public_port"),

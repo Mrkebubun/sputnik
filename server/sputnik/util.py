@@ -1,6 +1,8 @@
 __author__ = 'sameer'
 
 from datetime import datetime
+from twisted.internet import ssl
+from OpenSSL import SSL
 import models
 
 def dt_to_timestamp(dt):
@@ -76,3 +78,29 @@ def get_fees(username, contract, transaction_size):
     else:
         # Only cash_pair is implemented for now
         raise NotImplementedError
+
+
+class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
+    def __init__(self, privateKeyFileName, certificateChainFileName,
+                 sslmethod=SSL.SSLv23_METHOD):
+        """
+
+        :param privateKeyFileName:
+        :param certificateChainFileName:
+        :param sslmethod:
+        """
+        self.privateKeyFileName = privateKeyFileName
+        self.certificateChainFileName = certificateChainFileName
+        self.sslmethod = sslmethod
+        self.cacheContext()
+
+    def cacheContext(self):
+        """
+
+
+        """
+        ctx = SSL.Context(self.sslmethod)
+        ctx.use_certificate_chain_file(self.certificateChainFileName)
+        ctx.use_privatekey_file(self.privateKeyFileName)
+        self._context = ctx
+
