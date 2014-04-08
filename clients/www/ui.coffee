@@ -304,7 +304,7 @@ $ ->
         sputnik.getAudit()
 
     $('#ledger_tab_select').click ->
-        sputnik.getLedger()
+        sputnik.getLedgerHistory()
 
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
