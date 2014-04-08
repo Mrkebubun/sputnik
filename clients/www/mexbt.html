@@ -548,7 +548,7 @@
                 <h4 class="modal-title">Register</h4>
             </div>
             <div class="modal-body">
-                <form class="form-signin" role="form">
+                <form class="form-signin form-horizontal" role="form">
                     <input type="text" class="form-control" id="register_username" placeholder="Username" required
                            autofocus><br>
                     <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
@@ -556,6 +556,14 @@
                            required><br>
                     <input type="text" class="form-control" id="register_nickname"
                            placeholder="Nickname (for chat)"><br>
+                    <div class="form-group">
+                        <div class="col-xs-9">
+                            <label> <input type="checkbox" id="register_eula" value="1">
+                                I agree
+                                to the <a href="terms.html" target="_blank">terms and conditions</a> <br>
+                            </label>
+                        </div>
+                    </div>
                 </form>
                 <div class="alert alert-warning" style="display:none" id="register_error">
                 </div>
