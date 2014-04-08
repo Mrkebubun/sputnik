@@ -44,9 +44,7 @@
                            autofocus><br>
                     <input type="password" class="form-control" id="login_password" placeholder="Password"
                     required><br>
-                    <label class="checkbox">
-                        <input type="checkbox" value="remember-me"> Remember me
-                    </label>
+                    <a href="#" id="get_reset_token">Reset password</a>
                 </form>
                 <div class="alert alert-warning" style="display:none" id="login_error">
                     Incorrect username or password.
@@ -56,7 +54,6 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="ladda-button" data-color="" data-size="xs" id="get_reset_token">Password reset for user</button>
                 <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
                         id="login_button"><span class="ladda-label">Login</span></button>
             </div>

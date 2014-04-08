@@ -42,10 +42,10 @@ sputnik.on "cookie", (uid) ->
     sputnik.log "cookie: " + uid
     document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
-sputnik.on "auth_fail", ->
+sputnik.on "auth_fail", (error) ->
     ladda = Ladda.create $("#login_button")[0]
     ladda.stop()
-    $("#login_error").show()
+    $("#login_error").text("Incorrect username or password.").show()
 
 sputnik.on "make_account_success", () ->
     # do not clear the modal yet, do it in auth_success
@@ -88,12 +88,18 @@ $("#login_modal").keypress (e) -> $("#login_button").click() if e.which is 13
 
 $("#login_button").click (event) ->
     event.preventDefault()
-    $("#login_error").hide()
-    ladda = Ladda.create $("#login_button")[0]
-    ladda.start()
+
     username = $("#login_username").val()
     password = $("#login_password").val()
-    sputnik.authenticate username, password
+
+    if (username.length > 3 and password.length > 5)
+        $("#login_error").hide()
+        ladda = Ladda.create $("#login_button")[0]
+        ladda.start()
+        sputnik.authenticate username, password
+        $('#login_modal .alert:visible').hide()
+    else
+        $('#login_error').text("Please enter a username and password").slideDown()
 
 $("#register").click () ->
     $("#register_modal").modal()
@@ -277,12 +283,21 @@ $ ->
       $(e.target).parents('.tab-pane').data('dirty', yes)
 
     $('#get_reset_token').click ->
-      $('#login_modal').find('input,a,label,button').slideUp()
-      sputnik.getResetToken($('#login_username').val())
-      $('#reset_token_sent').show()
-      setTimeout(
-        -> $("#login_modal").modal "hide"
-      ,
+        username = $("#login_username").val()
+        $('#login_modal .alert:visible').hide()
+
+        if username.length < 4
+            $('#login_error').text("Please enter a username to reset the password").slideDown()
+            return
+
+#        $('#login_modal').find('input,a,label,button').slideUp()
+        sputnik.getResetToken(username)
+        $('#reset_token_sent').show()
+        setTimeout(
+            ->
+                $('#login_modal .alert:visible').hide()
+                $("#login_modal").modal "hide"
+        ,
         5000)
 
     $('#audit_tab_select').click ->
