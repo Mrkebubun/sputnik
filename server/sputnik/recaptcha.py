@@ -11,8 +11,24 @@ from jsonschema import validate
 
 class ReCaptcha:
     def __init__(self, private_key, public_key):
+        """
+
+        :param private_key:
+        :type private_key: str
+        :param public_key:
+        :type public_key: str
+        """
         self.private_key, self.public_key = private_key, public_key
+
     def verify(self, remote_ip, challenge, response):
+        """
+
+        :param remote_ip:
+        :param challenge:
+        :param response:
+        :returns: Deferred
+        :raises: Exception
+        """
 
         def handle_response(response):
 

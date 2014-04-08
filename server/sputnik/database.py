@@ -19,6 +19,11 @@ Base = declarative_base()
 
 def get_session_maker(**kwargs):
     # If we are not root, override SQL username to be myself
+    """
+
+    :param kwargs:
+    :returns: sessionmaker
+    """
     my_user = getpass.getuser()
     if my_user != 'root':
         kwargs['username'] = my_user
@@ -31,6 +36,11 @@ def get_session_maker(**kwargs):
     return Session
     
 def make_session(**kwargs):
+    """
+
+    :param kwargs:
+    :returns: Session
+    """
     Session = get_session_maker(**kwargs)
     return Session()
 

@@ -4,19 +4,32 @@ from datetime import datetime
 import models
 
 def dt_to_timestamp(dt):
+    """Turns a datetime into a Sputnik timestamp (microseconds since epoch)
+
+    :param dt:
+    :type dt: datetime.datetime
+    :returns: int
+    """
     epoch = datetime.utcfromtimestamp(0)
     delta = dt - epoch
     timestamp = int(delta.total_seconds() * 1e6)
     return timestamp
 
 def timestamp_to_dt(timestamp):
+    """Turns a sputnik timestamp into a python datetime
+
+    :param timestamp:
+    :type timestamp: int
+    :returns: datetime.datetime
+    """
     return datetime.fromtimestamp(timestamp/1e6)
 
 def split_pair(pair):
     """
     Return the underlying pair of contracts in a cash_pair contract.
     :param pair: the ticker name of the pair to split
-    :return: a tuple of Contract objects
+    :type pair: str
+    :returns: tuple - a pair of Contract tickers
     """
 
     if isinstance(pair, models.Contract):
@@ -36,8 +49,13 @@ def split_pair(pair):
 def get_fees(username, contract, transaction_size):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
-    :param transaction: the transaction object
-    :return: dict
+    :param username:
+    :type username: str
+    :param contract:
+    :type contract: Contract
+    :param transaction_size:
+    :type transaction_size: int
+    :returns: dict
     """
 
     # Right now fees are very simple, just 20bps of the total from_currency amount

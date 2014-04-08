@@ -24,6 +24,13 @@ class ResetToken(db.Base):
     used = Column(Boolean)
 
     def __init__(self, username, hours_to_expiry=2):
+        """
+
+        :param username:
+        :type username: str
+        :param hours_to_expiry:
+        :type hours_to_expiry: int
+        """
         self.username = username
         self.expiration = datetime.utcnow() + timedelta(hours=hours_to_expiry)
         self.token = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
@@ -56,6 +63,25 @@ class Contract(db.Base):
         return "<Contract('%s')>" % self.ticker
 
     def __init__(self, ticker, description="", full_description="", tick_size=1, lot_size=1, denominator=1, contract_type="cash", active=True):
+        """
+
+        :param ticker:
+        :type ticker: str
+        :param description:
+        :type description: str
+        :param full_description:
+        :type full_description: str
+        :param tick_size:
+        :type tick_size: int
+        :param lot_size:
+        :type lot_size: int
+        :param denominator:
+        :type denominator: int
+        :param contract_type:
+        :type contract_type: str
+        :param active:
+        :type active: bool
+        """
         self.ticker, self.description, self.full_description = ticker, description, full_description
         self.tick_size, self.lot_size, self.denominator = tick_size, lot_size, denominator
         self.contract_type, self.active = contract_type, active
@@ -84,12 +110,30 @@ class Order(db.Base):
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
 
     def to_matching_engine_order(self):
+        """
+
+
+        :returns: dict
+        """
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
                 'quantity_left': self.quantity_left,
                 'price': self.price, 'side': (-1 if self.side == "BUY" else 1)}
 
 
     def __init__(self, user, contract, quantity, price, side):
+        """
+
+        :param user:
+        :type user: User
+        :param contract:
+        :type contract: Contract
+        :param quantity:
+        :type quantity: int
+        :param price:
+        :type price: int
+        :param side:
+        :type side: str
+        """
         self.user = user
         self.contract = contract
         self.quantity = quantity
@@ -120,6 +164,13 @@ class SupportTicket(db.Base):
         return False
 
     def __init__(self, username, type):
+        """
+
+        :param username:
+        :type username: str
+        :param type:
+        :type type: str
+        """
         self.nonce = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
         self.username = username
         self.type = type
@@ -140,6 +191,11 @@ class PermissionGroup(db.Base):
     login = Column(Boolean, server_default=sql.true())
 
     def __init__(self, name):
+        """
+
+        :param name:
+        :type name: str
+        """
         self.name = name
 
     @property
@@ -164,6 +220,15 @@ class AdminUser(db.Base):
     level = Column(Integer, server_default="0")
 
     def __init__(self, username, password_hash, level):
+        """
+
+        :param username:
+        :type username: str
+        :param password_hash:
+        :type password_hash: str
+        :param level:
+        :type level: int
+        """
         self.username = username
         self.password_hash = password_hash
         self.level = level
@@ -196,6 +261,11 @@ class User(db.Base):
 
     @property
     def user_hash(self):
+        """
+
+
+        :returns: str
+        """
         combined_string = "%s:%s:%s:%s:%d" % (self.audit_secret, self.username, self.nickname, self.email,
                                            util.dt_to_timestamp(datetime.combine(date.today(),
                                                                                  datetime.min.time())))
@@ -204,6 +274,17 @@ class User(db.Base):
         return user_hash
 
     def __init__(self, username, password, email="", nickname="anonymous"):
+        """
+
+        :param username:
+        :type username: str
+        :param password:
+        :type password: str
+        :param email:
+        :type email: str
+        :param nickname:
+        :type nickname: str
+        """
         self.username = username
         self.password = password
         self.email = email
@@ -215,6 +296,11 @@ class User(db.Base):
                 % (self.username, self.email, self.nickname)
 
     def to_obj(self):
+        """
+
+
+        :returns: dict
+        """
         return {"username": self.username, "password": self.password,
                 "email": self.email, "nickname":self.nickname}
 
@@ -231,6 +317,18 @@ class Journal(db.Base):
     postings = relationship('Posting', back_populates="journal")
 
     def __init__(self, type, postings, timestamp=None, notes=None):
+        """
+
+        :param type:
+        :type type: str
+        :param postings:
+        :type postings: list - list of Posting
+        :param timestamp:
+        :type timestamp: int
+        :param notes:
+        :type notes: str
+        :raises: Exception
+        """
         self.type = type
         self.timestamp = timestamp
         self.notes = notes
@@ -255,6 +353,7 @@ class Journal(db.Base):
     @property
     def audit(self):
         """Make sure that every position's postings sum to 0
+        :returns: bool
         """
         sums = collections.defaultdict(int)
         for posting in self.postings:
@@ -288,6 +387,21 @@ class Posting(db.Base):
         return "<Posting('%s', '%s', %d)>" % (self.contract, self.user, self.quantity)
 
     def __init__(self, user, contract, quantity, side, update_position=False, position=None):
+        """
+
+        :param user:
+        :type user: User
+        :param contract:
+        :type contract: Contract
+        :param quantity:
+        :type quantity: int
+        :param side:
+        :type side: str
+        :param update_position: set to true if we need to update the underlying position
+        :type update_position: bool
+        :param position: The position we are updating
+        :type position: Position
+        """
         self.user = user
         self.contract = contract
         if side is 'debit':
@@ -326,6 +440,15 @@ class Addresses(db.Base):
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
     def __init__(self, user, currency, address):
+        """
+
+        :param user:
+        :type user: User
+        :param currency:
+        :type currency: str
+        :param address:
+        :type address: str
+        """
         self.user, self.currency, self.address = user, currency, address
 
     def __repr__(self):
@@ -347,6 +470,15 @@ class Position(db.Base):
     reference_price = Column(BigInteger, nullable=False, server_default="0")
 
     def __init__(self, user, contract, position=0):
+        """
+
+        :param user:
+        :type user: User
+        :param contract:
+        :type contract: Contract
+        :param position:
+        :type position: int
+        """
         self.user, self.contract = user, contract
         self.position = position
 
@@ -379,6 +511,17 @@ class Withdrawal(db.Base):
     completed = Column(DateTime)
 
     def __init__(self, user, currency, address, amount):
+        """
+
+        :param user:
+        :type user: User
+        :param currency:
+        :type currency: str
+        :param address:
+        :type address: str
+        :param amount:
+        :type amount: int
+        """
         self.user, self.currency, self.address, self.amount = user, currency, address, amount
         self.entered = datetime.utcnow()
 
@@ -405,6 +548,17 @@ class Trade(db.Base):
     passive_order = relationship('Order', primaryjoin="Order.id==Trade.passive_order_id")
 
     def __init__(self, aggressive_order, passive_order, price, quantity):
+        """
+
+        :param aggressive_order:
+        :type aggressive_order: Order
+        :param passive_order:
+        :type passive_order: Order
+        :param price:
+        :type price: int
+        :param quantity:
+        :type quantity: int
+        """
         self.contract_id = aggressive_order.contract_id
         self.aggressive_order = aggressive_order
         self.passive_order = passive_order
