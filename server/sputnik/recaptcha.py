@@ -4,8 +4,6 @@ __author__ = 'arthurb'
 import treq
 
 import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s')
-
 from jsonschema import validate
 
 

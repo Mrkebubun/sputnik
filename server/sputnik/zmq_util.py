@@ -10,9 +10,6 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from functools import partial
 
-
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass
 
