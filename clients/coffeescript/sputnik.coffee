@@ -72,9 +72,17 @@ class @Sputnik extends EventEmitter
             @emit "profile", @profile
 
     getAudit: () =>
-        @call("get_audit").then (audit_details) =>
+        @call("get_audit").then (wire_audit_details) =>
+            audit_details = @copy(wire_audit_details)
+            audit_details.timestamp = @timeFormat(audit_details.timestamp)
+            for side in [audit_details.liabilities, audit_details.assets]
+                for ticker, data of side
+                    data.total = @quantityFromWire(ticker, data.total)
+                    for position in data.positions
+                        position[1] = @quantityFromWire(ticker, position[1])
+
             @emit "audit_details", audit_details
-            @emit "audit_hash", @getAuditHash(audit_details.timestamp)
+            @emit "audit_hash", @getAuditHash(wire_audit_details.timestamp)
 
     getAuditHash: (timestamp) =>
         secret = @profile.audit_secret

@@ -726,9 +726,9 @@ class Accountant:
         balance_sheet = self.get_balance_sheet()
         for side in balance_sheet.values():
             for ticker, details in side.iteritems():
-                details['positions'] = collections.defaultdict(int)
+                details['positions'] = []
                 for position in details['positions_raw']:
-                    details['positions'][position['hash']] += position['position']
+                    details['positions'].append((position['hash'], position['position']))
                 del details['positions_raw']
 
         balance_sheet['timestamp'] = util.dt_to_timestamp(datetime.combine(date.today(),
