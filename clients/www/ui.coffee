@@ -316,8 +316,8 @@ $ ->
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
     updatePlot(trade_history['BTC/MXN'])
-    if trade_history.length > 0
-        $('#last').text trade_history[trade_history.length - 1].price.toFixed(0)
+    if trade_history['BTC/MXN'].length
+        $('#last').text trade_history['BTC/MXN'][trade_history['BTC/MXN'].length - 1].price.toFixed(0)
 
 sputnik.on "open", () ->
     sputnik.log "open"
