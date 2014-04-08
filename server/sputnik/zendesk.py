@@ -10,18 +10,62 @@ from twisted.internet import defer
 
 class Zendesk(object):
     def __init__(self, domain, api_token, api_username):
+        """
+
+        :param domain:
+        :type domain: str
+        :param api_token:
+        :type api_token: str
+        :param api_username:
+        :type api_username: str
+        """
         self.api_token = api_token
         self.api_username = api_username
         self.domain = domain
 
     def create_ticket(self, user, subject, comment, attachments):
+        """
+
+        :param user: user details, nickname, email, etc
+        :type user: dict
+        :param subject: The subject of the ticket
+        :type subject: str
+        :param comment: the comments for the ticket
+        :type comment: str
+        :param attachments: files to attach
+        :type attachments: list - of dicts with file data, names, and types
+        :returns: DeferredList
+        :raises: Exception
+        """
+
         def uploads_done(tokens):
+            """
+
+            :param tokens: the upload tokens for the attachments
+            :type tokens: list
+            :returns: Deferred
+            :raises: Exception
+            """
             ticket = {"ticket": {"requester": {"name": user['nickname'],
                                                "email": user['email'] },
                                  "subject": subject,
                                  "comment": {"body": comment, "uploads": [str(t[1]) for t in tokens] }}}
             def handle_response(response):
+                """
+
+                :param response:
+                :returns: Deferred
+                :raises: Exception
+                """
+
                 def parse_content(content):
+                    """
+
+                    :param content: the JSON string with the results from the post
+                    :type content: str
+                    :returns: int
+                    :raises: Exception:
+                    """
                     if response.code != 201:
                         # this should happen sufficiently rarely enough that it is
                         # worth logging here in addition to the failure
@@ -53,6 +97,18 @@ class Zendesk(object):
         return dl
 
     def upload_file(self, name, content_type, file_data):
+        """
+
+        :param name: filename
+        :type name: str
+        :param content_type:
+        :type content_type: str
+        :param file_data:
+        :type file_data:
+        :returns: Deferred
+        :raises: Exception
+        """
+
         def handle_response(response):
             def parse_content(content):
                 if response.code != 201:

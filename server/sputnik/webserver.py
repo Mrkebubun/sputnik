@@ -71,7 +71,18 @@ dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
 
 class RateLimitedCallHandler(CallHandler):
     def _callProcedure(self, call):
+        """
+
+        :param call:
+        :returns:
+        """
+
         def do_actual_call(actual_call):
+            """
+
+            :param actual_call:
+            :returns:
+            """
             actual_call.proto.last_call = time.time()
             return CallHandler._callProcedure(self, actual_call)
 
@@ -92,17 +103,36 @@ class AdministratorExport:
 
 
 def malicious_looking(w):
+    """
+
+    :param w:
+    :returns: bool
+    """
     return any(x in w for x in '<>&')
 
 class PublicInterface:
     def __init__(self, factory):
+        """
+
+        :param factory:
+        """
         self.factory = factory
         self.factory.chats = []
         self.init()
 
     def init(self):
         # TODO: clean this up
+        """Get markets, load trade history, compute OHLCV for trade history
+
+
+        """
+
         def _cb(res):
+            """Deal with get markets SQL query results
+
+            :param res:
+            :type res: list
+            """
             result = {}
             for r in res:
                 result[r[0]] = {"ticker": r[0],
@@ -125,10 +155,13 @@ class PublicInterface:
             to_dt = datetime.datetime.utcnow()
             from_dt = to_dt - datetime.timedelta(days=7)
 
-
-
             for ticker in self.factory.markets.keys():
                 def _cb2(result, ticker):
+                    """Deal with trade history sql results
+
+                    :param result:
+                    :param ticker:
+                    """
                     trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
                                                            'timestamp': util.dt_to_timestamp(r[1])} for r in result]
                     self.factory.trade_history[ticker] = trades
@@ -146,14 +179,34 @@ class PublicInterface:
 
     @exportRpc("get_markets")
     def get_markets(self):
+        """
+
+
+        :returns: list
+        """
         return [True, self.factory.markets]
 
     @exportRpc("get_audit")
     def get_audit(self):
+        """
+
+        :returns: Deferred
+        """
+
         def _cb(result):
+            """
+
+            :param result: what we get from the accountant
+            :returns: list
+            """
             return [True, result]
 
         def _cb_error(fail):
+            """
+
+            :param fail: The failure details from ZMQ
+            :returns: list
+            """
             return [False, fail.value.message.message]
 
         d = self.factory.accountant.get_audit()
@@ -165,6 +218,14 @@ class PublicInterface:
     def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                                                    datetime.timedelta(days=1)),
                   end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
+        """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
+
+        :param ticker:
+        :param period:
+        :param start_timestamp:
+        :param end_timestamp:
+        :returns: list - [True, timestamp-indexed dict]
+        """
         validate(ticker, {"type": "string"})
         validate(period, {"type": "string"})
         validate(start_timestamp, {"type": "number"})
@@ -185,12 +246,28 @@ class PublicInterface:
 
     @exportRpc("get_reset_token")
     def get_reset_token(self, username):
+        """Get a password reset token for a certain user -- mail it to them
+
+        :param username:
+        :type username: str
+        :returns: Deferred
+        """
         d = self.factory.administrator.get_reset_token(username)
 
         def onTokenSuccess(result):
+            """
+
+            :param result: ignored
+            :returns: list
+            """
             return [True, None]
 
         def onTokenFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         return d.addCallbacks(onTokenSuccess, onTokenFail)
@@ -198,9 +275,11 @@ class PublicInterface:
     @exportRpc("get_trade_history")
     def get_trade_history(self, ticker, time_span=3600):
         """
-        Gets a list of trades between two dates
+        Gets a list of trades in recent history
+
         :param ticker: ticker of the contract to get the trade history from
         :param time_span: time span in seconds to look at
+        :returns: list - [True, list of trades]
         """
         # TODO: cache this
         # TODO: make sure return format is correct
@@ -227,10 +306,13 @@ class PublicInterface:
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):
-        # sanitize inputs:
+        """Get the order book for a given ticker
+
+        :param ticker:
+        :returns: list - [success/fail, result]
+        """
         validate(ticker, {"type": "string"})
 
-        # rpc call:
         if ticker in self.factory.all_books:
             return [True, self.factory.all_books[ticker]]
         else:
@@ -238,8 +320,15 @@ class PublicInterface:
 
     @exportRpc
     def make_account(self, username, password, salt, email, nickname):
+        """Create a new account
 
-        # sanitize
+        :param username:
+        :param password:
+        :param salt:
+        :param email:
+        :param nickname:
+        :returns: Deferred
+        """
         validate(username, {"type": "string"})
         validate(password, {"type": "string"})
         validate(salt, {"type": "string"})
@@ -255,17 +344,31 @@ class PublicInterface:
         self.factory.administrator.change_profile(username, profile)
 
         def onAccountSuccess(result):
+            """
+
+            :param result:
+            :returns: list - [True, username]
+            """
             return [True, username]
 
         def onAccountFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
     @exportRpc("change_password_token")
     def change_password_token(self, username, new_password_hash, token):
-        """
-        Changes a users password.  Leaves salt and two factor untouched.
+        """Changes a users password.  Leaves salt and two factor untouched.
+
+        :param username:
+        :param new_password_hash:
+        :param token:
+        :returns: Deferred
         """
         validate(username, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
@@ -273,9 +376,19 @@ class PublicInterface:
         d = self.factory.administrator.reset_password_hash(username, None, new_password_hash, token=token)
 
         def onResetSuccess(result):
+            """
+
+            :param result: ignored
+            :returns: list - [True, None]
+            """
             return [True, None]
 
         def onResetFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         return d.addCallbacks(onResetSuccess, onResetFail)
@@ -292,6 +405,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     """
 
     def __init__(self):
+        """
+
+
+        """
         self.cookie = ""
         self.username = None
         self.nickname = None
@@ -365,7 +482,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Gets the permission for a login... for now it's very basic
         :param auth_key: pretty much the login
         :param auth_extra: extra information, like a HMAC
-        :return: the permissions associated with that user
+        :returns: Deferred
         """
         print 'getAuthPermissions'
 
@@ -375,6 +492,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             username = auth_key
 
         def _cb_perms(result):
+            """
+
+            :param result: the permissions for the user
+            :returns: dict - the permissions for the user
+            """
             if result['login']:
                 # TODO: SECURITY: This is susceptible to a timing attack.
                 def _cb(result):
@@ -399,6 +521,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
         def _cb_error(fail):
+            """
+
+            :param fail:
+            :returns: dict - fake permissions so we don't leak which users exist or not
+            """
             logging.error("Unable to get permissions for %s: %s" % (username, fail.value.message.message))
             return {"authextra": "",
                     "permissions": {"pubsub": [], "rpc": [], "username": username}}
@@ -414,7 +541,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def getAuthSecret(self, auth_key):
         """
         :param auth_key: the login
-        :return: the auth secret for the given auth key or None when the auth key does not exist
+        :returns: Deferred
         """
 
         # check for a saved session
@@ -422,6 +549,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1})
 
         def auth_secret_callback(result):
+            """
+
+            :param result: results from the db query
+            :returns: str, None - the auth secret for the given auth key or None when the auth key does not exist
+            :raises: Exception
+            """
             if not result:
                 raise Exception("No such user: %s" % auth_key)
 
@@ -448,6 +581,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return auth_secret
 
         def auth_secret_errback(fail=None):
+            """
+
+            :param fail:
+            :returns: str
+            """
             logging.warning("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
@@ -463,9 +601,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         fired when authentication succeeds, registers user for RPC, save user object in session
         :param auth_key: login
-        :rtype : object
         :param perms: a dictionary describing the permissions associated with this user...
         from getAuthPermissions
+        :returns: Deferred
         """
 
         self.troll_throttle = time.time()
@@ -492,6 +630,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             self.cookie = auth_key
 
         def _cb(result):
+            """Sets the nickname cache
+
+            :param result: results from the db query
+            """
             self.nickname = result[0][0] if result[0][0] else "anonymous"
             logging.warning("SETTING SELF.NICKNAME TO %s" % self.nickname)
 
@@ -510,11 +652,27 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("request_support_nonce")
     def request_support_nonce(self, type):
+        """Get a support nonce so this user can submit a support ticket
+
+        :param type: the type of support ticket to get the nonce for
+        :returns: Deferred
+        """
         d = self.factory.administrator.request_support_nonce(self.username, type)
         def onRequestSupportSuccess(result):
+            """
+
+            :param result: the nonce
+            :type result: str
+            :returns: list - [True, nonce]
+            """
             return [True, result]
 
         def onRequestSupportFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         d.addCallbacks(onRequestSupportSuccess, onRequestSupportFail)
@@ -522,11 +680,27 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("get_permissions")
     def get_permissions(self):
+        """Get this user's permissions
+
+
+        :returns: Deferred
+        """
         d = self.factory.administrator.get_permissions(self.username)
         def onGetPermsSuccess(result):
+            """
+
+            :param result: the permissions for the user
+            :type result: dict
+            :returns: list - [True, permissions]
+            """
             return [True, result]
 
         def onGetPermsFail(failure):
+            """
+
+            :param failure:
+            :returns: [False, message]
+            """
             return [False, failure.value.args]
 
         d.addCallbacks(onGetPermsSuccess, onGetPermsFail)
@@ -534,18 +708,28 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("get_cookie")
     def get_cookie(self):
+        """
+
+
+        :returns: list - [True, cookie]
+        """
         return [True, self.cookie]
 
     @exportRpc("logout")
     def logout(self):
+        """Removes the cookie from the cache, disconnects the user
+
+
+        """
         if self.cookie in self.factory.cookies:
             del self.factory.cookies[self.cookie]
         self.dropConnection()
 
     @exportRpc("get_new_two_factor")
     def get_new_two_factor(self):
-        """
-        prepares new two factor authentication for an account
+        """prepares new two factor authentication for an account
+
+        :returns: str
         """
         #new = otp.base64.b32encode(os.urandom(10))
         #self.user.two_factor = new
@@ -613,7 +797,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def make_compropago_deposit(self, charge):
         """
 
-        @param charge: indication on the payment
+        :param charge: indication on the payment
+        :type charge: dict
+        :returns: Deferred, list - if the charge is invalid, return failure w/o needed to go deferred
         """
         validate(charge, {"type": "object", "properties":
             {
@@ -650,21 +836,35 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.compropago.create_bill(c)
 
         def process_bill(bill):
-            # do not return bill as the payment_id should remain private to us
+            """Process a bill that was created
+
+            :param bill:
+            :returns: Deferred
+            """
+
             def save_bill(txn):
+                """Save a cgo bill and return the instructions
+
+                :param txn:
+                :returns: list - [True, instructions]
+                """
                 payment_id = bill['payment_id']
                 instructions = bill['payment_instructions']
                 address = 'compropago_%s' % payment_id
                 if charge['send_sms']:
                     self.compropago.send_sms(payment_id, charge['customer_phone'], phone_company)
                 txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
+                # do not return bill as the payment_id should remain private to us
                 return [True, instructions]
 
             return dbpool.runInteraction(save_bill)
 
-
-
         def error(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             logging.warn("Could not create bill: %s" % str(failure))
             # TODO: set a correct error code
             return [False, (0, "We are unable to connect to Compropago. Please try again later. We are sorry for the inconvenience.")]
@@ -681,10 +881,28 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                                              datetime.timedelta(days=2)),
                   to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
 
+        """
+
+        :param from_timestamp:
+        :param to_timestamp:
+        :returns: Deferred
+        """
+
         def _cb(result):
+            """
+
+            :param result:
+            :type result: list
+            :returns: list - [True, list of transactions]
+            """
             return [True, result]
 
         def _cb_error(fail):
+            """
+
+            :param fail:
+            :returns: list - [False, message]
+            """
             return [False, fail.value.message.message]
 
         d = self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
@@ -696,13 +914,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_new_address(self, currency):
         """
         assigns a new deposit address to a user and returns the address
-        :return: the new address
+        :param currency:
+        :type currency: str
+        :returns: Deferred
         """
         validate(currency, {"type": "string"})
         # Make sure the currency is lowercase here
         currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _get_new_address(txn, username):
+            """
+
+            :param txn:
+            :param username:
+            :returns: list - [success, new address]
+            """
             txn.execute(
                 "SELECT id, address FROM addresses WHERE "
                 "username IS NULL AND active=FALSE AND currency=%s"
@@ -724,13 +950,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_current_address(self, currency):
         """
         RPC call to obtain the current address associated with a particular user
-        :return: said current address
+        :param currency:
+        :returns: Deferred
         """
         validate(currency, {"type": "string"})
         # Make sure currency is lower-cased
         currency = currency[:MAX_TICKER_LENGTH].lower()
 
         def _cb(result):
+            """
+
+            :param result:
+            :returns: list - [success, address or message]
+            """
             if not result:
                 logging.warning(
                     "we did not manage to get the current address associated with a user,"
@@ -751,7 +983,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param currency: the currency to process the withdrawal in
         :param withdraw_address: the address to which the withdrawn money is to be sent
         :param amount: the amount of money to withdraw
-        :return: true or false, depending on success
+        :returns: bool, Deferred - if an invalid amount, just return False, otherwise return a deferred
         """
         validate(currency, {"type": "string"})
         validate(withdraw_address, {"type": "string"})
@@ -784,10 +1016,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def get_positions(self):
         """
         Returns the user's positions
-        :return: a dictionary representing the user's positions in various tickers
+        :returns: Deferred
         """
 
         def _cb(result):
+            """
+
+            :param result:
+            :returns: list - [True, dict of positions]
+            """
             return [True, {x[1]: {"contract": x[1],
                                   "position": x[2],
                                   "reference_price": x[3]
@@ -801,7 +1038,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("get_profile")
     def get_profile(self):
+        """
+
+
+        :returns: Deferred
+        """
+
         def _cb(result):
+            """
+
+            :param result:
+            :returns: list - [success, dict or message]
+            """
             if not result:
                 return [False, (0, "get profile failed")]
 
@@ -816,6 +1064,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
+        :param email:
+        :param nickname:
+        :returns: Deferred
         """
 
         # sanitize
@@ -831,9 +1082,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d = self.factory.administrator.change_profile(self.username, profile)
 
         def onProfileSuccess(result):
+            """
+
+            :param result: ignored
+            :returns: list - [True, dict of profile]
+            """
             return self.get_profile()
 
         def onProfileFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         return d.addCallbacks(onProfileSuccess, onProfileFail)
@@ -844,26 +1105,43 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         Changes a users password.  Leaves salt and two factor untouched.
         :param old_password_hash: current password
         :param new_password_hash: new password
+        :returns: Deferred
         """
         validate(old_password_hash, {"type": "string"})
         validate(new_password_hash, {"type": "string"})
         d = self.factory.administrator.reset_password_hash(self.username, old_password_hash, new_password_hash)
 
         def onResetSuccess(result):
+            """
+
+            :param result: ignored
+            :returns: list - [True, None]
+            """
             return [True, None]
 
         def onResetFail(failure):
+            """
+
+            :param failure:
+            :returns: list - [False, message]
+            """
             return [False, failure.value.args]
 
         return d.addCallbacks(onResetSuccess, onResetFail)
 
     @exportRpc("get_open_orders")
     def get_open_orders(self):
-        """
-        gets open orders
+        """gets open orders
+
+        :returns: Deferred
         """
 
         def _cb(result):
+            """
+
+            :param result:
+            :returns: list - [True, dict of orders, indexed by id]
+            """
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
                            'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
 
@@ -880,8 +1158,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         Places an order on the engine
         :param order: the order to be placed
-        :return: the order id, some error?
-        :raise: some exception? need to do better error checking
+        :type order: dict
+        :returns: Deferred
         """
         # sanitize inputs:
         validate(order,
@@ -896,6 +1174,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # enforce minimum tick_size for prices:
 
         def _cb(result):
+            """
+
+
+            :param result: result of checking for the contract
+            :returns: Deferred
+            :raises: Exception
+            """
             if not result:
                 raise Exception("Invalid contract ticker.")
             tick_size = result[0][0]
@@ -920,6 +1205,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order['username'] = self.username
 
+            # TODO change this to not just pass back what the accountant gives us directly,
+            # because the ZMQ call has to change to not return stuff in the public format
             return self.factory.accountant.place_order(order)
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
@@ -927,6 +1214,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     @exportRpc("get_safe_prices")
     def get_safe_prices(self, array_of_tickers):
+        """
+
+        :param array_of_tickers:
+        :returns: dict
+        """
         validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
         if array_of_tickers:
             return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
@@ -936,6 +1228,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def cancel_order(self, order_id):
         """
         Cancels a specific order
+        :returns: Deferred
         :param order_id: order_id of the order
         """
         # sanitize inputs:
@@ -945,6 +1238,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
 
+        # TODO change this to not just pass back what the accountant gives us directly
+        # because the ZMQ call has to change to not return stuff in the public format
         return self.factory.accountant.cancel_order(order_id)
 
     # so we actually never need to call a "verify captcha" function, the captcha parameters are just passed
@@ -960,6 +1255,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):
         """
         Custom topic subscription handler
+        :returns: bool
         :param topic_uri_prefix: prefix of the URI
         :param topic_uri_suffix:suffix part, in this case always "chat"
         """
@@ -975,6 +1271,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
     def publish(self, topic_uri_prefix, topic_uri_suffix, event):
         """
         Custom topic publication handler
+        :returns: list, None - the message published, if any
         :param topic_uri_prefix: prefix of the URI
         :param topic_uri_suffix: suffix part, in this case always "general"
         :param event: event being published, a json object
@@ -1063,6 +1360,17 @@ class PepsiColaServerFactory(WampServerFactory):
 
     # noinspection PyPep8Naming
     def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
+        """
+
+        :param url:
+        :type url: str
+        :param base_uri:
+        :type base_uri: str
+        :param debugWamp:
+        :type debugWamp: bool
+        :param debugCodePaths:
+        :type debugCodePaths: bool
+        """
         WampServerFactory.__init__(
             self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
 
@@ -1095,6 +1403,11 @@ class PepsiColaServerFactory(WampServerFactory):
             public_key=config.get("webserver", "recaptcha_public_key"))
 
     def update_ohlcv(self, trade, period="day"):
+        """
+
+        :param trade:
+        :param period:
+        """
         period_map = {'minute': 60,
                       'hour': 3600,
                       'day': 3600 * 24}
@@ -1134,9 +1447,19 @@ class TicketServer(Resource):
         Resource.__init__(self)
 
     def getChild(self, path, request):
+        """
+
+        :param path:
+        :param request:
+        :returns: Resource
+        """
         return self
 
     def log(self, request):
+        """Log a request
+
+        :param request:
+        """
         line = '%s "%s %s %s" %d %s "%s" "%s" "%s" %s'
         logging.info(line,
                      request.getClientIP(),
@@ -1151,6 +1474,12 @@ class TicketServer(Resource):
                      json.dumps(request.args))
 
     def create_kyc_ticket(self, request):
+        """
+
+        :param request:
+        :type request: IRequest
+        :returns: Deferred
+        """
         headers = request.getAllHeaders()
         fields = cgi.FieldStorage(
                     fp = request.content,
@@ -1163,6 +1492,10 @@ class TicketServer(Resource):
         nonce = fields['nonce'].value
 
         def onFail(failure):
+            """
+
+            :param failure:
+            """
             logging.error("unable to create support ticket: %s" % failure.value.args)
             request.write("Failure: %s" % failure.value.args)
             request.finish()
@@ -1204,6 +1537,11 @@ class TicketServer(Resource):
         return NOT_DONE_YET
 
     def render(self, request):
+        """
+
+        :param request:
+        :returns: NOT_DONE_YET, None
+        """
         self.log(request)
         if request.postpath[0] == 'create_kyc_ticket':
             return self.create_kyc_ticket(request)
@@ -1213,12 +1551,22 @@ class TicketServer(Resource):
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
                  sslmethod=SSL.SSLv23_METHOD):
+        """
+
+        :param privateKeyFileName:
+        :param certificateChainFileName:
+        :param sslmethod:
+        """
         self.privateKeyFileName = privateKeyFileName
         self.certificateChainFileName = certificateChainFileName
         self.sslmethod = sslmethod
         self.cacheContext()
 
     def cacheContext(self):
+        """
+
+
+        """
         ctx = SSL.Context(self.sslmethod)
         ctx.use_certificate_chain_file(self.certificateChainFileName)
         ctx.use_privatekey_file(self.privateKeyFileName)

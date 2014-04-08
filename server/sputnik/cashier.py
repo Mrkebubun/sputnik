@@ -49,12 +49,13 @@ class Cashier():
         self.compropago = Compropago(config.get("cashier", "compropago_key"))
 
     def notify_accountant(self, address, total_received):
-        # tells the accountant an address has an updated "total received" amount
         """
         Notifies the accountant that the total received in a given address has increased
         and that this should be reflected as a deposit
-        @param address: address where the deposit has been made
-        @param total_received: total amount received for this address
+        :param address: address where the deposit has been made
+        :type address: str
+        :param total_received: total amount received for this address
+        :type total_received: int
         """
         logging.info('notifying the accountant that %s received %d' % (address, total_received))
         # note that this is *only* a notification to the accountant. We know at this point
@@ -68,6 +69,10 @@ class Cashier():
         self.accountant.deposit_cash(address, total_received)
 
     def rescan_address(self, address):
+        """Check an address to see if deposits have been made against it
+        :param address: the address we are checking
+        :type address: str
+        """
         # TODO: find out why this is unicode
         # probably because of the way txZMQ does things
         address = address.encode("utf-8")
@@ -96,7 +101,8 @@ class Cashier():
         """
         Checks for crypto deposits in a crypto currency that offers
         a connection compatible with the bitcoind RPC (typically, litecoin, dogecoin...)
-        @param currency: the btc-like currency for which to check for deposits
+        :param currency: the btc-like currency for which to check for deposits
+        :type currency: str
         """
         logging.info('checking for deposits')
         # first we get the confirmed deposits
@@ -118,7 +124,7 @@ class Cashier():
         """
         list withdrawal requests that have been entered and processed them
         either immediately or by pushing them to manual verification
-        @raise NotImplementedError:
+        :raises: NotImplementedError
         """
         # if the transaction is innocuous enough
         if self.pass_safety_check(None):
@@ -129,17 +135,23 @@ class Cashier():
 
     def pass_safety_check(self, withdrawal_request):
         """
-        @param withdrawal_request: a specific request for withdrawal, to be accepted for immediate
+        :param withdrawal_request: a specific request for withdrawal, to be accepted for immediate
                 withdrawal or wait until manual validation
+        :type withdrawal_request: dict
+
+        NOT IMPLEMENTED
         """
+
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # 2) make sure we have enough btc on hand
+        # Not yet implemented
         return False
 
     def process_compropago_payment(self, payment_info):
         """
         received payment information from a compropago payment and processes it
-        @param payment_info: object representing a payment
+        :param payment_info: object representing a payment
+        :type payment_info: dict
         """
         address = 'compropago_%s' % payment_info['id']
         # Convert pesos to pesocents
@@ -154,9 +166,10 @@ class Cashier():
 
     def notify_pending_withdrawal(self):
         """
-        email notification of withdrawal pending to the user
+        email notification of withdrawal pending to the user.
+        NOT IMPLEMENTED
 
-        @raise NotImplementedError:
+        :raises: NotImplementedError:
         """
         raise NotImplementedError()
 
@@ -177,8 +190,9 @@ class CompropagoHook(Resource):
     def render(self, request):
         """
         Compropago will post transaction details to us
-        @param request: a json object representing the transaction details
-        @return: anything as long as it's code 200
+        :param request: a json object representing the transaction details
+        :type request: twisted.web.http.Request
+        :returns: str - anything as long as it's code 200
         """
         json_string = request.content.getvalue()
         try:
@@ -200,19 +214,25 @@ class CompropagoHook(Resource):
 class BitcoinNotify(Resource):
     """
     A hook for the bitcoind client to notify us via curl or wget
-    @param cashier:
+
     """
     isLeaf = True
 
     def __init__(self, cashier_):
+        """
+        :param cashier_: the cashier we can talk to
+        :type cashier_: Cashier
+        :return:
+        """
         Resource.__init__(self)
         self.cashier = cashier_
 
     def render_GET(self, request):
         """
         receives a notice from bitcoind containing a transaction hash
-        @param request: the http request, typically containing the transaction hash
-        @return: the string "OK", which isn't relevant
+        :param request: the http request, typically containing the transaction hash
+        :type request: twisted.web.http.Request
+        :returns: str - the string "OK", which isn't relevant
         """
         logging.info("Got a notification from bitcoind: %s" % request)
         self.cashier.check_for_crypto_deposits('btc')
@@ -222,12 +242,23 @@ class BitcoinNotify(Resource):
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,
                  sslmethod=SSL.SSLv23_METHOD):
+        """Setup the SSL certs
+
+        :param privateKeyFileName: the private key
+        :type privateKeyFileName: str
+        :param certificateChainFileName: the cert chain
+        :type certificateChainFileName: str
+        :param sslmethod: which ssls are supported
+        """
         self.privateKeyFileName = privateKeyFileName
         self.certificateChainFileName = certificateChainFileName
         self.sslmethod = sslmethod
         self.cacheContext()
 
     def cacheContext(self):
+        """Generate the SSL context and cache it
+
+        """
         ctx = SSL.Context(self.sslmethod)
         ctx.use_certificate_chain_file(self.certificateChainFileName)
         ctx.use_privatekey_file(self.privateKeyFileName)
@@ -236,6 +267,11 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
 
 class AdministratorExport:
     def __init__(self, cashier):
+        """
+
+        :param cashier: the cashier we can talk to
+        :type cashier: Cashier
+        """
         self.cashier = cashier
 
     @export

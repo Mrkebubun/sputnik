@@ -8,7 +8,7 @@
     <orderEntry type="library" name="autobahn" level="application" />
   </component>
   <component name="PyDocumentationSettings">
-    <option name="myDocStringFormat" value="Plain" />
+    <option name="myDocStringFormat" value="reStructuredText" />
   </component>
   <component name="TestRunnerService">
     <option name="projectConfiguration" value="Unittests" />

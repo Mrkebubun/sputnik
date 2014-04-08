@@ -24,6 +24,10 @@ def export(obj):
 
 class Export:
     def __init__(self, wrapped):
+        """
+
+        :param wrapped:
+        """
         self.wrapped = wrapped
         self.mapper = {}
         for k in inspect.getmembers(wrapped.__class__, inspect.ismethod):
@@ -31,6 +35,11 @@ class Export:
                 self.mapper[k[0]] = k[1]
 
     def decode(self, message):
+        """
+
+        :param message:
+        :return: :raise RemoteCallException:
+        """
         logging.debug("Decoding message...")
 
         # deserialize
@@ -89,6 +98,13 @@ class Export:
 
 class AsyncExport(Export):
     def dispatch(self, method_name, args, kwargs):
+        """
+
+        :param method_name:
+        :param args:
+        :param kwargs:
+        :returns: maybeDeferred
+        """
         logging.info("Dispatching %s..." % method_name)
         logging.debug("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
@@ -97,6 +113,13 @@ class AsyncExport(Export):
 
 class SyncExport(Export):
     def dispatch(self, method_name, args, kwargs):
+        """
+
+        :param method_name:
+        :param args:
+        :param kwargs:
+        :returns:
+        """
         logging.info("Dispatching %s..." % method_name)
         logging.debug("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
@@ -105,11 +128,21 @@ class SyncExport(Export):
 
 class AsyncPullExport(AsyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.onPull = self.onPull
 
     def onPull(self, message):
+        """
+
+        :param message:
+        :returns: Deferred
+        """
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
@@ -128,11 +161,22 @@ class AsyncPullExport(AsyncExport):
 
 class AsyncRouterExport(AsyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.gotMessage = self.gotMessage
 
     def gotMessage(self, message_id, message):
+        """
+
+        :param message_id:
+        :param message:
+        :returns: Deferred
+        """
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
@@ -154,10 +198,18 @@ class AsyncRouterExport(AsyncExport):
 
 class SyncPullExport(SyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         SyncExport.__init__(self, wrapped)
         self.connection = connection
 
     def process(self, message):
+        """
+
+        """
         sender_id = message[0]
         message = message[1]
         try:
@@ -180,10 +232,20 @@ class SyncPullExport(SyncExport):
 
 class SyncRouterExport(SyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         SyncExport.__init__(self, wrapped)
         self.connection = connection
 
     def process(self, message):
+        """
+
+        :param message:
+        :return:
+        """
         sender_id = message[0]
         message_id = message[1]
         message = message[3]
@@ -212,14 +274,31 @@ class SyncRouterExport(SyncExport):
 
 
 def router_share_async(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    :returns: AsyncRouterExport
+    """
     socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     return AsyncRouterExport(obj, socket)
 
 def pull_share_async(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    :returns: AsyncPullExport
+    """
     socket = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     return AsyncPullExport(obj, socket)
 
 def router_share_sync(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    """
     context = zmq.Context()
     socket = context.socket(zmq.ROUTER)
     socket.bind(address)
@@ -228,6 +307,11 @@ def router_share_sync(obj, address):
         sre.process(socket.recv_multipart())
 
 def pull_share_sync(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    """
     context = zmq.Context()
     socket = context.socket(zmq.ROUTER)
     socket.bind(address)
@@ -237,9 +321,19 @@ def pull_share_sync(obj, address):
 
 class Proxy:
     def __init__(self, connection):
+        """
+
+        :param connection:
+        """
         self._connection = connection
 
     def decode(self, message):
+        """
+
+        :param message:
+        :returns: tuple
+        :raises: Exception
+        """
         logging.debug("Decoding message... %s" % message)
 
         # deserialize
@@ -280,10 +374,23 @@ class Proxy:
         return json.dumps({"method":method_name, "args":args, "kwargs":kwargs})
 
     def __getattr__(self, key):
+        """
+
+        :param key:
+        :returns:
+        :raises: Exception
+        """
         if key.startswith("__") and key.endswith("__"):
             raise Exception(AttributeError)
 
         def remote_method(*args, **kwargs):
+            """
+
+            :param args:
+            :param kwargs:
+            :returns: Deferred
+            :raises: Exception
+            """
             message = self.encode(key, args, kwargs)
             d = self.send(message)
 
@@ -306,10 +413,20 @@ class Proxy:
 
 class DealerProxyAsync(Proxy):
     def __init__(self, connection, timeout=1):
+        """
+
+        :param connection:
+        :param timeout:
+        """
         self._timeout = timeout
         Proxy.__init__(self, connection)
 
     def send(self, message):
+        """
+
+        :param message:
+        :returns: Deferred
+        """
         d = self._connection.sendMsg(message)
         if self._timeout > 0:
             timeout = reactor.callLater(self._timeout, d.errback,
@@ -323,10 +440,20 @@ class DealerProxyAsync(Proxy):
 
 class PushProxyAsync(Proxy):
     def send(self, message):
+        """
+
+        :param message:
+        :returns:
+        """
         return self._connection.push(message)
 
 class DealerProxySync(Proxy):
     def __init__(self, connection, timeout=1):
+        """
+
+        :param connection:
+        :param timeout:
+        """
         self._timeout = timeout
         Proxy.__init__(self, connection)
         self._connection.RCVTIMEO = int(timeout * 1000)
@@ -350,24 +477,50 @@ class DealerProxySync(Proxy):
 
 class PushProxySync(Proxy):
     def send(self, message):
+        """
+
+        :param message:
+        :returns: None
+        """
         self._connection.send(message)
         return None
 
 def dealer_proxy_async(address):
+    """
+
+    :param address:
+    :returns: DealerProxyAsync
+    """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
     return DealerProxyAsync(socket)
 
 def push_proxy_async(address):
+    """
+
+
+    :param address:
+    :returns: PushProxyAsync
+    """
     socket = ZmqPushConnection(ZmqFactory(), ZmqEndpoint("connect", address))
     return PushProxyAsync(socket)
 
 def dealer_proxy_sync(address):
+    """
+
+    :param address:
+    :returns: DealerProxySync
+    """
     context = zmq.Context()
     socket = context.socket(zmq.DEALER)
     socket.connect(address)
     return DealerProxySync(socket)
 
 def push_proxy_sync(address):
+    """
+
+    :param address:
+    :returns: PushProxySync
+    """
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
     socket.connect(address)

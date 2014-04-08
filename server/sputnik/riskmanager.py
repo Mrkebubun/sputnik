@@ -31,6 +31,19 @@ from email.mime.text import MIMEText
 NAP_TIME_SECONDS = 10
 
 def email_user(user, cash_position, low_margin, high_margin, severe):
+    """
+
+    :param user:
+    :type user: User
+    :param cash_position:
+    :type cash_position: int
+    :param low_margin:
+    :type low_margin: int
+    :param high_margin:
+    :type high_margin: int
+    :param severe:
+    :type severe: bool
+    """
     content = open("margin_call_email.txt" if severe else "low_margin_email.txt", "r").read()
 
     content = re.sub("@NICKNAME", user.nickname, content)

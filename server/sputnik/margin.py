@@ -11,8 +11,10 @@ def calculate_margin(username, session, safe_prices, order_id=None):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
+    :type order_id: int
     :param username: the username
-    :return: low and high margin
+    :type username: str
+    :returns: tuple - low and high margin
     """
     BTC = session.query(models.Contract).filter_by(ticker="BTC").one()
 
