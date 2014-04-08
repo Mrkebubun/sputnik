@@ -398,7 +398,9 @@ class Proxy:
                 success, result = self.decode(message)
                 if success:
                     return result
-                raise Exception(result)
+                # In this case the 'result' is an exception so we should
+                # raise it
+                raise result
 
             if isinstance(d, Deferred):
                 d.addCallback(strip_multipart)
@@ -470,7 +472,9 @@ class DealerProxySync(Proxy):
         success, result = self.decode(message)
         if success:
             return result
-        raise Exception(result)
+        # In this case the 'result' is an exception so we should
+        # raise it
+        raise result
 
 class PushProxySync(Proxy):
     def send(self, message):
