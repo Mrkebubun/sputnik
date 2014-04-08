@@ -48,7 +48,7 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, debug):
+    def __init__(self, session, webserver, debug):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -85,7 +85,7 @@ class Accountant:
             port = 4200 + contract.id
             self.engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" % port)
 
-        self.webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
+        self.webserver = webserver
 
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
@@ -926,9 +926,10 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     session = database.make_session()
+    webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
-    accountant = Accountant(session, debug=debug)
+    accountant = Accountant(session, webserver, debug=debug)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
