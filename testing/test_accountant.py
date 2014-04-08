@@ -1,55 +1,15 @@
 import sys
 import os
-import unittest
-import StringIO
 from pprint import pprint
+from test_sputnik import TestSputnik
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
         "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
         "../tools"))
 
-db_init = """
-database init
-contracts add BTC
-contracts add MXN
-contracts add BTC/MXN
-contracts modify BTC contract_type cash
-contracts modify BTC denominator 100000000
-contracts modify MXN contract_type cash
-contracts modify MXN denominator 100
-contracts modify BTC/MXN contract_type cash_pair
-contracts modify BTC/MXN tick_size 100
-contracts modify BTC/MXN lot_size 1000000
-contracts modify BTC/MXN denominator 1
 
-permissions add Default
-
-accounts add mexbt
-accounts add m2
-accounts add remainder
-accounts add marketmaker
-accounts password marketmaker marketmaker
-accounts add randomtrader
-accounts password randomtrader randomtrader
-accounts position marketmaker BTC
-accounts position marketmaker MXN
-accounts position randomtrader BTC
-accounts position randomtrader MXN
-
-accounts add onlinecash
-accounts modify onlinecash type Asset
-
-accounts add depositoverflow
-accounts modify depositoverflow type Liability
-
-accounts add adjustments
-accounts modify adjustments type Asset
-
-admin add admin
-"""
-
-test_init = """
+accountant_init = """
 permissions add Deposit
 permissions modify Deposit deposit 1
 
@@ -80,23 +40,10 @@ class FakeProxy:
         return proxy_method
 
 
-class TestAccountant(unittest.TestCase):
+class TestAccountant(TestSputnik):
     def setUp(self):
-        test_config = "[database]\nuri = sqlite://"
-        from sputnik import config
-        config.reset()
-        config.readfp(StringIO.StringIO(test_config))
-
-        from sputnik import database, models
-        self.session = database.make_session()
-
-        import leo
-        self.leo = leo.LowEarthOrbit(self.session)
-
-        for init in [db_init, test_init]:
-            for line in init.split("\n"):
-                self.leo.parse(line)
-            self.session.commit()
+        TestSputnik.setUp(self)
+        self.run_leo(accountant_init)
 
         from sputnik import accountant
         self.engines = {"BTC/MXN":FakeProxy}
@@ -142,7 +89,7 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
-        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 100000000)
+        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
         position = self.session.query(models.Position).filter_by(
             username="test").one()
         self.assertEqual(position.position, self.accountant.deposit_limits['btc'])
@@ -151,7 +98,7 @@ class TestCashierExport(TestAccountant):
         # Make sure the overflow position gets the cash
         overflow_position = self.session.query(models.Position).filter_by(
             username="depositoverflow").one()
-        self.assertEqual(overflow_position.position, 100000000-self.accountant.deposit_limits['btc'])
+        self.assertEqual(overflow_position.position, 1000000000-self.accountant.deposit_limits['btc'])
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
 
     def test_deposit_cash_permission_denied(self):
@@ -277,6 +224,7 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(aggressive_user_mxn_position.position, 17964)
         self.assertEqual(passive_user_mxn_position.position, 11964)
 
+        # Check to be sure it made all the right calls
         pprint(["Webserver Calls", self.webserver.log])
 
     def test_safe_prices(self):

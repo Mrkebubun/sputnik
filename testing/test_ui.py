@@ -7,10 +7,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import random, string
 
-class TestSputnik(unittest.TestCase):
+class TestSputnikUI(unittest.TestCase):
     def setUp(self):
         self.driver = webdriver.Chrome()
         self.driver.get('http://localhost:8888')
+
+    def tearDown(self):
+        self.driver.close()
 
     def test_connect(self):
         self.assertEqual(self.driver.title, 'MexBT Trading Platform')
@@ -30,7 +33,6 @@ class TestSputnik(unittest.TestCase):
         WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.ID, 'account_menu'))
         )
-        self.driver.close()
 
     def test_login(self):
         self.driver.find_element_by_id("login").click()
@@ -40,7 +42,6 @@ class TestSputnik(unittest.TestCase):
         WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.ID, 'account_menu'))
         )
-        self.driver.close()
 
     def test_trading(self):
         # First login
@@ -78,7 +79,6 @@ class TestSputnik(unittest.TestCase):
         if alert:
             alert.accept()
 
-        self.driver.close()
 
 
 
