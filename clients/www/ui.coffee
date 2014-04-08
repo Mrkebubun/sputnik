@@ -217,7 +217,7 @@ $("#compropago_pay_button").click (event) ->
     customer_phone = $('#compropago_phone').val()
     customer_phone_company = $('#compropago_phone_company').val()
 
-    if (Number(amount) < 600)
+    if (Number(amount) < 6000)
       sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone, customer_phone_company
 
 $('#chatButton').click ->
