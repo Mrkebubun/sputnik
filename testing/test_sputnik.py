@@ -6,9 +6,9 @@ import os
 import StringIO
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-        "../server"))
+                             "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-        "../tools"))
+                             "../tools"))
 
 db_init = """
 database init
@@ -49,8 +49,11 @@ accounts modify adjustments type Asset
 
 admin add admin
 """
+
+
 def dumpArgs(func):
     '''Decorator to print function call details - parameters names and effective values'''
+
     def wrapper(*func_args, **func_kwargs):
         arg_names = func.func_code.co_varnames[:func.func_code.co_argcount]
         args = func_args[:len(arg_names)]
@@ -65,6 +68,7 @@ def dumpArgs(func):
         return ret_val
 
     return wrapper
+
 
 class FakeProxy:
     def __init__(self):
@@ -83,6 +87,7 @@ class FakeProxy:
     # Checks if arg_compare's elements that exist in arg
     # match what is in arg. If there is an element in arg_compare as a dict
     # that doesn't exist in arg, it is ignored
+    @dumpArgs
     def check(self, arg, arg_compare):
         if arg == arg_compare:
             return True
@@ -102,36 +107,36 @@ class FakeProxy:
         for log_entry in self.log:
             found = False
             if log_entry[0] == method:
-                found = True
-                if not self.check(args, log_entry[1]):
-                    found = False
-                    break
-                if not self.check(kwargs, log_entry[2]):
-                    found = False
-            if found:
-                return log_entry
+                if self.check(args, log_entry[1]) and self.check(kwargs, log_entry[2]):
+                    return log_entry
+
         return None
 
     def check_for_calls(self, calls):
         for call in calls:
             if self.check_for_call(call[0], call[1], call[2]) is None:
+                print "Check failure in %s" % str(call)
                 return False
 
         return True
+
 
 class TestSputnik(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         test_config = "[database]\nuri = sqlite://"
         from sputnik import config
+
         config.reset()
         config.readfp(StringIO.StringIO(test_config))
 
     def setUp(self):
         from sputnik import database, models
+
         self.session = database.make_session()
 
         import leo
+
         self.leo = leo.LowEarthOrbit(self.session)
         self.run_leo(db_init)
 
