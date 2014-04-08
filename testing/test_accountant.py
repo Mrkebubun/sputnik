@@ -1,7 +1,7 @@
 import sys
 import os
-from pprint import pprint
 from test_sputnik import TestSputnik, FakeProxy
+from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -25,6 +25,13 @@ permissions modify Full withdraw 1
 """
 
 
+class FakeEngine(FakeProxy):
+    def place_order(self, order):
+        self.log.append(('place_order', (order), {}))
+        # Always return a good fake result
+        return [True, 5]
+
+
 class TestAccountant(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
@@ -32,7 +39,7 @@ class TestAccountant(TestSputnik):
 
         from sputnik import accountant
 
-        self.engines = {"BTC/MXN": FakeProxy}
+        self.engines = {"BTC/MXN": FakeEngine()}
         self.webserver = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.webserver, True)
@@ -42,14 +49,18 @@ class TestAccountant(TestSputnik):
         self.engine_export = accountant.EngineExport(self.accountant)
 
 
+    def add_address(self, username, address, currency='btc'):
+        self.leo.parse("addresses add %s %s" % (currency, address))
+        self.leo.parse("addresses modify %s username %s" % (address, username))
+        self.leo.parse("addresses modify %s active 1" % address)
+        self.session.commit()
+
     def create_account(self, username, address=None, currency='btc'):
         self.leo.parse("accounts add %s" % username)
-        if address is not None:
-            self.leo.parse("addresses add %s %s" % (currency, address))
-            self.leo.parse("addresses modify %s username %s" % (address, username))
-            self.leo.parse("addresses modify %s active 1" % address)
-
         self.session.commit()
+
+        if address is not None:
+            self.add_address(username, address, currency=currency)
 
     def set_permissions_group(self, username, groupname):
         from sputnik import models
@@ -242,7 +253,6 @@ class TestAdministratorExport(TestAccountant):
         self.assertEqual(position.position, 20)
         self.assertEqual(position.position_calculated, position.position)
 
-        pprint(self.webserver.log)
         self.assertTrue(self.webserver.check_for_calls([('ledger',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
@@ -457,7 +467,110 @@ class TestEngineExport(TestAccountant):
 
 class TestWebserverExport(TestAccountant):
     def test_place_order(self):
-        pass
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a sell order, we have enough cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+        self.assertTrue(result[1])
+        self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+                                                                  {'contract': 3,
+                                                                   'id': 1,
+                                                                   'price': 10000,
+                                                                   'quantity': 3000000,
+                                                                   'quantity_left': 3000000,
+                                                                   'side': 1,
+                                                                   'username': u'test'},
+                                                                  {})]))
+
+    def test_place_order_no_perms(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+
+        # Place a sell order, we have enough cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+        self.assertFalse(result[0])
+        self.assertTupleEqual(result[1], (1, 'Trading not permitted'))
+
+    def test_place_order_no_cash(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a sell order, we have no cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+        self.assertFalse(result[0])
+        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
+
+    def test_place_order_little_cash(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.set_permissions_group("test", 'Trade')
+
+
+        # Place a sell order, we have too little cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 9000000,
+                                                    'side': 'SELL'})
+        self.assertFalse(result[0])
+        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
+
+    def test_place_many_orders(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a sell order, we have enough cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+        self.assertTrue(result[1])
+        self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+                                                                  {'contract': 3,
+                                                                   'id': 1,
+                                                                   'price': 10000,
+                                                                   'quantity': 3000000,
+                                                                   'quantity_left': 3000000,
+                                                                   'side': 1,
+                                                                   'username': u'test'},
+                                                                  {})]))
+
+        # Place another sell, we have insufficient cash now
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 10000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+        self.assertFalse(result[0])
+        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
 
     def test_cancel_order(self):
         pass
