@@ -46,10 +46,6 @@ accounts add adjustments
 accounts modify adjustments type Asset
 
 admin add admin
-
-accounts add test
-permissions add Test
-permissions modify Test deposit 1
 """
 
 class FakeProxy:
@@ -66,7 +62,7 @@ class FakeProxy:
 
         return proxy_method
 
-class TestAccountant(unittest.TestCase):
+class TestDeposit(unittest.TestCase):
     def setUp(self):
         test_config = "[database]\nuri = sqlite://"
         from sputnik import config
@@ -77,17 +73,9 @@ class TestAccountant(unittest.TestCase):
         self.session = database.make_session()
 
         import leo
-        leo_controller = leo.LowEarthOrbit(self.session)
+        self.leo = leo.LowEarthOrbit(self.session)
         for line in db_init.split("\n"):
-            leo_controller.parse(line)
-        test = self.session.query(models.User).filter_by(username="test").one()
-        group = self.session.query(models.PermissionGroup).filter_by(
-            name="Test").one()
-        test.permissions = group
-        address = models.Addresses(test, "btc",
-            "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv")
-        self.session.add(test)
-        self.session.add(address)
+            self.leo.parse(line)
         self.session.commit()
 
         from sputnik import accountant
@@ -97,11 +85,33 @@ class TestAccountant(unittest.TestCase):
                                                 self.webserver, True)
         self.cashier = accountant.CashierExport(self.accountant)
 
-    def test_deposit(self):
+    def test_deposit_permission_allowed(self):
         from sputnik import models
+        self.leo.parse("accounts add test")
+        self.leo.parse("permissions add Deposit")
+        self.leo.parse("permissions modify Deposit deposit 1")
+        self.leo.parse("accounts modify test permission Deposit")
+        self.leo.parse("addresses add btc 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv")
+        self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv username test")
+        self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv active 1")
+        self.session.commit()
+
         self.cashier.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
         position = self.session.query(models.Position).filter_by(
             username="test").one()
         self.assertEqual(position.position, 10)
 
+    def test_deposit_permission_denied(self):
+        from sputnik import models
+        self.leo.parse("accounts add test")
+        self.leo.parse("accounts modify test permission Deposit")
+        self.leo.parse("addresses add btc 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv")
+        self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv username test")
+        self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv active 1")
+        self.session.commit()
+
+        self.cashier.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        position = self.session.query(models.Position).filter_by(
+            username="test").one()
+        self.assertEqual(position.position, 0)
 
