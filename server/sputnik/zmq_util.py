@@ -121,7 +121,8 @@ class SyncExport(Export):
         logging.debug("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
-        return method(self.wrapped, *args, **kwargs)
+        result = method(self.wrapped, *args, **kwargs)
+        return result
 
 class AsyncPullExport(AsyncExport):
     def __init__(self, wrapped, connection):
@@ -254,7 +255,7 @@ class SyncRouterExport(SyncExport):
                 [sender_id, message_id, "", self.encode(False, e)])
 
         def result(value):
-            logging.info("Got result for method %s id: %s-%s" % (method_name, message_id, sender_id))
+            logging.info("Got result for method %s id: %s" % (method_name, message_id))
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(True, value)])
 
