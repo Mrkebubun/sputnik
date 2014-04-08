@@ -119,6 +119,7 @@ class @Sputnik extends EventEmitter
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
+                @onAuthFail error
                 @wtf "Failed login: Could not authenticate: #{error}."
 
     changePasswordToken: (new_password) =>
