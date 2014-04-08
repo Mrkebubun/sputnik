@@ -279,4 +279,22 @@ class TestEngineExport(TestAccountant):
 
         pprint(["Webserver Calls", self.webserver.log])
 
+    def test_safe_prices(self):
+        pass
+
+class TestWebserverExport(TestAccountant):
+    def test_place_order(self):
+        pass
+
+    def test_cancel_order(self):
+        pass
+
+    def test_get_permissions(self):
+        pass
+
+    def test_get_audit(self):
+        pass
+
+    def test_get_ledger_history(self):
+        pass
 

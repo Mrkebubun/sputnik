@@ -895,10 +895,6 @@ class AdministratorExport:
         self.accountant = accountant
 
     @export
-    def clear_contract(self, ticker):
-        self.accountant.clear_contract(ticker)
-
-    @export
     def adjust_position(self, username, ticker, quantity):
         self.accountant.adjust_position(username, ticker, quantity)
 
