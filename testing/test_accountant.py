@@ -4,10 +4,9 @@ from pprint import pprint
 from test_sputnik import TestSputnik, FakeProxy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-        "../server"))
+                             "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-        "../tools"))
-
+                             "../tools"))
 
 accountant_init = """
 permissions add Deposit
@@ -26,14 +25,14 @@ permissions modify Full withdraw 1
 """
 
 
-
 class TestAccountant(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
         self.run_leo(accountant_init)
 
         from sputnik import accountant
-        self.engines = {"BTC/MXN":FakeProxy}
+
+        self.engines = {"BTC/MXN": FakeProxy}
         self.webserver = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.webserver, True)
@@ -54,15 +53,18 @@ class TestAccountant(TestSputnik):
 
     def set_permissions_group(self, username, groupname):
         from sputnik import models
+
         user = self.session.query(models.User).filter_by(username=username).one()
         group = self.session.query(models.PermissionGroup).filter_by(name=groupname).one()
         user.permissions = group
         self.session.merge(user)
         self.session.commit()
 
+
 class TestCashierExport(TestAccountant):
     def test_deposit_cash_permission_allowed(self):
         from sputnik import models
+
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
@@ -70,9 +72,22 @@ class TestCashierExport(TestAccountant):
         position = self.session.query(models.Position).filter_by(
             username="test").one()
         self.assertEqual(position.position, 10)
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {})])
 
     def test_deposit_cash_too_much(self):
         from sputnik import models
+
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
@@ -85,11 +100,36 @@ class TestCashierExport(TestAccountant):
         # Make sure the overflow position gets the cash
         overflow_position = self.session.query(models.Position).filter_by(
             username="depositoverflow").one()
-        self.assertEqual(overflow_position.position, 1000000000-self.accountant.deposit_limits['btc'])
+        self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['btc'])
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 1000000000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': 1000000000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': -900000000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'depositoverflow',
+                                          {'contract': u'BTC',
+                                           'quantity': 900000000,
+                                           'type': u'Deposit'}),
+                                         {})])
 
     def test_deposit_cash_permission_denied(self):
         from sputnik import models
+
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.session.commit()
 
@@ -106,10 +146,36 @@ class TestCashierExport(TestAccountant):
             username="depositoverflow").one()
         self.assertEqual(overflow_position.position, 10)
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': -10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'depositoverflow',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {})])
+
 
 class TestAdministratorExport(TestAccountant):
     def test_transfer_position(self):
         from sputnik import models
+
         self.create_account("from_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('from_account', 'Deposit')
@@ -125,9 +191,47 @@ class TestAdministratorExport(TestAccountant):
         self.assertEqual(to_position.position, 15)
         self.assertEqual(from_position.position_calculated, from_position.position)
         self.assertEqual(to_position.position_calculated, to_position.position)
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'from_account',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'to_account',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'from_account',
+                                          {'contract': u'BTC',
+                                           'quantity': -5,
+                                           'type': u'Transfer'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'to_account',
+                                          {'contract': u'BTC',
+                                           'quantity': 5,
+                                           'type': u'Transfer'}),
+                                         {})]
+        )
 
     def test_adjust_position(self):
         from sputnik import models
+
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
@@ -138,12 +242,38 @@ class TestAdministratorExport(TestAccountant):
         self.assertEqual(position.position, 20)
         self.assertEqual(position.position_calculated, position.position)
 
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'test',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Adjustment'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'adjustments',
+                                          {'contract': u'BTC',
+                                           'quantity': 10,
+                                           'type': u'Adjustment'}),
+                                         {})])
+
     def test_get_balance_sheet(self):
         # NOT IMPLEMENTED
         pass
 
     def test_change_permission_group(self):
         from sputnik import models
+
         self.create_account("test")
         id = self.session.query(models.PermissionGroup.id).filter_by(name='Deposit').one().id
         self.administrator_export.change_permission_group('test', id)
@@ -152,12 +282,14 @@ class TestAdministratorExport(TestAccountant):
 
     def test_new_permission_group(self):
         from sputnik import models
+
         self.administrator_export.new_permission_group('New Test Group')
         count = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').count()
         self.assertEqual(count, 1)
 
     def test_modify_permission_group(self):
         from sputnik import models
+
         id = self.session.query(models.PermissionGroup.id).filter_by(name='Deposit').one().id
         new_permissions = ['trade', 'login']
 
@@ -168,17 +300,18 @@ class TestAdministratorExport(TestAccountant):
         self.assertTrue(group.trade)
         self.assertTrue(group.login)
 
+
 class TestEngineExport(TestAccountant):
     def test_post_transaction(self):
         from sputnik import util, models
         import datetime
+
         self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
         self.set_permissions_group("aggressive_user", 'Deposit')
         self.set_permissions_group("passive_user", "Deposit")
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 30000)
-
 
         test_transaction = {'aggressive_username': 'aggressive_user',
                             'passive_username': 'passive_user',
@@ -212,10 +345,114 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(passive_user_mxn_position.position, 11964)
 
         # Check to be sure it made all the right calls
-        pprint(["Webserver Calls", self.webserver.log])
+        self.webserver.check_for_calls([('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'BTC',
+                                           'quantity': 5000000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'aggressive_user',
+                                          {'contract': u'BTC',
+                                           'quantity': 5000000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'onlinecash',
+                                          {'contract': u'MXN',
+                                           'quantity': 30000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'passive_user',
+                                          {'contract': u'MXN',
+                                           'quantity': 30000,
+                                           'type': u'Deposit'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'aggressive_user',
+                                          {'contract': u'MXN',
+                                           'quantity': 18000,
+                                           'type': u'Trade'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'aggressive_user',
+                                          {'contract': u'BTC',
+                                           'quantity': -3000000,
+                                           'type': u'Trade'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'passive_user',
+                                          {'contract': u'MXN',
+                                           'quantity': -18000,
+                                           'type': u'Trade'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'passive_user',
+                                          {'contract': u'BTC',
+                                           'quantity': 3000000,
+                                           'type': u'Trade'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'aggressive_user',
+                                          {'contract': u'MXN',
+                                           'quantity': -36,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'mexbt',
+                                          {'contract': u'MXN',
+                                           'quantity': 18,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'm2',
+                                          {'contract': u'MXN',
+                                           'quantity': 18,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'passive_user',
+                                          {'contract': u'MXN',
+                                           'quantity': -36,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'mexbt',
+                                          {'contract': u'MXN',
+                                           'quantity': 18,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('ledger',
+                                         (u'm2',
+                                          {'contract': u'MXN',
+                                           'quantity': 18,
+                                           'type': u'Fee'}),
+                                         {}),
+                                        ('fill',
+                                         ('aggressive_user',
+                                          {'contract': 'BTC/MXN',
+                                           'fees': {u'BTC': 0, u'MXN': 36.0},
+                                           'id': 54,
+                                           'price': 600000,
+                                           'quantity': 3000000,
+                                           'side': 'SELL'
+                                          }),
+                                         {}),
+                                        ('fill',
+                                         ('passive_user',
+                                          {'contract': 'BTC/MXN',
+                                           'fees': {u'BTC': 0, u'MXN': 36.0},
+                                           'id': 50,
+                                           'price': 600000,
+                                           'quantity': 3000000,
+                                           'side': 'BUY'
+                                          }),
+                                         {})])
 
     def test_safe_prices(self):
         pass
+
 
 class TestWebserverExport(TestAccountant):
     def test_place_order(self):

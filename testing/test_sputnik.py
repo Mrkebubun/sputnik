@@ -49,6 +49,22 @@ accounts modify adjustments type Asset
 
 admin add admin
 """
+def dumpArgs(func):
+    '''Decorator to print function call details - parameters names and effective values'''
+    def wrapper(*func_args, **func_kwargs):
+        arg_names = func.func_code.co_varnames[:func.func_code.co_argcount]
+        args = func_args[:len(arg_names)]
+        defaults = func.func_defaults or ()
+        args = args + defaults[len(defaults) - (func.func_code.co_argcount - len(args)):]
+        params = zip(arg_names, args)
+        args = func_args[len(arg_names):]
+        if args: params.append(('args', args))
+        if func_kwargs: params.append(('kwargs', func_kwargs))
+        ret_val = func(*func_args, **func_kwargs)
+        print func.func_name + ' (' + ', '.join('%s = %r' % p for p in params) + ' )=' + str(ret_val)
+        return ret_val
+
+    return wrapper
 
 class FakeProxy:
     def __init__(self):
@@ -59,10 +75,49 @@ class FakeProxy:
             raise AttributeError
 
         def proxy_method(*args, **kwargs):
-            self.log.append([key, args, kwargs])
+            self.log.append((key, args, kwargs))
             return None
 
         return proxy_method
+
+    # Checks if arg_compare's elements that exist in arg
+    # match what is in arg. If there is an element in arg_compare as a dict
+    # that doesn't exist in arg, it is ignored
+    def check(self, arg, arg_compare):
+        if arg == arg_compare:
+            return True
+        else:
+            if isinstance(arg, (list, tuple)) and isinstance(arg_compare, (list, tuple)):
+                for arg_a, arg_b in zip(arg, arg_compare):
+                    return self.check(arg_a, arg_b)
+            if isinstance(arg, dict) and isinstance(arg_compare, dict):
+                for key, value in arg.iteritems():
+                    if key not in arg_compare:
+                        return False
+                    return self.check(value, arg_compare[key])
+            else:
+                return False
+
+    def check_for_call(self, method, args, kwargs):
+        for log_entry in self.log:
+            found = False
+            if log_entry[0] == method:
+                found = True
+                if not self.check(args, log_entry[1]):
+                    found = False
+                    break
+                if not self.check(kwargs, log_entry[2]):
+                    found = False
+            if found:
+                return log_entry
+        return None
+
+    def check_for_calls(self, calls):
+        for call in calls:
+            if self.check_for_call(call[0], call[1], call[2]) is None:
+                return False
+
+        return True
 
 class TestSputnik(unittest.TestCase):
     @classmethod
