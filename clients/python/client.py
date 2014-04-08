@@ -319,6 +319,9 @@ class TradingBot(WampCraClientProtocol):
         cancels an order by its id.
         :param id: order id
         """
+        if id.startswith('internal_'):
+            print "can't cancel internal order: %s" % id
+
         print "cancel order: %s" % id
         d = self.call(self.base_uri + "/rpc/cancel_order", id)
         d.addCallbacks(pprint, self.onRpcError)
