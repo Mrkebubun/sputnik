@@ -55,15 +55,12 @@ NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 INVALID_TOKEN = AdministratorException(4, "No such token found.")
 EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
-OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
-USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
-ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is already taken")
 TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
 USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
 ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
 INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
-
+OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 
 
 def session_aware(func):
@@ -119,7 +116,7 @@ class Administrator:
         """
         user_count = self.session.query(models.User).count()
         # TODO: Make this configurable
-        if user_count > 100:
+        if user_count > 500:
             logging.error("User limit reached")
             raise USER_LIMIT_REACHED
 
