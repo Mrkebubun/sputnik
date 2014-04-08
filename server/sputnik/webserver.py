@@ -389,8 +389,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return {"authextra": "",
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
+        def _cb_error(fail):
+            logging.error("Unable to get permissions for %s: %s" % (username, fail.value.message.message))
+            return {"authextra": "",
+                    "permissions": {"pubsub": [], "rpc": [], "username": username}}
+
+
         # Check for login permissions
-        return self.factory.accountant.get_permissions(username).addCallbacks(_cb_perms)
+        d = self.factory.accountant.get_permissions(username)
+        d.addCallback(_cb_perms)
+        d.addErrback(_cb_error)
+        return d
 
 
     def getAuthSecret(self, auth_key):
