@@ -8,7 +8,6 @@ import json
 import treq
 
 import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s')
 import math
 
 from jsonschema import validate
@@ -461,6 +460,7 @@ def main():
 
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s')
     from twisted.internet import reactor
     main()
     reactor.run()
