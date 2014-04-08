@@ -33,7 +33,6 @@ class TestSputnik(unittest.TestCase):
         self.driver.close()
 
     def test_login(self):
-        self.driver.get('http://localhost:8888')
         self.driver.find_element_by_id("login").click()
         self.driver.find_element_by_id("login_username").send_keys("marketmaker")
         self.driver.find_element_by_id("login_password").send_keys("marketmaker")
@@ -41,6 +40,44 @@ class TestSputnik(unittest.TestCase):
         WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.ID, 'account_menu'))
         )
+        self.driver.close()
+
+    def test_trading(self):
+        # First login
+        self.driver.find_element_by_id("login").click()
+        self.driver.find_element_by_id("login_username").send_keys("marketmaker")
+        self.driver.find_element_by_id("login_password").send_keys("marketmaker")
+        self.driver.find_element_by_id("login_button").click()
+        WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.ID, 'account_menu'))
+        )
+        # For now we'll assume we have funds to trade with
+        qty = self.driver.find_element_by_id("buy_quantity")
+        qty.clear()
+        qty.send_keys("1")
+
+        price = self.driver.find_element_by_id("buy_price")
+        price.clear()
+        price.send_keys("1")
+        self.driver.find_element_by_id("buyButton").click()
+        alert_check = EC.alert_is_present()
+        alert = alert_check(self.driver)
+        if alert:
+            alert.accept()
+
+        # For now we'll assume we have funds to trade with
+        qty = self.driver.find_element_by_id("sell_quantity")
+        qty.clear()
+        qty.send_keys("1")
+
+        price = self.driver.find_element_by_id("sell_price")
+        price.clear()
+        price.send_keys("1")
+        self.driver.find_element_by_id("sellButton").click()
+        alert = alert_check(self.driver)
+        if alert:
+            alert.accept()
+
         self.driver.close()
 
 
