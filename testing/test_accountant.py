@@ -1,7 +1,7 @@
 import sys
 import os
 from pprint import pprint
-from test_sputnik import TestSputnik
+from test_sputnik import TestSputnik, FakeProxy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
         "../server"))
@@ -25,19 +25,6 @@ permissions modify Full trade 1
 permissions modify Full withdraw 1
 """
 
-class FakeProxy:
-    def __init__(self):
-        self.log = []
-
-    def __getattr__(self, key):
-        if key.startswith("__"):
-            raise AttributeError
-        
-        def proxy_method(*args, **kwargs):
-            self.log.append([key, args, kwargs])
-            return None
-
-        return proxy_method
 
 
 class TestAccountant(TestSputnik):
