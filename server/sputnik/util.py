@@ -71,7 +71,7 @@ def get_fees(username, contract, transaction_size):
     # TODO: Create fees for futures and predictions
     if contract.contract_type == "cash_pair":
         from_currency_ticker, to_currency_ticker = split_pair(contract.ticker)
-        fees = round(transaction_size * 0.002)
+        fees = int(round(transaction_size * 0.002))
         return { from_currency_ticker: fees,
                  to_currency_ticker: 0
         }
