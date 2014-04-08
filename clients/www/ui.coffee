@@ -102,18 +102,25 @@ $("#login_button").click (event) ->
         $('#login_error').text("Please enter a username and password").slideDown()
 
 $("#register").click () ->
+    $("#register_modal").on('hidden.bs.modal', -> $('#register_error').hide())
     $("#register_modal").modal()
 
 $("#register_button").click (event) ->
     event.preventDefault()
-    $("#register_error").hide()
-    ladda = Ladda.create $("#register_button")[0]
-    ladda.start()
+
     username = $("#register_username").val()
     password = $("#register_password").val()
     email = $("#register_email").val()
     nickname = $("#register_nickname").val()
-    sputnik.makeAccount username, password, email, nickname
+    eula = $("#register_eula").is(":checked")
+
+    if username and password and email and nickname and eula
+        $('#register_error').hide()
+        ladda = Ladda.create $("#register_button")[0]
+        ladda.start()
+        sputnik.makeAccount username, password, email, nickname
+    else
+        $('#register_error').text('Please complete the registration form and accept the terms and conditions to continue.').slideDown()
 
 withinAnOrderOfMagnitude = (x, y) ->
     sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
