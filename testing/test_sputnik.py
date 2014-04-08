@@ -144,3 +144,17 @@ class TestSputnik(unittest.TestCase):
         for line in init.split("\n"):
             self.leo.parse(line)
         self.session.commit()
+
+    def create_account(self, username, address=None, currency='btc'):
+        self.leo.parse("accounts add %s" % username)
+        self.session.commit()
+
+        if address is not None:
+            self.add_address(username, address, currency=currency)
+
+    def add_address(self, username=None, address=None, currency='btc'):
+        self.leo.parse("addresses add %s %s" % (currency, address))
+        if username is not None:
+            self.leo.parse("addresses modify %s username %s" % (address, username))
+            self.leo.parse("addresses modify %s active 1" % address)
+        self.session.commit()
