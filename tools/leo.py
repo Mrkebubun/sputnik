@@ -30,6 +30,14 @@ class PermissionsManager:
         else:
             print "PermissionGroup %s already exists" % group
 
+    def modify(self, name, field, value):
+        group = self.session.query(models.PermissionGroup).filter_by(
+                name=name).first()
+        if group == None:
+            raise Exception("Permission group '%s' not found." % username)
+        setattr(group, field, value)
+        self.session.merge(group)
+
 class AdminManager:
     def __init__(self, session):
         self.session = session
