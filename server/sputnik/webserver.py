@@ -35,6 +35,8 @@ import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
 from zendesk import Zendesk
 
+from administrator import AdministratorException
+
 from jsonschema import validate
 from twisted.python import log
 from twisted.internet import reactor, task
