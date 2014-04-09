@@ -929,7 +929,7 @@ if __name__ == "__main__":
     engines = {}
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
-                                                      4200 + contract.id)
+                                                      (4200 + int(contract.id)))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
