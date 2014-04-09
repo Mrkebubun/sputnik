@@ -15,7 +15,7 @@ import database
 import models
 import collections
 from datetime import datetime
-from webserver import ChainedOpenSSLContextFactory
+from util import ChainedOpenSSLContextFactory
 
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async

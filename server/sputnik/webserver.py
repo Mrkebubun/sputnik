@@ -37,7 +37,7 @@ from zendesk import Zendesk
 
 from jsonschema import validate
 from twisted.python import log
-from twisted.internet import reactor, task, ssl
+from twisted.internet import reactor, task
 from twisted.web.server import Site
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.resource import Resource
@@ -49,8 +49,6 @@ from autobahn.wamp1.protocol import exportRpc, \
     WampCraServerProtocol, exportSub, exportPub
 
 from autobahn.wamp1.protocol import CallHandler
-
-from OpenSSL import SSL
 
 from txzmq import ZmqFactory
 
@@ -1548,29 +1546,6 @@ class TicketServer(Resource):
         else:
             return None
 
-class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
-    def __init__(self, privateKeyFileName, certificateChainFileName,
-                 sslmethod=SSL.SSLv23_METHOD):
-        """
-
-        :param privateKeyFileName:
-        :param certificateChainFileName:
-        :param sslmethod:
-        """
-        self.privateKeyFileName = privateKeyFileName
-        self.certificateChainFileName = certificateChainFileName
-        self.sslmethod = sslmethod
-        self.cacheContext()
-
-    def cacheContext(self):
-        """
-
-
-        """
-        ctx = SSL.Context(self.sslmethod)
-        ctx.use_certificate_chain_file(self.certificateChainFileName)
-        ctx.use_privatekey_file(self.privateKeyFileName)
-        self._context = ctx
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
@@ -1599,7 +1574,7 @@ if __name__ == '__main__':
         key = config.get("webserver", "ssl_key")
         cert = config.get("webserver", "ssl_cert")
         cert_chain = config.get("webserver", "ssl_cert_chain")
-        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
+        contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
 
     address = config.get("webserver", "ws_address")
     port = config.getint("webserver", "ws_port")
