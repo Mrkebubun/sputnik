@@ -41,7 +41,7 @@ import json
 from bs4 import BeautifulSoup
 import time
 
-uri = 'wss://sputnikmkt.com:8000'
+uri = 'ws://localhost:8000'
 class MarketMakerBot(TradingBot):
     username = 'marketmaker'
     password = 'marketmaker'
@@ -56,10 +56,10 @@ class MarketMakerBot(TradingBot):
         self.btcmxn_ask = None
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 1.0)
+        self.get_external_market.start(rate * 60)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(rate * 0.1)
+        self.monitor_orders.start(rate * 1)
 
         return True
 

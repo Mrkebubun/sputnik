@@ -47,7 +47,7 @@ class RandomBot(TradingBot):
         return uri
 
     def startAutomationAfterAuth(self):
-        rate = 1
+        rate = 60
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1.0 * rate)
@@ -93,8 +93,8 @@ class RandomBot(TradingBot):
 
             price = int(price / (tick_size * denominator)) * tick_size * denominator
         except (ValueError, KeyError):
-            # We don't have a best bid/ask, just pick a price randomly
-            price = random.randint(7000,8000) * (tick_size * denominator)
+            # We don't have a best bid/ask, don't trade
+            return
 
         # a qty somewhere between 0.5 and 2 BTC
         quantity = random.randint(50,200) * lot_size

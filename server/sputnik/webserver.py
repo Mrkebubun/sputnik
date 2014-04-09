@@ -457,6 +457,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                prefixMatch=True)
         self.registerForPubSub(self.base_uri + "/feeds/book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
+        self.registerForPubSub(self.base_uri + "/feeds/ohlcv#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+                               prefixMatch=True)
 
         self.registerForRpc(self.factory.public_interface,
                             self.base_uri + "/rpc/")
@@ -1333,7 +1335,7 @@ class EngineExport:
             self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
         self.webserver.trade_history[ticker].append(trade)
         for period in ["day", "hour", "minute"]:
-            self.webserver.update_ohlcv(trade, period=period)
+            self.webserver.update_ohlcv(trade, period=period, update_feed=True)
 
     @export
     def order(self, user, order):
@@ -1404,7 +1406,7 @@ class PepsiColaServerFactory(WampServerFactory):
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
-    def update_ohlcv(self, trade, period="day"):
+    def update_ohlcv(self, trade, period="day", update_feed=False):
         """
 
         :param trade:
@@ -1421,6 +1423,12 @@ class PepsiColaServerFactory(WampServerFactory):
 
         end_period = int(trade['timestamp'] / period_micros) * period_micros + period_micros - 1
         if end_period not in self.ohlcv_history[ticker][period]:
+            # This is a new period, so send out the prior period
+            prior_period = end_period - period_micros
+            if update_feed and prior_period in self.ohlcv_history[ticker][period]:
+                prior_ohlcv = self.ohlcv_history[ticker][period][prior_period]
+                self.dispatch(self.base_uri + "/feeds/ohlcv#%s" % ticker, prior_ohlcv)
+
             self.ohlcv_history[ticker][period][end_period] = {'period': period,
                                        'contract': ticker,
                                        'open': trade['price'],
@@ -1428,7 +1436,8 @@ class PepsiColaServerFactory(WampServerFactory):
                                        'high': trade['price'],
                                        'close': trade['price'],
                                        'volume': trade['quantity'],
-                                       'vwap': trade['price']}
+                                       'vwap': trade['price'],
+                                       'timestamp': end_period}
         else:
             self.ohlcv_history[ticker][period][end_period]['low'] = min(trade['price'], self.ohlcv_history[ticker][period][end_period]['low'])
             self.ohlcv_history[ticker][period][end_period]['high'] = max(trade['price'], self.ohlcv_history[ticker][period][end_period]['high'])

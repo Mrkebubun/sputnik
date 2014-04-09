@@ -190,9 +190,6 @@ class TradingBot(WampCraClientProtocol):
     def onMakeAccount(self, event):
         pprint(event)
 
-    def onLedger(self, event):
-        pprint(event)
-
     def onSupportNonce(self, event):
         pprint(event)
 
