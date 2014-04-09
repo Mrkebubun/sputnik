@@ -50,6 +50,20 @@ accounts modify adjustments type Asset
 admin add admin
 """
 
+class FakeProxy:
+    def __init__(self):
+        self.log = []
+
+    def __getattr__(self, key):
+        if key.startswith("__"):
+            raise AttributeError
+
+        def proxy_method(*args, **kwargs):
+            self.log.append([key, args, kwargs])
+            return None
+
+        return proxy_method
+
 class TestSputnik(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
