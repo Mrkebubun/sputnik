@@ -11,6 +11,8 @@ uri = ws_protocol + "//" + hostname + ":8000"
 window.best_ask = {price: Infinity, quantity: 0}
 window.best_bid = {price: 0, quantity: 0}
 window.my_audit_hash = ''
+window.contract = 'BTC/HUF'
+
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
@@ -28,8 +30,7 @@ sputnik.on "auth_success", (username) ->
 
     $("#login").toggle()
     $("#register").toggle()
-    $("#mxn_balance").toggle()
-    $("#btc_balance").toggle()
+    $("#cash_positions").toggle()
     $("#login_name").text username
     $("#acct_management_username").val username
     $("#account_menu").toggle()
@@ -128,13 +129,13 @@ withinAnOrderOfMagnitude = (x, y) ->
     orderOfMag(x) == orderOfMag(y)
 
 $("#buy_price,buy_quantity").keyup ->
-    if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), 'BTC/MXN', 'BUY')
+    if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), window.contract, 'BUY')
         $("#buy_panel alert:visible").slideUp()
     else
         $("#buy_panel alert").slideDown()
 
 $("#sell_price,#sell_quantity").keyup ->
-    if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), 'BTC/MXN', 'SELL')
+    if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), window.contract, 'SELL')
         $("#sell_panel alert:visible").slideUp()
     else
         $("#sell_panel alert").slideDown()
@@ -149,7 +150,7 @@ $("#buyButton").click ->
     if not withinAnOrderOfMagnitude(buy_price, best_ask.price)
         return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
-    sputnik.placeOrder(buy_quantity, buy_price, 'BTC/MXN', 'BUY')
+    sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
 
 $("#sellButton").click ->
     sell_quantity = Number($('#sell_quantity').val())
@@ -161,7 +162,7 @@ $("#sellButton").click ->
     if not withinAnOrderOfMagnitude(sell_price, window.best_bid.price)
         return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
-    sputnik.placeOrder(sell_quantity, sell_price, 'BTC/MXN', 'SELL')
+    sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
 
 $("#logout").click (event) ->
     document.cookie = ''
@@ -187,19 +188,6 @@ $("#save_changes_button").click (event) ->
 
     $('#account_modal .tab-pane').data('dirty', no)
 
-$('#deposit_mxn').click (event) ->
-    $('#compropago_error').hide()
-    $('#compropago_modal').modal()
-
-$('#deposit_btc').click (event) ->
-    sputnik.getAddress('BTC')
-    $('#deposit_btc_modal').modal()
-
-$('#withdraw_mxn').click (event) ->
-    $('#withdraw_disabled_modal').modal()
-
-$('#withdraw_btc').click (event) ->
-    $('#withdraw_disabled_modal').modal()
 
 $('#new_address_button').click (event) ->
     sputnik.newAddress('BTC')
@@ -273,19 +261,20 @@ updateOrders = (orders) ->
         icon = "<td>#{icon}</td>"
         price = "<td>#{order.price}</td>"
         quantity = "<td>#{order.quantity_left}</td>"
+        contract = "<td>#{order.contract}</td>"
         #timestamp = "<td>#{order.timestamp}</td>"
         #id = "<td>#{id}</td>"
         button = "<td><button type='button' class='btn btn-danger' onclick='sputnik.cancelOrder(#{id})'>"
         button += "<span class='glyphicon glyphicon-trash'></span>"
         button += "</button></td>"
-        rows.push "<tr>" + icon + price + quantity + button + "</tr>"
+        rows.push "<tr>" + contract + icon + price + quantity + button + "</tr>"
 
     $("#orders").html rows.join("")
 
 $ ->
     sputnik.connect()
     $('#account_modal').change (e) ->
-      $(e.target).parents('.tab-pane').data('dirty', yes)
+        $(e.target).parents('.tab-pane').data('dirty', yes)
 
     $('#get_reset_token').click ->
         username = $("#login_username").val()
@@ -307,26 +296,95 @@ $ ->
 
     $("#account").click ->
         $("#account_modal").modal()
+
     $("#ledger").click ->
         $("#ledger_modal").modal()
         sputnik.getLedgerHistory()
+
     $("#audit").click ->
         $("#audit_modal").modal()
         sputnik.getAudit()
 
+    $('#contract_list').click ->
+        if $('#contract_list').val() != window.contract
+            sputnik.unfollow window.contract
+            window.contract = $('#contract_list').val()
+            sputnik.openMarket(window.contract)
+
+    sputnik.on "change_password_token", (args) ->
+        $('#change_password_token_modal').modal "show"
+
+    sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
+        console.log "[mexbt:15 - hit error]"
+        $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text("Error: #{err[1]}")
+
+    $("#change_password_token_button").click ->
+        console.log "[mexbt:15 - hit!]"
+        if $('#new_password_token').val() == $('#new_password_token_confirm').val()
+            sputnik.changePasswordToken($('#new_password_token').val())
+        else
+            $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text "Passwords do not match"
+
+    sputnik.on "change_password_success", ->
+        $('#change_password_token_modal').find('input,a,label,button').slideUp()
+        $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-success').text('Password reset')
+        setTimeout(
+            ->
+                $('#change_password_token_modal').modal "hide"
+        ,
+            5000)
+
+    sputnik.on "markets", (markets) ->
+        contracts_output = []
+        positions_output = []
+
+        for ticker, details of markets
+            if details.contract_type != "cash"
+                if ticker == window.contract
+                    contracts_output.push '<option selected value="' + ticker + '">' + ticker + '</option>'
+                else
+                    contracts_output.push '<option value="' + ticker + '">' + ticker + '</option>'
+            else
+                positions_output.push '<li id="' + ticker + '_balance" class="dropdown pull-right">'
+                positions_output.push '<a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">'
+                positions_output.push '<b>' + ticker + '<div id="' + ticker + 'pos"></div></b><b class="caret"></b></a>'
+                positions_output.push '<ul class="dropdown-menu">'
+                positions_output.push '<li><a href="#" id="deposit_' + ticker + '">Deposit</a></li>'
+                positions_output.push '<li><a href="#" id="withdraw_' + ticker + '">Withdraw</a></li>'
+                positions_output.push '</ul></li>'
+
+            positions_html = positions_output.join('\n')
+            contracts_html = contracts_output.join('\n')
+            $('#contract_list').html contracts_html
+            $('#cash_positions').html positions_html
+
+        # We have to create these click functions after the DOM
+        # gets updated
+        for ticker, details of markets
+            if details.contract_type == "cash"
+                deposit_fn = (ticker_to_use) ->
+                    (event) ->
+                        sputnik.getAddress(ticker_to_use)
+                        $("#deposit_#{ticker_to_use}_modal").modal()
+
+                $("#deposit_#{ticker}").click deposit_fn(ticker)
+
+
+                $("#withdraw_#{ticker}").click (event) ->
+                   $("#withdraw_disabled_modal").modal()
+
+        sputnik.openMarket(window.contract)
 
 sputnik.on "trade_history", (trade_history) ->
-    updateTrades(trade_history['BTC/MXN'])
-    updatePlot(trade_history['BTC/MXN'])
-    if trade_history['BTC/MXN'].length
-        $('#last').text trade_history['BTC/MXN'][trade_history['BTC/MXN'].length - 1].price.toFixed(0)
+    updateTrades(trade_history[window.contract])
+    updatePlot(trade_history[window.contract])
+    if trade_history[window.contract].length
+        $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(0)
+    else
+        $('#last').text 'N/A'
 
 sputnik.on "open", () ->
     sputnik.log "open"
-    sputnik.getOrderBook "BTC/MXN"
-    sputnik.getTradeHistory "BTC/MXN"
-    sputnik.getOHLCV "BTC/MXN"
-    sputnik.follow "BTC/MXN"
 
     # Attempt a cookie login
     cookie = document.cookie
@@ -345,15 +403,22 @@ sputnik.on "session_expired", ->
     document.cookie = ''
 
 sputnik.on "book", (book) ->
-    if book.contract is not "BTC/MXN"
+    if book.contract is not window.contract
         return
 
     if book.asks.length
         window.best_ask = book.asks[0]
-        $('#best_ask').text window.best_ask.price.toFixed(0)
+    else
+        window.best_ask = {price: Infinity, quantity: 0}
+
+    $('#best_ask').text window.best_ask.price.toFixed(0)
+
     if book.bids.length
         window.best_bid = book.bids[0]
-        $('#best_bid').text window.best_bid.price.toFixed(0)
+    else
+        window.best_bid = {price: 0, quantity: 0}
+
+    $('#best_bid').text window.best_bid.price.toFixed(0)
 
     updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
     updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
@@ -362,14 +427,12 @@ sputnik.on "orders", (orders) ->
     updateOrders orders
 
 sputnik.on "trade", (trade) ->
-    if trade.contract == "BTC/MXN"
+    if trade.contract == window.contract
         $('#last').text trade.price.toFixed(0)
 
 sputnik.on "positions", (positions) ->
-    MXNpos = positions['MXN'].position
-    BTCpos = positions['BTC'].position
-    $('#MXNpos').text MXNpos.toFixed(0)
-    $('#BTCpos').text BTCpos.toFixed(2)
+    for ticker, position of positions
+        $("##{ticker}pos").text position.position.toFixed(2)
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
@@ -382,11 +445,20 @@ sputnik.on "address", (info) ->
     $('#btc_deposit_qrcode').empty()
     $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
 
-sputnik.on "ohlcv", (ohlcv) ->
-    for timestamp, entry of ohlcv
-        $('#low').text entry.low.toFixed(0)
-        $('#high').text entry.high.toFixed(0)
-        $('#vwap').text entry.vwap.toFixed(0)
+sputnik.on "ohlcv_history", (ohlcv_history) ->
+    timestamps = Object.keys(ohlcv_history)
+    if timestamps.length
+        max_t = Math.max(timestamps)
+        entry = ohlcv_history[max_t]
+        if entry.contract == window.contract and entry.period == 'day'
+            $('#low').text entry.low.toFixed(0)
+            $('#high').text entry.high.toFixed(0)
+            $('#vwap').text entry.vwap.toFixed(0)
+            return
+
+    $('#low').text 'N/A'
+    $('#high').text 'N/A'
+    $('#vwap').text 'N/A'
 
 sputnik.on "password_change_success", (info) ->
     alert "Password successfully changed"

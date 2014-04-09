@@ -214,9 +214,9 @@ class PublicInterface:
         d.addErrback(_cb_error)
         return d
 
-    @exportRpc("get_ohlcv")
-    def get_ohlcv(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
-                                                                                   datetime.timedelta(days=1)),
+    @exportRpc("get_ohlcv_history")
+    def get_ohlcv_history(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+                                                                                           datetime.timedelta(days=1)),
                   end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
@@ -316,7 +316,9 @@ class PublicInterface:
         if ticker in self.factory.all_books:
             return [True, self.factory.all_books[ticker]]
         else:
-            return [False, (0, "No book for %s." % ticker)]
+            # Just return an empty book if there's no book for this market
+            logging.warning("No book for %s" % ticker)
+            return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
     def make_account(self, username, password, salt, email, nickname):

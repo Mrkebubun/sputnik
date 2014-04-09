@@ -263,6 +263,7 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
+            period: wire_ohlcv.period
         return ohlcv
 
     positionFromWire: (wire_position) =>
@@ -449,14 +450,29 @@ class @Sputnik extends EventEmitter
 
                 @emit "positions", positions
 
+
+    openMarket: (ticker) =>
+        @log "Opening market: #{ticker}"
+
+        @emitBook ticker
+        @getOrderBook ticker
+
+        @emitTradeHistory ticker
+        @getTradeHistory ticker
+
+        @emitOHLCVHistory ticker, "day"
+        @getOHLCVHistory ticker, "day"
+
+        @follow ticker
+
     getOrderBook: (ticker) =>
         @call("get_order_book", ticker).then @onBook
 
     getTradeHistory: (ticker) =>
         @call("get_trade_history", ticker).then @onTradeHistory
 
-    getOHLCV: (ticker) =>
-        @call("get_ohlcv", ticker).then @onOHLCV
+    getOHLCVHistory: (ticker, period) =>
+        @call("get_ohlcv_history", ticker, period).then @onOHLCVHistory
 
     # miscelaneous methods
 
@@ -492,12 +508,14 @@ class @Sputnik extends EventEmitter
     subscribe: (topic, callback) =>
         if not @session?
             return @wtf "Not connected."
+        @log "subscribing: #{topic}"
         @session.subscribe "#{@uri}/feeds/#{topic}", (topic, event) ->
             callback event
 
     unsubscribe: (topic) =>
         if not @session?
             return @wtf "Not connected."
+        @log "unsubscribing: #{topic}"
         @session.unsubscribe "#{@uri}/feeds/#{topic}"
 
     publish: (topic, message) =>
@@ -548,6 +566,9 @@ class @Sputnik extends EventEmitter
             @markets[ticker].trades = []
             @markets[ticker].bids = []
             @markets[ticker].asks = []
+            @markets[ticker].ohlcv = {day: {}, hour: {}, minute: {}}
+
+
         @emit "markets", @markets
 
     # feeds
@@ -556,12 +577,13 @@ class @Sputnik extends EventEmitter
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
-        
-        contract = book.contract
+        @emitBook book.contract
+
+    emitBook: (ticker) =>
         ui_book = 
-            bids: (@bookRowFromWire(contract, order) for order in book.bids)
-            asks: (@bookRowFromWire(contract, order) for order in book.asks)
-            contract: contract
+            bids: (@bookRowFromWire(ticker, order) for order in @markets[ticker].bids)
+            asks: (@bookRowFromWire(ticker, order) for order in @markets[ticker].asks)
+            contract: ticker
 
         ui_book.bids.sort (a, b) -> b.price - a.price
         ui_book.asks.sort (a, b) -> a.price - b.price
@@ -590,16 +612,27 @@ class @Sputnik extends EventEmitter
             ticker = trade_history[0].contract
             @markets[ticker].trades = trade_history
             @cleanTradeHistory(ticker)
-            @emitTradeHistory(ticker)
         else
             @warn "no trades in history"
 
-    onOHLCV: (wire_ohlcv) =>
-        @log ["ohlcv received", ohlcv]
+        @emitTradeHistory(ticker)
+
+    onOHLCVHistory: (ohlcv_history) =>
+        @log ["ohlcv_history received", ohlcv_history]
+        timestamps = Object.keys(ohlcv_history)
+        if timestamps.length
+            ticker = ohlcv_history[timestamps[0]].contract
+            period = ohlcv_history[timestamps[0]].period
+            @markets[ticker].ohlcv[period] = ohlcv_history
+            @emitOHLCVHistory(ticker, period)
+        else
+            @warn "ohlcv_history is empty"
+
+    emitOHLCVHistory: (ticker, period) =>
         ohlcv = {}
-        for timestamp, entry of wire_ohlcv
+        for timestamp, entry of @markets[ticker].ohlcv[period]
             ohlcv[timestamp] = @ohlcvFromWire(entry)
-        @emit "ohlcv", ohlcv
+        @emit "ohlcv_history", ohlcv
 
     onTrade: (trade) =>
         ticker = trade.contract

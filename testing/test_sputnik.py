@@ -26,7 +26,7 @@ contracts modify BTC/MXN denominator 1
 
 permissions add Default
 
-accounts add mexbt
+accounts add customer
 accounts add m2
 accounts add remainder
 accounts add marketmaker

@@ -67,7 +67,7 @@ class Accountant:
         }
         # TODO: Make this configurable
         self.vendor_share_config = { 'm2': 0.5,
-                                     'mexbt': 0.5
+                                     'customer': 0.5
         }
         self.safe_prices = {}
         self.engines = engines

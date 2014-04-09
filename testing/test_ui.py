@@ -16,7 +16,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.close()
 
     def test_connect(self):
-        self.assertEqual(self.driver.title, 'MexBT Trading Platform')
+        self.assertEqual(self.driver.title, 'Sputnik Exchange Engine')
 
     def test_register(self):
         test_username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))

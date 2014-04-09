@@ -18,7 +18,7 @@ permissions add Default
 EOF
 
 cat << EOF | sudo -u sputnik $profile_root/tools/leo
-accounts add mexbt
+accounts add customer
 accounts add m2
 accounts add remainder
 
