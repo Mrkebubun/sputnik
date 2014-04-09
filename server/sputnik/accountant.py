@@ -592,12 +592,14 @@ class Accountant:
                                                    contract.ticker)
             user = self.get_user(total_deposited_at_address.user)
 
+            # compute deposit _before_ marking ammount as accounted for
+            deposit = total_received - total_deposited_at_address.accounted_for
+
             # update address
             total_deposited_at_address.accounted_for = total_received
             self.session.add(total_deposited_at_address)
 
             #prepare cash deposit
-            deposit = total_received - total_deposited_at_address.accounted_for
             postings = []
             bank_position = self.get_position('onlinecash', contract)
             bank_user = self.get_user('onlinecash')
