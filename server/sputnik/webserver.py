@@ -199,13 +199,13 @@ class PublicInterface:
             """
             return [True, result]
 
-        def _cb_error(fail):
+        def _cb_error(failure):
             """
 
-            :param fail: The failure details from ZMQ
+            :param failure: The failure details from ZMQ
             :returns: list
             """
-            return [False, fail.value.message.message]
+            return [False, failure.value.args]
 
         d = self.factory.accountant.get_audit()
         d.addCallback(_cb)
@@ -518,13 +518,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return {"authextra": "",
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
-        def _cb_error(fail):
+        def _cb_error(failure):
             """
 
-            :param fail:
+            :param failure:
             :returns: dict - fake permissions so we don't leak which users exist or not
             """
-            logging.error("Unable to get permissions for %s: %s" % (username, fail.value.message.message))
+            logging.error("Unable to get permissions for %s: %s" % (username, failure.value.args))
             return {"authextra": "",
                     "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
@@ -895,13 +895,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [True, result]
 
-        def _cb_error(fail):
+        def _cb_error(failure):
             """
 
-            :param fail:
+            :param failure:
             :returns: list - [False, message]
             """
-            return [False, fail.value.message.message]
+            return [False, failure.value.args]
 
         d = self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
         d.addCallback(_cb)
