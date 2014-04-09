@@ -90,10 +90,16 @@ class TestDeposit(unittest.TestCase):
         self.leo.parse("accounts add test")
         self.leo.parse("permissions add Deposit")
         self.leo.parse("permissions modify Deposit deposit 1")
-        self.leo.parse("accounts modify test permission Deposit")
+#        self.leo.parse("accounts modify test permission Deposit")
         self.leo.parse("addresses add btc 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv")
         self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv username test")
         self.leo.parse("addresses modify 18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv active 1")
+        self.session.commit()
+
+        user = self.session.query(models.User).filter_by(username="test").one()
+        group = self.session.query(models.PermissionGroup).filter_by(name="Deposit").one()
+        user.permissions = group
+        self.session.merge(user)
         self.session.commit()
 
         self.cashier.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
