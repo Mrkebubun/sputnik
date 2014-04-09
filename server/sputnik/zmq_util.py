@@ -379,7 +379,7 @@ class Proxy:
         :raises: Exception
         """
         if key.startswith("__") and key.endswith("__"):
-            raise Exception(AttributeError)
+            raise AttributeError
 
         def remote_method(*args, **kwargs):
             """
