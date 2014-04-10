@@ -8,7 +8,7 @@ else
 
 uri = ws_protocol + "//" + hostname + ":8000"
 
-window.best_ask = {price: 0, quantity: 0}
+window.best_ask = {price: Infinity, quantity: 0}
 window.best_bid = {price: 0, quantity: 0}
 window.my_audit_hash = ''
 sputnik = new window.Sputnik uri
@@ -146,7 +146,7 @@ $("#buyButton").click ->
     if buy_quantity == 0 or buy_price == 0
         return true
 
-    if not withinAnOrderOfMagnitude(buy_price, best_bid.price)
+    if not withinAnOrderOfMagnitude(buy_price, best_ask.price)
         return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
     sputnik.placeOrder(buy_quantity, buy_price, 'BTC/MXN', 'BUY')
@@ -158,7 +158,7 @@ $("#sellButton").click ->
     if sell_quantity == 0 or sell_price == 0
         return true
 
-    if not withinAnOrderOfMagnitude(sell_price, best_ask.price)
+    if not withinAnOrderOfMagnitude(sell_price, window.best_bid.price)
         return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
     sputnik.placeOrder(sell_quantity, sell_price, 'BTC/MXN', 'SELL')
@@ -235,13 +235,13 @@ updateBuys = (data) ->
 
     #todo: debounce with futility counter
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-      $("#sell_price").val best_bid.price
+      $("#sell_price").val window.best_bid.price
 
 updateSells = (data) ->
     updateTable "sells", data
     #todo: debounce with futility counter
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-      $("#buy_price").val best_ask.price
+      $("#buy_price").val window.best_ask.price
 
 updateTrades = (data) ->
     trades_reversed = data.reverse()
@@ -318,8 +318,8 @@ $ ->
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
     updatePlot(trade_history['BTC/MXN'])
-    if trade_history.length > 0
-        $('#last').text trade_history[trade_history.length - 1].price.toFixed(0)
+    if trade_history['BTC/MXN'].length
+        $('#last').text trade_history['BTC/MXN'][trade_history['BTC/MXN'].length - 1].price.toFixed(0)
 
 sputnik.on "open", () ->
     sputnik.log "open"
@@ -350,8 +350,10 @@ sputnik.on "book", (book) ->
 
     if book.asks.length
         window.best_ask = book.asks[0]
+        $('#best_ask').text window.best_ask.price.toFixed(0)
     if book.bids.length
         window.best_bid = book.bids[0]
+        $('#best_bid').text window.best_bid.price.toFixed(0)
 
     updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
     updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)

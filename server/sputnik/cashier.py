@@ -34,14 +34,14 @@ class Cashier():
     """
     minimum_confirmations = 6
 
-    def __init__(self):
+    def __init__(self, accountant):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
         """
         self.cold_wallet_address = 'xxxx'
         self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
-        self.accountant = push_proxy_async(config.get("accountant", "cashier_export"))
+        self.accountant = accountant
         logging.info('connecting to bitcoin client')
         self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
         self.session = db.make_session()
@@ -255,7 +255,8 @@ class AdministratorExport:
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
-    cashier = Cashier()
+    accountant = push_proxy_async(config.get("accountant", "cashier_export"))
+    cashier = Cashier(accountant)
     administrator_export = AdministratorExport(cashier)
 
     pull_share_async(administrator_export,

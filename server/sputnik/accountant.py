@@ -62,8 +62,8 @@ class Accountant:
         self.debug = debug
         self.btc = self.get_contract("BTC")
         # TODO: Get deposit limits from DB
-        self.deposit_limits = { 'btc': 10000000,
-                                'mxn': 600000
+        self.deposit_limits = { 'btc': 100000000,
+                                'mxn': 6000000
         }
         # TODO: Make this configurable
         self.vendor_share_config = { 'm2': 0.5,
@@ -780,7 +780,7 @@ class Accountant:
             self.session.commit()
         except Exception as e:
             logging.error("Error: %s" % e)
-            session.rollback()
+            self.session.rollback()
 
     def new_permission_group(self, name):
         """Create a new permission group
@@ -893,10 +893,6 @@ class AdministratorExport:
     """
     def __init__(self, accountant):
         self.accountant = accountant
-
-    @export
-    def clear_contract(self, ticker):
-        self.accountant.clear_contract(ticker)
 
     @export
     def adjust_position(self, username, ticker, quantity):

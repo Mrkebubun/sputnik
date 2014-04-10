@@ -55,15 +55,12 @@ NO_SUCH_USER = AdministratorException(2, "No such user.")
 FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
 INVALID_TOKEN = AdministratorException(4, "No such token found.")
 EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
-OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
-USER_LIMIT_REACHED = AdministratorException(5, "User limit reached")
-ADMIN_USERNAME_TAKEN = AdministratorException(6, "Administrator username is already taken")
 TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
 USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
 ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
 INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
-
+OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 
 
 def session_aware(func):
@@ -80,7 +77,7 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False):
+    def __init__(self, session, accountant, cashier, debug=False, from_email=None, base_uri=None):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -96,15 +93,9 @@ class Administrator:
         self.cashier = cashier
         self.debug = debug
         self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
-        self.from_email = config.get("administrator", "email")
-        if config.getboolean("webserver", "ssl"):
-            protocol = 'https'
-        else:
-            protocol = 'http'
+        self.from_email = from_email
+        self.base_uri = base_uri
 
-        self.base_uri = "%s://%s:%d" % (protocol,
-                                        config.get("webserver", "www_address"),
-                                        config.getint("webserver", "www_port"))
 
     @session_aware
     def make_account(self, username, password):
@@ -119,7 +110,7 @@ class Administrator:
         """
         user_count = self.session.query(models.User).count()
         # TODO: Make this configurable
-        if user_count > 100:
+        if user_count > 500:
             logging.error("User limit reached")
             raise USER_LIMIT_REACHED
 
@@ -990,7 +981,17 @@ if __name__ == "__main__":
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
 
-    administrator = Administrator(session, accountant, cashier, debug)
+    if config.getboolean("webserver", "ssl"):
+        protocol = 'https'
+    else:
+        protocol = 'http'
+
+    base_uri = "%s://%s:%d" % (protocol,
+                                    config.get("webserver", "www_address"),
+                                    config.getint("webserver", "www_port"))
+    from_email = config.get("administrator", "from_email")
+
+    administrator = Administrator(session, accountant, cashier, debug=debug, from_email=from_email, base_uri=base_uri)
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
 
