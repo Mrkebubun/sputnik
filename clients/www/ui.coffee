@@ -401,36 +401,36 @@ sputnik.on "profile", (profile) ->
     $('#new_nickname').val profile.nickname
     $('#new_email').val profile.email
 
-sputnik.on "audit_details", (audit, my_audit_hash) ->
+sputnik.on "audit_details", (audit) ->
     for account_type in ['assets', 'liabilities']
         $output = []
-        _.forOwn audit[account_type], (currency, currency_code) ->
+        for own currency_code, currency of audit[account_type]
             $output.push('<h4>' + currency_code + '</h4><table id="audit_' + account_type + '_' + currency_code +
-                '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th>" +
-                "<th class="text-right">Amount</th></tr></thead><tbody>')
+                '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th><th class="text-right">Amount</th></tr></thead><tbody>')
             #Positions
             for position in currency.positions
                 audit_hash = position[0]
 
+                audit_amount = 0
                 if currency_code is 'BTC'
                     audit_amount = position[1].toFixed(8)
                 else
                     audit_amount = position[1].toFixed(2)
 
+                row_class = ''
                 if audit_hash is my_audit_hash
                     row_class = "class='alert-success'"
-                else
-                    row_class = ''
 
                 $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
                     "<td class='text-right'>#{audit_amount}</td></tr>")
             #Total
+            currency_total = 0
             if currency_code is 'BTC'
                 currency_total = currency.total.toFixed(8)
             else
                 currency_total = currency.total.toFixed(2)
-            $output.push "</tbody><tfoot><tr class=\"alert-info\"><td>Total</td><td class='text-right'>" +
-            "#{currency_total}</td></tr></tfoot></table>"
+
+            $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
         html = $output.join('')
         console.log "[ui:426 - html]", html
         $("#audit_#{account_type}").html(html)
@@ -439,5 +439,13 @@ sputnik.on "audit_hash", (audit_hash) ->
     window.my_audit_hash = audit_hash
     $('#audit_hash').text audit_hash
 
-sputnik.on "ledger_history", (ledger_history) ->
-    $('#ledger_history').text JSON.stringify(ledger_history, null, 4)
+sputnik.on "ledger_history", (ledger_histories) ->
+    html = []
+    for his in ledger_histories
+        trHTML = "<tr><td>#{his['timestamp']}</td>
+             <td>#{his['notes'] ? ''}</td>
+             <td>#{his['type'] ? ''}</td>
+             <td>#{his['contract'] ? ''}</td>
+             <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
+        html.push(trHTML)
+    $('#ledger_history tbody').html(html.join())

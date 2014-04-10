@@ -3,6 +3,7 @@
 <html>
 <head>
     <link rel="stylesheet" type="text/css" href="clients/www/mexbt.less"/>
+    <link rel="stylesheet" type="text/css" href="ui.css"/>
     <link rel="stylesheet" type="text/css" href="mexbt.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,7 +22,6 @@
     <script src="//www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
     <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
     <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
-    <script src="min.js/lodash.min.js"></script>
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
@@ -297,6 +297,9 @@
                     <div class="tab-pane" id="audit_liabilities"></div>
                </div>
             </div>
+            <div class="modal-footer">
+                <button class="btn btn-info" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -310,12 +313,12 @@
                 <h4 class="modal-title">Ledger</h4>
             </div>
             <div class="modal-body form-horizontal">
-                Ledger
+                <h4>Ledger</h4>
 
-                <table id="ledger_history" class="table table-hover table-bordered table-condensed">
+                <table id="ledger_history" class="table table-striped table-hover table-bordered">
                     <thead>
                     <tr>
-                        <th>Timestamp</th>
+                        <th width="10%">Timestamp</th>
                         <th>Notes</th>
                         <th>Type</th>
                         <th>Contract</th>
@@ -324,16 +327,14 @@
                     </thead>
                     <tbody>
                     </tbody>
-                    <tfoot>
-                    <tr class="alert-info">
-                        <td>Total</td>
-                        <td class="text-right"></td>
-                    </tr>
-                    </tfoot>
                 </table>
 
             </div>
+            <div class="modal-footer">
+                <button class="btn btn-info" data-dismiss="modal">Close</button>
+            </div>
         </div>
+
     </div>
 </div>
 
