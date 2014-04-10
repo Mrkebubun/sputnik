@@ -10,7 +10,7 @@ uri = ws_protocol + "//" + hostname + ":8000"
 
 window.best_ask = {price: 0, quantity: 0}
 window.best_bid = {price: 0, quantity: 0}
-
+window.my_audit_hash = ''
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
@@ -168,8 +168,6 @@ $("#logout").click (event) ->
     sputnik.logout()
     location.reload()
 
-$("#account").click (event) ->
-    $("#account_modal").modal()
 
 $("#save_changes_button").click (event) ->
     if $('#change_password_tab').data('dirty')
@@ -230,7 +228,7 @@ $('#chatButton').click ->
 updateTable = (id, data) ->
     rows = for [price, quantity] in data
         "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
-    $("##{id}").html rows.join("")
+    $('#' + "#{id}").html rows.join("")
 
 updateBuys = (data) ->
     updateTable "buys", data
@@ -307,11 +305,15 @@ $ ->
         ,
         5000)
 
-    $('#audit_tab_select').click ->
+    $("#account").click ->
+        $("#account_modal").modal()
+    $("#ledger").click ->
+        $("#ledger_modal").modal()
+        sputnik.getLedgerHistory()
+    $("#audit").click ->
+        $("#audit_modal").modal()
         sputnik.getAudit()
 
-    $('#ledger_tab_select').click ->
-        sputnik.getLedgerHistory()
 
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history['BTC/MXN'])
@@ -397,10 +399,42 @@ sputnik.on "profile", (profile) ->
     $('#new_nickname').val profile.nickname
     $('#new_email').val profile.email
 
-sputnik.on "audit_details", (audit_details) ->
-    $('#audit_details').text JSON.stringify(audit_details, undefined, 2)
+sputnik.on "audit_details", (audit, my_audit_hash) ->
+    for account_type in ['assets', 'liabilities']
+        $output = []
+        _.forOwn audit[account_type], (currency, currency_code) ->
+            $output.push('<h4>' + currency_code + '</h4><table id="audit_' + account_type + '_' + currency_code +
+                '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th>" +
+                "<th class="text-right">Amount</th></tr></thead><tbody>')
+            #Positions
+            for position in currency.positions
+                audit_hash = position[0]
+
+                if currency_code is 'BTC'
+                    audit_amount = position[1].toFixed(8)
+                else
+                    audit_amount = position[1].toFixed(2)
+
+                if audit_hash is my_audit_hash
+                    row_class = "class='alert-success'"
+                else
+                    row_class = ''
+
+                $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
+                    "<td class='text-right'>#{audit_amount}</td></tr>")
+            #Total
+            if currency_code is 'BTC'
+                currency_total = currency.total.toFixed(8)
+            else
+                currency_total = currency.total.toFixed(2)
+            $output.push "</tbody><tfoot><tr class=\"alert-info\"><td>Total</td><td class='text-right'>" +
+            "#{currency_total}</td></tr></tfoot></table>"
+        html = $output.join('')
+        console.log "[ui:426 - html]", html
+        $("#audit_#{account_type}").html(html)
 
 sputnik.on "audit_hash", (audit_hash) ->
+    window.my_audit_hash = audit_hash
     $('#audit_hash').text audit_hash
 
 sputnik.on "ledger_history", (ledger_history) ->

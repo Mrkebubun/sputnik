@@ -21,6 +21,7 @@
     <script src="//www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
     <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
     <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
+    <script src="min.js/lodash.min.js"></script>
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
@@ -276,6 +277,66 @@
     </div>
 </div>
 
+<div class="modal fade" id="audit_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Audit</h4>
+            </div>
+            <div class="modal-body form-horizontal" id="audit_details">
+                <div class="alert alert-info">
+                    <strong>My Key:</strong> <div id="audit_hash"></div>
+                </div>
+                <ul class="nav nav-tabs">
+                    <li class="active"><a href="#audit_assets" data-toggle="tab">Assets</a></li>
+                    <li><a href="#audit_liabilities" data-toggle="tab">Liabilities</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="audit_assets"></div>
+                    <div class="tab-pane" id="audit_liabilities"></div>
+               </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="ledger_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Ledger</h4>
+            </div>
+            <div class="modal-body form-horizontal">
+                Ledger
+
+                <table id="ledger_history" class="table table-hover table-bordered table-condensed">
+                    <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Notes</th>
+                        <th>Type</th>
+                        <th>Contract</th>
+                        <th class="text-right">Quantity</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                    <tr class="alert-info">
+                        <td>Total</td>
+                        <td class="text-right"></td>
+                    </tr>
+                    </tfoot>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="account_modal">
 
     <div class="modal-dialog">
@@ -289,8 +350,6 @@
                     <li class="active"><a href="#user_information_tab" data-toggle="tab">User Information</a></li>
                     <li><a href="#change_password_tab" data-toggle="tab">Change Password</a></li>
                     <li><a href="#compliance_tab" data-toggle="tab">Compliance</a></li>
-                    <li><a href="#audit_tab" id="audit_tab_select" data-toggle="tab">Audit</a></li>
-                    <li><a href="#ledger_tab" id="ledger_tab_select" data-toggle="tab">Ledger</a></li>
                 </ul>
                 <div class="tab-content">
 
@@ -357,14 +416,7 @@
                         </form>
                     </div>
 
-                    <div class="tab-pane" id="audit_tab">
-                        My Key: <div id="audit_hash"></div>
-                        Audit Details: <div id="audit_details"></div>
-                    </div>
 
-                    <div class="tab-pane" id="ledger_tab">
-                        Ledger<div id="ledger_history"></div>
-                    </div>
 
                     <div class="tab-pane" id="compliance_tab">
                         <form class="form-horizontal">
@@ -592,8 +644,10 @@
         <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">Logged in as <b
                 id="login_name"></b> <b class="caret"></b></a>
         <ul class="dropdown-menu">
-            <li><a href="#" id="account">Account</a></li>
-            <li><a href="#" id="logout">Logout</a></li>
+            <li><a href="#" id="account"><span class="glyphicon glyphicon-user"></span> Account</a></li>
+            <li><a href="#" id="audit"><span class="glyphicon glyphicon-ok-sign"></span> Audit</a></li>
+            <li><a href="#" id="ledger"><span class="glyphicon glyphicon-book"></span> Ledger</a></li>
+            <li><a href="#" id="logout"><span class="glyphicon glyphicon-share-alt"></span> Logout</a></li>
         </ul>
     </li>
     <li id="btc_balance" class="dropdown pull-right" style="display:none;">
