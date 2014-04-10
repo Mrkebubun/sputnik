@@ -16,7 +16,7 @@ import models
 import collections
 from datetime import datetime
 from util import ChainedOpenSSLContextFactory
-
+from sendmail import Sendmail
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
@@ -35,12 +35,11 @@ from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
 import json
-import smtplib
 
 import logging
 import Crypto.Random.random
 import sqlalchemy.orm.exc
-from email.mime.text import MIMEText
+
 
 
 import string, Crypto.Random.random
@@ -62,6 +61,8 @@ INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
 OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 
+USER_LIMIT=500
+
 
 def session_aware(func):
     def new_func(self, *args, **kwargs):
@@ -77,7 +78,8 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False, from_email=None, base_uri=None):
+    def __init__(self, session, accountant, cashier, debug=False, base_uri=None, sendmail=None,
+                 template_dir='admin_templates'):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -92,9 +94,9 @@ class Administrator:
         self.accountant = accountant
         self.cashier = cashier
         self.debug = debug
-        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'))
-        self.from_email = from_email
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.base_uri = base_uri
+        self.sendmail = sendmail
 
 
     @session_aware
@@ -110,7 +112,7 @@ class Administrator:
         """
         user_count = self.session.query(models.User).count()
         # TODO: Make this configurable
-        if user_count > 500:
+        if user_count > USER_LIMIT:
             logging.error("User limit reached")
             raise USER_LIMIT_REACHED
 
@@ -284,14 +286,9 @@ class Administrator:
                            username=username, base_uri=self.base_uri).encode('utf-8')
 
         # Now email the token
-        msg = MIMEText(content)
-        msg['Subject'] = 'Reset password link enclosed'
-        msg['From'] = self.from_email
-        msg['To'] = '<%s> %s' % (user.email, user.nickname)
-        logging.debug("Sending mail: %s" % msg.as_string())
-        s = smtplib.SMTP('localhost')
-        s.sendmail(self.from_email, [user.email], msg.as_string())
-        s.quit()
+        logging.debug("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email, user.nickname),
+                          subject='Reset password link enclosed')
 
         return True
 
@@ -989,9 +986,10 @@ if __name__ == "__main__":
     base_uri = "%s://%s:%d" % (protocol,
                                     config.get("webserver", "www_address"),
                                     config.getint("webserver", "www_port"))
-    from_email = config.get("administrator", "from_email")
+    from_email = config.get("administrator", "email")
 
-    administrator = Administrator(session, accountant, cashier, debug=debug, from_email=from_email, base_uri=base_uri)
+    administrator = Administrator(session, accountant, cashier, debug=debug, base_uri=base_uri,
+                                  sendmail=Sendmail(from_email))
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
 

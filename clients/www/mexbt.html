@@ -97,7 +97,7 @@
             <div class="modal-body">
                 <form class="form" role="form">
                     <emph style="color:red;">
-                        Your deposited balance may not exceed 600 MXN in beta. If you attempt a deposit beyond that
+                        Your deposited balance may not exceed 6000 MXN in beta. If you attempt a deposit beyond that
                         limit, your account will not be credited and you will have to contact customer service
                         to receive a refund of the funds you attempted to deposit.
                     </emph>
@@ -189,11 +189,11 @@
                         $('#cgo_fee_tax').text('');
                         $('#cgo_credit').text('');
                         $('#compropago_pay_button').prop('disabled',true)
-                    } else if (amount > 600) {
+                    } else if (amount > 6000) {
                         $('#cgo_amount_bill').removeClass('has-success');
                         $('#cgo_amount_bill').addClass('has-error');
 
-                        $('#cgo_amount_help').text('You may not deposit more than 600 MXN');
+                        $('#cgo_amount_help').text('You may not deposit more than 6000 MXN');
                         $('#cgo_deposit_fee').text('');
                         $('#cgo_fee_tax').text('');
                         $('#cgo_credit').text('');
@@ -225,7 +225,7 @@
             </div>
             <div class="modal-body">
                 <emph style="color:red;">
-                    Your deposited balance may not exceed 0.1BTC in beta. If you attempt a deposit beyond that
+                    Your deposited balance may not exceed 1.0BTC in beta. If you attempt a deposit beyond that
                     limit, your account will not be credited and you will have to contact customer service
                     to receive a refund of the funds you attempted to deposit.
                 </emph>

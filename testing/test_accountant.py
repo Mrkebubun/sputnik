@@ -49,19 +49,6 @@ class TestAccountant(TestSputnik):
         self.engine_export = accountant.EngineExport(self.accountant)
 
 
-    def add_address(self, username, address, currency='btc'):
-        self.leo.parse("addresses add %s %s" % (currency, address))
-        self.leo.parse("addresses modify %s username %s" % (address, username))
-        self.leo.parse("addresses modify %s active 1" % address)
-        self.session.commit()
-
-    def create_account(self, username, address=None, currency='btc'):
-        self.leo.parse("accounts add %s" % username)
-        self.session.commit()
-
-        if address is not None:
-            self.add_address(username, address, currency=currency)
-
     def set_permissions_group(self, username, groupname):
         from sputnik import models
 
