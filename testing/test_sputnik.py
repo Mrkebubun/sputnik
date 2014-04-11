@@ -1,6 +1,6 @@
 __author__ = 'sameer'
 
-import unittest
+from twisted.trial import unittest
 import sys
 import os
 import StringIO
@@ -122,15 +122,13 @@ class FakeProxy:
 
 
 class TestSputnik(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         test_config = "[database]\nuri = sqlite://"
         from sputnik import config
 
         config.reset()
         config.readfp(StringIO.StringIO(test_config))
 
-    def setUp(self):
         from sputnik import database, models
 
         self.session = database.make_session()
