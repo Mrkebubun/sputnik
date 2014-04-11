@@ -64,7 +64,7 @@ def dumpArgs(func):
         if args: params.append(('args', args))
         if func_kwargs: params.append(('kwargs', func_kwargs))
         ret_val = func(*func_args, **func_kwargs)
-        print func.func_name + ' (' + ', '.join('%s = %r' % p for p in params) + ' )=' + str(ret_val)
+        #print func.func_name + ' (' + ', '.join('%s = %r' % p for p in params) + ' )=' + str(ret_val)
         return ret_val
 
     return wrapper
@@ -115,7 +115,7 @@ class FakeProxy:
     def check_for_calls(self, calls):
         for call in calls:
             if self.check_for_call(call[0], call[1], call[2]) is None:
-                print "Check failure in %s" % str(call)
+                #print "Check failure in %s" % str(call)
                 return False
 
         return True
