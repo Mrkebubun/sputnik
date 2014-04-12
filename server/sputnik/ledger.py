@@ -37,6 +37,7 @@ class PostingGroup(TimeoutMixin):
         self.setTimeout(timeout)
 
     def add(self, posting):
+        self.uid = posting["uid"]
         self.resetTimeout()
         result = Deferred()
         self.postings.append(posting)
@@ -60,6 +61,10 @@ class PostingGroup(TimeoutMixin):
             deferred.errback(exception)
 
     def timeoutConnection(self):
+        logging.error("Posting group with uid: %s timed out." % self.uid)
+        logging.error("Postings were:")
+        for posting in self.postings:
+            logging.error(str(posting))
         self.fail(GROUP_TIMEOUT)
 
 class Ledger:
