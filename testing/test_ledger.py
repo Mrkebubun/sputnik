@@ -12,6 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 from sputnik import ledger
+from sputnik import models
 
 class TestLedger(TestSputnik):
     def setUp(self):
@@ -44,6 +45,28 @@ class TestLedger(TestSputnik):
         post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
                  "contract":"BTC/MXN", "quantity":-5, "side":"sell"}
         return self.export.post(post1, post2)
+
+    def test_database_commit(self):
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+                 "contract":"BTC/MXN", "quantity":5, "side":"buy"}
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+                 "contract":"BTC/MXN", "quantity":-5, "side":"sell"}
+        d = self.export.post(post1, post2)
+
+        def dbtest(arg):
+            postings = self.ledger.session.query(models.Posting).all()
+            self.assertEqual(len(postings), 2)
+            journals = self.ledger.session.query(models.Journal).all()
+            self.assertEqual(len(journals), 1)
+            p1 = postings[0]
+            p2 = postings[1]
+            journal = journals[0]
+            self.assertEqual(p1.journal_id, journal.id)
+            self.assertEqual(p2.journal_id, journal.id)
+            self.assertEqual(abs(p1.quantity), 5)
+            self.assertEqual(p1.quantity + p2.quantity, 0)
+
+        return d.addCallback(dbtest)
 
     def test_count_mismatch(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
