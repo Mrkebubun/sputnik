@@ -13,7 +13,7 @@ from jsonschema import validate, ValidationError
 
 import config
 import database
-from models import Posting, Journal
+from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export
 
 class LedgerException(Exception):
@@ -38,7 +38,7 @@ class PostingGroup(TimeoutMixin):
 
     def add(self, posting):
         self.resetTimeout()
-        result = defer.Deferred()
+        result = Deferred()
         self.postings.append(posting)
         self.deferreds.append(result)
         return result
@@ -46,7 +46,7 @@ class PostingGroup(TimeoutMixin):
     def ready(self):
         # try to throw a COUNT_MISMATCH rather than a GROUP_TIMEOUT if the
         # counts are incorrect and we have postings coming in later
-        max_count = max(posting.count for posting in self.postings)
+        max_count = max(posting["count"] for posting in self.postings)
         return len(self.postings) >= max_count
 
     def succeed(self):
@@ -80,27 +80,27 @@ class Ledger:
             if not all(type == types[0] for type in types):
                 raise TYPE_MISMATCH
             if not all(count == counts[0] for count in counts):
-                raise TYPE_MISMATCH
+                raise COUNT_MISMATCH
 
             # balance check
-            quanties = [posting["quantity"] for posting in postings]
-            if sum(quantites) is not 0:
+            quantities = [posting["quantity"] for posting in postings]
+            if sum(quantities) is not 0:
                 raise QUANTITY_MISMATCH
             
             # create the journal and postings
-            try:
-                objects = []
-                for posting in postings:
-                    user = posting["user"]
-                    quantity = posting["quantity"]
-                    side = posting["side"]
-                    objects.append(Posting(user, contracts[0], quantity, side))
-                objects.append(Journal(types[0], db_postings))
-            except:
-                raise INTERNAL_ERROR
+            db_postings = []
+            contract = self.session.query(Contract).filter_by(ticker=contracts[0]).one()
+            for posting in postings:
+                # TODO: change Posting contractor to take username
+                user = self.session.query(User).filter_by(username=posting["user"]).one()
+                quantity = posting["quantity"]
+                side = posting["side"]
+                db_postings.append(Posting(user, contract, quantity, side))
+            journal = Journal(types[0], db_postings)
 
             # add all
-            self.session.add_all(objects)
+            self.session.add_all(db_postings)
+            self.session.add(journal)
             self.session.commit()
             return True
 
@@ -124,11 +124,11 @@ class Ledger:
             self.session.rollback()
 
     def post_one(self, posting):
-        uid = posting.uid
+        uid = posting["uid"]
         group = self.pending[uid]
 
         # acquire the deferred we will return
-        result = group.add(posting)
+        response = group.add(posting)
         
         # Note: it is important we do _not_ check the posting group for
         # consistency yet. Wait until we have them all.
@@ -139,11 +139,11 @@ class Ledger:
                 group.succeed()
             except Exception, e:
                 group.fail(e)
-            del self.groups[uid]
+            del self.pending[uid]
        
         return response
 
-    def post(self, *postings):
+    def post(self, postings):
         # an empty postings list might mean an error caller side
         # return ARGUMENT_ERROR
         if len(postings) == 0:
@@ -176,7 +176,7 @@ class Ledger:
             logging.error(str(postings))
             logging.error("Exception follows:")
             logging.error(e)
-            return ARGUMENT_ERROR
+            raise ARGUMENT_ERROR
       
         # make sure all the postings have the same uid
         uids = [posting["uid"] for posting in postings]
@@ -193,7 +193,7 @@ class AccountantExport:
         self.ledger = ledger
 
     def post(self, *postings):
-        return self.ledger.post(*postings)
+        return self.ledger.post(list(postings))
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
