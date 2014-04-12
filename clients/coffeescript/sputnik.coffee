@@ -40,6 +40,7 @@ class @Sputnik extends EventEmitter
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
+        @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
@@ -263,6 +264,7 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
+            timestamp: @timeFormat(wire_ohlcv['timestamp'])
             period: wire_ohlcv.period
         return ohlcv
 
@@ -616,6 +618,16 @@ class @Sputnik extends EventEmitter
             @warn "no trades in history"
 
         @emitTradeHistory(ticker)
+
+    onOHLCV: (ohlcv) =>
+        @log ["ohlcv", ohlcv]
+        period = ohlcv.period
+        ticker = ohlcv.contract
+        timestamp = ohlcv.timestamp
+        @markets[ticker].ohlcv[period][timestamp] = ohlcv
+
+        @emit "ohlcv", @ohlcvFromWire(ohlcv)
+        @emitOHLCVHistory(ticker, period)
 
     onOHLCVHistory: (ohlcv_history) =>
         @log ["ohlcv_history received", ohlcv_history]
