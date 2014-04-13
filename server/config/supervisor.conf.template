@@ -34,6 +34,15 @@ stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
 user=${user}
 
+[program:ledger]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+user=${user}
+
 [program:administrator]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
 autorestart = true
