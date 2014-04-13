@@ -27,9 +27,10 @@ import database
 import models
 import margin
 import util
+import ledger
 import alerts
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, RemoteCallException
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
@@ -99,11 +100,25 @@ class Accountant:
             finally:
                 self.session.rollback()
 
-        def on_fail(self, failure):
-            # TODO: make different alerts for different exceptions
-            alerts.alert(str(failure.value))
+        def on_fail_ledger(self, failure):
+            e = failure.trap(ledger.LedgerException)
+            logging.error("Ledger exception:")
+            logging.error(str(failure.value))
+            alerts.alert("Exception in ledger. See logs.")
 
-        self.ledger.post(*postings).addCallback(on_success, on_fail)
+        def on_fail_rpc(self, failure):
+            e = failure.trap(RemoteCallException)
+            if isinstance(e, RemoteCallTimedOut):
+                logging.error("Ledger call timed out.")
+                alerts.alert("Ledger call timed out. Ledger may be overloaded.")
+            else:
+                logging.error("Improper ledger RPC invocation:")
+                logging.error(str(failure.value))
+
+        d = self.ledger.post(*postings)
+        d.addCallback(on_success)
+        d.addErrback(on_fail_ledger)
+        d.addErrback(on_fail_rpc)
 
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
