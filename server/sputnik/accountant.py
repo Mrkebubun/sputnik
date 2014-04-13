@@ -21,11 +21,13 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
+import collections
+
 import database
 import models
 import margin
 import util
-import collections
+import alerts
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync
 
@@ -48,7 +50,7 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, webserver, debug):
+    def __init__(self, session, engines, ledger, webserver, debug):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -71,6 +73,7 @@ class Accountant:
         }
         self.safe_prices = {}
         self.engines = engines
+        self.ledger = ledger
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -84,6 +87,23 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
 
         self.webserver = webserver
+
+    def post_or_fail(self, *postings):
+        def on_success(self, result):
+            try:
+                for posting in postings:
+                    position = self.get_positon(posting.user, posting.contract)
+                    position.position += posting.quanity
+                    self.session.merge(position)
+                self.session.commit()
+            finally:
+                self.session.rollback()
+
+        def on_fail(self, failure):
+            # TODO: make different alerts for different exceptions
+            alerts.alert(str(failure.value))
+
+        self.ledger.post(*postings).addCallback(on_success, on_fail)
 
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
@@ -926,10 +946,11 @@ if __name__ == "__main__":
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (4200 + int(contract.id)))
+    ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
-    accountant = Accountant(session, engines, webserver, debug=debug)
+    accountant = Accountant(session, engines, ledger, webserver, debug=debug)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
