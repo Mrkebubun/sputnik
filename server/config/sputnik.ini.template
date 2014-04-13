@@ -58,6 +58,9 @@ zendesk_domain = mexbt
 zmq_frontend_address = tcp://127.0.0.1:4500
 zmq_backend_address = tcp://127.0.0.1:4520
 
+[ledger]
+accountant_export = tcp://127.0.0.1:4340
+
 [alerts]
 from = sputnik@sputnikmkt.com
 to = yury@sputnikmkt.com
