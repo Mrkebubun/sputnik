@@ -41,7 +41,7 @@ contracts modify BTC/HUF denominator 1
 permissions add Default
 EOF
 
-cat << EOF | sudo -u sputnik $profile_root/tools/leo
+cat << EOF | $profile_root/tools/leo
 accounts add customer
 accounts add m2
 accounts add remainder
