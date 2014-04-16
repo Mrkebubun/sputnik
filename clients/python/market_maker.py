@@ -41,7 +41,7 @@ import json
 from bs4 import BeautifulSoup
 import time
 
-uri = 'ws://localhost:8000'
+uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
     username = 'marketmaker'
     password = 'marketmaker'
