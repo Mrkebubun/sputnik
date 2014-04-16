@@ -305,7 +305,7 @@ $ ->
         $("#audit_modal").modal()
         sputnik.getAudit()
 
-    $('#contract_list').click ->
+    $('#contract_list').change ->
         if $('#contract_list').val() != window.contract
             sputnik.unfollow window.contract
             window.contract = $('#contract_list').val()
