@@ -47,16 +47,16 @@ class RandomBot(TradingBot):
         return uri
 
     def startAutomationAfterAuth(self):
-        rate = 60
+        rate = 10
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1.0 * rate)
 
         self.chatter = task.LoopingCall(self.saySomethingRandom)
-        self.chatter.start(30.0 * rate)
+        self.chatter.start(10.0 * rate)
 
-        self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
-        self.cancel_orders.start(2.5 * rate)
+        #self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
+        #self.cancel_orders.start(2.5 * rate)
 
         return True
 
@@ -70,7 +70,7 @@ class RandomBot(TradingBot):
                 random_markets.append(ticker)
 
         # Pick a market at random
-        ticker = 'BTC/MXN'
+        ticker = 'BTC/%s' % random.choice(self.currency_list)
         side = random.choice(["BUY", "SELL"])
         contract = self.markets[ticker]
 
@@ -85,11 +85,11 @@ class RandomBot(TradingBot):
             best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
             best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
 
-            # Pick a price somewhere deep in the book
+            # Hit the other side
             if side is 'BUY':
-                price = random.randint(best_ask, best_ask * 1.1)
+                price = best_ask
             else:
-                price = random.randint(best_bid * 0.9, best_bid)
+                price = best_bid
 
             price = int(price / (tick_size * denominator)) * tick_size * denominator
         except (ValueError, KeyError):

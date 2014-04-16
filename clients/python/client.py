@@ -47,6 +47,7 @@ class TradingBot(WampCraClientProtocol):
    """
     username = 'testuser1'
     password = 'testuser1'
+    currency_list = ['MXN', 'HUF', 'PLN']
 
     def __init__(self):
         self.base_uri = self.getUri()
@@ -111,10 +112,11 @@ class TradingBot(WampCraClientProtocol):
         self.markets = event[1]
         for ticker, contract in self.markets.iteritems():
             if contract['contract_type'] != "cash":
+                self.getOrderBook(ticker)
                 self.subBook(ticker)
                 self.subTrades(ticker)
                 self.subSafePrices(ticker)
-                self.getOHLCV(ticker)
+                self.subOHLCV(ticker)
         return event
 
     def onBook(self, topicUri, event):
@@ -139,7 +141,6 @@ class TradingBot(WampCraClientProtocol):
 
     def onOpenOrders(self, event):
         pprint(event)
-        self.orders = {}
         for id, order in event[1].iteritems():
             self.orders[int(id)] = order
 
@@ -151,15 +152,16 @@ class TradingBot(WampCraClientProtocol):
         if id in self.orders and (order['is_cancelled'] or order['quantity_left'] == 0):
             del self.orders[id]
         else:
-            # Try to find it in internal orders
-            for search_id, search_order in self.orders.items():
-                if isinstance(search_id, basestring) and search_id.startswith('internal_'):
-                    if (order['quantity'] == search_order['quantity'] and
-                        order['side'] == search_order['side'] and
-                        order['contract'] == search_order['contract'] and
-                        order['price'] == search_order['price']):
-                        del self.orders[search_id]
-                        self.orders[id] = order
+            if 'quantity' in order:
+                # Try to find it in internal orders
+                for search_id, search_order in self.orders.items():
+                    if isinstance(search_id, basestring) and search_id.startswith('internal_'):
+                        if (order['quantity'] == search_order['quantity'] and
+                            order['side'] == search_order['side'] and
+                            order['contract'] == search_order['contract'] and
+                            order['price'] == search_order['price']):
+                            del self.orders[search_id]
+                            self.orders[id] = order
 
         pprint(["Order", topicUri, order])
 
@@ -178,7 +180,10 @@ class TradingBot(WampCraClientProtocol):
     def onPlaceOrder(self, event):
         pprint(event)
 
-    def onOHLCV(self, event):
+    def onOHLCV(self, topicUri, event):
+        pprint(event)
+
+    def onOHLCVHistory(self, event):
         pprint(event)
 
     def onRpcError(self, event):
@@ -210,6 +215,11 @@ class TradingBot(WampCraClientProtocol):
         uri = "%s/feeds/ledger#%s" % (self.base_uri, self.username)
         self.subscribe(uri, self.onLedger)
         print 'subecribed to: ', uri
+
+    def subOHLCV(self, ticker):
+        uri = "%s/feeds/ohlcv#%s" % (self.base_uri, ticker)
+        self.subscribe(uri, self.onOHLCV)
+        print "subscribed to: ", uri
 
     def subBook(self, ticker):
         uri = "%s/feeds/book#%s" % (self.base_uri, ticker)
@@ -248,7 +258,7 @@ class TradingBot(WampCraClientProtocol):
 
     def getOrderBook(self, ticker):
         d = self.call(self.base_uri + "/rpc/get_order_book", ticker)
-        d.addCallbacks(pprint, self.onRpcError)
+        d.addCallbacks(lambda x: self.onBook("get_order_book", x[1]), self.onRpcError)
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
@@ -259,13 +269,13 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/get_audit")
         d.addCallbacks(self.onAudit, self.onRpcError)
 
-    def getOHLCV(self, ticker, period="day", start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+    def getOHLCVHistory(self, ticker, period="day", start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
-        d = self.call(self.base_uri + "/rpc/get_ohlcv", ticker, period, start_timestamp, end_timestamp)
-        d.addCallbacks(self.onOHLCV, self.onRpcError)
+        d = self.call(self.base_uri + "/rpc/get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
+        d.addCallbacks(self.onOHLCVHistory, self.onRpcError)
 
     def makeAccount(self, username, password, email, nickname):
         alphabet = string.digits + string.lowercase
@@ -316,7 +326,7 @@ class TradingBot(WampCraClientProtocol):
         cancels an order by its id.
         :param id: order id
         """
-        if id.startswith('internal_'):
+        if isinstance(id, basestring) and id.startswith('internal_'):
             print "can't cancel internal order: %s" % id
 
         print "cancel order: %s" % id
