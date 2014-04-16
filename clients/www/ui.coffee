@@ -450,15 +450,19 @@ sputnik.on "ohlcv_history", (ohlcv_history) ->
     if timestamps.length
         max_t = Math.max(timestamps)
         entry = ohlcv_history[max_t]
-        if entry.contract == window.contract and entry.period == 'day'
-            $('#low').text entry.low.toFixed(0)
-            $('#high').text entry.high.toFixed(0)
-            $('#vwap').text entry.vwap.toFixed(0)
-            return
-
-    $('#low').text 'N/A'
-    $('#high').text 'N/A'
-    $('#vwap').text 'N/A'
+        if entry.period == 'day'
+            if entry.contract == window.contract
+                $('#low').text entry.low.toFixed(0)
+                $('#high').text entry.high.toFixed(0)
+                $('#vwap').text entry.vwap.toFixed(0)
+            else
+                $('#low').text 'N/A'
+                $('#high').text 'N/A'
+                $('#vwap').text 'N/A'
+    else
+        $('#low').text 'N/A'
+        $('#high').text 'N/A'
+        $('#vwap').text 'N/A'
 
 sputnik.on "password_change_success", (info) ->
     alert "Password successfully changed"
