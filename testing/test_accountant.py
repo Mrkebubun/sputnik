@@ -41,7 +41,9 @@ class TestAccountant(TestSputnik):
 
         self.engines = {"BTC/MXN": FakeEngine()}
         self.webserver = FakeProxy()
+        self.ledger = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
+                                                self.ledger,
                                                 self.webserver, True)
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
