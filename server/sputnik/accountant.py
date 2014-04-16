@@ -30,7 +30,8 @@ import util
 import ledger
 import alerts
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, RemoteCallException
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
+    dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
 
 from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
