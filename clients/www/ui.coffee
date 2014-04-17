@@ -297,9 +297,9 @@ $ ->
     $("#account").click ->
         $("#account_modal").modal()
 
-    $("#ledger").click ->
-        $("#ledger_modal").modal()
-        sputnik.getLedgerHistory()
+    $("#transactions").click ->
+        $("#transactions_modal").modal()
+        sputnik.getTransactionHistory()
 
     $("#audit").click ->
         $("#audit_modal").modal()
@@ -480,8 +480,17 @@ sputnik.on "profile", (profile) ->
 sputnik.on "audit_details", (audit) ->
     for account_type in ['assets', 'liabilities']
         $output = []
+        $output.push '<ul class="nav nav-tabs">'
         for own currency_code, currency of audit[account_type]
-            $output.push('<h4>' + currency_code + '</h4><table id="audit_' + account_type + '_' + currency_code +
+            $output.push '<li><a href="#' + account_type + '_' + currency_code + '" data-toggle="tab">' + currency_code + '</a></li>'
+
+        $output.push '</ul>'
+
+        $output.push '<div class="tab-content">'
+        for own currency_code, currency of audit[account_type]
+            $output.push '<div class="tab-pane" id="' + account_type + '_' + currency_code + '">'
+
+            $output.push('<table id="audit_' + account_type + '_' + currency_code +
                 '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th><th class="text-right">Amount</th></tr></thead><tbody>')
             #Positions
             for position in currency.positions
@@ -507,6 +516,9 @@ sputnik.on "audit_details", (audit) ->
                 currency_total = currency.total.toFixed(2)
 
             $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
+            $output.push "</div>"
+
+        $output.push '</div>'
         html = $output.join('')
         console.log "[ui:426 - html]", html
         $("#audit_#{account_type}").html(html)
@@ -515,13 +527,15 @@ sputnik.on "audit_hash", (audit_hash) ->
     window.my_audit_hash = audit_hash
     $('#audit_hash').text audit_hash
 
-sputnik.on "ledger_history", (ledger_histories) ->
+sputnik.on "transaction_history", (transaction_histories) ->
     html = []
-    for his in ledger_histories
+    for his in transaction_histories
         trHTML = "<tr><td>#{his['timestamp']}</td>
-             <td>#{his['notes'] ? ''}</td>
              <td>#{his['type'] ? ''}</td>
              <td>#{his['contract'] ? ''}</td>
              <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
         html.push(trHTML)
-    $('#ledger_history tbody').html(html.join())
+    $('#transaction_history tbody').html(html.join())
+
+sputnik.on "close", (message) ->
+    alert "Connection closed: #{message}"

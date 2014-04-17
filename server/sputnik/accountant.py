@@ -129,12 +129,12 @@ class Accountant:
 
         """
         for posting in journal.postings:
-            ledger = {'contract': posting.contract.ticker,
+            transaction = {'contract': posting.contract.ticker,
                       'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
                       'quantity': posting.quantity,
                       'type': posting.journal.type
             }
-            self.webserver.ledger(posting.username, ledger)
+            self.webserver.transaction(posting.username, transaction)
 
     def get_user(self, username):
         """Return the User object corresponding to the username.
@@ -771,7 +771,7 @@ class Accountant:
                                                                          datetime.min.time()))
         return balance_sheet
 
-    def get_ledger_history(self, username, from_timestamp, to_timestamp):
+    def get_transaction_history(self, username, from_timestamp, to_timestamp):
         """Get the history of a user's transactions
 
         :param username: the user
@@ -786,18 +786,17 @@ class Accountant:
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
-        ledgers = []
+        transactions = []
         postings = self.session.query(models.Posting).filter_by(username=username).join(models.Journal).filter(
             models.Journal.timestamp <= to_dt,
             models.Journal.timestamp >= from_dt
         )
         for posting in postings:
-            ledgers.append({'contract': posting.contract.ticker,
-                            'notes': posting.journal.notes,
+            transactions.append({'contract': posting.contract.ticker,
                             'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
                             'quantity': posting.quantity,
                             'type': posting.journal.type})
-        return ledgers
+        return transactions
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
@@ -891,8 +890,8 @@ class WebserverExport:
         return self.accountant.get_audit()
 
     @export
-    def get_ledger_history(self, username, from_timestamp, to_timestamp):
-        return self.accountant.get_ledger_history(username, from_timestamp, to_timestamp)
+    def get_transaction_history(self, username, from_timestamp, to_timestamp):
+        return self.accountant.get_transaction_history(username, from_timestamp, to_timestamp)
 
 
 class EngineExport:

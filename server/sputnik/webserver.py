@@ -648,7 +648,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/feeds/ledger#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        self.registerForPubSub(self.base_uri + "/feeds/transactions#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
         self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
@@ -880,9 +880,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
-    @exportRpc("get_ledger_history")
-    def get_ledger_history(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
-                                                             datetime.timedelta(days=2)),
+    @exportRpc("get_transaction_history")
+    def get_transaction_history(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+                                                             datetime.timedelta(hours=4)),
                   to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
 
         """
@@ -909,7 +909,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_ledger_history(self.username, from_timestamp, to_timestamp)
+        d = self.factory.accountant.get_transaction_history(self.username, from_timestamp, to_timestamp)
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
@@ -1352,9 +1352,9 @@ class AccountantExport:
             self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
 
     @export
-    def ledger(self, user, ledger):
+    def transaction(self, user, transaction):
         self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/ledger#%s" % user, ledger)
+            self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
 
 class PepsiColaServerFactory(WampServerFactory):
     """

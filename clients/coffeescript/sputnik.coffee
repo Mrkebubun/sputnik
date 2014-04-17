@@ -94,13 +94,13 @@ class @Sputnik extends EventEmitter
         return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
     # TODO: Allow for start and endtimes
-    getLedgerHistory: () =>
-        @call("get_ledger_history").then (wire_ledger_history) =>
-            @log ["Ledger history", wire_ledger_history]
-            ledger_history = []
-            for ledger in wire_ledger_history
-                ledger_history.push @ledgerFromWire(ledger)
-            @emit "ledger_history", ledger_history
+    getTransactionHistory: () =>
+        @call("get_transaction_history").then (wire_transaction_history) =>
+            @log ["Transaction history", wire_transaction_history]
+            transaction_history = []
+            for transaction in wire_transaction_history
+                transaction_history.push @transactionFromWire(transaction)
+            @emit "transaction_history", transaction_history
 
     processHash: () =>
         hash = window.location.hash.substring(1).split('&')
@@ -219,7 +219,7 @@ class @Sputnik extends EventEmitter
         try
             @subscribe "orders#" + @username, @onOrder
             @subscribe "fills#" + @username, @onFill
-            @subscribe "ledger#" + @username, @onLedger
+            @subscribe "transactions#" + @username, @onTransaction
         catch error
             @log error
 
@@ -319,12 +319,12 @@ class @Sputnik extends EventEmitter
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
 
-    ledgerFromWire: (wire_ledger) =>
-        ledger = @copy(wire_ledger)
-        ticker = wire_ledger.contract
-        ledger.quantity = @quantityFromWire(ticker, wire_ledger.quantity)
-        ledger.timestamp = @timeFormat(wire_ledger.timestamp)
-        return ledger
+    transactionFromWire: (wire_transaction) =>
+        transaction = @copy(wire_transaction)
+        ticker = wire_transaction.contract
+        transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
+        transaction.timestamp = @timeFormat(wire_transaction.timestamp)
+        return transaction
 
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -557,7 +557,7 @@ class @Sputnik extends EventEmitter
 
     onClose: (code, reason, details) =>
         @log "Connection lost."
-        @emit "close"
+        @emit "close", [code, reason, details]
 
     # authentication internals
 
@@ -680,15 +680,15 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
-    # Fills don't update my cash, ledger feed does
+    # Fills don't update my cash, transaction feed does
     onFill: (fill) =>
         @log ["Fill received", fill]
         @emit "fill", @fillFromWire(fill)
 
-    onLedger: (ledger) =>
-        @log ["Ledger received", ledger]
-        @positions[ledger.contract].position += ledger.quantity
-        @emit "ledger", @ledgerFromWire(ledger)
+    onTransaction: (transaction) =>
+        @log ["transaction received", transaction]
+        @positions[transaction.contract].position += transaction.quantity
+        @emit "transaction", @transactionFromWire(transaction)
 
         positions = {}
         for ticker, position of @positions

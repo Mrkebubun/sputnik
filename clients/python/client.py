@@ -98,7 +98,7 @@ class TradingBot(WampCraClientProtocol):
         print "Authentication Success!", permissions
         self.subOrders()
         self.subFills()
-        self.subLedger()
+        self.subTransactions()
         self.getOpenOrders()
 
         self.startAutomationAfterAuth()
@@ -171,8 +171,8 @@ class TradingBot(WampCraClientProtocol):
         """
         pprint(["Fill", topicUri, event])
 
-    def onLedger(self, topicUri, event):
-        pprint(["Ledger", topicUri, event])
+    def onTransaction(self, topicUri, event):
+        pprint(["Transaction", topicUri, event])
 
     def onChat(self, topicUri, event):
         pprint(["Chat", topicUri, event])
@@ -198,6 +198,9 @@ class TradingBot(WampCraClientProtocol):
     def onSupportNonce(self, event):
         pprint(event)
 
+    def onTransactionHistory(self, event):
+        pprint(event)
+
     """
     Subscriptions
     """
@@ -211,9 +214,9 @@ class TradingBot(WampCraClientProtocol):
         self.subscribe(uri, self.onFill)
         print 'subscribed to: ', uri
 
-    def subLedger(self):
-        uri = "%s/feeds/ledger#%s" % (self.base_uri, self.username)
-        self.subscribe(uri, self.onLedger)
+    def subTransactions(self):
+        uri = "%s/feeds/transactions#%s" % (self.base_uri, self.username)
+        self.subscribe(uri, self.onTransaction)
         print 'subecribed to: ', uri
 
     def subOHLCV(self, ticker):
@@ -289,13 +292,13 @@ class TradingBot(WampCraClientProtocol):
         d = self.call(self.base_uri + "/rpc/make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onRpcError)
 
-    def getLedgerHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+    def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
-        d = self.call(self.base_uri + "/rpc/get_ledger_history", start_timestamp, end_timestamp)
-        d.addCallbacks(self.onLedger, self.onRpcError)
+        d = self.call(self.base_uri + "/rpc/get_transaction_history", start_timestamp, end_timestamp)
+        d.addCallbacks(self.onTransactionHistory, self.onRpcError)
 
     def requestSupportNonce(self, type='Compliance'):
         d = self.call(self.base_uri + "/rpc/request_support_nonce", type)
@@ -351,7 +354,7 @@ class BasicBot(TradingBot):
         self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
-        self.getLedgerHistory()
+        self.getTransactionHistory()
         self.requestSupportNonce()
 
 if __name__ == '__main__':
