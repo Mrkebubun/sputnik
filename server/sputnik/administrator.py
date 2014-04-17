@@ -582,6 +582,9 @@ class Administrator:
         logging.debug("Modifying permission group %d to %s" % (id, permissions))
         self.accountant.modify_permission_group(id, permissions)
 
+    def process_withdrawal(self, id, online=False, cancel=False):
+        self.cashier.process_withdrawal(id, online=online, cancel=cancel)
+
 class AdminWebUI(Resource):
     isLeaf = True
     def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
@@ -675,7 +678,8 @@ class AdminWebUI(Resource):
                       '/modify_permission_group': self.modify_permission_group
                      },
                     # Level 4
-                     {'/transfer_position': self.transfer_position},
+                     {'/transfer_position': self.transfer_position,
+                      '/process_withdrawal': self.process_withdrawal},
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -693,6 +697,20 @@ class AdminWebUI(Resource):
             # Take me to /
             request.path = '/'
             return self.render(request)
+
+    def process_withdrawal(self, request):
+        if 'cancel' in request.args:
+            cancel = True
+            online = False
+        else:
+            cancel = False
+            if 'online' in request.args:
+                online = True
+            else:
+                online = False
+
+        self.administrator.process_withdrawal(request.args['id'][0], online=online, cancel=cancel)
+        return self.user_details(request)
 
     def permission_groups(self, request):
         """Get the permission groups page

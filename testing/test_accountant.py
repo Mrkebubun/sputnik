@@ -41,8 +41,10 @@ class TestAccountant(TestSputnik):
 
         self.engines = {"BTC/MXN": FakeEngine()}
         self.webserver = FakeProxy()
+        self.cashier = FakeProxy()
         self.ledger = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
+                                                self.cashier,
                                                 self.ledger,
                                                 self.webserver, True)
         self.cashier_export = accountant.CashierExport(self.accountant)
@@ -472,6 +474,7 @@ class TestWebserverExport(TestAccountant):
         self.assertTrue(result[0])
         id = result[1]
         from sputnik import models
+
         order = self.session.query(models.Order).filter_by(id=id).one()
         self.assertEqual(order.username, 'test')
         self.assertEqual(order.contract.ticker, 'BTC/MXN')
@@ -488,7 +491,6 @@ class TestWebserverExport(TestAccountant):
                                                                    'side': 1,
                                                                    'username': u'test'},
                                                                   {})]))
-
 
 
     def test_place_order_no_perms(self):
@@ -555,6 +557,7 @@ class TestWebserverExport(TestAccountant):
         self.assertTrue(result[0])
         id = result[1]
         from sputnik import models
+
         order = self.session.query(models.Order).filter_by(id=id).one()
         self.assertEqual(order.username, 'test')
         self.assertEqual(order.contract.ticker, 'BTC/MXN')
@@ -592,4 +595,68 @@ class TestWebserverExport(TestAccountant):
 
     def test_get_transaction_history(self):
         pass
+
+    def test_request_withdrawal_success(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group('test', 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group('test', 'Withdraw')
+        result = self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
+
+        # Make sure it returns success
+        self.assertTrue(result)
+
+        # Check that the positions are changed
+        from sputnik import models
+
+        user_position = self.session.query(models.Position).filter_by(username='test').one()
+        pending_position = self.session.query(models.Position).filter_by(username='pendingwithdrawal').one()
+
+        self.assertEqual(user_position.position, 2000000)
+        self.assertEqual(pending_position.position, 3000000)
+
+        self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                         (u'onlinecash',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 5000000,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'test',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 5000000,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'pendingwithdrawal',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 3000000,
+                                                           'type': u'Withdrawal'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'test',
+                                                          {'contract': u'BTC',
+                                                           'quantity': -3000000,
+                                                           'type': u'Withdrawal'}),
+                                                         {})]))
+        self.assertTrue(
+            self.cashier.check_for_calls([('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
+
+
+    def test_request_withdrawal_no_perms(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Withdrawals not permitted'):
+            self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
+
+    def test_request_withdrawal_no_margin(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group('test', 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group('test', 'Withdraw')
+
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+            self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 

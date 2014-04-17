@@ -423,11 +423,18 @@ class @Sputnik extends EventEmitter
             (address) =>
                 @log "new address for #{contract}: #{address}"
                 @emit "address", [contract, address]
-        , (error) =>
-            @log ["new address failure for #{contract}", error]
-            @emit "new_address_fail", error
+            , (error) =>
+                @error ["new address failure for #{contract}", error]
+                @emit "new_address_fail", error
 
-    withdraw: (contract, address, amount) =>
+    requestWithdrawal: (ticker, amount, address) =>
+        @call("request_withdrawal", ticker, @quantityToWire(ticker, amount), address).then \
+        (result) =>
+            @log ["request_withdrawal succeeded", result]
+            @emit "request_withdrawal_success", result
+        , (error) =>
+            @error ["request withdrawal fail", error]
+            @emit "request_withdrawal_fail", error
 
     # account/position information
     getSafePrices: () =>

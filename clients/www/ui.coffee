@@ -311,6 +311,12 @@ $ ->
             window.contract = $('#contract_list').val()
             sputnik.openMarket(window.contract)
 
+    $('#withdraw_BTC_button').click ->
+        if $('#withdraw_BTC_address').val() != $('#withdraw_BTC_address_confirm').val()
+            alert "Addresses do not match"
+        else
+            sputnik.requestWithdrawal('BTC', $('#withdraw_BTC_amount').val(), $('#withdraw_BTC_address').val())
+
     sputnik.on "change_password_token", (args) ->
         $('#change_password_token_modal').modal "show"
 
@@ -367,11 +373,12 @@ $ ->
                         sputnik.getAddress(ticker_to_use)
                         $("#deposit_#{ticker_to_use}_modal").modal()
 
+                withdraw_fn = (ticker_to_use) ->
+                    (event) ->
+                        $("#withdraw_#{ticker_to_use}_modal").modal()
+
                 $("#deposit_#{ticker}").click deposit_fn(ticker)
-
-
-                $("#withdraw_#{ticker}").click (event) ->
-                   $("#withdraw_disabled_modal").modal()
+                $("#withdraw_#{ticker}").click withdraw_fn(ticker)
 
         sputnik.openMarket(window.contract)
 
@@ -469,6 +476,12 @@ sputnik.on "password_change_success", (info) ->
 
 sputnik.on "password_change_fail", (error) ->
     alert "Password change fail: #{error}"
+
+sputnik.on "request_withdrawal_success", (info) ->
+    alert "Withdrawal request placed"
+
+sputnik.on "request_withdrawal_fail", (error) ->
+    alert "Withdrawal request failed: #{error[1]}"
 
 sputnik.on "place_order_fail", (error) ->
     alert "order placement failed: #{error[1]}"

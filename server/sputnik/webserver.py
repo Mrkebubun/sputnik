@@ -980,41 +980,33 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             " username=%s AND active=TRUE AND currency=%s"
             " ORDER BY id LIMIT 1", (self.username, currency)).addCallback(_cb)
 
-    @exportRpc("withdraw")
-    def withdraw(self, currency, withdraw_address, amount):
+    @exportRpc("request_withdrawal")
+    def request_withdrawal(self, currency, amount, address):
         """
         Makes a note in the database that a withdrawal needs to be processed
         :param currency: the currency to process the withdrawal in
-        :param withdraw_address: the address to which the withdrawn money is to be sent
         :param amount: the amount of money to withdraw
+        :param address: the address to which the withdrawn money is to be sent
         :returns: bool, Deferred - if an invalid amount, just return False, otherwise return a deferred
         """
         validate(currency, {"type": "string"})
-        validate(withdraw_address, {"type": "string"})
+        validate(address, {"type": "string"})
         validate(amount, {"type": "number"})
         amount = int(amount)
 
         if amount <= 0:
-            return False
+            return [False, (0, "Invalid withdrawal amount")]
 
-        def _withdraw(txn, currency):
-            logging.info('entering withdraw')
-            currency_id = \
-                txn.execute("SELECT id FROM contracts WHERE ticker=%s AND contract_type='cash' LIMIT 1", (currency,))[
-                    0][0]
+        def onRequestWithdrawalSuccess(result):
+            return [True, result]
 
-            # TODO: Update to new API
-            txn.execute(
-                "INSERT INTO withdrawals (username, address, amount, currency_id, entered)"
-                " VALUES (%(username)s, %(address)s, %(amount)s, %(currency_id)s, %(entered)s )",
-                {'username': self.username,
-                 'address': withdraw_address,
-                 'amount': amount,
-                 'currency_id': currency_id,
-                 'entered': datetime.datetime.utcnow()})
+        def onRequestWithdrawalFail(failure):
+            return [False, failure.value.args]
 
-        return dbpool.runInteraction(_withdraw, currency)
+        d = self.factory.accountant.request_withdrawal(self.username, currency, amount, address)
+        d.addCallbacks(onRequestWithdrawalSuccess, onRequestWithdrawalFail)
 
+        return d
 
     @exportRpc("get_positions")
     def get_positions(self):

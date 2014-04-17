@@ -6,6 +6,7 @@
       <w>beautifulsoup</w>
       <w>bitcoin</w>
       <w>bitcoind</w>
+      <w>bitcoinrpc</w>
       <w>btcmxn</w>
       <w>btcusd</w>
       <w>chown</w>
@@ -24,8 +25,10 @@
       <w>mexbt</w>
       <w>minified</w>
       <w>mkdir</w>
+      <w>offlinecash</w>
       <w>ohlcv</w>
       <w>onetimepass</w>
+      <w>pendingwithdrawal</w>
       <w>postgresql</w>
       <w>psql</w>
       <w>pubsub</w>

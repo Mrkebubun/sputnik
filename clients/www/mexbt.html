@@ -238,7 +238,26 @@
     </div>
 </div>
 
-<div id="withdraw_disabled_modal" class="modal fade">
+<div id="withdraw_BTC_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal</h4>
+            </div>
+            <div class="modal-body">
+                <input type="textarea" id="withdraw_BTC_address" placeholder="Address">
+                <input type="textarea" id="withdraw_BTC_address_confirm" placeholder="Confirm Address">
+                <input type="textarea" id="withdraw_BTC_amount" placeholder="Amount">
+            </div>
+            <div class="modal-footer">
+                    <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="withdraw_BTC_button"><span class="ladda-label">Withdraw</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_MXN_modal" class="modal fade">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -247,7 +266,71 @@
             </div>
             <div class="modal-body">
                 <emph style="color:red;">
-                    During the beta, withdrawals are disabled. At full release, withdrawals will be enabled.
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_HUF_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_PLN_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deposit_HUF_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Deposit not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deposit_PLN_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Deposit not enabled
                 </emph>
             </div>
         </div>

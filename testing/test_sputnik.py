@@ -41,8 +41,14 @@ accounts position randomtrader MXN
 accounts add onlinecash
 accounts modify onlinecash type Asset
 
+accounts add offlinecash
+accounts modify offlinecash type Asset
+
 accounts add depositoverflow
 accounts modify depositoverflow type Liability
+
+accounts add pendingwithdrawal
+accounts modify pendingwithdrawal type Liability
 
 accounts add adjustments
 accounts modify adjustments type Asset

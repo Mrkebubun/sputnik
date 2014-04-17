@@ -47,12 +47,13 @@ class AccountantException(Exception):
 
 INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
 TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
+WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 
 class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, ledger, webserver, debug):
+    def __init__(self, session, engines, cashier, ledger, webserver, debug):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -76,6 +77,7 @@ class Accountant:
         self.safe_prices = {}
         self.engines = engines
         self.ledger = ledger
+        self.cashier = cashier
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -250,6 +252,17 @@ class Accountant:
             self.session.add(position)
             return position
 
+    def check_margin(self, username, low_margin, high_margin):
+        cash_position = self.get_position(username, "BTC")
+
+        logging.info("high_margin = %d, low_margin = %d, cash_position = %d" %
+                     (high_margin, low_margin, cash_position.position))
+
+        if high_margin > cash_position.position:
+            return False
+        else:
+            return True
+
     def accept_order(self, order):
         """Accept the order if possible. Otherwise, delete the order
 
@@ -269,24 +282,18 @@ class Accountant:
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
 
-        cash_position = self.get_position(order.username, "BTC")
-
-        logging.info("high_margin = %d, low_margin = %d, cash_position = %d" %
-                     (high_margin, low_margin, cash_position.position))
-
-        if high_margin > cash_position.position:
-            # TODO replace deleting rejected orders with marking them as
-            #   rejected, using an enum
-
-            logging.info("Order rejected due to margin.")
-            self.session.delete(order)
-            self.session.commit()
-            raise INSUFFICIENT_MARGIN
-        else:
+        if self.check_margin(order.username, low_margin, high_margin):
             logging.info("Order accepted.")
             order.accepted = True
             self.session.merge(order)
             self.session.commit()
+        else:
+            logging.info("Order rejected due to margin.")
+            self.session.delete(order)
+            self.session.commit()
+            raise INSUFFICIENT_MARGIN
+
+
 
     def charge_fees(self, fees, username):
         """Credit fees to the people operating the exchange
@@ -609,6 +616,55 @@ class Accountant:
             logging.error("Transfer position failed: %s" % e)
             self.session.rollback()
 
+    def request_withdrawal(self, username, ticker, amount, address):
+        """See if we can withdraw, if so reduce from the position and create a withdrawal entry
+
+        :param username:
+        :param ticker:
+        :param amount:
+        :param address:
+        :returns: bool
+        :raises: INSUFFICIENT_MARGIN, WITHDRAW_NOT_PERMITTED
+        """
+        try:
+            logging.debug("Withdrawal request for %s %s for %d to %s received" % (username, ticker, amount, address))
+            user = self.get_user(username)
+            if not user.permissions.withdraw:
+                logging.error("Withdraw request for %s failed due to no permissions" % username)
+                raise WITHDRAW_NOT_PERMITTED
+
+            contract = self.get_contract(ticker)
+
+            self.cashier.request_withdrawal(username, ticker, address, amount)
+
+            position = self.get_position(username, ticker)
+            pending_withdrawal_user = self.get_user('pendingwithdrawal')
+            pending_withdrawal_position = self.get_position('pendingwithdrawal', ticker)
+            credit = models.Posting(pending_withdrawal_user, contract, amount, 'credit', update_position=True,
+                                    position=pending_withdrawal_position)
+            debit = models.Posting(user, contract, amount, 'debit', update_position=True,
+                                   position=position)
+
+            self.session.add_all([position, pending_withdrawal_position])
+            self.session.add_all([debit, credit])
+
+            # Check margin now
+            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices)
+            if not self.check_margin(username, low_margin, high_margin):
+                logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
+                raise INSUFFICIENT_MARGIN
+            else:
+                journal = models.Journal('Withdrawal', [credit, debit])
+                self.session.add(journal)
+                self.session.commit()
+                self.publish_journal(journal)
+                logging.info("Journal: %s" % journal)
+                return True
+        except Exception as e:
+            self.session.rollback()
+            logging.error("Exception received while attempting withdrawal: %s" % e)
+            raise e
+
     def deposit_cash(self, address, total_received):
         """Deposits cash
         :param address: The address where the cash was deposited
@@ -893,6 +949,10 @@ class WebserverExport:
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
         return self.accountant.get_transaction_history(username, from_timestamp, to_timestamp)
 
+    @export
+    def request_withdrawal(self, username, ticker, amount, address):
+        return self.accountant.request_withdrawal(username, ticker, amount, address)
+
 
 class EngineExport:
     """Accountant functions exposed to the Engine
@@ -920,6 +980,15 @@ class CashierExport:
     @export
     def deposit_cash(self, address, total_received):
         self.accountant.deposit_cash(address, total_received)
+
+    @export
+    def transfer_position(self, ticker, from_user, to_user, quantity):
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
+
+    @export
+    def get_position(self, username, ticker):
+        position = self.accountant.get_position(username, ticker)
+        return position.position
 
 
 class AdministratorExport:
@@ -963,9 +1032,10 @@ if __name__ == "__main__":
                                                       (4200 + int(contract.id)))
     ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
+    cashier = push_proxy_sync(config.get("cashier", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
 
-    accountant = Accountant(session, engines, ledger, webserver, debug=debug)
+    accountant = Accountant(session, engines, cashier, ledger, webserver, debug=debug)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
@@ -976,8 +1046,8 @@ if __name__ == "__main__":
                        config.get("accountant", "webserver_export"))
     pull_share_async(engine_export,
                      config.get("accountant", "engine_export"))
-    pull_share_async(cashier_export,
-                     config.get("accountant", "cashier_export"))
+    router_share_async(cashier_export,
+                        config.get("accountant", "cashier_export"))
     router_share_async(administrator_export,
                      config.get("accountant", "administrator_export"))
 

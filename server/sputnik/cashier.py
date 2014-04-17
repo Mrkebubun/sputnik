@@ -7,17 +7,19 @@ import logging
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 import bitcoinrpc
 from compropago import Compropago
 import util
 
 import config
-from zmq_util import push_proxy_async, pull_share_async, export
+from zmq_util import dealer_proxy_sync, pull_share_async, export
 import models
 import database as db
 from jsonschema import ValidationError
+from sqlalchemy.orm.exc import NoResultFound
+from datetime import datetime
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -25,6 +27,11 @@ parser.add_option("-c", "--config", dest="filename", help="config file", default
 if options.filename:
     config.reconfigure(options.filename)
 
+class CashierException(Exception):
+    pass
+
+WITHDRAWAL_NOT_FOUND = CashierException(0, "Withdrawal not found")
+WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
 
 class Cashier():
     """
@@ -34,18 +41,17 @@ class Cashier():
     """
     minimum_confirmations = 6
 
-    def __init__(self, accountant):
+    def __init__(self, session, accountant, bitcoinrpc, compropago):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
         """
         self.cold_wallet_address = 'xxxx'
-        self.bitcoin_conf = config.get("cashier", "bitcoin_conf")
+
+        self.session = session
         self.accountant = accountant
-        logging.info('connecting to bitcoin client')
-        self.conn = {'btc': bitcoinrpc.connect_to_local(self.bitcoin_conf)}
-        self.session = db.make_session()
-        self.compropago = Compropago(config.get("cashier", "compropago_key"))
+        self.bitcoinrpc = bitcoinrpc
+        self.compropago = compropago
 
     def notify_accountant(self, address, total_received):
         """
@@ -91,7 +97,7 @@ class Cashier():
         else:
             # TODO: do not assume BTC
             # TODO: add error checks
-            total_received = int(self.conn["btc"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
+            total_received = int(self.bitcoinrpc["btc"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
             accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
             if total_received > accounted_for:
                 self.notify_accountant(address, total_received)
@@ -105,7 +111,7 @@ class Cashier():
         """
         logging.info('checking for deposits')
         # first we get the confirmed deposits
-        confirmed_deposits = self.conn[currency].listreceivedbyaddress(self.minimum_confirmations)
+        confirmed_deposits = self.bitcoinrpc[currency].listreceivedbyaddress(self.minimum_confirmations)
         # ok, so now for each address get how much was received
         total_received = {row.address: int(row.amount * int(1e8)) for row in confirmed_deposits}
         # but how much have we already accounted for?
@@ -119,18 +125,20 @@ class Cashier():
                 # tell the accountant
                 self.notify_accountant(address, total_received[address])
 
-    def check_for_withdrawals(self):
+    def check_withdrawal(self, withdrawal):
         """
         list withdrawal requests that have been entered and processed them
         either immediately or by pushing them to manual verification
         :raises: NotImplementedError
         """
         # if the transaction is innocuous enough
-        if self.pass_safety_check(None):
-            raise NotImplementedError()
-        # otherwise tell the user he'll have to wait
+        logging.info("Checking withdrawal: %s" % withdrawal)
+        if self.pass_safety_check(withdrawal):
+            self.process_withdrawal(withdrawal.id, online=True)
         else:
-            self.notify_pending_withdrawal()
+            pass
+            # TODO: Email the user
+            #self.notify_pending_withdrawal(withdrawal)
 
     def pass_safety_check(self, withdrawal_request):
         """
@@ -142,9 +150,70 @@ class Cashier():
         """
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
-        # 2) make sure we have enough btc on hand
+        # (what does this mean)
+        # 2) make sure we have enough btc on hand - we should have at least 10x the btc onhand than the withdrawal is for
+        # 3) make sure the withdrawal is small (< 1 BTC)
         # Not yet implemented
-        return False
+        if withdrawal_request.amount >= 100000000:
+            logging.error("withdrawal too large, failing safety check")
+            return False
+        else:
+            online_cash = self.accountant.get_position('onlinecash', withdrawal_request.currency.ticker)
+            logging.error("withdrawal too large portion of online cash balance, failing safety check")
+            if online_cash / 10 <= withdrawal_request.amount:
+                return False
+
+        # None of the checks failed, return True
+        return True
+
+    def process_withdrawal(self, withdrawal_id, online=False, cancel=False):
+        # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
+        # and tell the accountant that the withdrawal has happened
+        # If cancel=True, then return the money to the user
+        logging.info("Processing withdrawal: %d online=%s cancel=%s" % (withdrawal_id, online, cancel))
+        try:
+            try:
+                withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
+            except NoResultFound:
+                logging.error("No withdrawal found for id %d" % withdrawal_id)
+                raise WITHDRAWAL_NOT_FOUND
+
+            logging.debug("Withdrawal found: %s" % withdrawal)
+            if not withdrawal.pending:
+                raise WITHDRAWAL_COMPLETE
+
+            if cancel:
+                to_user = withdrawal.username
+            else:
+                if online:
+                    self.bitcoinrpc[withdrawal.currency.ticker.lower()].sendtoaddress(withdrawal.address, float(withdrawal.amount / 1e8))
+                    to_user = 'onlinecash'
+                else:
+                    to_user = 'offlinecash'
+
+            self.accountant.transfer_position(withdrawal.currency.ticker, 'pendingwithdrawal', to_user, withdrawal.amount)
+            withdrawal.pending = False
+            withdrawal.completed = datetime.utcnow()
+            self.session.add(withdrawal)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Exception when trying to process withdrawal: %s" % e)
+            self.session.rollback()
+            raise e
+
+    def request_withdrawal(self, username, ticker, address, amount):
+        try:
+            user = self.session.query(models.User).filter_by(username=username).one()
+            contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+            withdrawal = models.Withdrawal(user, contract, address, amount)
+            self.session.add(withdrawal)
+            self.session.commit()
+
+            self.check_withdrawal(withdrawal)
+        except Exception as e:
+            logging.error("Exception when creating withdrawal ticket: %s" % e)
+            self.session.rollback()
+
 
     def process_compropago_payment(self, payment_info):
         """
@@ -251,16 +320,40 @@ class AdministratorExport:
     def rescan_address(self, address):
         self.cashier.rescan_address(address)
 
+    @export
+    def process_withdrawal(self, address, online=False, cancel=False):
+        self.cashier.process_withdrawal(address, online=online, cancel=cancel)
+
+class AccountantExport:
+    def __init__(self, cashier):
+        self.cashier = cashier
+
+    @export
+    def request_withdrawal(self, username, ticker, address, amount):
+        self.cashier.request_withdrawal(username, ticker, address, amount)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
-    accountant = push_proxy_async(config.get("accountant", "cashier_export"))
-    cashier = Cashier(accountant)
+    accountant = dealer_proxy_sync(config.get("accountant", "cashier_export"))
+
+    session = db.make_session()
+    bitcoin_conf = config.get("cashier", "bitcoin_conf")
+
+    logging.info('connecting to bitcoin client')
+
+    bitcoinrpc = {'btc': bitcoinrpc.connect_to_local(bitcoin_conf)}
+    compropago = Compropago(config.get("cashier", "compropago_key"))
+
+    cashier = Cashier(session, accountant, bitcoinrpc, compropago)
+
     administrator_export = AdministratorExport(cashier)
+    accountant_export = AccountantExport(cashier)
 
     pull_share_async(administrator_export,
                      config.get("cashier", "administrator_export"))
+    pull_share_async(accountant_export,
+                    config.get("cashier", "accountant_export"))
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier))

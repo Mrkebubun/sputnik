@@ -7,7 +7,7 @@ import collections
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
-def calculate_margin(username, session, safe_prices, order_id=None):
+def calculate_margin(username, session, safe_prices, order_id=None, withdrawal=None):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in

@@ -516,7 +516,7 @@ class Withdrawal(db.Base):
         :param user:
         :type user: User
         :param currency:
-        :type currency: str
+        :type currency: models.Contract
         :param address:
         :type address: str
         :param amount:
