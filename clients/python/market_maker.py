@@ -44,9 +44,6 @@ import logging
 class MarketMakerBot(TradingBot):
     external_markets = {}
 
-    def getUri(self):
-        return uri
-
     def startAutomationAfterAuth(self):
         rate = 1
 
