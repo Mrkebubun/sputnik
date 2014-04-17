@@ -491,6 +491,7 @@ sputnik.on "profile", (profile) ->
     $('#new_email').val profile.email
 
 sputnik.on "audit_details", (audit) ->
+    $('#audit_timestamp').text audit.timestamp
     for account_type in ['assets', 'liabilities']
         $output = []
         $output.push '<ul class="nav nav-tabs">'

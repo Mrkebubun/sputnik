@@ -75,7 +75,7 @@ class @Sputnik extends EventEmitter
     getAudit: () =>
         @call("get_audit").then (wire_audit_details) =>
             audit_details = @copy(wire_audit_details)
-            audit_details.timestamp = @timeFormat(audit_details.timestamp)
+            audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]
                 for ticker, data of side
                     data.total = @quantityFromWire(ticker, data.total)
@@ -247,6 +247,14 @@ class @Sputnik extends EventEmitter
     timeFormat: (timestamp) =>
         dt = new Date(timestamp / 1000)
         return dt.toLocaleTimeString()
+
+    dateTimeFormat: (timestamp) =>
+        dt = new Date(timestamp / 1000)
+        return dt.toLocaleString()
+
+    dateFormat: (timestamp) =>
+        dt = new Date(timestamp / 1000)
+        return dt.toLocaleDateString()
 
     copy: (object) =>
         new_object = {}

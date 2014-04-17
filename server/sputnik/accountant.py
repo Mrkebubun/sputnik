@@ -91,6 +91,7 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
 
         self.webserver = webserver
+        self.audit_cache = None
 
     def post_or_fail(self, *postings):
         def on_success(self, result):
@@ -815,6 +816,13 @@ class Accountant:
 
         :returns: dict -- the audit
         """
+        now = util.dt_to_timestamp(datetime.utcnow())
+        if self.audit_cache is not None:
+            one_day = 24 * 3600 * 1000000
+            if now - self.audit_cache['timestamp'] < one_day:
+                # Return the cache if it's been less than a day
+                return self.audit_cache
+
         balance_sheet = self.get_balance_sheet()
         for side in balance_sheet.values():
             for ticker, details in side.iteritems():
@@ -823,8 +831,8 @@ class Accountant:
                     details['positions'].append((position['hash'], position['position']))
                 del details['positions_raw']
 
-        balance_sheet['timestamp'] = util.dt_to_timestamp(datetime.combine(date.today(),
-                                                                         datetime.min.time()))
+        balance_sheet['timestamp'] = now
+        self.audit_cache = balance_sheet
         return balance_sheet
 
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
