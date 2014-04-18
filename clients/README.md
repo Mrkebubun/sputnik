@@ -61,6 +61,7 @@ corresponding server objects. Each is encoded in JSON.
    vwap: 5100
    timestamp: 23409283
 }
+```
 
 ### order
 ```json
