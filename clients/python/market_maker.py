@@ -33,22 +33,16 @@ from twisted.python import log
 from twisted.internet import reactor, ssl, task
 
 from autobahn.twisted.websocket import connectWS
-from autobahn.wamp1.protocol import WampClientFactory
+from ConfigParser import ConfigParser
 
-from client import TradingBot
+from client import TradingBot, BotFactory
 import urllib2
 import json
 from bs4 import BeautifulSoup
-import time
+import logging
 
-uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
-    username = 'marketmaker'
-    password = 'marketmaker'
     external_markets = {}
-
-    def getUri(self):
-        return uri
 
     def startAutomationAfterAuth(self):
         rate = 1
@@ -147,15 +141,22 @@ class MarketMakerBot(TradingBot):
                     self.placeOrder('BTC/%s' % currency, qty_to_add, price, side)
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        log.startLogging(sys.stdout)
         debug = True
     else:
         debug = False
 
     log.startLogging(sys.stdout)
-    factory = WampClientFactory(uri, debugWamp=debug)
+    config = ConfigParser()
+    config.read("client.ini")
+
+    uri = config.get("client", "uri")
+    username = config.get("market_maker", "username")
+    password = config.get("market_maker", "password")
+
+    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password))
     factory.protocol = MarketMakerBot
 
     # null -> ....
@@ -166,3 +167,4 @@ if __name__ == '__main__':
 
     connectWS(factory, contextFactory)
     reactor.run()
+
