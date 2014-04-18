@@ -309,11 +309,12 @@ Publish 'message' on the chat channel
 ## Private feeds
 
 ### orders#USERNAME
+
 Each event is a ```order``` object. It is meant to update an existing order the client has in memory.
 
 ### fills#USERNAME
-Each event is a ```fill``` object.
 
+Each event is a ```fill``` object.
 
 ### transactions#USERNAME
 
