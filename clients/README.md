@@ -51,15 +51,15 @@ corresponding server objects. Each is encoded in JSON.
 ### ohlcv
 ```json
 {
-   contract: 'TICKER'
-   period: 'day'
+   contract: "TICKER"
+   period: "day|hour|minute"
    open: 4244
    high: 6777
    low: 4000
    close: 5456
    volume: 245
    vwap: 5100
-   timestamp: 23409283
+   timestamp: "2340934534283"
 }
 ```
 
@@ -73,7 +73,7 @@ corresponding server objects. Each is encoded in JSON.
     side: "BUY|SELL"
     timestamp: "1390165959122754"
     id: 3123121
-    is_cancelled: True|False
+    is_cancelled: "True|False"
 }
 ```
 
@@ -119,7 +119,7 @@ corresponding server objects. Each is encoded in JSON.
      contract: "TICKER"
      timestamp: "23423423"
      quantity: 23423
-     type: "Trade/Transfer/Deposit/Withdrawal/Fee/etc"
+     type: "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment"
 }
 ```
 
