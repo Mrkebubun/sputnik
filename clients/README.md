@@ -27,23 +27,23 @@ corresponding server objects. Each is encoded in JSON.
 
 ```json
 {
-    ticker: "TICKER",
-    description: "short description",
-    full_description: "full description",
-    contract_type: "futures|prediction|cash_pair|cash",
-    tick_size: 1,
-    lot_size: 1,
-    denominator: 1,
-    expiration: "1390165959122754" // in micros
+    ticker: "TICKER"
+    description: "short description"
+    full_description: "full description"
+    contract_type: "futures|prediction|cash_pair|cash"
+    tick_size: 1
+    lot_size: 1
+    denominator: 1
+    expiration: "1390165959122754"
 }
 ```
 
 ### trade
 ```json
 {
-    contract: "TICKER",
-    price: 100000,
-    quantity: 100000,
+    contract: "TICKER"
+    price: 100000
+    quantity: 100000
     timestamp: "1390165959122754"
 }
 ```
@@ -65,13 +65,13 @@ corresponding server objects. Each is encoded in JSON.
 ### order
 ```json
 {
-    contract: "TICKER",
-    price: 100000,
-    quantity: 10000,
-    quantity_left: 500,
-    side: "buy|sell",
-    timestamp: "1390165959122754",
-    id: 3123121,
+    contract: "TICKER"
+    price: 100000
+    quantity: 10000
+    quantity_left: 500
+    side: "BUY|SELL"
+    timestamp: "1390165959122754"
+    id: 3123121
     is_cancelled: True|False
 }
 ```
@@ -79,8 +79,8 @@ corresponding server objects. Each is encoded in JSON.
 ### position
 ```json
 {
-    contract: "TICKER",
-    position: 1000,
+    contract: "TICKER"
+    position: 1000
     reference_price: 1000
 }
 ```
@@ -88,10 +88,10 @@ corresponding server objects. Each is encoded in JSON.
 ### trade
 ```json
 {
-         contract: "TICKER",
-         price: 100,
-         quantity: 100000,
-         id: 3123121,
+         contract: "TICKER"
+         price: 100
+         quantity: 100000
+         id: 3123121
          timestamp: "234234234"
 }
 ```
@@ -99,12 +99,12 @@ corresponding server objects. Each is encoded in JSON.
 ### fill
 ```json
       {
-         contract: "TICKER",
-         price: 100,
-         quantity: 100000,
-         id: 3123121,
-         timestamp: "234234234",
-         side: BUY
+         contract: "TICKER"
+         price: 100
+         quantity: 100000
+         id: 3123121
+         timestamp: "234234234"
+         side: "BUY|SELL"
          fees: {
             BTC: 24000000
             MXN: 23123
@@ -116,8 +116,8 @@ corresponding server objects. Each is encoded in JSON.
 ```json
 {
      contract: "TICKER"
-     timestamp: "23423423",
-     quantity: 23423,
+     timestamp: "23423423"
+     quantity: 23423
      type: "Trade/Transfer/Deposit/Withdrawal/Fee/etc"
 }
 ```
@@ -193,8 +193,8 @@ Each event is a complete order book. It has the following format. Each entry in 
 
 ```json
     {
-        contract: "TICKER",
-        bids:[],
+        contract: "TICKER"
+        bids:[]
         asks:[]
     }
 ```
