@@ -33,10 +33,7 @@ sputnik.on "auth_success", (username) ->
     $("#cash_positions").toggle()
     $("#login_name").text username
     $("#acct_management_username").val username
-    $("#account_menu").toggle()
-    $("#buy_panel").toggle()
-    $("#sell_panel").toggle()
-    $("#orders_panel").toggle()
+    $("#mxn_balance,#btc_balance,#account_menu,#buy_panel,#sell_panel,#orders_panel").fadeIn()
     sputnik.getCookie()
 
 sputnik.on "cookie", (uid) ->
@@ -221,16 +218,16 @@ updateTable = (id, data) ->
 updateBuys = (data) ->
     updateTable "buys", data
 
-    #todo: debounce with futility counter
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-      $("#sell_price").val window.best_bid.price
-
+        _.debounce -> $("#sell_price").val window.best_bid.price
+            ,
+            500, maxWait: 1000
 updateSells = (data) ->
     updateTable "sells", data
-    #todo: debounce with futility counter
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-      $("#buy_price").val window.best_ask.price
-
+      _.debounce -> $("#buy_price").val window.best_ask.price
+        ,
+        500, maxWait: 1000
 updateTrades = (data) ->
     trades_reversed = data.reverse()
     rows = for trade in trades_reversed[0..20]
@@ -238,6 +235,7 @@ updateTrades = (data) ->
     $("#trades").html rows.join("")
 
 updatePlot = (data) ->
+    console.log "[ui:238 - UpdatePlot called]"
     plot_data = for trade in data
         [trade.wire_timestamp / 1000, trade.price]
     data =
@@ -250,7 +248,7 @@ updatePlot = (data) ->
             timezone: 'browser'
             format: '%H:%M:%S'
 
-    $.plot("#graph", [data], options)
+    $.plot("#lineChart", [data], options)
 
 updateOrders = (orders) ->
     rows = []
@@ -383,8 +381,10 @@ $ ->
         sputnik.openMarket(window.contract)
 
 sputnik.on "trade_history", (trade_history) ->
+    console.log "[ui:383 - hit trade_history]"
     updateTrades(trade_history[window.contract])
     updatePlot(trade_history[window.contract])
+#    lineChartUpdate(trade_history[window.contract])
     if trade_history[window.contract].length
         $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(0)
     else

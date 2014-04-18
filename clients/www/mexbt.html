@@ -4,6 +4,7 @@
 <head>
     <link rel="stylesheet" type="text/css" href="ui.css"/>
     <link rel="stylesheet" type="text/css" href="mexbt.css"/>
+    <link rel="stylesheet" type="text/css" href="chart.css"/>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
@@ -23,6 +24,17 @@
     <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
     <!-- TODO: Find a CDN source for EventEmitter.js -->
     <script src="min.js/EventEmitter.min.js"></script>
+
+    <!-- Chart -->
+    <script src="min.js/d3.v3.js"></script>
+    <script src="min.js/d3.chart.js"></script>
+    <script src="min.js/baseCandlestick.js"></script>
+    <script src="min.js/ohlc.js"></script>
+    <script src="min.js/candlestickChartLib.js"></script>
+    <script src="min.js/volume.js"></script>
+    <!--/Chart -->
+
+
     <script src="sputnik.coffee" type="text/coffeescript"></script>
     <script src="ui.coffee" type="text/coffeescript"></script>
     <script src="mexbt.coffee" type="text/coffeescript"></script>
@@ -743,10 +755,23 @@
 </ul>
 
 
-<div class="jumbotron">
-    <div class="center-block" id="graph" style="width:80%;height:40%"></div>
-</div>
+<div id="chart" class="jumbotron">
+    <ul class="chartNav">
+        <li class="selected line">Line</li>
+        <li class='ohlc'>OHLC</li>
+        <li class='candlesticks'>Candlesticks</li>
+    </ul>
 
+    <div id="ohlcChart">
+
+    </div>
+
+
+</div>
+<div class="center-block" id="lineChart" style="width:80%;height:40%">
+
+
+</div>
 <div class="container">
     <div class="row">
         <div class="col-md-4">
@@ -895,5 +920,6 @@
         </div>
     </div>
 </footer>
+<script src="chart.js"></script>
 </body>
 </html>
