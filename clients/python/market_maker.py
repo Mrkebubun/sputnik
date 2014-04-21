@@ -40,6 +40,7 @@ import urllib2
 import json
 from bs4 import BeautifulSoup
 import logging
+from os import path
 
 class MarketMakerBot(TradingBot):
     external_markets = {}
@@ -150,7 +151,9 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     config = ConfigParser()
-    config.read("client.ini")
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
 
     uri = config.get("client", "uri")
     username = config.get("market_maker", "username")
