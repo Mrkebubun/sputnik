@@ -4,6 +4,7 @@ d3 = window.d3
 DataSrc = window.DataSrc = ->
     self = this
     @last_open_time = new Date("2013-06-15T02:42:00-05:00")
+    #Sample data
     @data = [
         {
             "volume": "10.0",
@@ -510,17 +511,17 @@ DataSrc::add = (data) ->
     if @last_open_time is undefined
         @last_open_time = Date(23409283)
     @last_open_time = new Date(@last_open_time.getTime() + (r(1,10) * 60000))
-
-    data =
-        contract: 'BTC/MXN'
-        period: 'day'
-        open: r(0, 10000)
-        high: r(0, 10000)
-        low: r(0, 10000)
-        close: r(0, 10000)
-        volume: r(100,500)
-        vwap: 5100
-        open_time: @last_open_time.toISOString()
+    if not data
+        data = #Sample data
+            contract: 'BTC/MXN'
+            period: 'day'
+            open: r(0, 10000)
+            high: r(0, 10000)
+            low: r(0, 10000)
+            close: r(0, 10000)
+            volume: r(100,500)
+            vwap: 5100
+            open_time: @last_open_time.toISOString()
     @data.shift()
     @data.push data
     return
@@ -535,7 +536,7 @@ DataSrc::randomizeLastClosePrice = ->
 
 
 window.dataSrc = new DataSrc()
-setInterval -> dataSrc.add()
+setInterval -> dataSrc.add() #Sample data
     ,
     800
 
@@ -543,13 +544,14 @@ CandlestickChart = window.CandlestickChart
 OHLCChart = window.OHLCChart
 VolumeChart = window.VolumeChart
 clearCharts = ->
+    clearInterval(window.i)
     $("svg").remove()
-    $('#lineChart').hide()
-    $('#ohlcChart').hide()
+    $('#lineChart:visible').slideUp(500)
+    $('#ohlcChart:visible').slideUp(500)
 
 
 candlesticksChart = ->
-    $('#ohlcChart').show()
+    $('#ohlcChart:hidden').slideDown(500)
     candleCanvas = d3.select("#ohlcChart").append("svg")
     $("br.clear").remove()
     d3.select("#ohlcChart").append("br").attr "class", "clear"
@@ -565,6 +567,7 @@ candlesticksChart = ->
     )
     myCandlestickChart.draw dataSrc
     myVolumeChart.draw dataSrc
+    #Sample data
     window.i = setInterval(->
         dataSrc.randomizeLastClosePrice()
         myCandlestickChart.draw dataSrc
@@ -572,7 +575,7 @@ candlesticksChart = ->
     , 1500)
 
 ohlcChart = ->
-    $('#ohlcChart').show()
+    $('#ohlcChart:hidden').slideDown()
     candleCanvas = d3.select("#ohlcChart").append("svg")
     $("br.clear").remove()
     d3.select("#ohlcChart").append("br").attr "class", "clear"
@@ -588,11 +591,16 @@ ohlcChart = ->
     )
     myCandlestickChart.draw dataSrc
     myVolumeChart.draw dataSrc
+    #sample data:
     window.i = setInterval(->
         dataSrc.randomizeLastClosePrice()
         myCandlestickChart.draw dataSrc
     , 1500)
 
+ohlcChartUpdate = (data) ->
+    console.log "[chart:598 - ohlcChartUpdate]"
+    return if chartMode is 'line'
+    dataSrc.add(data)
 
 lineChartUpdate = (data) ->
     console.log "[ui:254 - lineChartUpdate]", data
@@ -608,30 +616,21 @@ lineChartUpdate = (data) ->
             mode: 'time'
             timezone: 'browser'
             format: '%H:%M:%S'
-
+    console.log "[chart:611 - plotting]"
     $.plot("#lineChart", [data], options)
 lineChart = ->
-    r = (min, max) ->
-        Math.random() * (max - min) + min
-#
-    $('#lineChart').show()
-#    window.i = setInterval(->
-#        data =
-#            contract: "TICKER",
-#            price: r(0,500),
-#            quantity: r(0,10000),
-#            id: r(1000,5000),
-#            wire_timestamp: "234234234"
-#        lineChartUpdate [data]
-#    , 1500)
+    $('#lineChart:hidden').slideDown(500)
+
 chartMode = 'line'
 $ ->
     $('.chartNav li').click (e)->
         $('.chartNav .selected').removeClass 'selected'
         clearCharts()
-        chartMode = @.className
-        window[chartMode + "Chart"]()
-        $(@).addClass('selected')
-
+        setTimeout =>
+            chartMode = @.className
+            window[chartMode + "Chart"]()
+            $(@).addClass('selected')
+        ,
+        700
         no #don't follow the link to the empty hashtag
-#lineChart()
+lineChart()

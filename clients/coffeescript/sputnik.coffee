@@ -479,6 +479,7 @@ class @Sputnik extends EventEmitter
 
         @emitOHLCVHistory ticker, "day"
         @getOHLCVHistory ticker, "day"
+        @getOHLCVHistory ticker, "minute"
 
         @follow ticker
 
