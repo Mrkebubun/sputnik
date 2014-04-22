@@ -751,27 +751,36 @@ class @Sputnik extends EventEmitter
         if new_order?
             orders.push new_order
 
+        sum = (t, s) -> t + s
+
         for ticker, position of @positions
             contract = @markets[ticker]
-            buy_quantities = [order.quantity_left for order in orders when order.contract == ticker and order.side == 'BUY']
-            max_position = position + buy_quantities.reduce (t, s) -> t + s
+            buy_quantities = (order.quantity_left for order in orders when order.contract == ticker and order.side == 'BUY')
+            max_position = position.position + buy_quantities.reduce sum, 0
 
-            sell_quantities = [order.quantity_left for order in orders when order.contract == ticker and order.side == 'SELL']
-            min_position = position - sell_quantities.reduce (t, s) -> t + s
+            sell_quantities = (order.quantity_left for order in orders when order.contract == ticker and order.side == 'SELL')
+            min_position = position.position - sell_quantities.reduce sum, 0
 
             if contract.contract_type is "futures"
                 # NOT IMPLEMENTED
                 @err "Futures not implemented"
             else if contract.contract_type == "prediction"
                 payoff = contract.lot_size
-                spending = [order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY"]
-                receiving = [order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "SELL"]
-                max_spent = spending.reduce (t, s) -> t + s
-                max_received = receiving.reduce (t, s) -> t + s
-                worst_short_cover = -min_position * payoff if min_position < 0 else 0
-                best_short_cover = -max_position * payoff if max_position < 0 else 0
+                spending = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY")
+                receiving = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "SELL")
+                max_spent = spending.reduce sum, 0
+                max_received = receiving.reduce sum, 0
+                if min_position < 0
+                    worst_short_cover = -min_position * payoff
+                else
+                    worst_short_cover = 0
 
-                additional_margin = max(max_spent + best_short_cover, -max_received + worst_short_cover)
+                if max_position < 0
+                    best_short_cover = -max_position * payoff
+                else
+                    best_short_cover = 0
+
+                additional_margin = Math.max(max_spent + best_short_cover, -max_received + worst_short_cover)
                 low_margin += additional_margin
                 high_margin += additional_margin
 
