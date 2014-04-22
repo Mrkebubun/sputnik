@@ -309,7 +309,7 @@ $ ->
         if $('#contract_list').val() != window.contract
             sputnik.unfollow window.contract
             window.contract = $('#contract_list').val()
-            sputnik.openMarket(window.contract)
+            sputnik.openMarket window.contract
 
     $('#withdraw_BTC_button').click ->
         if $('#withdraw_BTC_address').val() != $('#withdraw_BTC_address_confirm').val()

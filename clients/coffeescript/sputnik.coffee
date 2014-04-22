@@ -377,18 +377,18 @@ class @Sputnik extends EventEmitter
         [contract, source, target] = @cstFromTicker(ticker)
 
         if contract.contract_type is "prediction"
-            return Math.log(contract.denominator / contract.tick_size) / Math.LN10
+            return Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0)
         else
-            return Math.log(source.denominator / contract.tick_size) / Math.LN10
+            return Math.max(Math.log(source.denominator / contract.tick_size) / Math.LN10,0)
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
             return 0
         else if contract.contract_type is "cash"
-            return Math.log(contract.denominator) / Math.LN10
+            return Math.max(Math.log(contract.denominator) / Math.LN10,0)
         else
-            return Math.log(target.denominator * contract.denominator / contract.lot_size) / Math.LN10
+            return Math.max(Math.log(target.denominator * contract.denominator / contract.lot_size) / Math.LN10,0)
 
     # order manipulation
     canPlaceOrder: (quantity, price, ticker, side) =>
@@ -611,7 +611,7 @@ class @Sputnik extends EventEmitter
             @markets[ticker].asks = []
             @markets[ticker].ohlcv = {day: {}, hour: {}, minute: {}}
 
-
+        @log ["Markets", @markets]
         @emit "markets", @markets
 
     # feeds
@@ -631,7 +631,7 @@ class @Sputnik extends EventEmitter
         ui_book.bids.sort (a, b) -> b.price - a.price
         ui_book.asks.sort (a, b) -> a.price - b.price
 
-        @log ui_book
+        @log ["ui_book", ui_book]
         @emit "book", ui_book
 
     # Make sure we only have the last hour of trades
@@ -794,7 +794,7 @@ class @Sputnik extends EventEmitter
                     when "SELL"
                         max_cash_spent[payout_contract] += order.quantity_left
 
-        for cash_ticker, max_spent of cash_spent
+        for cash_ticker, max_spent of max_cash_spent
             if cash_ticker is "BTC"
                 additional_margin = max_spent
             else
