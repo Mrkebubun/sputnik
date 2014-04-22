@@ -236,12 +236,15 @@ class @Sputnik extends EventEmitter
     cstFromTicker: (ticker) =>
         contract = @markets[ticker]
         if contract.contract_type is "cash_pair"
-            [t, s] = ticker.split("/")
-            source = @markets[s]
-            target = @markets[t]
-        else
-            source = @markets["BTC"]
+            source = @markets[contract.denominated_contract_ticker]
+            target = @markets[contract.payout_contract_ticker]
+        else if contract.contract_type is "prediction"
+            source = @markets[contract.denominated_contract_ticker]
             target = @markets[ticker]
+        else
+            source = null
+            target = @markets[ticker]
+
         return [contract, source, target]
 
     timeFormat: (timestamp) =>
@@ -280,7 +283,8 @@ class @Sputnik extends EventEmitter
         ticker = wire_position.contract
         position = @copy(wire_position)
         position.position = @quantityFromWire(ticker, wire_position.position)
-        position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
+        if @markets[ticker].contract_type is "futures"
+            position.reference_price = @priceFromWire(ticker, wire_position.reference_price)
         return position
 
     orderToWire: (order) =>
@@ -336,36 +340,55 @@ class @Sputnik extends EventEmitter
 
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        quantity = quantity * target.denominator
-        quantity = quantity - quantity % contract.lot_size
+
+        if contract.contract_type is "prediction"
+            # Prediction contracts always have integer quantity
+            quantity = quantity - quantity % 1
+        else
+            quantity = quantity * target.denominator
+            quantity = quantity - quantity % contract.lot_size
         return quantity
 
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        price = price * source.denominator * contract.denominator
+        if contract.contract_type is "prediction"
+            price = price * contract.denominator
+        else
+            price = price * source.denominator * contract.denominator
+
         price = price - price % contract.tick_size
         return price
 
     quantityFromWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
-
-        return quantity / target.denominator
+        if contract.contract_type is "prediction"
+            return quantity
+        else
+            return quantity / target.denominator
 
     priceFromWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-
-        return price / (source.denominator * contract.denominator)
+        if contract.contract_type is "prediction"
+            return price / contract.denominator
+        else
+            return price / (source.denominator * contract.denominator)
 
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
-        return Math.log(source.denominator / contract.tick_size) / Math.LN10
+        if contract.contract_type is "prediction"
+            return Math.log(contract.denominator / contract.tick_size) / Math.LN10
+        else
+            return Math.log(source.denominator / contract.tick_size) / Math.LN10
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-
-        # TODO: account for contract denominator
-        return Math.log(target.denominator / contract.lot_size) / Math.LN10
+        if contract.contract_type is "prediction"
+            return 0
+        else if contract.contract_type is "cash"
+            return Math.log(contract.denominator) / Math.LN10
+        else
+            return Math.log(target.denominator * contract.denominator / contract.lot_size) / Math.LN10
 
     # order manipulation
     canPlaceOrder: (quantity, price, ticker, side) =>
@@ -456,6 +479,8 @@ class @Sputnik extends EventEmitter
                         orders[id] = @orderFromWire(order)
 
                 @emit "orders", orders
+                [low_margin, high_margin] = @calculateMargin()
+                @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
 
     getPositions: () =>
         @call("get_positions").then \
@@ -466,7 +491,8 @@ class @Sputnik extends EventEmitter
                     positions[ticker] = @positionFromWire(position)
 
                 @emit "positions", positions
-
+                [low_margin, high_margin] = @calculateMargin()
+                @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
 
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
@@ -695,6 +721,9 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
+        [low_margin, high_margin] = @calculateMargin()
+        @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+
     # Fills don't update my cash, transaction feed does
     onFill: (fill) =>
         @log ["Fill received", fill]
@@ -710,45 +739,72 @@ class @Sputnik extends EventEmitter
             positions[ticker] = @positionFromWire(position)
 
         @emit "positions", positions
+        [low_margin, high_margin] = @calculateMargin()
+        @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
 
     calculateMargin: (new_order) =>
         low_margin = 0
         high_margin = 0
         #TODO: add futures and contracts here
 
-        # cash positions
-        cash_spent = {}
-        for ticker of @markets
-            # "defaultdict"
-            if @markets[ticker].contract_type is "cash"
-                cash_spent[ticker] = 0
-
         orders = (order for id, order of @orders)
         if new_order?
             orders.push new_order
+
+        for ticker, position of @positions
+            contract = @markets[ticker]
+            buy_quantities = [order.quantity_left for order in orders when order.contract == ticker and order.side == 'BUY']
+            max_position = position + buy_quantities.reduce (t, s) -> t + s
+
+            sell_quantities = [order.quantity_left for order in orders when order.contract == ticker and order.side == 'SELL']
+            min_position = position - sell_quantities.reduce (t, s) -> t + s
+
+            if contract.contract_type is "futures"
+                # NOT IMPLEMENTED
+                @err "Futures not implemented"
+            else if contract.contract_type == "prediction"
+                payoff = contract.lot_size
+                spending = [order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY"]
+                receiving = [order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "SELL"]
+                max_spent = spending.reduce (t, s) -> t + s
+                max_received = receiving.reduce (t, s) -> t + s
+                worst_short_cover = -min_position * payoff if min_position < 0 else 0
+                best_short_cover = -max_position * payoff if max_position < 0 else 0
+
+                additional_margin = max(max_spent + best_short_cover, -max_received + worst_short_cover)
+                low_margin += additional_margin
+                high_margin += additional_margin
+
+
+        max_cash_spent = {}
+        for ticker of @markets
+            # "defaultdict"
+            if @markets[ticker].contract_type is "cash"
+                max_cash_spent[ticker] = 0
+
+        # Deal with cash orders seperately because there are no cash_pair positions
         for order in orders
             if @markets[order.contract].contract_type is "cash_pair"
-                [target, source] = order.contract.split("/")
+                from_contract = @markets[order.contract].denominated_contract_ticker
+                payout_contract = @markets[order.contract].payout_contract_ticker
                 switch order.side
                     when "BUY"
-                        # TODO: make sure to adjust for contract denominator
-                        transaction = order.quantity_left * order.price / 1e8
-                        cash_spent[source] += transaction
+                        transaction_size = order.quantity_left * order.price / (@markets[order.contract].denominator * @markets[payout_contract].denominator)
+                        max_cash_spent[from_contract] += transaction_size
                     when "SELL"
-                        cash_spent[target] += order.quantity_left
+                        max_cash_spent[payout_contract] += order.quantity_left
 
-        additional = 0
-        for ticker, spent of cash_spent
-            if ticker is "BTC"
-                additional += spent
+        for cash_ticker, max_spent of cash_spent
+            if cash_ticker is "BTC"
+                additional_margin = max_spent
             else
-                position = @positions[ticker]?.position or 0
-                additional += if position >= spent then 0 else Math.pow(2, 48)
+                position = @positions[cash_ticker]?.position or 0
+                additional_margin = if max_spent <= position then 0 else Math.pow(2, 48)
 
-        low_margin += additional
-        high_margin += additional
+            low_margin += additional_margin
+            high_margin += additional_margin
 
-        @log [low_margin, high_margin]
+        @log ["Margin:", low_margin, high_margin]
         return [low_margin, high_margin]
 
 if module?

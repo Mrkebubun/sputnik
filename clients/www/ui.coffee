@@ -350,14 +350,20 @@ $ ->
                     contracts_output.push '<option selected value="' + ticker + '">' + ticker + '</option>'
                 else
                     contracts_output.push '<option value="' + ticker + '">' + ticker + '</option>'
-            else
-                positions_output.push '<li id="' + ticker + '_balance" class="dropdown pull-right">'
-                positions_output.push '<a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">'
-                positions_output.push '<b>' + ticker + '<div id="' + ticker + 'pos"></div></b><b class="caret"></b></a>'
-                positions_output.push '<ul class="dropdown-menu">'
-                positions_output.push '<li><a href="#" id="deposit_' + ticker + '">Deposit</a></li>'
-                positions_output.push '<li><a href="#" id="withdraw_' + ticker + '">Withdraw</a></li>'
-                positions_output.push '</ul></li>'
+
+            if details.contract_type != "cash_pair"
+                if details.contract_type == "cash"
+                    positions_output.push '<li id="' + ticker + '_balance" class="dropdown pull-right">'
+                    positions_output.push '<a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">'
+                    positions_output.push '<b>' + ticker + '<div id="' + ticker + 'pos"></div></b><b class="caret"></b></a>'
+                    positions_output.push '<ul class="dropdown-menu">'
+                    positions_output.push '<li><a href="#" id="deposit_' + ticker + '">Deposit</a></li>'
+                    positions_output.push '<li><a href="#" id="withdraw_' + ticker + '">Withdraw</a></li>'
+                    positions_output.push '</ul></li>'
+                else
+                    positions_output.push '<li id="' + ticker + '_balance" class="pull-right">'
+                    positions_output.push '<b style="padding: 15px 10px;">' + ticker + '<div id="' + ticker + 'pos"></div></b>'
+
 
             positions_html = positions_output.join('\n')
             contracts_html = contracts_output.join('\n')
@@ -367,7 +373,7 @@ $ ->
         # We have to create these click functions after the DOM
         # gets updated
         for ticker, details of markets
-            if details.contract_type == "cash"
+            if details.contract_type is "cash"
                 deposit_fn = (ticker_to_use) ->
                     (event) ->
                         sputnik.getAddress(ticker_to_use)
@@ -386,7 +392,7 @@ sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history[window.contract])
     updatePlot(trade_history[window.contract])
     if trade_history[window.contract].length
-        $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(0)
+        $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
     else
         $('#last').text 'N/A'
 
@@ -418,14 +424,14 @@ sputnik.on "book", (book) ->
     else
         window.best_ask = {price: Infinity, quantity: 0}
 
-    $('#best_ask').text window.best_ask.price.toFixed(0)
+    $('#best_ask').text window.best_ask.price.toFixed(sputnik.getPricePrecision(window.contract))
 
     if book.bids.length
         window.best_bid = book.bids[0]
     else
         window.best_bid = {price: 0, quantity: 0}
 
-    $('#best_bid').text window.best_bid.price.toFixed(0)
+    $('#best_bid').text window.best_bid.price.toFixed(sputnik.getPricePrecision(window.contract))
 
     updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
     updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
@@ -435,11 +441,11 @@ sputnik.on "orders", (orders) ->
 
 sputnik.on "trade", (trade) ->
     if trade.contract == window.contract
-        $('#last').text trade.price.toFixed(0)
+        $('#last').text trade.price.toFixed(sputnik.getPricePrecision(window.contract))
 
 sputnik.on "positions", (positions) ->
     for ticker, position of positions
-        $("##{ticker}pos").text position.position.toFixed(2)
+        $("##{ticker}pos").text position.position.toFixed(sputnik.getQuantityPrecision(ticker))
 
 sputnik.on "chat", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
@@ -457,11 +463,12 @@ sputnik.on "ohlcv_history", (ohlcv_history) ->
     if timestamps.length
         max_t = Math.max(timestamps)
         entry = ohlcv_history[max_t]
+        precision = sputnik.getPricePrecision(window.contract)
         if entry.period == 'day'
             if entry.contract == window.contract
-                $('#low').text entry.low.toFixed(0)
-                $('#high').text entry.high.toFixed(0)
-                $('#vwap').text entry.vwap.toFixed(0)
+                $('#low').text entry.low.toFixed(precision)
+                $('#high').text entry.high.toFixed(precision)
+                $('#vwap').text entry.vwap.toFixed(precision)
             else
                 $('#low').text 'N/A'
                 $('#high').text 'N/A'
@@ -510,11 +517,7 @@ sputnik.on "audit_details", (audit) ->
             for position in currency.positions
                 audit_hash = position[0]
 
-                audit_amount = 0
-                if currency_code is 'BTC'
-                    audit_amount = position[1].toFixed(8)
-                else
-                    audit_amount = position[1].toFixed(2)
+                audit_amount = position[1].toFixed(sputnik.getQuantityPrecision(currency_code))
 
                 row_class = ''
                 if audit_hash is my_audit_hash
@@ -523,11 +526,7 @@ sputnik.on "audit_details", (audit) ->
                 $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
                     "<td class='text-right'>#{audit_amount}</td></tr>")
             #Total
-            currency_total = 0
-            if currency_code is 'BTC'
-                currency_total = currency.total.toFixed(8)
-            else
-                currency_total = currency.total.toFixed(2)
+            currency_total = currency.total.toFixed(sputnik.getQuantityPrecision(currency_code))
 
             $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
             $output.push "</div>"
@@ -551,5 +550,11 @@ sputnik.on "transaction_history", (transaction_histories) ->
         html.push(trHTML)
     $('#transaction_history tbody').html(html.join())
 
+sputnik.on "margin", (margin) ->
+    $('#low_margin').text margin[0].toFixed(sputnik.getQuantityPrecision('BTC'))
+    $('#high_margin').text margin[1].toFixed(sputnik.getQuantityPrecision('BTC'))
+
 sputnik.on "close", (message) ->
     alert "Connection closed: #{message}"
+
+

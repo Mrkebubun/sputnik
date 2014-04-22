@@ -16,6 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from sputnik import config
 from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
+from dateutil import parser
 
 class PermissionsManager:
     def __init__(self, session):
@@ -195,6 +196,8 @@ class ContractManager:
         contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
+        if field == 'expiration':
+            value = parser.parse(value)
         setattr(contract, field, value)
         self.session.merge(contract)
 

@@ -25,6 +25,15 @@ stdout_logfile = ${logs}/%(program_name)s.log
 directory = ${root}/server/sputnik/
 user=${user}
 
+[program:engine_NETS2014]
+command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini NETS2014
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+directory = ${root}/server/sputnik/
+user=${user}
+
 [program:accountant]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
 autorestart = true

@@ -39,7 +39,8 @@ class TestAccountant(TestSputnik):
 
         from sputnik import accountant
 
-        self.engines = {"BTC/MXN": FakeEngine()}
+        self.engines = {"BTC/MXN": FakeEngine(),
+                        "NETS2014": FakeEngine()}
         self.webserver = FakeProxy()
         self.cashier = FakeProxy()
         self.ledger = FakeProxy()
@@ -483,7 +484,7 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(order.side, 'SELL')
 
         self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
-                                                                  {'contract': 3,
+                                                                  {'contract': 5,
                                                                    'id': 1,
                                                                    'price': 10000,
                                                                    'quantity': 3000000,
@@ -492,6 +493,85 @@ class TestWebserverExport(TestAccountant):
                                                                    'username': u'test'},
                                                                   {})]))
 
+    def test_place_order_prediction_buy(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a buy order, we have enough cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'NETS2014',
+                                                    'price': 500,
+                                                    'quantity': 3,
+                                                    'side': 'BUY'})
+        self.assertTrue(result[0])
+        id = result[1]
+        from sputnik import models
+
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        self.assertEqual(order.username, 'test')
+        self.assertEqual(order.contract.ticker, 'NETS2014')
+        self.assertEqual(order.price, 500)
+        self.assertEqual(order.quantity, 3)
+        self.assertEqual(order.side, 'BUY')
+
+        pprint(self.engines['NETS2014'].log)
+        self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+                                                                  {'contract': 8,
+                                                                   'id': 1,
+                                                                   'price': 500,
+                                                                   'quantity': 3,
+                                                                   'quantity_left': 3,
+                                                                   'side': -1,
+                                                                   'username': u'test'},
+                                                                  {})]))
+
+        # Check to make sure margin is right
+        from sputnik import margin
+        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+        self.assertEqual(low_margin, 1500000)
+        self.assertEqual(high_margin, 1500000)
+
+    def test_place_order_prediction_sell(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a buy order, we have enough cash
+        result = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'NETS2014',
+                                                    'price': 100,
+                                                    'quantity': 3,
+                                                    'side': 'SELL'})
+        self.assertTrue(result[0])
+        id = result[1]
+        from sputnik import models
+
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        self.assertEqual(order.username, 'test')
+        self.assertEqual(order.contract.ticker, 'NETS2014')
+        self.assertEqual(order.price, 100)
+        self.assertEqual(order.quantity, 3)
+        self.assertEqual(order.side, 'SELL')
+
+        pprint(self.engines['NETS2014'].log)
+        self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+                                                                  {'contract': 8,
+                                                                   'id': 1,
+                                                                   'price': 100,
+                                                                   'quantity': 3,
+                                                                   'quantity_left': 3,
+                                                                   'side': 1,
+                                                                   'username': u'test'},
+                                                                  {})]))
+
+        # Check to make sure margin is right
+        from sputnik import margin
+        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+        self.assertEqual(low_margin, 2700000)
+        self.assertEqual(high_margin, 2700000)
 
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -566,7 +646,7 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(order.side, 'SELL')
 
         self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
-                                                                  {'contract': 3,
+                                                                  {'contract': 5,
                                                                    'id': 1,
                                                                    'price': 10000,
                                                                    'quantity': 3000000,
