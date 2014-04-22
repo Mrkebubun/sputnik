@@ -280,6 +280,9 @@ class Accountant:
             self.session.commit()
             raise TRADE_NOT_PERMITTED
 
+        # Make sure there is a position in the contract
+        self.get_position(order.username, order.contract)
+
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
 
@@ -378,6 +381,14 @@ class Accountant:
         timestamp = transaction["timestamp"]
 
         contract = self.get_contract(ticker)
+        aggressive_user = self.get_user(aggressive_username)
+        passive_user = self.get_user(passive_username)
+
+
+        if side == 'BUY':
+            sign = 1
+        else:
+            sign = -1
 
         if contract.contract_type == "futures":
             raise NotImplementedError
@@ -411,71 +422,59 @@ class Accountant:
             # fees = None
 
         elif contract.contract_type == "prediction":
-            raise NotImplementedError
+            denominated_contract = contract.denominated_contract
 
-            # cash_position = self.get_position(username, "BTC")
-            # prediction_position = self.get_position(username, ticker)
-            #
-            # cash_position.position -= signed_quantity * price
-            # prediction_position.position += signed_quantity
-            #
-            # self.session.merge(cash_position)
-            # self.session.merge(prediction_position)
-            #
-            # # TODO: Implement fees
-            # fees = None
+            cash_spent_float = float(quantity * price * contract.lot_size / contract.denominator)
+            cash_spent_int = int(cash_spent_float)
+            if cash_spent_float != cash_spent_int:
+                logging.error("cash_spent is not an integer")
 
         elif contract.contract_type == "cash_pair":
-            from_currency_ticker, to_currency_ticker = util.split_pair(ticker)
+            denominated_contract = contract.denominated_contract
+            payout_contract = contract.payout_contract
 
-            from_currency = self.get_contract(from_currency_ticker)
-            to_currency = self.get_contract(to_currency_ticker)
-
-            from_quantity_float = float(quantity * price) / \
-                               (contract.denominator * to_currency.denominator)
-            from_quantity_int = int(from_quantity_float)
-            if from_quantity_float != from_quantity_int:
+            cash_spent_float = float(quantity * price) / \
+                               (contract.denominator * payout_contract.denominator)
+            cash_spent_int = int(cash_spent_float)
+            if cash_spent_float != cash_spent_int:
                 logging.error("Position change is not an integer.")
+        else:
+            logging.error("Unknown contract type '%s'." %
+                          contract.contract_type)
+            raise NotImplementedError
 
-            # Aggressive user
-            aggressive_user = self.get_user(aggressive_username)
-            passive_user = self.get_user(passive_username)
+        aggressive_from_position = self.get_position(aggressive_username, denominated_contract)
+        aggressive_to_position = self.get_position(aggressive_username, payout_contract)
 
-            aggressive_from_position = self.get_position(aggressive_username, from_currency)
-            aggressive_to_position = self.get_position(aggressive_username, to_currency)
+        passive_from_position = self.get_position(passive_username, denominated_contract)
+        passive_to_position = self.get_position(passive_username, payout_contract)
 
-            passive_from_position = self.get_position(passive_username, from_currency)
-            passive_to_position = self.get_position(passive_username, to_currency)
+        aggressive_debit = models.Posting(aggressive_user, denominated_contract, sign * cash_spent_int, 'debit',
+                                          update_position=True, position=aggressive_from_position)
+        aggressive_credit = models.Posting(aggressive_user, payout_contract, sign * quantity, 'credit',
+                                           update_position=True, position=aggressive_to_position)
 
-            if side == 'BUY':
-                sign = 1
-            else:
-                sign = -1
+        passive_credit = models.Posting(passive_user, denominated_contract, sign * cash_spent_int, 'credit',
+                                        update_position=True, position=passive_from_position)
+        passive_debit = models.Posting(passive_user, payout_contract, sign * quantity, 'debit',
+                                       update_position=True, position=passive_to_position)
 
-            aggressive_debit = models.Posting(aggressive_user, from_currency, sign * from_quantity_int, 'debit',
-                                              update_position=True, position=aggressive_from_position)
-            aggressive_credit = models.Posting(aggressive_user, to_currency, sign * quantity, 'credit',
-                                               update_position=True, position=aggressive_to_position)
+        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int))
+        passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
 
-            passive_credit = models.Posting(passive_user, from_currency, sign * from_quantity_int, 'credit',
-                                            update_position=True, position=passive_from_position)
-            passive_debit = models.Posting(passive_user, to_currency, sign * quantity, 'debit',
-                                           update_position=True, position=passive_to_position)
+        postings = [aggressive_credit,
+                    aggressive_debit,
+                    passive_credit,
+                    passive_debit]
 
-            postings = [aggressive_credit,
-                        aggressive_debit,
-                        passive_credit,
-                        passive_debit]
-
-            # Double-entry
-            self.session.add_all([passive_debit,
-                                  passive_credit,
-                                  aggressive_debit,
-                                  aggressive_credit,
-                                  passive_from_position,
+        # Commit
+        try:
+            self.session.add_all(postings)
+            self.session.add_all([passive_from_position,
                                   passive_to_position,
                                   aggressive_from_position,
                                   aggressive_to_position])
+
             journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
                                     notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
                                                                         passive_order_id))
@@ -484,45 +483,47 @@ class Accountant:
             self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
 
-            # TODO: Move this fee logic outside of "if cash_pair"
-            aggressive_fees = util.get_fees(aggressive_username, contract, abs(from_quantity_int))
-            passive_fees = util.get_fees(passive_username, contract, abs(from_quantity_int))
+        except Exception as e:
+            logging.error("Unable to post_transaction: %s" % e)
+            self.session.rollback()
+            return
 
-            # Credit fees to vendor
+        # Send notifications
+        aggressive_fill = {'contract': ticker,
+                           'id': aggressive_order_id,
+                           'quantity': quantity,
+                           'price': price,
+                           'side': side,
+                           'timestamp': timestamp,
+                           'fees': aggressive_fees
+        }
+        self.webserver.fill(aggressive_username, aggressive_fill)
+        logging.debug('to ws: ' + str({"fills": [aggressive_username, aggressive_fill]}))
+
+        if side == 'SELL':
+            passive_side = 'BUY'
+        else:
+            passive_side = 'SELL'
+
+        passive_fill = {'contract': ticker,
+             'id': passive_order_id,
+             'quantity': quantity,
+             'price': price,
+             'side': passive_side,
+             'timestamp': timestamp,
+             'fees': passive_fees
+            }
+        self.webserver.fill(passive_username, passive_fill)
+        logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
+
+        # Charge fees
+        try:
             self.charge_fees(aggressive_fees, aggressive_username)
             self.charge_fees(passive_fees, passive_username)
-
-            aggressive_fill = {'contract': ticker,
-                               'id': aggressive_order_id,
-                               'quantity': quantity,
-                               'price': price,
-                               'side': side,
-                               'timestamp': timestamp,
-                               'fees': aggressive_fees
-            }
-            self.webserver.fill(aggressive_username, aggressive_fill)
-            logging.debug('to ws: ' + str({"fills": [aggressive_username, aggressive_fill]}))
-
-            if side == 'SELL':
-                passive_side = 'BUY'
-            else:
-                passive_side = 'SELL'
-
-            passive_fill = {'contract': ticker,
-                 'id': passive_order_id,
-                 'quantity': quantity,
-                 'price': price,
-                 'side': passive_side,
-                 'timestamp': timestamp,
-                 'fees': passive_fees
-                }
-            self.webserver.fill(passive_username, passive_fill)
-            logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
-
-        else:
-            logging.error("Unknown contract type '%s'." %
-                          contract.contract_type)
-
+        except Exception as e:
+            logging.error("Unable to charge fees: %s" % e)
+            self.session.rollback()
+            return
 
     def cancel_order(self, order_id):
         """Cancel an order by id.
@@ -551,21 +552,27 @@ class Accountant:
         contract = self.get_contract(order["contract"])
 
         if not contract.active:
-            # TODO: Fix to use exceptions
             return [False, (0, "Contract is not active.")]
+
+        if contract.expired:
+            return [False, (0, "Contract expired")]
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
             logging.critical("Webserver allowed a 'cash' contract!")
             return [False, (0, "Not a valid contract type.")]
 
-        # TODO: check that the price is an integer and within a valid range
+        if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+            return [False, (0, "invalid price or quantity")]
 
         # case of predictions
         if contract.contract_type == 'prediction':
-            # contract.denominator happens to be the same as the finally payoff
             if not 0 <= order["price"] <= contract.denominator:
-                return [False, (0, "Not a valid prediction price")]
+                return [False, (0, "invalid price or quantity")]
+
+        if contract.contract_type == "cash_pair":
+            if not order["quantity"] % contract.lot_size == 0:
+                return [False, (0, "invalid price or quantity")]
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
         try:

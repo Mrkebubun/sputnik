@@ -38,6 +38,7 @@ from ConfigParser import ConfigParser
 from client import TradingBot, BotFactory
 import random, string
 import logging
+from os import path
 
 class RandomBot(TradingBot):
     def startAutomationAfterAuth(self):
@@ -114,7 +115,9 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     config = ConfigParser()
-    config.read("client.ini")
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
 
     uri = config.get("client", "uri")
     username = config.get("random_trader", "username")

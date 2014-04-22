@@ -26,27 +26,6 @@ def timestamp_to_dt(timestamp):
     """
     return datetime.fromtimestamp(timestamp/1e6)
 
-def split_pair(pair):
-    """
-    Return the underlying pair of contracts in a cash_pair contract.
-    :param pair: the ticker name of the pair to split
-    :type pair: str
-    :returns: tuple - a pair of Contract tickers
-    """
-
-    if isinstance(pair, models.Contract):
-        return split_pair(pair.ticker)
-
-    tokens = pair.split("/", 1)
-    if len(tokens) == 1:
-        raise Exception("'%s' is not a currency pair." % pair)
-    try:
-        target = tokens[0]
-        source = tokens[1]
-    except Exception as e:
-        raise Exception("'%s' is not a currency pair: %s" % (pair, e.message))
-    return source, target
-
 
 def get_fees(username, contract, transaction_size):
     """
@@ -62,7 +41,6 @@ def get_fees(username, contract, transaction_size):
 
     # Right now fees are very simple, just 20bps of the total from_currency amount
     # user account.
-    # Not implemented for anything but cash_pair
     # TODO: Make fees based on transaction size
     # TODO: Give some users different fee schedules
     # TODO: Give some contracts different fee schedules
@@ -70,13 +48,17 @@ def get_fees(username, contract, transaction_size):
     # TODO: Put fee schedule and user levels into DB
     # TODO: Create fees for futures and predictions
     if contract.contract_type == "cash_pair":
-        from_currency_ticker, to_currency_ticker = split_pair(contract.ticker)
+        denominated_contract = contract.denominated_contract
+        payout_contract = contract.payout_contract
         fees = int(round(transaction_size * 0.002))
-        return { from_currency_ticker: fees,
-                 to_currency_ticker: 0
+        return { denominated_contract.ticker: fees,
+                 payout_contract.ticker: 0
         }
+    elif contract.contract_type == "prediction":
+        # Predictions charge fees on settlement, not trading
+        return {}
     else:
-        # Only cash_pair is implemented for now
+        # Only cash_pair & prediction is implemented now
         raise NotImplementedError
 
 

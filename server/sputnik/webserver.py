@@ -141,14 +141,13 @@ class PublicInterface:
                                 "contract_type": r[3],
                                 "full_description": r[4],
                                 "tick_size": r[5],
-                                "lot_size": r[6]}
+                                "lot_size": r[6],
+                                "denominated_contract_ticker": r[9],
+                                "payout_contract_ticker": r[10]}
 
                 if result[r[0]]['contract_type'] == 'futures':
                     result[r[0]]['margin_high'] = r[7]
                     result[r[0]]['margin_low'] = r[8]
-
-                if result[r[0]]['contract_type'] == 'prediction':
-                    result[r[0]]['final_payoff'] = r[2]
 
             self.factory.markets = result
             # Update the cache with the last 7 days of trades
@@ -175,7 +174,8 @@ class PublicInterface:
                     (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
-                               "tick_size, lot_size, margin_high, margin_low, lot_size FROM contracts").addCallback(_cb)
+                               "tick_size, lot_size, margin_high, margin_low,"
+                               "denominated_contract_ticker, payout_contract_ticker FROM contracts").addCallback(_cb)
 
     @exportRpc("get_markets")
     def get_markets(self):
@@ -1189,15 +1189,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if order["price"] == 0 or order["quantity"] == 0:
                 return [False, (0, "invalid price or quantity")]
 
-            # coerce tick size and lot size
-
-
-            if order["price"] % tick_size != 0 \
-                    or order["quantity"] % lot_size != 0 \
-                    or order["price"] < 0 \
-                    or order["quantity"] < 0:
-                return [False, (0, "invalid price or quantity")]
-
+            # check tick size and lot size in the accountant, not here
 
             order['username'] = self.username
 

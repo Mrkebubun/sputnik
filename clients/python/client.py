@@ -39,6 +39,7 @@ import random
 import string
 import Crypto.Random.random
 from ConfigParser import ConfigParser
+from os import path
 
 class TradingBot(WampCraClientProtocol):
     """
@@ -426,7 +427,9 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     config = ConfigParser()
-    config.read("client.ini")
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
 
     base_uri = config.get("client", "base_uri")
     username = config.get("client", "username")

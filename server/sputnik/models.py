@@ -45,7 +45,7 @@ class Contract(db.Base):
     __tablename__ = 'contracts'
 
     id = Column(Integer, primary_key=True)
-    ticker = Column(String, nullable=False)
+    ticker = Column(String, nullable=False, unique=True)
     description = Column(String)
     full_description = Column(String)
     active = Column(Boolean, nullable=False, server_default=sql.true())
@@ -54,6 +54,19 @@ class Contract(db.Base):
     lot_size = Column(Integer, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
+    expired = Column(Boolean, server_default=sql.false())
+
+    denominated_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
+    denominated_contract = relationship('Contract', remote_side='Contract.ticker',
+                                        primaryjoin='contracts.c.denominated_contract_ticker==contracts.c.ticker')
+
+    # If the contract pays out something other than the denominated contract
+    # Only used for cash_pair contracts
+    payout_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
+    payout_contract = relationship('Contract', remote_side='Contract.ticker',
+                               primaryjoin='contracts.c.payout_contract_ticker==contracts.c.ticker')
+
+    # TODO: We don't need this column?
     inverse_quotes = Column(Boolean, server_default=sql.false(), nullable=False)
 
     margin_high = Column(BigInteger)

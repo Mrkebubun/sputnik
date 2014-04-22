@@ -7,7 +7,7 @@ import collections
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
-def calculate_margin(username, session, safe_prices, order_id=None, withdrawal=None):
+def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawal=None):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -16,7 +16,6 @@ def calculate_margin(username, session, safe_prices, order_id=None, withdrawal=N
     :type username: str
     :returns: tuple - low and high margin
     """
-    BTC = session.query(models.Contract).filter_by(ticker="BTC").one()
 
     low_margin = high_margin = 0
 
@@ -67,14 +66,16 @@ def calculate_margin(username, session, safe_prices, order_id=None, withdrawal=N
             low_margin += max(low_max, low_min)
 
         if contract.contract_type == 'prediction':
-            payoff = contract.denominator
+            payoff = contract.lot_size
 
             # case where all our buy orders are hit
-            max_spent = sum(order.quantity_left * order.price for order in open_orders if
+            max_spent = sum(order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+                            for order in open_orders if
                             order.contract == contract and order.side == 'BUY')
 
-            # case where all out sell orders are hit
-            max_received = sum(order.quantity_left * order.price for order in open_orders if
+            # case where all our sell orders are hit
+            max_received = sum(order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+                               for order in open_orders if
                                order.contract == contract and order.side == 'SELL')
 
             worst_short_cover = -min_position * payoff if min_position < 0 else 0
@@ -89,28 +90,27 @@ def calculate_margin(username, session, safe_prices, order_id=None, withdrawal=N
 
     max_cash_spent = collections.defaultdict(int)
 
+    # Deal with cash_pair orders separately because there are no cash_pair positions
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency_ticker, to_currency_ticker = util.split_pair(order.contract.ticker)
-            # TODO: Fix this temporary hack to deal with inefficient margin code
-            to_currency = BTC
+            denominated_contract = order.contract.denominated_contract
+            payout_contract = order.contract.payout_contract
 
             transaction_size_float = order.quantity_left * order.price / (order.contract.denominator *
-                                                                          to_currency.denominator)
+                                                                          payout_contract.denominator)
             transaction_size_int = int(transaction_size_float)
             if transaction_size_float != transaction_size_int:
                 logging.error("Position change is not an integer.")
 
             if order.side == 'BUY':
-                max_cash_spent[from_currency_ticker] += transaction_size_int
+                max_cash_spent[denominated_contract.ticker] += transaction_size_int
             if order.side == 'SELL':
-                max_cash_spent[to_currency_ticker] += order.quantity_left
+                max_cash_spent[payout_contract.ticker] += order.quantity_left
 
             fees = util.get_fees(username, order.contract, transaction_size_int)
-            if from_currency_ticker in fees:
-                max_cash_spent[from_currency_ticker] += fees[from_currency_ticker]
-            if to_currency_ticker in fees:
-                max_cash_spent[to_currency_ticker] += fees[to_currency_ticker]
+            for ticker, fee in fees.iteritems():
+                max_cash_spent[ticker] += fee
+
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':

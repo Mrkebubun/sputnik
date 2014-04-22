@@ -361,13 +361,13 @@ if __name__ == '__main__':
     private_server.putChild('bitcoin', BitcoinNotify(cashier))
 
 
-    key = config.get("webserver", "ssl_key")
-    cert = config.get("webserver", "ssl_cert")
-    cert_chain = config.get("webserver", "ssl_cert_chain")
-    # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
-    contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
-
     if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+        contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
+
         reactor.listenSSL(config.getint("cashier", "public_port"),
                       Site(public_server), contextFactory,
                       interface=config.get("cashier", "public_interface"))

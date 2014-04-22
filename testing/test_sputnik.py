@@ -14,15 +14,53 @@ db_init = """
 database init
 contracts add BTC
 contracts add MXN
+contracts add PLN
+contracts add HUF
+
 contracts add BTC/MXN
+contracts add BTC/PLN
+contracts add BTC/HUF
+
+contracts add NETS2014
+contracts modify NETS2014 contract_type prediction
+contracts modify NETS2014 denominator 1000
+contracts modify NETS2014 lot_size 1000000
+contracts modify NETS2014 tick_size 1
+contracts modify NETS2014 expiration 2014-06-28
+contracts modify NETS2014 denominated_contract_ticker BTC
+
 contracts modify BTC contract_type cash
 contracts modify BTC denominator 100000000
+
 contracts modify MXN contract_type cash
 contracts modify MXN denominator 100
+
+contracts modify PLN contract_type cash
+contracts modify PLN denominator 100
+
+contracts modify HUF contract_type cash
+contracts modify HUF denominator 1
+
 contracts modify BTC/MXN contract_type cash_pair
 contracts modify BTC/MXN tick_size 100
 contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
+contracts modify BTC/MXN denominated_contract_ticker MXN
+contracts modify BTC/MXN payout_contract_ticker BTC
+
+contracts modify BTC/PLN contract_type cash_pair
+contracts modify BTC/PLN tick_size 100
+contracts modify BTC/PLN lot_size 1000000
+contracts modify BTC/PLN denominator 1
+contracts modify BTC/PLN denominated_contract_ticker PLN
+contracts modify BTC/PLN payout_contract_ticker BTC
+
+contracts modify BTC/HUF contract_type cash_pair
+contracts modify BTC/HUF tick_size 100
+contracts modify BTC/HUF lot_size 1000000
+contracts modify BTC/HUF denominator 1
+contracts modify BTC/HUF denominated_contract_ticker HUF
+contracts modify BTC/HUF payout_contract_ticker BTC
 
 permissions add Default
 
@@ -103,9 +141,10 @@ class FakeProxy:
                     return self.check(arg_a, arg_b)
             if isinstance(arg, dict) and isinstance(arg_compare, dict):
                 for key, value in arg.iteritems():
-                    if key not in arg_compare:
+                    if key not in arg_compare or not self.check(value, arg_compare[key]):
                         return False
-                    return self.check(value, arg_compare[key])
+
+                return True
             else:
                 return False
 

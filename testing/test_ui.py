@@ -10,7 +10,7 @@ import random, string
 class TestSputnikUI(unittest.TestCase):
     def setUp(self):
         self.driver = webdriver.Chrome()
-        self.driver.get('http://localhost:8888')
+        self.driver.get('https://sputnikmkt.com')
 
     def tearDown(self):
         self.driver.close()
