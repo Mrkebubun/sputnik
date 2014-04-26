@@ -90,56 +90,61 @@ class MarketMakerBot(TradingBot):
             print "unable to get external market data: %s" % e
             return
 
-        for currency in self.currency_list:
-            try:
-            # Get Yahoo quote
-                url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
-                file_handle = urllib2.urlopen(url)
-                soup = BeautifulSoup(file_handle)
-                bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text)
-                ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text)
-            except Exception as e:
-                # Unable to get markets, just exit
-                print "unable to get external market data: %s" % e
-                continue
+        for ticker, market in self.markets.iteritems():
+            if market['contract_type'] == "cash_pair":
+                currency = market['denominated_contract_ticker']
+
+                try:
+                # Get Yahoo quote
+                    url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
+                    file_handle = urllib2.urlopen(url)
+                    soup = BeautifulSoup(file_handle)
+                    bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text)
+                    ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text)
+                except Exception as e:
+                    # Unable to get markets, just exit
+                    print "unable to get external market data: %s" % e
+                    continue
 
 
-            new_bid = int(btcusd_bid * bid)
-            new_ask = int(btcusd_ask * ask)
-            if currency in self.external_markets:
-                if new_bid != self.external_markets[currency]['bid']:
-                    self.external_markets[currency]['bid'] = new_bid
-                    self.replaceBidAsk(currency, new_bid, 'BUY')
-                if new_ask != self.external_markets[currency]['ask']:
-                    self.external_markets[currency]['ask'] = new_ask
-                    self.replaceBidAsk(currency, new_ask, 'SELL')
-            else:
-                self.external_markets[currency] = {'bid': new_bid, 'ask': new_ask}
-                self.replaceBidAsk(currency, new_ask, 'SELL')
-                self.replaceBidAsk(currency, new_bid, 'BUY')
+                new_bid = btcusd_bid * bid
+                new_ask = btcusd_ask * ask
+                if ticker in self.external_markets:
+                    if new_bid != self.external_markets[ticker]['bid']:
+                        self.external_markets[ticker]['bid'] = new_bid
+                        self.replaceBidAsk(ticker, new_bid, 'BUY')
+                    if new_ask != self.external_markets[ticker]['ask']:
+                        self.external_markets[ticker]['ask'] = new_ask
+                        self.replaceBidAsk(currency, new_ask, 'SELL')
+                else:
+                    self.external_markets[ticker] = {'bid': new_bid, 'ask': new_ask}
+                    self.replaceBidAsk(ticker, new_ask, 'SELL')
+                    self.replaceBidAsk(ticker, new_bid, 'BUY')
 
-    def replaceBidAsk(self, currency, new_ba, side):
-        self.cancelOrders(currency, side)
+    def replaceBidAsk(self, ticker, new_ba, side):
+        self.cancelOrders(ticker, side)
         self.btcmxn_bid = new_ba
 
-        self.placeOrder('BTC/%s' % currency, 25000000, int(new_ba) * 100, side)
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
 
     def monitorOrders(self):
-        for currency, market in self.external_markets.iteritems():
+        for ticker, market in self.external_markets.iteritems():
             # Make sure we have orders open for both bid and ask
             for side in ['BUY', 'SELL']:
                 total_qty = 0
                 for id, order in self.orders.iteritems():
-                    if order['side'] == side and order['is_cancelled'] is False and order['contract'] == 'BTC/%s' % currency:
-                        total_qty += order['quantity_left']
-                qty_to_add = 25000000 - total_qty
+                    if order['side'] == side and order['is_cancelled'] is False and order['contract'] == ticker:
+                        total_qty += self.quantity_from_wire(ticker, order['quantity_left'])
+
+                qty_to_add = 0.25 - total_qty
                 if qty_to_add > 0:
                     if side == 'BUY':
-                        price = int(market['bid']) * 100
+                        price = market['bid']
                     else:
-                        price = int(market['ask']) * 100
+                        price = market['ask']
 
-                    self.placeOrder('BTC/%s' % currency, qty_to_add, price, side)
+                    self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
+                                    self.price_to_wire(ticker, price), side)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

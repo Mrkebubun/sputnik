@@ -62,7 +62,7 @@ class RandomBot(TradingBot):
                 random_markets.append(ticker)
 
         # Pick a market at random
-        ticker = 'BTC/%s' % random.choice(self.currency_list)
+        ticker = random.choice(random_markets)
         side = random.choice(["BUY", "SELL"])
         contract = self.markets[ticker]
 
@@ -83,15 +83,18 @@ class RandomBot(TradingBot):
             else:
                 price = best_bid
 
-            price = int(price / (tick_size * denominator)) * tick_size * denominator
         except (ValueError, KeyError):
-            # We don't have a best bid/ask, don't trade
-            return
+            # We don't have a best bid/ask. If it's a prediction contract, pick a random price
+            if contract['contract_type'] == "prediction":
+                price = float(random.randint(0,1000))/1000
+            else:
+                return
 
         # a qty somewhere between 0.5 and 2 BTC
-        quantity = random.randint(50,200) * lot_size
+        quantity = float(random.randint(50, 200))/100
 
-        self.placeOrder(ticker, quantity, price, side)
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
+                        self.price_to_wire(ticker, price), side)
 
     def saySomethingRandom(self):
         random_saying = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(8))
