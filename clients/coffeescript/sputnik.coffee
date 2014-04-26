@@ -492,7 +492,8 @@ class @Sputnik extends EventEmitter
                 @log ["positions received", @positions]
                 positions = {}
                 for ticker, position of @positions
-                    positions[ticker] = @positionFromWire(position)
+                    if @markets[ticker].contract_type != "cash_pair"
+                        positions[ticker] = @positionFromWire(position)
 
                 @emit "positions", positions
                 [low_margin, high_margin] = @calculateMargin()
