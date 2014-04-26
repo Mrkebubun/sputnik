@@ -1,16 +1,43 @@
+
+__author__ = 'satosushi'
+
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Enum, DateTime
 import database as db
 from datetime import datetime, date, timedelta
-
-__author__ = 'satosushi'
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
 import util
 import hashlib
 import base64
 import collections
 from Crypto.Random.random import getrandbits
+
+class QuantityUI(object):
+    @property
+    def quantity_ui(self):
+        return util.quantity_from_wire(self.contract, self.quantity)
+
+    @property
+    def quantity_fmt(self):
+        return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=self.quantity_ui)
+
+    @property
+    def quantity_left_ui(self):
+        return util.quantity_from_wire(self.contract, self.quantity_left)
+
+    @property
+    def quantity_left_fmt(self):
+        return ("{quantity_left:.%df}" % util.get_quantity_precision(self.contract)).format(quantity_left=self.quantity_left_ui)
+
+class PriceUI(object):
+    @property
+    def price_ui(self):
+        return util.price_from_wire(self.contract, self.price)
+
+    @property
+    def price_fmt(self):
+        return ("{price:.%df}" % util.get_price_precision(self.contract)).format(price=self.price_ui)
 
 class ResetToken(db.Base):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
@@ -99,7 +126,7 @@ class Contract(db.Base):
         self.tick_size, self.lot_size, self.denominator = tick_size, lot_size, denominator
         self.contract_type, self.active = contract_type, active
 
-class Order(db.Base):
+class Order(db.Base, QuantityUI, PriceUI):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
     __tablename__ = 'orders'
 
@@ -121,6 +148,7 @@ class Order(db.Base):
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
+
 
     def to_matching_engine_order(self):
         """
@@ -383,7 +411,7 @@ class Journal(db.Base):
 
         return True
 
-class Posting(db.Base):
+class Posting(db.Base, QuantityUI):
     __tablename__ = 'posting'
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
@@ -434,7 +462,7 @@ class Posting(db.Base):
             assert(self.contract == position.contract)
             position.position += sign * quantity
 
-class Addresses(db.Base):
+class Addresses(db.Base, QuantityUI):
     """
     Currency addresses for users, and how much has been accounted for
     """
@@ -446,29 +474,40 @@ class Addresses(db.Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
-    # TODO: Make this a foreign key
-    currency = Column(Enum('btc', 'ltc', 'xrp', 'usd', 'mxn', name='currency_types'), nullable=False)
+
+    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract = relationship('Contract')
+
     address = Column(String, nullable=False)
     active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
-    def __init__(self, user, currency, address):
+    @property
+    def quantity(self):
+        """Alias for the purpose of the UI functions
+
+
+        :returns: int
+        """
+        return self.accounted_for
+
+    def __init__(self, user, contract, address):
         """
 
         :param user:
         :type user: User
-        :param currency:
-        :type currency: str
+        :param contract:
+        :type contract:models.Contract
         :param address:
         :type address: str
         """
-        self.user, self.currency, self.address = user, currency, address
+        self.user, self.contract, self.address = user, contract, address
 
     def __repr__(self):
-        return "<Wallet('%s','%s', %s)>" \
-               % (self.user, self.currency, self.address)
+        return "<Address('%s','%s', %s)>" \
+               % (self.user, self.contract.ticker, self.address)
 
-class Position(db.Base):
+class Position(db.Base, QuantityUI):
     __tablename__ = 'positions'
 
     __table_args__ = (schema.UniqueConstraint('username', 'contract_id'),
@@ -481,6 +520,15 @@ class Position(db.Base):
     contract = relationship('Contract')
     position = Column(BigInteger)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
+
+    @property
+    def quantity(self):
+        """Alias for the purpose of the UI functions
+
+
+        :returns: int
+        """
+        return self.position
 
     def __init__(self, user, contract, position=0):
         """
@@ -508,7 +556,7 @@ class Position(db.Base):
                   self.position)
 
 
-class Withdrawal(db.Base):
+class Withdrawal(db.Base, QuantityUI):
     __tablename__ = 'withdrawals'
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
@@ -516,33 +564,42 @@ class Withdrawal(db.Base):
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User')
     address = Column(String, nullable=False)
-    currency_id = Column(Integer, ForeignKey('contracts.id'))
-    currency = relationship('Contract')
+    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract = relationship('Contract')
     amount = Column(BigInteger)
     pending = Column(Boolean, nullable=False, server_default=sql.true())
     entered = Column(DateTime, nullable=False)
     completed = Column(DateTime)
 
-    def __init__(self, user, currency, address, amount):
+    @property
+    def quantity(self):
+        """Alias for the purpose of the UI functions
+
+
+        :returns: int
+        """
+        return self.amount
+
+    def __init__(self, user, contract, address, amount):
         """
 
         :param user:
         :type user: User
-        :param currency:
-        :type currency: models.Contract
+        :param contract:
+        :type contract: models.Contract
         :param address:
         :type address: str
         :param amount:
         :type amount: int
         """
-        self.user, self.currency, self.address, self.amount = user, currency, address, amount
+        self.user, self.contract, self.address, self.amount = user, contract, address, amount
         self.entered = datetime.utcnow()
 
     def __repr__(self):
         return "<Withdrawal('%s','%s','%s',%d)>" \
-               % (self.currency, self.user, self.address, self.amount)
+               % (self.contract, self.user, self.address, self.amount)
 
-class Trade(db.Base):
+class Trade(db.Base, QuantityUI, PriceUI):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
     __tablename__ = 'trades'
 

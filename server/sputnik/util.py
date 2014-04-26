@@ -4,6 +4,64 @@ from datetime import datetime
 from twisted.internet import ssl
 from OpenSSL import SSL
 import models
+import math
+from sqlalchemy.orm.exc import NoResultFound
+import logging
+
+def price_to_wire(contract, price):
+    if contract.contract_type == "prediction":
+        price = price * contract.denominator
+    else:
+        price = price * contract.denominated_contract.denominator
+
+    return price - price % contract.tick_size
+
+def price_from_wire(contract, price):
+    if contract.contract_type == "prediction":
+        return price / contract.denominator
+    else:
+        return price / (contract.denominated_contract.denominator * contract.denominator)
+
+def quantity_from_wire(contract, quantity):
+    if contract.contract_type == "prediction":
+        return quantity
+    elif contract.contract_type == "cash":
+        return quantity / contract.denominator
+    else:
+        return quantity / contract.payout_contract.denominator
+
+def quantity_to_wire(contract, quantity):
+    if contract.contract_type == "prediction":
+        return quantity
+    elif contract.contract_type == "cash":
+        return quantity * contract.denominator
+    else:
+        quantity = quantity * contract.payout_contract.denominator
+        return quantity - quantity % contract.lot_size
+
+def get_precision(numerator, denominator):
+    if numerator <= denominator:
+        return 0
+    else:
+        return math.log10(numerator / denominator)
+
+def get_price_precision(contract):
+    if contract.contract_type == "prediction":
+        return get_precision(contract.denominator, contract.tick_size)
+    else:
+        return get_precision(contract.denominated_contract.denominator, contract.tick_size)
+
+def get_quantity_precision(contract):
+    # Special case BTC
+    if contract.ticker == "BTC":
+        return 2
+
+    if contract.contract_type == "prediction":
+        return 0
+    elif contract.contract_type == "cash":
+        return get_precision(contract.denominator, 1)
+    else:
+        return get_precision(contract.payout_contract.denominator * contract.denominator, contract.lot_size)
 
 def dt_to_timestamp(dt):
     """Turns a datetime into a Sputnik timestamp (microseconds since epoch)
@@ -61,6 +119,36 @@ def get_fees(username, contract, transaction_size):
         # Only cash_pair & prediction is implemented now
         raise NotImplementedError
 
+def get_contract(session, ticker):
+    """
+    Return the Contract object corresponding to the ticker.
+    :param session: the sqlalchemy session to use
+    :param ticker: the ticker to look up or a Contract id
+    :type ticker: str, models.Contract
+    :returns: models.Contract -- the Contract object matching the ticker
+    :raises: AccountantException
+    """
+    logging.debug("Looking up contract %s." % ticker)
+
+
+    if isinstance(ticker, models.Contract):
+        return ticker
+
+    try:
+        ticker = int(ticker)
+        return session.query(models.Contract).filter_by(
+            contract_id=ticker).one()
+    except NoResultFound:
+        raise Exception("Could not resolve contract '%s'." % ticker)
+    except ValueError:
+        # drop through
+        pass
+
+    try:
+        return session.query(models.Contract).filter_by(
+            ticker=ticker).order_by(models.Contract.id.desc()).first()
+    except NoResultFound:
+        raise Exception("Could not resolve contract '%s'." % ticker)
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,

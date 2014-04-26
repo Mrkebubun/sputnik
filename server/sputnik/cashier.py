@@ -97,12 +97,12 @@ class Cashier():
         else:
             # TODO: do not assume BTC
             # TODO: add error checks
-            total_received = int(self.bitcoinrpc["btc"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
+            total_received = int(self.bitcoinrpc["BTC"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
             accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
             if total_received > accounted_for:
                 self.notify_accountant(address, total_received)
 
-    def check_for_crypto_deposits(self, currency='btc'):
+    def check_for_crypto_deposits(self, currency='BTC'):
         """
         Checks for crypto deposits in a crypto currency that offers
         a connection compatible with the bitcoind RPC (typically, litecoin, dogecoin...)
@@ -158,7 +158,7 @@ class Cashier():
             logging.error("withdrawal too large, failing safety check")
             return False
         else:
-            online_cash = self.accountant.get_position('onlinecash', withdrawal_request.currency.ticker)
+            online_cash = self.accountant.get_position('onlinecash', withdrawal_request.contract.ticker)
             logging.error("withdrawal too large portion of online cash balance, failing safety check")
             if online_cash / 10 <= withdrawal_request.amount:
                 return False
@@ -186,12 +186,12 @@ class Cashier():
                 to_user = withdrawal.username
             else:
                 if online:
-                    self.bitcoinrpc[withdrawal.currency.ticker.lower()].sendtoaddress(withdrawal.address, float(withdrawal.amount / 1e8))
+                    self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address, float(withdrawal.amount / 1e8))
                     to_user = 'onlinecash'
                 else:
                     to_user = 'offlinecash'
 
-            self.accountant.transfer_position(withdrawal.currency.ticker, 'pendingwithdrawal', to_user, withdrawal.amount)
+            self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user, withdrawal.amount)
             withdrawal.pending = False
             withdrawal.completed = datetime.utcnow()
             self.session.add(withdrawal)
@@ -303,7 +303,7 @@ class BitcoinNotify(Resource):
         :returns: str - the string "OK", which isn't relevant
         """
         logging.info("Got a notification from bitcoind: %s" % request)
-        self.cashier.check_for_crypto_deposits('btc')
+        self.cashier.check_for_crypto_deposits('BTC')
         return "OK"
 
 
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     logging.info('connecting to bitcoin client')
 
-    bitcoinrpc = {'btc': bitcoinrpc.connect_to_local(bitcoin_conf)}
+    bitcoinrpc = {'BTC': bitcoinrpc.connect_to_local(bitcoin_conf)}
     compropago = Compropago(config.get("cashier", "compropago_key"))
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago)

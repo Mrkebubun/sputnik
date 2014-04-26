@@ -29,7 +29,7 @@ import onetimepass as otp
 import hashlib
 import uuid
 import random
-import util
+from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
 import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
@@ -162,7 +162,7 @@ class PublicInterface:
                     :param ticker:
                     """
                     trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
-                                                           'timestamp': util.dt_to_timestamp(r[1])} for r in result]
+                                                           'timestamp': dt_to_timestamp(r[1])} for r in result]
                     self.factory.trade_history[ticker] = trades
                     for period in ["minute", "hour", "day"]:
                         for trade in trades:
@@ -215,9 +215,9 @@ class PublicInterface:
         return d
 
     @exportRpc("get_ohlcv_history")
-    def get_ohlcv_history(self, ticker, period="day", start_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+    def get_ohlcv_history(self, ticker, period="day", start_timestamp=dt_to_timestamp(datetime.datetime.utcnow() -
                                                                                            datetime.timedelta(days=1)),
-                  end_timestamp=util.dt_to_timestamp(datetime.datetime.now())):
+                  end_timestamp=dt_to_timestamp(datetime.datetime.now())):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
         :param ticker:
@@ -295,8 +295,8 @@ class PublicInterface:
         ticker = ticker[:MAX_TICKER_LENGTH]
 
         to_dt = datetime.datetime.utcnow()
-        to_timestamp = util.dt_to_timestamp(to_dt)
-        from_timestamp = util.dt_to_timestamp(to_dt - datetime.timedelta(seconds=time_span))
+        to_timestamp = dt_to_timestamp(to_dt)
+        from_timestamp = dt_to_timestamp(to_dt - datetime.timedelta(seconds=time_span))
 
         # Filter trade history
         history = [i for i in self.factory.trade_history[ticker]
@@ -852,12 +852,19 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 :param txn:
                 :returns: list - [True, instructions]
                 """
+                txn.execute("SELECT id FROM contracts WHERE ticker=%s", ('MXN', ))
+                res = txn.fetchall()
+                if not res:
+                    logging.error("Unable to find MXN contract!")
+                    return [False, "Internal error: No MXN contract"]
+
+                contract_id = res[0][0]
                 payment_id = bill['payment_id']
                 instructions = bill['payment_instructions']
                 address = 'compropago_%s' % payment_id
                 if charge['send_sms']:
                     self.compropago.send_sms(payment_id, charge['customer_phone'], phone_company)
-                txn.execute("INSERT INTO addresses (username,address,accounted_for,active,currency) VALUES (%s,%s,%s,%s,%s)", (self.username, address, 0, True, 'mxn'))
+                txn.execute("INSERT INTO addresses (username,address,accounted_for,active,contract_id) VALUES (%s,%s,%s,%s,%d)", (self.username, address, 0, True, contract_id))
                 # do not return bill as the payment_id should remain private to us
                 return [True, instructions]
 
@@ -881,9 +888,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
     @exportRpc("get_transaction_history")
-    def get_transaction_history(self, from_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow() -
+    def get_transaction_history(self, from_timestamp=dt_to_timestamp(datetime.datetime.utcnow() -
                                                              datetime.timedelta(hours=4)),
-                  to_timestamp=util.dt_to_timestamp(datetime.datetime.utcnow())):
+                  to_timestamp=dt_to_timestamp(datetime.datetime.utcnow())):
 
         """
 
@@ -915,16 +922,16 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return d
 
     @exportRpc("get_new_address")
-    def get_new_address(self, currency):
+    def get_new_address(self, ticker):
         """
         assigns a new deposit address to a user and returns the address
-        :param currency:
-        :type currency: str
+        :param ticker:
+        :type ticker: str
         :returns: Deferred
         """
-        validate(currency, {"type": "string"})
+        validate(ticker, {"type": "string"})
         # Make sure the currency is lowercase here
-        currency = currency[:MAX_TICKER_LENGTH].lower()
+        ticker = ticker[:MAX_TICKER_LENGTH]
 
         def _get_new_address(txn, username):
             """
@@ -934,9 +941,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :returns: list - [success, new address]
             """
             txn.execute(
-                "SELECT id, address FROM addresses WHERE "
-                "username IS NULL AND active=FALSE AND currency=%s"
-                " ORDER BY id LIMIT 1", (currency,))
+                "SELECT addresses.id, addresses.address FROM addresses, contracts WHERE "
+                "addresses.username IS NULL AND addresses.active=FALSE AND "
+                "addresses.contract_id=contracts.id AND contracts.ticker=%s"
+                " ORDER BY addresses.id LIMIT 1", (ticker,))
             res = txn.fetchall()
             if not res:
                 logging.error("Out of addresses!")
@@ -951,15 +959,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
-    def get_current_address(self, currency):
+    def get_current_address(self, ticker):
         """
         RPC call to obtain the current address associated with a particular user
-        :param currency:
+        :param ticker:
         :returns: Deferred
         """
-        validate(currency, {"type": "string"})
+        validate(ticker, {"type": "string"})
         # Make sure currency is lower-cased
-        currency = currency[:MAX_TICKER_LENGTH].lower()
+        ticker = ticker[:MAX_TICKER_LENGTH]
 
         def _cb(result):
             """
@@ -976,20 +984,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return [True, result[0][0]]
 
         return dbpool.runQuery(
-            "SELECT address FROM addresses WHERE"
-            " username=%s AND active=TRUE AND currency=%s"
-            " ORDER BY id LIMIT 1", (self.username, currency)).addCallback(_cb)
+            "SELECT addresses.address FROM addresses, contracts WHERE "
+            "addresses.username=%s AND addresses.active=TRUE AND "
+            "addresses.contract_id=contracts.id AND contracts.ticker=%s"
+            "ORDER BY addresses.id LIMIT 1", (self.username, ticker)).addCallback(_cb)
 
     @exportRpc("request_withdrawal")
-    def request_withdrawal(self, currency, amount, address):
+    def request_withdrawal(self, ticker, amount, address):
         """
         Makes a note in the database that a withdrawal needs to be processed
-        :param currency: the currency to process the withdrawal in
+        :param ticker: the currency to process the withdrawal in
         :param amount: the amount of money to withdraw
         :param address: the address to which the withdrawn money is to be sent
         :returns: bool, Deferred - if an invalid amount, just return False, otherwise return a deferred
         """
-        validate(currency, {"type": "string"})
+        validate(ticker, {"type": "string"})
         validate(address, {"type": "string"})
         validate(amount, {"type": "number"})
         amount = int(amount)
@@ -1003,7 +1012,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onRequestWithdrawalFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.request_withdrawal(self.username, currency, amount, address)
+        d = self.factory.accountant.request_withdrawal(self.username, ticker, amount, address)
         d.addCallbacks(onRequestWithdrawalSuccess, onRequestWithdrawalFail)
 
         return d
@@ -1139,7 +1148,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :returns: list - [True, dict of orders, indexed by id]
             """
             return [True, {r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-                           'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
+                           'timestamp': dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in result}]
 
         return dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
                                'orders.timestamp, orders.side, orders.id FROM orders, contracts '
@@ -1571,7 +1580,7 @@ if __name__ == '__main__':
         key = config.get("webserver", "ssl_key")
         cert = config.get("webserver", "ssl_cert")
         cert_chain = config.get("webserver", "ssl_cert_chain")
-        contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
+        contextFactory = ChainedOpenSSLContextFactory(key, cert_chain)
 
     address = config.get("webserver", "ws_address")
     port = config.getint("webserver", "ws_port")
