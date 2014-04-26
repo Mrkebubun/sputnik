@@ -346,7 +346,9 @@ class @Sputnik extends EventEmitter
             quantity = quantity - quantity % 1
         else
             quantity = quantity * target.denominator
-            quantity = quantity - quantity % contract.lot_size
+            if contract.contract_type != "cash"
+                quantity = quantity - quantity % contract.lot_size
+
         return quantity
 
     priceToWire: (ticker, price) =>
