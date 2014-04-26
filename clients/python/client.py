@@ -101,7 +101,8 @@ class TradingBot(WampCraClientProtocol):
         if self.markets[ticker]['contract_type'] == "prediction":
             price = price * self.markets[ticker]['denominator']
         else:
-            price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator']
+            price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
+                    self.markets[ticker]['denominator']
 
         return price - price % self.markets[ticker]['tick_size']
 

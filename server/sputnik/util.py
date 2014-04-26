@@ -12,7 +12,7 @@ def price_to_wire(contract, price):
     if contract.contract_type == "prediction":
         price = price * contract.denominator
     else:
-        price = price * contract.denominated_contract.denominator
+        price = price * contract.denominated_contract.denominator * contract.denominator
 
     return price - price % contract.tick_size
 
@@ -49,7 +49,7 @@ def get_price_precision(contract):
     if contract.contract_type == "prediction":
         return get_precision(contract.denominator, contract.tick_size)
     else:
-        return get_precision(contract.denominated_contract.denominator, contract.tick_size)
+        return get_precision(contract.denominated_contract.denominator * contract.denominator, contract.tick_size)
 
 def get_quantity_precision(contract):
     # Special case BTC
@@ -61,7 +61,7 @@ def get_quantity_precision(contract):
     elif contract.contract_type == "cash":
         return get_precision(contract.denominator, 1)
     else:
-        return get_precision(contract.payout_contract.denominator * contract.denominator, contract.lot_size)
+        return get_precision(contract.payout_contract.denominator, contract.lot_size)
 
 def dt_to_timestamp(dt):
     """Turns a datetime into a Sputnik timestamp (microseconds since epoch)

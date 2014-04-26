@@ -379,7 +379,7 @@ class @Sputnik extends EventEmitter
         if contract.contract_type is "prediction"
             return Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0)
         else
-            return Math.max(Math.log(source.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0)
 
     getQuantityPrecision: (ticker) =>
         # Special case bitcoin
@@ -392,7 +392,7 @@ class @Sputnik extends EventEmitter
         else if contract.contract_type is "cash"
             return Math.max(Math.log(contract.denominator) / Math.LN10,0)
         else
-            return Math.max(Math.log(target.denominator * contract.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
 
     # order manipulation
     canPlaceOrder: (quantity, price, ticker, side) =>
