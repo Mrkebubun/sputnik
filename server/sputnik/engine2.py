@@ -92,7 +92,7 @@ class EngineListener:
 
 
 class Engine:
-    def __init__(self, socket, session, ticker):
+    def __init__(self, socket, ticker, contract_id, contract_type):
         self.orderbook = {OrderSide.BUY: [], OrderSide.SELL: []}
         self.ordermap = {}
 
@@ -102,20 +102,8 @@ class Engine:
 
         self.listeners = []
 
-        # Determine contract id
-        try:
-            self.contract_id = self.session.query(models.Contract).filter_by(ticker=ticker).one().id
-        except Exception, e:
-            logging.critical("Cannot determine ticker id. %s" % e)
-            raise e
-
-        # Determine contract type
-        try:
-            self.contract_type = session.query(models.Contract).filter_by(
-                                ticker=ticker).order_by(models.Contract.id.desc()).first().contract_type
-        except Exception, e:
-            logging.error("Cannot determine contract type. %s" % e)
-
+        self.contract_id = contract_id
+        self.contract_type = contract_type
 
         try:
             for order in self.session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=self.contract_id):
@@ -147,17 +135,7 @@ class Engine:
                 break
 
             # Trade.
-            # If this method fails, something horrible has happened.
-            #   Do not accept the order. The books and the database
-            #   will have not been modified.
-
-            try:
-                self.match(order, passive_order)
-            except Exception, e:
-                self.notify_trade_fail(order, passive_order, "database error")
-                return False
-
-            # At this point, the trade has been successful.
+            self.match(order, passive_order)
 
             # If the passive order is used up, remove it.
             if passive_order.quantity_left <= 0:
@@ -184,34 +162,6 @@ class Engine:
         signed_quantity = quantity * order.side
         price = passive_order.price
 
-        # Retrieve the database objects.
-        try:
-            db_order = self.session.query(models.Order).filter_by(id = order.id).one()
-        except Exception, e:
-            logging.error("Unable to find order id=%s. Database object lookup error." % order.id)
-            raise e
-        try:
-            db_passive_order = self.session.query(models.Order).filter_by(id = passive_order.id).one()
-        except Exception, e:
-            logging.error("Unable to find order id=%s. Database object lookup error." % passive_order.id)
-            raise e
-
-        # Create the trade.
-        trade = models.Trade(db_order, db_passive_order, price, quantity)
-
-        # If this fails, rollback.
-        try:
-            db_order.quantity_left -= quantity
-            db_passive_order.quantity_left -= quantity
-            self.session.merge(db_order)
-            self.session.merge(db_passive_order)
-            self.session.add(trade)
-            self.session.commit()
-        except Exception, e:
-            logging.error("Unable to match orders id=%s with id=%s. %s" % (order.id, passive_order.id, e))
-            self.session.rollback()
-            raise e
-        
         # Adjust orders on the books
         order.quantity_left -= quantity
         passive_order.quantity_left -= quantity
@@ -236,19 +186,6 @@ class Engine:
         del self.ordermap[id]
         self.orderbook[order.side].remove(order)
         heapq.heapify(self.orderbook[order.side]) #yuck
-
-        # Fetch the database object and cancel the order. If this fails, rollback.
-        try:
-            db_order = self.session.query(models.Order).filter_by(
-                    id=order.id).one()
-            db_order.is_cancelled = True
-            self.session.merge(db_order)
-            self.session.commit()
-        except Exception, e:
-            logging.error("Unable to cancel order id=%s. %s" % (order.id, e))
-            self.session.rollback()
-            self.notify_cancel_failed(id, "database error")
-            return False
 
         # Notify user of cancellation.
         self.notify_cancel_success(order)
