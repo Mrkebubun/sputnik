@@ -276,6 +276,7 @@ class @Sputnik extends EventEmitter
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
             timestamp: @timeFormat(wire_ohlcv['timestamp'])
+            wire_timestamp: wire_ohlcv['timestamp']
             period: wire_ohlcv.period
         return ohlcv
 
@@ -512,6 +513,8 @@ class @Sputnik extends EventEmitter
 
         @emitOHLCVHistory ticker, "day"
         @getOHLCVHistory ticker, "day"
+
+        @emitOHLCVHistory ticker, "minute"
         @getOHLCVHistory ticker, "minute"
 
         @follow ticker
@@ -676,7 +679,6 @@ class @Sputnik extends EventEmitter
         @markets[ticker].ohlcv[period][timestamp] = ohlcv
 
         @emit "ohlcv", @ohlcvFromWire(ohlcv)
-        @emitOHLCVHistory(ticker, period)
 
     onOHLCVHistory: (ohlcv_history) =>
         @log ["ohlcv_history received", ohlcv_history]

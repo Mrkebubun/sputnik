@@ -215,9 +215,7 @@ class PublicInterface:
         return d
 
     @exportRpc("get_ohlcv_history")
-    def get_ohlcv_history(self, ticker, period="day", start_timestamp=dt_to_timestamp(datetime.datetime.utcnow() -
-                                                                                           datetime.timedelta(days=1)),
-                  end_timestamp=dt_to_timestamp(datetime.datetime.now())):
+    def get_ohlcv_history(self, ticker, period="day", start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
         :param ticker:
@@ -226,6 +224,12 @@ class PublicInterface:
         :param end_timestamp:
         :returns: list - [True, timestamp-indexed dict]
         """
+        if start_timestamp is None:
+            start_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=1))
+
+        if end_timestamp is None:
+            end_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
+
         validate(ticker, {"type": "string"})
         validate(period, {"type": "string"})
         validate(start_timestamp, {"type": "number"})
@@ -888,9 +892,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
 
     @exportRpc("get_transaction_history")
-    def get_transaction_history(self, from_timestamp=dt_to_timestamp(datetime.datetime.utcnow() -
-                                                             datetime.timedelta(hours=4)),
-                  to_timestamp=dt_to_timestamp(datetime.datetime.utcnow())):
+    def get_transaction_history(self, from_timestamp=None, to_timestamp=None):
 
         """
 
@@ -898,6 +900,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param to_timestamp:
         :returns: Deferred
         """
+
+        if from_timestamp is None:
+            from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() -
+                                                             datetime.timedelta(hours=4))
+
+        if to_timestamp is None:
+            to_timestamp = dt_to_timestamp(datetime.datetime.utcnow())
 
         def _cb(result):
             """

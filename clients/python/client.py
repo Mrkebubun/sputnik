@@ -343,10 +343,17 @@ class TradingBot(WampCraClientProtocol):
         d = self.my_call("get_audit")
         d.addCallbacks(self.onAudit, self.onError)
 
-    def getOHLCVHistory(self, ticker, period="day", start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+    def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
         epoch = datetime.utcfromtimestamp(0)
-        start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
-        end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
+        if start_datetime is not None:
+            start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
+        else:
+            start_timestamp = None
+
+        if end_datetime is not None:
+            end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
+        else:
+            end_timestamp = None
 
         d = self.my_call("get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
         d.addCallbacks(self.onOHLCVHistory, self.onError)
@@ -440,10 +447,15 @@ class BasicBot(TradingBot):
         # Test the audit
         self.getAudit()
 
+        # Test some OHLCV history fns
+        self.getOHLCVHistory('BTC/HUF', 'day')
+        self.getOHLCVHistory('BTC/HUF', 'minute')
+
+
         # Now make an account
-        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
@@ -468,7 +480,7 @@ if __name__ == '__main__':
             "./client.ini"))
     config.read(config_file)
 
-    base_uri = config.get("client", "base_uri")
+    base_uri = config.get("client", "uri")
     username = config.get("client", "username")
     password = config.get("client", "password")
 
