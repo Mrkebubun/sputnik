@@ -26,7 +26,7 @@ $ ->
             <tr>
                 <td><span class="caret btn-link" onclick="show('{{label}}_{{ticker}}')"></span></td>
                 <th>{{ticker}}</th>
-                <th>{{details.total}}</th>
+                <th>{{details.total_fmt}}</th>
             </tr>
             <tr name="{{label}}_{{ticker}}">
                 <th>User</th>
@@ -35,7 +35,7 @@ $ ->
                 {% for position in details.positions_raw %}
                 <tr name="{{label}}_{{ticker}}">
                     <td>{{position.username}}</td>
-                    <td>{{position.position}}</td>
+                    <td>{{position.position_fmt}}</td>
                 </tr>
                 {% endfor %}
             {% endfor %}

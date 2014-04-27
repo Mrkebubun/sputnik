@@ -16,6 +16,7 @@ import models
 import collections
 from datetime import datetime
 from util import ChainedOpenSSLContextFactory
+import util
 from sendmail import Sendmail
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
@@ -507,20 +508,23 @@ class Administrator:
         journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
         return journal
 
-    def adjust_position(self, username, ticker, quantity):
+    def adjust_position(self, username, ticker, quantity_ui):
         """Adjust the position for a user
 
         :param username: the user we are adjusting
         :type username: str
         :param ticker: the ticker of the contract
         :type ticker: str
-        :param quantity: the delta
-        :type quantity: int
+        :param quantity_ui: the delta in user friendly units
+        :type quantity_ui: int
         """
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+
         logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
         self.accountant.adjust_position(username, ticker, quantity)
 
-    def transfer_position(self, ticker, from_user, to_user, quantity):
+    def transfer_position(self, ticker, from_user, to_user, quantity_ui):
         """Transfer a position from one user to another
 
         :param ticker: the contract
@@ -529,9 +533,12 @@ class Administrator:
         :type from_user: str
         :param to_user: the user we are transferring to
         :type to_user: str
-        :param quantity: how much are we transferring
-        :type quantity: int
+        :param quantity_ui: how much are we transferring in user friendly units
+        :type quantity_ui: int
         """
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        
         logging.debug("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity)

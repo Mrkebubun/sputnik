@@ -97,13 +97,13 @@ class TestCashierExport(TestAccountant):
         self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
         position = self.session.query(models.Position).filter_by(
             username="test").one()
-        self.assertEqual(position.position, self.accountant.deposit_limits['btc'])
+        self.assertEqual(position.position, self.accountant.deposit_limits['BTC'])
         self.assertEqual(position.position, position.position_calculated)
 
         # Make sure the overflow position gets the cash
         overflow_position = self.session.query(models.Position).filter_by(
             username="depositoverflow").one()
-        self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['btc'])
+        self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
         self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                          (u'onlinecash',
@@ -310,7 +310,7 @@ class TestEngineExport(TestAccountant):
         import datetime
 
         self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("aggressive_user", 'Deposit')
         self.set_permissions_group("passive_user", "Deposit")
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
@@ -460,7 +460,7 @@ class TestEngineExport(TestAccountant):
 class TestWebserverExport(TestAccountant):
     def test_place_order(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
@@ -575,7 +575,7 @@ class TestWebserverExport(TestAccountant):
 
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
@@ -604,7 +604,7 @@ class TestWebserverExport(TestAccountant):
 
     def test_place_order_little_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
@@ -622,7 +622,7 @@ class TestWebserverExport(TestAccountant):
 
     def test_place_many_orders(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'mxn')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)

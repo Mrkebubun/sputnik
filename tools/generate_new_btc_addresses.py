@@ -22,7 +22,8 @@ quantity = 100
 
 for i in range(quantity):
     addr = conn.getnewaddress()
-    new_address = models.Addresses(None,'btc', addr)
+    BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
+    new_address = models.Addresses(None, BTC, addr)
     db_session.add(new_address)
     print 'adding: ', addr
 db_session.commit()

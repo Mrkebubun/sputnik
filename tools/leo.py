@@ -205,13 +205,19 @@ class AddressManager:
     def __init__(self, session):
         self.session = session
 
-    def add(self, currency, address):
-        address = models.Addresses(None, currency, address)
+    def add(self, ticker_or_id, address):
+        contract = ContractManager.resolve(self.session, ticker_or_id)
+        if contract == None:
+            raise Exception("Contract '%s' not found." % ticker_or_id)
+        address = models.Addresses(None, contract, address)
         self.session.add(address)
 
-    def list(self, currency):
+    def list(self, ticker_or_id):
+        contract = ContractManager.resolve(self.session, ticker_or_id)
+        if contract == None:
+            raise Exception("Contract '%s' not found." % ticker_or_id)
         addresses = self.session.query(models.Addresses).filter_by(
-                currency=currency).all()
+                contract=contract).all()
         for address in addresses:
             print address.address
        

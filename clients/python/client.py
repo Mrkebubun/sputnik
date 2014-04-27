@@ -46,7 +46,6 @@ class TradingBot(WampCraClientProtocol):
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
    """
-    currency_list = ['MXN', 'HUF', 'PLN']
 
     def __init__(self):
         self.markets = {}
@@ -93,6 +92,44 @@ class TradingBot(WampCraClientProtocol):
                                                authSecret=self.password)
 
         d.addCallbacks(self.onAuthSuccess, self.onAuthError)
+
+    """
+    Utility functions
+    """
+
+    def price_to_wire(self, ticker, price):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            price = price * self.markets[ticker]['denominator']
+        else:
+            price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
+                    self.markets[ticker]['denominator']
+
+        return price - price % self.markets[ticker]['tick_size']
+
+    def price_from_wire(self, ticker, price):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return float(price) / self.markets[ticker]['denominator']
+        else:
+            return float(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
+                            self.markets[ticker]['denominator'])
+
+    def quantity_from_wire(self, ticker, quantity):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return quantity
+        elif self.markets[ticker]['contract_type'] == "cash":
+            return float(quantity) / self.markets[ticker]['denominator']
+        else:
+            return float(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
+
+    def quantity_to_wire(self, ticker, quantity):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return quantity
+        elif self.markets[ticker]['contract_type'] == "cash":
+            return quantity * self.markets[ticker]['denominator']
+        else:
+            quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
+            return quantity - quantity % self.markets[ticker]['lot_size']
+
 
     """
     reactive events - on* 

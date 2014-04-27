@@ -67,8 +67,8 @@ class Accountant:
         self.debug = debug
         self.btc = self.get_contract("BTC")
         # TODO: Get deposit limits from DB
-        self.deposit_limits = { 'btc': 100000000,
-                                'mxn': 6000000
+        self.deposit_limits = { 'BTC': 100000000,
+                                'MXN': 6000000
         }
         # TODO: Make this configurable
         self.vendor_share_config = { 'm2': 0.5,
@@ -166,26 +166,7 @@ class Accountant:
         :returns: models.Contract -- the Contract object matching the ticker
         :raises: AccountantException
         """
-        logging.debug("Looking up contract %s." % ticker)
-
-        if isinstance(ticker, models.Contract):
-            return ticker
-
-        try:
-            ticker = int(ticker)
-            return self.session.query(models.Contract).filter_by(
-                contract_id=ticker).one()
-        except NoResultFound:
-            raise AccountantException("Could not resolve contract '%s'." % ticker)
-        except ValueError:
-            # drop through
-            pass
-
-        try:
-            return self.session.query(models.Contract).filter_by(
-                ticker=ticker).order_by(models.Contract.id.desc()).first()
-        except NoResultFound:
-            raise AccountantException("Could not resolve contract '%s'." % ticker)
+        return util.get_contract(self.session, ticker)
 
     def adjust_position(self, username, ticker, quantity):
         """Adjust a user's position, offsetting with the 'adjustment' account
@@ -280,8 +261,10 @@ class Accountant:
             self.session.commit()
             raise TRADE_NOT_PERMITTED
 
-        # Make sure there is a position in the contract
-        self.get_position(order.username, order.contract)
+        # Make sure there is a position in the contract, if it is not a cash_pair
+        # cash_pairs don't have positions
+        if order.contract.contract_type != "cash_pair":
+            self.get_position(order.username, order.contract)
 
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id)
@@ -684,9 +667,9 @@ class Accountant:
             logging.debug('received %d at %s' % (total_received, address))
 
             #query for db objects we want to update
-            # TODO: Currency should be a foreignkey into contracts so this weirdness is not required
+
             total_deposited_at_address = self.session.query(models.Addresses).filter_by(address=address).one()
-            contract = self.session.query(models.Contract).filter_by(ticker=total_deposited_at_address.currency.upper()).one()
+            contract = total_deposited_at_address.contract
 
             user_cash_position = self.get_position(total_deposited_at_address.username,
                                                    contract.ticker)
@@ -712,7 +695,11 @@ class Accountant:
                                     position=user_cash_position)
             postings.append(credit)
 
-            deposit_limit = self.deposit_limits[total_deposited_at_address.currency]
+            if total_deposited_at_address.contract.ticker in self.deposit_limits:
+                deposit_limit = self.deposit_limits[total_deposited_at_address.contract.ticker]
+            else:
+                deposit_limit = float("inf")
+
             excess_deposit = 0
             if not user.permissions.deposit:
                 logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
@@ -806,7 +793,8 @@ class Accountant:
 
                 position_details = { 'username': position.user.username,
                                                                     'hash': position.user.user_hash,
-                                                                    'position': position.position
+                                                                    'position': position.position,
+                                                                    'position_fmt': position.quantity_fmt
                 }
                 if position.contract.ticker in side:
                     side[position.contract.ticker]['total'] += position.position
@@ -815,6 +803,11 @@ class Accountant:
                     side[position.contract.ticker] = {'total': position.position,
                                                       'positions_raw': [position_details],
                                                       'contract': position.contract.ticker}
+
+                side[position.contract.ticker]['total_fmt'] = \
+                    ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
+                        total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
+                )
 
         return balance_sheet
 
