@@ -77,27 +77,20 @@ class Ledger:
             # sanity check
             if len(postings) == 0:
                 raise INTERNAL_ERROR
-            contracts = [posting["contract"] for posting in postings]
             types = [posting["type"] for posting in postings]
             counts = [posting["count"] for posting in postings]
-            if not all(contract == contracts[0] for contract in contracts):
-                raise CONTRACT_MISMATCH
+
             if not all(type == types[0] for type in types):
                 raise TYPE_MISMATCH
             if not all(count == counts[0] for count in counts):
                 raise COUNT_MISMATCH
-
-            # balance check
-            quantities = [posting["quantity"] for posting in postings]
-            if sum(quantities) is not 0:
-                raise QUANTITY_MISMATCH
             
             # create the journal and postings
             db_postings = []
-            contract = self.session.query(Contract).filter_by(ticker=contracts[0]).one()
             for posting in postings:
                 # TODO: change Posting contractor to take username
                 user = self.session.query(User).filter_by(username=posting["user"]).one()
+                contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
                 quantity = posting["quantity"]
                 side = posting["side"]
                 db_postings.append(Posting(user, contract, quantity, side))
