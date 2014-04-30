@@ -2,7 +2,7 @@
 
 
 if [ -n "$UPGRADE" ]; then
-    exit 0
+    service supervisor restart
 else
     service supervisor start
 fi
