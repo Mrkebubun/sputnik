@@ -75,10 +75,9 @@ $ ->
                 </thead>
                 <tbody>
                     {% for support_ticket in user.support_tickets %}
-                    {% if not support_ticket.closed %}
+                    {% if not support_ticket.closed and support_ticket.foreign_key %}
                     <tr>
-                        <!-- TODO: Remove zendesk/mexbt hardcoding here -->
-                        <td><a href="https://mexbt.zendesk.com/agent/#/tickets/{{support_ticket.foreign_key}}">{{support_ticket.foreign_key}}</a></td>
+                        <td><a href="https://{{zendesk_domain}}.zendesk.com/agent/#/tickets/{{support_ticket.foreign_key}}">{{support_ticket.foreign_key}}</a></td>
                         <td>{{support_ticket.type}}</td>
                     </tr>
                     {% endif %}

@@ -779,7 +779,7 @@ jQuery.fn.serializeObject = ->
       fd.append('file', form.find('input[name=file]')[1].files[0])
       fd.append('data', JSON.stringify(form.serializeObject()))
       $.ajax
-        url: "#{location.protocol}//#{location.hostname}:8980/create_kyc_ticket",
+        url: "#{location.origin}/ticket_server/create_kyc_ticket",
         data: fd,
         processData: false,
         contentType: false,
@@ -788,6 +788,6 @@ jQuery.fn.serializeObject = ->
             alert("Successfully saved:" + data)
         error: (err) ->
             alert("Error while saving:" + err)
-            sputnik.log "Error:", err
+            sputnik.log ["Error:", err]
 
 

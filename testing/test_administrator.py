@@ -31,8 +31,10 @@ class TestAdministrator(TestSputnik):
         from sputnik import administrator
         accountant = FakeProxy()
         cashier = FakeProxy()
+        zendesk_domain = 'testing'
 
-        self.administrator = administrator.Administrator(self.session, accountant, cashier, debug=True,
+        self.administrator = administrator.Administrator(self.session, accountant, cashier, zendesk_domain,
+                                                         debug=True,
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates")

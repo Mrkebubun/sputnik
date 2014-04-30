@@ -51,10 +51,10 @@ debug = ${debug}
 email = ${administrator_email}
 
 [ticketserver]
-ticket_port = 8980
-zendesk_token = zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy
-zendesk_email = sameer@m2.io
-zendesk_domain = mexbt
+ticketserver_port = ${ticketserver_port}
+zendesk_token = ${zendesk_token}
+zendesk_email = ${zendesk_email}
+zendesk_domain = ${zendesk_domain}
 
 [safe_price_forwarder]
 zmq_frontend_address = tcp://127.0.0.1:4500

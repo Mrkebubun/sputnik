@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cp $PROFILE/res/https-redirect.conf /etc/apache2/conf.d
-cp $PROFILE/res/ticket-server-proxy.conf /etc/apache2/conf.d
+sed -e "s|TICKETSERVER_PORT|${profile_ticketserver_port}|" $PROFILE/res/ticket-server-proxy.conf >/etc/apache2/conf.d/ticket-server-proxy.conf
 
 a2enmod ssl
 a2enmod rewrite

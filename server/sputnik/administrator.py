@@ -79,7 +79,9 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier, debug=False, base_uri=None, sendmail=None,
+    def __init__(self, session, accountant, cashier,
+                 zendesk_domain,
+                 debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates'):
         """Set up the administrator
 
@@ -94,6 +96,7 @@ class Administrator:
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
+        self.zendesk_domain = zendesk_domain
         self.debug = debug
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.base_uri = base_uri
@@ -857,8 +860,10 @@ class AdminWebUI(Resource):
         user = self.administrator.get_user(request.args['username'][0])
         postings_by_ticker = self.administrator.get_postings_by_ticker(user)
         permission_groups = self.administrator.get_permission_groups()
+        zendesk_domain = self.administrator.zendesk_domain
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
+                            zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups)
         return rendered.encode('utf-8')
 
@@ -1058,8 +1063,11 @@ if __name__ == "__main__":
                                     config.get("webserver", "www_address"),
                                     config.getint("webserver", "www_port"))
     from_email = config.get("administrator", "email")
+    zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
-    administrator = Administrator(session, accountant, cashier, debug=debug, base_uri=base_uri,
+    administrator = Administrator(session, accountant, cashier,
+                                  zendesk_domain,
+                                  debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email))
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
