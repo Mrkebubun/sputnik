@@ -98,12 +98,18 @@ class Cashier():
             # You can add an errback for process_compropago_payment here.
             # Alternatively, error handle inside the method itself (recommended)
         else:
-            # TODO: do not assume BTC
             # TODO: add error checks
-            total_received = int(self.bitcoinrpc["BTC"].getreceivedbyaddress(address, self.minimum_confirmations) * int(1e8))
-            accounted_for = self.session.query(models.Addresses).filter_by(address=address).one().accounted_for
-            if total_received > accounted_for:
-                self.notify_accountant(address, total_received)
+            address = self.session.query(models.Addresses).filter_by(address=address).one()
+            ticker = address.contract.ticker
+
+            if ticker in self.bitcoinrpc:
+                denominator = address.contract.denominator
+                accounted_for = address.accounted_for
+                total_received = int(self.bitcoinrpc[ticker].getreceivedbyaddress(address, self.minimum_confirmations) *
+                                     int(denominator))
+
+                if total_received > accounted_for:
+                    self.notify_accountant(address, total_received)
 
 
     def check_for_crypto_deposits(self, currency='BTC'):
