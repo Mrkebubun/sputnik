@@ -30,8 +30,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("register_eula").click()
         self.driver.find_element_by_id("register_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'), "Register and login failed")
-        )
+            EC.element_to_be_clickable((By.ID, 'account_menu')), "Register and login failed")
 
     def test_login(self):
         self.driver.find_element_by_id("login").click()
@@ -39,8 +38,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("login_password").send_keys("marketmaker")
         self.driver.find_element_by_id("login_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'), "Login failed")
-        )
+            EC.element_to_be_clickable((By.ID, 'account_menu')), "Login failed")
 
     def test_trading(self):
         # First login
@@ -49,8 +47,8 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("login_password").send_keys("marketmaker")
         self.driver.find_element_by_id("login_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'), 'Login failed')
-        )
+            EC.element_to_be_clickable((By.ID, 'account_menu')), 'Login failed')
+
         # For now we'll assume we have funds to trade with
         qty = self.driver.find_element_by_id("buy_quantity")
         qty.clear()
