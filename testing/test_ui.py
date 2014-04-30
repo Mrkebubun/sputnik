@@ -30,7 +30,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("register_eula").click()
         self.driver.find_element_by_id("register_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'))
+            EC.element_to_be_clickable((By.ID, 'account_menu'), "Register and login failed")
         )
 
     def test_login(self):
@@ -39,7 +39,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("login_password").send_keys("marketmaker")
         self.driver.find_element_by_id("login_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'))
+            EC.element_to_be_clickable((By.ID, 'account_menu'), "Login failed")
         )
 
     def test_trading(self):
@@ -49,7 +49,7 @@ class TestSputnikUI(unittest.TestCase):
         self.driver.find_element_by_id("login_password").send_keys("marketmaker")
         self.driver.find_element_by_id("login_button").click()
         WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, 'account_menu'))
+            EC.element_to_be_clickable((By.ID, 'account_menu'), 'Login failed')
         )
         # For now we'll assume we have funds to trade with
         qty = self.driver.find_element_by_id("buy_quantity")
@@ -58,7 +58,7 @@ class TestSputnikUI(unittest.TestCase):
 
         price = self.driver.find_element_by_id("buy_price")
         price.clear()
-        price.send_keys("1")
+        price.send_keys("100")
         self.driver.find_element_by_id("buyButton").click()
         alert_check = EC.alert_is_present()
         alert = alert_check(self.driver)
@@ -72,7 +72,7 @@ class TestSputnikUI(unittest.TestCase):
 
         price = self.driver.find_element_by_id("sell_price")
         price.clear()
-        price.send_keys("1")
+        price.send_keys("100")
         self.driver.find_element_by_id("sellButton").click()
         alert = alert_check(self.driver)
         if alert:
