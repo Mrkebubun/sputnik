@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cat << EOF | $profile_root/tools/leo
 database init
 contracts add BTC
 contracts add MXN
@@ -10,6 +9,14 @@ contracts add HUF
 contracts add BTC/MXN
 contracts add BTC/PLN
 contracts add BTC/HUF
+
+contracts add NETS2014
+contracts modify NETS2014 contract_type prediction
+contracts modify NETS2014 denominator 1000
+contracts modify NETS2014 lot_size 1000000
+contracts modify NETS2014 tick_size 1
+contracts modify NETS2014 expiration 2014-06-28
+contracts modify NETS2014 denominated_contract_ticker BTC
 
 contracts modify BTC contract_type cash
 contracts modify BTC denominator 100000000
@@ -21,28 +28,33 @@ contracts modify PLN contract_type cash
 contracts modify PLN denominator 100
 
 contracts modify HUF contract_type cash
-contracts modify HUF denominator 100
+contracts modify HUF denominator 1
 
 contracts modify BTC/MXN contract_type cash_pair
 contracts modify BTC/MXN tick_size 100
 contracts modify BTC/MXN lot_size 1000000
 contracts modify BTC/MXN denominator 1
+contracts modify BTC/MXN denominated_contract_ticker MXN
+contracts modify BTC/MXN payout_contract_ticker BTC
 
 contracts modify BTC/PLN contract_type cash_pair
 contracts modify BTC/PLN tick_size 100
 contracts modify BTC/PLN lot_size 1000000
 contracts modify BTC/PLN denominator 1
+contracts modify BTC/PLN denominated_contract_ticker PLN
+contracts modify BTC/PLN payout_contract_ticker BTC
 
 contracts modify BTC/HUF contract_type cash_pair
 contracts modify BTC/HUF tick_size 100
 contracts modify BTC/HUF lot_size 1000000
 contracts modify BTC/HUF denominator 1
+contracts modify BTC/HUF denominated_contract_ticker HUF
+contracts modify BTC/HUF payout_contract_ticker BTC
 
 permissions add Default
 EOF
 
-
-cat << EOF | sudo -u sputnik $profile_root/tools/leo
+cat << EOF | $profile_root/tools/leo
 accounts add customer
 accounts add m2
 accounts add remainder
@@ -59,6 +71,9 @@ accounts modify depositoverflow type Liability
 accounts add pendingwithdrawal
 accounts modify pendingwithdrawal type Liability
 
+accounts add adjustments
+accounts modify adjustments type Asset
+
 accounts add marketmaker
 accounts password marketmaker marketmaker
 accounts position marketmaker BTC
@@ -73,5 +88,3 @@ accounts position randomtrader HUF
 accounts position randomtrader PLN
 admin add admin
 EOF
-
-

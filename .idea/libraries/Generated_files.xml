@@ -2,36 +2,15 @@
   <library name="Generated files" type="javaScript">
     <properties>
       <sourceFilesUrls>
-        <item url="file://$PROJECT_DIR$/clients/www/mexbt.js" />
-        <item url="file://$PROJECT_DIR$/clients/www/chart.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
         <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
-        <item url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
-        <item url="file://$PROJECT_DIR$/clients/www/raw_ui.js" />
-        <item url="file://$PROJECT_DIR$/clients/coffeescript/events.js" />
-        <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/umd/node_modules/rfile/node_modules/resolve/test/resolver/mug.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/browser-resolve/node_modules/resolve/test/resolver/mug.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/module-deps/node_modules/resolve/test/resolver/mug.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/test/coffee_bin/x.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/test/coffee_bin/main.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/umd/node_modules/rfile/node_modules/resolve/test/resolver/cup.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/module-deps/node_modules/resolve/test/resolver/cup.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/browser-resolve/node_modules/resolve/test/resolver/cup.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/node_modules/browserify/node_modules/http-browserify/node_modules/Base64/test/base64.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/test.js" />
-      <root url="file://$PROJECT_DIR$/dist/clients/www/mexbt.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/mexbt.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/chart.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
       <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/raw_ui.js" />
-      <root url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
-      <root url="file://$PROJECT_DIR$/clients/coffeescript/events.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
     </CLASSES>
     <SOURCES />
   </library>
