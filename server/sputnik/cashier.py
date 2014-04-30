@@ -250,48 +250,47 @@ class Cashier():
         raise NotImplementedError()
 
     def get_new_address(self, username, ticker):
-        address = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username == username,
-                                                    models.Addresses.active == False,
-                                                    models.Contract.ticker == ticker).order_by(models.Addresses.id).first()
+        try:
+            address = self.session.query(models.Addresses).join(models.Contract).filter(
+                                                        models.Addresses.active == False,
+                                                        models.Addresses.username == None,
+                                                        models.Contract.ticker == ticker).order_by(models.Addresses.id).first()
 
-        if address is None:
-            if ticker == "BTC":
-                # TODO: Generate new BTC addresses as needed
-                raise OUT_OF_ADDRESSES
-            else:
-                try:
+            old_addresses = self.session.query(models.Addresses).join(models.Contract).filter(
+                                                                    models.Addresses.username == username,
+                                                                    models.Addresses.active == True,
+                                                                    models.Contract.ticker == ticker).all()
+            for old in old_addresses:
+                old.active = False
+                self.session.add(old)
+
+            if address is None:
+                if ticker in self.bitcoinrpc:
+                    # If we have a bitcoinrpc for this ticker, generate one that way
+                    address_str = self.bitcoinrpc[ticker].getnewaddress()
+                else:
+                    # Otherwise it is just a random string
                     address_str = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
-                    contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-                    user = self.session.query(models.User).filter_by(username=username).one()
 
-                    address = models.Addresses(user, contract, address_str)
-                    address.active = True
-                    self.session.add(address)
-                    self.session.commit()
-                    return address.address
-                except Exception as e:
-                    logging.error("Unable to create new address for: %s/%s: %s" % (username, ticker, e))
-                    self.session.rollback()
-                    raise e
-        else:
-            try:
-                old_addresses = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username == username,
-                                                        models.Addresses.active == True,
-                                                        models.Contract.ticker == ticker).order_by(models.Addresses.id).all()
-                address.active = True
+                contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+                user = self.session.query(models.User).filter_by(username=username).one()
 
-                self.session.add(address)
-                for old in old_addresses:
-                    old.active = False
-                    self.session.add(old)
+                address = models.Addresses(user, contract, address_str)
+            else:
+                address.username = username
 
-                self.session.commit()
-            except Exception as e:
-                logging.error("Exception while activating address %s: %s" % (address, e))
-                self.session.rollback()
-                raise e
+            address.active = True
+            self.session.add(address)
 
+
+            self.session.commit()
             return address.address
+
+        except Exception as e:
+            logging.error("Unable to get address for: %s/%s: %s" % (username, ticker, e))
+            self.session.rollback()
+            raise e
+
 
     def get_current_address(self, username, ticker):
         address = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username==username,
@@ -303,10 +302,10 @@ class Cashier():
             return address.address
 
     def get_deposit_instructions(self, ticker):
-        if ticker == "BTC":
-            return "Deposit using BTC to this address"
+        if ticker in self.bitcoinrpc:
+            return "Deposit your crypto-currency normally"
         else:
-            return "Go to the bank and use this code in the special notes"
+            return "Mail a check to X or send a wire to Y and put this key into the comments/memo field"
 
 class CompropagoHook(Resource):
     """
