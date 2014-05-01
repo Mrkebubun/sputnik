@@ -9,3 +9,4 @@ setuptools>=2.1
 beautifulsoup4
 Jinja2
 treq
+superlance

@@ -12,6 +12,7 @@ import hashlib
 import base64
 import collections
 from Crypto.Random.random import getrandbits
+from alerts import send_alert
 
 class QuantityUI(object):
     @property
@@ -381,6 +382,7 @@ class Journal(db.Base):
             self.timestamp = timestamp
 
         if not self.audit:
+            send_alert("Journal audit failed for %s" % self)
             raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
