@@ -6,6 +6,7 @@ sed -e "s|TICKETSERVER_PORT|${profile_ticketserver_port}|" $PROFILE/res/ticket-s
 a2enmod ssl
 a2enmod rewrite
 a2enmod proxy
+a2enmod proxy_http
 
 a2dissite 000-default
 

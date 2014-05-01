@@ -1489,8 +1489,8 @@ class TicketServer(Resource):
 
             :param failure:
             """
-            logging.error("unable to create support ticket: %s" % failure.value.args)
-            request.write("Failure: %s" % failure.value.args)
+            logging.error("unable to create support ticket: %s" % str(failure.value.args))
+            request.write("Failure: %s" % str(failure.value.args))
             request.finish()
 
         def onCheckSuccess(user):
