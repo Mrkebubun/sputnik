@@ -5,6 +5,7 @@ exitcodes = 0
 user = ${bitcoin_user}
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${bitcoin_root}
 environment = HOME="${bitcoin_root}"
 

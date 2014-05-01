@@ -4,6 +4,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -13,6 +14,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -22,6 +24,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -31,6 +34,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -40,6 +44,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -49,6 +54,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -58,6 +64,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -67,6 +74,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -76,6 +84,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -85,5 +94,6 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
