@@ -1453,7 +1453,7 @@ class TicketServer(Resource):
 
         :param request:
         """
-        line = '%s "%s %s %s" %d %s "%s" "%s" "%s" %s'
+        line = '%s "%s %s %s" %d %s "%s" "%s" "%s"'
         logging.info(line,
                      request.getClientIP(),
                      request.method,
