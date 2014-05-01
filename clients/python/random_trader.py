@@ -38,6 +38,7 @@ from ConfigParser import ConfigParser
 from client import TradingBot, BotFactory
 import random, string
 import logging
+from os import path
 
 class RandomBot(TradingBot):
     def startAutomationAfterAuth(self):
@@ -61,15 +62,9 @@ class RandomBot(TradingBot):
                 random_markets.append(ticker)
 
         # Pick a market at random
-        ticker = 'BTC/%s' % random.choice(self.currency_list)
+        ticker = random.choice(random_markets)
         side = random.choice(["BUY", "SELL"])
         contract = self.markets[ticker]
-
-        # Set a price/quantity that is reasonable for the market
-        tick_size = contract['tick_size']
-        lot_size = contract['lot_size']
-        denominator = contract['denominator']
-
 
         # Look at best bid/ask
         try:
@@ -82,15 +77,18 @@ class RandomBot(TradingBot):
             else:
                 price = best_bid
 
-            price = int(price / (tick_size * denominator)) * tick_size * denominator
         except (ValueError, KeyError):
-            # We don't have a best bid/ask, don't trade
-            return
+            # We don't have a best bid/ask. If it's a prediction contract, pick a random price
+            if contract['contract_type'] == "prediction":
+                price = self.price_to_wire(ticker, float(random.randint(0,1000))/1000)
+            else:
+                return
 
         # a qty somewhere between 0.5 and 2 BTC
-        quantity = random.randint(50,200) * lot_size
+        quantity = float(random.randint(50, 200))/100
 
-        self.placeOrder(ticker, quantity, price, side)
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
+                        price, side)
 
     def saySomethingRandom(self):
         random_saying = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(8))
@@ -114,7 +112,9 @@ if __name__ == '__main__':
 
     log.startLogging(sys.stdout)
     config = ConfigParser()
-    config.read("client.ini")
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
 
     uri = config.get("client", "uri")
     username = config.get("random_trader", "username")
