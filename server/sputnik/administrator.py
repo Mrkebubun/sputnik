@@ -18,6 +18,7 @@ from datetime import datetime
 from util import ChainedOpenSSLContextFactory
 import util
 from sendmail import Sendmail
+from watchdog import watchdog
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
 
@@ -1053,6 +1054,7 @@ if __name__ == "__main__":
     debug = config.getboolean("administrator", "debug")
     accountant = dealer_proxy_async(config.get("accountant", "administrator_export"))
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
+    watchdog(config.get("watchdog", "administrator"))
 
     if config.getboolean("webserver", "ssl"):
         protocol = 'https'

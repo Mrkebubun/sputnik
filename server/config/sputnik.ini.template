@@ -72,3 +72,10 @@ subject = Alert
 git_hash = ${git_hash}
 git_date = ${git_date}
 git_tag = ${git_tag}
+
+[watchdog]
+accountant = tcp://127.0.0.1:4490
+cashier = tcp://127.0.0.1:4190
+webserver = tcp://127.0.0.1:4790
+administrator = tcp://127.0.0.1:4690
+ledger = tcp://127.0.0.1:4390

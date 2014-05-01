@@ -34,8 +34,7 @@ import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
 from zendesk import Zendesk
-
-from administrator import AdministratorException
+from watchdog import watchdog
 
 from jsonschema import validate
 from twisted.python import log
@@ -1603,6 +1602,7 @@ if __name__ == '__main__':
 
     listenWS(factory, contextFactory, interface=interface)
 
+    watchdog = watchdog(config.get("watchdog", "webserver"))
     administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
     zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
                       config.get("ticketserver", "zendesk_token"),

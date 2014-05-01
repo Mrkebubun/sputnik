@@ -98,6 +98,16 @@ stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
+[program:watchdog]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+directory = ${root}/server/sputnik/
+user=${user}
+
 [eventlistener:process_exited]
 command=crashmailbatch -a -t ${alert_email} -f ${alert_email} -s "Process exited: "
 stdout_logfile = ${logs}/%(program_name)s.log

@@ -15,6 +15,7 @@ import config
 import database
 from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export
+from watchdog import watchdog
 
 class LedgerException(Exception):
     pass
@@ -199,6 +200,7 @@ if __name__ == "__main__":
     timeout = config.get("ledger", "accountant_export", None)
     ledger = Ledger(session, timeout)
     accountant_export = AccountantExport(ledger)
+    watchdog(config.get("watchdog", "ledger"))
     router_share_async(accountant_export,
             config.get("ledger", "accountant_export"))
     reactor.run()

@@ -37,7 +37,7 @@ from twisted.internet import reactor
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import DataError
 from datetime import datetime, date
-
+from watchdog import watchdog
 
 import logging
 
@@ -1060,6 +1060,8 @@ if __name__ == "__main__":
     engine_export = EngineExport(accountant)
     cashier_export = CashierExport(accountant)
     administrator_export = AdministratorExport(accountant)
+
+    watchdog(config.get("watchdog", "accountant"))
 
     router_share_async(webserver_export,
                        config.get("accountant", "webserver_export"))

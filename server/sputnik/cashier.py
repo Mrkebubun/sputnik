@@ -11,6 +11,7 @@ from twisted.internet import reactor, defer
 
 import bitcoinrpc
 from compropago import Compropago
+from watchdog import watchdog
 import util
 
 import config
@@ -438,6 +439,7 @@ if __name__ == '__main__':
     accountant_export = AccountantExport(cashier)
     webserver_export = WebserverExport(cashier)
 
+    watchdog(config.get("watchdog", "cashier"))
     pull_share_async(administrator_export,
                      config.get("cashier", "administrator_export"))
     pull_share_async(accountant_export,
