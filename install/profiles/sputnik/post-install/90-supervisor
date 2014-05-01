@@ -1,8 +1,7 @@
 #!/bin/bash
 
-
 if [ -n "$UPGRADE" ]; then
-    service supervisor stop
+    supervisorctl shutdown
     sleep 5
 fi
 
