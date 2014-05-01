@@ -1463,8 +1463,7 @@ class TicketServer(Resource):
                      request.sentLength or "-",
                      request.getHeader("referer") or "-",
                      request.getHeader("user-agent") or "-",
-                     request.getHeader("authorization") or "-",
-                     json.dumps(request.args))
+                     request.getHeader("authorization") or "-")
 
     def create_kyc_ticket(self, request):
         """
