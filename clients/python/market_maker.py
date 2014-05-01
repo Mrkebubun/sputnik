@@ -109,6 +109,18 @@ class MarketMakerBot(TradingBot):
 
                 new_bid = btcusd_bid * bid
                 new_ask = btcusd_ask * ask
+
+                # Make sure that the marketwe are making isn't crossed
+                if new_bid > new_ask:
+                    tmp = new_bid
+                    new_bid = new_ask
+                    new_ask = tmp
+
+                # If it's matched, make a spread just because
+                if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
+                    new_bid *= 0.9
+                    new_ask *= 1.1
+
                 if ticker in self.external_markets:
                     if new_bid != self.external_markets[ticker]['bid']:
                         self.external_markets[ticker]['bid'] = new_bid
