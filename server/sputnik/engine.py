@@ -137,7 +137,16 @@ class Order(object):
             db_session.commit()
             print "db committed."
             #end db code
+        except Exception as e:
+            db_session.rollback()
+            logging.error("Exception when matching orders: %s" % e)
 
+            # Revert the quantity changes
+            self.quantity_left -= quantity
+            other_order.quantity_left -= quantity
+
+            raise e
+        else:
             safe_price_publisher.onTrade({'price': matching_price, 'quantity': quantity})
             webserver.trade(
                 contract_name,
@@ -177,10 +186,7 @@ class Order(object):
                 }
                 webserver.order(o.username, order)
                 print 'to ws: ', str({'orders': [o.username, order]})
-        except Exception as e:
-            db_session.rollback()
-            logging.error("Exception when matching orders: %s" % e)
-            raise e
+
 
     def cancel(self):
         """
