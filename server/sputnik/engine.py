@@ -95,6 +95,7 @@ class Order(object):
         :param other_order:
         :param matching_price:
         """
+
         assert self.matchable(other_order)
         assert other_order.price == matching_price
 
@@ -108,83 +109,93 @@ class Order(object):
         assert other_order.quantity_left >= 0
 
         #begin db code
-        db_orders = [db_session.query(models.Order).filter_by(id=oid).one()
-                     for oid in [self.id, other_order.id]]
+        try:
+            db_orders = [db_session.query(models.Order).filter_by(id=oid).one()
+                         for oid in [self.id, other_order.id]]
 
-        # Make sure our timestamps are what is in the DB
-        self.timestamp = db_orders[0].timestamp
-        other_order.timestamp = db_orders[1].timestamp
+            # Make sure our timestamps are what is in the DB
+            self.timestamp = db_orders[0].timestamp
+            other_order.timestamp = db_orders[1].timestamp
 
-        for i in [0, 1]:
-            db_orders[i].quantity_left -= quantity
-            db_orders[i] = db_session.merge(db_orders[i])
+            for i in [0, 1]:
+                db_orders[i].quantity_left -= quantity
+                db_orders[i] = db_session.merge(db_orders[i])
 
-        assert db_orders[0].quantity_left == self.quantity_left
-        assert db_orders[1].quantity_left == other_order.quantity_left
-
-
-        # case of futures
-        # test if it's a future by looking if there are any futures contract that map to this contract
-        # potentially inefficient, but premature optimization is never a good idea
+            assert db_orders[0].quantity_left == self.quantity_left
+            assert db_orders[1].quantity_left == other_order.quantity_left
 
 
-        trade = models.Trade(db_orders[0], db_orders[1], matching_price, quantity)
-        db_session.add(trade)
+            # case of futures
+            # test if it's a future by looking if there are any futures contract that map to this contract
+            # potentially inefficient, but premature optimization is never a good idea
 
-        #commit db
-        db_session.commit()
-        print "db committed."
-        #end db code
 
-        safe_price_publisher.onTrade({'price': matching_price, 'quantity': quantity})
-        webserver.trade(
-            contract_name,
-            {'contract': contract_name,
-             'quantity': quantity,
-             'price': matching_price,
-             'timestamp': util.dt_to_timestamp(trade.timestamp)
-            })
+            trade = models.Trade(db_orders[0], db_orders[1], matching_price, quantity)
+            db_session.add(trade)
 
-        # The accountant needs to post both sides of the transaction at once
-        transaction = {
-                'aggressive_username': self.username,
-                'passive_username': other_order.username,
-                'contract': contract_name,
-                'quantity': quantity,
-                'price': matching_price,
-                'contract_type': db_orders[0].contract.contract_type,
-                'aggressive_order_id': self.id,
-                'passive_order_id': other_order.id,
-                'timestamp': util.dt_to_timestamp(trade.timestamp),
-                'side': OrderSide.name(self.side)
-            }
-        accountant.post_transaction(transaction)
-        print 'to acct: ',str({'post_transaction': transaction})
+            #commit db
+            db_session.commit()
+            print "db committed."
+            #end db code
 
-        for o in [self, other_order]:
-            # Send an order update
-            order = {'contract': contract_name,
-                     'id': o.id,
-                     'quantity': o.quantity,
-                     'quantity_left': o.quantity_left,
-                     'price': o.price,
-                     'side': OrderSide.name(o.side),
-                     # TODO: is hardcoding 'False' in here correct?
-                     'is_cancelled': False,
-                     'timestamp': util.dt_to_timestamp(o.timestamp)
-            }
-            webserver.order(o.username, order)
-            print 'to ws: ', str({'orders': [o.username, order]})
+            safe_price_publisher.onTrade({'price': matching_price, 'quantity': quantity})
+            webserver.trade(
+                contract_name,
+                {'contract': contract_name,
+                 'quantity': quantity,
+                 'price': matching_price,
+                 'timestamp': util.dt_to_timestamp(trade.timestamp)
+                })
+
+            # The accountant needs to post both sides of the transaction at once
+            transaction = {
+                    'aggressive_username': self.username,
+                    'passive_username': other_order.username,
+                    'contract': contract_name,
+                    'quantity': quantity,
+                    'price': matching_price,
+                    'contract_type': db_orders[0].contract.contract_type,
+                    'aggressive_order_id': self.id,
+                    'passive_order_id': other_order.id,
+                    'timestamp': util.dt_to_timestamp(trade.timestamp),
+                    'side': OrderSide.name(self.side)
+                }
+            accountant.post_transaction(transaction)
+            print 'to acct: ',str({'post_transaction': transaction})
+
+            for o in [self, other_order]:
+                # Send an order update
+                order = {'contract': contract_name,
+                         'id': o.id,
+                         'quantity': o.quantity,
+                         'quantity_left': o.quantity_left,
+                         'price': o.price,
+                         'side': OrderSide.name(o.side),
+                         # TODO: is hardcoding 'False' in here correct?
+                         'is_cancelled': False,
+                         'timestamp': util.dt_to_timestamp(o.timestamp)
+                }
+                webserver.order(o.username, order)
+                print 'to ws: ', str({'orders': [o.username, order]})
+        except Exception as e:
+            db_session.rollback()
+            logging.error("Exception when matching orders: %s" % e)
+            raise e
 
     def cancel(self):
         """
         cancels the order...
         """
-        logging.info("order %d is now cancelled" % self.id)
-        db_order = db_session.query(models.Order).filter_by(id=self.id).one()
-        db_order.is_cancelled = True
-        db_session.merge(db_order)
-        db_session.commit()
+        try:
+            logging.info("order %d is now cancelled" % self.id)
+            db_order = db_session.query(models.Order).filter_by(id=self.id).one()
+            db_order.is_cancelled = True
+            db_session.merge(db_order)
+            db_session.commit()
+        except Exception as e:
+            db_session.rollback()
+            logging.error("Exception when matching orders: %s" % e)
+            raise e
 
     def better(self, price):
         return (self.price - price) * self.side <= 0
