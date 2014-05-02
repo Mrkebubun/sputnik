@@ -34,6 +34,7 @@ class CashierException(Exception):
 WITHDRAWAL_NOT_FOUND = CashierException(0, "Withdrawal not found")
 WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
 OUT_OF_ADDRESSES = CashierException(2, "Out of addresses")
+NO_AUTOMATIC_WITHDRAWAL = CashierException(3, "No automatic withdrawals for this contract")
 
 class Cashier():
     """
@@ -189,7 +190,11 @@ class Cashier():
                 to_user = withdrawal.username
             else:
                 if online:
-                    self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address, float(withdrawal.amount / 1e8))
+                    if withdrawal.contract.ticker in self.bitcoinrpc:
+                        self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address, float(withdrawal.amount / withdrawal.contract.denominator))
+                    else:
+                        raise NO_AUTOMATIC_WITHDRAWAL
+
                     to_user = 'onlinecash'
                 else:
                     to_user = 'offlinecash'
