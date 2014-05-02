@@ -656,15 +656,17 @@ class Accountant:
             logging.error("Exception received while attempting withdrawal: %s" % e)
             raise e
 
-    def deposit_cash(self, address, total_received):
+    def deposit_cash(self, address, received, total=True):
         """Deposits cash
         :param address: The address where the cash was deposited
         :type address: str
-        :param total_received: how much total was received at that address
-        :type total_received: int
+        :param received: how much total was received at that address
+        :type received: int
+        :param total: if True, then received is the total received on that address. If false, then received is just the most recent receipt
+        :type total: bool
         """
         try:
-            logging.debug('received %d at %s' % (total_received, address))
+            logging.debug('received %d at %s - total=%s' % (received, address, total))
 
             #query for db objects we want to update
 
@@ -676,10 +678,15 @@ class Accountant:
             user = self.get_user(total_deposited_at_address.user)
 
             # compute deposit _before_ marking ammount as accounted for
-            deposit = total_received - total_deposited_at_address.accounted_for
+            if total:
+                deposit = received - total_deposited_at_address.accounted_for
+                total_deposited_at_address.accounted_for = received
+            else:
+                deposit = received
+                total_deposited_at_address.accounted_for += deposit
 
             # update address
-            total_deposited_at_address.accounted_for = total_received
+
             self.session.add(total_deposited_at_address)
 
             #prepare cash deposit
@@ -986,8 +993,8 @@ class CashierExport:
         self.accountant = accountant
 
     @export
-    def deposit_cash(self, address, total_received):
-        self.accountant.deposit_cash(address, total_received)
+    def deposit_cash(self, address, received, total=True):
+        self.accountant.deposit_cash(address, received, total=total)
 
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity):
@@ -1029,6 +1036,10 @@ class AdministratorExport:
     @export
     def modify_permission_group(self, id, permissions):
         self.accountant.modify_permission_group(id, permissions)
+
+    @export
+    def deposit_cash(self, address, received, total=True):
+        self.accountant.deposit_cash(address, received, total=total)
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

@@ -104,6 +104,7 @@ class Cashier():
             if total_received > accounted_for:
                 self.notify_accountant(address, total_received)
 
+
     def check_for_crypto_deposits(self, currency='BTC'):
         """
         Checks for crypto deposits in a crypto currency that offers
@@ -268,9 +269,17 @@ class Cashier():
                     self.session.rollback()
                     raise e
         else:
-            address.active = True
             try:
+                old_addresses = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username == username,
+                                                        models.Addresses.active == True,
+                                                        models.Contract.ticker == ticker).order_by(models.Addresses.id).all()
+                address.active = True
+
                 self.session.add(address)
+                for old in old_addresses:
+                    old.active = False
+                    self.session.add(old)
+
                 self.session.commit()
             except Exception as e:
                 logging.error("Exception while activating address %s: %s" % (address, e))

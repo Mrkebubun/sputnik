@@ -233,6 +233,7 @@ $ ->
                         <th>Active</th>
                         <th>Accounted for</th>
                         <th>Rescan for Deposits</th>
+                        <th>Manual Deposit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -243,6 +244,13 @@ $ ->
                         <td>{{address.active}}</td>
                         <td>{{address.quantity_fmt}}</td>
                         <td><a href="/rescan_address?username={{user.username}}&address={{address.address}}">Rescan</a></td>
+                        <td>
+                            <form method="POST" action="/manual_deposit">
+                                <input type="text" name="quantity" placeholder="Quantity">
+                                <input type="hidden" name="address" value="{{address.address}}">
+                                <input type="hidden" name="username" value="{{user.username}}">
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

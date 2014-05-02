@@ -543,6 +543,13 @@ class Administrator:
             quantity, ticker, from_user, to_user))
         self.accountant.transfer_position(ticker, from_user, to_user, quantity)
 
+    def manual_deposit(self, address, quantity_ui):
+        address_db = self.session.query(models.Addresses).filter_by(address=address).one()
+        quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
+
+        logging.debug("Manual deposit of %d to %s" % (quantity, address))
+        self.accountant.deposit_cash(address, quantity, total=False)
+
     def get_balance_sheet(self):
         """Get the balance sheet from the accountant
 
@@ -686,7 +693,8 @@ class AdminWebUI(Resource):
                      },
                     # Level 4
                      {'/transfer_position': self.transfer_position,
-                      '/process_withdrawal': self.process_withdrawal},
+                      '/process_withdrawal': self.process_withdrawal,
+                      '/manual_deposit': self.manual_deposit},
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -828,7 +836,7 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           int(request.args['quantity'][0]))
+                                           float(request.args['quantity'][0]))
         return self.user_details(request)
 
     def transfer_position(self, request):
@@ -836,7 +844,7 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], int(request.args['quantity'][0]))
+                                             request.args['to_user'][0], float(request.args['quantity'][0]))
         return self.user_details(request)
 
     def rescan_address(self, request):
@@ -844,6 +852,13 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.cashier.rescan_address(request.args['address'][0])
+        return self.user_details(request)
+
+    def manual_deposit(self, request):
+        """Tell the cashier that an address received a certain amount of money
+
+        """
+        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]))
         return self.user_details(request)
 
     def admin_list(self, request):
