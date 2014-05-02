@@ -185,10 +185,6 @@ $("#save_changes_button").click (event) ->
 
     $('#account_modal .tab-pane').data('dirty', no)
 
-
-$('#new_address_button').click (event) ->
-    sputnik.newAddress('BTC')
-
 $("#compropago_pay_button").click (event) ->
     event.preventDefault()
     ladda = Ladda.create $("#compropago_pay_button")[0]
@@ -219,38 +215,20 @@ updateBuys = (data) ->
     updateTable "buys", data
 
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-#        _.debounce -> $("#sell_price").val window.best_bid.price
         $("#sell_price").val window.best_bid.price
-#            ,
-#            500, maxWait: 1000
+
 updateSells = (data) ->
     updateTable "sells", data
     if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-#      _.debounce -> $("#buy_price").val window.best_ask.price
         $("#buy_price").val window.best_ask.price
-#        ,
-#        500, maxWait: 1000
+
+
 updateTrades = (data) ->
     trades_reversed = data.reverse()
     rows = for trade in trades_reversed[0..20]
         "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
     $("#trades").html rows.join("")
 
-#updatePlot = (data) ->
-#    console.log "[ui:238 - UpdatePlot called]"
-#    plot_data = for trade in data
-#        [trade.wire_timestamp / 1000, trade.price]
-#    data =
-#        data: plot_data
-#        label: 'Trades'
-#
-#    options =
-#        xaxis:
-#            mode: 'time'
-#            timezone: 'browser'
-#            format: '%H:%M:%S'
-#
-#    $.plot("#lineChart", [data], options)
 
 updateOrders = (orders) ->
     rows = []
@@ -262,8 +240,6 @@ updateOrders = (orders) ->
         price = "<td>#{order.price}</td>"
         quantity = "<td>#{order.quantity_left}</td>"
         contract = "<td>#{order.contract}</td>"
-        #timestamp = "<td>#{order.timestamp}</td>"
-        #id = "<td>#{id}</td>"
         button = "<td><button type='button' class='btn btn-danger' onclick='sputnik.cancelOrder(#{id})'>"
         button += "<span class='glyphicon glyphicon-trash'></span>"
         button += "</button></td>"
@@ -311,12 +287,6 @@ $ ->
             window.contract = $('#contract_list').val()
             sputnik.openMarket window.contract
 
-    $('#withdraw_BTC_button').click ->
-        if $('#withdraw_BTC_address').val() != $('#withdraw_BTC_address_confirm').val()
-            alert "Addresses do not match"
-        else
-            sputnik.requestWithdrawal('BTC', $('#withdraw_BTC_amount').val(), $('#withdraw_BTC_address').val())
-
     sputnik.on "change_password_token", (args) ->
         $('#change_password_token_modal').modal "show"
 
@@ -341,8 +311,10 @@ $ ->
             5000)
 
     sputnik.on "markets", (markets) ->
+        cryptocurrency_list = ["BTC"]
         contracts_output = []
         positions_output = []
+        modals_output = []
 
         for ticker, details of markets
             if details.contract_type != "cash"
@@ -360,6 +332,63 @@ $ ->
                     positions_output.push '<li><a href="#" id="deposit_' + ticker + '">Deposit</a></li>'
                     positions_output.push '<li><a href="#" id="withdraw_' + ticker + '">Withdraw</a></li>'
                     positions_output.push '</ul></li>'
+
+                    modals_output.push '<div id="deposit_' + ticker + '_modal" class="modal fade">'
+                    modals_output.push '<div class="modal-dialog">'
+                    modals_output.push '<div class="modal-content">'
+                    modals_output.push '<div class="modal-header">'
+                    modals_output.push '<button type="button" class="close" data-dismiss="modal">&times;</button>'
+                    modals_output.push '<h4 class="modal-title">Deposit Instructions</h4>'
+                    modals_output.push '</div>'
+                    if ticker in ["BTC"]
+                        modals_output.push '<div class="modal-body">'
+                        modals_output.push '<legend><a id="' + ticker + '_deposit_address"></a></legend>'
+                        modals_output.push '<div id="' + ticker + '_deposit_qrcode"></div>'
+                        modals_output.push '</div>'
+                        modals_output.push '<div class="modal-footer">'
+                        modals_output.push '<button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="' + ticker + '_new_address_button"><span class="ladda-label">New Address</span></button>'
+                        modals_output.push '</div>'
+                    else
+                        modals_output.push '<div class="modal-body">'
+                        modals_output.push '<div id="' + ticker + '_deposit_instructions"></div>'
+                        modals_output.push '<div id="' + ticker + '_deposit_address"></div>'
+                        modals_output.push '</div>'
+                        modals_output.push '<div class="modal-footer">'
+                        modals_output.push '<button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="' + ticker + '_new_address_button"><span class="ladda-label">New Address</span></button>'
+                        modals_output.push '</div>'
+
+
+                    modals_output.push '</div></div></div>'
+                    modals_output.push '<div id="withdraw_' + ticker + '_modal" class="modal fade">'
+                    modals_output.push '<div class="modal-dialog">'
+                    modals_output.push '<div class="modal-content">'
+                    modals_output.push '<div class="modal-header">'
+                    modals_output.push '<button type="button" class="close" data-dismiss="modal">&times;</button>'
+                    modals_output.push '<h4 class="modal-title">Withdrawal</h4>'
+                    modals_output.push '</div>'
+                    if ticker in cryptocurrency_list
+                        modals_output.push '<div class="modal-body">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_address" placeholder="Address">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_address_confirm" placeholder="Confirm Address">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_amount" placeholder="Amount">'
+                        modals_output.push '</div>'
+                        modals_output.push '<div class="modal-footer">'
+                        modals_output.push '<button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="withdraw_' + ticker + '_button"><span class="ladda-label">Withdraw</span></button>'
+                        modals_output.push '</div>'
+                    else
+                        modals_output.push '<div class="modal-body">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_bank_name" placeholder="Bank Name">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_bank_number" placeholder="Bank ABA/Swift">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_account_name" placeholder="A/C Name">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_account_number" placeholder="A/C #">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_account_number_confirm" placeholder="A/C # Confirm">'
+                        modals_output.push '<input type="textarea" id="withdraw_' + ticker + '_amount" placeholder="Amount">'
+                        modals_output.push '</div>'
+                        modals_output.push '<div class="modal-footer">'
+                        modals_output.push '<button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="withdraw_' + ticker + '_button"><span class="ladda-label">Withdraw</span></button>'
+                        modals_output.push '</div>'
+
+                    modals_output.push '</div></div></div>'
                 else
                     positions_output.push '<li id="' + ticker + '_balance" class="pull-right">'
                     positions_output.push '<b style="padding: 15px 10px;">' + ticker + '<div id="' + ticker + 'pos"></div></b>'
@@ -367,8 +396,11 @@ $ ->
 
             positions_html = positions_output.join('\n')
             contracts_html = contracts_output.join('\n')
+            modals_html = modals_output.join('\n')
+
             $('#contract_list').html contracts_html
             $('#cash_positions').html positions_html
+            $('#cash_transfer_modals').html modals_html
 
         # We have to create these click functions after the DOM
         # gets updated
@@ -376,7 +408,12 @@ $ ->
             if details.contract_type is "cash"
                 deposit_fn = (ticker_to_use) ->
                     (event) ->
-                        sputnik.getAddress(ticker_to_use)
+                        if ticker_to_use in cryptocurrency_list
+                            sputnik.getAddress(ticker_to_use)
+                        else
+                            sputnik.getDepositInstructions(ticker_to_use)
+                            sputnik.getAddress(ticker_to_use)
+
                         $("#deposit_#{ticker_to_use}_modal").modal()
 
                 withdraw_fn = (ticker_to_use) ->
@@ -385,6 +422,35 @@ $ ->
 
                 $("#deposit_#{ticker}").click deposit_fn(ticker)
                 $("#withdraw_#{ticker}").click withdraw_fn(ticker)
+
+                new_address_button_fn = (ticker_to_use) ->
+                    (event) ->
+                        sputnik.newAddress(ticker_to_use)
+
+                $("##{ticker}_new_address_button").click new_address_button_fn(ticker)
+
+                withdraw_button_fn = (ticker_to_use) ->
+                    () ->
+                        if ticker_to_use in cryptocurrency_list
+                            if $("#withdraw_#{ticker_to_use}_address").val() != $("#withdraw_#{ticker_to_use}_address_confirm").val()
+                                alert "Addresses do not match"
+                                return
+                            else
+                                address = $("#withdraw_#{ticker_to_use}_address").val()
+                        else
+                            if $("#withdraw_#{ticker_to_use}_account_number").val() != $("#withdraw_#{ticker_to_use}_account_number_confirm").val()
+                                alert "Addresses do not match"
+                                return
+                            else
+                                bank_number = $("#withdraw_#{ticker_to_use}_bank_number").val()
+                                bank_name = $("#withdraw_#{ticker_to_use}_bank_name").val()
+                                account_number = $("#withdraw_#{ticker_to_use}_account_number").val()
+                                account_name = $("#withdraw_#{ticker_to_use}_account_name").val()
+                                address = "#{bank_name} (#{bank_number}) -> #{account_name} (#{account_number})"
+
+                        sputnik.requestWithdrawal(ticker_to_use, $("#withdraw_#{ticker_to_use}_amount").val(), address)
+
+                $("#withdraw_#{ticker}_button").click withdraw_button_fn(ticker)
 
         sputnik.openMarket(window.contract)
 
@@ -454,11 +520,16 @@ sputnik.on "chat", (chat_messages) ->
     $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
 
 sputnik.on "address", (info) ->
-    # We only support BTC here
+    ticker = info[0]
     address = info[1]
-    $('#btc_deposit_address').attr('href', 'bitcoin:' + address).text(address)
-    $('#btc_deposit_qrcode').empty()
-    $('#btc_deposit_qrcode').qrcode("bitcoin:" + address)
+    $("##{ticker}_deposit_address").attr('href', 'bitcoin:' + address).text(address)
+    $("##{ticker}_deposit_qrcode").empty()
+    $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
+
+sputnik.on "deposit_instructions", (event) ->
+    ticker = event[0]
+    instructions = event[1]
+    $("##{ticker}_deposit_instructions").text instructions
 
 sputnik.on "ohlcv", (ohlcv) ->
     sputnik.log ["ohlcv received", ohlcv]

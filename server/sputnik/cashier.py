@@ -14,12 +14,13 @@ from compropago import Compropago
 import util
 
 import config
-from zmq_util import dealer_proxy_sync, pull_share_async, export
+from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export
 import models
 import database as db
-from jsonschema import ValidationError
 from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
+import base64
+from Crypto.Random.random import getrandbits
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -32,6 +33,7 @@ class CashierException(Exception):
 
 WITHDRAWAL_NOT_FOUND = CashierException(0, "Withdrawal not found")
 WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
+OUT_OF_ADDRESSES = CashierException(2, "Out of addresses")
 
 class Cashier():
     """
@@ -241,6 +243,57 @@ class Cashier():
         """
         raise NotImplementedError()
 
+    def get_new_address(self, username, ticker):
+        address = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username == username,
+                                                    models.Addresses.active == False,
+                                                    models.Contract.ticker == ticker).order_by(models.Addresses.id).first()
+
+        if address is None:
+            if ticker == "BTC":
+                # TODO: Generate new BTC addresses as needed
+                raise OUT_OF_ADDRESSES
+            else:
+                try:
+                    address_str = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
+                    contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+                    user = self.session.query(models.User).filter_by(username=username).one()
+
+                    address = models.Addresses(user, contract, address_str)
+                    address.active = True
+                    self.session.add(address)
+                    self.session.commit()
+                    return address.address
+                except Exception as e:
+                    logging.error("Unable to create new address for: %s/%s: %s" % (username, ticker, e))
+                    self.session.rollback()
+                    raise e
+        else:
+            address.active = True
+            try:
+                self.session.add(address)
+                self.session.commit()
+            except Exception as e:
+                logging.error("Exception while activating address %s: %s" % (address, e))
+                self.session.rollback()
+                raise e
+
+            return address.address
+
+    def get_current_address(self, username, ticker):
+        address = self.session.query(models.Addresses).join(models.Contract).filter(models.Addresses.username==username,
+                                                    models.Addresses.active==True,
+                                                    models.Contract.ticker==ticker).first()
+        if address is None:
+            return self.get_new_address(username, ticker)
+        else:
+            return address.address
+
+    def get_deposit_instructions(self, ticker):
+        if ticker == "BTC":
+            return "Deposit using BTC to this address"
+        else:
+            return "Go to the bank and use this code in the special notes"
+
 class CompropagoHook(Resource):
     """
     Resource URL for compropago to give us callbacks
@@ -306,6 +359,21 @@ class BitcoinNotify(Resource):
         self.cashier.check_for_crypto_deposits('BTC')
         return "OK"
 
+class WebserverExport:
+    def __init__(self, cashier):
+        self.cashier = cashier
+
+    @export
+    def get_new_address(self, username, ticker):
+        return self.cashier.get_new_address(username, ticker)
+
+    @export
+    def get_current_address(self, username, ticker):
+        return self.cashier.get_current_address(username, ticker)
+
+    @export
+    def get_deposit_instructions(self, ticker):
+        return self.cashier.get_deposit_instructions(ticker)
 
 class AdministratorExport:
     def __init__(self, cashier):
@@ -349,11 +417,14 @@ if __name__ == '__main__':
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)
+    webserver_export = WebserverExport(cashier)
 
     pull_share_async(administrator_export,
                      config.get("cashier", "administrator_export"))
     pull_share_async(accountant_export,
                     config.get("cashier", "accountant_export"))
+    router_share_async(webserver_export,
+                       config.get("cashier", "webserver_export"))
 
     public_server = Resource()
     public_server.putChild('compropago', CompropagoHook(cashier))

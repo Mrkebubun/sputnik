@@ -465,6 +465,12 @@ class @Sputnik extends EventEmitter
                 @error ["new address failure for #{contract}", error]
                 @emit "new_address_fail", error
 
+    getDepositInstructions: (contract) =>
+        @call("get_deposit_instructions", contract).then \
+            (instructions) =>
+                @log "Deposit instructions for #{contract}: #{instructions}"
+                @emit "deposit_instructions", [contract, instructions]
+
     requestWithdrawal: (ticker, amount, address) =>
         @call("request_withdrawal", ticker, @quantityToWire(ticker, amount), address).then \
         (result) =>

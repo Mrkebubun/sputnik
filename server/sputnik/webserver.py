@@ -939,33 +939,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :returns: Deferred
         """
         validate(ticker, {"type": "string"})
-        # Make sure the currency is lowercase here
         ticker = ticker[:MAX_TICKER_LENGTH]
 
-        def _get_new_address(txn, username):
-            """
+        def onError(failure):
+            return [False, failure.value.args]
 
-            :param txn:
-            :param username:
-            :returns: list - [success, new address]
-            """
-            txn.execute(
-                "SELECT addresses.id, addresses.address FROM addresses, contracts WHERE "
-                "addresses.username IS NULL AND addresses.active=FALSE AND "
-                "addresses.contract_id=contracts.id AND contracts.ticker=%s"
-                " ORDER BY addresses.id LIMIT 1", (ticker,))
-            res = txn.fetchall()
-            if not res:
-                logging.error("Out of addresses!")
-                return [False, (0, "Out of addresses!")]
+        def onNewAddress(address):
+            return [True, address]
 
-            a_id, a_address = res[0][0], res[0][1]
-            txn.execute("UPDATE addresses SET active=FALSE WHERE username=%s", (username,))
-            txn.execute("UPDATE addresses SET active=TRUE, username=%s WHERE id=%s",
-                        (username, a_id))
-            return [True, a_address]
+        d = self.factory.cashier.get_new_address(self.username, ticker)
+        d.addCallbacks(onNewAddress, onError)
+        return d
 
-        return dbpool.runInteraction(_get_new_address, self.username)
 
     @exportRpc("get_current_address")
     def get_current_address(self, ticker):
@@ -975,28 +960,32 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :returns: Deferred
         """
         validate(ticker, {"type": "string"})
-        # Make sure currency is lower-cased
         ticker = ticker[:MAX_TICKER_LENGTH]
 
-        def _cb(result):
-            """
+        def onError(failure):
+            return [False, failure.value.args]
 
-            :param result:
-            :returns: list - [success, address or message]
-            """
-            if not result:
-                logging.warning(
-                    "we did not manage to get the current address associated with a user,"
-                    " something's wrong")
-                return [False, (0, "No address associated with user %s" % self.username)]
-            else:
-                return [True, result[0][0]]
+        def onCurrentAddress(address):
+            return [True, address]
 
-        return dbpool.runQuery(
-            "SELECT addresses.address FROM addresses, contracts WHERE "
-            "addresses.username=%s AND addresses.active=TRUE AND "
-            "addresses.contract_id=contracts.id AND contracts.ticker=%s"
-            "ORDER BY addresses.id LIMIT 1", (self.username, ticker)).addCallback(_cb)
+        d = self.factory.cashier.get_current_address(self.username, ticker)
+        d.addCallbacks(onCurrentAddress, onError)
+        return d
+
+    @exportRpc("get_deposit_instructions")
+    def get_deposit_instructions(self, ticker):
+        validate(ticker, {"type": "string"})
+        ticker = ticker[:MAX_TICKER_LENGTH]
+
+        def onError(failure):
+            return [False, failure.value.args]
+
+        def onDepositInstructions(instructions):
+            return [True, instructions]
+
+        d = self.factory.cashier.get_deposit_instructions(ticker)
+        d.addCallbacks(onDepositInstructions, onError)
+        return d
 
     @exportRpc("request_withdrawal")
     def request_withdrawal(self, ticker, amount, address):
@@ -1365,7 +1354,8 @@ class PepsiColaServerFactory(WampServerFactory):
     """
 
     # noinspection PyPep8Naming
-    def __init__(self, url, base_uri, debugWamp=False, debugCodePaths=False):
+    def __init__(self, url, base_uri, accountant, administrator, cashier, compropago,
+                 recaptcha, debugWamp=False, debugCodePaths=False):
         """
 
         :param url:
@@ -1389,24 +1379,16 @@ class PepsiColaServerFactory(WampServerFactory):
         self.ohlcv_history = collections.defaultdict(dict)
         self.chats = []
         self.cookies = {}
+
         self.public_interface = PublicInterface(self)
 
-        self.engine_export = EngineExport(self)
-        self.accountant_export = AccountantExport(self)
-        pull_share_async(self.engine_export,
-                         config.get("webserver", "engine_export"))
-        pull_share_async(self.accountant_export,
-                         config.get("webserver", "accountant_export"))
+        self.accountant = accountant
+        self.administrator = administrator
+        self.cashier = cashier
 
-        self.accountant = dealer_proxy_async(
-            config.get("accountant", "webserver_export"))
-        self.administrator = dealer_proxy_async(
-            config.get("administrator", "webserver_export"))
+        self.compropago = compropago
+        self.recaptcha = recaptcha
 
-        self.compropago = compropago.Compropago(config.get("cashier", "compropago_key"))
-        self.recaptcha = recaptcha.ReCaptcha(
-            private_key=config.get("webserver", "recaptcha_private_key"),
-            public_key=config.get("webserver", "recaptcha_public_key"))
 
     def update_ohlcv(self, trade, period="day", update_feed=False):
         """
@@ -1451,11 +1433,9 @@ class PepsiColaServerFactory(WampServerFactory):
 
 class TicketServer(Resource):
     isLeaf = True
-    def __init__(self, administrator):
+    def __init__(self, administrator, zendesk):
         self.administrator = administrator
-        self.zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
-                      config.get("ticketserver", "zendesk_token"),
-                      config.get("ticketserver", "zendesk_email"))
+        self.zendesk = zendesk
 
         Resource.__init__(self)
 
@@ -1595,8 +1575,28 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    factory = PepsiColaServerFactory(uri, base_uri, debugWamp=debug, debugCodePaths=debug)
+    accountant = dealer_proxy_async(
+            config.get("accountant", "webserver_export"))
+    administrator = dealer_proxy_async(
+            config.get("administrator", "webserver_export"))
+    cashier = dealer_proxy_async(config.get("cashier", "webserver_export"))
+    compropago = compropago.Compropago(config.get("cashier", "compropago_key"))
+    recaptcha = recaptcha.ReCaptcha(
+            private_key=config.get("webserver", "recaptcha_private_key"),
+            public_key=config.get("webserver", "recaptcha_public_key"))
+
+    factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
+                                     debugWamp=debug, debugCodePaths=debug)
     factory.protocol = PepsiColaServerProtocol
+
+    engine_export = EngineExport(factory)
+    accountant_export = AccountantExport(factory)
+
+    pull_share_async(engine_export,
+                         config.get("webserver", "engine_export"))
+    pull_share_async(accountant_export,
+                         config.get("webserver", "accountant_export"))
+
 
     # prevent excessively large messages
     # https://autobahn.ws/python/reference
@@ -1605,8 +1605,10 @@ if __name__ == '__main__':
     listenWS(factory, contextFactory, interface=interface)
 
     administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
-    ticket_server =  TicketServer(administrator)
-
+    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+    ticket_server =  TicketServer(administrator, zendesk)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))
