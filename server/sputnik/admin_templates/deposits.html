@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Deposits{% endblock %}
+{% block coffeescript %}
+    <script type="text/coffeescript">
+        $ ->
+            rows = $("#deposits").children("tbody").children("tr")
+
+            $("#search").keyup ->
+                term = $.trim $(@).val().toLowerCase()
+                rows.hide()
+                if $("#exact").prop("checked")
+                    for row in rows
+                        for line in $(row).text().split "\n"
+                            if $.trim(line) is term
+                                $(row).show()
+                else
+                    for row in rows
+                        if $(row).text().search(term) > -1
+                            $(row).show()
+
+            # restripe
+            $("tr").removeClass("alternate")
+            $("tr:not(.hide):odd").addClass("alternate")
+
+            $("#exact").change -> $("#search").keyup()
+    </script>
+{% endblock %}
+{% block deposits_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">Deposit List</div>
+    <div class="panel-body">
+    <form role="form" action="#">
+    <div class="form-group">
+        <input type="search" id="search" autocomplete="off" placeholder="Search">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="exact"> Exact match
+            </label>
+        </div>
+    </div>
+    </form>
+    <table id="deposits" class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Currency</th>
+                <th>Address</th>
+                <th>Active</th>
+                <th>Accounted for</th>
+                <th>Rescan for Deposits</th>
+                <th>Manual Deposit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for address in deposits %}
+            <tr>
+                <td><a href="/user_details?username={{address.username}}">{{address.username}}</a></td>
+                <td>{{address.contract.ticker}}</td>
+                <td>{{address.address}}</td>
+                <td>{{address.active}}</td>
+                <td>{{address.quantity_fmt}}</td>
+                <td><a href="/rescan_address?username={{address.username}}&address={{address.address}}">Rescan</a></td>
+                <td>
+                    <form method="POST" action="/manual_deposit">
+                        <input type="text" name="quantity" placeholder="Quantity">
+                        <input type="hidden" name="address" value="{{address.address}}">
+                        <input type="hidden" name="username" value="{{address.username}}">
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+{% endblock %}
+

@@ -565,6 +565,18 @@ class Administrator:
         permission_groups = self.session.query(models.PermissionGroup).all()
         return permission_groups
 
+    def get_contracts(self):
+        contracts = self.session.query(models.Contract).all()
+        return contracts
+
+    def get_withdrawals(self):
+        withdrawals = self.session.query(models.Withdrawal).all()
+        return withdrawals
+
+    def get_deposits(self):
+        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
+        return addresses
+
     def change_permission_group(self, username, id):
         """Change the permission group for a user
 
@@ -679,11 +691,12 @@ class AdminWebUI(Resource):
                       '/user_details': self.user_details,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
+                      '/contracts': self.contracts,
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
                       '/permission_groups': self.permission_groups,
-                      '/change_permission_group': self.change_permission_group
+                      '/change_permission_group': self.change_permission_group,
                      },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
@@ -692,14 +705,17 @@ class AdminWebUI(Resource):
                       '/modify_permission_group': self.modify_permission_group
                      },
                     # Level 4
-                     {'/transfer_position': self.transfer_position,
+                     {
                       '/process_withdrawal': self.process_withdrawal,
+                      '/withdrawals': self.withdrawals,
+                      '/deposits': self.deposits,
                       '/manual_deposit': self.manual_deposit},
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
                       '/set_admin_level': self.set_admin_level,
                       '/force_reset_admin_password': self.force_reset_admin_password,
+                      '/transfer_position': self.transfer_position,
                       '/adjust_position': self.adjust_position}]
         
         resource_list = {}
@@ -763,6 +779,21 @@ class AdminWebUI(Resource):
         id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
         return self.user_details(request)
+
+    def contracts(self, request):
+        contracts = self.administrator.get_contracts()
+        t = self.jinja_env.get_template('contracts.html')
+        return t.render(contracts=contracts).encode('utf-8')
+
+    def withdrawals(self, request):
+        withdrawals = self.administrator.get_withdrawals()
+        t = self.jinja_env.get_template('withdrawals.html')
+        return t.render(withdrawals=withdrawals).encode('utf-8')
+
+    def deposits(self, request):
+        deposits = self.administrator.get_deposits()
+        t = self.jinja_env.get_template('deposits.html')
+        return t.render(deposits=deposits).encode('utf-8')
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
