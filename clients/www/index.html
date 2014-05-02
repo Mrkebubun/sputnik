@@ -1,1 +1,924 @@
-mexbt.html
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="ui.css"/>
+    <link rel="stylesheet" type="text/css" href="chart.css"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/flot/0.8.1/jquery.flot.time.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/spin.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.js"></script>
+    <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+    <script src="//www.google.com/recaptcha/api/js/recaptcha_ajax.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+    <script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64-min.js"></script>
+    <!-- TODO: Find a CDN source for EventEmitter.js -->
+    <script src="min.js/EventEmitter.min.js"></script>
+
+    <!-- Chart -->
+    <script src="min.js/d3.v3.js"></script>
+    <script src="min.js/d3.chart.js"></script>
+    <script src="min.js/baseCandlestick.js"></script>
+    <script src="min.js/ohlc.js"></script>
+    <script src="min.js/candlestickChartLib.js"></script>
+    <script src="min.js/volume.js"></script>
+    <!--/Chart -->
+
+
+    <script src="sputnik.coffee" type="text/coffeescript"></script>
+    <script src="ui.coffee" type="text/coffeescript"></script>
+    <title>Sputnik Exchange Engine</title>
+</head>
+
+<body>
+
+<div class="modal fade" id="login_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Login</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-signin" role="form">
+                    <input type="text" class="form-control" id="login_username" placeholder="Username" required
+                           autofocus><br>
+                    <input type="password" class="form-control" id="login_password" placeholder="Password"
+                    required><br>
+                    <a href="#" id="get_reset_token">Reset password</a>
+                </form>
+                <div class="alert alert-warning" style="display:none" id="login_error">
+                    Incorrect username or password.
+                </div>
+                <div id="reset_token_sent" class="alert alert-info">
+                    Check your email. Contact customer support for further assistance...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="login_button"><span class="ladda-label">Login</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="compropago_confirm_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Success</h4>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <p id="compropago_confirm"></p>
+                    <ol>
+                        <li id="compropago_step_1"></li>
+                        <li id="compropago_step_2"></li>
+                        <li id="compropago_step_3"></li>
+                    </ol>
+                    <p id="compropago_expiration"></p>
+                    <p id="compropago_comition"></p>
+                </div>
+                <button type="button" class="btn btn-default" data-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deposit_MXN_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit with compropago</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form" role="form">
+                    <emph style="color:red;">
+                        Your deposited balance may not exceed 6000 MXN in beta. If you attempt a deposit beyond that
+                        limit, your account will not be credited and you will have to contact customer service
+                        to receive a refund of the funds you attempted to deposit.
+                    </emph>
+                    <!--<label class="control-label" for="compropago_amount">-->
+                        <!--Amount to deposit (MXN)-->
+                    <!--</label>-->
+                    <!---->
+                    <table  class="table">
+                        <tr>
+                            <td>Amount to deposit<span class="help-block" id="cgo_amount_help"></span></td>
+                            <td id="cgo_amount_bill"><input class="form-control" id="compropago_amount" type="number" min="100" max="600" step="1" value="0"/></td>
+                        </tr>
+                        <tr><td>Compropago deposit fee (2.9% + MXN 3.00)</td><td id="cgo_deposit_fee"></td></tr>
+                        <tr><td>Sales tax</td><td id="cgo_fee_tax"></td></tr>
+                        <tr><td>Amount you will be credited on MexBT</td><td><strong id="cgo_credit"></strong></td></tr>
+                    </table>
+
+                    <label class="control-label" for="compropago_store">Choose a store</label>
+                    <select id="compropago_store" class="form-control">
+                        <option value="OXXO">oxxo</option>
+                        <option value="SEVEN_ELEVEN">Seven Eleven</option>
+                        <option value="EXTRA">Extra</option>
+                        <option value="WALMART">Walmart</option>
+                        <option value="SORIANA">Soriana</option>
+                        <option value="SAMS_CLUB">Sams Club</option>
+                        <option value="CHEDRAUI">Chedraui</option>
+                        <option value="BODEGA_AURRERA">Bodega Aurrera</option>
+                        <option value="SUPERAMA">Superama</option>
+                        <option value="ELEKTRA">Elektra</option>
+                        <option value="VIPS">Vips</option>
+                        <option value="EL_PORTON">El Porton</option>
+                        <option value="FARMACIA_BENAVIDES">Farmacia Benavides</option>
+                        <option value="FARMACIA_GUADALAJARA">Farmacia Guadalajara</option>
+                        <option value="FARMACIA_ESQUIVAR">Farmacia Esquivar</option>
+                        <option value="COPPEL">Coppel</option>
+                    </select>
+                    <label class="control-label" for="compropago_email">email</label>
+                    <input class="form-control" id="compropago_email" name="compropago_email" type="email" value=""/>
+                    <label class="checkbox">
+                        <input type="checkbox" value="send_sms" id="compropago_send_sms"> Send SMS
+                    </label>
+                    <div class="hidden" id="compropago_phone_input_zone">
+                        <label class="control-label" for="compropago_phone">phone number</label>
+                        <input class="form-control" id="compropago_phone" type="tel" name="compropago_phone" value=""/>
+                        <label class="control-label" for="compropago_phone_company">Phone company</label>
+                        <select id="compropago_phone_company" class="form-control">
+                            <option value="TELCEL">telcel</option>
+                            <option value="MOVISTAR">movistar</option>
+                            <option value="ISUACELL">isuacell</option>
+                            <option value="UNEFON">unefon</option>
+                            <option value="NEXTEL">nextel</option>
+                        </select>
+                    </div>
+                </form>
+                <div class="alert alert-warning" style="display:none" id="compropago_error">
+                    Payment error
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="compropago_pay_button" disabled="true"><span class="ladda-label">Pay</span></button>
+            </div>
+            <script type="text/javascript">
+                $('#compropago_send_sms').on('click', function() {
+                    $('#compropago_phone_input_zone').toggleClass('hidden show');
+                });
+                var update_amount = function (e) {
+                    var amount = Number($('#compropago_amount').val());
+                    if (amount!=amount || amount==0) { // if it's not a number don't say anything
+                        $('#cgo_amount_bill').removeClass('has-error');
+                        $('#cgo_amount_bill').removeClass('has-success');
+
+                        $('#cgo_amount_help').text('');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                        return;
+                    }
+                    var fee = Math.ceil( amount * (amount<2500?2.9:2.5) + 300.0)/100.0;
+                    var sales_tax = Math.ceil( fee * 16.0)/100.0;
+                    if (amount < 100) {
+
+                        $('#cgo_amount_bill').removeClass('has-success');
+                        $('#cgo_amount_bill').addClass('has-error');
+
+                        $('#cgo_amount_help').text('You must deposit at least 100 MXN');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                    } else if (amount > 6000) {
+                        $('#cgo_amount_bill').removeClass('has-success');
+                        $('#cgo_amount_bill').addClass('has-error');
+
+                        $('#cgo_amount_help').text('You may not deposit more than 6000 MXN');
+                        $('#cgo_deposit_fee').text('');
+                        $('#cgo_fee_tax').text('');
+                        $('#cgo_credit').text('');
+                        $('#compropago_pay_button').prop('disabled',true)
+                    } else {
+                        $('#cgo_amount_bill').removeClass('has-error');
+                        $('#cgo_amount_bill').addClass('has-success');
+
+                        $('#cgo_amount_help').text('');
+                        $('#cgo_deposit_fee').text(fee.toFixed(2));
+                        $('#cgo_fee_tax').text(sales_tax.toFixed(2));
+                        $('#cgo_credit').text((amount-fee-sales_tax).toFixed(2)+" MXN");
+                        $('#compropago_pay_button').prop('disabled',false)
+                    }
+                }
+                $('#compropago_amount').change(update_amount);
+                $('#compropago_amount').keyup(update_amount);
+            </script>
+        </div>
+    </div>
+</div>
+
+<div id="deposit_BTC_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Address</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Your deposited balance may not exceed 1.0BTC in beta. If you attempt a deposit beyond that
+                    limit, your account will not be credited and you will have to contact customer service
+                    to receive a refund of the funds you attempted to deposit.
+                </emph>
+                <legend><a id="btc_deposit_address"></a></legend>
+                <div id="btc_deposit_qrcode"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="new_address_button"><span class="ladda-label">New Address</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_BTC_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal</h4>
+            </div>
+            <div class="modal-body">
+                <input type="textarea" id="withdraw_BTC_address" placeholder="Address">
+                <input type="textarea" id="withdraw_BTC_address_confirm" placeholder="Confirm Address">
+                <input type="textarea" id="withdraw_BTC_amount" placeholder="Amount">
+            </div>
+            <div class="modal-footer">
+                    <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right" id="withdraw_BTC_button"><span class="ladda-label">Withdraw</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_MXN_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_HUF_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="withdraw_PLN_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Withdrawal Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Withdrawal not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deposit_HUF_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Deposit not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deposit_PLN_modal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Deposit Not Enabled</h4>
+            </div>
+            <div class="modal-body">
+                <emph style="color:red;">
+                    Deposit not enabled
+                </emph>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="change_password_token_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Reset Password</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-signin" role="form">
+                    <input type="password" class="form-control" id="new_password_token" placeholder="New Password" required>
+                    <input type="password" class="form-control" id="new_password_token_confirm" placeholder="Confirm New Password" required>
+                </form>
+                <div class="alert alert-info">Great! Now just enter your new password and we'll be all set.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="change_password_token_button"><span class="ladda-label">Change Password</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="audit_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Audit</h4>
+            </div>
+            <div class="modal-body form-horizontal" id="audit_details">
+                <div class="alert alert-info">
+                    <strong>My Key:</strong> <div id="audit_hash"></div>
+                    <strong>Timestamp:</strong> <div id="audit_timestamp"></div>
+                </div>
+                <ul class="nav nav-tabs">
+                    <li class="active"><a href="#audit_assets" data-toggle="tab">Assets</a></li>
+                    <li><a href="#audit_liabilities" data-toggle="tab">Liabilities</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="audit_assets"></div>
+                    <div class="tab-pane" id="audit_liabilities"></div>
+               </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-info" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="transactions_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Transactions</h4>
+            </div>
+            <div class="modal-body form-horizontal">
+                <h4>Transactions</h4>
+
+                <table id="transaction_history" class="table table-striped table-hover table-bordered">
+                    <thead>
+                    <tr>
+                        <th width="10%">Timestamp</th>
+                        <th>Type</th>
+                        <th>Contract</th>
+                        <th class="text-right">Quantity</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-info" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="modal fade" id="account_modal">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Account Management</h4>
+            </div>
+            <div class="modal-body form-horizontal">
+                <ul class="nav nav-tabs">
+                    <li class="active"><a href="#user_information_tab" data-toggle="tab">User Information</a></li>
+                    <li><a href="#change_password_tab" data-toggle="tab">Change Password</a></li>
+                    <li><a href="#compliance_tab" data-toggle="tab">Compliance</a></li>
+                </ul>
+                <div class="tab-content">
+
+                <div class="tab-pane active" id="user_information_tab">
+
+                    <form class="form-horizontal">
+                            <div class="form-group">
+                                <label class="col-xs-3 control-label">Username</label>
+
+                                <div class="col-xs-9">
+                                    <input id="acct_management_username" readonly type="text"
+                                           class="form-control col-sm-10" id="">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_email" class="col-xs-3 control-label">Email</label>
+
+                                <div class="col-xs-9">
+                                    <input id="new_email" type="text" class="form-control col-sm-10"
+                                           placeholder="New Email">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_nickname" class="col-xs-3 control-label">Nickname</label>
+
+                                <div class="col-xs-9">
+                                    <input id="new_nickname" type="text" class="form-control col-sm-10"
+                                           placeholder="Nickname">
+                                </div>
+                            </div>
+
+                    </form>
+                </div>
+
+                    <div class="tab-pane" id="change_password_tab">
+                        <form class="form-horizontal">
+                            <div class="form-group">
+                                <label for="old_password" class="col-xs-3 control-label">Old Password</label>
+
+                                <div class="col-xs-9">
+                                    <input type="password" class="form-control col-sm-10" id="old_password"
+                                           placeholder="Old Password"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_password" class="col-xs-3 control-label">New Password</label>
+
+                                <div class="col-xs-9">
+                                    <input type="password" class="form-control col-sm-10" id="new_password"
+                                           placeholder="New Password"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_password_confirm" class="col-xs-3 control-label">Confirm New
+                                    Password</label>
+
+                                <div class="col-xs-9">
+                                    <input type="password" class="form-control col-sm-10" id="new_password_confirm"
+                                           placeholder="Confirm New Password" required>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+
+
+                    <div class="tab-pane" id="compliance_tab">
+                        <form class="form-horizontal">
+
+                            <fieldset>
+                                <legend>Identify</legend>
+                                <div class="form-group">
+                                    <label for="first_name" class="col-xs-3 control-label">First Name</label>
+
+                                    <div class="col-xs-9">
+                                        <input name="first_name" type="text" class="form-control col-sm-10" id="first_name"
+                                               placeholder="First Name" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="middle_name" class="col-xs-3 control-label">Middle Name</label>
+
+                                    <div class="col-xs-9">
+                                        <input name="middle_name" type="text" class="form-control col-sm-10" id="middle_name"
+                                               placeholder="Middle Name">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="last_name" class="col-xs-3 control-label">Last Name</label>
+
+                                    <div class="col-xs-9">
+                                        <input name="last_name" type="text" class="form-control col-sm-10" id="last_name"
+                                               placeholder="Last Name" required>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Documents</legend>
+                                <div class="form-group">
+                                    <label for="id_passport" class="col-xs-3 control-label">ID/Passport</label>
+
+                                    <div class="col-xs-9">
+                                        <input name="file" type="file" class="form-control col-sm-10" id="id_passport"
+                                               required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="proof_of_residency" class="col-xs-3 control-label">Proof of Residency</label>
+
+                                    <div class="col-xs-9">
+                                        <input name="file" type="file" class="form-control col-sm-10" id="proof_of_residency"
+                                               required>
+                                    </div>
+                                </div>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Questionnaire</legend>
+                                <div class="form-group">
+                                    <label class="col-md-4 control-label" for="">Which of these words starts with
+                                        "Y"?</label>
+
+                                    <div class="col-md-4">
+                                        <div class="radio">
+                                            <label for="radios-0">
+                                                <input type="radio" name="radios" id="radios-0" value="1"
+                                                       checked="checked">
+                                                Yes
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label for="radios-1">
+                                                <input type="radio" name="radios" id="radios-1" value="2">
+                                                No
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-md-4 control-label" for="">Do you think the correct answer
+                                        is yes or no?</label>
+
+                                    <div class="col-md-4">
+                                        <div class="radio">
+                                            <label for="radios-0">
+                                                <input type="radio" name="radios" id="" value="1"
+                                                       checked="checked">
+                                                Yes
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label for="radios-1">
+                                                <input type="radio" name="radios" id="" value="2">
+                                                No
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-md-4 control-label" for="">When you're having a great time,
+                                        what do you say?</label>
+
+                                    <div class="col-md-4">
+                                        <div class="radio">
+                                            <label for="radios-0">
+                                                <input type="radio" name="radios" id="" value="1"
+                                                       checked="checked">
+                                                Yes
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label for="radios-1">
+                                                <input type="radio" name="radios" id="" value="2">
+                                                No
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-md-4 control-label" for="">Are you now, or have you ever
+                                        been?</label>
+
+                                    <div class="col-md-4">
+                                        <div class="radio">
+                                            <label for="radios-0">
+                                                <input type="radio" name="radios" id="" value="yes"
+                                                       checked="checked">
+                                                Yes
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label for="radios-1">
+                                                <input type="radio" name="radios" id="" value="no">
+                                                No
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-md-4 control-label" for="">Did you pack your bag
+                                        yourself?</label>
+
+                                    <div class="col-md-4">
+                                        <div class="radio">
+                                            <label for="radios-0">
+                                                <input type="radio" name="radios" id="" value="1"
+                                                       checked="checked">
+                                                Yes
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label for="radios-1">
+                                                <input type="radio" name="radios" id="" value="2">
+                                                No
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </fieldset>
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <div class="alert alert-warning pull-left">Save will save the other tabs, also.</div>
+                <button class="pull-right ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="save_changes_button"><span class="ladda-label">Save</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="register_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">Register</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-signin form-horizontal" role="form">
+                    <input type="text" class="form-control" id="register_username" placeholder="Username" required
+                           autofocus><br>
+                    <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
+                    <input type="password" class="form-control" id="register_password" placeholder="Password"
+                           required><br>
+                    <input type="text" class="form-control" id="register_nickname"
+                           placeholder="Nickname (for chat)"><br>
+                    <div class="form-group">
+                        <div class="col-xs-9">
+                            <label> <input type="checkbox" id="register_eula" value="1">
+                                I agree
+                                to the <a href="terms.html" target="_blank">terms and conditions</a> <br>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                <div class="alert alert-warning" style="display:none" id="register_error">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                        id="register_button"><span class="ladda-label">Register</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<ul class="nav nav-pills" style="background-color:#F6F6F6; min-height:50px;">
+    <li style="padding: 12px 15px; font-size:18px; color:958881;">
+        <img width="24px" src="favicon.ico"/>
+        <select id="contract_list">
+        </select>
+    </li>
+    <li style="padding: 0px 10px; color:958881;">&nbsp;</li>
+    <li style="padding: 15px 10px; color:958881;">Last: <b id="last"></b></a></li>
+    <li style="padding: 15px 10px; color:958881;">Low: <b id="low"></b></li>
+    <li style="padding: 15px 10px; color:958881;">High: <b id="high"></b></li>
+    <li style="padding: 15px 10px; color:958881;">VWAP: <b id="vwap"></b></li>
+    <li style="padding: 15px 10px; color:958881;">Bid: <b id="best_bid"></b></li>
+    <li style="padding: 15px 10px; color:958881;">Ask: <b id="best_ask"></b></li>
+    <li class="pull-right"><a id="login" href="#" style="padding: 15px 10px;">Log in</a></li>
+    <li class="pull-right"><a id="register" href="#" style="padding: 15px 10px;">Register</a></li>
+    <li id="account_menu" class="dropdown pull-right" style="display:none;">
+        <a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">Logged in as <b
+                id="login_name"></b> <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+            <li><a href="#" id="account"><span class="glyphicon glyphicon-user"></span> Account</a></li>
+            <li><a href="#" id="audit"><span class="glyphicon glyphicon-ok-sign"></span> Audit</a></li>
+            <li><a href="#" id="transactions"><span class="glyphicon glyphicon-book"></span> Transactions</a></li>
+            <li><a href="#" id="logout"><span class="glyphicon glyphicon-share-alt"></span> Logout</a></li>
+            <li>Low Margin:<b id="low_margin"></b></li>
+            <li>High Margin:<b id="high_margin"></b></li>
+        </ul>
+    </li>
+    <ul id="cash_positions" style="display:none;">
+    </ul>
+</ul>
+
+
+<div id="chart" class="jumbotron">
+    <ul class="chartNav">
+        <li class="selected line">Line</li>
+        <li class='ohlc'>OHLC</li>
+        <li class='candlesticks'>Candlesticks</li>
+    </ul>
+
+    <div class="center-block" id="ohlcChart" style="width:80%;">
+
+    </div>
+
+
+</div>
+
+<div class="center-block" id="lineChart" style="width:80%;height:40%">
+
+
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <div id="buy_panel" class="panel panel-default" style="display:none;">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Buy</strong></h3>
+                </div>
+
+                <div class="panel-body">
+                    <form role="form">
+                        <div class="form-group">
+                            <label for="buy_price">Price</label> <input type="text" class="form-control" id="buy_price"
+                                                                        placeholder="">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
+                                                                              id="buy_quantity" placeholder="">
+                        </div>
+                        <div>
+                            <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+                            <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Bids</strong></h3>
+                </div>
+
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                        </tr>
+                        </thead>
+                        <tbody id="buys">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div id="sell_panel" class="panel panel-default" style="display:none;">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Sell</strong></h3>
+                </div>
+                <div class="panel-body">
+                    <form role="form">
+                        <div class="form-group">
+                            <label for="sell_price">Price</label> <input type="text" class="form-control"
+                                                                         id="sell_price" placeholder="">
+                        </div>
+                        <div class="form-group">
+                            <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
+                                                                               id="sell_quantity" placeholder="">
+                        </div>
+                        <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+
+                        <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
+                    </form>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Asks</strong></h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                        </tr>
+                        </thead>
+                        <tbody id="sells">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div id="orders_panel" class="panel panel-default" style="display:none;">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Orders</strong></h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <th>Contract</th>
+                            <th>Type</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Cancel</th>
+                        </tr>
+                        </thead>
+                        <tbody id="orders">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><strong>Trades</strong></h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Timestamp</th>
+                        </tr>
+                        </thead>
+                        <tbody id="trades">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<footer id="footer" class="navbar navbar-fixed-bottom">
+    <a style="padding: 15px 10px; color:958881;" href="mailto:info@m2.io">Contact Us</a>
+    <button id="chatCollapseButton" class="ladda-button" data-color="blue" data-size="xs" data-toggle="collapse" data-parent="#chatFooter" href="#chatZone"
+            class="btn" style="position:absolute; top:0; right:0;">chat
+        <i class="glyphicon glyphicon-chevron-up" id="chatCollapseIcon"></i></button>
+    <div id="chatZone" class="collapse">
+        <textarea readonly id="chatArea" class="chatText" cols="460" rows="10"></textarea>
+
+        <div class="chat-entry">
+            <div class="chat-control"><input type="text" id="chatBox"></div>
+            <div class="chat-control">
+                <button id="chatButton" class="btn" type="button">Send</button>
+            </div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>
