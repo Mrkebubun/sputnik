@@ -742,7 +742,7 @@ class Accountant:
         except Exception as e:
             self.session.rollback()
             logging.error(
-                "Updating user position failed for address=%s and total_received=%d: %s" % (address, total_received, e))
+                "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
 
     def clear_contract(self, ticker):
         """Deletes a contract
