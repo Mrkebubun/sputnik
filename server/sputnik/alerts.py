@@ -39,9 +39,7 @@ class Alerts(object):
 
 
 def send_alert(message, *args, **kwargs):
-    logging.warn("<!--XSUPERVISOR:BEGIN-->")
-    logging.warn(message, *args, **kwargs)
-    logging.warn("<!--XSUPERVISOR:END-->")
+    logging.warn("<!--XSUPERVISOR:BEGIN-->%s<!--XSUPERVISOR:END-->" % message, *args, **kwargs)
 
 
 if __name__ == "__main__":
