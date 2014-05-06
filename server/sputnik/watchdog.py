@@ -6,6 +6,7 @@ from twisted.internet import reactor
 from datetime import datetime, timedelta
 import logging
 import config
+from alerts import send_alert
 
 class WatchdogExport(object):
     @zmq_util.export
@@ -27,6 +28,8 @@ class Watchdog(object):
     def got_ping(self, id):
         gap = datetime.utcnow() - self.ping_times[id]
         logging.info("%s ping %d received: %f ms" % (self.name, id, gap.total_seconds() * 1000))
+        if gap.total_seconds() > 0.1:
+            send_alert("%s lag > 100ms: %f ms" % (self.name, gap.total_seconds() * 1000))
 
     def ping_error(self, error):
         logging.error("%s ping error: %s" % (self.name, error))
