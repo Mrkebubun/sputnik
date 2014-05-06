@@ -32,7 +32,7 @@ class Watchdog(object):
             send_alert("%s lag > 100ms: %f ms" % (self.name, gap.total_seconds() * 1000))
 
     def ping_error(self, error):
-        logging.error("%s ping error: %s" % (self.name, error))
+        send_alert("%s ping error: %s" % (self.name, error))
 
     def ping(self):
         self.ping_times[self.next_ping_id] = datetime.utcnow()
