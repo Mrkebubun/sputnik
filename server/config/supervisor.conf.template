@@ -109,19 +109,10 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [eventlistener:process_exited]
-command=crashmailbatch -a -t ${alert_email} -f ${alert_email} -s "Process exited: "
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
+command=crashmail -a -m ${alert_email}
 events=PROCESS_STATE_EXITED
-
-[eventlistener:process_running]
-command=crashmailbatch -a -t ${alert_email} -f ${alert_email} -s "Process running: "
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-events=PROCESS_STATE_RUNNING
 
 [eventlistener:alerts]
 command= ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-events=PROCESS_COMMUNICATION
+events=PROCESS_COMMUNICATION, PROCESS_LOG
+

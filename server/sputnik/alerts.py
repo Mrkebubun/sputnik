@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from sendmail import Sendmail
-from sys import stdin
+from sys import stdin, stdout
 import config
 import StringIO
 import logging
+from supervisor import childutils
 
 
 class Alerts(object):
@@ -19,6 +20,7 @@ class Alerts(object):
                                to_address=self.to_address)
 
     def process_event(self, headers, data):
+        logging.debug("event arrived: %s / %s" % (headers, data))
         if headers['eventname'].startswith('PROCESS_COMMUNICATION'):
             buf = StringIO.StringIO(data)
             field_line = buf.readline()
@@ -30,17 +32,17 @@ class Alerts(object):
             logging.debug("Sending alert %s / %s" % (subject, message))
             self.alert(message, subject)
 
+        childutils.listener.ok(stdout)
+
     def run(self):
+        logging.debug("Alerter started")
         while True:
-            line = stdin.readline()
-            headers = dict([x.split(':') for x in line.split()])
-            data = stdin.read(int(headers['len']))
+            headers, data = childutils.listener.wait(stdin, stdout)
             self.process_event(headers, data)
 
 
-def send_alert(message, *args, **kwargs):
-    logging.warn("<!--XSUPERVISOR:BEGIN-->%s<!--XSUPERVISOR:END-->" % message, *args, **kwargs)
-
+def send_alert(message):
+    childutils.pcomm.send(message)
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
