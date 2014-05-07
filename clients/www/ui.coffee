@@ -469,6 +469,8 @@ sputnik.on "trade_history", (trade_history) ->
 
 sputnik.on "open", () ->
     sputnik.log "open"
+    $('#main_page').show()
+    $('#not_connected').hide()
 
     # Attempt a cookie login
     cookie = document.cookie
@@ -645,7 +647,9 @@ sputnik.on "fill", (fill) ->
     $.growl.notice { title: "Fill", message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
 sputnik.on "close", (message) ->
-    alert "Connection closed: #{message}"
+    $('#main_page').hide()
+    $('#not_connected').show()
+
 
 d3 = window.d3
 
