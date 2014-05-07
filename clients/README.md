@@ -135,7 +135,7 @@ ticker must be a string. It must be one of the active markets. Returns a time so
 ### get_ohlcv_history(ticker,period,start_timestamp,end_timestamp)
 
 ticker must be a string. It must be one of the active markets. period is minute/hour/day.
-Returns a dict with the key as the timestamp, the end of the period in question.
+Returns a dict with the key as the timestamp, the start of the period in question.
 
 Each entry is an ```ohlcv``` object
 
