@@ -461,7 +461,6 @@ $ ->
 sputnik.on "trade_history", (trade_history) ->
     console.log "[ui:383 - hit trade_history]"
     updateTrades(trade_history[window.contract])
-    lineChartUpdate(trade_history[window.contract])
     if trade_history[window.contract].length
         $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
     else
@@ -542,8 +541,6 @@ sputnik.on "deposit_instructions", (event) ->
 
 sputnik.on "ohlcv", (ohlcv) ->
     sputnik.log ["ohlcv received", ohlcv]
-    if ohlcv.period == "minute"
-        ohlcChartUpdate(ohlcv)
 
 sputnik.on "ohlcv_history", (ohlcv_history) ->
     sputnik.log ["ohlcv_history", ohlcv_history]
@@ -557,8 +554,6 @@ sputnik.on "ohlcv_history", (ohlcv_history) ->
                 $('#low').text last_entry.low.toFixed(precision)
                 $('#high').text last_entry.high.toFixed(precision)
                 $('#vwap').text last_entry.vwap.toFixed(precision)
-        else if last_entry.period == 'minute'
-            ohlcChartLoad(ohlcv_history)
     else
         $('#low').text 'N/A'
         $('#high').text 'N/A'
@@ -650,144 +645,221 @@ sputnik.on "close", (message) ->
     $('#main_page').hide()
     $('#not_connected').show()
 
+generateChartData = () ->
+    chartData = []
+    firstDate = new Date()
+    firstDate.setHours(0, 0, 0, 0)
+    firstDate.setDate(firstDate.getDate() - 2000)
 
-d3 = window.d3
+    for i in [0..2000]
+        newDate = new Date(firstDate)
 
-DataSrc = window.DataSrc = ->
-    self = this
-    @data = [
-    ]
-    return
+        newDate.setDate(newDate.getDate() + i);
 
-DataSrc::add = (ohlcv) ->
-    @last_open_time = new Date(ohlcv.wire_timestamp / 1000)
-    ohlcv.open_time = @last_open_time.toISOString()
-    @data.push ohlcv
+        open = Math.round(Math.random() * (30) + 100)
+        close = open + Math.round(Math.random() * (15) - Math.random() * 10)
 
-    # Keep only 60 in data
-    while @data.length > 60
-        @data.shift()
+        if open < close
+            low = open - Math.round(Math.random() * 5)
+        else
+            low = close - Math.round(Math.random() * 5)
 
-    return
+        if open < close
+            high = close + Math.round(Math.random() * 5)
+        else
+            high = open + Math.round(Math.random() * 5)
 
-DataSrc::load_history = (ohlcv_history) ->
-    @data = []
-    for timestamp, ohlcv of ohlcv_history
-        @add ohlcv
+        volume = Math.round(Math.random() * (1000 + i)) + 100 + i
+        value = Math.round(Math.random() * (30) + 100)
 
-DataSrc::hasData = () ->
-    if @data.length > 0
-        return true
-    else
-        return false
+        data = {
+            date: newDate,
+            open: open,
+            close: close,
+            high: high,
+            low: low,
+            volume: volume,
+            value: value
+        }
 
-window.dataSrc = new DataSrc()
+        chartData.push data
 
-CandlestickChart = window.CandlestickChart
-OHLCChart = window.OHLCChart
-VolumeChart = window.VolumeChart
-clearCharts = ->
-    clearInterval(window.i)
-    $("svg").remove()
-    $('#lineChart:visible').slideUp(500)
-    $('#ohlcChart:visible').slideUp(500)
-    $('#ohlcSelector').hide()
-
-candlesticksChart = ->
-    $('#ohlcChart:hidden').slideDown(500)
-    $('#ohlcSelector').show()
-    candleCanvas = d3.select("#ohlcChart").append("svg")
-    $("br.clear").remove()
-    d3.select("#ohlcChart").append("br").attr "class", "clear"
-    volumeCanvas = d3.select("#ohlcChart").append("svg")
-    myCandlestickChart = candleCanvas.chart("CandlestickChart",
-        exchange: window.contract
-        period: ohlcPeriodSeconds
-        width: $('#ohlcChart').width() - 100
-    )
-    myVolumeChart = volumeCanvas.chart("VolumeChart",
-        period: ohlcPeriodSeconds
-        width: $('#ohlcChart').width() - 100
-    )
-    if dataSrc.hasData()
-        myCandlestickChart.draw dataSrc
-        myVolumeChart.draw dataSrc
-
-ohlcChart = ->
-    $('#ohlcChart:hidden').slideDown(500)
-    $('#ohlcSelector').show()
-    candleCanvas = d3.select("#ohlcChart").append("svg")
-    $("br.clear").remove()
-    d3.select("#ohlcChart").append("br").attr "class", "clear"
-    volumeCanvas = d3.select("#ohlcChart").append("svg")
-    myCandlestickChart = candleCanvas.chart("OHLCChart",
-        exchange: window.contract
-        period: ohlcPeriodSeconds
-        width: $('#ohlcChart').width() - 100
-    )
-    myVolumeChart = volumeCanvas.chart("VolumeChart",
-        period: ohlcPeriodSeconds
-        width: $('#ohlcChart').width() - 100
-    )
-    if dataSrc.hasData()
-        myCandlestickChart.draw dataSrc
-        myVolumeChart.draw dataSrc
-
-ohlcChartUpdate = (data) ->
-    sputnik.log "[chart:598 - ohlcChartUpdate]"
-    dataSrc.add(data)
-
-ohlcChartLoad = (history) ->
-    dataSrc.load_history(history)
-
-lineChartUpdate = (data) ->
-    sputnik.log "[ui:254 - lineChartUpdate]", data
-    return if chartMode isnt 'line'
-    plot_data = for trade in data
-        [trade.wire_timestamp / 1000, trade.price]
-    data =
-        data: plot_data
-        label: 'Trades'
-
-    options =
-        xaxis:
-            mode: 'time'
-            timezone: 'browser'
-            format: '%H:%M:%S'
-    sputnik.log "[chart:611 - plotting]"
-    $.plot("#lineChart", [data], options)
-
-lineChart = ->
-    $('#lineChart:hidden').slideDown(500)
-
-chartMode = 'line'
-ohlcPeriod = 'minute'
-ohlcPeriodSeconds = 60
+    return chartData
 
 $ ->
-    $('#ohlcSelector').hide()
-    $('#chartNav').change ()->
-        clearCharts()
-        chartMode = $('#chartNav').val()
-        switch chartMode
-            when "line" then lineChart()
-            when "ohlc" then ohlcChart()
-            when "candlesticks" then candlesticksChart()
+    chartData = generateChartData()
+    chartOptions = {
+        type: "stock",
+        "theme": "none",
+        pathToImages: "http://www.amcharts.com/lib/3/images/",
+        dataSets: [
+            {
+                fieldMappings: [
+                    {
+                        fromField: "open",
+                        toField: "open"
+                    },
+                    {
+                        fromField: "close",
+                        toField: "close"
+                    },
+                    {
+                        fromField: "high",
+                        toField: "high"
+                    },
+                    {
+                        fromField: "low",
+                        toField: "low"
+                    },
+                    {
+                        fromField: "volume",
+                        toField: "volume"
+                    },
+                    {
+                        fromField: "value",
+                        toField: "value"
+                    }
+                ],
+                color: "#7f8da9",
+                dataProvider: chartData,
+                title: "West Stock",
+                categoryField: "date"
+            },
+            {
+                fieldMappings: [
+                    {
+                        fromField: "value",
+                        toField: "value"
+                    }
+                ],
+                color: "#fac314",
+                dataProvider: chartData,
+                compared: true,
+                title: "East Stock",
+                categoryField: "date"
+            }
+        ],
+        panels: [
+            {
+                title: "Value",
+                showCategoryAxis: false,
+                percentHeight: 70,
+                valueAxes: [
+                    {
+                        dashLength: 5
+                    }
+                ],
+                categoryAxis: {
+                    dashLength: 5
+                },
+                stockGraphs: [
+                    {
+                        type: "candlestick",
+                        id: "g1",
+                        openField: "open",
+                        closeField: "close",
+                        highField: "high",
+                        lowField: "low",
+                        valueField: "close",
+                        lineColor: "#7f8da9",
+                        fillColors: "#7f8da9",
+                        negativeLineColor: "#db4c3c",
+                        negativeFillColors: "#db4c3c",
+                        fillAlphas: 1,
+                        useDataSetColors: false,
+                        comparable: true,
+                        compareField: "value",
+                        showBalloon: false
+                    }
+                ],
 
-    $('#ohlcSelector').change () ->
-        clearCharts()
-        ohlcPeriod = $('#ohlcSelector').val()
-        switch ohlcPeriod
-            when "day" then ohlcPeriodSeconds = 3600 * 24
-            when "hour" then ohlcPeriodSeconds = 3600
-            when "minute" then ohlcPeriodSeconds = 60
-        sputnik.getOHLCVHistory(window.contract, ohlcPeriod)
-        switch chartMode
-            when "ohlc" then ohlcChart()
-            when "candlesticks" then candlesticksChart()
+                stockLegend: {
+                    valueTextRegular: undefined,
+                    periodValueTextComparing: "[[percents.value.close]]%"
+                }
+            },
 
+            {
+                title: "Volume",
+                percentHeight: 30,
+                marginTop: 1,
+                showCategoryAxis: true,
+                valueAxes: [
+                    {
 
-lineChart()
+                        dashLength: 5
+                    }
+                ],
+
+                categoryAxis: {
+                    dashLength: 5
+                },
+
+                stockGraphs: [
+                    {
+                        valueField: "volume",
+                        type: "column",
+                        showBalloon: false,
+                        fillAlphas: 1
+                    }
+                ],
+
+                stockLegend: {
+                    markerType: "none",
+                    markerSize: 0,
+                    labelText: "",
+                    periodValueTextRegular: "[[value.close]]"
+                }
+            }
+        ],
+        chartScrollbarSettings: {
+            graph: "g1",
+            graphType: "line",
+            usePeriod: "WW"
+        },
+
+        periodSelector: {
+            position: "bottom",
+            periods: [
+                {
+                    period: "mm",
+                    count: 60,
+                    label: "1 hour"
+                }
+                {
+                    period: "hh",
+                    count: 24,
+                    label: "24 hours"
+                }
+                {
+                    period: "DD",
+                    count: 10,
+                    label: "10 days"
+                },
+                {
+                    period: "MM",
+                    selected: true,
+                    count: 1,
+                    label: "1 month"
+                },
+                {
+                    period: "YYYY",
+                    count: 1,
+                    label: "1 year"
+                },
+                {
+                    period: "YTD",
+                    label: "YTD"
+                },
+                {
+                    period: "MAX",
+                    label: "MAX"
+                }
+            ]
+        }
+    }
+    sputnik.log chartOptions
+    AmCharts.makeChart("chartdiv", chartOptions)
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()
