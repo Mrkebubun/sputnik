@@ -1,6 +1,7 @@
 import sys
 import os
 from test_sputnik import TestSputnik, FakeProxy
+from twisted.internet import defer
 from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -29,7 +30,7 @@ class FakeEngine(FakeProxy):
     def place_order(self, order):
         self.log.append(('place_order', (order), {}))
         # Always return a good fake result
-        return [True, order['id']]
+        return defer.succeed(order['id'])
 
 
 class TestAccountant(TestSputnik):
@@ -467,31 +468,37 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        result = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'BTC/MXN',
                                                     'price': 10000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
-        self.assertTrue(result[0])
-        id = result[1]
-        from sputnik import models
 
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        self.assertEqual(order.username, 'test')
-        self.assertEqual(order.contract.ticker, 'BTC/MXN')
-        self.assertEqual(order.price, 10000)
-        self.assertEqual(order.quantity, 3000000)
-        self.assertEqual(order.side, 'SELL')
+        def onFail(failure):
+            self.assertFalse(True)
 
-        self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
-                                                                  {'contract': 5,
-                                                                   'id': 1,
-                                                                   'price': 10000,
-                                                                   'quantity': 3000000,
-                                                                   'quantity_left': 3000000,
-                                                                   'side': 1,
-                                                                   'username': u'test'},
-                                                                  {})]))
+        def onSuccess(id):
+            from sputnik import models
+
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            self.assertEqual(order.username, 'test')
+            self.assertEqual(order.contract.ticker, 'BTC/MXN')
+            self.assertEqual(order.price, 10000)
+            self.assertEqual(order.quantity, 3000000)
+            self.assertEqual(order.side, 'SELL')
+
+            self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+                                                                      {'contract': 5,
+                                                                       'id': 1,
+                                                                       'price': 10000,
+                                                                       'quantity': 3000000,
+                                                                       'quantity_left': 3000000,
+                                                                       'side': 1,
+                                                                       'username': u'test'},
+                                                                      {})]))
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_place_order_prediction_buy(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -500,38 +507,43 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
-        result = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'NETS2014',
                                                     'price': 500,
                                                     'quantity': 3,
                                                     'side': 'BUY'})
-        self.assertTrue(result[0])
-        id = result[1]
-        from sputnik import models
+        def onSuccess(id):
+            from sputnik import models
 
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        self.assertEqual(order.username, 'test')
-        self.assertEqual(order.contract.ticker, 'NETS2014')
-        self.assertEqual(order.price, 500)
-        self.assertEqual(order.quantity, 3)
-        self.assertEqual(order.side, 'BUY')
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            self.assertEqual(order.username, 'test')
+            self.assertEqual(order.contract.ticker, 'NETS2014')
+            self.assertEqual(order.price, 500)
+            self.assertEqual(order.quantity, 3)
+            self.assertEqual(order.side, 'BUY')
 
-        pprint(self.engines['NETS2014'].log)
-        self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
-                                                                  {'contract': 8,
-                                                                   'id': 1,
-                                                                   'price': 500,
-                                                                   'quantity': 3,
-                                                                   'quantity_left': 3,
-                                                                   'side': -1,
-                                                                   'username': u'test'},
-                                                                  {})]))
+            pprint(self.engines['NETS2014'].log)
+            self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+                                                                      {'contract': 8,
+                                                                       'id': 1,
+                                                                       'price': 500,
+                                                                       'quantity': 3,
+                                                                       'quantity_left': 3,
+                                                                       'side': -1,
+                                                                       'username': u'test'},
+                                                                      {})]))
 
-        # Check to make sure margin is right
-        from sputnik import margin
-        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
-        self.assertEqual(low_margin, 1500000)
-        self.assertEqual(high_margin, 1500000)
+            # Check to make sure margin is right
+            from sputnik import margin
+            [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+            self.assertEqual(low_margin, 1500000)
+            self.assertEqual(high_margin, 1500000)
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_place_order_prediction_sell(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -540,38 +552,43 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
-        result = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'NETS2014',
                                                     'price': 100,
                                                     'quantity': 3,
                                                     'side': 'SELL'})
-        self.assertTrue(result[0])
-        id = result[1]
-        from sputnik import models
+        def onSuccess(id):
+            from sputnik import models
 
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        self.assertEqual(order.username, 'test')
-        self.assertEqual(order.contract.ticker, 'NETS2014')
-        self.assertEqual(order.price, 100)
-        self.assertEqual(order.quantity, 3)
-        self.assertEqual(order.side, 'SELL')
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            self.assertEqual(order.username, 'test')
+            self.assertEqual(order.contract.ticker, 'NETS2014')
+            self.assertEqual(order.price, 100)
+            self.assertEqual(order.quantity, 3)
+            self.assertEqual(order.side, 'SELL')
 
-        pprint(self.engines['NETS2014'].log)
-        self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
-                                                                  {'contract': 8,
-                                                                   'id': 1,
-                                                                   'price': 100,
-                                                                   'quantity': 3,
-                                                                   'quantity_left': 3,
-                                                                   'side': 1,
-                                                                   'username': u'test'},
-                                                                  {})]))
+            pprint(self.engines['NETS2014'].log)
+            self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+                                                                      {'contract': 8,
+                                                                       'id': 1,
+                                                                       'price': 100,
+                                                                       'quantity': 3,
+                                                                       'quantity_left': 3,
+                                                                       'side': 1,
+                                                                       'username': u'test'},
+                                                                      {})]))
 
-        # Check to make sure margin is right
-        from sputnik import margin
-        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
-        self.assertEqual(low_margin, 2700000)
-        self.assertEqual(high_margin, 2700000)
+            # Check to make sure margin is right
+            from sputnik import margin
+            [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+            self.assertEqual(low_margin, 2700000)
+            self.assertEqual(high_margin, 2700000)
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -581,26 +598,27 @@ class TestWebserverExport(TestAccountant):
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
 
         # Place a sell order, we have enough cash
-        result = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 10000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
-        self.assertFalse(result[0])
-        self.assertTupleEqual(result[1], (1, 'Trading not permitted'))
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
+            self.webserver_export.place_order({'username': 'test',
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 10000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL'})
+
 
     def test_place_order_no_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have no cash
-        result = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 10000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
-        self.assertFalse(result[0])
-        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+             self.webserver_export.place_order({'username': 'test',
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 10000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL'})
 
     def test_place_order_little_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -612,13 +630,14 @@ class TestWebserverExport(TestAccountant):
 
 
         # Place a sell order, we have too little cash
-        result = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 10000,
-                                                    'quantity': 9000000,
-                                                    'side': 'SELL'})
-        self.assertFalse(result[0])
-        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+            result = self.webserver_export.place_order({'username': 'test',
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 10000,
+                                                        'quantity': 9000000,
+                                                        'side': 'SELL'})
+
 
     def test_place_many_orders(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -629,40 +648,48 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        result = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'BTC/MXN',
                                                     'price': 10000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
-        self.assertTrue(result[0])
-        id = result[1]
-        from sputnik import models
 
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        self.assertEqual(order.username, 'test')
-        self.assertEqual(order.contract.ticker, 'BTC/MXN')
-        self.assertEqual(order.price, 10000)
-        self.assertEqual(order.quantity, 3000000)
-        self.assertEqual(order.side, 'SELL')
 
-        self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
-                                                                  {'contract': 5,
-                                                                   'id': 1,
-                                                                   'price': 10000,
-                                                                   'quantity': 3000000,
-                                                                   'quantity_left': 3000000,
-                                                                   'side': 1,
-                                                                   'username': u'test'},
-                                                                  {})]))
 
-        # Place another sell, we have insufficient cash now
-        result = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 10000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
-        self.assertFalse(result[0])
-        self.assertTupleEqual(result[1], (0, 'Insufficient margin'))
+        def onFail():
+            self.assertFalse(True)
+
+        def onSuccess(id):
+            from sputnik import models
+
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            self.assertEqual(order.username, 'test')
+            self.assertEqual(order.contract.ticker, 'BTC/MXN')
+            self.assertEqual(order.price, 10000)
+            self.assertEqual(order.quantity, 3000000)
+            self.assertEqual(order.side, 'SELL')
+
+            self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+                                                                      {'contract': 5,
+                                                                       'id': 1,
+                                                                       'price': 10000,
+                                                                       'quantity': 3000000,
+                                                                       'quantity_left': 3000000,
+                                                                       'side': 1,
+                                                                       'username': u'test'},
+                                                                      {})]))
+
+            # Place another sell, we have insufficient cash now
+            from sputnik import accountant
+            with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+                self.webserver_export.place_order({'username': 'test',
+                                                            'contract': 'BTC/MXN',
+                                                            'price': 10000,
+                                                            'quantity': 3000000,
+                                                            'side': 'SELL'})
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_cancel_order(self):
         pass

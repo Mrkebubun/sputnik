@@ -19,7 +19,8 @@ import database as db
 import models
 from datetime import datetime
 
-
+class EngineException(Exception):
+    pass
 
 class SafePricePublisher(object):
     # update exponential moving average volume weighted vwap
@@ -301,14 +302,12 @@ class ReplaceMeWithARealEngine:
             webserver.order(o.username, {'id': o.id, 'is_cancelled': True, 'contract': contract_name})
         else:
             logging.info("the order cannot be cancelled, it's already outside the book")
-            # TODO: Fix to use exceptions
-            return [False, (0, "the order %d cannot be cancelled, it's already outside the book" % order_id)]
+            raise EngineException(0, "the order %d cannot be cancelled, it's already outside the book" % order_id)
 
         logging.info(pretty_print_book())
         publish_order_book()
 
-        # TODO: Fix to use exceptions
-        return [True, None]
+        return None
 
     @export
     def place_order(self, obj):
@@ -363,8 +362,7 @@ class ReplaceMeWithARealEngine:
         # done placing the order, publish the order book
         logging.info(pretty_print_book())
         publish_order_book()
-        # TODO: Fix to use exception error format
-        return [True, order.id]
+        return order.id
 
 
 if __name__ == "__main__":

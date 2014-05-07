@@ -180,7 +180,7 @@ class Accountant:
 
         """
         if not self.debug:
-            return [False, (0, "Position modification not allowed")]
+            raise AccountantException(0, "Position modification not allowed")
         user = self.get_user(username)
         contract = self.get_contract(ticker)
         position = self.get_position(username, ticker)
@@ -508,6 +508,9 @@ class Accountant:
             self.session.rollback()
             return
 
+    def raiseException(self, failure):
+        raise failure.value
+
     def cancel_order(self, order_id):
         """Cancel an order by id.
 
@@ -519,10 +522,11 @@ class Accountant:
 
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
-            return self.engines[order.contract.ticker].cancel_order(order_id)
+            d = self.engines[order.contract.ticker].cancel_order(order_id)
+            d.addErrback(self.raiseException)
+            return d
         except NoResultFound:
-            # TODO: Fix to use exceptions
-            return [False, (0, "No order %d found" % order_id)]
+            raise AccountantException(0, "No order %d found" % order_id)
 
     def place_order(self, order):
         """Place an order
@@ -535,27 +539,27 @@ class Accountant:
         contract = self.get_contract(order["contract"])
 
         if not contract.active:
-            return [False, (0, "Contract is not active.")]
+            raise AccountantException(0, "Contract is not active.")
 
         if contract.expired:
-            return [False, (0, "Contract expired")]
+            raise AccountantException(0, "Contract expired")
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
             logging.critical("Webserver allowed a 'cash' contract!")
-            return [False, (0, "Not a valid contract type.")]
+            raise AccountantException(0, "Not a valid contract type.")
 
         if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-            return [False, (0, "invalid price or quantity")]
+            raise AccountantException(0, "invalid price or quantity")
 
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                return [False, (0, "invalid price or quantity")]
+                raise Accountant(0, "invalid price or quantity")
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:
-                return [False, (0, "invalid price or quantity")]
+                raise AccountantException(0, "invalid price or quantity")
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
         try:
@@ -566,11 +570,10 @@ class Accountant:
             self.session.rollback()
             raise e
 
-        try:
-            self.accept_order(o)
-            return self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
-        except AccountantException as e:
-            return [False, e.args]
+        self.accept_order(o)
+        d = self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
+        d.addErrback(self.raiseException)
+        return d
 
     def transfer_position(self, ticker, from_username, to_username, quantity):
         """Transfer a position from one user to another

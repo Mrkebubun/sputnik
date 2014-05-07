@@ -1199,9 +1199,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order['username'] = self.username
 
-            # TODO change this to not just pass back what the accountant gives us directly,
-            # because the ZMQ call has to change to not return stuff in the public format
-            return self.factory.accountant.place_order(order)
+            def onSuccess(result):
+                return [True, result]
+
+            def onFail(failure):
+                return [False, failure.value.args]
+
+            d = self.factory.accountant.place_order(order)
+            d.addCallbacks(onSuccess, onFail)
+            return d
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
                                (order['contract'],)).addCallback(_cb)
@@ -1232,9 +1238,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         print 'formatted order_id', order_id
         print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
 
-        # TODO change this to not just pass back what the accountant gives us directly
-        # because the ZMQ call has to change to not return stuff in the public format
-        return self.factory.accountant.cancel_order(order_id)
+        def onSuccess(result):
+            return [True, result]
+
+        def onFail(failure):
+            return [False, failure.value.args]
+
+        d = self.factory.accountant.cancel_order(order_id)
+        d.addCallbacks(onSuccess, onFail)
+        return d
 
     # so we actually never need to call a "verify captcha" function, the captcha parameters are just passed
     # as part as any other rpc that wants to be captcha protected. Leaving this code as an example though
