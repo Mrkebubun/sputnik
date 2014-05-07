@@ -631,6 +631,12 @@ sputnik.on "margin", (margin) ->
     $('#low_margin').text margin[0].toFixed(sputnik.getQuantityPrecision('BTC'))
     $('#high_margin').text margin[1].toFixed(sputnik.getQuantityPrecision('BTC'))
 
+
+sputnik.on "fill", (fill) ->
+    quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
+    price_fmt = fill.price.toFixed(sputnik.getPricePrecision(fill.contract))
+    $.growl.notice { title: "Fill", message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+
 sputnik.on "close", (message) ->
     alert "Connection closed: #{message}"
 
@@ -789,5 +795,3 @@ jQuery.fn.serializeObject = ->
         error: (err) ->
             alert("Error while saving:" + err)
             sputnik.log ["Error:", err]
-
-
