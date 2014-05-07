@@ -468,105 +468,119 @@
         <li class='ohlc'>OHLC</li>
         <li class='candlesticks'>Candlesticks</li>
     </ul>
-
     <div class="center-block" id="ohlcChart" style="width:80%;">
-
     </div>
-
-
+    <div class="center-block" id="lineChart" style="width:80%;height:40%">
+    </div>
 </div>
 
-<div class="center-block" id="lineChart" style="width:80%;height:40%">
 
 
-</div>
 <div class="container">
     <div class="row">
-        <div class="col-md-4">
-            <div id="buy_panel" class="panel panel-default" style="display:none;">
-                <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Buy</strong></h3>
+        <div class="col-md-8">
+            <div class="row">
+                <div class="col-md-6">
+                    <div id="buy_panel" class="panel panel-default" style="display:none;">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><strong>Buy</strong></h3>
+                        </div>
+
+                        <div class="panel-body">
+                            <form role="form">
+                                <div class="form-group">
+                                    <label for="buy_price">Price</label> <input type="text" class="form-control" id="buy_price"
+                                                                                placeholder="">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
+                                                                                      id="buy_quantity" placeholder="">
+                                </div>
+                                <div>
+                                    <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
+                                    <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
+                                </div>
+
+                            </form>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="panel-body">
-                    <form role="form">
-                        <div class="form-group">
-                            <label for="buy_price">Price</label> <input type="text" class="form-control" id="buy_price"
-                                                                        placeholder="">
+                <div class="col-md-6">
+                    <div id="sell_panel" class="panel panel-default" style="display:none;">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><strong>Sell</strong></h3>
                         </div>
+                        <div class="panel-body">
+                            <form role="form">
+                                <div class="form-group">
+                                    <label for="sell_price">Price</label> <input type="text" class="form-control"
+                                                                                 id="sell_price" placeholder="">
+                                </div>
+                                <div class="form-group">
+                                    <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
+                                                                                       id="sell_quantity" placeholder="">
+                                </div>
+                                <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
 
-                        <div class="form-group">
-                            <label for="buy_quantity">Quantity</label> <input type="text" class="form-control"
-                                                                              id="buy_quantity" placeholder="">
+                                <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
+                            </form>
                         </div>
-                        <div>
-                            <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
-                            <button type="button" class="btn btn-primary pull-right" id="buyButton">Buy</button>
-                        </div>
-
-                    </form>
+                    </div>
                 </div>
             </div>
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Bids</strong></h3>
-                </div>
-
-                <div class="panel-body">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                        <tr>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                        </tr>
-                        </thead>
-                        <tbody id="buys">
-                        </tbody>
-                    </table>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><strong>Order Book</strong></h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
+                                            <h3 class="panel-title"><strong>Bids</strong></h3>
+                                        </div>
+                                        <div class="panel-body">
+                                            <table class="table table-striped table-hover">
+                                                <thead>
+                                                <tr>
+                                                    <th>Price</th>
+                                                    <th>Quantity</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="buys">
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
+                                            <h3 class="panel-title"><strong>Asks</strong></h3>
+                                        </div>
+                                        <div class="panel-body">
+                                            <table class="table table-striped table-hover">
+                                                <thead>
+                                                <tr>
+                                                    <th>Price</th>
+                                                    <th>Quantity</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="sells">
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-4">
-            <div id="sell_panel" class="panel panel-default" style="display:none;">
-                <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Sell</strong></h3>
-                </div>
-                <div class="panel-body">
-                    <form role="form">
-                        <div class="form-group">
-                            <label for="sell_price">Price</label> <input type="text" class="form-control"
-                                                                         id="sell_price" placeholder="">
-                        </div>
-                        <div class="form-group">
-                            <label for="sell_quantity">Quantity</label> <input type="text" class="form-control"
-                                                                               id="sell_quantity" placeholder="">
-                        </div>
-                        <div class="alert alert-danger text-center">Your balance is too low for this order.</div>
-
-                        <button type="button" class="btn btn-warning pull-right" id="sellButton">Sell</button>
-                    </form>
-                </div>
-            </div>
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title"><strong>Asks</strong></h3>
-                </div>
-                <div class="panel-body">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                        <tr>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                        </tr>
-                        </thead>
-                        <tbody id="sells">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
         <div class="col-md-4">
             <div id="orders_panel" class="panel panel-default" style="display:none;">
                 <div class="panel-heading">

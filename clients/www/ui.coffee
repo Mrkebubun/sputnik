@@ -207,13 +207,17 @@ $('#chatButton').click ->
     $('#chatBox').val('')
 
 updateTable = (id, data) ->
+    first = true
     rows = for [price, quantity] in data
-        "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
+        if first
+            first = false
+            "<tr class='alert-success'><td>#{price}</td><td>#{quantity}</td></tr>"
+        else
+            "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
     $('#' + "#{id}").html rows.join("")
 
 updateBuys = (data) ->
     updateTable "buys", data
-
     if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
         $("#sell_price").val window.best_bid.price
 
