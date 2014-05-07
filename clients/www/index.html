@@ -463,11 +463,16 @@
 
 
 <div id="chart" class="jumbotron">
-    <ul class="chartNav">
-        <li class="selected line">Line</li>
-        <li class='ohlc'>OHLC</li>
-        <li class='candlesticks'>Candlesticks</li>
-    </ul>
+    <select id="chartNav">
+        <option value="line">Line</option>
+        <option value="ohlc">OHLC</option>
+        <option value="candlesticks">Candlesticks</option>
+    </select>
+    <select id="ohlcSelector">
+        <option value="minute">Minute</option>
+        <option value="hour">Hour</option>
+        <option value="day">Day</option>
+    </select>
     <div class="center-block" id="ohlcChart" style="width:80%;">
     </div>
     <div class="center-block" id="lineChart" style="width:80%;height:40%">

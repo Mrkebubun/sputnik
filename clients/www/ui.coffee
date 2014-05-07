@@ -659,6 +659,11 @@ DataSrc::add = (ohlcv) ->
     @last_open_time = new Date(ohlcv.wire_timestamp / 1000)
     ohlcv.open_time = @last_open_time.toISOString()
     @data.push ohlcv
+
+    # Keep only 60 in data
+    while @data.length > 60
+        @data.shift()
+
     return
 
 DataSrc::load_history = (ohlcv_history) ->
@@ -682,21 +687,22 @@ clearCharts = ->
     $("svg").remove()
     $('#lineChart:visible').slideUp(500)
     $('#ohlcChart:visible').slideUp(500)
-
+    $('#ohlcSelector').hide()
 
 candlesticksChart = ->
     $('#ohlcChart:hidden').slideDown(500)
+    $('#ohlcSelector').show()
     candleCanvas = d3.select("#ohlcChart").append("svg")
     $("br.clear").remove()
     d3.select("#ohlcChart").append("br").attr "class", "clear"
     volumeCanvas = d3.select("#ohlcChart").append("svg")
     myCandlestickChart = candleCanvas.chart("CandlestickChart",
         exchange: window.contract
-        period: 60
+        period: ohlcPeriodSeconds
         width: $('#ohlcChart').width() - 100
     )
     myVolumeChart = volumeCanvas.chart("VolumeChart",
-        period: 60
+        period: ohlcPeriodSeconds
         width: $('#ohlcChart').width() - 100
     )
     if dataSrc.hasData()
@@ -704,18 +710,19 @@ candlesticksChart = ->
         myVolumeChart.draw dataSrc
 
 ohlcChart = ->
-    $('#ohlcChart:hidden').slideDown()
+    $('#ohlcChart:hidden').slideDown(500)
+    $('#ohlcSelector').show()
     candleCanvas = d3.select("#ohlcChart").append("svg")
     $("br.clear").remove()
     d3.select("#ohlcChart").append("br").attr "class", "clear"
     volumeCanvas = d3.select("#ohlcChart").append("svg")
     myCandlestickChart = candleCanvas.chart("OHLCChart",
         exchange: window.contract
-        period: 60
+        period: ohlcPeriodSeconds
         width: $('#ohlcChart').width() - 100
     )
     myVolumeChart = volumeCanvas.chart("VolumeChart",
-        period: 60
+        period: ohlcPeriodSeconds
         width: $('#ohlcChart').width() - 100
     )
     if dataSrc.hasData()
@@ -750,20 +757,31 @@ lineChart = ->
     $('#lineChart:hidden').slideDown(500)
 
 chartMode = 'line'
+ohlcPeriod = 'minute'
+ohlcPeriodSeconds = 60
+
 $ ->
-    $('.chartNav li').click (e)->
-        $('.chartNav .selected').removeClass 'selected'
+    $('#ohlcSelector').hide()
+    $('#chartNav').change ()->
         clearCharts()
-        setTimeout =>
-            chartMode = @.className
-            switch chartMode
-                when "line" then lineChart()
-                when "ohlc" then ohlcChart()
-                when "candlesticks" then candlesticksChart()
-            $(@).addClass('selected')
-        ,
-        700
-        no #don't follow the link to the empty hashtag
+        chartMode = $('#chartNav').val()
+        switch chartMode
+            when "line" then lineChart()
+            when "ohlc" then ohlcChart()
+            when "candlesticks" then candlesticksChart()
+
+    $('#ohlcSelector').change () ->
+        clearCharts()
+        ohlcPeriod = $('#ohlcSelector').val()
+        switch ohlcPeriod
+            when "day" then ohlcPeriodSeconds = 3600 * 24
+            when "hour" then ohlcPeriodSeconds = 3600
+            when "minute" then ohlcPeriodSeconds = 60
+        sputnik.getOHLCVHistory(window.contract, ohlcPeriod)
+        switch chartMode
+            when "ohlc" then ohlcChart()
+            when "candlesticks" then candlesticksChart()
+
 
 lineChart()
 

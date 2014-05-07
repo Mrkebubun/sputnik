@@ -151,7 +151,12 @@ class PublicInterface:
             self.factory.markets = result
             # Update the cache with the last 7 days of trades
             to_dt = datetime.datetime.utcnow()
-            from_dt = to_dt - datetime.timedelta(days=7)
+            from_dt = to_dt - datetime.timedelta(days=60)
+            start_dt_for_period = {
+                'minute': to_dt - datetime.timedelta(minutes=60),
+                'hour': to_dt - datetime.timedelta(hours=60),
+                'day': to_dt - datetime.timedelta(days=60)
+            }
 
             for ticker in self.factory.markets.keys():
                 def _cb2(result, ticker):
@@ -165,7 +170,8 @@ class PublicInterface:
                     self.factory.trade_history[ticker] = trades
                     for period in ["minute", "hour", "day"]:
                         for trade in trades:
-                            self.factory.update_ohlcv(trade, period=period)
+                            if trade.timestamp > dt_to_timestamp(start_dt_for_period[period]):
+                                self.factory.update_ohlcv(trade, period=period)
 
                 dbpool.runQuery(
                     "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
