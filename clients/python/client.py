@@ -104,7 +104,7 @@ class TradingBot(WampCraClientProtocol):
             price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
                     self.markets[ticker]['denominator']
 
-        return price - price % self.markets[ticker]['tick_size']
+        return int(price - price % self.markets[ticker]['tick_size'])
 
     def price_from_wire(self, ticker, price):
         if self.markets[ticker]['contract_type'] == "prediction":
@@ -123,12 +123,12 @@ class TradingBot(WampCraClientProtocol):
 
     def quantity_to_wire(self, ticker, quantity):
         if self.markets[ticker]['contract_type'] == "prediction":
-            return quantity
+            return int(quantity)
         elif self.markets[ticker]['contract_type'] == "cash":
-            return quantity * self.markets[ticker]['denominator']
+            return int(quantity * self.markets[ticker]['denominator'])
         else:
             quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
-            return quantity - quantity % self.markets[ticker]['lot_size']
+            return int(quantity - quantity % self.markets[ticker]['lot_size'])
 
 
     """
@@ -493,5 +493,5 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    connectWS(factory, contextFactory)
+    conn = connectWS(factory, contextFactory)
     reactor.run()
