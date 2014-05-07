@@ -520,12 +520,6 @@ class @Sputnik extends EventEmitter
         @emitOHLCVHistory ticker, "day"
         @getOHLCVHistory ticker, "day"
 
-        @emitOHLCVHistory ticker, "hour"
-        @getOHLCVHistory ticker, "hour"
-
-        @emitOHLCVHistory ticker, "minute"
-        @getOHLCVHistory ticker, "minute"
-
         @follow ticker
 
     getOrderBook: (ticker) =>

@@ -240,17 +240,11 @@ class PublicInterface:
         validate(start_timestamp, {"type": "number"})
         validate(end_timestamp, {"type": "number"})
 
-        period_map = {'minute': 60,
-                      'hour': 3600,
-                      'day': 3600 * 24}
-        period_seconds = int(period_map[period])
-        period_micros = int(period_seconds * 1000000)
-
         if period not in self.factory.ohlcv_history[ticker]:
             return [False, (0, "No OHLCV records in memory")]
 
         ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
-                  if key <= end_timestamp + period_micros and key >= start_timestamp }
+                  if key <= end_timestamp and key >= start_timestamp }
         return [True, ohlcv]
 
     @exportRpc("get_reset_token")
@@ -282,12 +276,11 @@ class PublicInterface:
         return d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
-    def get_trade_history(self, ticker, time_span=3600):
+    def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         """
         Gets a list of trades in recent history
 
         :param ticker: ticker of the contract to get the trade history from
-        :param time_span: time span in seconds to look at
         :returns: list - [True, list of trades]
         """
         # TODO: cache this
@@ -297,15 +290,19 @@ class PublicInterface:
         ticker_schema = {"type": "string"}
         validate(ticker, ticker_schema)
         time_span_schema = {"type": "number"}
-        validate(time_span, time_span_schema)
+        if from_timestamp is not None:
+            validate(from_timestamp, time_span_schema)
 
-        time_span = int(time_span)
-        time_span = min(max(time_span, 0), 365 * 24 * 3600)
+        if to_timestamp is not None:
+            validate(to_timestamp, time_span_schema)
+
+        if from_timestamp is None:
+            from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(hours=1))
+
+        if to_timestamp is None:
+            to_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
+
         ticker = ticker[:MAX_TICKER_LENGTH]
-
-        to_dt = datetime.datetime.utcnow()
-        to_timestamp = dt_to_timestamp(to_dt)
-        from_timestamp = dt_to_timestamp(to_dt - datetime.timedelta(seconds=time_span))
 
         # Filter trade history
         history = [i for i in self.factory.trade_history[ticker]
@@ -1438,7 +1435,8 @@ class PepsiColaServerFactory(WampServerFactory):
                                        'close': trade['price'],
                                        'volume': trade['quantity'],
                                        'vwap': trade['price'],
-                                       'timestamp': start_period}
+                                       'open_timestamp': start_period,
+                                       'close_timestamp': start_period + period_micros - 1}
         else:
             self.ohlcv_history[ticker][period][start_period]['low'] = min(trade['price'], self.ohlcv_history[ticker][period][start_period]['low'])
             self.ohlcv_history[ticker][period][start_period]['high'] = max(trade['price'], self.ohlcv_history[ticker][period][start_period]['high'])

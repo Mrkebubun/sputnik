@@ -290,6 +290,7 @@ $ ->
             sputnik.unfollow window.contract
             window.contract = $('#contract_list').val()
             sputnik.openMarket window.contract
+            plotChart window.contract
 
     sputnik.on "change_password_token", (args) ->
         $('#change_password_token_modal').modal "show"
@@ -457,6 +458,7 @@ $ ->
                 $("#withdraw_#{ticker}_button").click withdraw_button_fn(ticker)
 
         sputnik.openMarket(window.contract)
+        plotChart window.contract
 
 sputnik.on "trade_history", (trade_history) ->
     console.log "[ui:383 - hit trade_history]"
@@ -645,221 +647,145 @@ sputnik.on "close", (message) ->
     $('#main_page').hide()
     $('#not_connected').show()
 
-generateChartData = () ->
-    chartData = []
+plotChart = (ticker) ->
     firstDate = new Date()
-    firstDate.setHours(0, 0, 0, 0)
-    firstDate.setDate(firstDate.getDate() - 2000)
+    # Go back two months
+    firstDate.setDate(firstDate.getDate() - 60)
+    sputnik.call("get_trade_history", ticker, firstDate.getTime() * 1000).then \
+        (trade_history) =>
+            sputnik.log ["got history", trade_history]
+            chartData = []
+            for trade in trade_history
+                data =
+                    price: sputnik.priceFromWire(ticker, trade.price)
+                    quantity: sputnik.quantityFromWire(ticker, trade.quantity)
+                    date: new Date(trade.timestamp / 1000)
 
-    for i in [0..2000]
-        newDate = new Date(firstDate)
+                chartData.push data
 
-        newDate.setDate(newDate.getDate() + i);
-
-        open = Math.round(Math.random() * (30) + 100)
-        close = open + Math.round(Math.random() * (15) - Math.random() * 10)
-
-        if open < close
-            low = open - Math.round(Math.random() * 5)
-        else
-            low = close - Math.round(Math.random() * 5)
-
-        if open < close
-            high = close + Math.round(Math.random() * 5)
-        else
-            high = open + Math.round(Math.random() * 5)
-
-        volume = Math.round(Math.random() * (1000 + i)) + 100 + i
-        value = Math.round(Math.random() * (30) + 100)
-
-        data = {
-            date: newDate,
-            open: open,
-            close: close,
-            high: high,
-            low: low,
-            volume: volume,
-            value: value
-        }
-
-        chartData.push data
-
-    return chartData
-
-$ ->
-    chartData = generateChartData()
-    chartOptions = {
-        type: "stock",
-        "theme": "none",
-        pathToImages: "http://www.amcharts.com/lib/3/images/",
-        dataSets: [
-            {
-                fieldMappings: [
+            chartOptions = {
+                type: "stock",
+                "theme": "none",
+                pathToImages: "http://www.amcharts.com/lib/3/images/",
+                dataSets: [
                     {
-                        fromField: "open",
-                        toField: "open"
-                    },
-                    {
-                        fromField: "close",
-                        toField: "close"
-                    },
-                    {
-                        fromField: "high",
-                        toField: "high"
-                    },
-                    {
-                        fromField: "low",
-                        toField: "low"
-                    },
-                    {
-                        fromField: "volume",
-                        toField: "volume"
-                    },
-                    {
-                        fromField: "value",
-                        toField: "value"
+                        fieldMappings: [
+                            {
+                                fromField: "quantity",
+                                toField: "volume"
+                            },
+                            {
+                                fromField: "price",
+                                toField: "value"
+                            }
+                        ],
+                        color: "#7f8da9",
+                        dataProvider: chartData,
+                        title: window.contract,
+                        categoryField: "date"
                     }
                 ],
-                color: "#7f8da9",
-                dataProvider: chartData,
-                title: "West Stock",
-                categoryField: "date"
-            },
-            {
-                fieldMappings: [
+                panels: [
                     {
-                        fromField: "value",
-                        toField: "value"
+                        title: "Price",
+                        showCategoryAxis: false,
+                        percentHeight: 70,
+                        valueAxes: [
+                            {
+                                dashLength: 5
+                            }
+                        ],
+                        categoryAxis: {
+                            dashLength: 5
+                        },
+                        stockGraphs: [
+                            {
+                                type: "line",
+                                id: "g1",
+                                valueField: "value",
+                                lineColor: "#7f8da9",
+                                fillColors: "#7f8da9",
+                                negativeLineColor: "#db4c3c",
+                                negativeFillColors: "#db4c3c",
+                                fillAlphas: 0,
+                                useDataSetColors: false,
+                                comparable: true,
+                                compareField: "value",
+                                showBalloon: false
+                            }
+                        ],
+                        stockLegend: {
+                            valueTextRegular: undefined,
+                            periodValueTextComparing: "[[percents.value.close]]%"
+                        }
+                    },
+                    {
+                        title: "Volume",
+                        percentHeight: 30,
+                        marginTop: 1,
+                        showCategoryAxis: true,
+                        valueAxes: [
+                            {
+
+                                dashLength: 5
+                            }
+                        ],
+
+                        categoryAxis: {
+                            dashLength: 5
+                        },
+
+                        stockGraphs: [
+                            {
+                                valueField: "volume",
+                                type: "column",
+                                showBalloon: false,
+                                fillAlphas: 1
+                            }
+                        ],
+
+                        stockLegend: {
+                            markerType: "none",
+                            markerSize: 0,
+                            labelText: "",
+                            periodValueTextRegular: "[[value.close]]"
+                        }
                     }
                 ],
-                color: "#fac314",
-                dataProvider: chartData,
-                compared: true,
-                title: "East Stock",
-                categoryField: "date"
-            }
-        ],
-        panels: [
-            {
-                title: "Value",
-                showCategoryAxis: false,
-                percentHeight: 70,
-                valueAxes: [
-                    {
-                        dashLength: 5
-                    }
-                ],
-                categoryAxis: {
-                    dashLength: 5
-                },
-                stockGraphs: [
-                    {
-                        type: "candlestick",
-                        id: "g1",
-                        openField: "open",
-                        closeField: "close",
-                        highField: "high",
-                        lowField: "low",
-                        valueField: "close",
-                        lineColor: "#7f8da9",
-                        fillColors: "#7f8da9",
-                        negativeLineColor: "#db4c3c",
-                        negativeFillColors: "#db4c3c",
-                        fillAlphas: 1,
-                        useDataSetColors: false,
-                        comparable: true,
-                        compareField: "value",
-                        showBalloon: false
-                    }
-                ],
-
-                stockLegend: {
-                    valueTextRegular: undefined,
-                    periodValueTextComparing: "[[percents.value.close]]%"
-                }
-            },
-
-            {
-                title: "Volume",
-                percentHeight: 30,
-                marginTop: 1,
-                showCategoryAxis: true,
-                valueAxes: [
-                    {
-
-                        dashLength: 5
-                    }
-                ],
-
-                categoryAxis: {
-                    dashLength: 5
+                chartScrollbarSettings: {
+                    graph: "g1",
+                    graphType: "line",
+                    usePeriod: "DD"
                 },
 
-                stockGraphs: [
-                    {
-                        valueField: "volume",
-                        type: "column",
-                        showBalloon: false,
-                        fillAlphas: 1
-                    }
-                ],
-
-                stockLegend: {
-                    markerType: "none",
-                    markerSize: 0,
-                    labelText: "",
-                    periodValueTextRegular: "[[value.close]]"
+                periodSelector: {
+                    position: "bottom",
+                    periods: [
+                        {
+                            period: "mm",
+                            count: 60,
+                            label: "1 hour"
+                        }
+                        {
+                            period: "hh",
+                            count: 24,
+                            label: "24 hours"
+                        }
+                        {
+                            period: "DD",
+                            count: 10,
+                            label: "10 days"
+                        }
+                        {
+                            period: "MM",
+                            selected: true,
+                            count: 1,
+                            label: "1 month"
+                        }
+                    ]
                 }
             }
-        ],
-        chartScrollbarSettings: {
-            graph: "g1",
-            graphType: "line",
-            usePeriod: "WW"
-        },
-
-        periodSelector: {
-            position: "bottom",
-            periods: [
-                {
-                    period: "mm",
-                    count: 60,
-                    label: "1 hour"
-                }
-                {
-                    period: "hh",
-                    count: 24,
-                    label: "24 hours"
-                }
-                {
-                    period: "DD",
-                    count: 10,
-                    label: "10 days"
-                },
-                {
-                    period: "MM",
-                    selected: true,
-                    count: 1,
-                    label: "1 month"
-                },
-                {
-                    period: "YYYY",
-                    count: 1,
-                    label: "1 year"
-                },
-                {
-                    period: "YTD",
-                    label: "YTD"
-                },
-                {
-                    period: "MAX",
-                    label: "MAX"
-                }
-            ]
-        }
-    }
-    sputnik.log chartOptions
-    AmCharts.makeChart("chartdiv", chartOptions)
+            AmCharts.makeChart("chartdiv", chartOptions)
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()
