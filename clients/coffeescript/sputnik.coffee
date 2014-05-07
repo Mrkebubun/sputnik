@@ -609,7 +609,7 @@ class @Sputnik extends EventEmitter
                     user = chat[0]
                     msg = chat[1]
                     @chat_messages.push "#{user}: #{msg}"
-                @emit "chat", @chat_messages
+                @emit "chat_history", @chat_messages
 
         @emit "open"
 
@@ -711,12 +711,13 @@ class @Sputnik extends EventEmitter
         @emitTradeHistory(ticker)
 
     onChat: (event) =>
-        # TODO: Something is wrong where my own chats don't show up in this box-- but they do get sent
         user = event[0]
         message = event[1]
-        @chat_messages.push "#{user}: #{message}"
-        @log "Chat: #{user}: #{message}"
-        @emit "chat", @chat_messages
+        msg_txt = "#{user}: #{message}"
+        @chat_messages.push msg_txt
+        @log "Chat: #{msg_txt}"
+        @emit "chat_history", @chat_messages
+        @emit "chat", msg_txt
 
     # My orders get updated with orders
     onOrder: (order) =>

@@ -515,9 +515,12 @@ sputnik.on "positions", (positions) ->
         if @markets[ticker].contract_type != "cash_pair"
             $("##{ticker}pos").text position.position.toFixed(sputnik.getQuantityPrecision(ticker))
 
-sputnik.on "chat", (chat_messages) ->
+sputnik.on "chat_history", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))
-    $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight);
+    $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight)
+
+sputnik.on "chat", (chat) ->
+    $.growl({title: "Chat", message: chat})
 
 sputnik.on "address", (info) ->
     ticker = info[0]
