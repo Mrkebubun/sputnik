@@ -15,8 +15,8 @@ postgresql-driver-license.txt
 sputnik.js
 clients/www/node_modules
 clients/www/raw_ui.js
-*.js
-*.css
+clients/www/*.js
+clients/www/*.css
 sputnik.tar
 docs/build
 _trial_temp
