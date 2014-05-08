@@ -664,139 +664,179 @@ plotChart = (ticker) ->
             for trade in trade_history
                 data =
                     price: sputnik.priceFromWire(ticker, trade.price)
-                    quantity: sputnik.quantityFromWire(ticker, trade.quantity)
+                    volume: sputnik.quantityFromWire(ticker, trade.quantity)
                     date: new Date(trade.timestamp / 1000)
 
                 chartData.push data
 
-            chartOptions = {
-                type: "stock",
-                "theme": "none",
-                pathToImages: "http://www.amcharts.com/lib/3/images/",
-                dataSets: [
-                    {
-                        fieldMappings: [
+
+            sputnik.call("get_ohlcv_history", ticker).then \
+                (ohlcv_history) =>
+                    sputnik.log ["got ohlcv", ohlcv_history]
+                    for timestamp, ohlcv of ohlcv_history
+                        data =
+                            open: sputnik.priceFromWire(ticker, ohlcv.open)
+                            close: sputnik.priceFromWire(ticker, ohlcv.close)
+                            high: sputnik.priceFromWire(ticker, ohlcv.high)
+                            low: sputnik.priceFromWire(ticker, ohlcv.low)
+                            date: new Date(ohlcv.open_timestamp / 1000)
+                            volume: sputnik.quantityFromWire(ticker, ohlcv.volume)
+                        chartData.push data
+
+                    chartOptions = {
+                        type: "stock",
+                        "theme": "none",
+                        pathToImages: "http://www.amcharts.com/lib/3/images/",
+                        dataSets: [
                             {
-                                fromField: "quantity",
-                                toField: "volume"
+                                fieldMappings: [
+                                    {
+                                        fromField: "open",
+                                        toField: "open"
+                                    }, {
+                                        fromField: "close",
+                                        toField: "close"
+                                    }, {
+                                        fromField: "high",
+                                        toField: "high"
+                                    }, {
+                                        fromField: "low",
+                                        toField: "low"
+                                    }, {
+                                        fromField: "volume",
+                                        toField: "volume"
+                                    },
+                                    {
+                                        fromField: "price",
+                                        toField: "value"
+                                    }
+                                ],
+                                color: "#7f8da9",
+                                dataProvider: chartData,
+                                title: window.contract,
+                                categoryField: "date"
+                            }
+                        ],
+                        panels: [
+                            {
+                                title: "Price",
+                                showCategoryAxis: false,
+                                percentHeight: 70,
+                                valueAxes: [
+                                    {
+                                        dashLength: 5
+                                    }
+                                ],
+                                categoryAxis: {
+                                    dashLength: 5
+                                },
+                                stockGraphs: [
+                                    {
+                                        type: "candlestick",
+                                        id: "g1",
+                                        openField: "open",
+                                        closeField: "close",
+                                        highField: "high",
+                                        lowField: "low",
+                                        valueField: "close",
+                                        lineColor: "#7f8da9",
+                                        fillColors: "#7f8da9",
+                                        negativeLineColor: "#db4c3c",
+                                        negativeFillColors: "#db4c3c",
+                                        fillAlphas: 1,
+                                        comparable: true,
+                                        compareField: "value",
+                                        useDataSetColors: false,
+                                        showBalloon: false
+                                    },
+                                    {
+                                        type: "line",
+                                        id: "g2",
+                                        valueField: "value",
+                                        lineColor: "#00cc00",
+                                        lineThickness: 3,
+                                        useDataSetColors: false
+                                    }
+                                ],
+                                stockLegend: {
+                                    valueTextRegular: undefined,
+                                    periodValueTextComparing: "[[percents.value.close]]%"
+                                }
                             },
                             {
-                                fromField: "price",
-                                toField: "value"
-                            }
-                        ],
-                        color: "#7f8da9",
-                        dataProvider: chartData,
-                        title: window.contract,
-                        categoryField: "date"
-                    }
-                ],
-                panels: [
-                    {
-                        title: "Price",
-                        showCategoryAxis: false,
-                        percentHeight: 70,
-                        valueAxes: [
-                            {
-                                dashLength: 5
-                            }
-                        ],
-                        categoryAxis: {
-                            dashLength: 5
-                        },
-                        stockGraphs: [
-                            {
-                                type: "line",
-                                id: "g1",
-                                valueField: "value",
-                                lineColor: "#7f8da9",
-                                fillColors: "#7f8da9",
-                                negativeLineColor: "#db4c3c",
-                                negativeFillColors: "#db4c3c",
-                                fillAlphas: 0,
-                                useDataSetColors: false,
-                                comparable: true,
-                                compareField: "value",
-                                showBalloon: false
-                            }
-                        ],
-                        stockLegend: {
-                            valueTextRegular: undefined,
-                            periodValueTextComparing: "[[percents.value.close]]%"
-                        }
-                    },
-                    {
-                        title: "Volume",
-                        percentHeight: 30,
-                        marginTop: 1,
-                        showCategoryAxis: true,
-                        valueAxes: [
-                            {
+                                title: "Volume",
+                                percentHeight: 30,
+                                marginTop: 1,
+                                showCategoryAxis: true,
+                                valueAxes: [
+                                    {
 
-                                dashLength: 5
+                                        dashLength: 5
+                                    }
+                                ],
+
+                                categoryAxis: {
+                                    dashLength: 5
+                                },
+
+                                stockGraphs: [
+                                    {
+                                        valueField: "volume",
+                                        type: "column",
+                                        showBalloon: false,
+                                        fillAlphas: 1
+                                    }
+                                ],
+
+                                stockLegend: {
+                                    markerType: "none",
+                                    markerSize: 0,
+                                    labelText: "",
+                                    periodValueTextRegular: "[[value.close]]"
+                                }
                             }
                         ],
-
-                        categoryAxis: {
-                            dashLength: 5
+                        chartScrollbarSettings: {
+                            graph: "g1",
+                            graphType: "line",
+                            usePeriod: "DD"
                         },
 
-                        stockGraphs: [
-                            {
-                                valueField: "volume",
-                                type: "column",
-                                showBalloon: false,
-                                fillAlphas: 1
-                            }
-                        ],
-
-                        stockLegend: {
-                            markerType: "none",
-                            markerSize: 0,
-                            labelText: "",
-                            periodValueTextRegular: "[[value.close]]"
+                        periodSelector: {
+                            position: "top",
+                            dateFormat: "YYYY-MM-DD JJ:NN",
+                            inputFieldWidth: 150,
+                            periods: [
+                                {
+                                    period: "mm",
+                                    count: 60,
+                                    label: "1 hour"
+                                }
+                                {
+                                    period: "hh",
+                                    count: 24,
+                                    label: "24 hours"
+                                }
+                                {
+                                    period: "DD",
+                                    count: 10,
+                                    label: "10 days"
+                                }
+                                {
+                                    period: "MM",
+                                    selected: true,
+                                    count: 1,
+                                    label: "1 month"
+                                }
+                            ]
                         }
                     }
-                ],
-                chartScrollbarSettings: {
-                    graph: "g1",
-                    graphType: "line",
-                    usePeriod: "DD"
-                },
-
-                periodSelector: {
-                    position: "bottom",
-                    periods: [
-                        {
-                            period: "mm",
-                            count: 60,
-                            label: "1 hour"
-                        }
-                        {
-                            period: "hh",
-                            count: 24,
-                            label: "24 hours"
-                        }
-                        {
-                            period: "DD",
-                            count: 10,
-                            label: "10 days"
-                        }
-                        {
-                            period: "MM",
-                            selected: true,
-                            count: 1,
-                            label: "1 month"
-                        }
-                    ]
-                }
-            }
-            window.chart = AmCharts.makeChart("chartdiv", chartOptions)
-            window.chart.validateData()
-            setInterval () ->
-                sputnik.log ["Validate Data", window.chart.dataSets[0].dataProvider]
-                window.chart.validateData()
-            , 60000
+                    window.chart = AmCharts.makeChart("chartdiv", chartOptions)
+                    window.chart.validateData()
+                    setInterval () ->
+                        sputnik.log ["Validate Data", window.chart.dataSets[0].dataProvider]
+                        window.chart.validateData()
+                    , 60000
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()

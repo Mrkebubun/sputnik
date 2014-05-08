@@ -170,7 +170,7 @@ class PublicInterface:
                     self.factory.trade_history[ticker] = trades
                     for period in ["minute", "hour", "day"]:
                         for trade in trades:
-                            if trade.timestamp > dt_to_timestamp(start_dt_for_period[period]):
+                            if trade['timestamp'] > dt_to_timestamp(start_dt_for_period[period]):
                                 self.factory.update_ohlcv(trade, period=period)
 
                 dbpool.runQuery(
@@ -220,7 +220,7 @@ class PublicInterface:
         return d
 
     @exportRpc("get_ohlcv_history")
-    def get_ohlcv_history(self, ticker, period="day", start_timestamp=None, end_timestamp=None):
+    def get_ohlcv_history(self, ticker, period=None, start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
         :param ticker:
@@ -230,21 +230,33 @@ class PublicInterface:
         :returns: list - [True, timestamp-indexed dict]
         """
         if start_timestamp is None:
-            start_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=1))
+            start_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=60))
 
         if end_timestamp is None:
             end_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
 
         validate(ticker, {"type": "string"})
-        validate(period, {"type": "string"})
+        if period is not None:
+            validate(period, {"type": "string"})
+
         validate(start_timestamp, {"type": "number"})
         validate(end_timestamp, {"type": "number"})
 
-        if period not in self.factory.ohlcv_history[ticker]:
-            return [False, (0, "No OHLCV records in memory")]
+        if period is not None:
+            if period in self.factory.ohlcv_history[ticker]:
+                ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
+                                          if value['open_timestamp'] <= end_timestamp and value['close_timestamp'] >= start_timestamp }
+        else:
+            ohlcv = {}
+            for period in ["minute", "hour", "day"]:
+                if period in self.factory.ohlcv_history[ticker]:
+                    ohlcv.update({ key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
+                              if value['open_timestamp'] <= end_timestamp and value['close_timestamp'] >= start_timestamp })
 
-        ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
-                  if key <= end_timestamp and key >= start_timestamp }
+                    # Update the end_timestamp to the earliest key
+                    end_timestamp = min(ohlcv.keys())-1
+
+
         return [True, ohlcv]
 
     @exportRpc("get_reset_token")
