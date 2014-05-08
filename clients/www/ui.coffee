@@ -516,10 +516,10 @@ sputnik.on "orders", (orders) ->
 sputnik.on "trade", (trade) ->
     if trade.contract == window.contract
         $('#last').text trade.price.toFixed(sputnik.getPricePrecision(window.contract))
-        window.chartData.push {
+        window.chart.dataSets[0].dataProvider.push {
             price: trade.price
             quantity: trade.quantity
-            date: new Date(trade.write_timestamp/1000)
+            date: new Date(trade.wire_timestamp/1000)
         }
 
 sputnik.on "positions", (positions) ->
@@ -652,7 +652,7 @@ sputnik.on "close", (message) ->
     $('#main_page').hide()
     $('#not_connected').show()
 
-window.chartData = []
+window.chart = 'none'
 plotChart = (ticker) ->
     firstDate = new Date()
     # Go back two months
@@ -660,14 +660,14 @@ plotChart = (ticker) ->
     sputnik.call("get_trade_history", ticker, firstDate.getTime() * 1000).then \
         (trade_history) =>
             sputnik.log ["got history", trade_history]
-            window.chartData = []
+            chartData = []
             for trade in trade_history
                 data =
                     price: sputnik.priceFromWire(ticker, trade.price)
                     quantity: sputnik.quantityFromWire(ticker, trade.quantity)
                     date: new Date(trade.timestamp / 1000)
 
-                window.chartData.push data
+                chartData.push data
 
             chartOptions = {
                 type: "stock",
@@ -686,7 +686,7 @@ plotChart = (ticker) ->
                             }
                         ],
                         color: "#7f8da9",
-                        dataProvider: window.chartData,
+                        dataProvider: chartData,
                         title: window.contract,
                         categoryField: "date"
                     }
@@ -791,10 +791,12 @@ plotChart = (ticker) ->
                     ]
                 }
             }
-            chart = AmCharts.makeChart("chartdiv", chartOptions)
+            window.chart = AmCharts.makeChart("chartdiv", chartOptions)
+            window.chart.validateData()
             setInterval () ->
-                chart.validateData()
-            , 1000
+                sputnik.log ["Validate Data", window.chart.dataSets[0].dataProvider]
+                window.chart.validateData()
+            , 60000
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()
