@@ -655,8 +655,8 @@ sputnik.on "close", (message) ->
 window.chart = 'none'
 plotChart = (ticker) ->
     firstDate = new Date()
-    # Go back two months
-    firstDate.setDate(firstDate.getDate() - 60)
+    # Go back one day
+    firstDate.setDate(firstDate.getDate() - 1)
     sputnik.call("get_trade_history", ticker, firstDate.getTime() * 1000).then \
         (trade_history) =>
             sputnik.log ["got history", trade_history]
