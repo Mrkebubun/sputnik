@@ -275,8 +275,10 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
-            timestamp: @timeFormat(wire_ohlcv['timestamp'])
-            wire_timestamp: wire_ohlcv['timestamp']
+            open_timestamp: @timeFormat(wire_ohlcv['open_timestamp'])
+            wire_open_timestamp: wire_ohlcv['open_timestamp']
+            close_timestamp: @timeFormat(wire_ohlcv['close_timestamp'])
+            wire_close_timestamp: wire_ohlcv['close_timestamp']
             period: wire_ohlcv.period
         return ohlcv
 
