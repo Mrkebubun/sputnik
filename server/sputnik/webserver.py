@@ -314,7 +314,7 @@ class PublicInterface:
 
         # Don't get more than a couple days of trades
         delta = datetime.timedelta(microseconds=to_timestamp - from_timestamp)
-        if delta.days() > 2:
+        if delta.days > 2:
             return [False, (0, "Can't retrieve more than two days of trades at once")]
 
         ticker = ticker[:MAX_TICKER_LENGTH]
