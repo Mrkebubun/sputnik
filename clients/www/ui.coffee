@@ -516,6 +516,11 @@ sputnik.on "orders", (orders) ->
 sputnik.on "trade", (trade) ->
     if trade.contract == window.contract
         $('#last').text trade.price.toFixed(sputnik.getPricePrecision(window.contract))
+        window.chartData.push {
+            price: trade.price
+            quantity: trade.quantity
+            date: new Date(trade.write_timestamp/1000)
+        }
 
 sputnik.on "positions", (positions) ->
     for ticker, position of positions
@@ -647,6 +652,7 @@ sputnik.on "close", (message) ->
     $('#main_page').hide()
     $('#not_connected').show()
 
+window.chartData = []
 plotChart = (ticker) ->
     firstDate = new Date()
     # Go back two months
@@ -654,14 +660,14 @@ plotChart = (ticker) ->
     sputnik.call("get_trade_history", ticker, firstDate.getTime() * 1000).then \
         (trade_history) =>
             sputnik.log ["got history", trade_history]
-            chartData = []
+            window.chartData = []
             for trade in trade_history
                 data =
                     price: sputnik.priceFromWire(ticker, trade.price)
                     quantity: sputnik.quantityFromWire(ticker, trade.quantity)
                     date: new Date(trade.timestamp / 1000)
 
-                chartData.push data
+                window.chartData.push data
 
             chartOptions = {
                 type: "stock",
@@ -680,7 +686,7 @@ plotChart = (ticker) ->
                             }
                         ],
                         color: "#7f8da9",
-                        dataProvider: chartData,
+                        dataProvider: window.chartData,
                         title: window.contract,
                         categoryField: "date"
                     }
@@ -785,7 +791,10 @@ plotChart = (ticker) ->
                     ]
                 }
             }
-            AmCharts.makeChart("chartdiv", chartOptions)
+            chart = AmCharts.makeChart("chartdiv", chartOptions)
+            setInterval () ->
+                chart.validateData()
+            , 1000
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()
