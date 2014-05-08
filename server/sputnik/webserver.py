@@ -29,7 +29,7 @@ import onetimepass as otp
 import hashlib
 import uuid
 import random
-from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
+from util import dt_to_timestamp, ChainedOpenSSLContextFactory
 import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
@@ -149,7 +149,7 @@ class PublicInterface:
                     result[r[0]]['margin_low'] = r[8]
 
             self.factory.markets = result
-            # Update the cache with the last 7 days of trades
+            # Update the cache with the last 60 days of trades
             to_dt = datetime.datetime.utcnow()
             from_dt = to_dt - datetime.timedelta(days=60)
             start_dt_for_period = {
@@ -304,15 +304,18 @@ class PublicInterface:
         time_span_schema = {"type": "number"}
         if from_timestamp is not None:
             validate(from_timestamp, time_span_schema)
+        else:
+            from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(hours=1))
 
         if to_timestamp is not None:
             validate(to_timestamp, time_span_schema)
-
-        if from_timestamp is None:
-            from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(hours=1))
-
-        if to_timestamp is None:
+        else:
             to_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
+
+        # Don't get more than a couple days of trades
+        delta = datetime.timedelta(microseconds=to_timestamp - from_timestamp)
+        if delta.days() > 2:
+            return [False, (0, "Can't retrieve more than two days of trades at once")]
 
         ticker = ticker[:MAX_TICKER_LENGTH]
 
