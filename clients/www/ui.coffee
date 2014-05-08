@@ -799,7 +799,8 @@ plotChart = (ticker) ->
                         chartScrollbarSettings: {
                             graph: "g1",
                             graphType: "line",
-                            usePeriod: "DD"
+                            usePeriod: "DD",
+                            position: "top"
                         },
 
                         periodSelector: {
