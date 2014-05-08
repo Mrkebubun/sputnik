@@ -13,6 +13,7 @@ sqlitejdbc-v056.jar
 zentus-sqlite-license.txt
 postgresql-driver-license.txt
 clients/www/*.js
+clients/coffeescript/*.js
 clients/www/*.css
 sputnik.tar
 docs/build
