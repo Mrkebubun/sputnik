@@ -686,7 +686,7 @@ plotChart = (ticker) ->
                     chartOptions = {
                         type: "stock",
                         "theme": "light",
-                        pathToImages: "/min.js/amcharts/images/",
+                        pathToImages: "/js/amcharts/images/",
                         dataSets: [
                             {
                                 fieldMappings: [
