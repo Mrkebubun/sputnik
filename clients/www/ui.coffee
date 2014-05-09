@@ -516,11 +516,7 @@ sputnik.on "orders", (orders) ->
 sputnik.on "trade", (trade) ->
     if trade.contract == window.contract
         $('#last').text trade.price.toFixed(sputnik.getPricePrecision(window.contract))
-        window.chart.dataSets[0].dataProvider.push {
-            price: trade.price
-            quantity: trade.quantity
-            date: new Date(trade.wire_timestamp/1000)
-        }
+
 
 sputnik.on "positions", (positions) ->
     for ticker, position of positions
@@ -548,6 +544,20 @@ sputnik.on "deposit_instructions", (event) ->
 
 sputnik.on "ohlcv", (ohlcv) ->
     sputnik.log ["ohlcv received", ohlcv]
+    if ohlcv.contract == window.contract
+        if ohlcv.period == "minute"
+            window.chart.dataSets[0].dataProvider.push {
+                open: ohlcv.open,
+                close: ohlcv.close,
+                high: ohlcv.high,
+                low: ohlcv.low,
+                volume: ohlcv.volume,
+                date: ohlcv.wire_open_timestamp/1000
+            }
+        else if ohlcv.period == "day"
+            $('#low').text ohlcv.low.toFixed(precision)
+            $('#high').text ohlcv.high.toFixed(precision)
+            $('#vwap').text ohlcv.vwap.toFixed(precision)
 
 sputnik.on "ohlcv_history", (ohlcv_history) ->
     sputnik.log ["ohlcv_history", ohlcv_history]
@@ -659,6 +669,10 @@ doPlot = (chartData) ->
         type: "stock",
         "theme": "light",
         pathToImages: "/js/amcharts/images/",
+        categoryAxesSettings: {
+            minPeriod: "mm",
+            inside: true
+        },
         dataSets: [
             {
                 fieldMappings: [
@@ -720,14 +734,6 @@ doPlot = (chartData) ->
                         compareField: "value",
                         useDataSetColors: false,
                         showBalloon: false
-                    },
-                    {
-                        type: "line",
-                        id: "g2",
-                        valueField: "value",
-                        lineColor: "#00cc00",
-                        lineThickness: 3,
-                        useDataSetColors: false
                     }
                 ],
                 stockLegend: {
@@ -819,34 +825,20 @@ plotChart = (ticker) ->
     chartData = []
     sputnik.call("get_ohlcv_history", ticker).then \
         (ohlcv_history) =>
-            sputnik.log ["got ohlcv", ohlcv_history]
+            sputnik.log ["got ohlcv for chart", ohlcv_history]
             for timestamp, ohlcv of ohlcv_history
                 data =
                     open: sputnik.priceFromWire(ticker, ohlcv.open)
                     close: sputnik.priceFromWire(ticker, ohlcv.close)
                     high: sputnik.priceFromWire(ticker, ohlcv.high)
                     low: sputnik.priceFromWire(ticker, ohlcv.low)
-                    date: new Date(ohlcv.open_timestamp / 1000)
+                    date: ohlcv.open_timestamp / 1000
                     volume: sputnik.quantityFromWire(ticker, ohlcv.volume)
                 chartData.push data
 
-            firstDate = new Date()
-            # Go back one day
-            firstDate.setDate(firstDate.getDate() - 1)
-            sputnik.call("get_trade_history", ticker, firstDate.getTime() * 1000).then \
-                (trade_history) =>
-                    sputnik.log ["got history", trade_history]
-                    for trade in trade_history
-                        data =
-                            price: sputnik.priceFromWire(ticker, trade.price)
-                            date: new Date(trade.timestamp / 1000)
+            chartData.sort (a, b) -> a.date - b.date
 
-                        chartData.push data
-                    doPlot(chartData)
-                , (error) =>
-                    sputnik.log ["history error", error]
-                    doPlot(chartData)
-
+            doPlot(chartData)
 
 jQuery.fn.serializeObject = ->
     arrayData = @serializeArray()
