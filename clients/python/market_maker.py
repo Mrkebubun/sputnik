@@ -49,7 +49,7 @@ class MarketMakerBot(TradingBot):
         rate = 1
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 60)
+        self.get_external_market.start(rate * 5)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
         self.monitor_orders.start(rate * 1)
@@ -118,8 +118,8 @@ class MarketMakerBot(TradingBot):
 
                 # If it's matched, make a spread just because
                 if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
-                    new_bid *= 0.9
-                    new_ask *= 1.1
+                    new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                    new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
 
                 if ticker in self.external_markets:
                     if new_bid != self.external_markets[ticker]['bid']:
