@@ -90,14 +90,11 @@ $("#login_button").click (event) ->
     username = $("#login_username").val()
     password = $("#login_password").val()
 
-    if (username.length > 3 and password.length > 5)
-        $("#login_error").hide()
-        ladda = Ladda.create $("#login_button")[0]
-        ladda.start()
-        sputnik.authenticate username, password
-        $('#login_modal .alert:visible').hide()
-    else
-        $('#login_error').text("Please enter a username and password").slideDown()
+    $("#login_error").hide()
+    ladda = Ladda.create $("#login_button")[0]
+    ladda.start()
+    sputnik.authenticate username, password
+    $('#login_modal .alert:visible').hide()
 
 $("#register").click () ->
     $("#register_modal").on('hidden.bs.modal', -> $('#register_error').hide())

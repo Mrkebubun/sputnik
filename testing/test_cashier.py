@@ -1,6 +1,6 @@
 import sys
 import os
-from test_sputnik import TestSputnik, FakeProxy
+from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -16,11 +16,16 @@ class TestCashier(TestSputnik):
         from sputnik import cashier
 
         self.accountant = FakeProxy()
-        self.bitcoinrpc = FakeProxy()
+        self.bitcoinrpc = {}
         self.compropago = FakeProxy()
+        self.sendmail = FakeSendmail('test-email@m2.io')
         self.cashier = cashier.Cashier(self.session, self.accountant,
                                           self.bitcoinrpc,
-                                          self.compropago)
+                                          self.compropago,
+                                          3600,
+                                          self.sendmail,
+                                          template_dir="../server/sputnik/admin_templates")
+
 
         self.administrator_export = cashier.AdministratorExport(self.cashier)
         self.accountant_export = cashier.AccountantExport(self.cashier)

@@ -18,17 +18,17 @@ def price_to_wire(contract, price):
 
 def price_from_wire(contract, price):
     if contract.contract_type == "prediction":
-        return price / contract.denominator
+        return float(price) / contract.denominator
     else:
-        return price / (contract.denominated_contract.denominator * contract.denominator)
+        return float(price) / (contract.denominated_contract.denominator * contract.denominator)
 
 def quantity_from_wire(contract, quantity):
     if contract.contract_type == "prediction":
         return quantity
     elif contract.contract_type == "cash":
-        return quantity / contract.denominator
+        return float(quantity) / contract.denominator
     else:
-        return quantity / contract.payout_contract.denominator
+        return float(quantity) / contract.payout_contract.denominator
 
 def quantity_to_wire(contract, quantity):
     if contract.contract_type == "prediction":

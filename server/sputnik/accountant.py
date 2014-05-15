@@ -65,11 +65,7 @@ class Accountant:
 
         self.session = session
         self.debug = debug
-        self.btc = self.get_contract("BTC")
-        # TODO: Get deposit limits from DB
-        self.deposit_limits = { 'BTC': 100000000,
-                                'MXN': 6000000
-        }
+        self.deposit_limits = {}
         # TODO: Make this configurable
         self.vendor_share_config = { 'm2': 0.5,
                                      'customer': 0.5
@@ -575,7 +571,7 @@ class Accountant:
         d.addErrback(self.raiseException)
         return d
 
-    def transfer_position(self, ticker, from_username, to_username, quantity):
+    def transfer_position(self, ticker, from_username, to_username, quantity, note):
         """Transfer a position from one user to another
 
         :param ticker: the contract
@@ -601,7 +597,7 @@ class Accountant:
             credit = models.Posting(to_user, contract, quantity, 'credit', update_position=True,
                                     position=to_position)
             self.session.add_all([from_position, to_position, debit, credit])
-            journal = models.Journal('Transfer', [debit, credit])
+            journal = models.Journal('Transfer', [debit, credit], notes=note)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -648,7 +644,7 @@ class Accountant:
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                journal = models.Journal('Withdrawal', [credit, debit])
+                journal = models.Journal('Withdrawal', [credit, debit], notes=address)
                 self.session.add(journal)
                 self.session.commit()
                 self.publish_journal(journal)
@@ -1000,8 +996,8 @@ class CashierExport:
         self.accountant.deposit_cash(address, received, total=total)
 
     @export
-    def transfer_position(self, ticker, from_user, to_user, quantity):
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
+    def transfer_position(self, ticker, from_user, to_user, quantity, note):
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
 
     @export
     def get_position(self, username, ticker):
@@ -1021,8 +1017,8 @@ class AdministratorExport:
         self.accountant.adjust_position(username, ticker, quantity)
 
     @export
-    def transfer_position(self, ticker, from_user, to_user, quantity):
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
+    def transfer_position(self, ticker, from_user, to_user, quantity, note):
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
 
     @export
     def get_balance_sheet(self):

@@ -13,6 +13,7 @@ from twisted.internet.task import LoopingCall
 import bitcoinrpc
 from compropago import Compropago
 from watchdog import watchdog
+from sendmail import Sendmail
 import util
 
 import config
@@ -23,6 +24,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
 import base64
 from Crypto.Random.random import getrandbits
+from jinja2 import Environment, FileSystemLoader
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -44,9 +46,9 @@ class Cashier():
     the accountant. It does so by offering a public hook for Compropago and a private
     hook to the bitcoin client
     """
-    minimum_confirmations = 6
 
-    def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period):
+    def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period,
+                 sendmail, template_dir="admin_templates", minimum_confirmations=6):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -56,6 +58,9 @@ class Cashier():
         self.accountant = accountant
         self.bitcoinrpc = bitcoinrpc
         self.compropago = compropago
+        self.sendmail = sendmail
+        self.minimum_confirmations = minimum_confirmations
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         for ticker in self.bitcoinrpc.keys():
             looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
             looping_call.start(cold_wallet_period, now=False)
@@ -80,18 +85,18 @@ class Cashier():
         # what the state of the bitcoin client is.
         self.accountant.deposit_cash(address, total_received)
 
-    def rescan_address(self, address):
+    def rescan_address(self, address_str):
         """Check an address to see if deposits have been made against it
         :param address: the address we are checking
         :type address: str
         """
         # TODO: find out why this is unicode
         # probably because of the way txZMQ does things
-        address = address.encode("utf-8")
-        logging.info("Scaning address %s for updates." % address)
+        address_str = address_str.encode("utf-8")
+        logging.info("Scaning address %s for updates." % address_str)
         # TODO: find a better way of doing this
-        if address.startswith("compropago"):
-            payment_id = address.split("_", 1)[1]
+        if address_str.startswith("compropago"):
+            payment_id = address_str.split("_", 1)[1]
             def error(failure):
                 logging.warn("Could not get bill for id: %s. %s" % (payment_id, str(failure)))
 
@@ -103,20 +108,21 @@ class Cashier():
             # Alternatively, error handle inside the method itself (recommended)
         else:
             # TODO: add error checks
-            address = self.session.query(models.Addresses).filter_by(address=address).one()
+            address = self.session.query(models.Addresses).filter_by(address=address_str).one()
             ticker = address.contract.ticker
 
             if ticker in self.bitcoinrpc:
                 denominator = address.contract.denominator
                 accounted_for = address.accounted_for
-                total_received = int(self.bitcoinrpc[ticker].getreceivedbyaddress(address, self.minimum_confirmations) *
-                                     int(denominator))
+                total_received = long(round(self.bitcoinrpc[ticker].getreceivedbyaddress(address_str,
+                                                                                         self.minimum_confirmations) *
+                                            denominator))
 
                 if total_received > accounted_for:
-                    self.notify_accountant(address, total_received)
+                    self.notify_accountant(address_str, total_received)
 
 
-    def check_for_crypto_deposits(self, currency='BTC'):
+    def check_for_crypto_deposits(self, ticker='BTC'):
         """
         Checks for crypto deposits in a crypto currency that offers
         a connection compatible with the bitcoind RPC (typically, litecoin, dogecoin...)
@@ -125,9 +131,11 @@ class Cashier():
         """
         logging.info('checking for deposits')
         # first we get the confirmed deposits
-        confirmed_deposits = self.bitcoinrpc[currency].listreceivedbyaddress(self.minimum_confirmations)
+        confirmed_deposits = self.bitcoinrpc[ticker].listreceivedbyaddress(self.minimum_confirmations)
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+
         # ok, so now for each address get how much was received
-        total_received = {row.address: int(row.amount * int(1e8)) for row in confirmed_deposits}
+        total_received = {row.address: long(round(row.amount * contract.denominator)) for row in confirmed_deposits}
         # but how much have we already accounted for?
         accounted_for = {row.address: row.accounted_for for row in
                          self.session.query(models.Addresses).filter_by(active=True)}
@@ -143,25 +151,25 @@ class Cashier():
         """
         list withdrawal requests that have been entered and processed them
         either immediately or by pushing them to manual verification
-        :raises: NotImplementedError
         """
         # if the transaction is innocuous enough
         logging.info("Checking withdrawal: %s" % withdrawal)
         if self.pass_safety_check(withdrawal):
             self.process_withdrawal(withdrawal.id, online=True)
         else:
-            pass
-            # TODO: Email the user
-            #self.notify_pending_withdrawal(withdrawal)
+            self.notify_pending_withdrawal(withdrawal)
 
     def pass_safety_check(self, withdrawal_request):
         """
         :param withdrawal_request: a specific request for withdrawal, to be accepted for immediate
                 withdrawal or wait until manual validation
-        :type withdrawal_request: dict
+        :type withdrawal_request: Withdrawal
 
-        NOT IMPLEMENTED
         """
+        # First check if the withdrawal is for a cryptocurrency
+        if withdrawal_request.contract.ticker not in self.bitcoinrpc:
+            logging.error("Withdrawal request for fiat: %s" % withdrawal_request)
+            return False
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # (what does this mean)
@@ -169,14 +177,16 @@ class Cashier():
         # 3) make sure the withdrawal is small (< 1 BTC)
         # Not yet implemented
         if withdrawal_request.amount >= 100000000:
-            logging.error("withdrawal too large, failing safety check")
+            logging.error("withdrawal too large: %s" % withdrawal_request)
             return False
-        else:
-            online_cash = long(round(self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance() * 1e8))
 
-            logging.error("withdrawal too large portion of online cash balance, failing safety check")
-            if online_cash / 10 <= withdrawal_request.amount:
-                return False
+        online_cash = long(round(self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance() *
+                                 withdrawal_request.contract.denominator))
+
+
+        if online_cash / 10 <= withdrawal_request.amount:
+            logging.error("withdrawal too large portion of online cash balance (%d): %s" % (online_cash, withdrawal_request))
+            return False
 
         # None of the checks failed, return True
         return True
@@ -190,8 +200,8 @@ class Cashier():
             amount = online_cash - contract.hot_wallet_limit
             logging.debug("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
             self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
-                                                           float(amount/contract.denominator))
-            self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount)
+                                                  float(amount) / contract.denominator)
+            self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount, "Automatic Cold Wallet Transfer")
 
 
     def process_withdrawal(self, withdrawal_id, online=False, cancel=False):
@@ -215,7 +225,8 @@ class Cashier():
             else:
                 if online:
                     if withdrawal.contract.ticker in self.bitcoinrpc:
-                        self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address, float(withdrawal.amount / withdrawal.contract.denominator))
+                        self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
+                                                                                  float(withdrawal.amount) / withdrawal.contract.denominator)
                     else:
                         raise NO_AUTOMATIC_WITHDRAWAL
 
@@ -223,7 +234,7 @@ class Cashier():
                 else:
                     to_user = 'offlinecash'
 
-            self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user, withdrawal.amount)
+            self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user, withdrawal.amount, withdrawal.address)
             withdrawal.pending = False
             withdrawal.completed = datetime.utcnow()
             self.session.add(withdrawal)
@@ -241,6 +252,7 @@ class Cashier():
             self.session.add(withdrawal)
             self.session.commit()
 
+            # Check to see if we can process this automatically. If we can, then process it
             self.check_withdrawal(withdrawal)
         except Exception as e:
             logging.error("Exception when creating withdrawal ticket: %s" % e)
@@ -262,16 +274,23 @@ class Cashier():
             raise "error couldn't process compropago payment, amount not a number of cents"
 
         amount = self.compropago.amount_after_fees(cents)
-        self.notify_accountant(address, amount)
+        self.process_withdrawal(address, amount)
 
-    def notify_pending_withdrawal(self):
+    def notify_pending_withdrawal(self, withdrawal):
         """
         email notification of withdrawal pending to the user.
-        NOT IMPLEMENTED
-
-        :raises: NotImplementedError:
         """
-        raise NotImplementedError()
+
+        # Now email the token
+        t = self.jinja_env.get_template('pending_withdrawal.email')
+        content = t.render(withdrawal=withdrawal).encode('utf-8')
+
+        # Now email the token
+        logging.debug("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (withdrawal.user.email,
+                                                                     withdrawal.user.nickname),
+                          subject='Your withdrawal request is pending')
+
 
     def get_new_address(self, username, ticker):
         try:
@@ -450,8 +469,11 @@ if __name__ == '__main__':
     bitcoinrpc = {'BTC': bitcoinrpc.connect_to_local(bitcoin_conf)}
     compropago = Compropago(config.get("cashier", "compropago_key"))
     cold_wallet_period = config.getint("cashier", "cold_wallet_period")
+    sendmail=Sendmail(config.get("administrator", "email"))
+    minimum_confirmations = config.getint("cashier", "minimum_confirmations")
 
-    cashier = Cashier(session, accountant, bitcoinrpc, compropago, cold_wallet_period)
+    cashier = Cashier(session, accountant, bitcoinrpc, compropago, cold_wallet_period, sendmail,
+                      minimum_confirmations=minimum_confirmations)
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)
@@ -475,7 +497,6 @@ if __name__ == '__main__':
         key = config.get("webserver", "ssl_key")
         cert = config.get("webserver", "ssl_cert")
         cert_chain = config.get("webserver", "ssl_cert_chain")
-        # contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
         contextFactory = util.ChainedOpenSSLContextFactory(key, cert_chain)
 
         reactor.listenSSL(config.getint("cashier", "public_port"),

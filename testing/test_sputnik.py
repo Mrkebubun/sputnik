@@ -113,6 +113,17 @@ def dumpArgs(func):
 
     return wrapper
 
+class FakeSendmail(object):
+    def __init__(self, from_address):
+        """
+
+        :param from_address:
+        """
+        self.from_address = from_address
+        self.log = []
+
+    def send_mail(self, message, subject, to_address):
+        self.log.append((message, subject, to_address))
 
 class FakeProxy:
     def __init__(self):

@@ -279,7 +279,7 @@ class Administrator:
         # Now email the token
         t = self.jinja_env.get_template('reset_password.email')
         content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                           username=username, base_uri=self.base_uri).encode('utf-8')
+                           user=user, base_uri=self.base_uri).encode('utf-8')
 
         # Now email the token
         logging.debug("Sending mail: %s" % content)
@@ -519,7 +519,7 @@ class Administrator:
         logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
         self.accountant.adjust_position(username, ticker, quantity)
 
-    def transfer_position(self, ticker, from_user, to_user, quantity_ui):
+    def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
 
         :param ticker: the contract
@@ -536,7 +536,7 @@ class Administrator:
         
         logging.debug("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity)
+        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
 
     def manual_deposit(self, address, quantity_ui):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
@@ -735,7 +735,7 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(request.args['id'][0], online=online, cancel=cancel)
+        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel)
         return self.user_details(request)
 
     def permission_groups(self, request):
@@ -871,8 +871,10 @@ class AdminWebUI(Resource):
         """Transfer a position from a user and go back to his details page
 
         """
+
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], float(request.args['quantity'][0]))
+                                             request.args['to_user'][0], float(request.args['quantity'][0]),
+                                             request.args['note'][0])
         return self.user_details(request)
 
     def rescan_address(self, request):

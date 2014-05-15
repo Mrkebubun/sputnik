@@ -2,7 +2,7 @@ __author__ = 'sameer'
 
 import sys
 import os
-from test_sputnik import TestSputnik, FakeProxy
+from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
 import re
 
@@ -11,17 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
-class FakeSendmail(object):
-    def __init__(self, from_address):
-        """
 
-        :param from_address:
-        """
-        self.from_address = from_address
-        self.log = []
-
-    def send_mail(self, message, subject, to_address):
-        self.log.append((message, subject, to_address))
 
 
 class TestAdministrator(TestSputnik):

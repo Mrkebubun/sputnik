@@ -116,6 +116,7 @@ $ ->
                     <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
                         <input type="text" name="quantity" placeholder="Quantity">
                         <input type="text" name="to_user" placeholder="To User">
+                        <input type="text" name="note" placeholder="Note">
                         <input type="hidden" name="from_user" value="{{user.username}}">
                         <input type="hidden" name="username" value="{{user.username}}">
                         <input type="hidden" name="contract" value="{{position.contract.ticker}}">
