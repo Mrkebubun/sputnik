@@ -7,7 +7,8 @@ import logging
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
+from twisted.internet.task import LoopingCall
 
 import bitcoinrpc
 from compropago import Compropago
@@ -45,17 +46,19 @@ class Cashier():
     """
     minimum_confirmations = 6
 
-    def __init__(self, session, accountant, bitcoinrpc, compropago):
+    def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
         """
-        self.cold_wallet_address = 'xxxx'
 
         self.session = session
         self.accountant = accountant
         self.bitcoinrpc = bitcoinrpc
         self.compropago = compropago
+        for ticker in self.bitcoinrpc.keys():
+            looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
+            looping_call.start(cold_wallet_period, now=False)
 
     def notify_accountant(self, address, total_received):
         """
@@ -169,13 +172,27 @@ class Cashier():
             logging.error("withdrawal too large, failing safety check")
             return False
         else:
-            online_cash = self.accountant.get_position('onlinecash', withdrawal_request.contract.ticker)
+            online_cash = long(round(self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance() * 1e8))
+
             logging.error("withdrawal too large portion of online cash balance, failing safety check")
             if online_cash / 10 <= withdrawal_request.amount:
                 return False
 
         # None of the checks failed, return True
         return True
+
+    def transfer_to_cold_wallet(self, ticker):
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        online_cash = long(round(self.bitcoinrpc[contract.ticker].getbalance() * contract.denominator))
+        logging.debug("Online cash for %s is %d" % (ticker, online_cash))
+        # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
+        if online_cash > contract.hot_wallet_limit * 1.1:
+            amount = online_cash - contract.hot_wallet_limit
+            logging.debug("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
+            self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
+                                                           float(amount/contract.denominator))
+            self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount)
+
 
     def process_withdrawal(self, withdrawal_id, online=False, cancel=False):
         # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
@@ -432,8 +449,9 @@ if __name__ == '__main__':
 
     bitcoinrpc = {'BTC': bitcoinrpc.connect_to_local(bitcoin_conf)}
     compropago = Compropago(config.get("cashier", "compropago_key"))
+    cold_wallet_period = config.getint("cashier", "cold_wallet_period")
 
-    cashier = Cashier(session, accountant, bitcoinrpc, compropago)
+    cashier = Cashier(session, accountant, bitcoinrpc, compropago, cold_wallet_period)
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)

@@ -20,6 +20,8 @@ contracts modify NETS2014 denominated_contract_ticker BTC
 
 contracts modify BTC contract_type cash
 contracts modify BTC denominator 100000000
+contracts modify BTC hot_wallet_limit 1000000000
+contracts modify BTC cold_wallet_address XXX
 
 contracts modify MXN contract_type cash
 contracts modify MXN denominator 100

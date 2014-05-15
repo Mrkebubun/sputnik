@@ -417,12 +417,18 @@ class TradingBot(WampCraClientProtocol):
         ord['price'] = price
         ord['side'] = side
         d = self.my_call("place_order", ord)
-        d.addCallbacks(self.onPlaceOrder, self.onError)
 
         self.last_internal_id += 1
         ord['quantity_left'] = ord['quantity']
         ord['is_cancelled'] = False
-        self.orders['internal_%d' % self.last_internal_id] = ord
+        order_id = 'internal_%d' % self.last_internal_id
+        self.orders[order_id] = ord
+        def onError(error):
+            logging.info("removing internal order %s" % order_id)
+            del self.orders[order_id]
+            self.onError(error)
+
+        d.addCallbacks(self.onPlaceOrder, onError)
 
     def chat(self, message):
         print "chatting: ", message

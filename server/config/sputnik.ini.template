@@ -8,6 +8,7 @@ administrator_export = tcp://127.0.0.1:4160
 accountant_export = tcp://127.0.0.1:4170
 webserver_export = tcp://127.0.0.1:4140
 compropago_key = ${compropago_key}
+cold_wallet_period = 3600
 
 [engine]
 base_port = 4200

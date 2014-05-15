@@ -94,11 +94,11 @@ class Contract(db.Base):
     payout_contract = relationship('Contract', remote_side='Contract.ticker',
                                primaryjoin='contracts.c.payout_contract_ticker==contracts.c.ticker')
 
-    # TODO: We don't need this column?
-    inverse_quotes = Column(Boolean, server_default=sql.false(), nullable=False)
-
     margin_high = Column(BigInteger)
     margin_low = Column(BigInteger)
+
+    hot_wallet_limit = Column(BigInteger)
+    cold_wallet_address = Column(String)
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
