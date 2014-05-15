@@ -461,7 +461,6 @@ $ ->
         plotChart window.contract
 
 sputnik.on "trade_history", (trade_history) ->
-    console.log "[ui:383 - hit trade_history]"
     updateTrades(trade_history[window.contract])
     if trade_history[window.contract].length
         $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
