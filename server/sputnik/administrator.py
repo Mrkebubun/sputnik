@@ -61,7 +61,6 @@ USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
 ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
 INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
-OUT_OF_ADDRESSES = AdministratorException(999, "Ran out of addresses.")
 
 USER_LIMIT=500
 
@@ -136,16 +135,8 @@ class Administrator:
             position = models.Position(user, contract)
             self.session.add(position)
 
-        address = self.session.query(models.Addresses).filter_by(
-            active=False, user=None).first()
-        if not address:
-            # TODO: create a new address for the user
-            logging.error("Account creating failed for %s: insufficient addresses" % username)
-            raise OUT_OF_ADDRESSES
-        address.user = user
-        address.active = True
-
         self.session.commit()
+
         logging.info("Account created for %s" % username)
         return True
 
