@@ -180,8 +180,9 @@ class TradingBot(WampCraClientProtocol):
         id = order['id']
         if id in self.orders and (order['is_cancelled'] or order['quantity_left'] == 0):
             del self.orders[id]
-        else:
-            if 'quantity' in order:
+        elif id in self.orders:
+            self.orders[id] = order
+        elif 'quantity' in order:
                 # Try to find it in internal orders
                 for search_id, search_order in self.orders.items():
                     if isinstance(search_id, basestring) and search_id.startswith('internal_'):
