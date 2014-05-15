@@ -109,7 +109,7 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [eventlistener:process_exited]
-command=crashmail -a -m ${alert_email} -o ${webserver_address}:
+command=crashmail -a -m ${alert_email} -o ${webserver_address}
 events=PROCESS_STATE_EXITED
 
 [eventlistener:alerts]
