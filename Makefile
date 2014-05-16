@@ -33,7 +33,7 @@ dist: config build
 
 test:
     cd testing
-    make
+    make no_ui
 
 tar: dist
 	mkdir -p .tar/sputnik/install/profiles
