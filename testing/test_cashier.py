@@ -8,10 +8,13 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
+from decimal import Decimal
+
 
 class FakeBitcoin(FakeProxy):
     received = {}
-    balance = 0.0
+
+    balance = Decimal(0.0)
 
     def getnewaddress(self):
         return "NEW_TEST_ADDRESS"
@@ -19,9 +22,22 @@ class FakeBitcoin(FakeProxy):
     def getreceivedbyaddress(self, address, minimum_confirmations):
         if address in self.received:
             if self.received[address]['confirmations'] >= minimum_confirmations:
-                return self.received[address]['received']
+                return self.received[address]['amount']
 
         return 0.0
+
+    def listreceivedbyaddress(self, minimum_confirmations):
+        received = []
+        from bitcoinrpc.data import AddressInfo
+
+
+        for address, info in self.received.iteritems():
+            if info['confirmations'] >= minimum_confirmations:
+                received.append(AddressInfo(address=address,
+                                            account='',
+                                            amount=info['amount'],
+                                            confirmations=info['confirmations']))
+        return received
 
     def getbalance(self):
         return self.balance
@@ -29,13 +45,13 @@ class FakeBitcoin(FakeProxy):
     # Utility functions for tester
     def receive_at_address(self, address, amount):
         if address in self.received:
-            if self.received[address]['received'] == amount:
+            if self.received[address]['amount'] == Decimal(amount):
                 self.received[address]['confirmations'] += 1
             else:
-                self.received[address]['received'] = amount
+                self.received[address]['amount'] = Decimal(amount)
                 self.received[address]['confirmations'] = 1
         else:
-            self.received[address] = {'received': amount,
+            self.received[address] = {'amount': Decimal(amount),
                                       'confirmations': 1
             }
 
@@ -62,6 +78,7 @@ class TestCashier(TestSputnik):
                                        minimum_confirmations=6)
 
         self.administrator_export = cashier.AdministratorExport(self.cashier)
+        self.webserver_export = cashier.WebserverExport(self.cashier)
         self.accountant_export = cashier.AccountantExport(self.cashier)
         self.compropago_hook = cashier.CompropagoHook(self.cashier)
         self.bitcoin_notify = cashier.BitcoinNotify(self.cashier)
@@ -71,7 +88,7 @@ class TestWebserverExport(TestCashier):
     def test_get_new_address_already_exists(self):
         self.create_account('test')
         self.add_address(address="NEW_ADDRESS_EXISTS")
-        new_address = self.cashier.get_new_address('test', 'BTC')
+        new_address = self.webserver_export.get_new_address('test', 'BTC')
         self.assertEqual(new_address, 'NEW_ADDRESS_EXISTS')
 
         from sputnik import models
@@ -81,7 +98,7 @@ class TestWebserverExport(TestCashier):
 
     def test_get_new_address_new(self):
         self.create_account('test')
-        new_address = self.cashier.get_new_address('test', 'BTC')
+        new_address = self.webserver_export.get_new_address('test', 'BTC')
         self.assertEqual(new_address, 'NEW_TEST_ADDRESS')
 
         from sputnik import models
@@ -91,7 +108,7 @@ class TestWebserverExport(TestCashier):
 
     def test_get_new_address_fiat(self):
         self.create_account('test')
-        new_address = self.cashier.get_new_address('test', 'MXN')
+        new_address = self.webserver_export.get_new_address('test', 'MXN')
 
         from sputnik import models
 
@@ -100,12 +117,12 @@ class TestWebserverExport(TestCashier):
 
     def test_get_current_address_exists(self):
         self.create_account('test', 'STARTING_ADDRESS')
-        current_address = self.cashier.get_current_address('test', 'BTC')
+        current_address = self.webserver_export.get_current_address('test', 'BTC')
         self.assertEqual(current_address, 'STARTING_ADDRESS')
 
     def test_get_current_address_not_exists(self):
         self.create_account('test')
-        current_address = self.cashier.get_current_address('test', 'BTC')
+        current_address = self.webserver_export.get_current_address('test', 'BTC')
         self.assertEqual(current_address, 'NEW_TEST_ADDRESS')
 
         from sputnik import models
@@ -115,7 +132,7 @@ class TestWebserverExport(TestCashier):
 
     def test_get_current_address_not_exists_fiat(self):
         self.create_account('test')
-        current_address = self.cashier.get_current_address('test', 'MXN')
+        current_address = self.webserver_export.get_current_address('test', 'MXN')
 
         from sputnik import models
 
@@ -123,11 +140,11 @@ class TestWebserverExport(TestCashier):
         self.assertEqual(address.address, current_address)
 
     def test_get_deposit_instructions_btc(self):
-        instructions = self.cashier.get_deposit_instructions('BTC')
+        instructions = self.webserver_export.get_deposit_instructions('BTC')
         self.assertEqual(instructions, "Deposit your crypto-currency normally")
 
     def test_get_deposit_instructions_fiat(self):
-        instructions = self.cashier.get_deposit_instructions('MXN')
+        instructions = self.webserver_export.get_deposit_instructions('MXN')
         self.assertEqual(instructions,
                          "Mail a check to X or send a wire to Y and put this key into the comments/memo field")
 
@@ -138,7 +155,7 @@ class TestAdministratorExport(TestCashier):
         for confirmation in range(0, 6):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS', 1.23)
 
-        self.cashier.rescan_address('TEST_ADDRESS')
+        self.administrator_export.rescan_address('TEST_ADDRESS')
         self.assertTrue(self.cashier.accountant.check_for_calls([('deposit_cash', ('TEST_ADDRESS', 123000000L), {})]))
 
     def test_rescan_address_with_deposit_insufficient_confirms(self):
@@ -146,13 +163,13 @@ class TestAdministratorExport(TestCashier):
         for confirmation in range(0, 5):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS_2', 1.23)
 
-        self.cashier.rescan_address('TEST_ADDRESS_2')
+        self.administrator_export.rescan_address('TEST_ADDRESS_2')
         self.assertEquals(self.cashier.accountant.log, [])
 
     def test_rescan_address_with_nodeposit(self):
         self.create_account('test', 'TEST_ADDRESS_3')
 
-        self.cashier.rescan_address('TEST_ADDRESS_3')
+        self.administrator_export.rescan_address('TEST_ADDRESS_3')
         self.assertEquals(self.cashier.accountant.log, [])
 
     def test_process_withdrawal_online_have_cash(self):
@@ -164,7 +181,7 @@ class TestAdministratorExport(TestCashier):
 
         withdrawal_id = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one().id
 
-        self.cashier.process_withdrawal(withdrawal_id, online=True)
+        self.administrator_export.process_withdrawal(withdrawal_id, online=True)
 
         withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
         self.assertTrue(self.accountant.check_for_calls([('transfer_position',
@@ -184,7 +201,7 @@ class TestAdministratorExport(TestCashier):
         withdrawal_id = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one().id
 
         with self.assertRaisesRegexp(cashier.CashierException, 'Insufficient funds'):
-            self.cashier.process_withdrawal(withdrawal_id, online=True)
+            self.administrator_export.process_withdrawal(withdrawal_id, online=True)
 
         withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
 
@@ -201,7 +218,7 @@ class TestAdministratorExport(TestCashier):
         withdrawal_id = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one().id
 
         with self.assertRaisesRegexp(cashier.CashierException, 'No automatic withdrawals'):
-            self.cashier.process_withdrawal(withdrawal_id, online=True)
+            self.administrator_export.process_withdrawal(withdrawal_id, online=True)
 
         withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
 
@@ -217,7 +234,7 @@ class TestAdministratorExport(TestCashier):
 
         withdrawal_id = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one().id
 
-        self.cashier.process_withdrawal(withdrawal_id, online=False)
+        self.administrator_export.process_withdrawal(withdrawal_id, online=False)
         withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
 
         self.assertTrue(self.accountant.check_for_calls([('transfer_position',
@@ -240,7 +257,7 @@ class TestAdministratorExport(TestCashier):
 
         withdrawal_id = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one().id
 
-        self.cashier.process_withdrawal(withdrawal_id, cancel=True)
+        self.administrator_export.process_withdrawal(withdrawal_id, cancel=True)
         withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
 
         self.assertTrue(self.accountant.check_for_calls([('transfer_position',
@@ -259,7 +276,7 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_small(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(1.0)
-        self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+        self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
 
         from sputnik import models
 
@@ -276,7 +293,7 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_larger(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(1.0)
-        self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 50000000)
+        self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 50000000)
 
         from sputnik import models
 
@@ -287,14 +304,14 @@ class TestAccountantExport(TestCashier):
         self.assertEqual(self.cashier.accountant.log, [])
         self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
                                                                 (
-                                                                'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                 {'subject': 'Your withdrawal request is pending',
                                                                  'to_address': u'<> anonymous'})]))
 
     def test_request_withdrawal_btc_past_hard_limit(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(100.0)
-        self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 120000000)
+        self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 120000000)
 
         from sputnik import models
 
@@ -305,13 +322,13 @@ class TestAccountantExport(TestCashier):
         self.assertEqual(self.cashier.accountant.log, [])
         self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
                                                                 (
-                                                                'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                 {'subject': 'Your withdrawal request is pending',
                                                                  'to_address': u'<> anonymous'})]))
 
     def test_request_withdrawal_fiat(self):
         self.create_account('test')
-        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 12000)
+        self.accountant_export.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 12000)
 
         from sputnik import models
 
@@ -322,9 +339,10 @@ class TestAccountantExport(TestCashier):
         self.assertEqual(self.cashier.accountant.log, [])
         self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
                                                                 (
-                                                                'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                 {'subject': 'Your withdrawal request is pending',
                                                                  'to_address': u'<> anonymous'})]))
+
 
 class TestCompropagoHook(TestCashier):
     def test_render(self):
@@ -332,5 +350,39 @@ class TestCompropagoHook(TestCashier):
 
 
 class TestBitcoinNotify(TestCashier):
-    def test_render_GET(self):
-        pass
+    def test_render_GET_little_received(self):
+        self.create_account('test', 'NEW_ADDRESS')
+
+        for confirmation in range(0, 6):
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('NEW_ADDRESS', 1.23)
+
+        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
+        self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
+
+    def test_render_GET_insufficient_confirms(self):
+        self.create_account('test', 'NEW_ADDRESS')
+
+        for confirmation in range(0, 3):
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('NEW_ADDRESS', 1.23)
+
+        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
+        self.assertEqual(self.accountant.log, [])
+
+    def test_render_GET_various_received(self):
+        self.create_account('test', 'ADDRESS_FOR_TEST')
+        self.create_account('test2', 'ADDRESS_FOR_TEST2')
+        self.create_account('test3', 'ADDRESS_FOR_TEST3')
+        self.add_address('test2', 'SECOND_ADDRESS_FOR_TEST2')
+
+        for confirmation in range(0, 3):
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('ADDRESS_FOR_TEST', 1.23)
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('ADDRESS_FOR_TEST2', 0.2233)
+
+        for confirmation in range(0, 6):
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('ADDRESS_FOR_TEST3', 3.4124)
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('SECOND_ADDRESS_FOR_TEST2', 4.0)
+
+        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
+        self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
+                                                         ('deposit_cash', ('ADDRESS_FOR_TEST3', 341240000L), {})]
+        ))
