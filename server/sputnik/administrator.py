@@ -62,9 +62,6 @@ ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is alre
 INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
 
-USER_LIMIT=500
-
-
 def session_aware(func):
     def new_func(self, *args, **kwargs):
         try:
@@ -82,7 +79,8 @@ class Administrator:
     def __init__(self, session, accountant, cashier,
                  zendesk_domain,
                  debug=False, base_uri=None, sendmail=None,
-                 template_dir='admin_templates'):
+                 template_dir='admin_templates',
+                 user_limit=500):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -101,6 +99,7 @@ class Administrator:
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.base_uri = base_uri
         self.sendmail = sendmail
+        self.user_limit = user_limit
 
 
     @session_aware
@@ -115,8 +114,7 @@ class Administrator:
         :raises: USER_LIMIT_REACHED, USERNAME_TAKEN, OUT_OF_ADDRESSES
         """
         user_count = self.session.query(models.User).count()
-        # TODO: Make this configurable
-        if user_count > USER_LIMIT:
+        if user_count > self.user_limit:
             logging.error("User limit reached")
             raise USER_LIMIT_REACHED
 
@@ -1060,10 +1058,13 @@ if __name__ == "__main__":
     from_email = config.get("administrator", "email")
     zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
+    user_limit = config.getint("administrator", "user_limit")
     administrator = Administrator(session, accountant, cashier,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
-                                  sendmail=Sendmail(from_email))
+                                  sendmail=Sendmail(from_email),
+                                  user_limit=user_limit)
+
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
 

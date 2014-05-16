@@ -27,7 +27,8 @@ class TestAdministrator(TestSputnik):
                                                          debug=True,
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
-                                                         template_dir="../server/sputnik/admin_templates")
+                                                         template_dir="../server/sputnik/admin_templates",
+                                                         user_limit=50)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
@@ -63,10 +64,8 @@ class TestWebserverExport(TestAdministrator):
 
     def test_many_accounts(self):
         from sputnik import administrator
-        # force a smaller user limit
-        administrator.USER_LIMIT = 50
 
-        user_limit = administrator.USER_LIMIT
+        user_limit = self.administrator.user_limit
 
         # Make a ton of users, ignore exceptions
         for i in range(0, user_limit):

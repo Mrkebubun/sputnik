@@ -51,6 +51,7 @@ interface = ${webserver_interface}
 address = ${webserver_address}
 debug = ${debug}
 email = ${administrator_email}
+user_limit = 500
 
 [ticketserver]
 ticketserver_port = ${ticketserver_port}
