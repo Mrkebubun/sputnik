@@ -25,7 +25,7 @@ deps:
 config:
 	install/install.py config
 
-build: test
+build:
 	install/install.py build
 
 dist: config build
