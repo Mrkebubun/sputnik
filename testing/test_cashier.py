@@ -20,8 +20,8 @@ class FakeBitcoin(FakeProxy):
         if address in self.received:
             if self.received[address]['confirmations'] >= minimum_confirmations:
                 return self.received[address]['received']
-            else:
-                return 0
+
+        return 0.0
 
     def getbalance(self):
         return self.balance
@@ -142,17 +142,17 @@ class TestAdministratorExport(TestCashier):
         self.assertTrue(self.cashier.accountant.check_for_calls([('deposit_cash', ('TEST_ADDRESS', 123000000L), {})]))
 
     def test_rescan_address_with_deposit_insufficient_confirms(self):
-        self.create_account('test', 'TEST_ADDRESS')
+        self.create_account('test', 'TEST_ADDRESS_2')
         for confirmation in range(0, 5):
-            self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS', 1.23)
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS_2', 1.23)
 
-        self.cashier.rescan_address('TEST_ADDRESS')
+        self.cashier.rescan_address('TEST_ADDRESS_2')
         self.assertEquals(self.cashier.accountant.log, [])
 
     def test_rescan_address_with_nodeposit(self):
-        self.create_account('test', 'TEST_ADDRESS')
+        self.create_account('test', 'TEST_ADDRESS_3')
 
-        self.cashier.rescan_address('TEST_ADDRESS')
+        self.cashier.rescan_address('TEST_ADDRESS_3')
         self.assertEquals(self.cashier.accountant.log, [])
 
     def test_process_withdrawal_online_have_cash(self):

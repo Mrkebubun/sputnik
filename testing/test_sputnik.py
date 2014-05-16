@@ -177,7 +177,9 @@ class FakeSendmail(FakeProxy):
 
 class TestSputnik(unittest.TestCase):
     def setUp(self):
-        logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+        logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
+                            level=logging.DEBUG)
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
         test_config = "[database]\nuri = sqlite://"
         from sputnik import config
 

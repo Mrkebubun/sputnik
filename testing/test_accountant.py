@@ -95,9 +95,13 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
+        # Set a deposit limit
+        self.accountant.deposit_limits['BTC'] = 100000
+
         self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
         position = self.session.query(models.Position).filter_by(
             username="test").one()
+
         self.assertEqual(position.position, self.accountant.deposit_limits['BTC'])
         self.assertEqual(position.position, position.position_calculated)
 
@@ -187,7 +191,7 @@ class TestAdministratorExport(TestAccountant):
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
-        self.administrator_export.transfer_position('BTC', 'from_account', 'to_account', 5)
+        self.administrator_export.transfer_position('BTC', 'from_account', 'to_account', 5, 'note')
         from_position = self.session.query(models.Position).filter_by(username='from_account').one()
         to_position = self.session.query(models.Position).filter_by(username='to_account').one()
 

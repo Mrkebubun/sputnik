@@ -25,11 +25,15 @@ deps:
 config:
 	install/install.py config
 
-build:
+build: test
 	install/install.py build
 
 dist: config build
 	install/install.py dist
+
+test:
+    cd testing
+    make
 
 tar: dist
 	mkdir -p .tar/sputnik/install/profiles
