@@ -32,7 +32,7 @@ dist: config build
 	install/install.py dist
 
 test:
-	cd testing && make
+	cd testing && make no_ui
 
 tar: dist
 	mkdir -p .tar/sputnik/install/profiles
