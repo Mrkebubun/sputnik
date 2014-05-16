@@ -41,15 +41,11 @@ class TestWebserverExport(TestAdministrator):
         self.assertEqual(user.username, 'new_user')
         self.assertEqual(user.password, 'new_user_password_hash')
 
-
-        address = self.session.query(models.Addresses).filter_by(address='new_address_without_user').one()
-        self.assertEqual(address.username, 'new_user')
+        # Addresses are assigned at get_current_address, not on account creation
 
     def test_make_account_no_address(self):
-        # should fail
-        from sputnik import administrator
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'out of addresses'):
-            self.webserver_export.make_account('new_user', 'new_user_password_hash')
+        # should suceed because we don't require that addresseses exist when we do make_Account anymore
+        self.assertTrue(self.webserver_export.make_account('new_user', 'new_user_password_hash'))
 
     def test_make_account_taken(self):
         self.add_address(address='new_address_without_user')
@@ -103,7 +99,7 @@ class TestWebserverExport(TestAdministrator):
         self.assertTrue(self.webserver_export.get_reset_token('test'))
 
         # Look for the email
-        message = self.administrator.sendmail.log[0][0]
+        message = self.administrator.sendmail.log[0][1][0]
         match = re.search('#function=change_password_token&username=test&token=(.*)$', message)
         self.assertIsNotNone(match)
         token_str = match.group(1)
