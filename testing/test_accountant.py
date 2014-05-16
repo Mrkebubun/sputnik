@@ -526,7 +526,6 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'BUY')
 
-            pprint(self.engines['NETS2014'].log)
             self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
                                                                       {'contract': 8,
                                                                        'id': 1,
@@ -571,7 +570,6 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'SELL')
 
-            pprint(self.engines['NETS2014'].log)
             self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
                                                                       {'contract': 8,
                                                                        'id': 1,
