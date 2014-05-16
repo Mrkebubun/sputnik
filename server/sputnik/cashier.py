@@ -39,6 +39,7 @@ WITHDRAWAL_NOT_FOUND = CashierException(0, "Withdrawal not found")
 WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
 OUT_OF_ADDRESSES = CashierException(2, "Out of addresses")
 NO_AUTOMATIC_WITHDRAWAL = CashierException(3, "No automatic withdrawals for this contract")
+INSUFFICIENT_FUNDS = CashierException(4, "Insufficient funds in wallet")
 
 class Cashier():
     """
@@ -47,8 +48,8 @@ class Cashier():
     hook to the bitcoin client
     """
 
-    def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period,
-                 sendmail, template_dir="admin_templates", minimum_confirmations=6):
+    def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
+                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -61,9 +62,10 @@ class Cashier():
         self.sendmail = sendmail
         self.minimum_confirmations = minimum_confirmations
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
-        for ticker in self.bitcoinrpc.keys():
-            looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
-            looping_call.start(cold_wallet_period, now=False)
+        if cold_wallet_period is not None:
+            for ticker in self.bitcoinrpc.keys():
+                looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
+                looping_call.start(cold_wallet_period, now=False)
 
     def notify_accountant(self, address, total_received):
         """
@@ -225,8 +227,13 @@ class Cashier():
             else:
                 if online:
                     if withdrawal.contract.ticker in self.bitcoinrpc:
-                        self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
-                                                                                  float(withdrawal.amount) / withdrawal.contract.denominator)
+                        withdrawal_amount = float(withdrawal.amount) / withdrawal.contract.denominator
+                        balance = self.bitcoinrpc[withdrawal.contract.ticker].getbalance()
+                        if balance >= withdrawal_amount:
+                            self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
+                                                                                      withdrawal_amount)
+                        else:
+                            raise INSUFFICIENT_FUNDS
                     else:
                         raise NO_AUTOMATIC_WITHDRAWAL
 
@@ -472,7 +479,9 @@ if __name__ == '__main__':
     sendmail=Sendmail(config.get("administrator", "email"))
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
 
-    cashier = Cashier(session, accountant, bitcoinrpc, compropago, cold_wallet_period, sendmail,
+    cashier = Cashier(session, accountant, bitcoinrpc, compropago,
+                      cold_wallet_period=cold_wallet_period,
+                      sendmail=sendmail,
                       minimum_confirmations=minimum_confirmations)
 
     administrator_export = AdministratorExport(cashier)

@@ -4,6 +4,7 @@ from twisted.trial import unittest
 import sys
 import os
 import StringIO
+import logging
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -113,18 +114,6 @@ def dumpArgs(func):
 
     return wrapper
 
-class FakeSendmail(object):
-    def __init__(self, from_address):
-        """
-
-        :param from_address:
-        """
-        self.from_address = from_address
-        self.log = []
-
-    def send_mail(self, message, subject, to_address):
-        self.log.append((message, subject, to_address))
-
 class FakeProxy:
     def __init__(self):
         self.log = []
@@ -176,9 +165,19 @@ class FakeProxy:
 
         return True
 
+class FakeSendmail(FakeProxy):
+    def __init__(self, from_address):
+        """
+
+        :param from_address:
+        """
+        self.from_address = from_address
+        FakeProxy.__init__(self)
+
 
 class TestSputnik(unittest.TestCase):
     def setUp(self):
+        logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
         test_config = "[database]\nuri = sqlite://"
         from sputnik import config
 
