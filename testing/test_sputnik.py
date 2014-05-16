@@ -6,6 +6,8 @@ import os
 import StringIO
 import logging
 
+logging.basicConfig(level=1000)
+
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
