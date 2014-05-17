@@ -46,7 +46,7 @@ if __name__ == "__main__":
                 profile[field[8:]] = form.getvalue(field)
 
         if 'domain' not in profile:
-            raise Exception("'domain' not set")
+            raise ProcessException("'domain' not set")
 
         profile_template = jinja_env.get_template('profile.ini')
         profile_text = profile_template.render(**profile)
@@ -63,10 +63,10 @@ if __name__ == "__main__":
                 name[key] = value
 
         if 'CN' not in name:
-            raise Exception("CN missing")
+            raise ProcessException("CN missing")
 
         if name['CN'] != profile['domain']:
-            raise Exception("CN doesn't match domain")
+            raise ProcessException("CN doesn't match domain")
 
         csr = generate_csr(pkey, name)
         csr_pem = crypto.dump_certificate_request(crypto.FILETYPE_PEM, csr)
