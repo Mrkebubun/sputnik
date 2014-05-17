@@ -49,10 +49,10 @@ class MarketMakerBot(TradingBot):
         rate = 1
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 5)
+        self.get_external_market.start(rate * 1)
 
-        self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(rate * 1)
+        #self.monitor_orders = task.LoopingCall(self.monitorOrders)
+        #self.monitor_orders.start(rate * 1)
 
         return True
 
@@ -90,7 +90,7 @@ class MarketMakerBot(TradingBot):
             print "unable to get external market data: %s" % e
             return
 
-        for ticker, market in self.markets.iteritems():
+        for ticker, market in [('BTC/PLN', self.markets['BTC/PLN'])]:
             if market['contract_type'] == "cash_pair":
                 currency = market['denominated_contract_ticker']
 
@@ -109,6 +109,8 @@ class MarketMakerBot(TradingBot):
 
                 new_bid = btcusd_bid * bid
                 new_ask = btcusd_ask * ask
+                if ticker == "BTC/PLN":
+                    logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
                 # Make sure that the marketwe are making isn't crossed
                 if new_bid > new_ask:
@@ -135,7 +137,6 @@ class MarketMakerBot(TradingBot):
 
     def replaceBidAsk(self, ticker, new_ba, side):
         self.cancelOrders(ticker, side)
-        self.btcmxn_bid = new_ba
 
         self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
 
@@ -155,8 +156,8 @@ class MarketMakerBot(TradingBot):
                     else:
                         price = market['ask']
 
-                    self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
-                                    self.price_to_wire(ticker, price), side)
+                    #self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
+                    #                self.price_to_wire(ticker, price), side)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
