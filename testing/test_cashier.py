@@ -139,14 +139,10 @@ class TestWebserverExport(TestCashier):
         address = self.session.query(models.Addresses).filter_by(username='test', active=True).one()
         self.assertEqual(address.address, current_address)
 
-    def test_get_deposit_instructions_btc(self):
+    def test_get_deposit_instructions(self):
         instructions = self.webserver_export.get_deposit_instructions('BTC')
-        self.assertEqual(instructions, "Deposit your crypto-currency normally")
+        self.assertEqual(instructions, "Please send your crypto-currency to this address")
 
-    def test_get_deposit_instructions_fiat(self):
-        instructions = self.webserver_export.get_deposit_instructions('MXN')
-        self.assertEqual(instructions,
-                         "Mail a check to X or send a wire to Y and put this key into the comments/memo field")
 
 
 class TestAdministratorExport(TestCashier):
