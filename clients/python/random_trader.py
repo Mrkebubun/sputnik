@@ -45,10 +45,10 @@ class RandomBot(TradingBot):
         rate = 10
 
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
-        self.place_orders.start(1.0 * rate)
+        self.place_orders.start(10 * rate)
 
         self.chatter = task.LoopingCall(self.saySomethingRandom)
-        self.chatter.start(10.0 * rate)
+        self.chatter.start(60 * rate)
 
         return True
 

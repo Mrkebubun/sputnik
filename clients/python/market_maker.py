@@ -46,10 +46,10 @@ class MarketMakerBot(TradingBot):
     external_markets = {}
 
     def startAutomationAfterAuth(self):
-        rate = 1
+        rate = 10
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 5)
+        self.get_external_market.start(rate * 6)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
         self.monitor_orders.start(rate * 1)
