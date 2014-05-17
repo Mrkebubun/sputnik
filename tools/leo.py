@@ -72,7 +72,7 @@ class AccountManager:
         print "\t\ttype:\t\t%s" % user.type
         print "\tPositions:"
         for position in user.positions:
-            prefix = "%s(%s)-%s/%s:" % (position.contract.ticker,
+            prefix = "%s-%s:" % (position.contract.ticker,
                                         position.contract.id)
             print "\t\t%s\t%s" % (prefix.ljust(10), position.position)
 

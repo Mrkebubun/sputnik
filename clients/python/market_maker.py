@@ -90,7 +90,7 @@ class MarketMakerBot(TradingBot):
             print "unable to get external market data: %s" % e
             return
 
-        for ticker, market in [('BTC/PLN', self.markets['BTC/PLN'])]:
+        for ticker, market in self.markets.iteritems():
             if market['contract_type'] == "cash_pair":
                 currency = market['denominated_contract_ticker']
 
@@ -156,11 +156,11 @@ class MarketMakerBot(TradingBot):
                     else:
                         price = market['ask']
 
-                    #self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
-                    #                self.price_to_wire(ticker, price), side)
+                    self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
+                                       self.price_to_wire(ticker, price), side)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True
