@@ -457,6 +457,9 @@ class @Sputnik extends EventEmitter
             (address) =>
                 @log "address for #{contract}: #{address}"
                 @emit "address", [contract, address]
+            , (error) =>
+                @error ["current_address_failure for #{contract}", error]
+                @emit "address_fail", error
 
     newAddress: (contract) =>
         @call("get_new_address", contract).then \
@@ -465,7 +468,7 @@ class @Sputnik extends EventEmitter
                 @emit "address", [contract, address]
             , (error) =>
                 @error ["new address failure for #{contract}", error]
-                @emit "new_address_fail", error
+                @emit "address_fail", error
 
     getDepositInstructions: (contract) =>
         @call("get_deposit_instructions", contract).then \
@@ -559,7 +562,7 @@ class @Sputnik extends EventEmitter
                     return d.resolve result[1]
                 else
                     @warn ["RPC call failed", result[1]]
-                    return d.reject result[1]
+                    return d.reject [0, result[1]]
             , (error) =>
                 @wtf "RPC Error: #{error.desc} in #{method}"
 

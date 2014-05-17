@@ -1,5 +1,6 @@
 import sys
 import os
+from twisted.internet import defer
 from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
 
@@ -8,23 +9,20 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
-from decimal import Decimal
-
 
 class FakeBitcoin(FakeProxy):
     received = {}
-
-    balance = Decimal(0.0)
+    balance = 0.0
 
     def getnewaddress(self):
-        return "NEW_TEST_ADDRESS"
+        return defer.succeed({'result': "NEW_TEST_ADDRESS"})
 
     def getreceivedbyaddress(self, address, minimum_confirmations):
         if address in self.received:
             if self.received[address]['confirmations'] >= minimum_confirmations:
-                return self.received[address]['amount']
+                return defer.succeed({'result': self.received[address]['amount']})
 
-        return 0.0
+        return defer.suceed(0.0)
 
     def listreceivedbyaddress(self, minimum_confirmations):
         received = []
@@ -37,21 +35,25 @@ class FakeBitcoin(FakeProxy):
                                             account='',
                                             amount=info['amount'],
                                             confirmations=info['confirmations']))
-        return received
+        return defer.succeed({'result': received})
+
 
     def getbalance(self):
-        return self.balance
+        return defer.succeed({'result': self.balance})
+
+    def sendtoaddress(self, address, amount):
+        return defer.succeed("TXSUCCESS")
 
     # Utility functions for tester
     def receive_at_address(self, address, amount):
         if address in self.received:
-            if self.received[address]['amount'] == Decimal(amount):
+            if self.received[address]['amount'] == amount:
                 self.received[address]['confirmations'] += 1
             else:
-                self.received[address]['amount'] = Decimal(amount)
+                self.received[address]['amount'] = amount
                 self.received[address]['confirmations'] = 1
         else:
-            self.received[address] = {'amount': Decimal(amount),
+            self.received[address] = {'amount': amount,
                                       'confirmations': 1
             }
 
@@ -311,20 +313,26 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_past_hard_limit(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(100.0)
-        self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 120000000)
+        d = self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 120000000)
 
-        from sputnik import models
+        def onSuccess(result):
+            from sputnik import models
 
-        withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
-        self.assertTrue(withdrawal.pending)
+            withdrawal = self.session.query(models.Withdrawal).filter_by(address='WITHDRAWAL_ADDRESS').one()
+            self.assertTrue(withdrawal.pending)
 
-        self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-        self.assertEqual(self.cashier.accountant.log, [])
-        self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
-                                                                (
-                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
-                                                                {'subject': 'Your withdrawal request is pending',
-                                                                 'to_address': u'<> anonymous'})]))
+            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
+            self.assertEqual(self.cashier.accountant.log, [])
+            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+                                                                    (
+                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                    {'subject': 'Your withdrawal request is pending',
+                                                                     'to_address': u'<> anonymous'})]))
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        d.addCallbacks(onSuccess, onFail)
 
     def test_request_withdrawal_fiat(self):
         self.create_account('test')
