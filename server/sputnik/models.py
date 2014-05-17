@@ -78,8 +78,8 @@ class Contract(db.Base):
     full_description = Column(String)
     active = Column(Boolean, nullable=False, server_default=sql.true())
     contract_type = Column(Enum('futures', 'prediction', 'cash', 'cash_pair', name='contract_types'), nullable=False)
-    tick_size = Column(Integer, nullable=False, server_default="1")
-    lot_size = Column(Integer, nullable=False, server_default="1")
+    tick_size = Column(BigInteger, nullable=False, server_default="1")
+    lot_size = Column(BigInteger, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
     expired = Column(Boolean, server_default=sql.false())
@@ -607,7 +607,7 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     id = Column(Integer, primary_key=True)
 
-    quantity = Column(Integer)
+    quantity = Column(BigInteger)
     price = Column(BigInteger, nullable=False)
     timestamp = Column(DateTime)
 
