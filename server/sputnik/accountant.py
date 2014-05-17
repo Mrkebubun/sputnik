@@ -53,7 +53,7 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, cashier, ledger, webserver, debug):
+    def __init__(self, session, engines, cashier, ledger, webserver, debug, trial_period=False):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -74,6 +74,7 @@ class Accountant:
         self.engines = engines
         self.ledger = ledger
         self.cashier = cashier
+        self.trial_period = trial_period
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -617,6 +618,10 @@ class Accountant:
         :raises: INSUFFICIENT_MARGIN, WITHDRAW_NOT_PERMITTED
         """
         try:
+            if self.trial_period:
+                logging.error("Withdrawals not permitted during trial period")
+                raise WITHDRAW_NOT_PERMITTED
+
             logging.debug("Withdrawal request for %s %s for %d to %s received" % (username, ticker, amount, address))
             user = self.get_user(username)
             if not user.permissions.withdraw:
@@ -1052,8 +1057,10 @@ if __name__ == "__main__":
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     cashier = push_proxy_sync(config.get("cashier", "accountant_export"))
     debug = config.getboolean("accountant", "debug")
+    trial_period = config.getboolean("accountant", "trial_period")
 
-    accountant = Accountant(session, engines, cashier, ledger, webserver, debug=debug)
+    accountant = Accountant(session, engines, cashier, ledger, webserver, debug=debug,
+                            trial_period=trial_period)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)

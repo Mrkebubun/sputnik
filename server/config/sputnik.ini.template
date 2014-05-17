@@ -41,6 +41,7 @@ webserver_export = tcp://127.0.0.1:4470
 cashier_export = tcp://127.0.0.1:4410
 administrator_export = tcp://127.0.0.1:4460
 debug = ${debug}
+trial_period = ${trial_period}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4670
