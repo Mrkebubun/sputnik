@@ -85,7 +85,10 @@ class RandomBot(TradingBot):
                 return
 
         # a qty somewhere between 0.5 and 2 BTC
-        quantity = float(random.randint(50, 200))/100
+        if contract['contract_type'] == "prediction":
+            quantity = random.randint(1, 4)
+        else:
+            quantity = float(random.randint(50, 200))/100
 
         self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
                         price, side)
