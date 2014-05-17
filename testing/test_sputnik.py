@@ -25,45 +25,45 @@ contracts add BTC/PLN
 contracts add BTC/HUF
 
 contracts add NETS2014
-contracts modify NETS2014 contract_type prediction
-contracts modify NETS2014 denominator 1000
-contracts modify NETS2014 lot_size 1000000
-contracts modify NETS2014 tick_size 1
-contracts modify NETS2014 expiration 2014-06-28
-contracts modify NETS2014 denominated_contract_ticker BTC
+contracts set NETS2014 contract_type prediction
+contracts set NETS2014 denominator 1000
+contracts set NETS2014 lot_size 1000000
+contracts set NETS2014 tick_size 1
+contracts set NETS2014 expiration 2014-06-28
+contracts set NETS2014 denominated_contract_ticker BTC
 
-contracts modify BTC contract_type cash
-contracts modify BTC denominator 100000000
+contracts set BTC contract_type cash
+contracts set BTC denominator 100000000
 
-contracts modify MXN contract_type cash
-contracts modify MXN denominator 100
+contracts set MXN contract_type cash
+contracts set MXN denominator 10000
 
-contracts modify PLN contract_type cash
-contracts modify PLN denominator 100
+contracts set PLN contract_type cash
+contracts set PLN denominator 10000
 
-contracts modify HUF contract_type cash
-contracts modify HUF denominator 1
+contracts set HUF contract_type cash
+contracts set HUF denominator 100
 
-contracts modify BTC/MXN contract_type cash_pair
-contracts modify BTC/MXN tick_size 100
-contracts modify BTC/MXN lot_size 1000000
-contracts modify BTC/MXN denominator 1
-contracts modify BTC/MXN denominated_contract_ticker MXN
-contracts modify BTC/MXN payout_contract_ticker BTC
+contracts set BTC/MXN contract_type cash_pair
+contracts set BTC/MXN tick_size 100
+contracts set BTC/MXN lot_size 1000000
+contracts set BTC/MXN denominator 1
+contracts set BTC/MXN denominated_contract_ticker MXN
+contracts set BTC/MXN payout_contract_ticker BTC
 
-contracts modify BTC/PLN contract_type cash_pair
-contracts modify BTC/PLN tick_size 100
-contracts modify BTC/PLN lot_size 1000000
-contracts modify BTC/PLN denominator 1
-contracts modify BTC/PLN denominated_contract_ticker PLN
-contracts modify BTC/PLN payout_contract_ticker BTC
+contracts set BTC/PLN contract_type cash_pair
+contracts set BTC/PLN tick_size 100
+contracts set BTC/PLN lot_size 1000000
+contracts set BTC/PLN denominator 1
+contracts set BTC/PLN denominated_contract_ticker PLN
+contracts set BTC/PLN payout_contract_ticker BTC
 
-contracts modify BTC/HUF contract_type cash_pair
-contracts modify BTC/HUF tick_size 100
-contracts modify BTC/HUF lot_size 1000000
-contracts modify BTC/HUF denominator 1
-contracts modify BTC/HUF denominated_contract_ticker HUF
-contracts modify BTC/HUF payout_contract_ticker BTC
+contracts set BTC/HUF contract_type cash_pair
+contracts set BTC/HUF tick_size 100
+contracts set BTC/HUF lot_size 1000000
+contracts set BTC/HUF denominator 1
+contracts set BTC/HUF denominated_contract_ticker HUF
+contracts set BTC/HUF payout_contract_ticker BTC
 
 permissions add Default
 
@@ -80,19 +80,19 @@ accounts position randomtrader BTC
 accounts position randomtrader MXN
 
 accounts add onlinecash
-accounts modify onlinecash type Asset
+accounts set onlinecash type Asset
 
 accounts add offlinecash
-accounts modify offlinecash type Asset
+accounts set offlinecash type Asset
 
 accounts add depositoverflow
-accounts modify depositoverflow type Liability
+accounts set depositoverflow type Liability
 
 accounts add pendingwithdrawal
-accounts modify pendingwithdrawal type Liability
+accounts set pendingwithdrawal type Liability
 
 accounts add adjustments
-accounts modify adjustments type Asset
+accounts set adjustments type Asset
 
 admin add admin
 """
@@ -212,6 +212,6 @@ class TestSputnik(unittest.TestCase):
     def add_address(self, username=None, address=None, currency='BTC'):
         self.leo.parse("addresses add %s %s" % (currency, address))
         if username is not None:
-            self.leo.parse("addresses modify %s username %s" % (address, username))
-            self.leo.parse("addresses modify %s active 1" % address)
+            self.leo.parse("addresses set %s username %s" % (address, username))
+            self.leo.parse("addresses set %s active 1" % address)
         self.session.commit()

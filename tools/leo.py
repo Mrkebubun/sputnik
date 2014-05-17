@@ -9,6 +9,7 @@ import shlex
 import textwrap
 import autobahn.wamp1.protocol
 import Crypto.Random.random
+from progressbar import ProgressBar
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
@@ -31,7 +32,7 @@ class PermissionsManager:
         else:
             print "PermissionGroup %s already exists" % group
 
-    def modify(self, name, field, value):
+    def set(self, name, field, value):
         group = self.session.query(models.PermissionGroup).filter_by(
                 name=name).first()
         if group == None:
@@ -112,7 +113,7 @@ class AccountManager:
         for user in users:
             print user
 
-    def modify(self, username, field, value):
+    def set(self, username, field, value):
         user = self.session.query(models.User).filter_by(
                 username=username).first()
         if user == None:
@@ -129,7 +130,7 @@ class AccountManager:
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
         password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(secret, extra)
-        self.modify(username, "password", "%s:%s" % (salt, password))
+        self.set(username, "password", "%s:%s" % (salt, password))
 
 class ContractManager:
     def __init__(self, session):
@@ -192,14 +193,111 @@ class ContractManager:
         for contract in contracts:
             print contract
 
-    def modify(self, ticker_or_id, field, value):
+    def modify_denominator(self, ticker_or_id, value):
+        contract = self.resolve(self.session, ticker_or_id)
+        if contract.contract_type == "cash":
+            old_denominator = contract.denominator
+            denominator_ratio_float = float(value)/float(old_denominator)
+            denominator_ratio = int(denominator_ratio_float)
+
+            if denominator_ratio_float != denominator_ratio:
+                raise NotImplementedError
+
+            contract.denominator = value
+            if contract.hot_wallet_limit is not None:
+                contract.hot_wallet_limit *= denominator_ratio
+
+            self.session.add(contract)
+
+            # Get contracts use this contract
+            denominated = self.session.query(models.Contract).filter_by(denominated_contract_ticker=contract.ticker).all()
+            payout = self.session.query(models.Contract).filter_by(payout_contract_ticker=contract.ticker).all()
+
+            # Get positions that use this contract
+            positions = self.session.query(models.Position).filter_by(contract_id=contract.id).all()
+
+            # Get postings that use this contract
+            postings = self.session.query(models.Posting).filter_by(contract_id=contract.id).all()
+
+            print "Denominated by %s: " % contract.ticker
+            for d in denominated:
+                if d.margin_high is not None:
+                    d.margin_high *= denominator_ratio
+
+                if d.margin_low is not None:
+                    d.margin_low *= denominator_ratio
+
+                self.session.add(d)
+
+                # Get trades and orders
+                trades = self.session.query(models.Trade).filter_by(contract_id=d.id).all()
+                if len(trades):
+                    print "Trades"
+                    pb = ProgressBar()
+                    for t in pb(trades):
+                        t.price *= denominator_ratio
+                        self.session.add(t)
+
+                orders = self.session.query(models.Order).filter_by(contract_id=d.id).all()
+                if len(orders):
+                    print "Orders"
+                    pb = ProgressBar()
+                    for o in pb(orders):
+                        o.price *= denominator_ratio
+                        self.session.add(o)
+
+            print "Payout with %s: " % contract.ticker
+            for p in payout:
+                # Get trades and orders
+                trades = self.session.query(models.Trade).filter_by(contract_id=p.id).all()
+                if len(trades):
+                    print "Trades"
+                    pb = ProgressBar()
+                    for t in pb(trades):
+                        t.quantity *= denominator_ratio
+                        self.session.add(t)
+
+                orders = self.session.query(models.Order).filter_by(contract_id=p.id).all()
+                if len(orders):
+                    print "Orders"
+                    pb = ProgressBar()
+                    for o in pb(orders):
+                        o.quantity *= denominator_ratio
+                        o.quantity_left *= denominator_ratio
+                        self.session.add(o)
+
+            if len(positions):
+                print "Positions with %s" % contract.ticker
+                progress_pos = ProgressBar()
+                for pos in progress_pos(positions):
+                    pos.position *= denominator_ratio
+                    self.session.add(pos)
+
+            if len(postings):
+                print "Postings with %s" % contract.ticker
+                progress_post = ProgressBar()
+                for post in progress_post(postings):
+                    post.quantity *= denominator_ratio
+                    self.session.add(post)
+        else:
+            raise NotImplementedError
+
+    def set(self, ticker_or_id, field, value):
         contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         if field == 'expiration':
             value = parser.parse(value)
+
         setattr(contract, field, value)
         self.session.merge(contract)
+
+    def modify(self, ticker_or_id, field, value):
+        if field == 'denominator':
+            self.modify_denominator(ticker_or_id, value)
+        else:
+            raise NotImplementedError
+
 
 class AddressManager:
     def __init__(self, session):
@@ -231,7 +329,7 @@ class AddressManager:
             print "\tBelongs to: %s" % address.user.username
         print "\tAccounted for: %s" % address.accounted_for
 
-    def modify(self, address, field, value):
+    def set(self, address, field, value):
         addr = self.session.query(models.Addresses).filter_by(
                 address=address).first()
         if addr == None:
@@ -274,6 +372,7 @@ class LowEarthOrbit:
 def main():
     session = database.make_session()
     try:
+        print "WARNING: DO NOT RUN WHILE SPUTNIK IS RUNNING. SHUT EVERYTHING DOWN FIRST"
         leo = LowEarthOrbit(session)
         if len(sys.argv) == 1:
             try:

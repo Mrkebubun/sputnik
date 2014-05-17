@@ -11,18 +11,18 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 accountant_init = """
 permissions add Deposit
-permissions modify Deposit deposit 1
+permissions set Deposit deposit 1
 
 permissions add Trade
-permissions modify Trade trade 1
+permissions set Trade trade 1
 
 permissions add Withdraw
-permissions modify Withdraw withdraw 1
+permissions set Withdraw withdraw 1
 
 permissions add Full
-permissions modify Full deposit 1
-permissions modify Full trade 1
-permissions modify Full withdraw 1
+permissions set Full deposit 1
+permissions set Full trade 1
+permissions set Full withdraw 1
 """
 
 
@@ -319,12 +319,12 @@ class TestEngineExport(TestAccountant):
         self.set_permissions_group("aggressive_user", 'Deposit')
         self.set_permissions_group("passive_user", "Deposit")
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 30000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
         test_transaction = {'aggressive_username': 'aggressive_user',
                             'passive_username': 'passive_user',
                             'contract': 'BTC/MXN',
-                            'price': 600000,
+                            'price': 60000000,
                             'quantity': 3000000,
                             'aggressive_order_id': 54,
                             'passive_order_id': 50,
@@ -349,8 +349,8 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(passive_user_btc_position.position, 3000000)
 
         # This is based on 20bps MXN fee
-        self.assertEqual(aggressive_user_mxn_position.position, 17964)
-        self.assertEqual(passive_user_mxn_position.position, 11964)
+        self.assertEqual(aggressive_user_mxn_position.position, 1796400)
+        self.assertEqual(passive_user_mxn_position.position, 1196400)
 
         # Check to be sure it made all the right calls
         self.assertTrue(self.webserver.check_for_calls([('transaction',
@@ -368,19 +368,19 @@ class TestEngineExport(TestAccountant):
                                                         ('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'MXN',
-                                                           'quantity': 30000,
+                                                           'quantity': 3000000,
                                                            'type': u'Deposit'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'passive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': 30000,
+                                                           'quantity': 3000000,
                                                            'type': u'Deposit'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'aggressive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': 18000,
+                                                           'quantity': 1800000,
                                                            'type': u'Trade'}),
                                                          {}),
                                                         ('transaction',
@@ -392,7 +392,7 @@ class TestEngineExport(TestAccountant):
                                                         ('transaction',
                                                          (u'passive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': -18000,
+                                                           'quantity': -1800000,
                                                            'type': u'Trade'}),
                                                          {}),
                                                         ('transaction',
@@ -404,45 +404,45 @@ class TestEngineExport(TestAccountant):
                                                         ('transaction',
                                                          (u'aggressive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': -36,
+                                                           'quantity': -3600,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'customer',
                                                           {'contract': u'MXN',
-                                                           'quantity': 18,
+                                                           'quantity': 1800,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'm2',
                                                           {'contract': u'MXN',
-                                                           'quantity': 18,
+                                                           'quantity': 1800,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'passive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': -36,
+                                                           'quantity': -3600,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'customer',
                                                           {'contract': u'MXN',
-                                                           'quantity': 18,
+                                                           'quantity': 1800,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'm2',
                                                           {'contract': u'MXN',
-                                                           'quantity': 18,
+                                                           'quantity': 1800,
                                                            'type': u'Fee'}),
                                                          {}),
                                                         ('fill',
                                                          ('aggressive_user',
                                                           {'contract': 'BTC/MXN',
-                                                           'fees': {u'BTC': 0, u'MXN': 36.0},
+                                                           'fees': {u'BTC': 0, u'MXN': 3600},
                                                            'id': 54,
-                                                           'price': 600000,
+                                                           'price': 60000000,
                                                            'quantity': 3000000,
                                                            'side': 'SELL'
                                                           }),
@@ -450,9 +450,9 @@ class TestEngineExport(TestAccountant):
                                                         ('fill',
                                                          ('passive_user',
                                                           {'contract': 'BTC/MXN',
-                                                           'fees': {u'BTC': 0, u'MXN': 36.0},
+                                                           'fees': {u'BTC': 0, u'MXN': 3600},
                                                            'id': 50,
-                                                           'price': 600000,
+                                                           'price': 60000000,
                                                            'quantity': 3000000,
                                                            'side': 'BUY'
                                                           }),
@@ -468,13 +468,13 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'BTC/MXN',
-                                                    'price': 10000,
+                                                    'price': 1000000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
 
@@ -487,14 +487,14 @@ class TestWebserverExport(TestAccountant):
             order = self.session.query(models.Order).filter_by(id=id).one()
             self.assertEqual(order.username, 'test')
             self.assertEqual(order.contract.ticker, 'BTC/MXN')
-            self.assertEqual(order.price, 10000)
+            self.assertEqual(order.price, 1000000)
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
                                                                       {'contract': 5,
                                                                        'id': 1,
-                                                                       'price': 10000,
+                                                                       'price': 1000000,
                                                                        'quantity': 3000000,
                                                                        'quantity_left': 3000000,
                                                                        'side': 1,
@@ -597,14 +597,14 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
 
         # Place a sell order, we have enough cash
         from sputnik import accountant
         with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
             self.webserver_export.place_order({'username': 'test',
                                                         'contract': 'BTC/MXN',
-                                                        'price': 10000,
+                                                        'price': 1000000,
                                                         'quantity': 3000000,
                                                         'side': 'SELL'})
 
@@ -618,7 +618,7 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
              self.webserver_export.place_order({'username': 'test',
                                                         'contract': 'BTC/MXN',
-                                                        'price': 10000,
+                                                        'price': 1000000,
                                                         'quantity': 3000000,
                                                         'side': 'SELL'})
 
@@ -627,7 +627,7 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
 
@@ -636,7 +636,7 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             result = self.webserver_export.place_order({'username': 'test',
                                                         'contract': 'BTC/MXN',
-                                                        'price': 10000,
+                                                        'price': 1000000,
                                                         'quantity': 9000000,
                                                         'side': 'SELL'})
 
@@ -646,13 +646,13 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
                                                     'contract': 'BTC/MXN',
-                                                    'price': 10000,
+                                                    'price': 1000000,
                                                     'quantity': 3000000,
                                                     'side': 'SELL'})
 
@@ -667,14 +667,14 @@ class TestWebserverExport(TestAccountant):
             order = self.session.query(models.Order).filter_by(id=id).one()
             self.assertEqual(order.username, 'test')
             self.assertEqual(order.contract.ticker, 'BTC/MXN')
-            self.assertEqual(order.price, 10000)
+            self.assertEqual(order.price, 1000000)
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
                                                                       {'contract': 5,
                                                                        'id': 1,
-                                                                       'price': 10000,
+                                                                       'price': 1000000,
                                                                        'quantity': 3000000,
                                                                        'quantity_left': 3000000,
                                                                        'side': 1,
@@ -686,7 +686,7 @@ class TestWebserverExport(TestAccountant):
             with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
                 self.webserver_export.place_order({'username': 'test',
                                                             'contract': 'BTC/MXN',
-                                                            'price': 10000,
+                                                            'price': 1000000,
                                                             'quantity': 3000000,
                                                             'side': 'SELL'})
 

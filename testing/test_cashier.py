@@ -207,7 +207,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_online_fiat(self):
         self.create_account('test')
-        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1000000)
+        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
 
         from sputnik import models, cashier
 
@@ -224,7 +224,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_offline(self):
         self.create_account('test')
-        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1000000)
+        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
 
         from sputnik import models
 
@@ -237,7 +237,7 @@ class TestAdministratorExport(TestCashier):
                                                           (u'MXN',
                                                            'pendingwithdrawal',
                                                            'offlinecash',
-                                                           1000000,
+                                                           100000000,
                                                            u'WITHDRAWAL_ADDRESS'),
                                                           {})]))
 
@@ -247,7 +247,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_cancel(self):
         self.create_account('test')
-        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1000000)
+        self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
 
         from sputnik import models
 
@@ -260,7 +260,7 @@ class TestAdministratorExport(TestCashier):
                                                           (u'MXN',
                                                            'pendingwithdrawal',
                                                            'test',
-                                                           1000000,
+                                                           100000000,
                                                            u'WITHDRAWAL_ADDRESS'),
                                                           {})]))
 
@@ -324,7 +324,7 @@ class TestAccountantExport(TestCashier):
 
     def test_request_withdrawal_fiat(self):
         self.create_account('test')
-        self.accountant_export.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 12000)
+        self.accountant_export.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1200000)
 
         from sputnik import models
 
@@ -335,7 +335,7 @@ class TestAccountantExport(TestCashier):
         self.assertEqual(self.cashier.accountant.log, [])
         self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
                                                                 (
-                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                    'Hello anonymous (test),\n\nYour withdrawal request of 120.0000 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                 {'subject': 'Your withdrawal request is pending',
                                                                  'to_address': u'<> anonymous'})]))
 

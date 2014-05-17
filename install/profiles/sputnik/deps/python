@@ -9,4 +9,4 @@ setuptools>=2.1
 Jinja2
 treq
 superlance
-
+progressbar==2.3

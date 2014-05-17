@@ -6,6 +6,7 @@ onetimepass==0.2.2
 bitcoin-python==0.3
 autobahn==0.8.5
 setuptools>=2.1
+progressbar==2.3
 beautifulsoup4
 Jinja2
 treq
