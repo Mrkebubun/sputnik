@@ -382,7 +382,7 @@ class Journal(db.Base):
             self.timestamp = timestamp
 
         if not self.audit:
-            send_alert("Journal audit failed for %s" % self)
+            send_alert(self, "Journal Audit Failed")
             raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
