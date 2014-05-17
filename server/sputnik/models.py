@@ -100,6 +100,8 @@ class Contract(db.Base):
     hot_wallet_limit = Column(BigInteger)
     cold_wallet_address = Column(String)
 
+    deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
+
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
 
