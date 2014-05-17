@@ -28,7 +28,7 @@ import models
 import margin
 import util
 import ledger
-import alerts
+from alerts import send_alert
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
@@ -105,13 +105,13 @@ class Accountant:
             e = failure.trap(ledger.LedgerException)
             logging.error("Ledger exception:")
             logging.error(str(failure.value))
-            alerts.alert("Exception in ledger. See logs.")
+            send_alert("Exception in ledger. See logs.")
 
         def on_fail_rpc(self, failure):
             e = failure.trap(RemoteCallException)
             if isinstance(e, RemoteCallTimedOut):
                 logging.error("Ledger call timed out.")
-                alerts.alert("Ledger call timed out. Ledger may be overloaded.")
+                send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
@@ -403,11 +403,15 @@ class Accountant:
 
         elif contract.contract_type == "prediction":
             denominated_contract = contract.denominated_contract
+            payout_contract = contract
 
             cash_spent_float = float(quantity * price * contract.lot_size / contract.denominator)
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
-                logging.error("cash_spent is not an integer")
+                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
+                          (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
+                logging.error(message)
+                send_alert(message, "Integer failure")
 
         elif contract.contract_type == "cash_pair":
             denominated_contract = contract.denominated_contract
@@ -417,7 +421,10 @@ class Accountant:
                                (contract.denominator * payout_contract.denominator)
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
-                logging.error("Position change is not an integer.")
+                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.denominator=%d payout_contract.denominator=%d)" % \
+                              (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
+                logging.error(message)
+                send_alert(message, "Integer failure")
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
