@@ -49,10 +49,10 @@ class MarketMakerBot(TradingBot):
         rate = 1
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 1)
+        self.get_external_market.start(rate * 5)
 
-        #self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        #self.monitor_orders.start(rate * 1)
+        self.monitor_orders = task.LoopingCall(self.monitorOrders)
+        self.monitor_orders.start(rate * 1)
 
         return True
 
