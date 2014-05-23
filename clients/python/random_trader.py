@@ -189,11 +189,14 @@ class RandomBot(TradingBot):
             best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
             best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
 
-            # Hit the other side
+            # Distance is [0.95,1.05]
+            distance = float(random.randint(0,10)/100) + 0.95
+
+            # Post something close to the bid or ask, depending on the size
             if side is 'BUY':
-                price = best_ask
+                price = best_ask * distance
             else:
-                price = best_bid
+                price = best_bid * distance
 
         except (ValueError, KeyError):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price
