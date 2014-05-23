@@ -400,7 +400,8 @@ if __name__ == "__main__":
     best = {'bid': None, 'ask': None}
 
     # first cancel all old pending orders
-    for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
+    for order in db_session.query(models.Order).filter_by(contract_id=contract_id).filter_by(
+            is_cancelled=False).filter(models.Order.quantity_left > 0):
         order.is_cancelled = True
         db_session.merge(order)
         # Tell the users that their order has been cancelled
