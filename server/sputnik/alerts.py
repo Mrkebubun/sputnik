@@ -32,9 +32,8 @@ class AlertsExport(object):
     def send_alert(self, message, subject):
         self.alerts.send_alert(message, subject)
 
-
+alerts_push = push_proxy_async(config.get("alerts", "export"))
 def send_alert(message, subject="No subject"):
-    alerts_push = push_proxy_async(config.get("alerts", "export"))
     program = os.path.basename(main.__file__)
     alerts_push.send_alert(message, "%s: %s" % (program, subject))
 
