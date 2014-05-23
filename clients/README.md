@@ -59,7 +59,8 @@ corresponding server objects. Each is encoded in JSON.
    close: 5456
    volume: 245
    vwap: 5100
-   timestamp: "2340934534283"
+   open_timestamp: "2340934534283"
+   close_timestamp: "456945645968"
 }
 ```
 
@@ -128,14 +129,14 @@ corresponding server objects. Each is encoded in JSON.
 ### get_markets()
 Take no arguments. Returns a ticker-indexed dictionary of contracts corresponding to currently active markets.
 
-### get_trade_history(ticker)
+### get_trade_history(ticker, start_timestamp, end_timestamp)
 
-ticker must be a string. It must be one of the active markets. Returns a time sorted array of trades in the last hour.
+ticker must be a string. It must be one of the active markets. Returns a time sorted array of trades.
 
 ### get_ohlcv_history(ticker,period,start_timestamp,end_timestamp)
 
 ticker must be a string. It must be one of the active markets. period is minute/hour/day.
-Returns a dict with the key as the timestamp, the end of the period in question.
+Returns a dict with the key as the timestamp, the start of the period in question.
 
 Each entry is an ```ohlcv``` object
 

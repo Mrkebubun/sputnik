@@ -46,10 +46,10 @@ class MarketMakerBot(TradingBot):
     external_markets = {}
 
     def startAutomationAfterAuth(self):
-        rate = 1
+        rate = 10
 
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 60)
+        self.get_external_market.start(rate * 6)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
         self.monitor_orders.start(rate * 1)
@@ -109,6 +109,8 @@ class MarketMakerBot(TradingBot):
 
                 new_bid = btcusd_bid * bid
                 new_ask = btcusd_ask * ask
+                if ticker == "BTC/PLN":
+                    logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
                 # Make sure that the marketwe are making isn't crossed
                 if new_bid > new_ask:
@@ -118,8 +120,8 @@ class MarketMakerBot(TradingBot):
 
                 # If it's matched, make a spread just because
                 if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
-                    new_bid *= 0.9
-                    new_ask *= 1.1
+                    new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                    new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
 
                 if ticker in self.external_markets:
                     if new_bid != self.external_markets[ticker]['bid']:
@@ -135,7 +137,6 @@ class MarketMakerBot(TradingBot):
 
     def replaceBidAsk(self, ticker, new_ba, side):
         self.cancelOrders(ticker, side)
-        self.btcmxn_bid = new_ba
 
         self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
 
@@ -156,10 +157,10 @@ class MarketMakerBot(TradingBot):
                         price = market['ask']
 
                     self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
-                                    self.price_to_wire(ticker, price), side)
+                                       self.price_to_wire(ticker, price), side)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True

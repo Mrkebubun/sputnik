@@ -104,7 +104,7 @@ class TradingBot(WampCraClientProtocol):
             price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
                     self.markets[ticker]['denominator']
 
-        return price - price % self.markets[ticker]['tick_size']
+        return int(price - price % self.markets[ticker]['tick_size'])
 
     def price_from_wire(self, ticker, price):
         if self.markets[ticker]['contract_type'] == "prediction":
@@ -123,12 +123,12 @@ class TradingBot(WampCraClientProtocol):
 
     def quantity_to_wire(self, ticker, quantity):
         if self.markets[ticker]['contract_type'] == "prediction":
-            return quantity
+            return int(quantity)
         elif self.markets[ticker]['contract_type'] == "cash":
-            return quantity * self.markets[ticker]['denominator']
+            return int(quantity * self.markets[ticker]['denominator'])
         else:
             quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
-            return quantity - quantity % self.markets[ticker]['lot_size']
+            return int(quantity - quantity % self.markets[ticker]['lot_size'])
 
 
     """
@@ -182,7 +182,7 @@ class TradingBot(WampCraClientProtocol):
             del self.orders[id]
         else:
             if 'quantity' in order:
-                # Try to find it in internal orders
+                # Try to find it in internal orders, if found, delete it
                 for search_id, search_order in self.orders.items():
                     if isinstance(search_id, basestring) and search_id.startswith('internal_'):
                         if (order['quantity'] == search_order['quantity'] and
@@ -190,7 +190,10 @@ class TradingBot(WampCraClientProtocol):
                             order['contract'] == search_order['contract'] and
                             order['price'] == search_order['price']):
                             del self.orders[search_id]
-                            self.orders[id] = order
+
+            # Add or update, if not cancelled and quantity_left > 0
+            if not order['is_cancelled'] and order['quantity_left'] > 0:
+                self.orders[id] = order
 
         pprint(["Order", topicUri, order])
 
@@ -414,12 +417,23 @@ class TradingBot(WampCraClientProtocol):
         ord['price'] = price
         ord['side'] = side
         d = self.my_call("place_order", ord)
-        d.addCallbacks(self.onPlaceOrder, self.onError)
 
         self.last_internal_id += 1
         ord['quantity_left'] = ord['quantity']
         ord['is_cancelled'] = False
-        self.orders['internal_%d' % self.last_internal_id] = ord
+        order_id = 'internal_%d' % self.last_internal_id
+        self.orders[order_id] = ord
+
+        def onError(error):
+            logging.info("removing internal order %s" % order_id)
+            try:
+                del self.orders[order_id]
+            except KeyError as e:
+                logging.error("Unable to remove order: %s" % e)
+
+            self.onError(error)
+
+        d.addCallbacks(self.onPlaceOrder, onError)
 
     def chat(self, message):
         print "chatting: ", message
@@ -467,7 +481,8 @@ class BotFactory(WampClientFactory):
         self.username_password = username_password
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
+                        level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True
@@ -493,5 +508,5 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    connectWS(factory, contextFactory)
+    conn = connectWS(factory, contextFactory)
     reactor.run()
