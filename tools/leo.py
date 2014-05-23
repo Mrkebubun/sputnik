@@ -210,14 +210,8 @@ class ContractManager:
             self.session.add(contract)
 
             # Get contracts use this contract
-            denominated = self.session.query(models.Contract).filter_by(denominated_contract_ticker=contract.ticker).all()
-            payout = self.session.query(models.Contract).filter_by(payout_contract_ticker=contract.ticker).all()
-
-            # Get positions that use this contract
-            positions = self.session.query(models.Position).filter_by(contract_id=contract.id).all()
-
-            # Get postings that use this contract
-            postings = self.session.query(models.Posting).filter_by(contract_id=contract.id).all()
+            denominated = self.session.query(models.Contract).filter_by(denominated_contract_ticker=contract.ticker)
+            payout = self.session.query(models.Contract).filter_by(payout_contract_ticker=contract.ticker)
 
             print "Denominated by %s: " % contract.ticker
             for d in denominated:
@@ -230,55 +224,20 @@ class ContractManager:
                 self.session.add(d)
 
                 # Get trades and orders
-                trades = self.session.query(models.Trade).filter_by(contract_id=d.id).all()
-                if len(trades):
-                    print "Trades"
-                    pb = ProgressBar()
-                    for t in pb(trades):
-                        t.price *= denominator_ratio
-                        self.session.add(t)
-
-                orders = self.session.query(models.Order).filter_by(contract_id=d.id).all()
-                if len(orders):
-                    print "Orders"
-                    pb = ProgressBar()
-                    for o in pb(orders):
-                        o.price *= denominator_ratio
-                        self.session.add(o)
+                self.session.query(models.Trade).filter_by(contract_id=d.id).update({'price': models.Trade.price * denominator_ratio})
+                self.session.query(models.Order).filter_by(contract_id=d.id).update({'price': models.Order.price * denominator_ratio})
 
             print "Payout with %s: " % contract.ticker
             for p in payout:
                 # Get trades and orders
-                trades = self.session.query(models.Trade).filter_by(contract_id=p.id).all()
-                if len(trades):
-                    print "Trades"
-                    pb = ProgressBar()
-                    for t in pb(trades):
-                        t.quantity *= denominator_ratio
-                        self.session.add(t)
+                self.session.query(models.Trade).filter_by(contract_id=p.id).update({'quantity': models.Trade.quantity * denominator_ratio})
+                self.session.query(models.Order).filter_by(contract_id=p.id).update({'quantity': models.Order.quantity * denominator_ratio, 'quantity_left': models.Order.quantity_left * denominator_ratio})
 
-                orders = self.session.query(models.Order).filter_by(contract_id=p.id).all()
-                if len(orders):
-                    print "Orders"
-                    pb = ProgressBar()
-                    for o in pb(orders):
-                        o.quantity *= denominator_ratio
-                        o.quantity_left *= denominator_ratio
-                        self.session.add(o)
 
-            if len(positions):
-                print "Positions with %s" % contract.ticker
-                progress_pos = ProgressBar()
-                for pos in progress_pos(positions):
-                    pos.position *= denominator_ratio
-                    self.session.add(pos)
-
-            if len(postings):
-                print "Postings with %s" % contract.ticker
-                progress_post = ProgressBar()
-                for post in progress_post(postings):
-                    post.quantity *= denominator_ratio
-                    self.session.add(post)
+            print "Positions:"
+            self.session.query(models.Position).filter_by(contract_id=contract.id).update({'position': models.Position.position * denominator_ratio})
+            print "Postings:"
+            self.session.query(models.Posting).filter_by(contract_id=contract.id).update({'quantity': models.Posting.quantity * denominator_ratio})
         else:
             raise NotImplementedError
 
@@ -387,6 +346,7 @@ def main():
     except Exception, e:
         print e
         session.rollback()
+	raise e
 
 if __name__ == "__main__":
     main()
