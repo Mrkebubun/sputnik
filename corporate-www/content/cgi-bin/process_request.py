@@ -39,11 +39,14 @@ if __name__ == "__main__":
     jinja_env = Environment(loader=FileSystemLoader("../templates"))
 
     try:
-        # Create a profile.ini
+        # Create a profile.ini and initdb.sh
         profile = {}
+        db = {}
         for field in form.keys():
             if field.startswith("profile_"):
                 profile[field[8:]] = form.getvalue(field)
+            if field.startswith("db_"):
+                db[field[3:]] = form.getvalue(field)
 
         if 'domain' not in profile:
             raise ProcessException("'domain' not set")
@@ -52,6 +55,11 @@ if __name__ == "__main__":
         profile_text = profile_template.render(**profile)
         with open("%s.profile" % profile['domain'], "a") as profile_file:
             profile_file.write(profile_text)
+
+        db_template = jinja_env.get_template('initdb.sh')
+        db_text = db_template.render(**db)
+        with open("%s.dbinit" % profile['domain'], "a") as db_file:
+            db_file.write(db_text)
 
         # Create a key and CSR
         pkey = generate_key()
