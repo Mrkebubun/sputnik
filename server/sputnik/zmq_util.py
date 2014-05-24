@@ -167,6 +167,7 @@ class AsyncRouterExport(AsyncExport):
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.gotMessage = self.gotMessage
+        self.counter = 0
 
     def gotMessage(self, message_id, message):
         """
@@ -175,6 +176,10 @@ class AsyncRouterExport(AsyncExport):
         :param message:
         :returns: Deferred
         """
+
+        self.counter += 1
+        logging.debug("%s queue length: %s" % (self, self.counter))
+
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
@@ -191,8 +196,12 @@ class AsyncRouterExport(AsyncExport):
             self.connection.reply(message_id,
                 self.encode(False, failure.value))
 
+        def complete(result):
+            self.counter -= 1
+
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class SyncPullExport(SyncExport):
     def __init__(self, wrapped, connection):
