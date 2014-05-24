@@ -3,6 +3,7 @@ import json
 import logging
 import zmq
 import uuid
+import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
@@ -178,6 +179,8 @@ class AsyncRouterExport(AsyncExport):
         """
 
         self.counter += 1
+        start = time.time()
+
         logging.debug("%s queue length: %s" % (self, self.counter))
 
         try:
@@ -198,6 +201,8 @@ class AsyncRouterExport(AsyncExport):
 
         def complete(result):
             self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            logging.debug("%s completed in %.3f ms." % (method_name, elapsed))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
