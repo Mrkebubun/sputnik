@@ -985,7 +985,7 @@ class EngineExport:
         self.accountant = accountant
 
     @export
-    def safe_prices(self, ticker, price):
+    def safe_price(self, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export
