@@ -14,12 +14,10 @@ import logging
 import util
 
 import zmq
-from zmq_util import export, router_share_async, push_proxy_sync
+from zmq_util import export, router_share_sync, push_proxy_sync
 import database as db
 import models
 from datetime import datetime
-from watchdog import watchdog
-from twisted.internet import reactor
 
 class EngineException(Exception):
     pass
@@ -278,6 +276,10 @@ def pretty_print_book():
 
 class ReplaceMeWithARealEngine:
     @export
+    def ping(self):
+        return "pong"
+
+    @export
     def cancel_order(self, order_id):
         logging.info("this order is actually a cancellation!")
 
@@ -411,13 +413,8 @@ if __name__ == "__main__":
 
     db_session.commit()
 
-
     safe_price_publisher = SafePricePublisher()
 
     engine = ReplaceMeWithARealEngine()
-    watchdog_port = config.getint("engine", "watchdog_port") + contract_id
-    watchdog("tcp://127.0.0.1:%d" % watchdog_port)
-    router_share_async(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)
-
-    reactor.run()
+    router_share_sync(engine, "tcp://127.0.0.1:%d" % CONNECTOR_PORT)
 

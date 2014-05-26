@@ -56,10 +56,10 @@ if __name__ == "__main__":
         watchdogs[name] = Watchdog(name, address, proxy)
         watchdogs[name].run()
 
-    engine_watchdog_port = config.getint("engine", "watchdog_port")
+    engine_base_port = config.getint("engine", "base_port")
     for contract in session.query(models.Contract).filter_by(active=True).all():
         if contract.contract_type != "cash":
-            watchdogs[contract.ticker] = Watchdog(contract.ticker, "tcp://127.0.0.1:%d" % (engine_watchdog_port +
+            watchdogs[contract.ticker] = Watchdog(contract.ticker, "tcp://127.0.0.1:%d" % (engine_base_port +
                                                                                           int(contract.id)), proxy)
             watchdogs[contract.ticker].run()
 
