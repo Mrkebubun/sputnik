@@ -18,7 +18,7 @@ def watchdog(address):
 
 class Watchdog():
     def __init__(self, name, address, alerts_proxy, step=60):
-        self.process = zmq_util.dealer_proxy_async(address)
+        self.process = zmq_util.dealer_proxy_async(address, timeout=10)
         self.alerts_proxy = alerts_proxy
         self.name = name
         self.step = step

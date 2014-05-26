@@ -501,14 +501,14 @@ class PushProxySync(Proxy):
         self._connection.send(message)
         return None
 
-def dealer_proxy_async(address):
+def dealer_proxy_async(address, timeout=1):
     """
 
     :param address:
     :returns: DealerProxyAsync
     """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-    return DealerProxyAsync(socket)
+    return DealerProxyAsync(socket, timeout=timeout)
 
 def push_proxy_async(address):
     """
