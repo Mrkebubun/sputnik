@@ -128,8 +128,6 @@ def get_contract(session, ticker):
     :returns: models.Contract -- the Contract object matching the ticker
     :raises: AccountantException
     """
-    logging.debug("Looking up contract %s." % ticker)
-
 
     if isinstance(ticker, models.Contract):
         return ticker

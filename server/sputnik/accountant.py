@@ -146,7 +146,6 @@ class Accountant:
         :returns: models.User -- the User matching the username
         :raises: AccountantException
         """
-        logging.debug("Looking up username %s." % username)
 
         if isinstance(username, models.User):
             return username
@@ -216,8 +215,6 @@ class Accountant:
         :type reference_price: int
         :returns: models.Position -- the position object
         """
-        logging.debug("Looking up position for %s on %s." %
-                      (username, ticker))
 
         user = self.get_user(username)
         contract = self.get_contract(ticker)
@@ -320,7 +317,6 @@ class Accountant:
                 # Credit the fee to the vendor's account
                 credit = models.Posting(vendor_user, contract, vendor_credit, 'credit', update_position=True,
                                         position=vendor_position)
-                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
                 self.session.add(vendor_position)
                 self.session.add(credit)
                 postings.append(credit)
@@ -333,7 +329,6 @@ class Accountant:
             remainder_user = self.get_user('remainder')
             credit = models.Posting(remainder_user, contract, remaining_fee, 'credit', update_position=True,
                                     position=remainder_position)
-            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             self.session.add(credit)
             postings.append(credit)
             self.session.add(remainder_position)
