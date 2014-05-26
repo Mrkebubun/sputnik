@@ -1060,9 +1060,10 @@ if __name__ == "__main__":
 
     session = database.make_session()
     engines = {}
+    engine_base_port = config.getint("engine", "base_port")
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
-                                                      (4200 + int(contract.id)))
+                                                      (engine_base_port + int(contract.id)))
     ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     cashier = push_proxy_sync(config.get("cashier", "accountant_export"))

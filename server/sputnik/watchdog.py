@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 import config
 from alerts import AlertsProxy
+import database, models
 
 class WatchdogExport(object):
     @zmq_util.export
@@ -48,10 +49,18 @@ class Watchdog():
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
     monitors = config.items("watchdog")
+    session = database.make_session()
     proxy = AlertsProxy(config.get("alerts", "export"))
     watchdogs = {}
     for name, address in monitors:
         watchdogs[name] = Watchdog(name, address, proxy)
         watchdogs[name].run()
+
+    engine_watchdog_port = config.getint("engine", "watchdog_port")
+    for contract in session.query(models.Contract).filter_by(active=True).all():
+        if contract.contract_type != "cash":
+            watchdogs[contract.ticker] = Watchdog(contract.ticker, "tcp://127.0.0.1:%d" % (engine_watchdog_port +
+                                                                                          int(contract.id)), proxy)
+            watchdogs[contract.ticker].run()
 
     reactor.run()
