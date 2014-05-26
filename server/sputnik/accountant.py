@@ -278,7 +278,7 @@ class Accountant:
 
 
 
-    def charge_fees(self, fees, username):
+    def charge_fees(self, fees, user):
         """Credit fees to the people operating the exchange
         :param fees: The fees to charge ticker-index dict of fees to charge
         :type fees: dict
@@ -287,15 +287,15 @@ class Accountant:
 
         """
         # TODO: Make this configurable
+        import time
 
         # Make sure the vendorshares is less than or equal to 1.0
         assert(sum(self.vendor_share_config.values()) <= 1.0)
         postings = []
+        last = time.time()
 
         for ticker, fee in fees.iteritems():
-
-            user = self.get_user(username)
-            user_position = self.get_position(username, ticker)
+            user_position = self.get_position(user, ticker)
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
@@ -331,12 +331,13 @@ class Accountant:
             self.session.add(credit)
             postings.append(credit)
             self.session.add(remainder_position)
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("charge_fees: %s: %.3f ms." % (ticker, elapsed))
 
-        journal = models.Journal('Fee', postings, alerts_proxy=self.alerts_proxy)
-        self.session.add(journal)
-        self.session.commit()
-        self.publish_journal(journal)
-        logging.info("Journal: %s" % journal)
+        return postings
+
 
     def post_transaction(self, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
@@ -345,6 +346,8 @@ class Accountant:
         :type transaction: dict
         """
         logging.info("Processing transaction %s." % transaction)
+        import time
+        last = time.time()
 
         aggressive_username = transaction["aggressive_username"]
         passive_username = transaction["passive_username"]
@@ -360,6 +363,10 @@ class Accountant:
         aggressive_user = self.get_user(aggressive_username)
         passive_user = self.get_user(passive_username)
 
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 1: %.3f ms." % elapsed)
 
         if side == 'BUY':
             sign = 1
@@ -426,6 +433,11 @@ class Accountant:
                           contract.contract_type)
             raise NotImplementedError
 
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 2: %.3f ms." % elapsed)
+
         aggressive_from_position = self.get_position(aggressive_username, denominated_contract)
         aggressive_to_position = self.get_position(aggressive_username, payout_contract)
 
@@ -443,12 +455,20 @@ class Accountant:
                                        update_position=True, position=passive_to_position)
 
         aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int))
-        passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
+
+        # We aren't charging the liquidity provider
+        #
+        # passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
 
         postings = [aggressive_credit,
                     aggressive_debit,
                     passive_credit,
                     passive_debit]
+
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Commit
         try:
@@ -458,15 +478,27 @@ class Accountant:
                                   aggressive_from_position,
                                   aggressive_to_position])
 
+            fee_postings = self.charge_fees(aggressive_fees, aggressive_user)
+            postings.extend(fee_postings)
             journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
                                      alerts_proxy=self.alerts_proxy,
                                      notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
                                                                         passive_order_id))
             self.session.add(journal)
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("post_transaction: part 4: %.3f ms." % elapsed)
+
+            self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
 
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("post_transaction: part 5: %.3f ms." % elapsed)
         except Exception as e:
             logging.error("Unable to post_transaction: %s" % e)
             self.session.rollback()
@@ -495,19 +527,15 @@ class Accountant:
              'price': price,
              'side': passive_side,
              'timestamp': timestamp,
-             'fees': passive_fees
+             'fees': {}
             }
         self.webserver.fill(passive_username, passive_fill)
         logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
-        # Charge fees
-        try:
-            self.charge_fees(aggressive_fees, aggressive_username)
-            self.charge_fees(passive_fees, passive_username)
-        except Exception as e:
-            logging.error("Unable to charge fees: %s" % e)
-            self.session.rollback()
-            return
 
     def raiseException(self, failure):
         raise failure.value

@@ -352,9 +352,9 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(aggressive_user_btc_position.position, 2000000)
         self.assertEqual(passive_user_btc_position.position, 3000000)
 
-        # This is based on 20bps MXN fee
-        self.assertEqual(aggressive_user_mxn_position.position, 1796400)
-        self.assertEqual(passive_user_mxn_position.position, 1196400)
+        # This is based on 40bps MXN fee, only charged to the aggressive_user
+        self.assertEqual(aggressive_user_mxn_position.position, 1792800)
+        self.assertEqual(passive_user_mxn_position.position, 1200000)
 
         # Check to be sure it made all the right calls
         self.assertTrue(self.webserver.check_for_calls([('transaction',
@@ -408,38 +408,20 @@ class TestEngineExport(TestAccountant):
                                                         ('transaction',
                                                          (u'aggressive_user',
                                                           {'contract': u'MXN',
-                                                           'quantity': -3600,
-                                                           'type': u'Fee'}),
+                                                           'quantity': -7200,
+                                                           'type': u'Trade'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'customer',
                                                           {'contract': u'MXN',
-                                                           'quantity': 1800,
-                                                           'type': u'Fee'}),
+                                                           'quantity': 3600,
+                                                           'type': u'Trade'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'm2',
                                                           {'contract': u'MXN',
-                                                           'quantity': 1800,
-                                                           'type': u'Fee'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'passive_user',
-                                                          {'contract': u'MXN',
-                                                           'quantity': -3600,
-                                                           'type': u'Fee'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'customer',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 1800,
-                                                           'type': u'Fee'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'm2',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 1800,
-                                                           'type': u'Fee'}),
+                                                           'quantity': 3600,
+                                                           'type': u'Trade'}),
                                                          {}),
                                                         ('fill',
                                                          ('aggressive_user',
