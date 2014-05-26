@@ -11,7 +11,7 @@ from supervisor import childutils
 from zmq_util import export, pull_share_async, push_proxy_async
 
 
-class Alerts(object):
+class Alerts():
     def __init__(self, from_address, to_address, subject_prefix):
         self.factory = Sendmail(from_address)
         self.from_address = from_address
@@ -24,7 +24,7 @@ class Alerts(object):
                                to_address=self.to_address)
 
 
-class AlertsExport(object):
+class AlertsExport():
     def __init__(self, alerts):
         self.alerts = alerts
 
@@ -32,10 +32,13 @@ class AlertsExport(object):
     def send_alert(self, message, subject):
         self.alerts.send_alert(message, subject)
 
-alerts_push = push_proxy_async(config.get("alerts", "export"))
-def send_alert(message, subject="No subject"):
-    program = os.path.basename(main.__file__)
-    alerts_push.send_alert(message, "%s: %s" % (program, subject))
+class AlertsProxy():
+    def __init__(self, zmq_export):
+        self.socket = push_proxy_async(zmq_export)
+
+    def send_alert(self, message, subject="No subject"):
+        program = os.path.basename(main.__file__)
+        self.socket.send_alert(message, "%s: %s" % (program, subject))
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

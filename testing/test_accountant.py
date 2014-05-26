@@ -45,10 +45,14 @@ class TestAccountant(TestSputnik):
         self.webserver = FakeProxy()
         self.cashier = FakeProxy()
         self.ledger = FakeProxy()
+        self.alerts_proxy = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
                                                 self.ledger,
-                                                self.webserver, True)
+                                                self.webserver, 
+                                                self.alerts_proxy,
+                                                debug=True,
+                                                trial_period=False)
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
         self.webserver_export = accountant.WebserverExport(self.accountant)

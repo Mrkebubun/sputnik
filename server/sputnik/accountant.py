@@ -28,7 +28,7 @@ import models
 import margin
 import util
 import ledger
-from alerts import send_alert
+from alerts import AlertsProxy
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
@@ -53,7 +53,8 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, cashier, ledger, webserver, debug, trial_period=False):
+    def __init__(self, session, engines, cashier, ledger, webserver,
+                 alerts_proxy, debug, trial_period=False):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -75,6 +76,7 @@ class Accountant:
         self.ledger = ledger
         self.cashier = cashier
         self.trial_period = trial_period
+        self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -105,13 +107,13 @@ class Accountant:
             e = failure.trap(ledger.LedgerException)
             logging.error("Ledger exception:")
             logging.error(str(failure.value))
-            send_alert("Exception in ledger. See logs.")
+            self.alerts_proxy.send_alert("Exception in ledger. See logs.")
 
         def on_fail_rpc(self, failure):
             e = failure.trap(RemoteCallException)
             if isinstance(e, RemoteCallTimedOut):
                 logging.error("Ledger call timed out.")
-                send_alert("Ledger call timed out. Ledger may be overloaded.")
+                self.alerts_proxy.send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
@@ -194,7 +196,7 @@ class Accountant:
 
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
-            journal = models.Journal('Adjustment', [credit, debit])
+            journal = models.Journal('Adjustment', [credit, debit], alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -336,7 +338,7 @@ class Accountant:
             postings.append(credit)
             self.session.add(remainder_position)
 
-        journal = models.Journal('Fee', postings)
+        journal = models.Journal('Fee', postings, alerts_proxy=self.alerts_proxy)
         self.session.add(journal)
         self.session.commit()
         self.publish_journal(journal)
@@ -411,7 +413,7 @@ class Accountant:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
                           (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
                 logging.error(message)
-                send_alert(message, "Integer failure")
+                self.alerts_proxy.send_alert(message, "Integer failure")
 
         elif contract.contract_type == "cash_pair":
             denominated_contract = contract.denominated_contract
@@ -424,7 +426,7 @@ class Accountant:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.denominator=%d payout_contract.denominator=%d)" % \
                               (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
                 logging.error(message)
-                send_alert(message, "Integer failure")
+                self.alerts_proxy.send_alert(message, "Integer failure")
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
@@ -463,7 +465,8 @@ class Accountant:
                                   aggressive_to_position])
 
             journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
-                                    notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
+                                     alerts_proxy=self.alerts_proxy,
+                                     notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
                                                                         passive_order_id))
             self.session.add(journal)
             self.session.commit()
@@ -605,7 +608,7 @@ class Accountant:
             credit = models.Posting(to_user, contract, quantity, 'credit', update_position=True,
                                     position=to_position)
             self.session.add_all([from_position, to_position, debit, credit])
-            journal = models.Journal('Transfer', [debit, credit], notes=note)
+            journal = models.Journal('Transfer', [debit, credit], notes=note, alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -656,7 +659,7 @@ class Accountant:
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                journal = models.Journal('Withdrawal', [credit, debit], notes=address)
+                journal = models.Journal('Withdrawal', [credit, debit], notes=address, alerts_proxy=self.alerts_proxy)
                 self.session.add(journal)
                 self.session.commit()
                 self.publish_journal(journal)
@@ -745,7 +748,7 @@ class Accountant:
 
             self.session.add(user_cash_position)
             self.session.add_all(postings)
-            journal = models.Journal('Deposit', postings, notes=address)
+            journal = models.Journal('Deposit', postings, notes=address, alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -1063,10 +1066,12 @@ if __name__ == "__main__":
     ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     cashier = push_proxy_sync(config.get("cashier", "accountant_export"))
+    alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
 
-    accountant = Accountant(session, engines, cashier, ledger, webserver, debug=debug,
+    accountant = Accountant(session, engines, cashier, ledger, webserver, alerts_proxy,
+                            debug=debug,
                             trial_period=trial_period)
 
     webserver_export = WebserverExport(accountant)

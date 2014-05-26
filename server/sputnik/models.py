@@ -12,7 +12,6 @@ import hashlib
 import base64
 import collections
 from Crypto.Random.random import getrandbits
-from alerts import send_alert
 
 class QuantityUI(object):
     @property
@@ -360,7 +359,7 @@ class Journal(db.Base):
     notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, postings, timestamp=None, notes=None):
+    def __init__(self, type, postings, timestamp=None, notes=None, alerts_proxy=None):
         """
 
         :param type:
@@ -384,7 +383,9 @@ class Journal(db.Base):
             self.timestamp = timestamp
 
         if not self.audit:
-            send_alert(self, "Journal Audit Failed")
+            if alerts_proxy is not None:
+                alerts_proxy.send_alert("Journal audit failed for %s" % self, "Journal audit failed")
+
             raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):

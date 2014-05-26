@@ -5,7 +5,7 @@ from twisted.internet import reactor
 from datetime import datetime
 import logging
 import config
-from alerts import send_alert
+from alerts import AlertsProxy
 
 class WatchdogExport(object):
     @zmq_util.export
@@ -15,9 +15,10 @@ class WatchdogExport(object):
 def watchdog(address):
     return zmq_util.router_share_async(WatchdogExport(), address)
 
-class Watchdog(object):
-    def __init__(self, name, address, step=60):
+class Watchdog():
+    def __init__(self, name, address, alerts_proxy, step=60):
         self.process = zmq_util.dealer_proxy_async(address)
+        self.alerts_proxy = alerts_proxy
         self.name = name
         self.step = step
         self.last_ping_time = None
@@ -26,10 +27,10 @@ class Watchdog(object):
         gap = datetime.utcnow() - self.last_ping_time
         logging.info("%s ping received: %0.3f ms" % (self.name, gap.total_seconds() * 1000))
         if gap.total_seconds() > 0.1:
-            send_alert("%s lag > 100ms: %0.3f ms" % (self.name, gap.total_seconds() * 1000), "Excess lag detected: %s" % self.name)
+            self.alerts_proxy.send_alert("%s lag > 100ms: %0.3f ms" % (self.name, gap.total_seconds() * 1000), "Excess lag detected: %s" % self.name)
 
     def ping_error(self, error):
-        send_alert("%s ping error: %s" % (self.name, error), "Ping error: %s" % self.name)
+        self.alerts_proxy.send_alert("%s ping error: %s" % (self.name, error), "Ping error: %s" % self.name)
 
     def ping(self):
         self.last_ping_time = datetime.utcnow()
@@ -47,9 +48,10 @@ class Watchdog(object):
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
     monitors = config.items("watchdog")
+    proxy = AlertsProxy(config.get("alerts", "export"))
     watchdogs = {}
     for name, address in monitors:
-        watchdogs[name] = Watchdog(name, address)
+        watchdogs[name] = Watchdog(name, address, proxy)
         watchdogs[name].run()
 
     reactor.run()
