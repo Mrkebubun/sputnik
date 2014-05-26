@@ -187,7 +187,7 @@ class RandomBot(TradingBot):
         # Look at best bid/ask
         try:
             # Distance is [0.95,1.05]
-            distance = float(random.randint(0,10)/100) + 0.95
+            distance = float(random.randint(0,10))/100 + 0.95
 
             # Post something close to the bid or ask, depending on the size
             if side is 'BUY':
