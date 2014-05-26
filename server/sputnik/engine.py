@@ -56,8 +56,8 @@ class SafePricePublisher(object):
 
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % self.safe_price)
-        accountant.safe_price(contract_name, self.safe_price)
-        webserver.safe_price(contract_name, self.safe_price)
+        accountant.safe_prices(contract_name, self.safe_price)
+        webserver.safe_prices(contract_name, self.safe_price)
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
