@@ -192,15 +192,15 @@ class RandomBot(TradingBot):
             # Post something close to the bid or ask, depending on the size
             if side is 'BUY':
                 best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
-                price = best_ask * distance
+                price = self.price_from_wire(ticker, best_ask) * distance
             else:
                 best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
-                price = best_bid * distance
+                price = self.price_from_wire(ticker, best_bid) * distance
 
         except (ValueError, KeyError):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price
             if contract['contract_type'] == "prediction":
-                price = self.price_to_wire(ticker, float(random.randint(0,1000))/1000)
+                price = float(random.randint(0,1000))/1000
             else:
                 return
 
@@ -211,7 +211,7 @@ class RandomBot(TradingBot):
             quantity = float(random.randint(50, 200))/100
 
         self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
-                        price, side)
+                        self.price_to_wire(ticker, price), side)
 
     def saySomethingRandom(self):
         try:
