@@ -135,6 +135,7 @@ class AsyncPullExport(AsyncExport):
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.onPull = self.onPull
+        self.counter = 0
 
     def onPull(self, message):
         """
@@ -142,6 +143,10 @@ class AsyncPullExport(AsyncExport):
         :param message:
         :returns: Deferred
         """
+        self.counter += 1
+        start = time.time()
+        logging.debug("%s queue length: %s" % (self, self.counter))
+
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
@@ -155,8 +160,14 @@ class AsyncPullExport(AsyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.debug(failure)
 
+        def complete(result):
+            self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            logging.debug("%s completed in %.3f ms." % (method_name, elapsed))
+
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class AsyncRouterExport(AsyncExport):
     def __init__(self, wrapped, connection):
