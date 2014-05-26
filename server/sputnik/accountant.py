@@ -301,7 +301,6 @@ class Accountant:
             # Debit the fee from the user's account
             debit = models.Posting(user, contract, fee, 'debit', update_position=True,
                                    position=user_position)
-            logging.debug("Debiting user %s with fee %d %s" % (username, fee, ticker))
             self.session.add(debit)
             postings.append(debit)
             self.session.add(user_position)
