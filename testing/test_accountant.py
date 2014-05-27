@@ -10,19 +10,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 accountant_init = """
-permissions add Deposit
-permissions set Deposit deposit 1
-
-permissions add Trade
-permissions set Trade trade 1
-
-permissions add Withdraw
-permissions set Withdraw withdraw 1
-
-permissions add Full
-permissions set Full deposit 1
-permissions set Full trade 1
-permissions set Full withdraw 1
+permissions add Deposit deposit login
+permissions add Trade trade login
+permissions add Withdraw withdraw login
 """
 
 
@@ -294,24 +284,15 @@ class TestAdministratorExport(TestAccountant):
 
     def test_new_permission_group(self):
         from sputnik import models
-
-        self.administrator_export.new_permission_group('New Test Group')
-        count = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').count()
-        self.assertEqual(count, 1)
-
-    def test_modify_permission_group(self):
-        from sputnik import models
-
-        id = self.session.query(models.PermissionGroup.id).filter_by(name='Deposit').one().id
         new_permissions = ['trade', 'login']
+        self.administrator_export.new_permission_group('New Test Group', new_permissions)
 
-        self.administrator_export.modify_permission_group(id, new_permissions)
-        group = self.session.query(models.PermissionGroup).filter_by(name='Deposit').one()
+        group = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').one()
+
         self.assertFalse(group.deposit)
         self.assertFalse(group.withdraw)
         self.assertTrue(group.trade)
         self.assertTrue(group.login)
-
 
 class TestEngineExport(TestAccountant):
     def test_post_transaction(self):

@@ -23,7 +23,9 @@ contracts set BTC/{{currency}} denominator 1
 contracts set BTC/{{currency}} denominated_contract_ticker {{currency}}
 contracts set BTC/{{currency}} payout_contract_ticker BTC
 
-permissions add Default
+permissions add Default login
+permissions add Full trade withdraw deposit login
+permissions add NoTrade withdraw deposit login
 EOF
 
 cat << EOF | $profile_root/tools/leo

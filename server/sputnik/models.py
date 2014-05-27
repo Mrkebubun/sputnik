@@ -233,13 +233,17 @@ class PermissionGroup(db.Base):
     withdraw = Column(Boolean, server_default=sql.false())
     login = Column(Boolean, server_default=sql.true())
 
-    def __init__(self, name):
+    def __init__(self, name, permissions):
         """
 
         :param name:
         :type name: str
         """
         self.name = name
+        self.trade = 'trade' in permissions
+        self.withdraw = 'withdraw' in permissions
+        self.deposit = 'deposit' in permissions
+        self.login = 'login' in permissions
 
     @property
     def dict(self):

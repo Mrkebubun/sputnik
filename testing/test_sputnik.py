@@ -65,7 +65,9 @@ contracts set BTC/HUF denominator 1
 contracts set BTC/HUF denominated_contract_ticker HUF
 contracts set BTC/HUF payout_contract_ticker BTC
 
-permissions add Default
+permissions add Default login
+permissions add Full trade withdraw deposit login
+permissions add NoTrade withdraw deposit login
 
 accounts add customer
 accounts add m2

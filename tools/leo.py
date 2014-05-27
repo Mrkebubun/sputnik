@@ -23,11 +23,15 @@ class PermissionsManager:
     def __init__(self, session):
         self.session = session
 
-    def add(self, name):
+    def add(self, name, *permissions):
         try:
             group = self.session.query(models.PermissionGroup).filter_by(name=name).one()
         except NoResultFound:
-            group = models.PermissionGroup(name)
+            permissions_dict = {}
+            for permission in permissions:
+                permissions_dict[permission] = True
+
+            group = models.PermissionGroup(name, permissions_dict)
             self.session.add(group)
         else:
             print "PermissionGroup %s already exists" % group

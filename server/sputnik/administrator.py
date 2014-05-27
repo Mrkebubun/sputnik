@@ -581,25 +581,14 @@ class Administrator:
         logging.debug("Changing permission group for %s to %d" % (username, id))
         self.accountant.change_permission_group(username, id)
 
-    def new_permission_group(self, name):
+    def new_permission_group(self, name, permissions):
         """Create a new permission group
 
         :param name: The name of the new group
         :type name: str
         """
         logging.debug("Creating new permission group %s" % name)
-        self.accountant.new_permission_group(name)
-
-    def modify_permission_group(self, id, permissions):
-        """Change what a permission group can do
-
-        :param id: the id of the group
-        :type id: int
-        :param permissions: an array of which permissions are allowed
-        :type permissions: list -- list of strs
-        """
-        logging.debug("Modifying permission group %d to %s" % (id, permissions))
-        self.accountant.modify_permission_group(id, permissions)
+        self.accountant.new_permission_group(name, permissions)
 
     def process_withdrawal(self, id, online=False, cancel=False):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel)
@@ -694,8 +683,7 @@ class AdminWebUI(Resource):
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
                       '/ledger': self.ledger,
-                      '/new_permission_group': self.new_permission_group,
-                      '/modify_permission_group': self.modify_permission_group
+                      '/new_permission_group': self.new_permission_group
                      },
                     # Level 4
                      {
@@ -749,20 +737,13 @@ class AdminWebUI(Resource):
         """Create a new permission group and then return the permission groups page
 
         """
-        self.administrator.new_permission_group(request.args['name'][0])
-        return self.permission_groups(request)
-
-    def modify_permission_group(self, request):
-        """Modify a permission group and then return the permission groups page
-
-        """
-        id = int(request.args['id'][0])
         if 'permissions' in request.args:
             permissions = request.args['permissions']
         else:
             permissions = []
-        self.administrator.modify_permission_group(id, permissions)
+        self.administrator.new_permission_group(request.args['name'][0], permissions)
         return self.permission_groups(request)
+
 
     def change_permission_group(self, request):
         """Change a user's permission group and then return the user details page

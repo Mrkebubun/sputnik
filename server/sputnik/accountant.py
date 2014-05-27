@@ -924,7 +924,7 @@ class Accountant:
             logging.error("Error: %s" % e)
             self.session.rollback()
 
-    def new_permission_group(self, name):
+    def new_permission_group(self, name, permissions):
         """Create a new permission group
 
         :param name: the new group's name
@@ -933,28 +933,7 @@ class Accountant:
 
         try:
             logging.debug("Creating new permission group %s" % name)
-            permission_group = models.PermissionGroup(name)
-            self.session.add(permission_group)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            self.session.rollback()
-
-    def modify_permission_group(self, id, permissions):
-        """Changes what a certain permission group can do
-
-        :param id: the id of that permission group
-        :type id: int
-        :param permissions: A dict of booleans keyed by the permission name
-        :type permissions: dict
-        """
-        try:
-            logging.debug("Modifying permission group %d to %s" % (id, permissions))
-            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
-            permission_group.trade = 'trade' in permissions
-            permission_group.withdraw = 'withdraw' in permissions
-            permission_group.deposit = 'deposit' in permissions
-            permission_group.login = 'login' in permissions
+            permission_group = models.PermissionGroup(name, permissions)
             self.session.add(permission_group)
             self.session.commit()
         except Exception as e:
@@ -1066,8 +1045,8 @@ class AdministratorExport:
         self.accountant.change_permission_group(username, id)
 
     @export
-    def new_permission_group(self, name):
-        self.accountant.new_permission_group(name)
+    def new_permission_group(self, name, permissions):
+        self.accountant.new_permission_group(name, permissions)
 
     @export
     def modify_permission_group(self, id, permissions):
