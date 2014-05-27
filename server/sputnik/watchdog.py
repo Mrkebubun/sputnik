@@ -23,12 +23,15 @@ class Watchdog():
         self.name = name
         self.step = step
         self.last_ping_time = None
+        self.ping_limit_ms = 100
 
     def got_ping(self, event=None):
         gap = datetime.utcnow() - self.last_ping_time
-        logging.info("%s ping received: %0.3f ms" % (self.name, gap.total_seconds() * 1000))
-        if gap.total_seconds() > 0.1:
-            self.alerts_proxy.send_alert("%s lag > 100ms: %0.3f ms" % (self.name, gap.total_seconds() * 1000), "Excess lag detected")
+        ms = gap.total_seconds() * 1000
+        logging.info("%s ping received: %0.3f ms" % (self.name, ms))
+        if ms > self.ping_limit_ms:
+            self.alerts_proxy.send_alert("%s lag > %d ms: %0.3f ms" % (self.name, self.ping_limit_ms,
+                                                                       ms), "Excess lag detected")
 
     def ping_error(self, error):
         self.alerts_proxy.send_alert("%s ping error: %s" % (self.name, error), "Ping error")
