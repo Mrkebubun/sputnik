@@ -85,7 +85,7 @@ def timestamp_to_dt(timestamp):
     return datetime.fromtimestamp(timestamp/1e6)
 
 
-def get_fees(username, contract, transaction_size):
+def get_fees(username, contract, transaction_size, trial_period=False):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -97,8 +97,12 @@ def get_fees(username, contract, transaction_size):
     :returns: dict
     """
 
-    # Right now fees are very simple, just 20bps of the total from_currency amount
-    # user account.
+    # No fees during trial period
+    if trial_period:
+        return {}
+
+    # Right now fees are very simple, just 40bps of the total from_currency amount
+    # but only charged to the liquidity taker
     # TODO: Make fees based on transaction size
     # TODO: Give some users different fee schedules
     # TODO: Give some contracts different fee schedules

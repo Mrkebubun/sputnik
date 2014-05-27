@@ -263,7 +263,8 @@ class Accountant:
             self.get_position(order.username, order.contract)
 
         low_margin, high_margin = margin.calculate_margin(
-            order.username, self.session, self.safe_prices, order.id)
+            order.username, self.session, self.safe_prices, order.id,
+            trial_period=self.trial_period)
 
         if self.check_margin(order.username, low_margin, high_margin):
             logging.info("Order accepted.")
@@ -454,7 +455,8 @@ class Accountant:
         passive_debit = models.Posting(passive_user, payout_contract, sign * quantity, 'debit',
                                        update_position=True, position=passive_to_position)
 
-        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int))
+        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int),
+                                        trial_period=self.trial_period)
 
         # We aren't charging the liquidity provider
         #
@@ -478,8 +480,10 @@ class Accountant:
                                   aggressive_from_position,
                                   aggressive_to_position])
 
-            fee_postings = self.charge_fees(aggressive_fees, aggressive_user)
-            postings.extend(fee_postings)
+            if not self.trial_period:
+                fee_postings = self.charge_fees(aggressive_fees, aggressive_user)
+                postings.extend(fee_postings)
+
             journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
                                      alerts_proxy=self.alerts_proxy,
                                      notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
@@ -676,7 +680,8 @@ class Accountant:
             self.session.add_all([debit, credit])
 
             # Check margin now
-            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices)
+            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices,
+                                                              trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
