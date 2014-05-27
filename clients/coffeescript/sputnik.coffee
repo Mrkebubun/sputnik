@@ -93,9 +93,8 @@ class @Sputnik extends EventEmitter
         string = "#{secret}:#{username}:#{nickname}:#{email}:#{timestamp}"
         return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
-    # TODO: Allow for start and endtimes
-    getTransactionHistory: () =>
-        @call("get_transaction_history").then (wire_transaction_history) =>
+    getTransactionHistory: (start_timestamp, end_timestamp) =>
+        @call("get_transaction_history", start_timestamp, end_timestamp).then (wire_transaction_history) =>
             @log ["Transaction history", wire_transaction_history]
             transaction_history = []
             for transaction in wire_transaction_history
