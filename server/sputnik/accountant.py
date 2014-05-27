@@ -666,8 +666,6 @@ class Accountant:
 
             contract = self.get_contract(ticker)
 
-            self.cashier.request_withdrawal(username, ticker, address, amount)
-
             position = self.get_position(username, ticker)
             pending_withdrawal_user = self.get_user('pendingwithdrawal')
             pending_withdrawal_position = self.get_position('pendingwithdrawal', ticker)
@@ -691,6 +689,7 @@ class Accountant:
                 self.session.commit()
                 self.publish_journal(journal)
                 logging.info("Journal: %s" % journal)
+                self.cashier.request_withdrawal(username, ticker, address, amount)
                 return True
         except Exception as e:
             self.session.rollback()

@@ -726,6 +726,8 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Withdrawals not permitted'):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
+        self.assertEqual(self.cashier.log, [])
+
     def test_request_withdrawal_no_margin(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
@@ -735,4 +737,6 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
+
+        self.assertEqual(self.cashier.log, [])
 
