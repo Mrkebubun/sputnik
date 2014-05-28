@@ -476,9 +476,10 @@ class BasicBot(TradingBot):
         self.requestSupportNonce()
 
 class BotFactory(WampClientFactory):
-    def __init__(self, url, debugWamp=False, username_password=(None, None)):
+    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10):
         WampClientFactory.__init__(self, url, debugWamp=debugWamp)
         self.username_password = username_password
+        self.rate = rate
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
