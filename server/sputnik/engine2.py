@@ -22,9 +22,6 @@ import models
 from twisted.internet import reactor
 from zmq_util import export, router_share_async
 
-
-logging.basicConfig(level=logging.DEBUG)
-
 class OrderSide:
     BUY = -1
     SELL = 1
@@ -95,10 +92,9 @@ class EngineListener:
 
 
 class Engine:
-    def __init__(self, ticker):
+    def __init__(self):
         self.orderbook = {OrderSide.BUY: [], OrderSide.SELL: []}
         self.ordermap = {}
-        self.ticker = ticker
         self.listeners = []
 
     def place_order(self, order):
@@ -242,12 +238,12 @@ class Engine:
 
 
 class LoggingListener:
-    def __init__(self, engine, contract_id):
+    def __init__(self, engine, contract):
         self.engine = engine
-        self.contract_id = contract_id
+        self.contract_id = contract.id
 
     def on_init(self):
-        self.ticker = self.engine.ticker
+        self.ticker = self.contract.ticker
         logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
         logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
 
@@ -295,38 +291,38 @@ class LoggingListener:
 
 
 class AccountantNotifier(EngineListener):
-    def __init__(self, engine, accountant):
+    def __init__(self, engine, accountant, contract):
         self.engine = engine
         self.accountant = accountant
+        self.contract = contract
 
     def on_init(self):
-        self.ticker = engine.ticker
+        self.ticker = self.contract.ticker
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
-        self.accountant.send_json({
-                'trade': {
+        self.accountant.post_transaction(
+                {
                     'username':order.username,
                     'contract': order.contract,
                     'signed_qty': signed_quantity,
-                    'price': price,
-                    'contract_type': self.engine.contract_type
+                    'price': price
                 }
-            })
+            )
 
-        self.accountant.send_json({
-                'trade': {
+        self.accountant.post_transaction(
+               {
                     'username':passive_order.username,
                     'contract': passive_order.contract,
                     'signed_qty': passive_order.quantity * passive_order.side,
-                    'price': passive_order.price,
-                    'contract_type': self.engine.contract_type
+                    'price': passive_order.price
                 }
-            })
+            )
 
 class WebserverNotifier(EngineListener):
-    def __init__(self, engine, webserver):
+    def __init__(self, engine, webserver, contract):
         self.engine = engine
         self.webserver = webserver
+        self.contract = contract
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         quantity = abs(signed_quantity)
@@ -403,14 +399,17 @@ if __name__ == "__main__":
     ticker = args[0]
 
     try:
-        contract_id = session.query(models.Contract).filter_by(ticker=ticker).one().id
+        contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
         logging.critical("Cannot determine ticker id. %s" % e)
         raise e
 
+    # We are no longer cancelling orders here.
+    # We should find a better place for this.
     """
     try:
-        for order in session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=self.contract_id):
+        for order in session.query(models.Order).filter_by(
+                is_cancelled=False).filter_by(contract_id=self.contract_id):
             order.is_cancelled = True
             self.session.merge(order)
         self.session.commit()
@@ -419,13 +418,21 @@ if __name__ == "__main__":
         raise e
     """
 
-    engine = Engine(ticker)
+    engine = Engine()
     accountant_export = AccountantExport(engine)
     port = config.getint("engine", "base_port") + contract_id
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
-    logger = LoggingListener(engine, contract_id)
+    logger = LoggingListener(engine, contract)
+    accountant = push_proxy_async(config.get("accountant", "engine_export"))
+    accountant_notifier = AccountantNotifier(engine, accountant, contract)
+    webserver = push_proxy_async(config.get("webserver", "engine_export"))
+    webserver_notifier = WebserverNotifier(engine, webserver, contract)
+    #safe_price_notifier = SafePriceNotifier(engine)
     engine.add_listener(logger)
+    engine.add_listener(accounant_notifier)
+    engine.add_listener(webserver_notifier)
+    #engine.add_listener(safe_price_notifier)
 
     engine.notify_init()
 
