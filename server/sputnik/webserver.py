@@ -1262,7 +1262,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.cancel_order(order_id)
+        d = self.factory.accountant.cancel_order(order_id, username=self.username)
         d.addCallbacks(onSuccess, onFail)
         return d
 

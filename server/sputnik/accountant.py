@@ -544,7 +544,7 @@ class Accountant:
     def raiseException(self, failure):
         raise failure.value
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id, username=None):
         """Cancel an order by id.
 
         :param id: The order id to cancel
@@ -555,6 +555,9 @@ class Accountant:
 
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
+            if username is not None and order.username != username:
+                raise AccountantException(0, "User %s does not own the order" % username)
+
             d = self.engines[order.contract.ticker].cancel_order(order_id)
             d.addErrback(self.raiseException)
             return d
@@ -968,8 +971,8 @@ class WebserverExport:
         return self.accountant.place_order(order)
 
     @export
-    def cancel_order(self, order_id):
-        return self.accountant.cancel_order(order_id)
+    def cancel_order(self, order_id, username=None):
+        return self.accountant.cancel_order(order_id, username=username)
 
     @export
     def get_permissions(self, username):

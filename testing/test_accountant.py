@@ -22,6 +22,10 @@ class FakeEngine(FakeProxy):
         # Always return a good fake result
         return defer.succeed(order['id'])
 
+    def cancel_order(self, id):
+        self.log.append(('cancel_order', (id), {}))
+        # Always return success, with None
+        return defer.succeed(None)
 
 class TestAccountant(TestSputnik):
     def setUp(self):
@@ -660,8 +664,92 @@ class TestWebserverExport(TestAccountant):
         d.addCallbacks(onSuccess, onFail)
         return d
 
-    def test_cancel_order(self):
-        pass
+    def test_cancel_order_success(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a sell order, we have enough cash
+        d = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 1000000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        def onSuccess(id):
+            def cancelSuccess(result):
+                self.assertEquals(result, None)
+
+            def cancelFail(failure):
+                self.assertTrue(False)
+
+            d = self.webserver_export.cancel_order(id, username='test')
+            d.addCallbacks(cancelSuccess, cancelFail)
+
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
+
+    def test_cancel_order_wrong_user(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group("test", 'Trade')
+
+        # Place a sell order, we have enough cash
+        d = self.webserver_export.place_order({'username': 'test',
+                                                    'contract': 'BTC/MXN',
+                                                    'price': 1000000,
+                                                    'quantity': 3000000,
+                                                    'side': 'SELL'})
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        def onSuccess(id):
+            def cancelSuccess(result):
+                self.assertTrue(False)
+
+            def cancelFail(failure):
+                self.assertTrue(False)
+
+            from sputnik import accountant
+            with self.assertRaisesRegexp(accountant.AccountantException, "User wrong does not own the order"):
+                d = self.webserver_export.cancel_order(id, username='wrong')
+                d.addCallbacks(cancelSuccess, cancelFail)
+
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
+
+    def test_cancel_order_no_order(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group("test", 'Trade')
+
+        def cancelSuccess(result):
+            self.assertTrue(False)
+
+        def cancelFail(failure):
+            self.assertTrue(False)
+
+        from sputnik import accountant
+        id = 5
+        with self.assertRaisesRegexp(accountant.AccountantException, "No order 5 found"):
+            d = self.webserver_export.cancel_order(id, username='wrong')
+            d.addCallbacks(cancelSuccess, cancelFail)
+            return d
 
     def test_get_permissions(self):
         pass
