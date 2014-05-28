@@ -17,6 +17,8 @@ class TestEngine(TestSputnik):
         from sputnik import engine2
 
         self.engine = engine2.Engine()
+        self.fake_listener = FakeProxy()
+        self.engine.add_listener(self.fake_listener)
         self.order_counter = 0
 
     def create_order(self, quantity=None, price=None, side=None):
@@ -34,6 +36,7 @@ class TestEngineInternals(TestEngine):
         order2.timestamp = order.timestamp
         self.engine.place_order(order)
         self.assertDictEqual(self.engine.orderbook, {-1:[order2], 1:[]})
+        pprint(self.fake_listener.log)
 
     def test_ask(self):
         order = self.create_order(1, 100, 1)
@@ -43,6 +46,43 @@ class TestEngineInternals(TestEngine):
         order2.timestamp = order.timestamp
         self.engine.place_order(order)
         self.assertDictEqual(self.engine.orderbook, {-1:[], 1:[order2]})
+        pprint(self.fake_listener.log)
+
+    def test_trade_perfect_match(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_ask = self.create_order(1, 100, 1)
+
+        self.engine.place_order(order_bid)
+        self.engine.place_order(order_ask)
+        self.assertDictEqual(self.engine.orderbook, {-1: [], 1:[]})
+        pprint(self.fake_listener.log)
+
+    def test_trade_crossed(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_ask = self.create_order(1, 95, 1)
+
+        self.engine.place_order(order_bid)
+        self.engine.place_order(order_ask)
+        self.assertDictEqual(self.engine.orderbook, {-1: [], 1:[]})
+        pprint(self.fake_listener.log)
+
+    def test_no_trade(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_ask = self.create_order(1, 105, 1)
+
+        self.engine.place_order(order_bid)
+        self.engine.place_order(order_ask)
+        self.assertDictEqual(self.engine.orderbook, {-1: [order_bid], 1:[order_ask]})
+        pprint(self.fake_listener.log)
+
+    def test_trade_different_size(self):
+        order_bid = self.create_order(2, 100, -1)
+        order_ask = self.create_order(1, 100, 1)
+
+        self.engine.place_order(order_bid)
+        self.engine.place_order(order_ask)
+        pprint(self.engine.orderbook)
+        pprint(self.fake_listener.log)
 
 class TestAccountantNotifier(TestEngine):
     pass

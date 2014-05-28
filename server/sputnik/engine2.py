@@ -10,12 +10,10 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
-import sys
 import logging
 import time
 import heapq
 
-import zmq
 import database
 import models
 
@@ -37,7 +35,7 @@ class Order:
         self.price = price
         self.side = side
         self.username = username
-        self.timestamp = time.time()
+        self.timestamp = int(time.time() * 1e6)
 
     def matchable(self, other):
         if self.side == other.side:
@@ -302,7 +300,7 @@ class AccountantNotifier(EngineListener):
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         self.accountant.post_transaction(
                 {
-                    'username':order.username,
+                    'username': order.username,
                     'contract': order.contract,
                     'signed_qty': signed_quantity,
                     'price': price
