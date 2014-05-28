@@ -816,7 +816,7 @@ class TestWebserverExport(TestAccountant):
 
         self.assertEqual(self.cashier.log, [])
 
-    def test_request_withdrawal_no_margin(self):
+    def test_request_withdrawal_no_margin_btc(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
@@ -827,4 +827,17 @@ class TestWebserverExport(TestAccountant):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.log, [])
+
+    def test_request_withdrawal_no_margin_fiat(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group('test', 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.set_permissions_group('test', 'Withdraw')
+
+        from sputnik import accountant
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+            self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
+
+        self.assertEqual(self.cashier.log, [])
+
 

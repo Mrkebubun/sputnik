@@ -109,6 +109,10 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             for ticker, fee in fees.iteritems():
                 max_cash_spent[ticker] += fee
 
+    # Make sure max_cash_spent has something in it for every cash contract
+    for ticker in cash_position.iterkeys():
+        if ticker not in max_cash_spent:
+            max_cash_spent[ticker] = 0
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':
