@@ -65,6 +65,9 @@ import twisted.enterprise.adbapi as adbapi
 # noinspection PyUnresolvedReferences
 dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
+                               password=config.get("database", "password"),
+                               host=config.get("database", "host"),
+                               port=config.get("database", "port"),
                                database=config.get("database", "dbname"))
 
 

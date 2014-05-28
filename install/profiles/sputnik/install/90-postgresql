@@ -2,7 +2,7 @@
 
 sudo -u postgres psql <<EOF
 create database $profile_dbname;
-create user $profile_user;
+create user $profile_user with password '$profile_dbpassword';
 grant all privileges on database $profile_dbname to $profile_user;
 EOF
 

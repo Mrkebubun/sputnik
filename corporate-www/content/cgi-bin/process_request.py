@@ -8,6 +8,7 @@ from OpenSSL.crypto import PKey, X509Req
 from OpenSSL import crypto
 import cgi, cgitb
 from jinja2 import Environment, FileSystemLoader
+import random, string
 
 class ProcessException(Exception):
     pass
@@ -51,6 +52,7 @@ if __name__ == "__main__":
         if 'domain' not in profile:
             raise ProcessException("'domain' not set")
 
+        profile['dbpassword'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         profile_template = jinja_env.get_template('profile.ini')
         profile_text = profile_template.render(**profile)
         with open("%s.profile" % profile['domain'], "a") as profile_file:

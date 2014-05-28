@@ -1,5 +1,8 @@
 [database]
-uri = postgresql://%(username)s@/%(dbname)s
+uri = postgresql://%(username)s:%(password)s@%(host)s:%(port)s/%(dbname)s
 username = ${user}
+password = ${dbpassword}
+host = ${dbhost}
+port = ${dbport}
 dbname = ${dbname}
 adapter = psycopg2
