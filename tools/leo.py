@@ -9,7 +9,6 @@ import shlex
 import textwrap
 import autobahn.wamp1.protocol
 import Crypto.Random.random
-from progressbar import ProgressBar
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
