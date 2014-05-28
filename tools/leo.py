@@ -2,10 +2,8 @@
 
 import os
 import sys
-import getpass
 
 import string
-import shlex
 import textwrap
 import autobahn.wamp1.protocol
 import Crypto.Random.random
