@@ -2,15 +2,16 @@
 import json
 from optparse import OptionParser
 import logging
-
+import functools
+import bitcoinrpc
 
 
 from twisted.web.resource import Resource, ErrorPage
-from twisted.web.server import Site
-from twisted.internet import reactor
+from twisted.web.server import Site, NOT_DONE_YET
+from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
 
-import bitcoinrpc
+from txbitcoinrpc import BitcoinRpc
 from compropago import Compropago
 from watchdog import watchdog
 from sendmail import Sendmail
@@ -40,6 +41,7 @@ WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
 OUT_OF_ADDRESSES = CashierException(2, "Out of addresses")
 NO_AUTOMATIC_WITHDRAWAL = CashierException(3, "No automatic withdrawals for this contract")
 INSUFFICIENT_FUNDS = CashierException(4, "Insufficient funds in wallet")
+WITHDRAWAL_TOO_LARGE = CashierException(5, "Withdrawal too large portion of on-line wallet")
 
 class Cashier():
     """
@@ -109,19 +111,27 @@ class Cashier():
             # You can add an errback for process_compropago_payment here.
             # Alternatively, error handle inside the method itself (recommended)
         else:
-            # TODO: add error checks
             address = self.session.query(models.Addresses).filter_by(address=address_str).one()
             ticker = address.contract.ticker
 
             if ticker in self.bitcoinrpc:
                 denominator = address.contract.denominator
                 accounted_for = address.accounted_for
-                total_received = long(round(self.bitcoinrpc[ticker].getreceivedbyaddress(address_str,
-                                                                                         self.minimum_confirmations) *
-                                            denominator))
+                d = self.bitcoinrpc[ticker].getreceivedbyaddress(address_str, self.minimum_confirmations)
 
-                if total_received > accounted_for:
-                    self.notify_accountant(address_str, total_received)
+                def notifyAccountant(result):
+                    total_received = long(round(result['result'] * denominator))
+                    if total_received > accounted_for:
+                        self.notify_accountant(address_str, total_received)
+                    return True
+
+                def error(failure):
+                    logging.error("getreceivedbyaddress failed on %s: %s" % (address_str, failure))
+                    raise failure.value
+
+                d.addCallbacks(notifyAccountant, error)
+
+        return d
 
 
     def check_for_crypto_deposits(self, ticker='BTC'):
@@ -133,21 +143,31 @@ class Cashier():
         """
         logging.info('checking for deposits')
         # first we get the confirmed deposits
-        confirmed_deposits = self.bitcoinrpc[ticker].listreceivedbyaddress(self.minimum_confirmations)
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        d = self.bitcoinrpc[ticker].listreceivedbyaddress(self.minimum_confirmations)
 
-        # ok, so now for each address get how much was received
-        total_received = {row.address: long(round(row.amount * contract.denominator)) for row in confirmed_deposits}
-        # but how much have we already accounted for?
-        accounted_for = {row.address: row.accounted_for for row in
-                         self.session.query(models.Addresses).filter_by(active=True)}
+        def checkDeposits(result):
+            confirmed_deposits = result['result']
+            contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
 
-        # so for all the addresses we're dealing with
-        for address in set(total_received.keys()).intersection(set(accounted_for.keys())):
-            # if we haven't accounted for all the deposits
-            if total_received[address] > accounted_for[address]:
-                # tell the accountant
-                self.notify_accountant(address, total_received[address])
+            # ok, so now for each address get how much was received
+            total_received = {row['address']: long(round(row['amount'] * contract.denominator)) for row in confirmed_deposits}
+            # but how much have we already accounted for?
+            accounted_for = {row.address: row.accounted_for for row in
+                             self.session.query(models.Addresses).filter_by(active=True)}
+
+            # so for all the addresses we're dealing with
+            for address in set(total_received.keys()).intersection(set(accounted_for.keys())):
+                # if we haven't accounted for all the deposits
+                if total_received[address] > accounted_for[address]:
+                    # tell the accountant
+                    self.notify_accountant(address, total_received[address])
+
+        def error(failure):
+            logging.error("listreceivedbyaddress failed: %s" % failure)
+            raise failure.value
+
+        d.addCallbacks(checkDeposits, error)
+        return d
 
     def check_withdrawal(self, withdrawal):
         """
@@ -156,10 +176,24 @@ class Cashier():
         """
         # if the transaction is innocuous enough
         logging.info("Checking withdrawal: %s" % withdrawal)
-        if self.pass_safety_check(withdrawal):
-            self.process_withdrawal(withdrawal.id, online=True)
-        else:
+        d = self.pass_safety_check(withdrawal)
+
+        def success(ignored):
+            d = self.process_withdrawal(withdrawal.id, online=True)
+            def onSuccess(result):
+                return withdrawal.id
+
+            d.addCallback(onSuccess)
+            return d
+
+        def fail(message):
+            logging.debug("Safety check failed: %s" % message)
             self.notify_pending_withdrawal(withdrawal)
+            return defer.succeed(withdrawal.id)
+
+        d.addCallbacks(success, fail)
+        return d
+
 
     def pass_safety_check(self, withdrawal_request):
         """
@@ -170,8 +204,9 @@ class Cashier():
         """
         # First check if the withdrawal is for a cryptocurrency
         if withdrawal_request.contract.ticker not in self.bitcoinrpc:
-            logging.error("Withdrawal request for fiat: %s" % withdrawal_request)
-            return False
+            message = "Withdrawal request for fiat: %s" % withdrawal_request
+            logging.error(message)
+            return defer.fail(message)
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # (what does this mean)
@@ -179,32 +214,61 @@ class Cashier():
         # 3) make sure the withdrawal is small (< 1 BTC)
         # Not yet implemented
         if withdrawal_request.amount >= 100000000:
-            logging.error("withdrawal too large: %s" % withdrawal_request)
-            return False
+            message = "withdrawal too large: %s" % withdrawal_request
+            logging.error(message)
+            return defer.fail(message)
 
-        online_cash = long(round(self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance() *
-                                 withdrawal_request.contract.denominator))
+        d = self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance()
 
+        def gotBalance(result):
+            balance = result['result']
+            online_cash = long(round(balance * withdrawal_request.contract.denominator))
 
-        if online_cash / 10 <= withdrawal_request.amount:
-            logging.error("withdrawal too large portion of online cash balance (%d): %s" % (online_cash, withdrawal_request))
-            return False
+            if online_cash / 10 <= withdrawal_request.amount:
+                logging.error("withdrawal too large portion of online cash balance (%d): %s" % (online_cash,
+                                                                                                withdrawal_request))
+                raise WITHDRAWAL_TOO_LARGE
 
-        # None of the checks failed, return True
-        return True
+            # None of the checks failed, return True
+            return defer.succeed(True)
+
+        def error(failure):
+            logging.error("unable to get balance from wallet: %s" % failure)
+            return defer.fail(failure)
+
+        d.addCallbacks(gotBalance, error)
+        return d
+
 
     def transfer_to_cold_wallet(self, ticker):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        online_cash = long(round(self.bitcoinrpc[contract.ticker].getbalance() * contract.denominator))
-        logging.debug("Online cash for %s is %d" % (ticker, online_cash))
-        # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
-        if online_cash > contract.hot_wallet_limit * 1.1:
-            amount = online_cash - contract.hot_wallet_limit
-            logging.debug("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
-            self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
-                                                  float(amount) / contract.denominator)
-            self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount, "Automatic Cold Wallet Transfer")
+        d = self.bitcoinrpc[contract.ticker].getbalance()
 
+        def gotBalance(result):
+            balance = result['result']
+            online_cash = long(round(balance * contract.denominator))
+            logging.debug("Online cash for %s is %d" % (ticker, online_cash))
+            # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
+            if online_cash > contract.hot_wallet_limit * 1.1:
+                amount = online_cash - contract.hot_wallet_limit
+                logging.debug("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
+                d = self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
+                                                          float(amount) / contract.denominator)
+                def onSendSuccess(result):
+                    txid = result['txid']
+                    self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount,
+                                                              "%s: %s" % (contract.cold_wallet_address, txid))
+
+                def error(failure):
+                    logging.error("Unable to send to address: %s" % failure)
+
+                d.addCallbacks(onSendSuccess, error)
+
+        def error(failure):
+            logging.error("Unable to get wallet balance: %s" % failure)
+            raise failure.value
+
+        d.addCallbacks(gotBalance, error)
 
     def process_withdrawal(self, withdrawal_id, online=False, cancel=False):
         # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
@@ -212,44 +276,63 @@ class Cashier():
         # If cancel=True, then return the money to the user
         logging.info("Processing withdrawal: %d online=%s cancel=%s" % (withdrawal_id, online, cancel))
         try:
+            withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
+        except NoResultFound:
+            logging.error("No withdrawal found for id %d" % withdrawal_id)
+            raise WITHDRAWAL_NOT_FOUND
+
+        logging.debug("Withdrawal found: %s" % withdrawal)
+        if not withdrawal.pending:
+            raise WITHDRAWAL_COMPLETE
+
+        def finish_withdrawal(to_user, result):
+            txid = result['result']
             try:
-                withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-            except NoResultFound:
-                logging.error("No withdrawal found for id %d" % withdrawal_id)
-                raise WITHDRAWAL_NOT_FOUND
+                self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user,
+                                                  withdrawal.amount, "%s: %s" % (withdrawal.address, txid))
+                withdrawal.pending = False
+                withdrawal.completed = datetime.utcnow()
+                self.session.add(withdrawal)
+                self.session.commit()
+                return defer.succeed(txid)
+            except Exception as e:
+                logging.error("Exception when trying to process withdrawal: %s" % e)
+                self.session.rollback()
+                raise e
 
-            logging.debug("Withdrawal found: %s" % withdrawal)
-            if not withdrawal.pending:
-                raise WITHDRAWAL_COMPLETE
-
-            if cancel:
-                to_user = withdrawal.username
-            else:
-                if online:
-                    if withdrawal.contract.ticker in self.bitcoinrpc:
-                        withdrawal_amount = float(withdrawal.amount) / withdrawal.contract.denominator
-                        balance = self.bitcoinrpc[withdrawal.contract.ticker].getbalance()
+        if cancel:
+            return finish_withdrawal(withdrawal.username, {'result': 'cancel'})
+        else:
+            if online:
+                if withdrawal.contract.ticker in self.bitcoinrpc:
+                    withdrawal_amount = float(withdrawal.amount) / withdrawal.contract.denominator
+                    d = self.bitcoinrpc[withdrawal.contract.ticker].getbalance()
+                    def gotBalance(result):
+                        balance = result['result']
                         if balance >= withdrawal_amount:
-                            self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
-                                                                                      withdrawal_amount)
+                            d = self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
+                                                                                          withdrawal_amount)
+                            def error(failure):
+                                logging.error("Unable to send to address: %s" % failure)
+                                raise failure.value
+
+                            d.addCallbacks(functools.partial(finish_withdrawal, "onlinecash"), error)
+                            return d
                         else:
                             raise INSUFFICIENT_FUNDS
-                    else:
-                        raise NO_AUTOMATIC_WITHDRAWAL
 
-                    to_user = 'onlinecash'
+                    def error(failure):
+                        logging.error("Unable to get wallet balance: %s" % failure)
+                        raise failure.value
+
+                    d.addCallbacks(gotBalance, error)
+                    return d
+
                 else:
-                    to_user = 'offlinecash'
+                    raise NO_AUTOMATIC_WITHDRAWAL
+            else:
+                return finish_withdrawal('offlinecash', {'result': 'offline'})
 
-            self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user, withdrawal.amount, withdrawal.address)
-            withdrawal.pending = False
-            withdrawal.completed = datetime.utcnow()
-            self.session.add(withdrawal)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Exception when trying to process withdrawal: %s" % e)
-            self.session.rollback()
-            raise e
 
     def request_withdrawal(self, username, ticker, address, amount):
         try:
@@ -260,11 +343,12 @@ class Cashier():
             self.session.commit()
 
             # Check to see if we can process this automatically. If we can, then process it
-            self.check_withdrawal(withdrawal)
+            d = self.check_withdrawal(withdrawal)
+            return d
         except Exception as e:
             logging.error("Exception when creating withdrawal ticket: %s" % e)
             self.session.rollback()
-
+            raise e
 
     def process_compropago_payment(self, payment_info):
         """
@@ -281,7 +365,7 @@ class Cashier():
             raise "error couldn't process compropago payment, amount not a number of cents"
 
         amount = self.compropago.amount_after_fees(cents)
-        self.process_withdrawal(address, amount)
+        return self.process_withdrawal(address, amount)
 
     def notify_pending_withdrawal(self, withdrawal):
         """
@@ -314,32 +398,56 @@ class Cashier():
                 old.active = False
                 self.session.add(old)
 
-            if address is None:
-                if ticker in self.bitcoinrpc:
-                    # If we have a bitcoinrpc for this ticker, generate one that way
-                    address_str = self.bitcoinrpc[ticker].getnewaddress()
-                else:
-                    # Otherwise it is just a random string
-                    address_str = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
-
-                contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-                user = self.session.query(models.User).filter_by(username=username).one()
-
-                address = models.Addresses(user, contract, address_str)
-            else:
-                address.username = username
-
-            address.active = True
-            self.session.add(address)
-
-
             self.session.commit()
-            return address.address
-
         except Exception as e:
-            logging.error("Unable to get address for: %s/%s: %s" % (username, ticker, e))
+            logging.error("Unable to disable old addresses for: %s/%s: %s" % (username, ticker, e))
             self.session.rollback()
             raise e
+
+        if address is None:
+            contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+            user = self.session.query(models.User).filter_by(username=username).one()
+
+            if ticker in self.bitcoinrpc:
+                # If we have a bitcoinrpc for this ticker, generate one that way
+                d = self.bitcoinrpc[ticker].getnewaddress()
+            else:
+                # Otherwise it is just a random string
+                address = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
+                d = defer.succeed({'result': address})
+
+            def error(failure):
+                logging.error("Unable to getnewaddress: %s" % failure)
+                raise failure.value
+
+            def gotAddress(result):
+                try:
+                    address_str = result['result']
+                    logging.debug("Got new address: %s" % address_str)
+                    address = models.Addresses(user, contract, address_str)
+                    address.username = username
+                    address.active = True
+                    self.session.add(address)
+                    self.session.commit()
+                    return address_str
+                except Exception as e:
+                    logging.error("Unable to get address for: %s/%s: %s" % (username, ticker, e))
+                    self.session.rollback()
+                    raise e
+
+            d.addCallbacks(gotAddress, error)
+            return d
+        else:
+            try:
+                address.username = username
+                address.active = True
+                self.session.add(address)
+                self.session.commit()
+                return defer.succeed(address.address)
+            except Exception as e:
+                logging.error("Unable to get address for: %s/%s: %s" % (username, ticker, e))
+                self.session.rollback()
+                raise e
 
 
     def get_current_address(self, username, ticker):
@@ -349,7 +457,7 @@ class Cashier():
         if address is None:
             return self.get_new_address(username, ticker)
         else:
-            return address.address
+            return defer.succeed(address.address)
 
     def get_deposit_instructions(self, ticker):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
@@ -388,9 +496,17 @@ class CompropagoHook(Resource):
             return "OK"
 
         payment_id = bill["id"]
-        self.cashier.rescan_address("compropago_" + payment_id)
+        d = self.cashier.rescan_address("compropago_" + payment_id)
+        def onSuccess(result):
+            request.write("OK")
+            request.finish()
 
-        return "OK"
+        def onFail(failure):
+            request.write(failure.value.args)
+            request.finish()
+
+        d.addCallbacks(onSuccess, onFail)
+        return NOT_DONE_YET
 
 
 class BitcoinNotify(Resource):
@@ -417,8 +533,19 @@ class BitcoinNotify(Resource):
         :returns: str - the string "OK", which isn't relevant
         """
         logging.info("Got a notification from bitcoind: %s" % request)
-        self.cashier.check_for_crypto_deposits('BTC')
-        return "OK"
+        d = self.cashier.check_for_crypto_deposits('BTC')
+        def _cb(result):
+            request.setResponseCode(200)
+            request.write("OK")
+            request.finish()
+
+        def _err(failure):
+            request.setResponseCode(500)
+            request.write(failure.value)
+            request.finish()
+
+        d.addCallbacks(_cb, _err)
+        return NOT_DONE_YET
 
 class WebserverExport:
     def __init__(self, cashier):
@@ -447,11 +574,11 @@ class AdministratorExport:
 
     @export
     def rescan_address(self, address):
-        self.cashier.rescan_address(address)
+        return self.cashier.rescan_address(address)
 
     @export
     def process_withdrawal(self, address, online=False, cancel=False):
-        self.cashier.process_withdrawal(address, online=online, cancel=cancel)
+        return self.cashier.process_withdrawal(address, online=online, cancel=cancel)
 
 class AccountantExport:
     def __init__(self, cashier):
@@ -459,7 +586,7 @@ class AccountantExport:
 
     @export
     def request_withdrawal(self, username, ticker, address, amount):
-        self.cashier.request_withdrawal(username, ticker, address, amount)
+        return self.cashier.request_withdrawal(username, ticker, address, amount)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
@@ -471,7 +598,7 @@ if __name__ == '__main__':
 
     logging.info('connecting to bitcoin client')
 
-    bitcoinrpc = {'BTC': bitcoinrpc.connect_to_local(bitcoin_conf)}
+    bitcoinrpc = {'BTC': BitcoinRpc(bitcoin_conf)}
     compropago = Compropago(config.get("cashier", "compropago_key"))
     cold_wallet_period = config.getint("cashier", "cold_wallet_period")
     sendmail=Sendmail(config.get("administrator", "email"))

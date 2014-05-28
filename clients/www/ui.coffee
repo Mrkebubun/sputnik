@@ -537,6 +537,9 @@ sputnik.on "address", (info) ->
     $("##{ticker}_deposit_qrcode").empty()
     $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
 
+sputnik.on "address_fail", (error) ->
+    alert "Deposit address error: #{error[1]}"
+
 sputnik.on "deposit_instructions", (event) ->
     ticker = event[0]
     instructions = event[1]
