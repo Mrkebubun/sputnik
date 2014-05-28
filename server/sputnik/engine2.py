@@ -20,7 +20,7 @@ import database
 import models
 
 from twisted.internet import reactor
-from zmq_util import export, router_share_async
+from zmq_util import export, router_share_async, push_proxy_async
 
 class OrderSide:
     BUY = -1
@@ -420,7 +420,7 @@ if __name__ == "__main__":
 
     engine = Engine()
     accountant_export = AccountantExport(engine)
-    port = config.getint("engine", "base_port") + contract_id
+    port = config.getint("engine", "base_port") + contract.id
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
     logger = LoggingListener(engine, contract)
@@ -430,7 +430,7 @@ if __name__ == "__main__":
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
     #safe_price_notifier = SafePriceNotifier(engine)
     engine.add_listener(logger)
-    engine.add_listener(accounant_notifier)
+    engine.add_listener(accountant_notifier)
     engine.add_listener(webserver_notifier)
     #engine.add_listener(safe_price_notifier)
 
