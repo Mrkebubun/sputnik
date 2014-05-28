@@ -92,10 +92,9 @@ class EngineListener:
 
 
 class Engine:
-    def __init__(self, ticker):
+    def __init__(self):
         self.orderbook = {OrderSide.BUY: [], OrderSide.SELL: []}
         self.ordermap = {}
-        self.ticker = ticker
         self.listeners = []
 
     def place_order(self, order):
@@ -244,7 +243,7 @@ class LoggingListener:
         self.contract_id = contract.id
 
     def on_init(self):
-        self.ticker = self.engine.ticker
+        self.ticker = self.contract.ticker
         logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
         logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
 
@@ -419,7 +418,7 @@ if __name__ == "__main__":
         raise e
     """
 
-    engine = Engine(ticker)
+    engine = Engine()
     accountant_export = AccountantExport(engine)
     port = config.getint("engine", "base_port") + contract_id
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
@@ -427,13 +426,13 @@ if __name__ == "__main__":
     logger = LoggingListener(engine, contract)
     accountant = push_proxy_async(config.get("accountant", "engine_export"))
     accountant_notifier = AccountantNotifier(engine, accountant, contract)
-    webserver = push_proxy_async(config.get("erbserver", "engine_export"))
+    webserver = push_proxy_async(config.get("webserver", "engine_export"))
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
-    safe_price_notifier = SafePriceNotifier(engine)
+    #safe_price_notifier = SafePriceNotifier(engine)
     engine.add_listener(logger)
     engine.add_listener(accounant_notifier)
     engine.add_listener(webserver_notifier)
-    engine.add_listener(safe_price_notifier)
+    #engine.add_listener(safe_price_notifier)
 
     engine.notify_init()
 
