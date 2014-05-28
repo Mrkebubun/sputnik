@@ -3,6 +3,7 @@ import os
 from twisted.internet import defer
 from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
+from twisted.web.test.test_web import DummyRequest
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -26,15 +27,14 @@ class FakeBitcoin(FakeProxy):
 
     def listreceivedbyaddress(self, minimum_confirmations):
         received = []
-        from bitcoinrpc.data import AddressInfo
-
 
         for address, info in self.received.iteritems():
             if info['confirmations'] >= minimum_confirmations:
-                received.append(AddressInfo(address=address,
-                                            account='',
-                                            amount=info['amount'],
-                                            confirmations=info['confirmations']))
+                received.append({'address': address,
+                                 'account': '',
+                                 'amount': info['amount'],
+                                 'confirmations': info['confirmations']})
+
         return defer.succeed({'result': received})
 
 
@@ -487,8 +487,15 @@ class TestBitcoinNotify(TestCashier):
         for confirmation in range(0, 6):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('NEW_ADDRESS', 1.23)
 
-        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
-        self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
+        request = DummyRequest([''])
+        d = self.render_test_helper(self.bitcoin_notify, request)
+        def rendered(ignored):
+            self.assertEquals(request.responseCode, 200)
+            self.assertEquals("".join(request.written), "OK")
+            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
+
+        d.addCallback(rendered)
+
 
     def test_render_GET_insufficient_confirms(self):
         self.create_account('test', 'NEW_ADDRESS')
@@ -496,8 +503,14 @@ class TestBitcoinNotify(TestCashier):
         for confirmation in range(0, 3):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('NEW_ADDRESS', 1.23)
 
-        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
-        self.assertEqual(self.accountant.log, [])
+        request = DummyRequest([''])
+        d = self.render_test_helper(self.bitcoin_notify, request)
+        def rendered(ignored):
+            self.assertEquals(request.responseCode, 200)
+            self.assertEquals("".join(request.written), "OK")
+            self.assertEqual(self.accountant.log, [])
+
+        d.addCallback(rendered)
 
     def test_render_GET_various_received(self):
         self.create_account('test', 'ADDRESS_FOR_TEST')
@@ -513,7 +526,13 @@ class TestBitcoinNotify(TestCashier):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('ADDRESS_FOR_TEST3', 3.4124)
             self.cashier.bitcoinrpc['BTC'].receive_at_address('SECOND_ADDRESS_FOR_TEST2', 4.0)
 
-        self.assertEqual(self.bitcoin_notify.render_GET(None), "OK")
-        self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
-                                                         ('deposit_cash', ('ADDRESS_FOR_TEST3', 341240000L), {})]
-        ))
+        request = DummyRequest([''])
+        d = self.render_test_helper(self.bitcoin_notify, request)
+        def rendered(ignored):
+            self.assertEqual(request.responseCode, 200)
+            self.assertEqual("".join(request.written), "OK")
+            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
+                                                             ('deposit_cash', ('ADDRESS_FOR_TEST3', 341240000L), {})]
+            ))
+
+        d.addCallback(rendered)

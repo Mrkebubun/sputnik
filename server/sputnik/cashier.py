@@ -152,7 +152,7 @@ class Cashier():
             # ok, so now for each address get how much was received
             total_received = {row['address']: long(round(row['amount'] * contract.denominator)) for row in confirmed_deposits}
             # but how much have we already accounted for?
-            accounted_for = {row['address']: row['accounted_for'] for row in
+            accounted_for = {row.address: row.accounted_for for row in
                              self.session.query(models.Addresses).filter_by(active=True)}
 
             # so for all the addresses we're dealing with
@@ -167,6 +167,7 @@ class Cashier():
             raise failure.value
 
         d.addCallbacks(checkDeposits, error)
+        return d
 
     def check_withdrawal(self, withdrawal):
         """
@@ -532,8 +533,19 @@ class BitcoinNotify(Resource):
         :returns: str - the string "OK", which isn't relevant
         """
         logging.info("Got a notification from bitcoind: %s" % request)
-        self.cashier.check_for_crypto_deposits('BTC')
-        return "OK"
+        d = self.cashier.check_for_crypto_deposits('BTC')
+        def _cb(result):
+            request.setResponseCode(200)
+            request.write("OK")
+            request.finish()
+
+        def _err(failure):
+            request.setResponseCode(500)
+            request.write(failure.value)
+            request.finish()
+
+        d.addCallbacks(_cb, _err)
+        return NOT_DONE_YET
 
 class WebserverExport:
     def __init__(self, cashier):

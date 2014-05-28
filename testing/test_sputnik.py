@@ -5,6 +5,8 @@ import sys
 import os
 import StringIO
 import logging
+from twisted.internet import defer
+from twisted.web.server import NOT_DONE_YET
 
 #logging.basicConfig(level=1000)
 
@@ -217,3 +219,17 @@ class TestSputnik(unittest.TestCase):
             self.leo.parse("addresses set %s username %s" % (address, username))
             self.leo.parse("addresses set %s active 1" % address)
         self.session.commit()
+
+    def render_test_helper(self, resource, request):
+        result = resource.render(request)
+        if isinstance(result, str):
+            request.write(result)
+            request.finish()
+            return defer.succeed(None)
+        elif result is NOT_DONE_YET:
+            if request.finished:
+                return defer.succeed(None)
+            else:
+                return request.notifyFinish()
+        else:
+            raise ValueError("Unexpected return value: %r" % (result,))
