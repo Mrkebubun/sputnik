@@ -28,7 +28,7 @@ import models
 import margin
 import util
 import ledger
-import alerts
+from alerts import AlertsProxy
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
@@ -53,7 +53,8 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, cashier, ledger, webserver, debug):
+    def __init__(self, session, engines, cashier, ledger, webserver,
+                 alerts_proxy, debug, trial_period=False):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -74,6 +75,8 @@ class Accountant:
         self.engines = engines
         self.ledger = ledger
         self.cashier = cashier
+        self.trial_period = trial_period
+        self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             try:
@@ -104,13 +107,13 @@ class Accountant:
             e = failure.trap(ledger.LedgerException)
             logging.error("Ledger exception:")
             logging.error(str(failure.value))
-            alerts.alert("Exception in ledger. See logs.")
+            self.alerts_proxy.send_alert("Exception in ledger. See logs.")
 
         def on_fail_rpc(self, failure):
             e = failure.trap(RemoteCallException)
             if isinstance(e, RemoteCallTimedOut):
                 logging.error("Ledger call timed out.")
-                alerts.alert("Ledger call timed out. Ledger may be overloaded.")
+                self.alerts_proxy.send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
@@ -143,7 +146,6 @@ class Accountant:
         :returns: models.User -- the User matching the username
         :raises: AccountantException
         """
-        logging.debug("Looking up username %s." % username)
 
         if isinstance(username, models.User):
             return username
@@ -193,7 +195,7 @@ class Accountant:
 
         try:
             self.session.add_all([position, adjustment_position, credit, debit])
-            journal = models.Journal('Adjustment', [credit, debit])
+            journal = models.Journal('Adjustment', [credit, debit], alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -213,8 +215,6 @@ class Accountant:
         :type reference_price: int
         :returns: models.Position -- the position object
         """
-        logging.debug("Looking up position for %s on %s." %
-                      (username, ticker))
 
         user = self.get_user(username)
         contract = self.get_contract(ticker)
@@ -263,7 +263,8 @@ class Accountant:
             self.get_position(order.username, order.contract)
 
         low_margin, high_margin = margin.calculate_margin(
-            order.username, self.session, self.safe_prices, order.id)
+            order.username, self.session, self.safe_prices, order.id,
+            trial_period=self.trial_period)
 
         if self.check_margin(order.username, low_margin, high_margin):
             logging.info("Order accepted.")
@@ -278,7 +279,7 @@ class Accountant:
 
 
 
-    def charge_fees(self, fees, username):
+    def charge_fees(self, fees, user):
         """Credit fees to the people operating the exchange
         :param fees: The fees to charge ticker-index dict of fees to charge
         :type fees: dict
@@ -287,21 +288,20 @@ class Accountant:
 
         """
         # TODO: Make this configurable
+        import time
 
         # Make sure the vendorshares is less than or equal to 1.0
         assert(sum(self.vendor_share_config.values()) <= 1.0)
         postings = []
+        last = time.time()
 
         for ticker, fee in fees.iteritems():
-
-            user = self.get_user(username)
-            user_position = self.get_position(username, ticker)
+            user_position = self.get_position(user, ticker)
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
             debit = models.Posting(user, contract, fee, 'debit', update_position=True,
                                    position=user_position)
-            logging.debug("Debiting user %s with fee %d %s" % (username, fee, ticker))
             self.session.add(debit)
             postings.append(debit)
             self.session.add(user_position)
@@ -317,7 +317,6 @@ class Accountant:
                 # Credit the fee to the vendor's account
                 credit = models.Posting(vendor_user, contract, vendor_credit, 'credit', update_position=True,
                                         position=vendor_position)
-                logging.debug("Crediting vendor %s with fee %d %s" % (vendor_name, vendor_credit, ticker))
                 self.session.add(vendor_position)
                 self.session.add(credit)
                 postings.append(credit)
@@ -330,16 +329,16 @@ class Accountant:
             remainder_user = self.get_user('remainder')
             credit = models.Posting(remainder_user, contract, remaining_fee, 'credit', update_position=True,
                                     position=remainder_position)
-            logging.debug("Crediting 'remainder' with fee %d %s" % (remaining_fee, ticker))
             self.session.add(credit)
             postings.append(credit)
             self.session.add(remainder_position)
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("charge_fees: %s: %.3f ms." % (ticker, elapsed))
 
-        journal = models.Journal('Fee', postings)
-        self.session.add(journal)
-        self.session.commit()
-        self.publish_journal(journal)
-        logging.info("Journal: %s" % journal)
+        return postings
+
 
     def post_transaction(self, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
@@ -348,6 +347,8 @@ class Accountant:
         :type transaction: dict
         """
         logging.info("Processing transaction %s." % transaction)
+        import time
+        last = time.time()
 
         aggressive_username = transaction["aggressive_username"]
         passive_username = transaction["passive_username"]
@@ -363,6 +364,10 @@ class Accountant:
         aggressive_user = self.get_user(aggressive_username)
         passive_user = self.get_user(passive_username)
 
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 1: %.3f ms." % elapsed)
 
         if side == 'BUY':
             sign = 1
@@ -402,11 +407,15 @@ class Accountant:
 
         elif contract.contract_type == "prediction":
             denominated_contract = contract.denominated_contract
+            payout_contract = contract
 
             cash_spent_float = float(quantity * price * contract.lot_size / contract.denominator)
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
-                logging.error("cash_spent is not an integer")
+                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
+                          (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
+                logging.error(message)
+                self.alerts_proxy.send_alert(message, "Integer failure")
 
         elif contract.contract_type == "cash_pair":
             denominated_contract = contract.denominated_contract
@@ -416,11 +425,19 @@ class Accountant:
                                (contract.denominator * payout_contract.denominator)
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
-                logging.error("Position change is not an integer.")
+                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.denominator=%d payout_contract.denominator=%d)" % \
+                              (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
+                logging.error(message)
+                self.alerts_proxy.send_alert(message, "Integer failure")
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
             raise NotImplementedError
+
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 2: %.3f ms." % elapsed)
 
         aggressive_from_position = self.get_position(aggressive_username, denominated_contract)
         aggressive_to_position = self.get_position(aggressive_username, payout_contract)
@@ -438,13 +455,22 @@ class Accountant:
         passive_debit = models.Posting(passive_user, payout_contract, sign * quantity, 'debit',
                                        update_position=True, position=passive_to_position)
 
-        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int))
-        passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
+        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int),
+                                        trial_period=self.trial_period)
+
+        # We aren't charging the liquidity provider
+        #
+        # passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
 
         postings = [aggressive_credit,
                     aggressive_debit,
                     passive_credit,
                     passive_debit]
+
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Commit
         try:
@@ -454,14 +480,29 @@ class Accountant:
                                   aggressive_from_position,
                                   aggressive_to_position])
 
+            if not self.trial_period:
+                fee_postings = self.charge_fees(aggressive_fees, aggressive_user)
+                postings.extend(fee_postings)
+
             journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
-                                    notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
+                                     alerts_proxy=self.alerts_proxy,
+                                     notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
                                                                         passive_order_id))
+            self.session.add(journal)
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("post_transaction: part 4: %.3f ms." % elapsed)
+
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
             logging.info("Journal: %s" % journal)
 
+            next = time.time()
+            elapsed = (next - last) * 1000
+            last = next
+            logging.debug("post_transaction: part 5: %.3f ms." % elapsed)
         except Exception as e:
             logging.error("Unable to post_transaction: %s" % e)
             self.session.rollback()
@@ -490,24 +531,20 @@ class Accountant:
              'price': price,
              'side': passive_side,
              'timestamp': timestamp,
-             'fees': passive_fees
+             'fees': {}
             }
         self.webserver.fill(passive_username, passive_fill)
         logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
-        # Charge fees
-        try:
-            self.charge_fees(aggressive_fees, aggressive_username)
-            self.charge_fees(passive_fees, passive_username)
-        except Exception as e:
-            logging.error("Unable to charge fees: %s" % e)
-            self.session.rollback()
-            return
 
     def raiseException(self, failure):
         raise failure.value
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id, username=None):
         """Cancel an order by id.
 
         :param id: The order id to cancel
@@ -518,6 +555,9 @@ class Accountant:
 
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
+            if username is not None and order.username != username:
+                raise AccountantException(0, "User %s does not own the order" % username)
+
             d = self.engines[order.contract.ticker].cancel_order(order_id)
             d.addErrback(self.raiseException)
             return d
@@ -597,7 +637,7 @@ class Accountant:
             credit = models.Posting(to_user, contract, quantity, 'credit', update_position=True,
                                     position=to_position)
             self.session.add_all([from_position, to_position, debit, credit])
-            journal = models.Journal('Transfer', [debit, credit], notes=note)
+            journal = models.Journal('Transfer', [debit, credit], notes=note, alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -617,6 +657,10 @@ class Accountant:
         :raises: INSUFFICIENT_MARGIN, WITHDRAW_NOT_PERMITTED
         """
         try:
+            if self.trial_period:
+                logging.error("Withdrawals not permitted during trial period")
+                raise WITHDRAW_NOT_PERMITTED
+
             logging.debug("Withdrawal request for %s %s for %d to %s received" % (username, ticker, amount, address))
             user = self.get_user(username)
             if not user.permissions.withdraw:
@@ -624,8 +668,6 @@ class Accountant:
                 raise WITHDRAW_NOT_PERMITTED
 
             contract = self.get_contract(ticker)
-
-            self.cashier.request_withdrawal(username, ticker, address, amount)
 
             position = self.get_position(username, ticker)
             pending_withdrawal_user = self.get_user('pendingwithdrawal')
@@ -639,16 +681,18 @@ class Accountant:
             self.session.add_all([debit, credit])
 
             # Check margin now
-            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices)
+            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices,
+                                                              trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                journal = models.Journal('Withdrawal', [credit, debit], notes=address)
+                journal = models.Journal('Withdrawal', [credit, debit], notes=address, alerts_proxy=self.alerts_proxy)
                 self.session.add(journal)
                 self.session.commit()
                 self.publish_journal(journal)
                 logging.info("Journal: %s" % journal)
+                self.cashier.request_withdrawal(username, ticker, address, amount)
                 return True
         except Exception as e:
             self.session.rollback()
@@ -733,7 +777,7 @@ class Accountant:
 
             self.session.add(user_cash_position)
             self.session.add_all(postings)
-            journal = models.Journal('Deposit', postings, notes=address)
+            journal = models.Journal('Deposit', postings, notes=address, alerts_proxy=self.alerts_proxy)
             self.session.add(journal)
             self.session.commit()
             self.publish_journal(journal)
@@ -887,7 +931,7 @@ class Accountant:
             logging.error("Error: %s" % e)
             self.session.rollback()
 
-    def new_permission_group(self, name):
+    def new_permission_group(self, name, permissions):
         """Create a new permission group
 
         :param name: the new group's name
@@ -896,28 +940,7 @@ class Accountant:
 
         try:
             logging.debug("Creating new permission group %s" % name)
-            permission_group = models.PermissionGroup(name)
-            self.session.add(permission_group)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            self.session.rollback()
-
-    def modify_permission_group(self, id, permissions):
-        """Changes what a certain permission group can do
-
-        :param id: the id of that permission group
-        :type id: int
-        :param permissions: A dict of booleans keyed by the permission name
-        :type permissions: dict
-        """
-        try:
-            logging.debug("Modifying permission group %d to %s" % (id, permissions))
-            permission_group = self.session.query(models.PermissionGroup).filter_by(id=id).one()
-            permission_group.trade = 'trade' in permissions
-            permission_group.withdraw = 'withdraw' in permissions
-            permission_group.deposit = 'deposit' in permissions
-            permission_group.login = 'login' in permissions
+            permission_group = models.PermissionGroup(name, permissions)
             self.session.add(permission_group)
             self.session.commit()
         except Exception as e:
@@ -948,8 +971,8 @@ class WebserverExport:
         return self.accountant.place_order(order)
 
     @export
-    def cancel_order(self, order_id):
-        return self.accountant.cancel_order(order_id)
+    def cancel_order(self, order_id, username=None):
+        return self.accountant.cancel_order(order_id, username=username)
 
     @export
     def get_permissions(self, username):
@@ -1029,8 +1052,8 @@ class AdministratorExport:
         self.accountant.change_permission_group(username, id)
 
     @export
-    def new_permission_group(self, name):
-        self.accountant.new_permission_group(name)
+    def new_permission_group(self, name, permissions):
+        self.accountant.new_permission_group(name, permissions)
 
     @export
     def modify_permission_group(self, id, permissions):
@@ -1045,15 +1068,20 @@ if __name__ == "__main__":
 
     session = database.make_session()
     engines = {}
+    engine_base_port = config.getint("engine", "base_port")
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
-                                                      (4200 + int(contract.id)))
+                                                      (engine_base_port + int(contract.id)))
     ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
     webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
     cashier = push_proxy_sync(config.get("cashier", "accountant_export"))
+    alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
+    trial_period = config.getboolean("accountant", "trial_period")
 
-    accountant = Accountant(session, engines, cashier, ledger, webserver, debug=debug)
+    accountant = Accountant(session, engines, cashier, ledger, webserver, alerts_proxy,
+                            debug=debug,
+                            trial_period=trial_period)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)

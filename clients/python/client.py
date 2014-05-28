@@ -423,9 +423,14 @@ class TradingBot(WampCraClientProtocol):
         ord['is_cancelled'] = False
         order_id = 'internal_%d' % self.last_internal_id
         self.orders[order_id] = ord
+
         def onError(error):
             logging.info("removing internal order %s" % order_id)
-            del self.orders[order_id]
+            try:
+                del self.orders[order_id]
+            except KeyError as e:
+                logging.error("Unable to remove order: %s" % e)
+
             self.onError(error)
 
         d.addCallbacks(self.onPlaceOrder, onError)
@@ -476,7 +481,8 @@ class BotFactory(WampClientFactory):
         self.username_password = username_password
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
+                        level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True

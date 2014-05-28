@@ -1,7 +1,7 @@
 __author__ = 'sameer'
 
 from email.mime.text import MIMEText
-import smtplib
+from twisted.mail import smtp
 
 class Sendmail(object):
     def __init__(self, from_address=None):
@@ -16,7 +16,5 @@ class Sendmail(object):
         else:
             msg['To'] = to_address
 
-        s = smtplib.SMTP('localhost')
-        s.sendmail(self.from_address, to_address, msg.as_string())
-        s.quit()
+        smtp.sendmail("localhost", self.from_address, to_address, msg.as_string())
 

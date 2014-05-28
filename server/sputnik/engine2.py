@@ -5,7 +5,7 @@ import config
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default="../config/sputnik.ini")
+        help="config file", default=None)
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
@@ -19,8 +19,8 @@ import zmq
 import database
 import models
 
-
-logging.basicConfig(level=logging.DEBUG)
+from twisted.internet import reactor
+from zmq_util import export, router_share_async
 
 class OrderSide:
     BUY = -1
@@ -28,8 +28,8 @@ class OrderSide:
 
 
 class Order:
-    def __init__(self, id=None, contract=None, quantity=None, price=None,
-            side=None, username=None):
+    def __init__(self, id=None, contract=None, quantity=None,
+            quantity_left=None, price=None, side=None, username=None):
         self.id = id
         self.contract = contract
         self.quantity = quantity
@@ -92,29 +92,12 @@ class EngineListener:
 
 
 class Engine:
-    def __init__(self, socket, ticker, contract_id, contract_type):
+    def __init__(self):
         self.orderbook = {OrderSide.BUY: [], OrderSide.SELL: []}
         self.ordermap = {}
-
-        self.socket = socket
-        self.session = session
-        self.ticker = ticker
-
         self.listeners = []
 
-        self.contract_id = contract_id
-        self.contract_type = contract_type
-
-        try:
-            for order in self.session.query(models.Order).filter(models.Order.quantity_left > 0).filter_by(contract_id=self.contract_id):
-                order.is_cancelled = True
-                self.session.merge(order)
-            self.session.commit()
-        except Exception, e:
-            logging.critical("Cannot clear existing orders. %s" % e)
-            raise e
-
-    def process(self, order):
+    def place_order(self, order):
 
         # Loop until the order or the opposite side is exhausted.
         while order.quantity_left > 0:
@@ -169,9 +152,7 @@ class Engine:
         # Notify listeners.
         self.notify_trade_success(order, passive_order, price, signed_quantity)
 
-        return True
-
-    def cancel(self, id):
+    def cancel_order(self, id):
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
             # Too late to cancel.
@@ -191,30 +172,6 @@ class Engine:
         self.notify_cancel_success(order)
 
         return True
-
-    def run(self):
-        self.notify_init()
-
-        while True:
-            try:
-                request = self.socket.recv_json()
-                for request_type, details in request.iteritems():
-                    if request_type == "order":
-                        order = Order(**details)
-                        self.process(order)
-
-                    elif request_type == "cancel":
-                        self.cancel(details["id"])
-
-                    elif request_type == "clear":
-                        pass
-            except ValueError:
-                logging.warn("Received message cannot be decoded.")
-            except Exception, e:
-                logging.critical("Critical error: %s", e)
-                sys.exit(1)
-
-        self.notify_shutdown()
 
     def add_listener(self, listener):
         self.listeners.append(listener)
@@ -281,12 +238,12 @@ class Engine:
 
 
 class LoggingListener:
-    def __init__(self, engine):
+    def __init__(self, engine, contract):
         self.engine = engine
+        self.contract_id = contract.id
 
     def on_init(self):
-        self.ticker = self.engine.ticker
-        self.contract_id = self.engine.contract_id
+        self.ticker = self.contract.ticker
         logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
         logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
 
@@ -318,54 +275,54 @@ class LoggingListener:
         logging.debug("Orderbook for %s:" % self.engine.ticker)
         logging.debug("Bids                   Asks")
         logging.debug("Vol.  Price     Price  Vol.")
-        length = max(len(self.engine.orderbook["Bid"]), len(self.engine.orderbook["Ask"]))
+        length = max(len(self.engine.orderbook[OrderSide.BUY]), len(self.engine.orderbook[OrderSide.SELL]))
         for i in range(length):
             try:
-                ask = self.engine.orderbook["Ask"][i]
+                ask = self.engine.orderbook[OrderSide.SELL][i]
                 ask_str = "{:<5} {:<5}".format(ask.price, ask.quantity_left)
             except:
                 ask_str = "           "
             try:
-                bid = self.engine.orderbook["Bid"][i]
-                bid_str = "{:>5} {:>5}".format(bid.price, bid.quantity_left)
+                bid = self.engine.orderbook[OrderSide.BUY][i]
+                bid_str = "{:>5} {:>5}".format(bid.quantity_left, bid.price)
             except:
                 bid_str = "           "
             logging.debug("{}     {}".format(bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
-    def __init__(self, engine, accountant):
+    def __init__(self, engine, accountant, contract):
         self.engine = engine
         self.accountant = accountant
+        self.contract = contract
 
     def on_init(self):
-        self.ticker = engine.ticker
+        self.ticker = self.contract.ticker
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
-        self.accountant.send_json({
-                'trade': {
+        self.accountant.post_transaction(
+                {
                     'username':order.username,
                     'contract': order.contract,
                     'signed_qty': signed_quantity,
-                    'price': price,
-                    'contract_type': self.engine.contract_type
+                    'price': price
                 }
-            })
+            )
 
-        self.accountant.send_json({
-                'trade': {
+        self.accountant.post_transaction(
+               {
                     'username':passive_order.username,
                     'contract': passive_order.contract,
                     'signed_qty': passive_order.quantity * passive_order.side,
-                    'price': passive_order.price,
-                    'contract_type': self.engine.contract_type
+                    'price': passive_order.price
                 }
-            })
+            )
 
 class WebserverNotifier(EngineListener):
-    def __init__(self, engine, webserver):
+    def __init__(self, engine, webserver, contract):
         self.engine = engine
         self.webserver = webserver
+        self.contract = contract
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
         quantity = abs(signed_quantity)
@@ -424,40 +381,60 @@ class SafePriceNotifier(EngineListener):
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
+class AccountantExport:
+    def __init__(self, engine):
+        self.engine = engine
+
+    @export
+    def place_order(self, order):
+        return self.engine.place_order(Order(**order))
+
+    @export
+    def cancel_order(self, id):
+        return self.engine.cancel_order(id)
+
+
 if __name__ == "__main__":
     session = database.make_session()
-    context = zmq.Context()
-
+    ticker = args[0]
 
     try:
-        contract_id = session.query(models.Contract).filter_by(ticker=args[0]).one().id
+        contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
         logging.critical("Cannot determine ticker id. %s" % e)
         raise e
 
-    engine_socket = context.socket(zmq.PULL)
-    engine_socket.bind('tcp://127.0.0.1:%d' % (config.getint("engine", "base_port") + contract_id))
+    # We are no longer cancelling orders here.
+    # We should find a better place for this.
+    """
+    try:
+        for order in session.query(models.Order).filter_by(
+                is_cancelled=False).filter_by(contract_id=self.contract_id):
+            order.is_cancelled = True
+            self.session.merge(order)
+        self.session.commit()
+    except Exception, e:
+        logging.critical("Cannot clear existing orders. %s" % e)
+        raise e
+    """
 
-    #webserver_socket = context.socket(zmq.PUSH)
-    #webserver_socket.connect(config.get("webserver", "zmq_address"))
+    engine = Engine()
+    accountant_export = AccountantExport(engine)
+    port = config.getint("engine", "base_port") + contract_id
+    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
-    #accountant_socket = context.socket(zmq.PUSH)
-    #accountant_socket.connect(config.get("accountant", "zmq_address"))
-
-    #forwarder_socket = context.socket(zmq.PUB)
-    #forwarder_socket.connect(config.get("safe_price_forwarder", "zmq_frontend_address"))
-
-    engine = Engine(engine_socket, session, args[0])
-
-    logger = LoggingListener(engine)
-    #webserver_notifier = WebserverNotifier(engine, webserver_socket)
-    #accountant_notifier = AccountantNotifier(engine, accountant_socket)
-    #safeprice_notifier = SafePriceNotifier(engine, forwarder_socket, accountant_socket, webserver_socket)
-
+    logger = LoggingListener(engine, contract)
+    accountant = push_proxy_async(config.get("accountant", "engine_export"))
+    accountant_notifier = AccountantNotifier(engine, accountant, contract)
+    webserver = push_proxy_async(config.get("webserver", "engine_export"))
+    webserver_notifier = WebserverNotifier(engine, webserver, contract)
+    #safe_price_notifier = SafePriceNotifier(engine)
     engine.add_listener(logger)
-    #engine.add_listener(webserver_notifier)
-    #engine.add_listener(accountant_notifier)
-    #engine.add_listener(safeprice_notifier)
+    engine.add_listener(accounant_notifier)
+    engine.add_listener(webserver_notifier)
+    #engine.add_listener(safe_price_notifier)
 
-    engine.run()
+    engine.notify_init()
+
+    reactor.run()
 

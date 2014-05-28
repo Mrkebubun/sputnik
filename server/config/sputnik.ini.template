@@ -41,6 +41,7 @@ webserver_export = tcp://127.0.0.1:4470
 cashier_export = tcp://127.0.0.1:4410
 administrator_export = tcp://127.0.0.1:4460
 debug = ${debug}
+trial_period = ${trial_period}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4670
@@ -67,9 +68,10 @@ zmq_backend_address = tcp://127.0.0.1:4520
 accountant_export = tcp://127.0.0.1:4340
 
 [alerts]
-from = sputnik@sputnikmkt.com
-to = yury@sputnikmkt.com
-subject = Alert
+from = ${user}@${webserver_address}
+to = ${alert_email}
+subject = ${webserver_address}
+export = tcp://127.0.0.1:5100
 
 [version]
 git_hash = ${git_hash}

@@ -3,6 +3,7 @@ import json
 import logging
 import zmq
 import uuid
+import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
@@ -134,6 +135,7 @@ class AsyncPullExport(AsyncExport):
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.onPull = self.onPull
+        self.counter = 0
 
     def onPull(self, message):
         """
@@ -141,6 +143,10 @@ class AsyncPullExport(AsyncExport):
         :param message:
         :returns: Deferred
         """
+        self.counter += 1
+        start = time.time()
+        logging.debug("%s queue length: %s" % (self, self.counter))
+
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
@@ -154,8 +160,14 @@ class AsyncPullExport(AsyncExport):
             logging.warn("Caught exception in method %s." % method_name)
             logging.debug(failure)
 
+        def complete(result):
+            self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            logging.debug("%s completed in %.3f ms." % (method_name, elapsed))
+
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class AsyncRouterExport(AsyncExport):
     def __init__(self, wrapped, connection):
@@ -167,6 +179,7 @@ class AsyncRouterExport(AsyncExport):
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.gotMessage = self.gotMessage
+        self.counter = 0
 
     def gotMessage(self, message_id, message):
         """
@@ -175,6 +188,12 @@ class AsyncRouterExport(AsyncExport):
         :param message:
         :returns: Deferred
         """
+
+        self.counter += 1
+        start = time.time()
+
+        logging.debug("%s queue length: %s" % (self, self.counter))
+
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
@@ -191,8 +210,14 @@ class AsyncRouterExport(AsyncExport):
             self.connection.reply(message_id,
                 self.encode(False, failure.value))
 
+        def complete(result):
+            self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            logging.debug("%s completed in %.3f ms." % (method_name, elapsed))
+
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class SyncPullExport(SyncExport):
     def __init__(self, wrapped, connection):
@@ -487,14 +512,14 @@ class PushProxySync(Proxy):
         self._connection.send(message)
         return None
 
-def dealer_proxy_async(address):
+def dealer_proxy_async(address, timeout=1):
     """
 
     :param address:
     :returns: DealerProxyAsync
     """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-    return DealerProxyAsync(socket)
+    return DealerProxyAsync(socket, timeout=timeout)
 
 def push_proxy_async(address):
     """

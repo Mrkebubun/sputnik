@@ -276,7 +276,11 @@ $ ->
 
     $("#transactions").click ->
         $("#transactions_modal").modal()
-        sputnik.getTransactionHistory()
+        $("#transactions_button").click ->
+            sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
+            start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
+            end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
+            sputnik.getTransactionHistory(start_timestamp, end_timestamp)
 
     $("#audit").click ->
         $("#audit_modal").modal()

@@ -5,7 +5,7 @@ import logging
 import util
 import collections
 
-def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawal=None):
+def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawal=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -105,7 +105,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             if order.side == 'SELL':
                 max_cash_spent[payout_contract.ticker] += order.quantity_left
 
-            fees = util.get_fees(username, order.contract, transaction_size_int)
+            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
             for ticker, fee in fees.iteritems():
                 max_cash_spent[ticker] += fee
 

@@ -9,3 +9,6 @@ Jinja2
 treq
 superlance
 txJSON-RPC==0.3.1
+progressbar
+pycrypto
+service_identity

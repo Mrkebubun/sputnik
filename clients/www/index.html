@@ -28,6 +28,8 @@
     <script type="text/javascript" src="js/amcharts/themes/light.js"></script>
     <script type="text/javascript" src="js/amcharts/amstock.js"></script>
     <link rel="stylesheet" href="js/amcharts/style.css" type="text/css">
+    <link rel="stylesheet" href="js/datepicker3.css" type="text/css">
+    <script type="text/javascript" src="js/bootstrap-datepicker.js"></script>
     <script src="sputnik.coffee" type="text/coffeescript"></script>
     <script src="ui.coffee" type="text/coffeescript"></script>
     <title>Sputnik Exchange Engine</title>
@@ -128,7 +130,14 @@
                 </div>
                 <div class="modal-body form-horizontal">
                     <h4>Transactions</h4>
-
+                    <div class="input-daterange">
+                        <input id="transactions_start_date" data-provide="datepicker"
+                                data-date-format="MM d, yyyy">
+                        <span class="add-on">to</span>
+                        <input id="transactions_end_date" data-provide="datepicker"
+                               data-date-format="MM d, yyyy">
+                        <button class="btn btn-info" id="transactions_button">Get Transactions</button>
+                    </div>
                     <table id="transaction_history" class="table table-striped table-hover table-bordered">
                         <thead>
                         <tr>

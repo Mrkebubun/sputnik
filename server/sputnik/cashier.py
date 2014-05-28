@@ -448,10 +448,8 @@ class Cashier():
             return address.address
 
     def get_deposit_instructions(self, ticker):
-        if ticker in self.bitcoinrpc:
-            return "Deposit your crypto-currency normally"
-        else:
-            return "Mail a check to X or send a wire to Y and put this key into the comments/memo field"
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        return contract.deposit_instructions
 
 class CompropagoHook(Resource):
     """

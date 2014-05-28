@@ -5,7 +5,8 @@ from twisted.internet import reactor
 from datetime import datetime
 import logging
 import config
-from alerts import send_alert
+from alerts import AlertsProxy
+import database, models
 
 class WatchdogExport(object):
     @zmq_util.export
@@ -15,21 +16,25 @@ class WatchdogExport(object):
 def watchdog(address):
     return zmq_util.router_share_async(WatchdogExport(), address)
 
-class Watchdog(object):
-    def __init__(self, name, address, step=60):
-        self.process = zmq_util.dealer_proxy_async(address)
+class Watchdog():
+    def __init__(self, name, address, alerts_proxy, step=60):
+        self.process = zmq_util.dealer_proxy_async(address, timeout=10)
+        self.alerts_proxy = alerts_proxy
         self.name = name
         self.step = step
         self.last_ping_time = None
+        self.ping_limit_ms = 100
 
     def got_ping(self, event=None):
         gap = datetime.utcnow() - self.last_ping_time
-        logging.info("%s ping received: %f ms" % (self.name, gap.total_seconds() * 1000))
-        if gap.total_seconds() > 0.1:
-            send_alert("%s lag > 100ms: %f ms" % (self.name, gap.total_seconds() * 1000))
+        ms = gap.total_seconds() * 1000
+        logging.info("%s ping received: %0.3f ms" % (self.name, ms))
+        if ms > self.ping_limit_ms:
+            self.alerts_proxy.send_alert("%s lag > %d ms: %0.3f ms" % (self.name, self.ping_limit_ms,
+                                                                       ms), "Excess lag detected")
 
     def ping_error(self, error):
-        send_alert("%s ping error: %s" % (self.name, error))
+        self.alerts_proxy.send_alert("%s ping error: %s" % (self.name, error), "Ping error")
 
     def ping(self):
         self.last_ping_time = datetime.utcnow()
@@ -47,9 +52,18 @@ class Watchdog(object):
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
     monitors = config.items("watchdog")
+    session = database.make_session()
+    proxy = AlertsProxy(config.get("alerts", "export"))
     watchdogs = {}
     for name, address in monitors:
-        watchdogs[name] = Watchdog(name, address)
+        watchdogs[name] = Watchdog(name, address, proxy)
         watchdogs[name].run()
+
+    engine_base_port = config.getint("engine", "base_port")
+    for contract in session.query(models.Contract).filter_by(active=True).all():
+        if contract.contract_type != "cash":
+            watchdogs[contract.ticker] = Watchdog(contract.ticker, "tcp://127.0.0.1:%d" % (engine_base_port +
+                                                                                          int(contract.id)), proxy)
+            watchdogs[contract.ticker].run()
 
     reactor.run()

@@ -12,7 +12,6 @@ import hashlib
 import base64
 import collections
 from Crypto.Random.random import getrandbits
-from alerts import send_alert
 
 class QuantityUI(object):
     @property
@@ -78,8 +77,8 @@ class Contract(db.Base):
     full_description = Column(String)
     active = Column(Boolean, nullable=False, server_default=sql.true())
     contract_type = Column(Enum('futures', 'prediction', 'cash', 'cash_pair', name='contract_types'), nullable=False)
-    tick_size = Column(Integer, nullable=False, server_default="1")
-    lot_size = Column(Integer, nullable=False, server_default="1")
+    tick_size = Column(BigInteger, nullable=False, server_default="1")
+    lot_size = Column(BigInteger, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
     expired = Column(Boolean, server_default=sql.false())
@@ -99,6 +98,8 @@ class Contract(db.Base):
 
     hot_wallet_limit = Column(BigInteger)
     cold_wallet_address = Column(String)
+
+    deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
@@ -232,13 +233,17 @@ class PermissionGroup(db.Base):
     withdraw = Column(Boolean, server_default=sql.false())
     login = Column(Boolean, server_default=sql.true())
 
-    def __init__(self, name):
+    def __init__(self, name, permissions):
         """
 
         :param name:
         :type name: str
         """
         self.name = name
+        self.trade = 'trade' in permissions
+        self.withdraw = 'withdraw' in permissions
+        self.deposit = 'deposit' in permissions
+        self.login = 'login' in permissions
 
     @property
     def dict(self):
@@ -358,7 +363,7 @@ class Journal(db.Base):
     notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, postings, timestamp=None, notes=None):
+    def __init__(self, type, postings, timestamp=None, notes=None, alerts_proxy=None):
         """
 
         :param type:
@@ -382,7 +387,9 @@ class Journal(db.Base):
             self.timestamp = timestamp
 
         if not self.audit:
-            send_alert("Journal audit failed for %s" % self)
+            if alerts_proxy is not None:
+                alerts_proxy.send_alert("Journal audit failed for %s" % self, "Journal audit failed")
+
             raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
@@ -607,7 +614,7 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     id = Column(Integer, primary_key=True)
 
-    quantity = Column(Integer)
+    quantity = Column(BigInteger)
     price = Column(BigInteger, nullable=False)
     timestamp = Column(DateTime)
 

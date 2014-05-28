@@ -1,48 +1,58 @@
 #!/usr/bin/env python
 
 from sendmail import Sendmail
+from twisted.internet import reactor
+from twisted.internet.task import LoopingCall
 from sys import stdin, stdout
 import config
-import StringIO
+import os
+import __main__ as main
 import logging
 from supervisor import childutils
+from zmq_util import export, pull_share_async, push_proxy_async
+import collections
 
 
-class Alerts(object):
+class Alerts():
     def __init__(self, from_address, to_address, subject_prefix):
         self.factory = Sendmail(from_address)
         self.from_address = from_address
         self.to_address = to_address
         self.subject_prefix = subject_prefix
+        self.alert_cache = collections.defaultdict(list)
+        self.looping_call = LoopingCall(self.send_cached_alerts)
 
-    def alert(self, message, subject):
-        self.factory.send_mail(message, subject=self.subject_prefix + " " + subject,
-                               to_address=self.to_address)
+    def send_alert(self, message, subject, cache=True):
+        if cache:
+            self.alert_cache[subject].append(message)
+        else:
+            logging.debug("Sending alert: %s/%s" % (subject, message))
+            self.factory.send_mail(message, subject=self.subject_prefix + " " + subject,
+                                   to_address=self.to_address)
 
-    def process_event(self, headers, data):
-        logging.debug("event arrived: %s / %s" % (headers, data))
-        if headers['eventname'].startswith('PROCESS_COMMUNICATION'):
-            buf = StringIO.StringIO(data)
-            field_line = buf.readline()
-            fields = dict([x.split(':') for x in field_line.split()])
-            subject = "{}:{}:{}".format(fields['groupname'],
-                                        fields['processname'],
-                                        fields['pid'])
-            message = buf.read()
-            logging.debug("Sending alert %s / %s" % (subject, message))
-            self.alert(message, subject)
+    def send_cached_alerts(self):
+        for subject, messages in self.alert_cache.items():
+            self.send_alert('\n---\n'.join(messages), subject, cache=False)
+            del self.alert_cache[subject]
 
-        childutils.listener.ok(stdout)
+    def start(self, time=60):
+        self.looping_call.start(time, now=False)
 
-    def run(self):
-        logging.debug("Alerter started")
-        while True:
-            headers, data = childutils.listener.wait(stdin, stdout)
-            self.process_event(headers, data)
+class AlertsExport():
+    def __init__(self, alerts):
+        self.alerts = alerts
 
+    @export
+    def send_alert(self, message, subject, cache=True):
+        self.alerts.send_alert(message, subject, cache=cache)
 
-def send_alert(message):
-    childutils.pcomm.send(message)
+class AlertsProxy():
+    def __init__(self, zmq_export):
+        self.socket = push_proxy_async(zmq_export)
+
+    def send_alert(self, message, subject="No subject"):
+        program = os.path.basename(main.__file__)
+        self.socket.send_alert(message, "%s: %s" % (program, subject))
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
@@ -50,4 +60,8 @@ if __name__ == "__main__":
     to_address = config.get("alerts", "to")
     subject_prefix = config.get("alerts", "subject")
     alerts = Alerts(from_address, to_address, subject_prefix)
-    alerts.run()
+    alerts.start()
+
+    alerts_export = AlertsExport(alerts)
+    pull_share_async(alerts_export, config.get("alerts", "export"))
+    reactor.run()

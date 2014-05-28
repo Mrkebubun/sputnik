@@ -56,8 +56,8 @@ class SafePricePublisher(object):
 
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
         logging.info('Woo, new safe price %d' % self.safe_price)
-        accountant.safe_price(contract_name, self.safe_price)
-        webserver.safe_price(contract_name, self.safe_price)
+        accountant.safe_prices(contract_name, self.safe_price)
+        webserver.safe_prices(contract_name, self.safe_price)
         safe_price_forwarder.send_json({'safe_price': {contract_name: self.safe_price}})
 
 class Order(object):
@@ -276,6 +276,10 @@ def pretty_print_book():
 
 class ReplaceMeWithARealEngine:
     @export
+    def ping(self):
+        return "pong"
+
+    @export
     def cancel_order(self, order_id):
         logging.info("this order is actually a cancellation!")
 
@@ -400,14 +404,14 @@ if __name__ == "__main__":
     best = {'bid': None, 'ask': None}
 
     # first cancel all old pending orders
-    for order in db_session.query(models.Order).filter_by(is_cancelled=False).filter_by(contract_id=contract_id):
+    for order in db_session.query(models.Order).filter_by(contract_id=contract_id).filter_by(
+            is_cancelled=False).filter(models.Order.quantity_left > 0):
         order.is_cancelled = True
         db_session.merge(order)
         # Tell the users that their order has been cancelled
         webserver.order(order.username, {'id': order.id, 'is_cancelled': True, 'contract': contract_name})
 
     db_session.commit()
-
 
     safe_price_publisher = SafePricePublisher()
 
