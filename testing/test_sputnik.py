@@ -8,7 +8,7 @@ import logging
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
 
-#logging.basicConfig(level=1000)
+logging.basicConfig(level=1000)
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
