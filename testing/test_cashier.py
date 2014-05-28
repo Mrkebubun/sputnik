@@ -478,6 +478,9 @@ class TestCompropagoHook(TestCashier):
 
 
 class TestBitcoinNotify(TestCashier):
+    """http://stackoverflow.com/questions/5210889/how-to-test-twisted-web-resource-with-trial
+
+    """
     def test_render_GET_little_received(self):
         self.create_account('test', 'NEW_ADDRESS')
 
