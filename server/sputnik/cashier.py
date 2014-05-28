@@ -7,7 +7,7 @@ import bitcoinrpc
 
 
 from twisted.web.resource import Resource, ErrorPage
-from twisted.web.server import Site
+from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
 
@@ -123,6 +123,7 @@ class Cashier():
                     total_received = long(round(result['result'] * denominator))
                     if total_received > accounted_for:
                         self.notify_accountant(address_str, total_received)
+                    return True
 
                 def error(failure):
                     logging.error("getreceivedbyaddress failed on %s: %s" % (address_str, failure))
@@ -130,6 +131,7 @@ class Cashier():
 
                 d.addCallbacks(notifyAccountant, error)
 
+        return d
 
 
     def check_for_crypto_deposits(self, ticker='BTC'):
@@ -176,13 +178,17 @@ class Cashier():
         d = self.pass_safety_check(withdrawal)
 
         def success(ignored):
-            self.process_withdrawal(withdrawal.id, online=True)
-            return True
+            d = self.process_withdrawal(withdrawal.id, online=True)
+            def onSuccess(result):
+                return withdrawal.id
+
+            d.addCallback(onSuccess)
+            return d
 
         def fail(message):
             logging.debug("Safety check failed: %s" % message)
             self.notify_pending_withdrawal(withdrawal)
-            return True
+            return defer.succeed(withdrawal.id)
 
         d.addCallbacks(success, fail)
         return d
@@ -197,8 +203,9 @@ class Cashier():
         """
         # First check if the withdrawal is for a cryptocurrency
         if withdrawal_request.contract.ticker not in self.bitcoinrpc:
-            logging.error("Withdrawal request for fiat: %s" % withdrawal_request)
-            return False
+            message = "Withdrawal request for fiat: %s" % withdrawal_request
+            logging.error(message)
+            return defer.fail(message)
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # (what does this mean)
@@ -208,7 +215,7 @@ class Cashier():
         if withdrawal_request.amount >= 100000000:
             message = "withdrawal too large: %s" % withdrawal_request
             logging.error(message)
-            return defer.failure(message)
+            return defer.fail(message)
 
         d = self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance()
 
@@ -286,13 +293,14 @@ class Cashier():
                 withdrawal.completed = datetime.utcnow()
                 self.session.add(withdrawal)
                 self.session.commit()
+                return defer.succeed(txid)
             except Exception as e:
                 logging.error("Exception when trying to process withdrawal: %s" % e)
                 self.session.rollback()
                 raise e
 
         if cancel:
-            finish_withdrawal(withdrawal.username, {'result': 'cancel'})
+            return finish_withdrawal(withdrawal.username, {'result': 'cancel'})
         else:
             if online:
                 if withdrawal.contract.ticker in self.bitcoinrpc:
@@ -308,6 +316,7 @@ class Cashier():
                                 raise failure.value
 
                             d.addCallbacks(functools.partial(finish_withdrawal, "onlinecash"), error)
+                            return d
                         else:
                             raise INSUFFICIENT_FUNDS
 
@@ -316,11 +325,12 @@ class Cashier():
                         raise failure.value
 
                     d.addCallbacks(gotBalance, error)
+                    return d
 
                 else:
                     raise NO_AUTOMATIC_WITHDRAWAL
             else:
-                finish_withdrawal('offlinecash', {'result': 'offline'})
+                return finish_withdrawal('offlinecash', {'result': 'offline'})
 
 
     def request_withdrawal(self, username, ticker, address, amount):
@@ -332,7 +342,8 @@ class Cashier():
             self.session.commit()
 
             # Check to see if we can process this automatically. If we can, then process it
-            return self.check_withdrawal(withdrawal)
+            d = self.check_withdrawal(withdrawal)
+            return d
         except Exception as e:
             logging.error("Exception when creating withdrawal ticket: %s" % e)
             self.session.rollback()
@@ -353,7 +364,7 @@ class Cashier():
             raise "error couldn't process compropago payment, amount not a number of cents"
 
         amount = self.compropago.amount_after_fees(cents)
-        self.process_withdrawal(address, amount)
+        return self.process_withdrawal(address, amount)
 
     def notify_pending_withdrawal(self, withdrawal):
         """
@@ -445,7 +456,7 @@ class Cashier():
         if address is None:
             return self.get_new_address(username, ticker)
         else:
-            return address.address
+            return defer.succeed(address.address)
 
     def get_deposit_instructions(self, ticker):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
@@ -484,9 +495,17 @@ class CompropagoHook(Resource):
             return "OK"
 
         payment_id = bill["id"]
-        self.cashier.rescan_address("compropago_" + payment_id)
+        d = self.cashier.rescan_address("compropago_" + payment_id)
+        def onSuccess(result):
+            request.write("OK")
+            request.finish()
 
-        return "OK"
+        def onFail(failure):
+            request.write(failure.value.args)
+            request.finish()
+
+        d.addCallbacks(onSuccess, onFail)
+        return NOT_DONE_YET
 
 
 class BitcoinNotify(Resource):
