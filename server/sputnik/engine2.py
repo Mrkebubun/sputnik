@@ -404,6 +404,8 @@ if __name__ == "__main__":
 
     # We are no longer cancelling orders here.
     # We should find a better place for this.
+    # Didn't we decide not to cancel orders when the engine restarts? We will have
+    # to load orders from the db and add them to the engine in this case
     """
     try:
         for order in session.query(models.Order).filter_by(
