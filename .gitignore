@@ -17,4 +17,6 @@ clients/coffeescript/*.js
 clients/www/*.css
 sputnik.tar
 docs/build
-_trial_temp
+testing/_trial_temp
+testing/.coverage*
+testing/htmlcov
