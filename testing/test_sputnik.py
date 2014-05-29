@@ -7,6 +7,7 @@ import StringIO
 import logging
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
+import copy
 
 logging.basicConfig(level=1000)
 
@@ -129,7 +130,7 @@ class FakeProxy:
             raise AttributeError
 
         def proxy_method(*args, **kwargs):
-            self.log.append((key, args, kwargs))
+            self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
             return None
 
         return proxy_method
@@ -137,19 +138,27 @@ class FakeProxy:
     # Checks if arg_compare's elements that exist in arg
     # match what is in arg. If there is an element in arg_compare as a dict
     # that doesn't exist in arg, it is ignored
-    @dumpArgs
-    def check(self, arg, arg_compare):
-        if arg == arg_compare:
+    @staticmethod
+    def check(arg, arg_compare):
+        def same(a, b):
+            from sputnik import engine2
+            if isinstance(a, engine2.Order) and isinstance(b, engine2.Order):
+                return a.side == b.side and a.price == b.price \
+                           and a.quantity == b.quantity and a.quantity_left == b.quantity_left
+            else:
+                return arg == arg_compare
+
+        if same(arg, arg_compare):
             return True
         else:
             if isinstance(arg, (list, tuple)) and isinstance(arg_compare, (list, tuple)):
                 for arg_a, arg_b in zip(arg, arg_compare):
-                    if not self.check(arg_a, arg_b):
+                    if not FakeProxy.check(arg_a, arg_b):
                         return False
                 return True
             if isinstance(arg, dict) and isinstance(arg_compare, dict):
                 for key, value in arg.iteritems():
-                    if key not in arg_compare or not self.check(value, arg_compare[key]):
+                    if key not in arg_compare or not FakeProxy.check(value, arg_compare[key]):
                         return False
 
                 return True

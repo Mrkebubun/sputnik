@@ -60,6 +60,7 @@ class Order:
         if self.side is not other.side:
             raise Exception("Orders are not comparable.")
 
+        # Price-Time Priority
         return (self.side * self.price, self.timestamp) < (other.side * other.price, other.timestamp)
 
 
