@@ -94,7 +94,7 @@ class TestCashierExport(TestAccountant):
         self.set_permissions_group('test', 'Deposit')
 
         # Set a deposit limit
-        self.accountant.deposit_limits['BTC'] = 100000
+        self.accountant.deposit_limits['BTC'] = 100000000
 
         self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
         position = self.session.query(models.Position).filter_by(
@@ -108,6 +108,7 @@ class TestCashierExport(TestAccountant):
             username="depositoverflow").one()
         self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
+        pprint(self.webserver.log)
         self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
@@ -342,6 +343,7 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(passive_user_mxn_position.position, 1200000)
 
         # Check to be sure it made all the right calls
+        pprint(self.webserver.log)
         self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
@@ -411,7 +413,7 @@ class TestEngineExport(TestAccountant):
                                                         ('fill',
                                                          ('aggressive_user',
                                                           {'contract': 'BTC/MXN',
-                                                           'fees': {u'BTC': 0, u'MXN': 3600},
+                                                           'fees': {u'MXN': 7200},
                                                            'id': 54,
                                                            'price': 60000000,
                                                            'quantity': 3000000,
@@ -421,7 +423,7 @@ class TestEngineExport(TestAccountant):
                                                         ('fill',
                                                          ('passive_user',
                                                           {'contract': 'BTC/MXN',
-                                                           'fees': {u'BTC': 0, u'MXN': 3600},
+                                                           'fees': {},
                                                            'id': 50,
                                                            'price': 60000000,
                                                            'quantity': 3000000,

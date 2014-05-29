@@ -144,7 +144,9 @@ class FakeProxy:
         else:
             if isinstance(arg, (list, tuple)) and isinstance(arg_compare, (list, tuple)):
                 for arg_a, arg_b in zip(arg, arg_compare):
-                    return self.check(arg_a, arg_b)
+                    if not self.check(arg_a, arg_b):
+                        return False
+                return True
             if isinstance(arg, dict) and isinstance(arg_compare, dict):
                 for key, value in arg.iteritems():
                     if key not in arg_compare or not self.check(value, arg_compare[key]):
