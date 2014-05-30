@@ -49,7 +49,7 @@ class Order:
                 "quantity": self.quantity,
                 "quantity_left": self.quantity_left,
                 "price": self.price,
-                "side": OrderSide.name(self.side)
+                "side": OrderSide.name(self.side),
                 "is_cancelled": False,
                 "timestamp": self.timestamp}
 
