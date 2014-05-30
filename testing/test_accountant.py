@@ -691,6 +691,7 @@ class TestWebserverExport(TestAccountant):
 
             d = self.webserver_export.cancel_order(id, username='test')
             d.addCallbacks(cancelSuccess, cancelFail)
+            return d
 
 
         d.addCallbacks(onSuccess, onFail)
@@ -725,6 +726,7 @@ class TestWebserverExport(TestAccountant):
             with self.assertRaisesRegexp(accountant.AccountantException, "User wrong does not own the order"):
                 d = self.webserver_export.cancel_order(id, username='wrong')
                 d.addCallbacks(cancelSuccess, cancelFail)
+                return d
 
 
         d.addCallbacks(onSuccess, onFail)

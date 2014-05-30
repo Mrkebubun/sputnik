@@ -105,6 +105,7 @@ class TestWebserverExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
 
     def test_get_new_address_new(self):
@@ -123,6 +124,7 @@ class TestWebserverExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_get_new_address_fiat(self):
         self.create_account('test')
@@ -138,6 +140,7 @@ class TestWebserverExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_get_current_address_exists(self):
         self.create_account('test', 'STARTING_ADDRESS')
@@ -150,6 +153,7 @@ class TestWebserverExport(TestCashier):
             self.assertTrue(False)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_get_current_address_not_exists(self):
         self.create_account('test')
@@ -167,6 +171,7 @@ class TestWebserverExport(TestCashier):
             self.assertTrue(False)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_get_current_address_not_exists_fiat(self):
         self.create_account('test')
@@ -182,6 +187,7 @@ class TestWebserverExport(TestCashier):
             self.assertTrue(False)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_get_deposit_instructions(self):
         instructions = self.webserver_export.get_deposit_instructions('BTC')
@@ -203,6 +209,7 @@ class TestAdministratorExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_rescan_address_with_deposit_insufficient_confirms(self):
         self.create_account('test', 'TEST_ADDRESS_2')
@@ -218,6 +225,7 @@ class TestAdministratorExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_rescan_address_with_nodeposit(self):
         self.create_account('test', 'TEST_ADDRESS_3')
@@ -231,6 +239,7 @@ class TestAdministratorExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_process_withdrawal_online_have_cash(self):
         self.create_account('test')
@@ -253,11 +262,13 @@ class TestAdministratorExport(TestCashier):
                 self.assertTrue(False)
 
             d.addCallbacks(onSuccess, onFail)
+            return d
 
         def onFail(failure):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_process_withdrawal_online_no_cash(self):
         self.create_account('test')
@@ -279,6 +290,7 @@ class TestAdministratorExport(TestCashier):
                 self.assertTrue(withdrawal.pending)
 
             d.addCallbacks(onSuccess, onFail)
+            return d
 
         def onFail(failure):
             self.assertFalse(True)
@@ -308,11 +320,13 @@ class TestAdministratorExport(TestCashier):
                     self.assertTrue(False)
 
                 d.addCallbacks(onSuccess, onFail)
+                return d
 
         def onFail(failure):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_process_withdrawal_offline(self):
         self.create_account('test')
@@ -339,11 +353,13 @@ class TestAdministratorExport(TestCashier):
                 self.assertFalse(True)
 
             d.addCallbacks(onSuccess, onFail)
+            return d
 
         def onFail(failure):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
 
     def test_process_withdrawal_cancel(self):
@@ -371,11 +387,13 @@ class TestAdministratorExport(TestCashier):
                 self.assertFalse(True)
 
             d.addCallbacks(onSuccess, onFail)
+            return d
 
         def onFail(failure):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
 
 class TestAccountantExport(TestCashier):
@@ -398,6 +416,7 @@ class TestAccountantExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_request_withdrawal_btc_larger(self):
         self.create_account('test')
@@ -422,6 +441,7 @@ class TestAccountantExport(TestCashier):
             self.assertTrue(False)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_request_withdrawal_btc_past_hard_limit(self):
         self.create_account('test')
@@ -446,6 +466,7 @@ class TestAccountantExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
     def test_request_withdrawal_fiat(self):
         self.create_account('test')
@@ -470,6 +491,7 @@ class TestAccountantExport(TestCashier):
             self.assertFalse(True)
 
         d.addCallbacks(onSuccess, onFail)
+        return d
 
 
 class TestCompropagoHook(TestCashier):
@@ -495,6 +517,7 @@ class TestBitcoinNotify(TestCashier):
             self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
 
         d.addCallback(rendered)
+        return d
 
 
     def test_render_GET_insufficient_confirms(self):
@@ -511,6 +534,7 @@ class TestBitcoinNotify(TestCashier):
             self.assertEqual(self.accountant.log, [])
 
         d.addCallback(rendered)
+        return d
 
     def test_render_GET_various_received(self):
         self.create_account('test', 'ADDRESS_FOR_TEST')
@@ -536,3 +560,4 @@ class TestBitcoinNotify(TestCashier):
             ))
 
         d.addCallback(rendered)
+        return d
