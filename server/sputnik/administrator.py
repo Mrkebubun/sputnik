@@ -571,6 +571,17 @@ class Administrator:
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
+    def change_permission_group(self, username, id):
+        """Change the permission group for a user
+
+        :param username: The user we are changing
+        :type username: str
+        :param id: the id of the new permission group
+        :type id: int
+        """
+        logging.debug("Changing permission group for %s to %d" % (username, id))
+        self.accountant.change_permission_group(username, id)
+
     def new_permission_group(self, name, permissions):
         """Create a new permission group
 
@@ -663,11 +674,12 @@ class AdminWebUI(Resource):
                       '/user_details': self.user_details,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
-                      '/contracts': self.contracts,
+                      '/contracts': self.contracts
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
-                      '/permission_groups': self.permission_groups
+                      '/permission_groups': self.permission_groups,
+                      '/change_permission_group': self.change_permission_group
                      },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,

@@ -6,6 +6,7 @@ from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
+from twisted.internet import defer
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -13,6 +14,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 
+class FakeAccountant(FakeProxy):
+    def get_balance_sheet(self):
+        return defer.succeed({})
 
 
 class TestAdministrator(TestSputnik):
@@ -20,7 +24,7 @@ class TestAdministrator(TestSputnik):
         TestSputnik.setUp(self)
 
         from sputnik import administrator
-        accountant = FakeProxy()
+        accountant = FakeAccountant()
         cashier = FakeProxy()
         zendesk_domain = 'testing'
 
@@ -287,13 +291,16 @@ class TestAdministratorWebUI(TestAdministrator):
                                 args={'username': ['admin'],
                                       'old_password': [''],
                                       'new_password': ['admin']})
-        d = self.render_test_helper(self.web_ui_factory(0), request)
+        admin_ui = self.web_ui_factory(0)
+        d = self.render_test_helper(admin_ui, request)
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+            from sputnik import models
+            admin_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
+            self.assertEqual(admin_user.password_hash, admin_ui.calc_ha1('admin', username='admin'))
 
         d.addCallback(rendered)
         return d
-
 
     def test_reset_admin_password_no_prev(self):
         request = StupidRequest([''],
@@ -301,7 +308,8 @@ class TestAdministratorWebUI(TestAdministrator):
                                 args={'username': ['admin'],
                                       'old_password': [''],
                                       'new_password': ['admin']})
-        d = self.render_test_helper(self.web_ui_factory(0), request)
+        admin_ui = self.web_ui_factory(0)
+        d = self.render_test_helper(admin_ui, request)
         def rendered(ignored):
             request = StupidRequest([''],
                                     path='/reset_admin_password',
@@ -311,6 +319,9 @@ class TestAdministratorWebUI(TestAdministrator):
             d = self.render_test_helper(self.web_ui_factory(0), request)
             def rendered(ignored):
                 self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+                from sputnik import models
+                admin_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
+                self.assertEqual(admin_user.password_hash, admin_ui.calc_ha1('test', username='admin'))
 
             d.addCallback(rendered)
 
@@ -322,7 +333,7 @@ class TestAdministratorWebUI(TestAdministrator):
         self.create_account('test')
         request = StupidRequest([''],
                                 path='/user_details',
-                                args={'username':['test']})
+                                args={'username': ['test']})
         d = self.render_test_helper(self.web_ui_factory(1), request)
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
@@ -331,25 +342,104 @@ class TestAdministratorWebUI(TestAdministrator):
         return d
 
     def test_rescan_address(self):
-        pass
+        self.create_account('test', 'address_test')
+        request = StupidRequest([''],
+                                path='/rescan_address',
+                                args={'address': ['address_test']})
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
+            self.assertTrue(self.administrator.cashier.check_for_calls([('rescan_address', ('address_test',), {})]))
+
+
+        d.addCallback(rendered)
+        return d
 
     def test_admin(self):
-        pass
+        request = StupidRequest([''],
+                                path='/admin')
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+
+
+        d.addCallback(rendered)
+        return d
 
     def test_contracts(self):
-        pass
+        request = StupidRequest([''],
+                                path='/contracts')
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Contracts</title>')
+
+
+        d.addCallback(rendered)
+        return d
 
     def test_reset_password(self):
-        pass
+        self.create_account('test')
+
+        request = StupidRequest([''],
+                                path='/reset_password',
+                                args={'username': ['test'],
+                                      'new_password': ['new_pass']})
+
+        d = self.render_test_helper(self.web_ui_factory(2), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+            from sputnik import models
+            user = self.session.query(models.User).filter_by(username='test').one()
+            [salt, hash] = user.password.split(':')
+
+            extra = {"salt":salt, "keylen":32, "iterations":1000}
+            from autobahn.wamp1.protocol import WampCraProtocol
+            password = WampCraProtocol.deriveKey('new_pass', extra)
+            self.assertEqual(hash, password)
+
+        d.addCallback(rendered)
+        return d
 
     def test_permission_groups(self):
-        pass
+        request = StupidRequest([''],
+                                path='/permission_groups')
+        d = self.render_test_helper(self.web_ui_factory(2), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Permissions</title>')
+
+
+        d.addCallback(rendered)
+        return d
 
     def test_change_permission_group(self):
-        pass
+        self.create_account('test')
+        from sputnik import models
+        groups = self.session.query(models.PermissionGroup).all()
+        import random
+        new_group = random.choice(groups)
+        new_id = new_group.id
+
+        request = StupidRequest([''], path='/change_permission_group',
+                                args={'username': ['test'],
+                                      'id': [new_id]})
+        d = self.render_test_helper(self.web_ui_factory(2), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+            self.assertTrue(self.administrator.accountant.check_for_calls([('change_permission_group', ('test', new_id), {})]))
+
+        d.addCallback(rendered)
+        return d
 
     def test_balance_sheet(self):
-        pass
+        request = StupidRequest([''],
+                                path='/balance_sheet')
+        d = self.render_test_helper(self.web_ui_factory(3), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Balance Sheet</title>')
+
+
+        d.addCallback(rendered)
+        return d
 
     def test_ledger(self):
         pass
