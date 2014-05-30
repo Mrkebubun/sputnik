@@ -82,7 +82,7 @@ def timestamp_to_dt(timestamp):
     :type timestamp: int
     :returns: datetime.datetime
     """
-    return datetime.fromtimestamp(timestamp/1e6)
+    return datetime.utcfromtimestamp(timestamp/1e6)
 
 
 def get_fees(username, contract, transaction_size, trial_period=False):
