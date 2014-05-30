@@ -96,6 +96,7 @@ class Administrator:
         self.cashier = cashier
         self.zendesk_domain = zendesk_domain
         self.debug = debug
+        self.template_dir = template_dir
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.base_uri = base_uri
         self.sendmail = sendmail
@@ -599,7 +600,7 @@ class AdminWebUI(Resource):
         self.administrator = administrator
         self.avatarId = avatarId
         self.avatarLevel = avatarLevel
-        self.jinja_env = Environment(loader=FileSystemLoader('admin_templates'),
+        self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
         Resource.__init__(self)

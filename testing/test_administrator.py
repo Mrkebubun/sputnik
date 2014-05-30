@@ -5,6 +5,7 @@ import os
 from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
 from pprint import pprint
 import re
+from twisted.web.test.test_web import DummyRequest
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -238,26 +239,96 @@ class TestTicketServerExport(TestAdministrator):
         self.assertEqual(ticket.type, 'Compliance')
         self.assertEqual(ticket.foreign_key, 'KEY')
 
+# Not quite a Dummy
+class StupidRequest(DummyRequest):
+    clientproto = 'HTTP/1.1'
+    code = 123
+    sentLength = None
+
+    def __init__(self, postpath, session=None, path=None, args=None):
+        DummyRequest.__init__(self, postpath, session=session)
+        self.path = path
+        self.args = args
+
+    def getUser(self):
+        return 'admin'
+
 class TestAdministratorWebUI(TestAdministrator):
+
     def setUp(self):
         TestAdministrator.setUp(self)
 
         from sputnik import administrator
         from twisted.web.guard import DigestCredentialFactory
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui = administrator.AdminWebUI(self.administrator, 'admin', 5, digest_factory)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(self.administrator, 'admin', level, digest_factory)
 
     def test_root_l0(self):
-        pass
+        request = StupidRequest([''], path = '/')
+        d = self.render_test_helper(self.web_ui_factory(0), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
 
-    def test_reset_admin_password(self):
-        pass
+        d.addCallback(rendered)
+        return d
 
     def test_root_l1(self):
-        pass
+        request = StupidRequest([''], path = '/')
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_reset_admin_password_no_prev(self):
+        request = StupidRequest([''],
+                                path='/reset_admin_password',
+                                args={'username': ['admin'],
+                                      'old_password': [''],
+                                      'new_password': ['admin']})
+        d = self.render_test_helper(self.web_ui_factory(0), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+
+        d.addCallback(rendered)
+        return d
+
+
+    def test_reset_admin_password_no_prev(self):
+        request = StupidRequest([''],
+                                path='/reset_admin_password',
+                                args={'username': ['admin'],
+                                      'old_password': [''],
+                                      'new_password': ['admin']})
+        d = self.render_test_helper(self.web_ui_factory(0), request)
+        def rendered(ignored):
+            request = StupidRequest([''],
+                                    path='/reset_admin_password',
+                                    args={'username': ['admin'],
+                                          'old_password': ['admin'],
+                                          'new_password': ['test']})
+            d = self.render_test_helper(self.web_ui_factory(0), request)
+            def rendered(ignored):
+                self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+
+            d.addCallback(rendered)
+
+        d.addCallback(rendered)
+        return d
+
 
     def test_user_details(self):
-        pass
+        self.create_account('test')
+        request = StupidRequest([''],
+                                path='/user_details',
+                                args={'username':['test']})
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+
+        d.addCallback(rendered)
+        return d
 
     def test_rescan_address(self):
         pass
