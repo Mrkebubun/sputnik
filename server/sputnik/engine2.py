@@ -24,6 +24,12 @@ class OrderSide:
     BUY = -1
     SELL = 1
 
+    @staticmethod
+    def name(n):
+        if n == -1:
+            return "BUY"
+        return "SELL"
+
 
 class Order:
     def __init__(self, id=None, contract=None, quantity=None,
@@ -36,6 +42,16 @@ class Order:
         self.side = side
         self.username = username
         self.timestamp = int(time.time() * 1e6)
+
+    def to_webserver(self):
+        return {"id": self.id,
+                "contract": self.contract,
+                "quantity": self.quantity,
+                "quantity_left": self.quantity_left,
+                "price": self.price,
+                "side": OrderSide.name(self.side)
+                "is_cancelled": False,
+                "timestamp": self.timestamp}
 
     def matchable(self, other):
         if self.side == other.side:
@@ -331,20 +347,17 @@ class WebserverNotifier(EngineListener):
         self.update_book()
 
     def on_queue_success(self, order):
-        self.webserver.send_json({'open_orders': [order.username, {'order': order.id, 'quantity':order.quantity, 'price':order.price, 'side': order.side,
-                                                                   'ticker': self.engine.ticker, 'contract_id': self.engine.contract_id}]})
+        self.webserver.order(order.username, order.to_webserver())
         self.update_book()
 
     def on_cancel_success(self, order):
-        self.webserver.send_json({'cancel': [order.username, {'order': order.id}]})
+        order = order.to_webserver()
+        order["is_cancelled"] = True
+        self.webserver.order(order.username, order)
         self.update_book()
 
     def update_book(self):
-        self.webserver.send_json(
-            {'book_update':
-                {self.engine.ticker:
-                    [{"quantity": o.quantity, "price": o.price, "side": o.side} for o in engine.ordermap.values()]}})
-
+        book = {"contract": self.contract.ticker, "bids": [], "asks": []}
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder, accountant, webserver):
@@ -407,6 +420,7 @@ if __name__ == "__main__":
     # We should find a better place for this.
     # Didn't we decide not to cancel orders when the engine restarts? We will have
     # to load orders from the db and add them to the engine in this case
+    # Well... it is not possible if the engine does not touch the orders table.
     """
     try:
         for order in session.query(models.Order).filter_by(
