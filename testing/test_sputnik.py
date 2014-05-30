@@ -217,8 +217,10 @@ class TestSputnik(unittest.TestCase):
             self.leo.parse(line)
         self.session.commit()
 
-    def create_account(self, username, address=None, currency='BTC'):
+    def create_account(self, username, password=None, address=None, currency='BTC'):
         self.leo.parse("accounts add %s" % username)
+        if password is not None:
+            self.leo.parse("accounts password %s %s" % (username, password))
         self.session.commit()
 
         if address is not None:

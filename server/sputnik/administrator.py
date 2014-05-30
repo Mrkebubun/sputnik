@@ -238,7 +238,7 @@ class Administrator:
 
         if hash != old_password_hash and token is None:
             raise FAILED_PASSWORD_CHANGE
-        else:
+        elif hash != old_password_hash:
             # Check token
             token = self.check_token(username, token)
             token.used = True
@@ -570,17 +570,6 @@ class Administrator:
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
-    def change_permission_group(self, username, id):
-        """Change the permission group for a user
-
-        :param username: The user we are changing
-        :type username: str
-        :param id: the id of the new permission group
-        :type id: int
-        """
-        logging.debug("Changing permission group for %s to %d" % (username, id))
-        self.accountant.change_permission_group(username, id)
-
     def new_permission_group(self, name, permissions):
         """Create a new permission group
 
@@ -677,8 +666,7 @@ class AdminWebUI(Resource):
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
-                      '/permission_groups': self.permission_groups,
-                      '/change_permission_group': self.change_permission_group,
+                      '/permission_groups': self.permission_groups
                      },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
@@ -992,12 +980,8 @@ class WebserverExport:
         return self.administrator.get_reset_token(username)
 
     @export
-    def register_support_ticket(self, username, foreign_key, type):
-        return self.administrator.register_support_ticket(username, foreign_key, type)
-
-    @export
-    def get_permissions(self, username):
-        return self.administrator.get_permissions(username)
+    def register_support_ticket(self, username, nonce, type, foreign_key):
+        return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
     @export
     def request_support_nonce(self, username, type):

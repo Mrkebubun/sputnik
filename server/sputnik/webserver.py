@@ -713,7 +713,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = self.factory.administrator.get_permissions(self.username)
+        d = self.factory.accountant.get_permissions(self.username)
         def onGetPermsSuccess(result):
             """
 
