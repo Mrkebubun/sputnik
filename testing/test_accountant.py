@@ -27,6 +27,7 @@ class FakeEngine(FakeProxy):
         # Always return success, with None
         return defer.succeed(None)
 
+
 class TestAccountant(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
@@ -43,7 +44,7 @@ class TestAccountant(TestSputnik):
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
                                                 self.ledger,
-                                                self.webserver, 
+                                                self.webserver,
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False)
@@ -177,6 +178,69 @@ class TestCashierExport(TestAccountant):
                                                            'type': u'Deposit'}),
                                                          {})]))
 
+    def test_transfer_position(self):
+        from sputnik import models
+
+        self.create_account("from_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group('from_account', 'Deposit')
+        self.set_permissions_group('to_account', 'Deposit')
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+
+        self.cashier_export.transfer_position('BTC', 'from_account', 'to_account', 5, 'note')
+        from_position = self.session.query(models.Position).filter_by(username='from_account').one()
+        to_position = self.session.query(models.Position).filter_by(username='to_account').one()
+
+        self.assertEqual(from_position.position, 5)
+        self.assertEqual(to_position.position, 15)
+        self.assertEqual(from_position.position_calculated, from_position.position)
+        self.assertEqual(to_position.position_calculated, to_position.position)
+        self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                         (u'onlinecash',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 10,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'from_account',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 10,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'onlinecash',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 10,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'to_account',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 10,
+                                                           'type': u'Deposit'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'from_account',
+                                                          {'contract': u'BTC',
+                                                           'quantity': -5,
+                                                           'type': u'Transfer'}),
+                                                         {}),
+                                                        ('transaction',
+                                                         (u'to_account',
+                                                          {'contract': u'BTC',
+                                                           'quantity': 5,
+                                                           'type': u'Transfer'}),
+                                                         {})]
+        ))
+
+    def test_get_position(self):
+        self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group('test', 'Deposit')
+
+        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        position = self.cashier_export.get_position('test', 'BTC')
+        self.assertEqual(position, 10)
 
 class TestAdministratorExport(TestAccountant):
     def test_transfer_position(self):
@@ -274,8 +338,14 @@ class TestAdministratorExport(TestAccountant):
                                                          {})]))
 
     def test_get_balance_sheet(self):
-        # NOT IMPLEMENTED
-        pass
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
+        balance_sheet = self.administrator_export.get_balance_sheet()
+        for side in ['assets', 'liabilities']:
+            self.assertEqual(balance_sheet[side]['BTC']['total'], 100000)
+            for currency in balance_sheet[side].keys():
+                total = sum([x['position'] for x in balance_sheet[side][currency]['positions_raw']])
+                self.assertEqual(balance_sheet[side][currency]['total'], total)
 
     def test_change_permission_group(self):
         from sputnik import models
@@ -288,6 +358,7 @@ class TestAdministratorExport(TestAccountant):
 
     def test_new_permission_group(self):
         from sputnik import models
+
         new_permissions = ['trade', 'login']
         self.administrator_export.new_permission_group('New Test Group', new_permissions)
 
@@ -297,6 +368,7 @@ class TestAdministratorExport(TestAccountant):
         self.assertFalse(group.withdraw)
         self.assertTrue(group.trade)
         self.assertTrue(group.login)
+
 
 class TestEngineExport(TestAccountant):
     def test_post_transaction(self):
@@ -430,7 +502,8 @@ class TestEngineExport(TestAccountant):
                                                          {})]))
 
     def test_safe_prices(self):
-        pass
+        self.engine_export.safe_prices('BTC', 42)
+        self.assertEqual(self.accountant.safe_prices['BTC'], 42)
 
 
 class TestWebserverExport(TestAccountant):
@@ -444,10 +517,10 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 1000000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -483,10 +556,11 @@ class TestWebserverExport(TestAccountant):
 
         # Place a buy order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'NETS2014',
-                                                    'price': 500,
-                                                    'quantity': 3,
-                                                    'side': 'BUY'})
+                                               'contract': 'NETS2014',
+                                               'price': 500,
+                                               'quantity': 3,
+                                               'side': 'BUY'})
+
         def onSuccess(id):
             from sputnik import models
 
@@ -498,17 +572,18 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'BUY')
 
             self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
-                                                                      {'contract': 8,
-                                                                       'id': 1,
-                                                                       'price': 500,
-                                                                       'quantity': 3,
-                                                                       'quantity_left': 3,
-                                                                       'side': -1,
-                                                                       'username': u'test'},
-                                                                      {})]))
+                                                                       {'contract': 8,
+                                                                        'id': 1,
+                                                                        'price': 500,
+                                                                        'quantity': 3,
+                                                                        'quantity_left': 3,
+                                                                        'side': -1,
+                                                                        'username': u'test'},
+                                                                       {})]))
 
             # Check to make sure margin is right
             from sputnik import margin
+
             [low_margin, high_margin] = margin.calculate_margin('test', self.session)
             self.assertEqual(low_margin, 1500000)
             self.assertEqual(high_margin, 1500000)
@@ -527,10 +602,11 @@ class TestWebserverExport(TestAccountant):
 
         # Place a buy order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'NETS2014',
-                                                    'price': 100,
-                                                    'quantity': 3,
-                                                    'side': 'SELL'})
+                                               'contract': 'NETS2014',
+                                               'price': 100,
+                                               'quantity': 3,
+                                               'side': 'SELL'})
+
         def onSuccess(id):
             from sputnik import models
 
@@ -542,17 +618,18 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
-                                                                      {'contract': 8,
-                                                                       'id': 1,
-                                                                       'price': 100,
-                                                                       'quantity': 3,
-                                                                       'quantity_left': 3,
-                                                                       'side': 1,
-                                                                       'username': u'test'},
-                                                                      {})]))
+                                                                       {'contract': 8,
+                                                                        'id': 1,
+                                                                        'price': 100,
+                                                                        'quantity': 3,
+                                                                        'quantity_left': 3,
+                                                                        'side': 1,
+                                                                        'username': u'test'},
+                                                                       {})]))
 
             # Check to make sure margin is right
             from sputnik import margin
+
             [low_margin, high_margin] = margin.calculate_margin('test', self.session)
             self.assertEqual(low_margin, 2700000)
             self.assertEqual(high_margin, 2700000)
@@ -572,12 +649,13 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
             self.webserver_export.place_order({'username': 'test',
-                                                        'contract': 'BTC/MXN',
-                                                        'price': 1000000,
-                                                        'quantity': 3000000,
-                                                        'side': 'SELL'})
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
 
     def test_place_order_no_cash(self):
@@ -586,12 +664,13 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have no cash
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
-             self.webserver_export.place_order({'username': 'test',
-                                                        'contract': 'BTC/MXN',
-                                                        'price': 1000000,
-                                                        'quantity': 3000000,
-                                                        'side': 'SELL'})
+            self.webserver_export.place_order({'username': 'test',
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
     def test_place_order_little_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -604,6 +683,7 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have too little cash
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             result = self.webserver_export.place_order({'username': 'test',
                                                         'contract': 'BTC/MXN',
@@ -622,11 +702,10 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 1000000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
-
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
 
         def onFail():
@@ -654,12 +733,13 @@ class TestWebserverExport(TestAccountant):
 
             # Place another sell, we have insufficient cash now
             from sputnik import accountant
+
             with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
                 self.webserver_export.place_order({'username': 'test',
-                                                            'contract': 'BTC/MXN',
-                                                            'price': 1000000,
-                                                            'quantity': 3000000,
-                                                            'side': 'SELL'})
+                                                   'contract': 'BTC/MXN',
+                                                   'price': 1000000,
+                                                   'quantity': 3000000,
+                                                   'side': 'SELL'})
 
         d.addCallbacks(onSuccess, onFail)
         return d
@@ -674,10 +754,10 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 1000000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -707,10 +787,10 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order({'username': 'test',
-                                                    'contract': 'BTC/MXN',
-                                                    'price': 1000000,
-                                                    'quantity': 3000000,
-                                                    'side': 'SELL'})
+                                               'contract': 'BTC/MXN',
+                                               'price': 1000000,
+                                               'quantity': 3000000,
+                                               'side': 'SELL'})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -723,6 +803,7 @@ class TestWebserverExport(TestAccountant):
                 self.assertTrue(False)
 
             from sputnik import accountant
+
             with self.assertRaisesRegexp(accountant.AccountantException, "User wrong does not own the order"):
                 d = self.webserver_export.cancel_order(id, username='wrong')
                 d.addCallbacks(cancelSuccess, cancelFail)
@@ -747,6 +828,7 @@ class TestWebserverExport(TestAccountant):
             self.assertTrue(False)
 
         from sputnik import accountant
+
         id = 5
         with self.assertRaisesRegexp(accountant.AccountantException, "No order 5 found"):
             d = self.webserver_export.cancel_order(id, username='wrong')
@@ -754,12 +836,65 @@ class TestWebserverExport(TestAccountant):
             return d
 
     def test_get_permissions(self):
-        pass
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.set_permissions_group("test", 'Deposit')
+        permissions = self.webserver_export.get_permissions('test')
+        self.assertDictEqual(permissions,
+                             {'name': 'Deposit', 'deposit': True, 'login': True, 'trade': False, 'withdraw': False})
 
     def test_get_audit(self):
-        pass
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
+        audit = self.webserver_export.get_audit()
+        for side in ['assets', 'liabilities']:
+            self.assertEqual(audit[side]['BTC']['total'], 100000)
+            for currency in audit[side].keys():
+                total = sum([x[1] for x in audit[side][currency]['positions']])
+                self.assertEqual(audit[side][currency]['total'], total)
+
 
     def test_get_transaction_history(self):
+        self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+        self.set_permissions_group("aggressive_user", 'Deposit')
+        self.set_permissions_group("passive_user", "Deposit")
+        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
+
+        import datetime
+        from sputnik import util
+
+        test_transaction = {'aggressive_username': 'aggressive_user',
+                            'passive_username': 'passive_user',
+                            'contract': 'BTC/MXN',
+                            'price': 60000000,
+                            'quantity': 3000000,
+                            'aggressive_order_id': 54,
+                            'passive_order_id': 50,
+                            'side': 'SELL',
+                            'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())}
+        self.engine_export.post_transaction(test_transaction)
+        self.set_permissions_group("aggressive_user", 'Withdraw')
+        self.webserver_export.request_withdrawal('aggressive_user', 'BTC', 300000, 'bad_address')
+        to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+        from_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=30))
+        history = self.webserver_export.get_transaction_history('aggressive_user', from_timestamp, to_timestamp)
+        FakeProxy.check(history, [{'contract': u'BTC',
+                                   'quantity': 5000000,
+                                   'type': u'Deposit'},
+                                  {'contract': u'MXN',
+                                   'quantity': 1800000,
+                                   'type': u'Trade'},
+                                  {'contract': u'BTC',
+                                   'quantity': -3000000,
+                                   'type': u'Trade'},
+                                  {'contract': u'MXN',
+                                   'quantity': -7200,
+                                   'type': u'Trade'},
+                                  {'contract': u'BTC',
+                                   'quantity': -300000,
+                                   'type': u'Withdrawal'}]
+        )
         pass
 
     def test_request_withdrawal_success(self):
@@ -813,6 +948,7 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Withdrawals not permitted'):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
@@ -825,6 +961,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group('test', 'Withdraw')
 
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
@@ -837,6 +974,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group('test', 'Withdraw')
 
         from sputnik import accountant
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
 

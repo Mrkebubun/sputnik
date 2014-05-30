@@ -1056,10 +1056,6 @@ class AdministratorExport:
         self.accountant.new_permission_group(name, permissions)
 
     @export
-    def modify_permission_group(self, id, permissions):
-        self.accountant.modify_permission_group(id, permissions)
-
-    @export
     def deposit_cash(self, address, received, total=True):
         self.accountant.deposit_cash(address, received, total=total)
 
