@@ -108,7 +108,6 @@ class TestCashierExport(TestAccountant):
             username="depositoverflow").one()
         self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
         self.assertEqual(overflow_position.position_calculated, overflow_position.position)
-        pprint(self.webserver.log)
         self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
@@ -343,7 +342,6 @@ class TestEngineExport(TestAccountant):
         self.assertEqual(passive_user_mxn_position.position, 1200000)
 
         # Check to be sure it made all the right calls
-        pprint(self.webserver.log)
         self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',

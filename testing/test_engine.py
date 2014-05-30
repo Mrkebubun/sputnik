@@ -36,7 +36,7 @@ class TestEngineInternals(TestEngine):
         # make a copy of the order to compare against
         order2 = self.create_order(1, 100, -1)
         self.engine.place_order(order)
-        self.assertDictEqual(self.engine.orderbook, {-1: [order2], 1: []})
+        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [order2], 1: []}))
         self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
                                                              (order2,),
                                                              {})]))
@@ -103,7 +103,7 @@ class TestEngineInternals(TestEngine):
 
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
-        self.assertTrue(self.FakeProxy.check(self.engine.orderbook, {-1: [order_bid], 1: [order_ask]}))
+        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [order_bid], 1: [order_ask]}))
         self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
                                                              (order_bid,),
                                                              {}),
