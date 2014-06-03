@@ -159,14 +159,12 @@ def chomsky(times=1, line_length=72):
 
 class RandomBot(TradingBot):
     def startAutomationAfterAuth(self):
-        rate = 10
-
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
-        self.place_orders.start(1 * rate)
+        self.place_orders.start(1 * self.factory.rate)
 
         self.chomsky = deque(chomsky())
         self.chatter = task.LoopingCall(self.saySomethingRandom)
-        self.chatter.start(6 * rate)
+        self.chatter.start(6 * self.factory.rate)
 
         return True
 
@@ -187,20 +185,20 @@ class RandomBot(TradingBot):
         # Look at best bid/ask
         try:
             # Distance is [0.95,1.05]
-            distance = float(random.randint(0,10)/100) + 0.95
+            distance = float(random.randint(0,10))/100 + 0.95
 
             # Post something close to the bid or ask, depending on the size
             if side is 'BUY':
                 best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
-                price = best_ask * distance
+                price = self.price_from_wire(ticker, best_ask) * distance
             else:
                 best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
-                price = best_bid * distance
+                price = self.price_from_wire(ticker, best_bid) * distance
 
         except (ValueError, KeyError):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price
             if contract['contract_type'] == "prediction":
-                price = self.price_to_wire(ticker, float(random.randint(0,1000))/1000)
+                price = float(random.randint(0,1000))/1000
             else:
                 return
 
@@ -211,7 +209,7 @@ class RandomBot(TradingBot):
             quantity = float(random.randint(50, 200))/100
 
         self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
-                        price, side)
+                        self.price_to_wire(ticker, price), side)
 
     def saySomethingRandom(self):
         try:
@@ -247,8 +245,9 @@ if __name__ == '__main__':
     uri = config.get("client", "uri")
     username = config.get("random_trader", "username")
     password = config.get("random_trader", "password")
+    rate = config.getfloat("random_trader", "rate")
 
-    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password))
+    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate)
     factory.protocol = RandomBot
 
     # null -> ....
