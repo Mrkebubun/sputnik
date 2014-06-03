@@ -18,6 +18,11 @@ The default port for websockets is 8000. A typical session runs as follows:
 RPC responses are tuples of two elements. The first element any non-zero value if the RPC call succeeded. It is zero
 otherwise. The second element is call specific.
 
+## Denominations
+
+All prices and quantities are stored as integers and transmitted over the network as integers. Read
+the denominations specification: https://github.com/MimeticMarkets/sputnik/blob/master/clients/Denominations.md
+
 ## Data formats
 
 Certain objects are send to the client. They contain a subset of the information contained in the
