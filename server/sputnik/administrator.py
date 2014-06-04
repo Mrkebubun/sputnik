@@ -61,6 +61,7 @@ USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
 ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
 INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
+INVALID_CURRENCY_QUANTITY = AdministratorException(12, "Invalid currency quantity")
 
 def session_aware(func):
     def new_func(self, *args, **kwargs):
@@ -540,6 +541,9 @@ class Administrator:
     def manual_deposit(self, address, quantity_ui):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
+        if quantity % address_db.contract.lot_size != 0:
+            logging.error("Manual deposit for invalid quantity: %d" % quantity)
+            raise INVALID_CURRENCY_QUANTITY
 
         logging.debug("Manual deposit of %d to %s" % (quantity, address))
         self.accountant.deposit_cash(address, quantity, total=False)

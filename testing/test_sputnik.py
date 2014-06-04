@@ -37,15 +37,19 @@ contracts set NETS2014 denominated_contract_ticker BTC
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
+contracts set BTC lot_size 1000000
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000
+contracts set MXN lot_size 100
 
 contracts set PLN contract_type cash
 contracts set PLN denominator 10000
+contracts set PLN lot_size 100
 
 contracts set HUF contract_type cash
 contracts set HUF denominator 100
+contracts set HUF lot_size 100
 
 contracts set BTC/MXN contract_type cash_pair
 contracts set BTC/MXN tick_size 100

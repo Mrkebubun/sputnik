@@ -483,7 +483,7 @@ class TestAccountantExport(TestCashier):
             self.assertEqual(self.cashier.accountant.log, [])
             self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
                                                                     (
-                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 120.0000 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
+                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
                                                                      'to_address': u'<> anonymous'})]))
 

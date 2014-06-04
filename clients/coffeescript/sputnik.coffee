@@ -386,15 +386,11 @@ class @Sputnik extends EventEmitter
             return Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0)
 
     getQuantityPrecision: (ticker) =>
-        # Special case bitcoin
-        if ticker is "BTC"
-            return 2
-
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
             return 0
         else if contract.contract_type is "cash"
-            return Math.max(Math.log(contract.denominator) / Math.LN10,0)
+            return Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0)
         else
             return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
 

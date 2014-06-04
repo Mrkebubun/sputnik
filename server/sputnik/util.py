@@ -52,14 +52,10 @@ def get_price_precision(contract):
         return get_precision(contract.denominated_contract.denominator * contract.denominator, contract.tick_size)
 
 def get_quantity_precision(contract):
-    # Special case BTC
-    if contract.ticker == "BTC":
-        return 2
-
     if contract.contract_type == "prediction":
         return 0
     elif contract.contract_type == "cash":
-        return get_precision(contract.denominator, 1)
+        return get_precision(contract.denominator, contract.lot_size)
     else:
         return get_precision(contract.payout_contract.denominator, contract.lot_size)
 

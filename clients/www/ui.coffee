@@ -333,7 +333,7 @@ $ ->
                 if details.contract_type == "cash"
                     positions_output.push '<li id="' + ticker + '_balance" class="dropdown pull-right">'
                     positions_output.push '<a href="#" class="dropdown-toggle" style="padding: 15px 10px;" data-toggle="dropdown">'
-                    positions_output.push '<b>' + ticker + '<div id="' + ticker + 'pos"></div></b><b class="caret"></b></a>'
+                    positions_output.push '<b>' + ticker + '<div id="' + ticker + 'pos" data-toggle="tooltip" data-placement="bottom"></div></b><b class="caret"></b></a>'
                     positions_output.push '<ul class="dropdown-menu">'
                     positions_output.push '<li><a href="#" id="deposit_' + ticker + '">Deposit</a></li>'
                     positions_output.push '<li><a href="#" id="withdraw_' + ticker + '">Withdraw</a></li>'
@@ -522,6 +522,7 @@ sputnik.on "positions", (positions) ->
     for ticker, position of positions
         if @markets[ticker].contract_type != "cash_pair"
             $("##{ticker}pos").text position.position.toFixed(sputnik.getQuantityPrecision(ticker))
+            $("##{ticker}pos").attr('data-original-title', position.position).tooltip('fixTitle')
 
 sputnik.on "chat_history", (chat_messages) ->
     $('#chatArea').html(chat_messages.join("\n"))

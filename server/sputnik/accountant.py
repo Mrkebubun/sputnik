@@ -48,6 +48,7 @@ class AccountantException(Exception):
 INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
 TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
+INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
 
 class Accountant:
     """The Accountant primary class
@@ -668,6 +669,10 @@ class Accountant:
                 raise WITHDRAW_NOT_PERMITTED
 
             contract = self.get_contract(ticker)
+
+            if amount % contract.lot_size != 0:
+                logging.error("Withdraw request for a wrong lot_size qty: %d" % amount)
+                raise INVALID_CURRENCY_QUANTITY
 
             position = self.get_position(username, ticker)
             pending_withdrawal_user = self.get_user('pendingwithdrawal')
