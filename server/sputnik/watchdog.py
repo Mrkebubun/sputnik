@@ -23,7 +23,7 @@ class Watchdog():
         self.name = name
         self.step = step
         self.last_ping_time = None
-        self.ping_limit_ms = 100
+        self.ping_limit_ms = 200
 
     def got_ping(self, event=None):
         gap = datetime.utcnow() - self.last_ping_time
@@ -57,6 +57,10 @@ if __name__ == "__main__":
     watchdogs = {}
     for name, address in monitors:
         watchdogs[name] = Watchdog(name, address, proxy)
+        # TODO: Remove this once we move journal commits from accountant to ledger
+        if name == "accountant":
+            watchdogs[name].ping_limit_ms = 2000
+
         watchdogs[name].run()
 
     engine_base_port = config.getint("engine", "base_port")
