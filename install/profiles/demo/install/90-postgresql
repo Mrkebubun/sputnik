@@ -1,0 +1,7 @@
+#!/bin/bash
+export PGPASSWORD=$profile_dbmasterpw
+psql --host=$profile_dbhost --username=$profile_dbmaster <<EOF
+create user $profile_user with password '$profile_dbpassword';
+grant all privileges on database $profile_dbname to $profile_user;
+EOF
+

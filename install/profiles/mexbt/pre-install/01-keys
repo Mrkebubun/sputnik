@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mkdir -p $profile_git_root/dist/keys
-
