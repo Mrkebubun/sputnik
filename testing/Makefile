@@ -12,8 +12,8 @@ clean:
 	rm -rf .coverage* htmlcov _trial_temp
 
 report:
-	coverage combine
-	coverage html
+	/usr/local/bin/coverage combine
+	/usr/local/bin/coverage html
     
 $(ALL):
-	coverage run -p --branch --source ../server/sputnik `which trial` $@
+	/usr/local/bin/coverage run -p --branch --source ../server/sputnik `which trial` $@
