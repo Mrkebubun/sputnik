@@ -127,6 +127,8 @@ def get_contract(session, ticker):
     :raises: AccountantException
     """
 
+    # TODO: memoize this!
+
     if isinstance(ticker, models.Contract):
         return ticker
 
