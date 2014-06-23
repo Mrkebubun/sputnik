@@ -93,7 +93,7 @@ class EngineListener:
     def on_queue_fail(self, order, reason):
         pass
 
-    def on_trade_success(self, order, passive_order, price, signed_quantity):
+    def on_trade_success(self, order, passive_order, price, quantity):
         pass
 
     def on_trade_fail(self, order, passive_order, reason):
@@ -157,7 +157,6 @@ class Engine:
 
         # Calculate trading quantity and price.
         quantity = min(order.quantity_left, passive_order.quantity_left)
-        signed_quantity = quantity * order.side
         price = passive_order.price
 
         # Adjust orders on the books
@@ -165,7 +164,7 @@ class Engine:
         passive_order.quantity_left -= quantity
 
         # Notify listeners.
-        self.notify_trade_success(order, passive_order, price, signed_quantity)
+        self.notify_trade_success(order, passive_order, price, quantity)
 
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
@@ -223,10 +222,10 @@ class Engine:
             except Exception, e:
                 logging.warn("Exception in on_queue_fail of %s: %s." % (listener, e))
 
-    def notify_trade_success(self, order, passive_order, price, signed_quantity):
+    def notify_trade_success(self, order, passive_order, price, quantity):
         for listener in self.listeners:
             try:
-                listener.on_trade_success(order, passive_order, price, signed_quantity)
+                listener.on_trade_success(order, passive_order, price, quantity)
             except Exception, e:
                 logging.warn("Exception in on_trade_success of %s: %s." % (listener, e))
 
@@ -272,8 +271,8 @@ class LoggingListener:
     def on_queue_fail(self, order, reason):
         logging.warn("%s cannot be queued because %s." % (order, reason))
 
-    def on_trade_success(self, order, passive_order, price, signed_quantity):
-        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, signed_quantity, price))
+    def on_trade_success(self, order, passive_order, price, quantity):
+        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, order.side * quantity, price))
         self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
@@ -314,13 +313,14 @@ class AccountantNotifier(EngineListener):
     def on_init(self):
         self.ticker = self.contract.ticker
 
-    def on_trade_success(self, order, passive_order, price, signed_quantity):
+    def on_trade_success(self, order, passive_order, price, quantity):
         self.accountant.post_transaction(order.username,
                 {
                     'aggressive_username': order.username,
                     'passive_username': passive_order.username,
                     'contract': order.contract,
-                    'signed_quantity': signed_quantity,
+                    'side': order.side,
+                    'quantity': quantity,
                     'price': price,
                     'timestamp', order.timestamp
                 }
@@ -331,7 +331,8 @@ class AccountantNotifier(EngineListener):
                     'aggressive_username': order.username,
                     'passive_username': passive_order.username,
                     'contract': order.contract,
-                    'signed_quantity': -signed_quantity,
+                    'side': passive_order.side,
+                    'quantity': quantity,
                     'price': price,
                     'timestamp', order.timestamp
                 }
@@ -343,8 +344,7 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
         self.contract = contract
 
-    def on_trade_success(self, order, passive_order, price, signed_quantity):
-        quantity = abs(signed_quantity)
+    def on_trade_success(self, order, passive_order, price, quantity):
         self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': price}})
         self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': price}]})
         self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': price}]})
@@ -387,9 +387,9 @@ class SafePriceNotifier(EngineListener):
         self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
-    def on_trade_success(self, order, passive_order, price, signed_quantity):
+    def on_trade_success(self, order, passive_order, price, quantity):
         self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
-        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * abs(signed_quantity) * price
+        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * quantity * price
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
