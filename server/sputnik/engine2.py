@@ -315,21 +315,25 @@ class AccountantNotifier(EngineListener):
         self.ticker = self.contract.ticker
 
     def on_trade_success(self, order, passive_order, price, signed_quantity):
-        self.accountant.post_transaction(
+        self.accountant.post_transaction(order.username,
                 {
-                    'username': order.username,
+                    'aggressive_username': order.username,
+                    'passive_username': passive_order.username,
                     'contract': order.contract,
-                    'signed_qty': signed_quantity,
-                    'price': price
+                    'signed_quantity': signed_quantity,
+                    'price': price,
+                    'timestamp', order.timestamp
                 }
             )
 
-        self.accountant.post_transaction(
-               {
-                    'username':passive_order.username,
-                    'contract': passive_order.contract,
-                    'signed_qty': passive_order.quantity * passive_order.side,
-                    'price': passive_order.price
+        self.accountant.post_transaction(passive_order.username,
+                {
+                    'aggressive_username': order.username,
+                    'passive_username': passive_order.username,
+                    'contract': order.contract,
+                    'signed_quantity': -signed_quantity,
+                    'price': price,
+                    'timestamp', order.timestamp
                 }
             )
 
