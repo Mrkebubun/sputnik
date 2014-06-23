@@ -40,7 +40,7 @@ from datetime import datetime, date
 from watchdog import watchdog
 
 import logging
-
+import time
 
 class AccountantException(Exception):
     pass
@@ -348,7 +348,6 @@ class Accountant:
         :type transaction: dict
         """
         logging.info("Processing transaction %s." % transaction)
-        import time
         last = time.time()
 
         aggressive_username = transaction["aggressive_username"]
