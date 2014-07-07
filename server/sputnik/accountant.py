@@ -300,50 +300,59 @@ class Accountant:
         assert(sum(self.vendor_share_config.values()) <= 1.0)
         postings = []
         last = time.time()
+        user = self.get_user(user)
 
         for ticker, fee in fees.iteritems():
-            user_position = self.get_position(user, ticker)
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            debit = models.Posting(user, contract, fee, 'debit', update_position=True,
-                                   position=user_position)
-            self.session.add(debit)
-            postings.append(debit)
-            self.session.add(user_position)
+            user_posting = {"uid": uid,
+                            "count": 0,
+                            "type": "fees",
+                            "user": user.username,
+                            "contract": contract.ticker,
+                            "quantity": fee,
+                            "side": "debit"
+                            }
+            postings.append(user_posting)
 
             remaining_fee = fee
             for vendor_name, vendor_share in self.vendor_share_config.iteritems():
                 vendor_user = self.get_user(vendor_name)
-                vendor_position = self.get_position(vendor_name, ticker)
                 vendor_credit = int(fee * vendor_share)
 
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                credit = models.Posting(vendor_user, contract, vendor_credit, 'credit', update_position=True,
-                                        position=vendor_position)
-                self.session.add(vendor_position)
-                self.session.add(credit)
-                postings.append(credit)
+                vendor_posting = {"uid": uid,
+                                  "count": 0,
+                                  "type": "fees",
+                                  "user": vendor_user.username,
+                                  "contract": contract.ticker,
+                                  "quantity": vendor_credit,
+                                  "side": "credit"
+                                }
+                postings.append(vendor_posting)
 
             # There might be some fee leftover due to rounding,
             # we have an account for that guy
             # Once that balance gets large we distribute it manually to the
             # various share holders
-            remainder_position = self.get_position('remainder', ticker)
             remainder_user = self.get_user('remainder')
-            credit = models.Posting(remainder_user, contract, remaining_fee, 'credit', update_position=True,
-                                    position=remainder_position)
-            self.session.add(credit)
-            postings.append(credit)
-            self.session.add(remainder_position)
+            remainder_posting = {"uid": uid,
+                                 "count": 0,
+                                 "type": "fees",
+                                 "user": remainder_user.username,
+                                 "contract": contract.ticker,
+                                 "quantity": remaining_fee,
+                                 "side": "credit"
+                                }
+            postings.append(remainder_posting)
             next = time.time()
             elapsed = (next - last) * 1000
             last = next
             logging.debug("charge_fees: %s: %.3f ms." % (ticker, elapsed))
 
-        return postings
 
 
     def post_transaction(self, transaction):
