@@ -344,12 +344,6 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
         self.contract = contract
 
-    def on_trade_success(self, order, passive_order, price, quantity):
-        self.webserver.send_json({'trade': {'ticker': self.engine.ticker, 'quantity': quantity, 'price': price}})
-        self.webserver.send_json({'fill': [order.username, {'order': order.id, 'quantity': quantity, 'price': price}]})
-        self.webserver.send_json({'fill': [passive_order.username, {'order': passive_order.id, 'quantity': quantity, 'price': price}]})
-        self.update_book()
-
     def on_queue_success(self, order):
         self.webserver.order(order.username, order.to_webserver())
         self.update_book()
@@ -362,6 +356,11 @@ class WebserverNotifier(EngineListener):
 
     def update_book(self):
         book = {"contract": self.contract.ticker, "bids": [], "asks": []}
+        for entry in self.engine.orderbook[OrderSide.BUY]:
+            quantity = book["bids"].setdefault(entry.price, 0)
+            quantity += entry.quantity
+            book["bids"][entry.price] = quantity
+        self.webserver.book(self.contract.ticker, book)
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder, accountant, webserver):
