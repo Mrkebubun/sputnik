@@ -41,6 +41,7 @@ from watchdog import watchdog
 
 import logging
 import time
+import uuid
 
 class AccountantException(Exception):
     pass
@@ -92,6 +93,9 @@ class Accountant:
 
         self.webserver = webserver
         self.audit_cache = None
+
+    def get_uid(self):
+        return uuid.uuid4().get_hex()
 
     def post_or_fail(self, *postings):
         def on_success(self, result):
@@ -182,29 +186,29 @@ class Accountant:
         if not self.debug:
             raise AccountantException(0, "Position modification not allowed")
         user = self.get_user(username)
-        contract = self.get_contract(ticker)
-        position = self.get_position(username, ticker)
         adjustment_user = self.get_user('adjustments')
-        adjustment_position = self.get_position('adjustments', ticker)
+        contract = self.get_contract(ticker)
+        uid = self.get_uid()
+        user_posting = {"uid": uid,
+                        "count": 2,
+                        "type": "adjustment",
+                        "user": user.username,
+                        "contract": contract.ticker,
+                        "quantity": quantity,
+                        "side": "credit"
+                        }
+        system_posting = {"uid": uid,
+                        "count": 2,
+                        "type": "adjustment",
+                        "user": adjustment_user.username,
+                        "contract": contract.ticker,
+                        "quantity": quantity,
+                        "side": "debit"
+                        }
 
-        # Credit the user's account
-        credit = models.Posting(user, contract, quantity, 'credit', update_position=True,
-                                position=position)
+        d = self.post_or_fail(user_posting, system_posting)
+        # d.addCallback(notify_user)
 
-        # Debit the system account
-        debit = models.Posting(adjustment_user, contract, quantity, 'debit', update_position=True,
-                               position=adjustment_position)
-
-        try:
-            self.session.add_all([position, adjustment_position, credit, debit])
-            journal = models.Journal('Adjustment', [credit, debit], alerts_proxy=self.alerts_proxy)
-            self.session.add(journal)
-            self.session.commit()
-            self.publish_journal(journal)
-            logging.info("Journal: %s" % journal)
-        except Exception as e:
-            logging.error("Unable to modify position: %s" % e)
-            self.session.rollback()
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
