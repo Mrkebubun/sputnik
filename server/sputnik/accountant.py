@@ -123,6 +123,7 @@ class Accountant:
         d.addCallback(on_success)
         d.addErrback(on_fail_ledger)
         d.addErrback(on_fail_rpc)
+        return d
 
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
