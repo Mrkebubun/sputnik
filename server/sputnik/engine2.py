@@ -322,7 +322,7 @@ class AccountantNotifier(EngineListener):
                     'side': order.side,
                     'quantity': quantity,
                     'price': price,
-                    'timestamp', order.timestamp
+                    'timestamp': order.timestamp
                 }
             )
 
@@ -334,7 +334,7 @@ class AccountantNotifier(EngineListener):
                     'side': passive_order.side,
                     'quantity': quantity,
                     'price': price,
-                    'timestamp', order.timestamp
+                    'timestamp': order.timestamp
                 }
             )
 
