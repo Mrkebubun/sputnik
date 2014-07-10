@@ -23,9 +23,8 @@ class LedgerException(Exception):
 ARGUMENT_ERROR = LedgerException(100, "Posting(s) cannot be decoded.")
 UID_MISMATCH = LedgerException(101, "Batch postings must have the same UID.")
 QUANTITY_MISMATCH = LedgerException(200, "Posting quantities do not balance.")
-CONTRACT_MISMATCH = LedgerException(201, "Posting contracts do not match.")
-TYPE_MISMATCH = LedgerException(202, "Posting types do not match.")
-COUNT_MISMATCH = LedgerException(203, "Posting count is inconsistent.")
+TYPE_MISMATCH = LedgerException(201, "Posting types do not match.")
+COUNT_MISMATCH = LedgerException(202, "Posting count is inconsistent.")
 GROUP_TIMEOUT = LedgerException(300, "Timeout exceeded waiting for postings.")
 INTERNAL_ERROR = LedgerException(998, "Invalid arguments supplied to commit.")
 DATABASE_ERROR = LedgerException(999, "Database error.")
@@ -85,7 +84,15 @@ class Ledger:
                 raise TYPE_MISMATCH
             if not all(count == counts[0] for count in counts):
                 raise COUNT_MISMATCH
-            
+
+            # balance check
+            debits = [posting["quantity"] for posting in postings
+                    if posting["side"] == "debit"]
+            credits = [posting["quantity"] for posting in postings
+                    if posting["side"] == "credit"]
+            if sum(credits) - sum(debits) is not 0:
+                raise QUANTITY_MISMATCH
+
             # create the journal and postings
             db_postings = []
             for posting in postings:
