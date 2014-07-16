@@ -363,7 +363,7 @@ class Journal(db.Base):
     notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, postings, timestamp=None, notes=None, alerts_proxy=None):
+    def __init__(self, type, postings, timestamp=None, notes=None):
         """
 
         :param type:
@@ -379,18 +379,11 @@ class Journal(db.Base):
         self.type = type
         self.timestamp = timestamp
         self.notes = notes
-        # Don't include zero qty line items
-        self.postings = [p for p in postings if p.quantity != 0]
+        self.postings = [p for p in postings]
         if timestamp is None:
             self.timestamp = datetime.utcnow()
         else:
             self.timestamp = timestamp
-
-        if not self.audit:
-            if alerts_proxy is not None:
-                alerts_proxy.send_alert("Journal audit failed for %s" % self, "Journal audit failed")
-
-            raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
         header = "<Journal('%s', '%s', '%s')>\n" % (self.type, self.timestamp, self.notes)
@@ -436,7 +429,7 @@ class Posting(db.Base, QuantityUI):
     def __repr__(self):
         return "<Posting('%s', '%s', %d)>" % (self.contract, self.user, self.quantity)
 
-    def __init__(self, user, contract, quantity, side, update_position=False, position=None):
+    def __init__(self, user, contract, quantity, side):
         """
 
         :param user:
@@ -447,10 +440,6 @@ class Posting(db.Base, QuantityUI):
         :type quantity: int
         :param side:
         :type side: str
-        :param update_position: set to true if we need to update the underlying position
-        :type update_position: bool
-        :param position: The position we are updating
-        :type position: Position
         """
         self.user = user
         self.contract = contract
@@ -466,10 +455,6 @@ class Posting(db.Base, QuantityUI):
                 sign = 1
 
         self.quantity = sign * quantity
-
-        if update_position:
-            assert(self.contract == position.contract)
-            position.position += sign * quantity
 
 class Addresses(db.Base, QuantityUI):
     """
