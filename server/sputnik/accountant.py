@@ -284,6 +284,8 @@ class Accountant:
             raise INSUFFICIENT_MARGIN
 
 
+    def post_fees(self, user, fees):
+        pass
 
     def charge_fees(self, fees, user):
         """Credit fees to the people operating the exchange
@@ -453,6 +455,13 @@ class Accountant:
 
         passive_from_position = self.get_position(passive_username, denominated_contract)
         passive_to_position = self.get_position(passive_username, payout_contract)
+
+        user_denominated = ledger.create_posting(aggressive_user,
+                denominated_contract, cash_spent_int)
+        user_payout = ledger.create_posting(aggressive_user,
+                payout_contract, quantity)
+
+        # calculate fees
 
         aggressive_debit = models.Posting(aggressive_user, denominated_contract, sign * cash_spent_int, 'debit',
                                           update_position=True, position=aggressive_from_position)
@@ -1039,6 +1048,19 @@ class CashierExport:
     def get_position(self, username, ticker):
         position = self.accountant.get_position(username, ticker)
         return position.position
+
+class AccountantExport:
+    """Accountant private chit chat link
+
+    """
+    def __init__(self, accountant):
+        self.accountant = accountant
+
+    @export
+    def remote_post(self, *postings):
+        self.accountant.post_or_fail(postings)
+        # we do not want or need this to propogate back to the caller
+        return None
 
 
 class AdministratorExport:
