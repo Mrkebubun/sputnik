@@ -284,9 +284,6 @@ class Accountant:
             raise INSUFFICIENT_MARGIN
 
 
-    def post_fees(self, user, fees):
-        pass
-
     def charge_fees(self, fees, user):
         """Credit fees to the people operating the exchange
         :param fees: The fees to charge ticker-index dict of fees to charge
@@ -300,7 +297,9 @@ class Accountant:
 
         # Make sure the vendorshares is less than or equal to 1.0
         assert(sum(self.vendor_share_config.values()) <= 1.0)
-        postings = []
+        user_postings = []
+        vendor_postings = []
+        remainder_postings = []
         last = time.time()
         user = self.get_user(user)
 
@@ -316,7 +315,7 @@ class Accountant:
                             "quantity": fee,
                             "side": "debit"
                             }
-            postings.append(user_posting)
+            user_postings.append(user_posting)
 
             remaining_fee = fee
             for vendor_name, vendor_share in self.vendor_share_config.iteritems():
@@ -334,7 +333,7 @@ class Accountant:
                                   "quantity": vendor_credit,
                                   "side": "credit"
                                 }
-                postings.append(vendor_posting)
+                vendor_postings.append(vendor_posting)
 
             # There might be some fee leftover due to rounding,
             # we have an account for that guy
@@ -349,11 +348,13 @@ class Accountant:
                                  "quantity": remaining_fee,
                                  "side": "credit"
                                 }
-            postings.append(remainder_posting)
+            remainder_postings.append(remainder_posting)
             next = time.time()
             elapsed = (next - last) * 1000
             last = next
             logging.debug("charge_fees: %s: %.3f ms." % (ticker, elapsed))
+
+        return user_postings, vendor_postings, remainder_postings
 
 
 
