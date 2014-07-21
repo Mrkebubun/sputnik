@@ -201,6 +201,16 @@ class AccountantExport:
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
+def create_posting(username, contract, quantity, side=None):
+    if side is None:
+        if quantity < 0:
+            side = "debit"
+            quantity = -quantity
+        else:
+            side = "credit"
+    return {"user":username, "contract":contract, "quantity":quantity,
+            "side":side}
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     session = database.make_session()
