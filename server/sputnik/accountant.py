@@ -98,23 +98,35 @@ class Accountant:
         return uuid.uuid4().get_hex()
 
     def post_or_fail(self, *postings):
-        def on_success(self, result):
+        def on_success(result):
             try:
                 for posting in postings:
-                    position = self.get_position(posting.user, posting.contract)
-                    position.position += posting.quanity
+                    position = self.get_position(posting['user'], posting['contract'])
+                    user = self.get_user(posting['user'])
+                    if posting['direction'] is 'debit':
+                        if user.type == 'Asset':
+                            sign = 1
+                        else:
+                            sign = -1
+                    else:
+                        if user.type == 'Asset':
+                            sign = -1
+                        else:
+                            sign = 1
+
+                    position.position += sign * posting['quantity']
                     self.session.merge(position)
                 self.session.commit()
             finally:
                 self.session.rollback()
 
-        def on_fail_ledger(self, failure):
+        def on_fail_ledger(failure):
             e = failure.trap(ledger.LedgerException)
             logging.error("Ledger exception:")
             logging.error(str(failure.value))
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
 
-        def on_fail_rpc(self, failure):
+        def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
             if isinstance(e, RemoteCallTimedOut):
                 logging.error("Ledger call timed out.")
@@ -195,7 +207,7 @@ class Accountant:
                         "user": user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
-                        "side": "credit"
+                        "direction": "credit"
                         }
         system_posting = {"uid": uid,
                         "count": 2,
@@ -203,7 +215,7 @@ class Accountant:
                         "user": adjustment_user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
-                        "side": "debit"
+                        "direction": "debit"
                         }
 
         d = self.post_or_fail(user_posting, system_posting)
