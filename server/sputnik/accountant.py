@@ -97,7 +97,7 @@ class Accountant:
     def get_uid(self):
         return uuid.uuid4().get_hex()
 
-    def post_or_fail(self, postings):
+    def post_or_fail(self, *postings):
         def on_success(self, result):
             try:
                 for posting in postings:
@@ -123,7 +123,7 @@ class Accountant:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
 
-        d = self.ledger.post(postings)
+        d = self.ledger.post(*postings)
         d.addCallback(on_success)
         d.addErrback(on_fail_ledger)
         d.addErrback(on_fail_rpc)
@@ -206,7 +206,7 @@ class Accountant:
                         "side": "debit"
                         }
 
-        d = self.post_or_fail((user_posting, system_posting))
+        d = self.post_or_fail(user_posting, system_posting)
         # d.addCallback(notify_user)
 
 
@@ -602,7 +602,7 @@ class Accountant:
                 direction, note)
         posting.count = 2
         posting.uid = uid
-        self.post_or_fail((posting))
+        self.post_or_fail(posting)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -997,8 +997,8 @@ class AccountantExport:
         self.accountant = accountant
 
     @export
-    def remote_post(self, postings):
-        self.accountant.post_or_fail(list(postings))
+    def remote_post(self, *postings):
+        self.accountant.post_or_fail(postings)
         # we do not want or need this to propogate back to the caller
         return None
 

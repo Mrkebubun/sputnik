@@ -27,10 +27,6 @@ class FakeEngine(FakeProxy):
         # Always return success, with None
         return defer.succeed(None)
 
-class FakeLedger(FakeProxy):
-    def post(self, postings):
-        self.log.append(('post', (postings), {}))
-        return defer.succeed(None)
 
 class TestAccountant(TestSputnik):
     def setUp(self):
@@ -43,7 +39,7 @@ class TestAccountant(TestSputnik):
                         "NETS2014": FakeEngine()}
         self.webserver = FakeProxy()
         self.cashier = FakeProxy()
-        self.ledger = FakeLedger()
+        self.ledger = FakeProxy()
         self.alerts_proxy = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
