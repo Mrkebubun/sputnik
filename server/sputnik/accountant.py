@@ -782,7 +782,9 @@ class Accountant:
         except:
             self.session.rollback()
 
+"""
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
+"""
         """Get the history of a user's transactions
 
         :param username: the user
@@ -794,6 +796,7 @@ class Accountant:
         :returns: list -- an array of ledger entries
         """
 
+"""
         from_dt = util.timestamp_to_dt(from_timestamp)
         to_dt = util.timestamp_to_dt(to_timestamp)
 
@@ -808,6 +811,7 @@ class Accountant:
                             'quantity': posting.quantity,
                             'type': posting.journal.type})
         return transactions
+"""
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
