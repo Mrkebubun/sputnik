@@ -1,5 +1,5 @@
 [database]
-uri = postgresql://%(username)s:%(password)s@%(host)s:%(port)s/%(dbname)s
+uri = ${psql_uri_template}
 username = ${user}
 password = ${dbpassword}
 host = ${dbhost}

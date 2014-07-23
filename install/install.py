@@ -28,7 +28,7 @@ class Installer:
         self.templates = os.path.abspath(os.path.join(
                             self.git_root, "server/config"))
 
-        self.parser = ConfigParser.ConfigParser()
+        self.parser = ConfigParser.SafeConfigParser()
         self.parser.set("DEFAULT", "git_root", self.git_root)
         self.parser.set("DEFAULT", "user", getpass.getuser())
         self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
