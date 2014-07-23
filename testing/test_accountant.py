@@ -43,7 +43,7 @@ class TestAccountant(TestSputnik):
 
         self.engines = {"BTC/MXN": FakeEngine(),
                         "NETS2014": FakeEngine()}
-        self.webserver = FakeProxy()
+        self.webserver = FakeProxy("webserver")
         self.cashier = FakeProxy()
         self.ledger = FakeLedger()
         self.alerts_proxy = FakeProxy()
@@ -896,24 +896,28 @@ class TestWebserverExport(TestAccountant):
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
                                                            'quantity': 5000000,
+                                                           'direction': 'debit',
                                                            'type': u'Deposit'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'test',
                                                           {'contract': u'BTC',
+                                                           'direction': 'credit',
                                                            'quantity': 5000000,
                                                            'type': u'Deposit'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'pendingwithdrawal',
                                                           {'contract': u'BTC',
+                                                           'direction': 'credit',
                                                            'quantity': 3000000,
                                                            'type': u'Withdrawal'}),
                                                          {}),
                                                         ('transaction',
                                                          (u'test',
                                                           {'contract': u'BTC',
-                                                           'quantity': -3000000,
+                                                           'direction': 'debit',
+                                                           'quantity': 3000000,
                                                            'type': u'Withdrawal'}),
                                                          {})]))
         self.assertTrue(
