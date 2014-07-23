@@ -139,7 +139,6 @@ class FakeProxy:
             if self.name:
                 callspec = []
                 callspec.extend(args)
-                if kwargs:
                 callspec.extend(map(lambda x: "%s=%s" % x, kwargs.iteritems()))
                 logging.info("Method call: %s.%s%s" %
                         (self.name, key, str(tuple(callspec))))
