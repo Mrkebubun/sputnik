@@ -178,8 +178,8 @@ class Ledger:
                         "contract":{"type":"string", "required":True},
                         "quantity":{"type":"number", "required":True},
                         "direction":{"type":"string", "required":True},
-                        "note":{"type":"string", "required":False,
-                        "timestamp":{"type":"number", "required": False}}
+                        "note":{"type":"string", "required":False},
+                        "timestamp":{"type":"number", "required": False}
                     }
                 }
             })
