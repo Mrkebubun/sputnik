@@ -221,6 +221,7 @@ class Accountant:
         d = self.post_or_fail(user_posting, system_posting)
         # d.addCallback(notify_user)
 
+        return d
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -1024,7 +1025,7 @@ class AdministratorExport:
 
     @export
     def adjust_position(self, username, ticker, quantity):
-        self.accountant.adjust_position(username, ticker, quantity)
+        return self.accountant.adjust_position(username, ticker, quantity)
 
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, note):
