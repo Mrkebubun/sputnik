@@ -322,7 +322,7 @@ class AccountantNotifier(EngineListener):
                 {
                     'username': order.username,
                     'aggressive': True,
-                    'contract': order.contract.ticker,
+                    'contract': order.contract,
                     'order': order.id,
                     'side': order.side,
                     'quantity': quantity,
@@ -336,7 +336,7 @@ class AccountantNotifier(EngineListener):
                 {
                     'username': passive_order.username,
                     'aggressive': False,
-                    'contract': order.contract.ticker,
+                    'contract': order.contract,
                     'order': passive_order.id,
                     'side': passive_order.side,
                     'quantity': quantity,
