@@ -135,12 +135,22 @@ class Accountant:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
 
+        def publish_transactions(result):
+            for posting in postings:
+                transaction = {'contract': posting['contract'],
+                          'timestamp': util.dt_to_timestamp(posting['timestamp']),
+                          'quantity': posting['quantity'],
+                          'type': posting['type']
+                }
+                self.webserver.transaction(posting.username, transaction)
+
         d = self.ledger.post(*postings)
-        d.addCallback(on_success)
+        d.addCallback(on_success).addCallback(publish_transactions)
         d.addErrback(on_fail_ledger)
         d.addErrback(on_fail_rpc)
         return d
 
+    # This will go away once everything starts using post_or_fail
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
 
@@ -219,7 +229,7 @@ class Accountant:
                         }
 
         d = self.post_or_fail(user_posting, system_posting)
-        # d.addCallback(notify_user)
+        #d.addCallback(notify_user)
 
         return d
 
