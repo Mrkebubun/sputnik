@@ -98,8 +98,8 @@ class Accountant:
         def on_success(result):
             try:
                 for posting in postings:
-                    position = self.get_position(posting['user'], posting['contract'])
-                    user = self.get_user(posting['user'])
+                    position = self.get_position(posting['username'], posting['contract'])
+                    user = self.get_user(posting['username'])
                     if posting['direction'] is 'debit':
                         if user.type == 'Asset':
                             sign = 1
