@@ -636,11 +636,10 @@ class Accountant:
             debit_posting['count'] = 2
 
             # Check margin now
-            # This is a temporary position adjustment used only for the margin check
-            position = self.get_position(username, ticker)
-            position.position -= amount
-            low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices,
-                                                              trial_period=self.trial_period)
+            low_margin, high_margin = margin.calculate_margin(username,
+                    self.session, self.safe_prices,
+                    withdrawals={contract.contract_id:amount},
+                    trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
