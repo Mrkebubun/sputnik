@@ -320,13 +320,13 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = {"uid": uid,
+            user_posting = {"uid": 0,
                             "count": 0,
                             "type": "fees",
                             "user": user.username,
                             "contract": contract.ticker,
                             "quantity": fee,
-                            "side": "debit"
+                            "direction": "debit"
                             }
             user_postings.append(user_posting)
 
@@ -338,13 +338,13 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = {"uid": uid,
+                vendor_posting = {"uid": 0,
                                   "count": 0,
                                   "type": "fees",
                                   "user": vendor_user.username,
                                   "contract": contract.ticker,
                                   "quantity": vendor_credit,
-                                  "side": "credit"
+                                  "direction": "credit"
                                 }
                 vendor_postings.append(vendor_posting)
 
@@ -353,13 +353,13 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = {"uid": uid,
+            remainder_posting = {"uid": 0,
                                  "count": 0,
                                  "type": "fees",
                                  "user": remainder_user.username,
                                  "contract": contract.ticker,
                                  "quantity": remaining_fee,
-                                 "side": "credit"
+                                 "direction": "credit"
                                 }
             remainder_postings.append(remainder_posting)
             next = time.time()
@@ -494,21 +494,24 @@ class Accountant:
 
         next = time.time()
         elapsed = (next - last) * 1000
-        last = next
         logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Submit to ledger
         # (user denominated, user payout, remainder) x 2 = 6
         count = 6 + 2 * len(user_fees) + 2 * len(vendor_fees)
         postings = [user_denominated, user_payout]
-        postings.extend(user_fees, vendor_fees, remainder_fees)
+        postings.extend(user_fees,)
+        postings.extend(vendor_fees)
+        postings.extend(remainder_fees)
+
         for posting in postings:
             posting["count"] = count
             posting["uid"] = uid
 
         d = self.post_or_fail(*postings)
         
-        def notify_fill():
+        def notify_fill(result):
+            last = time.time()
             # Send notifications
             fill = {'contract': ticker,
                     'id': order,
@@ -523,11 +526,10 @@ class Accountant:
 
             next = time.time()
             elapsed = (next - last) * 1000
-            last = next
             logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
         d.addCallback(notify_fill)
-
+        return d
 
     def raiseException(self, failure):
         raise failure.value
@@ -912,7 +914,7 @@ class EngineExport:
 
     @export
     def post_transaction(self, transaction):
-        self.accountant.post_transaction(transaction)
+        return self.accountant.post_transaction(transaction)
 
 
 class CashierExport:
