@@ -413,9 +413,7 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
-        import uuid
-
-        uid = uuid.uuid4().get_hex()
+        uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
         aggressive = {'username': 'aggressive_user',
                       'aggressive': True,
@@ -428,6 +426,16 @@ class TestEngineExport(TestAccountant):
                       'timestamp': timestamp}
 
         passive = {'username': 'passive_user',
+<<<<<<< HEAD
+                            'aggressive': False,
+                            'contract': 'BTC/MXN',
+                            'price': 60000000,
+                            'quantity': 3000000,
+                            'order': 54,
+                            'side': 'BUY',
+                            'uid': uid,
+                            'timestamp': timestamp}
+=======
                    'aggressive': False,
                    'contract': 'BTC/MXN',
                    'price': 60000000,
@@ -436,6 +444,7 @@ class TestEngineExport(TestAccountant):
                    'side': 'SELL',
                    'uid': uid,
                    'timestamp': timestamp}
+>>>>>>> c5db6ff1da4c09000b3f0e0ca75e5902ecde92a4
 
         d1 = self.engine_export.post_transaction(aggressive)
         d2 = self.engine_export.post_transaction(passive)
