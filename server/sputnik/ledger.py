@@ -205,7 +205,7 @@ class AccountantExport:
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
-def create_posting(username, contract, quantity, direction, note=None, type=None):
+def create_posting(type, username, contract, quantity, direction, note=None):
     return {"username":username, "contract":contract, "quantity":quantity,
             "direction":direction, "note": note, "type": type}
 
