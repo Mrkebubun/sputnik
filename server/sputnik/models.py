@@ -435,7 +435,7 @@ class Posting(db.Base, QuantityUI):
     note = Column(String)
 
     def __repr__(self):
-        return "<Posting('%s', '%s', %s, %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
+        return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
 
     def __init__(self, user, contract, quantity, direction, note=None):
         """
