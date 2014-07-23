@@ -97,7 +97,7 @@ class Ledger:
             db_postings = []
             for posting in postings:
                 # TODO: change Posting contractor to take username
-                user = self.session.query(User).filter_by(username=posting["user"]).one()
+                user = self.session.query(User).filter_by(username=posting["username"]).one()
                 contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
                 quantity = posting["quantity"]
                 direction = posting["direction"]
@@ -171,7 +171,7 @@ class Ledger:
                         "uid":{"type":"string", "required":True},
                         "count":{"type":"number", "required":True},
                         "type":{"type":"string", "required":True},
-                        "user":{"type":"string", "required":True},
+                        "username":{"type":"string", "required":True},
                         "contract":{"type":"string", "required":True},
                         "quantity":{"type":"number", "required":True},
                         "direction":{"type":"string", "required":True},
@@ -266,7 +266,7 @@ class AccountantExport:
         return self.ledger.post(list(postings))
 
 def create_posting(username, contract, quantity, direction, note=None):
-    return {"user":username, "contract":contract, "quantity":quantity,
+    return {"username":username, "contract":contract, "quantity":quantity,
             "direction":direction, "note": note}
 
 if __name__ == "__main__":

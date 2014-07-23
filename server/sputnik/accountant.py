@@ -144,7 +144,7 @@ class Accountant:
                           'quantity': posting['quantity'],
                           'type': posting['type']
                 }
-                self.webserver.transaction(posting.username, transaction)
+                self.webserver.transaction(posting['username'], transaction)
 
         d = self.ledger.post(*postings)
         d.addCallback(on_success).addCallback(publish_transactions)
@@ -216,7 +216,7 @@ class Accountant:
         user_posting = {"uid": uid,
                         "count": 2,
                         "type": "adjustment",
-                        "user": user.username,
+                        "username": user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
                         "direction": "credit"
@@ -224,7 +224,7 @@ class Accountant:
         system_posting = {"uid": uid,
                         "count": 2,
                         "type": "adjustment",
-                        "user": adjustment_user.username,
+                        "username": adjustment_user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
                         "direction": "debit"
@@ -335,7 +335,7 @@ class Accountant:
             user_posting = {"uid": 0,
                             "count": 0,
                             "type": "fees",
-                            "user": user.username,
+                            "username": user.username,
                             "contract": contract.ticker,
                             "quantity": fee,
                             "direction": "debit"
@@ -353,7 +353,7 @@ class Accountant:
                 vendor_posting = {"uid": 0,
                                   "count": 0,
                                   "type": "fees",
-                                  "user": vendor_user.username,
+                                  "username": vendor_user.username,
                                   "contract": contract.ticker,
                                   "quantity": vendor_credit,
                                   "direction": "credit"
@@ -368,7 +368,7 @@ class Accountant:
             remainder_posting = {"uid": 0,
                                  "count": 0,
                                  "type": "fees",
-                                 "user": remainder_user.username,
+                                 "username": remainder_user.username,
                                  "contract": contract.ticker,
                                  "quantity": remaining_fee,
                                  "direction": "credit"
