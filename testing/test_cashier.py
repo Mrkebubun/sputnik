@@ -257,7 +257,6 @@ class TestAdministratorExport(TestCashier):
 
             def onSuccess(txid):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-                pprint(self.accountant.log)
                 self.assertTrue(self.accountant.check_for_calls([('transfer_position',
                                                                   ('pendingwithdrawal',
                                                                    u'BTC',
