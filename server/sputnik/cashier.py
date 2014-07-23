@@ -256,8 +256,10 @@ class Cashier():
                                                           float(amount) / contract.denominator)
                 def onSendSuccess(result):
                     txid = result['txid']
-                    self.accountant.transfer_position(ticker, 'online_cash', 'offline_cash', amount,
-                                                              "%s: %s" % (contract.cold_wallet_address, txid))
+                    uid = util.get_uid()
+                    self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
+                                                      "%s: %s" % (contract.cold_wallet_address, txid), uid)
+                    self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, None, uid)
 
                 def error(failure):
                     logging.error("Unable to send to address: %s" % failure)
@@ -288,8 +290,14 @@ class Cashier():
         def finish_withdrawal(to_user, result):
             txid = result['result']
             try:
-                self.accountant.transfer_position(withdrawal.contract.ticker, 'pendingwithdrawal', to_user,
-                                                  withdrawal.amount, "%s: %s" % (withdrawal.address, txid))
+
+                uid = util.get_uid()
+                self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
+                                                  withdrawal.amount,
+                                                  "%s: %s" % (withdrawal.address, txid), uid)
+                self.accountant.transfer_position(to_user, withdrawal.contract.ticker, 'credit', withdrawal.amount,
+                                                  None, uid)
+
                 withdrawal.pending = False
                 withdrawal.completed = datetime.utcnow()
                 self.session.add(withdrawal)
