@@ -33,7 +33,7 @@ from alerts import AlertsProxy
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import DataError
 from datetime import datetime, date
@@ -206,31 +206,11 @@ class Accountant:
         """
         if not self.debug:
             raise AccountantException(0, "Position modification not allowed")
-        user = self.get_user(username)
-        adjustment_user = self.get_user('adjustments')
-        contract = self.get_contract(ticker)
+
         uid = util.get_uid()
-        user_posting = {"uid": uid,
-                        "count": 2,
-                        "type": "adjustment",
-                        "username": user.username,
-                        "contract": contract.ticker,
-                        "quantity": quantity,
-                        "direction": "credit"
-                        }
-        system_posting = {"uid": uid,
-                        "count": 2,
-                        "type": "adjustment",
-                        "username": adjustment_user.username,
-                        "contract": contract.ticker,
-                        "quantity": quantity,
-                        "direction": "debit"
-                        }
-
-        d = self.post_or_fail(user_posting, system_posting)
-        #d.addCallback(notify_user)
-
-        return d
+        d1 = self.transfer_position(username, ticker, 'credit', quantity, 'Adjustment', uid)
+        d2 = self.transfer_position('adjustments', ticker, 'debit', quantity, None, uid)
+        return defer.DeferredList([d1, d2])
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -940,11 +920,11 @@ class CashierExport:
 
     @export
     def deposit_cash(self, address, received, total=True):
-        self.accountant.deposit_cash(address, received, total=total)
+        return self.accountant.deposit_cash(address, received, total=total)
 
     @export
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
-        self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
+        return self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
 
     @export
     def get_position(self, username, ticker):
@@ -978,7 +958,7 @@ class AdministratorExport:
 
     @export
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
-        self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
+        return self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
 
     @export
     def change_permission_group(self, username, id):
