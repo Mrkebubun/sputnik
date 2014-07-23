@@ -333,31 +333,35 @@ class TestAdministratorExport(TestAccountant):
         def onSuccess(result):
             position = self.session.query(models.Position).filter_by(
                 username="test").one()
-            self.assertEqual(position.position, 10)
-
+            self.assertEqual(position.position, 20)
+            pprint(self.webserver.log)
             self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                             (u'onlinecash',
+                                                             ('onlinecash',
                                                               {'contract': u'BTC',
+                                                               'direction': 'debit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
                                                              (u'test',
                                                               {'contract': u'BTC',
+                                                               'direction': 'credit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
+                                                             ('test',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'credit',
                                                                'quantity': 10,
-                                                               'type': u'Adjustment'}),
+                                                               'type': 'Transfer'}),
                                                              {}),
                                                             ('transaction',
-                                                             (u'adjustments',
-                                                              {'contract': u'BTC',
+                                                             ('adjustments',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'debit',
                                                                'quantity': 10,
-                                                               'type': u'Adjustment'}),
+                                                               'type': 'Transfer'}),
                                                              {})]))
 
         d.addCallback(onSuccess)
