@@ -141,3 +141,14 @@ class TestLedger(TestSputnik):
             for currency in balance_sheet[side].keys():
                 total = sum([x['position'] for x in balance_sheet[side][currency]['positions_raw']])
                 self.assertEqual(balance_sheet[side][currency]['total'], total)
+
+
+    def test_get_audit(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
+        audit = self.webserver_export.get_audit()
+        for side in ['assets', 'liabilities']:
+            self.assertEqual(audit[side]['BTC']['total'], 100000)
+            for currency in audit[side].keys():
+                total = sum([x[1] for x in audit[side][currency]['positions']])
+                self.assertEqual(audit[side][currency]['total'], total)
