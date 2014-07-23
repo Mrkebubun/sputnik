@@ -194,51 +194,63 @@ class TestCashierExport(TestAccountant):
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
-        self.cashier_export.transfer_position('BTC', 'from_account', 'to_account', 5, 'note')
-        from_position = self.session.query(models.Position).filter_by(username='from_account').one()
-        to_position = self.session.query(models.Position).filter_by(username='to_account').one()
+        from sputnik import util
 
-        self.assertEqual(from_position.position, 5)
-        self.assertEqual(to_position.position, 15)
-        self.assertEqual(from_position.position_calculated, from_position.position)
-        self.assertEqual(to_position.position_calculated, to_position.position)
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'from_account',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'to_account',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'from_account',
-                                                          {'contract': u'BTC',
-                                                           'quantity': -5,
-                                                           'type': u'Transfer'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'to_account',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 5,
-                                                           'type': u'Transfer'}),
-                                                         {})]
-        ))
+        uid = util.get_uid()
+        d1 = self.administrator_export.transfer_position('from_account', 'BTC', 'debit', 5, 'note', uid)
+        d2 = self.administrator_export.transfer_position('to_account', 'BTC', 'credit', 5, None, uid)
+        d = defer.DeferredList([d1, d2])
+
+        def onSuccess(result):
+            from_position = self.session.query(models.Position).filter_by(username='from_account').one()
+            to_position = self.session.query(models.Position).filter_by(username='to_account').one()
+
+            self.assertEqual(from_position.position, 5)
+            self.assertEqual(to_position.position, 15)
+            pprint(self.webserver.log)
+            self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                             ('onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'from_account',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'to_account',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('from_account',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 5,
+                                                               'type': 'Transfer'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('to_account',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 5,
+                                                               'type': 'Transfer'}),
+                                                             {})]
+            ))
 
     def test_get_position(self):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
