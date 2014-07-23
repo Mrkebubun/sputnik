@@ -23,17 +23,17 @@ class TestLedger(TestSputnik):
 
     def test_post_sequentially(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "test_debit"}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "test_credit"}
         d1 = self.export.post(post1)
         return self.export.post(post2)
 
     def test_post_results_agree(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit"}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit"}
         d1 = self.export.post(post1)
         d2 = self.export.post(post2)
         return self.assertEqual(self.successResultOf(d1),
@@ -41,9 +41,9 @@ class TestLedger(TestSputnik):
 
     def test_post_simultaneously(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit"}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit"}
         return self.export.post(post1, post2)
 
     def test_database_commit(self):
