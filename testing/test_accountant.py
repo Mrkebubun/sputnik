@@ -414,25 +414,14 @@ class TestEngineExport(TestAccountant):
                       'timestamp': timestamp}
 
         passive = {'username': 'passive_user',
-<<<<<<< HEAD
-                            'aggressive': False,
-                            'contract': 'BTC/MXN',
-                            'price': 60000000,
-                            'quantity': 3000000,
-                            'order': 54,
-                            'side': 'BUY',
-                            'uid': uid,
-                            'timestamp': timestamp}
-=======
                    'aggressive': False,
                    'contract': 'BTC/MXN',
                    'price': 60000000,
                    'quantity': 3000000,
                    'order': 54,
-                   'side': 'SELL',
+                   'side': 'BUY',
                    'uid': uid,
                    'timestamp': timestamp}
->>>>>>> c5db6ff1da4c09000b3f0e0ca75e5902ecde92a4
 
         d1 = self.engine_export.post_transaction(aggressive)
         d2 = self.engine_export.post_transaction(passive)
