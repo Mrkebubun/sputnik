@@ -461,7 +461,7 @@ class Accountant:
 
         note = None
         if aggressive:
-            note = "{aggressive: True}"
+            note = "{aggressive: True, order: %s}" % order
 
         user_denominated = ledger.create_posting(user,
                 denominated_contract, cash_spent_int, denominated_direction)
