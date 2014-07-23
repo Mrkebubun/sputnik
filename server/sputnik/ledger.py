@@ -14,9 +14,8 @@ from jsonschema import validate, ValidationError
 import config
 import database
 from models import Posting, Journal, User, Contract
-from zmq_util import router_share_async, export, push_proxy_async
+from zmq_util import router_share_async, export
 from watchdog import watchdog
-import util
 
 class LedgerException(Exception):
     pass
@@ -69,25 +68,9 @@ class PostingGroup(TimeoutMixin):
         self.fail(GROUP_TIMEOUT)
 
 class Ledger:
-    def __init__(self, session, webserver, timeout=None):
+    def __init__(self, session, timeout=None):
         self.session = session
         self.pending = defaultdict(lambda: PostingGroup(timeout))
-        self.webserver = webserver
-
-    def publish_journal(self, journal):
-        """Takes a models.Journal and sends all its postings to the webserver
-
-        :param journal: The journal entry
-        :type journal: models.Journal
-
-        """
-        for posting in journal.postings:
-            transaction = {'contract': posting.contract.ticker,
-                      'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
-                      'quantity': posting.quantity,
-                      'type': posting.journal.type
-            }
-            self.webserver.transaction(posting.user.username, transaction)
 
     def atomic_commit(self, postings):
         try:
@@ -121,7 +104,6 @@ class Ledger:
                 note = posting["note"]
                 db_postings.append(Posting(user, contract, quantity, direction, note))
             journal = Journal(types[0], db_postings)
-            self.publish_journal(journal)
 
             # add all
             self.session.add_all(db_postings)
@@ -220,7 +202,7 @@ class Ledger:
         :returns: dict -- the balance sheet
         """
 
-        positions = self.session.query(Position).all()
+        positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
                          'liabilities': {}
         }
@@ -291,8 +273,7 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     session = database.make_session()
     timeout = config.get("ledger", "accountant_export", None)
-    webserver = push_proxy_async(config.get("webserver", "ledger_export"))
-    ledger = Ledger(session, webserver, timeout)
+    ledger = Ledger(session, timeout)
     accountant_export = AccountantExport(ledger)
     watchdog(config.get("watchdog", "ledger"))
     router_share_async(accountant_export,

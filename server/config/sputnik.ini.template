@@ -17,7 +17,6 @@ base_port = 4200
 [webserver]
 engine_export = tcp://127.0.0.1:4720
 accountant_export = tcp://127.0.0.1:4740
-ledger_export = tcp://127.0.0.1:4730
 interface = ${webserver_interface}
 ws_address = ${webserver_address}
 ws_port = 8000
