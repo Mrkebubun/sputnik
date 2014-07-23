@@ -796,70 +796,6 @@ class Accountant:
         except:
             self.session.rollback()
 
-    # These two should go into the ledger process. We should
-    # only run this once per day and cache the result
-    def get_balance_sheet(self):
-        """Gets the balance sheet
-
-        :returns: dict -- the balance sheet
-        """
-
-        positions = self.session.query(models.Position).all()
-        balance_sheet = {'assets': {},
-                         'liabilities': {}
-        }
-
-        for position in positions:
-            if position.position is not None:
-                if position.user.type == 'Asset':
-                    side = balance_sheet['assets']
-                else:
-                    side = balance_sheet['liabilities']
-
-                position_details = { 'username': position.user.username,
-                                                                    'hash': position.user.user_hash,
-                                                                    'position': position.position,
-                                                                    'position_fmt': position.quantity_fmt
-                }
-                if position.contract.ticker in side:
-                    side[position.contract.ticker]['total'] += position.position
-                    side[position.contract.ticker]['positions_raw'].append(position_details)
-                else:
-                    side[position.contract.ticker] = {'total': position.position,
-                                                      'positions_raw': [position_details],
-                                                      'contract': position.contract.ticker}
-
-                side[position.contract.ticker]['total_fmt'] = \
-                    ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
-                        total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
-                )
-
-        return balance_sheet
-
-    def get_audit(self):
-        """Gets the audit, which is the balance sheet but scrubbed of usernames
-
-        :returns: dict -- the audit
-        """
-        now = util.dt_to_timestamp(datetime.utcnow())
-        if self.audit_cache is not None:
-            one_day = 24 * 3600 * 1000000
-            if now - self.audit_cache['timestamp'] < one_day:
-                # Return the cache if it's been less than a day
-                return self.audit_cache
-
-        balance_sheet = self.get_balance_sheet()
-        for side in balance_sheet.values():
-            for ticker, details in side.iteritems():
-                details['positions'] = []
-                for position in details['positions_raw']:
-                    details['positions'].append((position['hash'], position['position']))
-                del details['positions_raw']
-
-        balance_sheet['timestamp'] = now
-        self.audit_cache = balance_sheet
-        return balance_sheet
-
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
         """Get the history of a user's transactions
 
@@ -954,10 +890,6 @@ class WebserverExport:
         return self.accountant.get_permissions(username)
 
     @export
-    def get_audit(self):
-        return self.accountant.get_audit()
-
-    @export
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
         return self.accountant.get_transaction_history(username, from_timestamp, to_timestamp)
 
@@ -1030,10 +962,6 @@ class AdministratorExport:
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, note):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
-
-    @export
-    def get_balance_sheet(self):
-        return self.accountant.get_balance_sheet()
 
     @export
     def change_permission_group(self, username, id):
