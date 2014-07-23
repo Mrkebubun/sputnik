@@ -87,9 +87,9 @@ class Ledger:
 
             # balance check
             debits = [posting["quantity"] for posting in postings
-                    if posting["side"] == "debit"]
+                    if posting["direction"] == "debit"]
             credits = [posting["quantity"] for posting in postings
-                    if posting["side"] == "credit"]
+                    if posting["direction"] == "credit"]
             if sum(credits) - sum(debits) is not 0:
                 raise QUANTITY_MISMATCH
 
@@ -100,8 +100,9 @@ class Ledger:
                 user = self.session.query(User).filter_by(username=posting["user"]).one()
                 contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
                 quantity = posting["quantity"]
-                side = posting["side"]
-                db_postings.append(Posting(user, contract, quantity, side))
+                direction = posting["direction"]
+                note = posting["note"]
+                db_postings.append(Posting(user, contract, quantity, direction, note))
             journal = Journal(types[0], db_postings)
 
             # add all
@@ -173,7 +174,7 @@ class Ledger:
                         "user":{"type":"string", "required":True},
                         "contract":{"type":"string", "required":True},
                         "quantity":{"type":"number", "required":True},
-                        "side":{"type":"string", "required":True}
+                        "direction":{"type":"string", "required":True}
                     }
                 }
             })
@@ -201,15 +202,9 @@ class AccountantExport:
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
-def create_posting(username, contract, quantity, side=None):
-    if side is None:
-        if quantity < 0:
-            side = "debit"
-            quantity = -quantity
-        else:
-            side = "credit"
+def create_posting(username, contract, quantity, direction, note=None):
     return {"user":username, "contract":contract, "quantity":quantity,
-            "side":side}
+            "direction":direction, "note": note}
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
