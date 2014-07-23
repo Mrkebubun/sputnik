@@ -77,22 +77,29 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
-        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
-        position = self.session.query(models.Position).filter_by(
-            username="test").one()
-        self.assertEqual(position.position, 10)
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {})]))
+        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+
+        def onSuccess(result):
+            position = self.session.query(models.Position).filter_by(
+                username="test").one()
+            self.assertEqual(position.position, 10)
+            self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                             (u'onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'direction': 'debit',
+                                                               'type': u'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'direction': 'credit',
+                                                               'type': u'Deposit'}),
+                                                             {})]))
+
+        d.addCallback(onSuccess)
+        return d
 
     def test_deposit_cash_too_much(self):
         from sputnik import models
@@ -103,42 +110,49 @@ class TestCashierExport(TestAccountant):
         # Set a deposit limit
         self.accountant.deposit_limits['BTC'] = 100000000
 
-        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
-        position = self.session.query(models.Position).filter_by(
-            username="test").one()
+        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
 
-        self.assertEqual(position.position, self.accountant.deposit_limits['BTC'])
-        self.assertEqual(position.position, position.position_calculated)
+        def onSuccess(result):
+            position = self.session.query(models.Position).filter_by(
+                username="test").one()
 
-        # Make sure the overflow position gets the cash
-        overflow_position = self.session.query(models.Position).filter_by(
-            username="depositoverflow").one()
-        self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
-        self.assertEqual(overflow_position.position_calculated, overflow_position.position)
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 1000000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 1000000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': -900000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'depositoverflow',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 900000000,
-                                                           'type': u'Deposit'}),
-                                                         {})]))
+            self.assertEqual(position.position, self.accountant.deposit_limits['BTC'])
+
+            # Make sure the overflow position gets the cash
+            overflow_position = self.session.query(models.Position).filter_by(
+                username="depositoverflow").one()
+            self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
+            self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                             ('onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 1000000000,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 1000000000,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 900000000,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('depositoverflow',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 900000000,
+                                                               'type': 'Deposit'}),
+                                                             {})]))
+
+        d.addCallback(onSuccess)
+        return d
 
     def test_deposit_cash_permission_denied(self):
         from sputnik import models
@@ -146,43 +160,50 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.session.commit()
 
-        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
 
-        # Make sure the position didn't get updated
-        position = self.session.query(models.Position).filter_by(
-            username="test").one()
-        self.assertEqual(position.position, 0)
-        self.assertEqual(position.position_calculated, position.position)
+        def onSuccess(result):
+            # Make sure the position didn't get updated
+            position = self.session.query(models.Position).filter_by(
+                username="test").one()
+            self.assertEqual(position.position, 0)
 
-        # Make sure the overflow position gets the cash
-        overflow_position = self.session.query(models.Position).filter_by(
-            username="depositoverflow").one()
-        self.assertEqual(overflow_position.position, 10)
-        self.assertEqual(overflow_position.position_calculated, overflow_position.position)
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': -10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'depositoverflow',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {})]))
+            # Make sure the overflow position gets the cash
+            overflow_position = self.session.query(models.Position).filter_by(
+                username="depositoverflow").one()
+            self.assertEqual(overflow_position.position, 10)
+            self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                             ('onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'debit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('depositoverflow',
+                                                              {'contract': u'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 10,
+                                                               'type': 'Deposit'}),
+                                                             {})]
+            ))
+
+        d.addCallback(onSuccess)
+        return d
 
     def test_transfer_position(self):
         from sputnik import models
@@ -250,6 +271,9 @@ class TestCashierExport(TestAccountant):
                                                                'type': 'Transfer'}),
                                                              {})]
             ))
+
+        d.addCallback(onSuccess)
+        return d
 
     def test_get_position(self):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -330,6 +354,7 @@ class TestAdministratorExport(TestAccountant):
 
 
         d.addCallback(onSuccess)
+        return d
 
     def test_adjust_position(self):
         from sputnik import models
@@ -374,6 +399,7 @@ class TestAdministratorExport(TestAccountant):
                                                              {})]))
 
         d.addCallback(onSuccess)
+        return d
 
     def test_change_permission_group(self):
         from sputnik import models
