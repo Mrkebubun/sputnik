@@ -782,36 +782,32 @@ class Accountant:
         except:
             self.session.rollback()
 
-"""
-    def get_transaction_history(self, username, from_timestamp, to_timestamp):
-"""
-        """Get the history of a user's transactions
-
-        :param username: the user
-        :type username: str, models.User
-        :param from_timestamp: Starting time
-        :type from_timestamp: int
-        :param end_timestamp: Ending time
-        :type end_timestamp: int
-        :returns: list -- an array of ledger entries
-        """
-
-"""
-        from_dt = util.timestamp_to_dt(from_timestamp)
-        to_dt = util.timestamp_to_dt(to_timestamp)
-
-        transactions = []
-        postings = self.session.query(models.Posting).filter_by(username=username).join(models.Journal).filter(
-            models.Journal.timestamp <= to_dt,
-            models.Journal.timestamp >= from_dt
-        )
-        for posting in postings:
-            transactions.append({'contract': posting.contract.ticker,
-                            'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
-                            'quantity': posting.quantity,
-                            'type': posting.journal.type})
-        return transactions
-"""
+#    def get_transaction_history(self, username, from_timestamp, to_timestamp):
+#        """Get the history of a user's transactions
+#
+#        :param username: the user
+#        :type username: str, models.User
+#        :param from_timestamp: Starting time
+#        :type from_timestamp: int
+#        :param end_timestamp: Ending time
+#        :type end_timestamp: int
+#        :returns: list -- an array of ledger entries
+#        """
+#
+#        from_dt = util.timestamp_to_dt(from_timestamp)
+#        to_dt = util.timestamp_to_dt(to_timestamp)
+#
+#        transactions = []
+#        postings = self.session.query(models.Posting).filter_by(username=username).join(models.Journal).filter(
+#            models.Journal.timestamp <= to_dt,
+#            models.Journal.timestamp >= from_dt
+#        )
+#        for posting in postings:
+#            transactions.append({'contract': posting.contract.ticker,
+#                            'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
+#                            'quantity': posting.quantity,
+#                            'type': posting.journal.type})
+#        return transactions
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
