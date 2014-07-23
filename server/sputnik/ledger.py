@@ -150,7 +150,7 @@ class Ledger:
        
         return response
 
-    def post(self, postings):
+    def post(self, *postings):
         # an empty postings list might mean an error caller side
         # return ARGUMENT_ERROR
         if len(postings) == 0:
@@ -200,7 +200,7 @@ class AccountantExport:
         self.ledger = ledger
 
     def post(self, *postings):
-        return self.ledger.post(list(postings))
+        return self.ledger.post(*postings)
 
 def create_posting(username, contract, quantity, direction, note=None):
     return {"user":username, "contract":contract, "quantity":quantity,
