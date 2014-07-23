@@ -309,7 +309,8 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = ledger.create_posting(user.username, contract.ticker, fee, 'debit', type="Trade")
+            user_posting = ledger.create_posting("Trade", user.username,
+                    contract.ticker, fee, 'debit')
             user_postings.append(user_posting)
 
             remaining_fee = fee
@@ -320,8 +321,9 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = ledger.create_posting(vendor_user.username, contract.ticker, vendor_credit,
-                                                       'credit', type="Trade")
+                vendor_posting = ledger.create_posting("Trade",
+                        vendor_user.username, contract.ticker, vendor_credit,
+                        'credit')
                 vendor_postings.append(vendor_posting)
 
             # There might be some fee leftover due to rounding,
@@ -329,8 +331,9 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = ledger.create_posting(remainder_user.username, contract.ticker, remaining_fee,
-                                                      'credit', type="Trade")
+            remainder_posting = ledger.create_posting("Trade",
+                    remainder_user.username, contract.ticker, remaining_fee,
+                    'credit')
             remainder_postings.append(remainder_posting)
             next = time.time()
             elapsed = (next - last) * 1000
@@ -449,10 +452,11 @@ class Accountant:
 
         note = "{%s order: %s}" % (ap, order)
 
-        user_denominated = ledger.create_posting(user,
-                denominated_contract, cash_spent_int, denominated_direction, type="Trade")
-        user_payout = ledger.create_posting(user,
-                payout_contract, quantity, payout_direction, note, type="Trade")
+        user_denominated = ledger.create_posting("Trade", user,
+                denominated_contract, cash_spent_int, denominated_direction,
+                note)
+        user_payout = ledger.create_posting("Trade", user, payout_contract,
+                quantity, payout_direction, note)
 
         # calculate fees
         # We aren't charging the liquidity provider
@@ -586,7 +590,7 @@ class Accountant:
         :param quantity: the qty to transfer
         :type quantity: int
         """
-        posting = ledger.create_posting(username, ticker, quantity,
+        posting = ledger.create_posting("Transfer", username, ticker, quantity,
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
@@ -619,11 +623,12 @@ class Accountant:
                 raise INVALID_CURRENCY_QUANTITY
 
             uid = util.get_uid()
-            credit_posting = ledger.create_posting('pendingwithdrawal', ticker, amount, 'credit',
-                                                   note=address)
+            credit_posting = ledger.create_posting("Withdrawal",
+                    'pendingwithdrawal', ticker, amount, 'credit', note=address)
             credit_posting['uid'] = uid
             credit_posting['count'] = 2
-            debit_posting = ledger.create_posting(user.username, ticker, amount, 'debit')
+            debit_posting = ledger.create_posting("Withdrawal", user.username,
+                    ticker, amount, 'debit')
             debit_posting['uid'] = uid
             debit_posting['count'] = 2
 
@@ -684,19 +689,17 @@ class Accountant:
 
             #prepare cash deposit
             postings = []
-            debit_posting = ledger.create_posting('onlinecash',
+            debit_posting = ledger.create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
-                                                  note=address,
-                                                  type="Deposit")
+                                                  note=address)
             postings.append(debit_posting)
 
-            credit_posting = ledger.create_posting(user.username,
+            credit_posting = ledger.create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
-                                                   'credit',
-                                                   type="Deposit")
+                                                   'credit')
             postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
@@ -718,18 +721,13 @@ class Accountant:
 
             if excess_deposit > 0:
                 # There was an excess deposit, transfer that amount into overflow cash
-                excess_debit_posting = ledger.create_posting(user.username,
-                                                             contract.ticker,
-                                                             excess_deposit,
-                                                             'debit',
-                                                             note="Excess Deposit",
-                                                             type="Deposit")
+                excess_debit_posting = ledger.create_posting("Deposit",
+                        user.username, contract.ticker, excess_deposit,
+                        'debit', note="Excess Deposit")
 
-                excess_credit_posting = ledger.create_posting('depositoverflow',
-                                                              contract.ticker,
-                                                              excess_deposit,
-                                                              'credit',
-                                                              type="Deposit")
+                excess_credit_posting = ledger.create_posting("Deposit",
+                        'depositoverflow', contract.ticker, excess_deposit,
+                        'credit')
 
                 postings.append(excess_debit_posting)
                 postings.append(excess_credit_posting)
