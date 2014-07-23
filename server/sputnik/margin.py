@@ -23,13 +23,6 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
     positions = {position.contract_id: position for position in
                  session.query(models.Position).filter_by(username=username)}
 
-    # adjust postions for possible withdrawals
-    if not withdrawals:
-        withdrawals = {}
-    for contract_id in withdrawals:
-        cash_position.setdefault(contract_id, 0)
-        cash_position[contract_id] -= withdrawals[contract_id]
-
     open_orders = session.query(models.Order).filter_by(username=username).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
@@ -116,10 +109,16 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             for ticker, fee in fees.iteritems():
                 max_cash_spent[ticker] += fee
 
+
+
     # Make sure max_cash_spent has something in it for every cash contract
     for ticker in cash_position.iterkeys():
         if ticker not in max_cash_spent:
             max_cash_spent[ticker] = 0
+
+    # Deal with withdrawals
+    for ticker, amount in withdrawals.iteritems():
+        max_cash_spent[ticker] += amount
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':
