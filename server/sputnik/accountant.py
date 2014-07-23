@@ -367,13 +367,15 @@ class Accountant:
         logging.info("Processing transaction %s." % transaction)
         last = time.time()
 
-        aggressive_username = transaction["aggressive_username"]
-        passive_username = transaction["passive_username"]
+        username = transaction["username"]
+        aggressive = transaction["aggressive"]
         ticker = transaction["contract"]
+        order = transaction["order"]
         side = transaction["side"]
         price = transaction["price"]
         quantity = transaction["quantity"]
         timestamp = transaction["timestamp"]
+        uid = transaction["uid"]
 
         contract = self.get_contract(ticker)
         aggressive_user = self.get_user(aggressive_username)
@@ -451,113 +453,68 @@ class Accountant:
         last = next
         logging.debug("post_transaction: part 2: %.3f ms." % elapsed)
 
-        aggressive_from_position = self.get_position(aggressive_username, denominated_contract)
-        aggressive_to_position = self.get_position(aggressive_username, payout_contract)
+        if side == "BUY":
+            denominated_direction = "debit"
+            payout_direction = "credit"
+        else:
+            denominated_direction = "credit"
+            payout_direction = "debit"
 
-        passive_from_position = self.get_position(passive_username, denominated_contract)
-        passive_to_position = self.get_position(passive_username, payout_contract)
+        note = None
+        if aggressive:
+            note = "{aggressive: True}"
 
         user_denominated = ledger.create_posting(aggressive_user,
-                denominated_contract, cash_spent_int)
+                denominated_contract, cash_spent_int, denominated_direction)
         user_payout = ledger.create_posting(aggressive_user,
-                payout_contract, quantity)
+                payout_contract, quantity, payout_direction, note)
 
         # calculate fees
-
-        aggressive_debit = models.Posting(aggressive_user, denominated_contract, sign * cash_spent_int, 'debit',
-                                          update_position=True, position=aggressive_from_position)
-        aggressive_credit = models.Posting(aggressive_user, payout_contract, sign * quantity, 'credit',
-                                           update_position=True, position=aggressive_to_position)
-
-        passive_credit = models.Posting(passive_user, denominated_contract, sign * cash_spent_int, 'credit',
-                                        update_position=True, position=passive_from_position)
-        passive_debit = models.Posting(passive_user, payout_contract, sign * quantity, 'debit',
-                                       update_position=True, position=passive_to_position)
-
-        aggressive_fees = util.get_fees(aggressive_username, contract, abs(cash_spent_int),
-                                        trial_period=self.trial_period)
-
         # We aren't charging the liquidity provider
-        #
-        # passive_fees = util.get_fees(passive_username, contract, abs(cash_spent_int))
+        fees = {}
+        fees = util.get_fees(aggressive_username, contract,
+                abs(cash_spent_int), trial_period=self.trial_period)
+        if not aggressive:
+            for fee in fees:
+                fees[fee] = 0
 
-        postings = [aggressive_credit,
-                    aggressive_debit,
-                    passive_credit,
-                    passive_debit]
+        user_fees, vendor_fees, remainder_fees = self.charge_fees(fees, user)
 
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
         logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
 
-        # Commit
-        try:
-            self.session.add_all(postings)
-            self.session.add_all([passive_from_position,
-                                  passive_to_position,
-                                  aggressive_from_position,
-                                  aggressive_to_position])
+        # Submit to ledger
+        # (user denominated, user payout, remainder) x 2 = 6
+        count = 6 + 2 * len(user_fees) + 2 * len(vendor_fees)
+        postings = [user_denominated, user_payout]
+        postings.extend(user_fees, vendor_fees, remainder_fees)
+        for posting in postings:
+            posting["count"] = count
+            posting["uid"] = uid
 
-            if not self.trial_period:
-                fee_postings = self.charge_fees(aggressive_fees, aggressive_user)
-                postings.extend(fee_postings)
-
-            journal = models.Journal('Trade', postings, timestamp=util.timestamp_to_dt(timestamp),
-                                     alerts_proxy=self.alerts_proxy,
-                                     notes="Aggressive: %d Passive: %d" % (aggressive_order_id,
-                                                                        passive_order_id))
-            self.session.add(journal)
-            next = time.time()
-            elapsed = (next - last) * 1000
-            last = next
-            logging.debug("post_transaction: part 4: %.3f ms." % elapsed)
-
-            self.session.add(journal)
-            self.session.commit()
-            self.publish_journal(journal)
-            logging.info("Journal: %s" % journal)
+        d = self.ledger.post(postings)
+        
+        def notify_fill():
+            # Send notifications
+            fill = {'contract': ticker,
+                    'id': order,
+                    'quantity': quantity,
+                    'price': price,
+                    'side': side,
+                    'timestamp': timestamp,
+                    'fees': fees
+                   }
+            self.webserver.fill(username, fill)
+            logging.debug('to ws: ' + str({"fills": [username, fill]}))
 
             next = time.time()
             elapsed = (next - last) * 1000
             last = next
-            logging.debug("post_transaction: part 5: %.3f ms." % elapsed)
-        except Exception as e:
-            logging.error("Unable to post_transaction: %s" % e)
-            self.session.rollback()
-            return
+            logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
-        # Send notifications
-        aggressive_fill = {'contract': ticker,
-                           'id': aggressive_order_id,
-                           'quantity': quantity,
-                           'price': price,
-                           'side': side,
-                           'timestamp': timestamp,
-                           'fees': aggressive_fees
-        }
-        self.webserver.fill(aggressive_username, aggressive_fill)
-        logging.debug('to ws: ' + str({"fills": [aggressive_username, aggressive_fill]}))
-
-        if side == 'SELL':
-            passive_side = 'BUY'
-        else:
-            passive_side = 'SELL'
-
-        passive_fill = {'contract': ticker,
-             'id': passive_order_id,
-             'quantity': quantity,
-             'price': price,
-             'side': passive_side,
-             'timestamp': timestamp,
-             'fees': {}
-            }
-        self.webserver.fill(passive_username, passive_fill)
-        logging.debug('to ws: ' + str({"fills": [passive_username, passive_fill]}))
-        next = time.time()
-        elapsed = (next - last) * 1000
-        last = next
-        logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
+        d.addCallback(notify_fill)
 
 
     def raiseException(self, failure):
