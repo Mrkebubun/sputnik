@@ -27,10 +27,12 @@ class FakeEngine(FakeProxy):
         # Always return success, with None
         return defer.succeed(None)
 
+
 class FakeLedger(FakeProxy):
     def post(self, *postings):
         self.log.append(('post', postings, {}))
         return defer.succeed(None)
+
 
 class TestAccountant(TestSputnik):
     def setUp(self):
@@ -246,6 +248,7 @@ class TestCashierExport(TestAccountant):
         position = self.cashier_export.get_position('test', 'BTC')
         self.assertEqual(position, 10)
 
+
 class TestAdministratorExport(TestAccountant):
     def test_transfer_position(self):
         from sputnik import models
@@ -258,9 +261,10 @@ class TestAdministratorExport(TestAccountant):
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
         from sputnik import util
+
         uid = util.get_uid()
-        d1 = self.administrator_export.transfer_position('from_account', 'BTC', 'credit', 5, 'note', uid)
-        d2 = self.administrator_export.transfer_position('adjustments', 'BTC', 'debit', 5, None, uid)
+        d1 = self.administrator_export.transfer_position('from_account', 'BTC', 'debit', 5, 'note', uid)
+        d2 = self.administrator_export.transfer_position('to_account', 'BTC', 'credit', 5, None, uid)
         d = defer.DeferredList([d1, d2])
 
         def onSuccess(result):
@@ -269,45 +273,51 @@ class TestAdministratorExport(TestAccountant):
 
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
-            self.assertEqual(from_position.position_calculated, from_position.position)
-            self.assertEqual(to_position.position_calculated, to_position.position)
+            pprint(self.webserver.log)
             self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                             (u'onlinecash',
+                                                             ('onlinecash',
                                                               {'contract': u'BTC',
+                                                               'direction': 'debit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
                                                              (u'from_account',
                                                               {'contract': u'BTC',
+                                                               'direction': 'credit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
-                                                             (u'onlinecash',
+                                                             ('onlinecash',
                                                               {'contract': u'BTC',
+                                                               'direction': 'debit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
                                                              (u'to_account',
                                                               {'contract': u'BTC',
+                                                               'direction': 'credit',
                                                                'quantity': 10,
-                                                               'type': u'Deposit'}),
+                                                               'type': 'Deposit'}),
                                                              {}),
                                                             ('transaction',
-                                                             (u'from_account',
-                                                              {'contract': u'BTC',
-                                                               'quantity': -5,
-                                                               'type': u'Transfer'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'to_account',
-                                                              {'contract': u'BTC',
+                                                             ('from_account',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'debit',
                                                                'quantity': 5,
-                                                               'type': u'Transfer'}),
+                                                               'type': 'Transfer'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             ('to_account',
+                                                              {'contract': 'BTC',
+                                                               'direction': 'credit',
+                                                               'quantity': 5,
+                                                               'type': 'Transfer'}),
                                                              {})]
             ))
+
 
         d.addCallback(onSuccess)
 
@@ -388,27 +398,28 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
         import uuid
+
         uid = uuid.uuid4().get_hex()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
         aggressive = {'username': 'aggressive_user',
-                            'aggressive': True,
-                            'contract': 'BTC/MXN',
-                            'price': 60000000,
-                            'quantity': 3000000,
-                            'order': 50,
-                            'side': 'SELL',
-                            'uid': uid,
-                            'timestamp': timestamp}
+                      'aggressive': True,
+                      'contract': 'BTC/MXN',
+                      'price': 60000000,
+                      'quantity': 3000000,
+                      'order': 50,
+                      'side': 'SELL',
+                      'uid': uid,
+                      'timestamp': timestamp}
 
         passive = {'username': 'passive_user',
-                            'aggressive': False,
-                            'contract': 'BTC/MXN',
-                            'price': 60000000,
-                            'quantity': 3000000,
-                            'order': 54,
-                            'side': 'SELL',
-                            'uid': uid,
-                            'timestamp': timestamp}
+                   'aggressive': False,
+                   'contract': 'BTC/MXN',
+                   'price': 60000000,
+                   'quantity': 3000000,
+                   'order': 54,
+                   'side': 'SELL',
+                   'uid': uid,
+                   'timestamp': timestamp}
 
         d1 = self.engine_export.post_transaction(aggressive)
         d2 = self.engine_export.post_transaction(passive)
