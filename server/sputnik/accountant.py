@@ -710,6 +710,7 @@ class Accountant:
             else:
                 deposit_limit = float("inf")
 
+            potential_new_position = user_cash_position.position + deposit
             excess_deposit = 0
             if not user.permissions.deposit:
                 logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
@@ -717,10 +718,10 @@ class Accountant:
 
                 # The user's not permitted to deposit at all. The excess deposit is the entire value
                 excess_deposit = deposit
-            elif user_cash_position.position > deposit_limit:
+            elif potential_new_position > deposit_limit:
                 logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
-                excess_deposit = user_cash_position.position - deposit_limit
+                excess_deposit = potential_new_position - deposit_limit
 
             if excess_deposit > 0:
                 # There was an excess deposit, transfer that amount into overflow cash
