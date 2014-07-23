@@ -207,7 +207,6 @@ class TestCashierExport(TestAccountant):
 
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
-            pprint(self.webserver.log)
             self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
@@ -285,7 +284,6 @@ class TestAdministratorExport(TestAccountant):
 
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
-            pprint(self.webserver.log)
             self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
@@ -346,7 +344,6 @@ class TestAdministratorExport(TestAccountant):
             position = self.session.query(models.Position).filter_by(
                 username="test").one()
             self.assertEqual(position.position, 20)
-            pprint(self.webserver.log)
             self.assertTrue(self.webserver.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
