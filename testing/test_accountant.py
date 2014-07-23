@@ -310,46 +310,39 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
-        self.administrator_export.adjust_position('test', 'BTC', 10)
-        position = self.session.query(models.Position).filter_by(
-            username="test").one()
-        self.assertEqual(position.position, 20)
-        self.assertEqual(position.position_calculated, position.position)
+        d = self.administrator_export.adjust_position('test', 'BTC', 10)
 
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Adjustment'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'adjustments',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 10,
-                                                           'type': u'Adjustment'}),
-                                                         {})]))
+        def onSuccess(result):
+            position = self.session.query(models.Position).filter_by(
+                username="test").one()
+            self.assertEqual(position.position, 10)
 
-    def test_get_balance_sheet(self):
-        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
-        balance_sheet = self.administrator_export.get_balance_sheet()
-        for side in ['assets', 'liabilities']:
-            self.assertEqual(balance_sheet[side]['BTC']['total'], 100000)
-            for currency in balance_sheet[side].keys():
-                total = sum([x['position'] for x in balance_sheet[side][currency]['positions_raw']])
-                self.assertEqual(balance_sheet[side][currency]['total'], total)
+            self.assertTrue(self.webserver.check_for_calls([('transaction',
+                                                             (u'onlinecash',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'type': u'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'type': u'Deposit'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'test',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'type': u'Adjustment'}),
+                                                             {}),
+                                                            ('transaction',
+                                                             (u'adjustments',
+                                                              {'contract': u'BTC',
+                                                               'quantity': 10,
+                                                               'type': u'Adjustment'}),
+                                                             {})]))
+
+        d.addCallback(onSuccess)
 
     def test_change_permission_group(self):
         from sputnik import models
@@ -386,124 +379,55 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
-        test_transaction = {'aggressive_username': 'aggressive_user',
-                            'passive_username': 'passive_user',
+        import uuid
+        uid = uuid.uuid4().get_hex()
+        timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+        aggressive = {'username': 'aggressive_user',
+                            'aggressive': True,
                             'contract': 'BTC/MXN',
                             'price': 60000000,
                             'quantity': 3000000,
-                            'aggressive_order_id': 54,
-                            'passive_order_id': 50,
+                            'order': 50,
                             'side': 'SELL',
-                            'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())}
-        self.engine_export.post_transaction(test_transaction)
+                            'uid': uid,
+                            'timestamp': timestamp}
 
-        # Inspect the positions
-        BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-        MXN = self.session.query(models.Contract).filter_by(ticker='MXN').one()
-        aggressive_user_btc_position = self.session.query(models.Position).filter_by(username='aggressive_user',
-                                                                                     contract=BTC).one()
-        passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
-                                                                                  contract=BTC).one()
-        aggressive_user_mxn_position = self.session.query(models.Position).filter_by(username='aggressive_user',
-                                                                                     contract=MXN).one()
-        passive_user_mxn_position = self.session.query(models.Position).filter_by(username='passive_user',
-                                                                                  contract=MXN).one()
+        passive = {'username': 'passive_user',
+                            'aggressive': False,
+                            'contract': 'BTC/MXN',
+                            'price': 60000000,
+                            'quantity': 3000000,
+                            'order': 54,
+                            'side': 'SELL',
+                            'uid': uid,
+                            'timestamp': timestamp}
 
-        # This is based on all BTC fees being zero
-        self.assertEqual(aggressive_user_btc_position.position, 2000000)
-        self.assertEqual(passive_user_btc_position.position, 3000000)
+        d1 = self.engine_export.post_transaction(aggressive)
+        d2 = self.engine_export.post_transaction(passive)
 
-        # This is based on 40bps MXN fee, only charged to the aggressive_user
-        self.assertEqual(aggressive_user_mxn_position.position, 1792800)
-        self.assertEqual(passive_user_mxn_position.position, 1200000)
+        def onSuccess(result):
+            # Inspect the positions
+            BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+            MXN = self.session.query(models.Contract).filter_by(ticker='MXN').one()
+            aggressive_user_btc_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                         contract=BTC).one()
+            passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                      contract=BTC).one()
+            aggressive_user_mxn_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                         contract=MXN).one()
+            passive_user_mxn_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                      contract=MXN).one()
 
-        # Check to be sure it made all the right calls
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 5000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'aggressive_user',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 5000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 3000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'passive_user',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 3000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'aggressive_user',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 1800000,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'aggressive_user',
-                                                          {'contract': u'BTC',
-                                                           'quantity': -3000000,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'passive_user',
-                                                          {'contract': u'MXN',
-                                                           'quantity': -1800000,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'passive_user',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 3000000,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'aggressive_user',
-                                                          {'contract': u'MXN',
-                                                           'quantity': -7200,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'customer',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 3600,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'm2',
-                                                          {'contract': u'MXN',
-                                                           'quantity': 3600,
-                                                           'type': u'Trade'}),
-                                                         {}),
-                                                        ('fill',
-                                                         ('aggressive_user',
-                                                          {'contract': 'BTC/MXN',
-                                                           'fees': {u'MXN': 7200},
-                                                           'id': 54,
-                                                           'price': 60000000,
-                                                           'quantity': 3000000,
-                                                           'side': 'SELL'
-                                                          }),
-                                                         {}),
-                                                        ('fill',
-                                                         ('passive_user',
-                                                          {'contract': 'BTC/MXN',
-                                                           'fees': {},
-                                                           'id': 50,
-                                                           'price': 60000000,
-                                                           'quantity': 3000000,
-                                                           'side': 'BUY'
-                                                          }),
-                                                         {})]))
+            # This is based on all BTC fees being zero
+            self.assertEqual(aggressive_user_btc_position.position, 2000000)
+            self.assertEqual(passive_user_btc_position.position, 3000000)
+
+            # This is based on 40bps MXN fee, only charged to the aggressive_user
+            self.assertEqual(aggressive_user_mxn_position.position, 1792800)
+            self.assertEqual(passive_user_mxn_position.position, 1200000)
+
+        # We only need to callback d1 because both will trigger when the transaction posts
+        d1.addCallback(onSuccess)
 
     def test_safe_prices(self):
         self.engine_export.safe_prices('BTC', 42)
@@ -845,16 +769,6 @@ class TestWebserverExport(TestAccountant):
         permissions = self.webserver_export.get_permissions('test')
         self.assertDictEqual(permissions,
                              {'name': 'Deposit', 'deposit': True, 'login': True, 'trade': False, 'withdraw': False})
-
-    def test_get_audit(self):
-        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
-        audit = self.webserver_export.get_audit()
-        for side in ['assets', 'liabilities']:
-            self.assertEqual(audit[side]['BTC']['total'], 100000)
-            for currency in audit[side].keys():
-                total = sum([x[1] for x in audit[side][currency]['positions']])
-                self.assertEqual(audit[side][currency]['total'], total)
 
 
     def test_get_transaction_history(self):

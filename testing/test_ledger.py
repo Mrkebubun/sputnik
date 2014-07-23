@@ -22,17 +22,17 @@ class TestLedger(TestSputnik):
         self.clock = task.Clock()
 
     def test_post_sequentially(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": "test_debit"}
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": "test_credit"}
         d1 = self.export.post(post1)
         return self.export.post(post2)
 
     def test_post_results_agree(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
         d1 = self.export.post(post1)
         d2 = self.export.post(post2)
@@ -40,16 +40,16 @@ class TestLedger(TestSputnik):
                 self.successResultOf(d2))
 
     def test_post_simultaneously(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": 'credit'}
         return self.export.post(post1, post2)
 
     def test_database_commit(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit" }
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
         d = self.export.post(post1, post2)
 
@@ -69,9 +69,9 @@ class TestLedger(TestSputnik):
         return d.addCallback(dbtest)
 
     def test_count_mismatch(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit"}
-        post2 = {"uid":"foo", "count":1, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":1, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
@@ -81,9 +81,9 @@ class TestLedger(TestSputnik):
                 ledger.COUNT_MISMATCH)
 
     def test_type_mismatch(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit"}
-        post2 = {"uid":"foo", "count":2, "type":"Deposit", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Deposit", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
@@ -93,9 +93,9 @@ class TestLedger(TestSputnik):
                 ledger.TYPE_MISMATCH)
 
     def test_quantity_mismatch(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":1, "direction":"credit", "note": 'credit'}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
@@ -105,7 +105,7 @@ class TestLedger(TestSputnik):
                 ledger.QUANTITY_MISMATCH)
 
     def test_timeout(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
+        post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
         d1 = self.assertFailure(self.export.post(post1),
                 ledger.LedgerException)
@@ -117,3 +117,23 @@ class TestLedger(TestSputnik):
         return self.assertEqual(self.successResultOf(d1),
                 ledger.GROUP_TIMEOUT)
 
+    def test_get_balance_sheet(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
+        balance_sheet = self.administrator_export.get_balance_sheet()
+        for side in ['assets', 'liabilities']:
+            self.assertEqual(balance_sheet[side]['BTC']['total'], 100000)
+            for currency in balance_sheet[side].keys():
+                total = sum([x['position'] for x in balance_sheet[side][currency]['positions_raw']])
+                self.assertEqual(balance_sheet[side][currency]['total'], total)
+
+
+    def test_get_audit(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.accountant.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 100000)
+        audit = self.webserver_export.get_audit()
+        for side in ['assets', 'liabilities']:
+            self.assertEqual(audit[side]['BTC']['total'], 100000)
+            for currency in audit[side].keys():
+                total = sum([x[1] for x in audit[side][currency]['positions']])
+                self.assertEqual(audit[side][currency]['total'], total)

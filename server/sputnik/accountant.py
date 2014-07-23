@@ -122,6 +122,7 @@ class Accountant:
             logging.error("Ledger exception:")
             logging.error(str(failure.value))
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+            raise e
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
@@ -131,13 +132,24 @@ class Accountant:
             else:
                 logging.error("Improper ledger RPC invocation:")
                 logging.error(str(failure.value))
+            raise e
+
+        def publish_transactions(result):
+            for posting in postings:
+                transaction = {'contract': posting['contract'],
+                          'timestamp': util.dt_to_timestamp(posting['timestamp']),
+                          'quantity': posting['quantity'],
+                          'type': posting['type']
+                }
+                self.webserver.transaction(posting['username'], transaction)
 
         d = self.ledger.post(*postings)
-        d.addCallback(on_success)
+        d.addCallback(on_success).addCallback(publish_transactions)
         d.addErrback(on_fail_ledger)
         d.addErrback(on_fail_rpc)
         return d
 
+    # This will go away once everything starts using post_or_fail
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
 
@@ -201,7 +213,7 @@ class Accountant:
         user_posting = {"uid": uid,
                         "count": 2,
                         "type": "adjustment",
-                        "user": user.username,
+                        "username": user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
                         "direction": "credit"
@@ -209,15 +221,16 @@ class Accountant:
         system_posting = {"uid": uid,
                         "count": 2,
                         "type": "adjustment",
-                        "user": adjustment_user.username,
+                        "username": adjustment_user.username,
                         "contract": contract.ticker,
                         "quantity": quantity,
                         "direction": "debit"
                         }
 
         d = self.post_or_fail(user_posting, system_posting)
-        # d.addCallback(notify_user)
+        #d.addCallback(notify_user)
 
+        return d
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -316,13 +329,13 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = {"uid": uid,
+            user_posting = {"uid": 0,
                             "count": 0,
                             "type": "fees",
-                            "user": user.username,
+                            "username": user.username,
                             "contract": contract.ticker,
                             "quantity": fee,
-                            "side": "debit"
+                            "direction": "debit"
                             }
             user_postings.append(user_posting)
 
@@ -334,13 +347,13 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = {"uid": uid,
+                vendor_posting = {"uid": 0,
                                   "count": 0,
                                   "type": "fees",
-                                  "user": vendor_user.username,
+                                  "username": vendor_user.username,
                                   "contract": contract.ticker,
                                   "quantity": vendor_credit,
-                                  "side": "credit"
+                                  "direction": "credit"
                                 }
                 vendor_postings.append(vendor_posting)
 
@@ -349,13 +362,13 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = {"uid": uid,
+            remainder_posting = {"uid": 0,
                                  "count": 0,
                                  "type": "fees",
-                                 "user": remainder_user.username,
+                                 "username": remainder_user.username,
                                  "contract": contract.ticker,
                                  "quantity": remaining_fee,
-                                 "side": "credit"
+                                 "direction": "credit"
                                 }
             remainder_postings.append(remainder_posting)
             next = time.time()
@@ -490,21 +503,24 @@ class Accountant:
 
         next = time.time()
         elapsed = (next - last) * 1000
-        last = next
         logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Submit to ledger
         # (user denominated, user payout, remainder) x 2 = 6
         count = 6 + 2 * len(user_fees) + 2 * len(vendor_fees)
         postings = [user_denominated, user_payout]
-        postings.extend(user_fees, vendor_fees, remainder_fees)
+        postings.extend(user_fees,)
+        postings.extend(vendor_fees)
+        postings.extend(remainder_fees)
+
         for posting in postings:
             posting["count"] = count
             posting["uid"] = uid
 
         d = self.post_or_fail(*postings)
         
-        def notify_fill():
+        def notify_fill(result):
+            last = time.time()
             # Send notifications
             fill = {'contract': ticker,
                     'id': order,
@@ -519,11 +535,10 @@ class Accountant:
 
             next = time.time()
             elapsed = (next - last) * 1000
-            last = next
             logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
         d.addCallback(notify_fill)
-
+        return d
 
     def raiseException(self, failure):
         raise failure.value
@@ -611,7 +626,8 @@ class Accountant:
                 direction, note)
         posting.count = 2
         posting.uid = uid
-        self.post_or_fail(posting)
+        d = self.post_or_fail(posting)
+        return d
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -792,70 +808,6 @@ class Accountant:
         except:
             self.session.rollback()
 
-    # These two should go into the ledger process. We should
-    # only run this once per day and cache the result
-    def get_balance_sheet(self):
-        """Gets the balance sheet
-
-        :returns: dict -- the balance sheet
-        """
-
-        positions = self.session.query(models.Position).all()
-        balance_sheet = {'assets': {},
-                         'liabilities': {}
-        }
-
-        for position in positions:
-            if position.position is not None:
-                if position.user.type == 'Asset':
-                    side = balance_sheet['assets']
-                else:
-                    side = balance_sheet['liabilities']
-
-                position_details = { 'username': position.user.username,
-                                                                    'hash': position.user.user_hash,
-                                                                    'position': position.position,
-                                                                    'position_fmt': position.quantity_fmt
-                }
-                if position.contract.ticker in side:
-                    side[position.contract.ticker]['total'] += position.position
-                    side[position.contract.ticker]['positions_raw'].append(position_details)
-                else:
-                    side[position.contract.ticker] = {'total': position.position,
-                                                      'positions_raw': [position_details],
-                                                      'contract': position.contract.ticker}
-
-                side[position.contract.ticker]['total_fmt'] = \
-                    ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
-                        total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
-                )
-
-        return balance_sheet
-
-    def get_audit(self):
-        """Gets the audit, which is the balance sheet but scrubbed of usernames
-
-        :returns: dict -- the audit
-        """
-        now = util.dt_to_timestamp(datetime.utcnow())
-        if self.audit_cache is not None:
-            one_day = 24 * 3600 * 1000000
-            if now - self.audit_cache['timestamp'] < one_day:
-                # Return the cache if it's been less than a day
-                return self.audit_cache
-
-        balance_sheet = self.get_balance_sheet()
-        for side in balance_sheet.values():
-            for ticker, details in side.iteritems():
-                details['positions'] = []
-                for position in details['positions_raw']:
-                    details['positions'].append((position['hash'], position['position']))
-                del details['positions_raw']
-
-        balance_sheet['timestamp'] = now
-        self.audit_cache = balance_sheet
-        return balance_sheet
-
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
         """Get the history of a user's transactions
 
@@ -950,10 +902,6 @@ class WebserverExport:
         return self.accountant.get_permissions(username)
 
     @export
-    def get_audit(self):
-        return self.accountant.get_audit()
-
-    @export
     def get_transaction_history(self, username, from_timestamp, to_timestamp):
         return self.accountant.get_transaction_history(username, from_timestamp, to_timestamp)
 
@@ -975,7 +923,7 @@ class EngineExport:
 
     @export
     def post_transaction(self, transaction):
-        self.accountant.post_transaction(transaction)
+        return self.accountant.post_transaction(transaction)
 
 
 class CashierExport:
@@ -1021,15 +969,11 @@ class AdministratorExport:
 
     @export
     def adjust_position(self, username, ticker, quantity):
-        self.accountant.adjust_position(username, ticker, quantity)
+        return self.accountant.adjust_position(username, ticker, quantity)
 
     @export
     def transfer_position(self, ticker, from_user, to_user, quantity, note):
         self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
-
-    @export
-    def get_balance_sheet(self):
-        return self.accountant.get_balance_sheet()
 
     @export
     def change_permission_group(self, username, id):
