@@ -117,8 +117,9 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             max_cash_spent[ticker] = 0
 
     # Deal with withdrawals
-    for ticker, amount in withdrawals.iteritems():
-        max_cash_spent[ticker] += amount
+    if withdrawals:
+        for ticker, amount in withdrawals.iteritems():
+            max_cash_spent[ticker] += amount
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':
