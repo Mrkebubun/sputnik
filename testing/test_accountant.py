@@ -881,7 +881,7 @@ class TestWebserverExport(TestAccountant):
         result = self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
         # Make sure it returns success
-        self.assertTrue(result)
+        self.assertTrue(self.successResultOf(result))
 
         # Check that the positions are changed
         from sputnik import models

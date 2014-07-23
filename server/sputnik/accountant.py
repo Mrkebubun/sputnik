@@ -638,7 +638,7 @@ class Accountant:
             # Check margin now
             low_margin, high_margin = margin.calculate_margin(username,
                     self.session, self.safe_prices,
-                    withdrawals={contract.contract_id:amount},
+                    withdrawals={contract.id:amount},
                     trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
