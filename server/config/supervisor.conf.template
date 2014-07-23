@@ -39,11 +39,13 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [program:accountant]
-command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini %(process_num)d
+process_name = %(program_name)s_%(process_num)d
+numprocs = ${accountant_count}
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile = ${logs}/%(program_name)s_%(process_num)d.log
 stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}

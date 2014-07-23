@@ -16,6 +16,8 @@ import heapq
 
 import database
 import models
+import accountant
+
 import uuid
 
 from twisted.internet import reactor
@@ -316,7 +318,7 @@ class AccountantNotifier(EngineListener):
 
     def on_trade_success(self, order, passive_order, price, quantity):
         uid = uuid.uuid4().get_hex()
-        self.accountant.post_transaction(
+        self.accountant.post_transaction(order.username,
                 {
                     'username': order.username,
                     'aggressive': True,
@@ -330,7 +332,7 @@ class AccountantNotifier(EngineListener):
                 }
             )
 
-        self.accountant.post_transaction(
+        self.accountant.post_transaction(passive_order.username,
                 {
                     'username': passive_order.username,
                     'aggressive': False,
@@ -448,7 +450,9 @@ if __name__ == "__main__":
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
     logger = LoggingListener(engine, contract)
-    accountant = push_proxy_async(config.get("accountant", "engine_export"))
+    accountant = accountant.AccountantProxy("push",
+            config.get("accountant", "engine_export"),
+            config.getint("accountant", "engine_export_base_port"))
     accountant_notifier = AccountantNotifier(engine, accountant, contract)
     webserver = push_proxy_async(config.get("webserver", "engine_export"))
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
