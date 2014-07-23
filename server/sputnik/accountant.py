@@ -650,37 +650,36 @@ class Accountant:
                 logging.error("Withdraw request for %s failed due to no permissions" % username)
                 raise WITHDRAW_NOT_PERMITTED
 
-            contract = self.get_contract(ticker)
-
             if amount % contract.lot_size != 0:
                 logging.error("Withdraw request for a wrong lot_size qty: %d" % amount)
                 raise INVALID_CURRENCY_QUANTITY
 
-            position = self.get_position(username, ticker)
-            pending_withdrawal_user = self.get_user('pendingwithdrawal')
-            pending_withdrawal_position = self.get_position('pendingwithdrawal', ticker)
-            credit = models.Posting(pending_withdrawal_user, contract, amount, 'credit', update_position=True,
-                                    position=pending_withdrawal_position)
-            debit = models.Posting(user, contract, amount, 'debit', update_position=True,
-                                   position=position)
-
-            self.session.add_all([position, pending_withdrawal_position])
-            self.session.add_all([debit, credit])
+            uid = util.get_uid()
+            credit_posting = ledger.create_posting('pendingwithdrawal', ticker, amount, 'credit',
+                                                   note=address)
+            credit_posting['uid'] = uid
+            credit_posting['count'] = 2
+            debit_posting = ledger.create_posting(user.username, ticker, amount, 'debit')
+            debit_posting['uid'] = uid
+            debit_posting['count'] = 2
 
             # Check margin now
+            # This is a temporary position adjustment used only for the margin check
+            position = self.get_position(username, ticker)
+            position.position -= amount
             low_margin, high_margin = margin.calculate_margin(username, self.session, self.safe_prices,
                                                               trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
                 logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                journal = models.Journal('Withdrawal', [credit, debit], notes=address, alerts_proxy=self.alerts_proxy)
-                self.session.add(journal)
-                self.session.commit()
-                self.publish_journal(journal)
-                logging.info("Journal: %s" % journal)
-                self.cashier.request_withdrawal(username, ticker, address, amount)
-                return True
+                d = self.post_or_fail(credit_posting, debit_posting)
+                def onSuccess(result):
+                    self.cashier.request_withdrawal(username, ticker, address, amount)
+                    return True
+
+                d.addCallback(onSuccess)
+                return d
         except Exception as e:
             self.session.rollback()
             logging.error("Exception received while attempting withdrawal: %s" % e)
@@ -944,8 +943,8 @@ class CashierExport:
         self.accountant.deposit_cash(address, received, total=total)
 
     @export
-    def transfer_position(self, ticker, from_user, to_user, quantity, note):
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
+    def transfer_position(self, username, ticker, direction, quantity, note, uid):
+        self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
 
     @export
     def get_position(self, username, ticker):
@@ -978,8 +977,8 @@ class AdministratorExport:
         return self.accountant.adjust_position(username, ticker, quantity)
 
     @export
-    def transfer_position(self, ticker, from_user, to_user, quantity, note):
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
+    def transfer_position(self, username, ticker, direction, quantity, note, uid):
+        self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
 
     @export
     def change_permission_group(self, username, id):
