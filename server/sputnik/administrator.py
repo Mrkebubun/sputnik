@@ -536,7 +536,9 @@ class Administrator:
         
         logging.debug("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
-        self.accountant.transfer_position(ticker, from_user, to_user, quantity, note)
+        uid = util.get_uid()
+        self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
+        self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
     def manual_deposit(self, address, quantity_ui):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
