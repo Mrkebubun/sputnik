@@ -205,9 +205,9 @@ class AccountantExport:
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
-def create_posting(username, contract, quantity, direction, note=None):
+def create_posting(username, contract, quantity, direction, note=None, type=None):
     return {"username":username, "contract":contract, "quantity":quantity,
-            "direction":direction, "note": note}
+            "direction":direction, "note": note, "type": type}
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)

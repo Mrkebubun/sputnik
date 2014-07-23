@@ -309,14 +309,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = {"uid": 0,
-                            "count": 0,
-                            "type": "fees",
-                            "username": user.username,
-                            "contract": contract.ticker,
-                            "quantity": fee,
-                            "direction": "debit"
-                            }
+            user_posting = ledger.create_posting(user.username, contract.ticker, fee, 'debit', type="Trade")
             user_postings.append(user_posting)
 
             remaining_fee = fee
@@ -327,14 +320,8 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = {"uid": 0,
-                                  "count": 0,
-                                  "type": "fees",
-                                  "username": vendor_user.username,
-                                  "contract": contract.ticker,
-                                  "quantity": vendor_credit,
-                                  "direction": "credit"
-                                }
+                vendor_posting = ledger.create_posting(vendor_user.username, contract.ticker, vendor_credit,
+                                                       'credit', type="Trade")
                 vendor_postings.append(vendor_posting)
 
             # There might be some fee leftover due to rounding,
@@ -342,14 +329,8 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = {"uid": 0,
-                                 "count": 0,
-                                 "type": "fees",
-                                 "username": remainder_user.username,
-                                 "contract": contract.ticker,
-                                 "quantity": remaining_fee,
-                                 "direction": "credit"
-                                }
+            remainder_posting = ledger.create_posting(remainder_user.username, contract.ticker, remaining_fee,
+                                                      'credit', type="Trade")
             remainder_postings.append(remainder_posting)
             next = time.time()
             elapsed = (next - last) * 1000
@@ -461,14 +442,17 @@ class Accountant:
             denominated_direction = "credit"
             payout_direction = "debit"
 
-        note = None
         if aggressive:
-            note = "{aggressive: True, order: %s}" % order
+            ap = "aggressive"
+        else:
+            ap = "passive"
+
+        note = "{%s order: %s}" % (ap, order)
 
         user_denominated = ledger.create_posting(user,
-                denominated_contract, cash_spent_int, denominated_direction)
+                denominated_contract, cash_spent_int, denominated_direction, type="Trade")
         user_payout = ledger.create_posting(user,
-                payout_contract, quantity, payout_direction, note)
+                payout_contract, quantity, payout_direction, note, type="Trade")
 
         # calculate fees
         # We aren't charging the liquidity provider
@@ -704,13 +688,15 @@ class Accountant:
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
-                                                  note=address)
+                                                  note=address,
+                                                  type="Deposit")
             postings.append(debit_posting)
 
             credit_posting = ledger.create_posting(user.username,
                                                    contract.ticker,
                                                    deposit,
-                                                   'credit')
+                                                   'credit',
+                                                   type="Deposit")
             postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
@@ -736,12 +722,14 @@ class Accountant:
                                                              contract.ticker,
                                                              excess_deposit,
                                                              'debit',
-                                                             note="Excess Deposit")
+                                                             note="Excess Deposit",
+                                                             type="Deposit")
 
                 excess_credit_posting = ledger.create_posting('depositoverflow',
                                                               contract.ticker,
                                                               excess_deposit,
-                                                              'credit')
+                                                              'credit',
+                                                              type="Deposit")
 
                 postings.append(excess_debit_posting)
                 postings.append(excess_credit_posting)
