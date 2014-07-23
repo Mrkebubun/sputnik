@@ -16,6 +16,8 @@ import heapq
 
 import database
 import models
+import accountant
+
 import uuid
 
 from twisted.internet import reactor
@@ -316,7 +318,7 @@ class AccountantNotifier(EngineListener):
 
     def on_trade_success(self, order, passive_order, price, quantity):
         uid = uuid.uuid4().get_hex()
-        self.accountant.post_transaction(
+        self.accountant.post_transaction(order.username,
                 {
                     'username': order.username,
                     'aggressive': True,
@@ -330,7 +332,7 @@ class AccountantNotifier(EngineListener):
                 }
             )
 
-        self.accountant.post_transaction(
+        self.accountant.post_transaction(passive_order.username,
                 {
                     'username': passive_order.username,
                     'aggressive': False,
