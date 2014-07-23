@@ -139,7 +139,8 @@ class Accountant:
                 transaction = {'contract': posting['contract'],
                           'timestamp': posting['timestamp'],
                           'quantity': posting['quantity'],
-                          'type': posting['type']
+                          'type': posting['type'],
+                          'direction': posting['direction']
                 }
                 self.webserver.transaction(posting['username'], transaction)
 
