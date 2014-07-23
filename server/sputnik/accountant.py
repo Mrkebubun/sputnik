@@ -101,7 +101,7 @@ class Accountant:
         def on_success(self, result):
             try:
                 for posting in postings:
-                    position = self.get_positon(posting.user, posting.contract)
+                    position = self.get_position(posting.user, posting.contract)
                     position.position += posting.quanity
                     self.session.merge(position)
                 self.session.commit()
