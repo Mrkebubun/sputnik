@@ -158,7 +158,8 @@ class TestAccountantNotifier(TestEngine):
 
         self.accountant_notifier.on_trade_success(order, passive_order, 10, 10)
         self.assertTrue(self.accountant.check_for_calls([('post_transaction',
-                                                          ({'aggressive': True,
+                                                          (u'aggressive',
+                                                           {'aggressive': True,
                                                             'contract': self.contract.ticker,
                                                             'order': 1,
                                                             'price': 10,
@@ -167,7 +168,8 @@ class TestAccountantNotifier(TestEngine):
                                                             'username': u'aggressive'},),
                                                           {}),
                                                          ('post_transaction',
-                                                          ({'aggressive': False,
+                                                          (u'passive',
+                                                           {'aggressive': False,
                                                             'contract': self.contract.ticker,
                                                             'order': 2,
                                                             'price': 10,
