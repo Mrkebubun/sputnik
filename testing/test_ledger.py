@@ -92,16 +92,6 @@ class TestLedger(TestSputnik):
         return self.assertEqual(self.successResultOf(d2),
                 ledger.TYPE_MISMATCH)
 
-    def test_contract_mismatch(self):
-        post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"BTC", "quantity":5, "side":"debit"}
-        post2 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
-                 "contract":"MXN", "quantity":5, "side":"credit"}
-        d1 = self.export.post(post1)
-        d1.addErrback(lambda x: None)
-        d2 = self.assertFailure(self.export.post(post2),
-                Exception)
-
     def test_quantity_mismatch(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
                  "contract":"MXN", "quantity":5, "side":"debit"}
@@ -110,7 +100,9 @@ class TestLedger(TestSputnik):
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
-                Exception)
+                ledger.LedgerException)
+        return self.assertEqual(self.successResultOf(d2),
+                ledger.QUANTITY_MISMATCH)
 
     def test_timeout(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "user":"customer",
