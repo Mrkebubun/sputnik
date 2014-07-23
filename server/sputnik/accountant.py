@@ -608,6 +608,8 @@ class Accountant:
         :raises: INSUFFICIENT_MARGIN, WITHDRAW_NOT_PERMITTED
         """
         try:
+            contract = self.get_contract(ticker)
+
             if self.trial_period:
                 logging.error("Withdrawals not permitted during trial period")
                 raise WITHDRAW_NOT_PERMITTED
