@@ -126,8 +126,9 @@ def dumpArgs(func):
     return wrapper
 
 class FakeProxy:
-    def __init__(self):
+    def __init__(self, name=None):
         self.log = []
+        self.name = name
 
     def __getattr__(self, key):
         if key.startswith("__"):
@@ -135,6 +136,13 @@ class FakeProxy:
 
         def proxy_method(*args, **kwargs):
             self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
+            if self.name:
+                callspec = []
+                callspec.extend(args)
+                if kwargs:
+                callspec.extend(map(lambda x: "%s=%s" % x, kwargs.iteritems()))
+                logging.info("Method call: %s.%s%s" %
+                        (self.name, key, str(tuple(callspec))))
             return None
 
         return proxy_method
