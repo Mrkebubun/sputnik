@@ -549,11 +549,54 @@ class Administrator:
         self.accountant.deposit_cash(address, quantity, total=False)
 
     def get_balance_sheet(self):
-        """Get the balance sheet from the accountant
+        """Gets the balance sheet
 
-        :returns: dict
+        :returns: dict -- the balance sheet
         """
-        return self.accountant.get_balance_sheet()
+
+        positions = self.session.query(models.Position).all()
+        balance_sheet = {'assets': {},
+                         'liabilities': {}
+        }
+
+        for position in positions:
+            if position.position is not None:
+                if position.user.type == 'Asset':
+                    side = balance_sheet['assets']
+                else:
+                    side = balance_sheet['liabilities']
+
+                position_details = { 'username': position.user.username,
+                                                                    'hash': position.user.user_hash,
+                                                                    'position': position.position,
+                                                                    'position_fmt': position.quantity_fmt
+                }
+                if position.contract.ticker in side:
+                    side[position.contract.ticker]['total'] += position.position
+                    side[position.contract.ticker]['positions_raw'].append(position_details)
+                else:
+                    side[position.contract.ticker] = {'total': position.position,
+                                                      'positions_raw': [position_details],
+                                                      'contract': position.contract.ticker}
+
+                side[position.contract.ticker]['total_fmt'] = \
+                    ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
+                        total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
+                )
+
+        return balance_sheet
+
+    def get_audit(self):
+        """Gets the audit, which is the balance sheet but scrubbed of usernames
+
+        :returns: dict -- the audit
+        """
+        now = util.dt_to_timestamp(datetime.utcnow())
+        if self.audit_cache is not None:
+            one_day = 24 * 3600 * 1000000
+            if now - self.audit_cache['timestamp'] < one_day:
+                # Return the cache if it's been less than a day
+                return self.audit_cache
 
     def get_permission_groups(self):
         """Get all the permission groups
