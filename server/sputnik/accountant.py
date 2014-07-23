@@ -624,8 +624,8 @@ class Accountant:
         """
         posting = ledger.create_posting(username, ticker, quantity,
                 direction, note)
-        posting.count = 2
-        posting.uid = uid
+        posting['count'] = 2
+        posting['uid'] = uid
         d = self.post_or_fail(posting)
         return d
 
@@ -707,7 +707,7 @@ class Accountant:
                                                    contract.ticker)
             user = self.get_user(total_deposited_at_address.user)
 
-            # compute deposit _before_ marking ammount as accounted for
+            # compute deposit _before_ marking amount as accounted for
             if total:
                 deposit = received - total_deposited_at_address.accounted_for
                 total_deposited_at_address.accounted_for = received
@@ -716,21 +716,23 @@ class Accountant:
                 total_deposited_at_address.accounted_for += deposit
 
             # update address
-
             self.session.add(total_deposited_at_address)
+            self.session.commit()
 
             #prepare cash deposit
             postings = []
-            bank_position = self.get_position('onlinecash', contract)
-            bank_user = self.get_user('onlinecash')
-            debit = models.Posting(bank_user, contract, deposit, 'debit', update_position=True,
-                                   position=bank_position)
-            self.session.add(bank_position)
-            postings.append(debit)
+            debit_posting = ledger.create_posting('onlinecash',
+                                                  contract.ticker,
+                                                  deposit,
+                                                  'debit',
+                                                  note=address)
+            postings.append(debit_posting)
 
-            credit = models.Posting(user, contract, deposit, 'credit', update_position=True,
-                                    position=user_cash_position)
-            postings.append(credit)
+            credit_posting = ledger.create_posting(user.username,
+                                                   contract.ticker,
+                                                   deposit,
+                                                   'credit')
+            postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
                 deposit_limit = self.deposit_limits[total_deposited_at_address.contract.ticker]
@@ -751,24 +753,28 @@ class Accountant:
 
             if excess_deposit > 0:
                 # There was an excess deposit, transfer that amount into overflow cash
-                excess_debit = models.Posting(user, contract, excess_deposit, 'debit', update_position=True,
-                                       position=user_cash_position)
-                depositoverflow_user = self.get_user('depositoverflow')
-                depositoverflow_position = self.get_position('depositoverflow', contract)
-                excess_credit = models.Posting(depositoverflow_user, contract, excess_deposit, 'credit', update_position=True,
-                                        position=depositoverflow_position)
+                excess_debit_posting = ledger.create_posting(user.username,
+                                                             contract.ticker,
+                                                             excess_deposit,
+                                                             'debit',
+                                                             note="Excess Deposit")
 
-                postings.append(excess_debit)
-                postings.append(excess_credit)
-                self.session.add(depositoverflow_position)
+                excess_credit_posting = ledger.create_posting('depositoverflow',
+                                                              contract.ticker,
+                                                              excess_deposit,
+                                                              'credit')
 
-            self.session.add(user_cash_position)
-            self.session.add_all(postings)
-            journal = models.Journal('Deposit', postings, notes=address, alerts_proxy=self.alerts_proxy)
-            self.session.add(journal)
-            self.session.commit()
-            self.publish_journal(journal)
-            logging.info("Journal: %s" % journal)
+                postings.append(excess_debit_posting)
+                postings.append(excess_credit_posting)
+
+            count = len(postings)
+            uid = util.get_uid()
+            for posting in postings:
+                posting['count'] = count
+                posting['uid'] = uid
+
+            d = self.post_or_fail(*postings)
+            return d
         except Exception as e:
             self.session.rollback()
             logging.error(

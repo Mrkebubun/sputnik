@@ -109,6 +109,7 @@ class Ledger:
             self.session.add_all(db_postings)
             self.session.add(journal)
             self.session.commit()
+            logging.info("Journal: %s" % journal)
             return True
 
         except Exception, e:
