@@ -354,9 +354,11 @@ class Accountant:
         aggressive_username = transaction["aggressive_username"]
         passive_username = transaction["passive_username"]
         ticker = transaction["contract"]
-        side = transaction["side"]
         price = transaction["price"]
         quantity = transaction["quantity"]
+        aggressive_order_id = transaction["aggressive_order_id"]
+        passive_order_id = transaction["passive_order_id"]
+        side = transaction["side"]
         timestamp = transaction["timestamp"]
 
         contract = self.get_contract(ticker)
@@ -367,6 +369,11 @@ class Accountant:
         elapsed = (next - last) * 1000
         last = next
         logging.debug("post_transaction: part 1: %.3f ms." % elapsed)
+
+        if side == 'BUY':
+            sign = 1
+        else:
+            sign = -1
 
         if contract.contract_type == "futures":
             raise NotImplementedError
@@ -410,7 +417,6 @@ class Accountant:
                           (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
                 logging.error(message)
                 self.alerts_proxy.send_alert(message, "Integer failure")
-                # TODO: abort?
 
         elif contract.contract_type == "cash_pair":
             denominated_contract = contract.denominated_contract
@@ -424,7 +430,6 @@ class Accountant:
                               (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
                 logging.error(message)
                 self.alerts_proxy.send_alert(message, "Integer failure")
-                # TODO: abort?
         else:
             logging.error("Unknown contract type '%s'." %
                           contract.contract_type)
