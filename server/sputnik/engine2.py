@@ -321,11 +321,11 @@ class AccountantNotifier(EngineListener):
                     'username': order.username,
                     'aggressive': True,
                     'contract': order.contract,
-                    'order': order.id
+                    'order': order.id,
                     'side': order.side,
                     'quantity': quantity,
                     'price': price,
-                    'timestamp': order.timestamp
+                    'timestamp': order.timestamp,
                     'uid': uid
                 }
             )
@@ -335,11 +335,11 @@ class AccountantNotifier(EngineListener):
                     'username': passive_order.username,
                     'aggressive': False,
                     'contract': order.contract,
-                    'order': passive_order.id
+                    'order': passive_order.id,
                     'side': passive_order.side,
                     'quantity': quantity,
                     'price': price,
-                    'timestamp': order.timestamp
+                    'timestamp': order.timestamp,
                     'uid': uid
                 }
             )
