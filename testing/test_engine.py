@@ -135,7 +135,46 @@ class TestEngineInternals(TestEngine):
 
 
 class TestAccountantNotifier(TestEngine):
-    pass
+    def setUp(self):
+        from sputnik import engine2
+
+        TestEngine.setUp(self)
+        self.accountant = FakeProxy()
+
+        from sputnik import models
+
+        self.contract = models.Contract("FOO")
+        self.accountant_notifier = engine2.AccountantNotifier(self.engine, self.accountant, self.contract)
+
+    def test_on_trade_success(self):
+        from sputnik import models
+
+        user = models.User('aggressive', 'null')
+        passive_user = models.User('passive', 'null')
+        order = models.Order(user, self.contract, 10, 13, 'BUY')
+        passive_order = models.Order(passive_user, self.contract, 10, 10, 'SELL')
+        self.session.add_all([user, passive_user, order, passive_order])
+        self.session.commit()
+
+        self.accountant_notifier.on_trade_success(order, passive_order, 10, 10)
+        self.assertTrue(self.accountant.check_for_calls([('post_transaction',
+                                                          ({'aggressive': True,
+                                                            'contract': self.contract.ticker,
+                                                            'order': 1,
+                                                            'price': 10,
+                                                            'quantity': 10,
+                                                            'side': u'BUY',
+                                                            'username': u'aggressive'},),
+                                                          {}),
+                                                         ('post_transaction',
+                                                          ({'aggressive': False,
+                                                            'contract': self.contract.ticker,
+                                                            'order': 2,
+                                                            'price': 10,
+                                                            'quantity': 10,
+                                                            'side': u'SELL',
+                                                            'username': u'passive'},),
+                                                          {})]))
 
 
 class TestWebserverNotifier(TestEngine):
