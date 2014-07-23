@@ -134,29 +134,30 @@ class TestEngineInternals(TestEngine):
         ))
 
 
-class TestAccountantNotifier(TestEngine):
+class TestNotifier(TestEngine):
     def setUp(self):
-        from sputnik import engine2
-
         TestEngine.setUp(self)
-        self.accountant = FakeProxy()
 
-        from sputnik import models
+        from sputnik import engine2, models
 
         self.contract = models.Contract("FOO")
+
+        self.order = engine2.Order(id=1, contract=self.contract.ticker, quantity=10,
+                                   price=13, side='BUY', username='aggressive')
+        self.passive_order = engine2.Order(id=2, contract=self.contract.ticker, quantity=10,
+                                           price=10, side='SELL', username='passive')
+
+
+class TestAccountantNotifier(TestNotifier):
+    def setUp(self):
+        TestNotifier.setUp(self)
+        from sputnik import engine2
+
+        self.accountant = FakeProxy()
         self.accountant_notifier = engine2.AccountantNotifier(self.engine, self.accountant, self.contract)
 
     def test_on_trade_success(self):
-        from sputnik import models
-
-        user = models.User('aggressive', 'null')
-        passive_user = models.User('passive', 'null')
-        order = models.Order(user, self.contract, 10, 13, 'BUY')
-        passive_order = models.Order(passive_user, self.contract, 10, 10, 'SELL')
-        self.session.add_all([user, passive_user, order, passive_order])
-        self.session.commit()
-
-        self.accountant_notifier.on_trade_success(order, passive_order, 10, 10)
+        self.accountant_notifier.on_trade_success(self.order, self.passive_order, 10, 10)
         self.assertTrue(self.accountant.check_for_calls([('post_transaction',
                                                           (u'aggressive',
                                                            {'aggressive': True,
@@ -179,10 +180,37 @@ class TestAccountantNotifier(TestEngine):
                                                           {})]))
 
 
-class TestWebserverNotifier(TestEngine):
-    pass
+class TestWebserverNotifier(TestNotifier):
+    def setUp(self):
+        TestNotifier.setUp(self)
+        from sputnik import engine2
+
+        self.webserver = FakeProxy()
+        self.webserver_notifier = engine2.WebserverNotifier(self.engine, self.webserver, self.contract)
+
+    def test_on_queue_success(self):
+        self.webserver_notifier.on_queue_success(self.order)
+        self.assertTrue(self.webserver.check_for_calls([('order',
+                                                         ('aggressive',
+                                                          {'contract': self.contract.ticker,
+                                                           'id': 1,
+                                                           'is_cancelled': False,
+                                                           'price': 13,
+                                                           'quantity': 10,
+                                                           'quantity_left': 10,
+                                                           'side': 'SELL',
+                                                          }),
+                                                         {}),
+                                                        ('book', ('FOO', {'asks': [], 'bids': [], 'contract': 'FOO'}),
+                                                         {})]))
+
+    def test_on_cancel_success(self):
+        pass
+
+    def test_update_book(self):
+        pass
 
 
-class TestSafePriceNotifier(TestEngine):
+class TestSafePriceNotifier(TestNotifier):
     pass
 
