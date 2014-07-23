@@ -387,8 +387,7 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
-        import uuid
-        uid = uuid.uuid4().get_hex()
+        uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
         aggressive = {'username': 'aggressive_user',
                             'aggressive': True,
@@ -406,7 +405,7 @@ class TestEngineExport(TestAccountant):
                             'price': 60000000,
                             'quantity': 3000000,
                             'order': 54,
-                            'side': 'SELL',
+                            'side': 'BUY',
                             'uid': uid,
                             'timestamp': timestamp}
 
