@@ -40,6 +40,11 @@ engine_export = tcp://127.0.0.1:4420
 webserver_export = tcp://127.0.0.1:4470
 cashier_export = tcp://127.0.0.1:4410
 administrator_export = tcp://127.0.0.1:4460
+engine_export_base_port = 4420
+webserver_export_base_port = 4470
+cashier_export_base_port = 4410
+administrator_export_base_port = 4460
+num_procs = ${accountant_count}
 debug = ${debug}
 trial_period = ${trial_period}
 
