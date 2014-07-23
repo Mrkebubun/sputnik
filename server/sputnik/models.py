@@ -360,7 +360,6 @@ class Journal(db.Base):
                         'Trade', 'Fee',
                         name='journal_types'), nullable=False)
     timestamp = Column(DateTime)
-    notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
     def __init__(self, type, postings, timestamp=None, notes=None):
@@ -394,6 +393,14 @@ class Journal(db.Base):
         return header + postings + footer
 
     @property
+    def notes(self):
+        """Get all the notes for all the postings
+        :returns: string
+        """
+        return '\n'.join([posting.note for posting in self.postings])
+
+
+    @property
     def audit(self):
         """Make sure that every position's postings sum to 0
         :returns: bool
@@ -425,11 +432,12 @@ class Posting(db.Base, QuantityUI):
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
+    note = Column(String)
 
     def __repr__(self):
-        return "<Posting('%s', '%s', %d)>" % (self.contract, self.user, self.quantity)
+        return "<Posting('%s', '%s', %s, %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
 
-    def __init__(self, user, contract, quantity, side):
+    def __init__(self, user, contract, quantity, direction, note=None):
         """
 
         :param user:
@@ -443,7 +451,7 @@ class Posting(db.Base, QuantityUI):
         """
         self.user = user
         self.contract = contract
-        if side is 'debit':
+        if direction is 'debit':
             if self.user.type == 'Asset':
                 sign = 1
             else:
