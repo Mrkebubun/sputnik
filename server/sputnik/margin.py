@@ -23,6 +23,13 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
     positions = {position.contract_id: position for position in
                  session.query(models.Position).filter_by(username=username)}
 
+    # adjust postions for possible withdrawals
+    if not withdrawals:
+        withdrawals = {}
+    for contract_id in withdrawals:
+        cash_positions.setdefault(contract_id, 0)
+        cash_positions[contract_id] -= withdrawals[contract_id]
+
     open_orders = session.query(models.Order).filter_by(username=username).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
