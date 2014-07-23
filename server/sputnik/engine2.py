@@ -448,7 +448,9 @@ if __name__ == "__main__":
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
     logger = LoggingListener(engine, contract)
-    accountant = push_proxy_async(config.get("accountant", "engine_export"))
+    accountant = accountant.AccountantProxy("push",
+            config.get("accountant", "engine_export"),
+            config.getint("accountant", "engine_export_base_port"))
     accountant_notifier = AccountantNotifier(engine, accountant, contract)
     webserver = push_proxy_async(config.get("webserver", "engine_export"))
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
