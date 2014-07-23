@@ -362,7 +362,7 @@ class Journal(db.Base):
     timestamp = Column(DateTime)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, postings, timestamp=None, notes=None):
+    def __init__(self, type, postings, timestamp=None):
         """
 
         :param type:
@@ -377,7 +377,6 @@ class Journal(db.Base):
         """
         self.type = type
         self.timestamp = timestamp
-        self.notes = notes
         self.postings = [p for p in postings]
         if timestamp is None:
             self.timestamp = datetime.utcnow()
