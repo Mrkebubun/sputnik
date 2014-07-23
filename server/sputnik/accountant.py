@@ -493,7 +493,7 @@ class Accountant:
             posting["count"] = count
             posting["uid"] = uid
 
-        d = self.ledger.post(postings)
+        d = self.post_or_fail(postings)
         
         def notify_fill():
             # Send notifications
@@ -586,7 +586,7 @@ class Accountant:
         d.addErrback(self.raiseException)
         return d
 
-    def transfer_position(self, ticker, from_username, to_username, quantity, note):
+    def transfer_position(self, username, ticker, direction, quantity, note, uid):
         """Transfer a position from one user to another
 
         :param ticker: the contract
@@ -598,28 +598,11 @@ class Accountant:
         :param quantity: the qty to transfer
         :type quantity: int
         """
-        try:
-            from_user = self.get_user(from_username)
-            to_user = self.get_user(to_username)
-
-            from_position = self.get_position(from_user, ticker)
-            to_position = self.get_position(to_user, ticker)
-
-            contract = self.get_contract(ticker)
-
-            debit = models.Posting(from_user, contract, quantity, 'debit', update_position=True,
-                                   position=from_position)
-            credit = models.Posting(to_user, contract, quantity, 'credit', update_position=True,
-                                    position=to_position)
-            self.session.add_all([from_position, to_position, debit, credit])
-            journal = models.Journal('Transfer', [debit, credit], notes=note, alerts_proxy=self.alerts_proxy)
-            self.session.add(journal)
-            self.session.commit()
-            self.publish_journal(journal)
-            logging.info("Journal: %s" % journal)
-        except Exception as e:
-            logging.error("Transfer position failed: %s" % e)
-            self.session.rollback()
+        posting = ledger.create_posting(username, ticker, quantity,
+                direction, note)
+        posting.count = 2
+        posting.uid = uid
+        self.post_or_fail(posting)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
