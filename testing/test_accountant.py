@@ -317,32 +317,6 @@ class TestAdministratorExport(TestAccountant):
                 username="test").one()
             self.assertEqual(position.position, 10)
 
-            # This needs to move to ledger test?
-            # self.assertTrue(self.webserver.check_for_calls([('transaction',
-            #                                                  (u'onlinecash',
-            #                                                   {'contract': u'BTC',
-            #                                                    'quantity': 10,
-            #                                                    'type': u'Deposit'}),
-            #                                                  {}),
-            #                                                 ('transaction',
-            #                                                  (u'test',
-            #                                                   {'contract': u'BTC',
-            #                                                    'quantity': 10,
-            #                                                    'type': u'Deposit'}),
-            #                                                  {}),
-            #                                                 ('transaction',
-            #                                                  (u'test',
-            #                                                   {'contract': u'BTC',
-            #                                                    'quantity': 10,
-            #                                                    'type': u'Adjustment'}),
-            #                                                  {}),
-            #                                                 ('transaction',
-            #                                                  (u'adjustments',
-            #                                                   {'contract': u'BTC',
-            #                                                    'quantity': 10,
-            #                                                    'type': u'Adjustment'}),
-            #                                                  {})]))
-
         d.addCallback(onSuccess)
 
     def test_change_permission_group(self):

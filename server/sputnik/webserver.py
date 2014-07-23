@@ -1352,6 +1352,15 @@ class AccountantExport:
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
 
+class LedgerExport:
+    def __init__(self, webserver):
+        self.webserver = webserver
+
+    @export
+    def transaction(self, user, transaction):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
+
 class PepsiColaServerFactory(WampServerFactory):
     """
     Simple broadcast server broadcasting any message it receives to all
@@ -1597,11 +1606,14 @@ if __name__ == '__main__':
 
     engine_export = EngineExport(factory)
     accountant_export = AccountantExport(factory)
+    ledger_export = LedgerExport(factory)
 
     pull_share_async(engine_export,
                          config.get("webserver", "engine_export"))
     pull_share_async(accountant_export,
                          config.get("webserver", "accountant_export"))
+    pull_share_async(ledger_export,
+                        config.get("webserver", "ledger_export"))
 
 
     # prevent excessively large messages
