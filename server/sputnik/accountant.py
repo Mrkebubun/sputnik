@@ -1051,6 +1051,29 @@ class AdministratorExport:
     def deposit_cash(self, address, received, total=True):
         self.accountant.deposit_cash(address, received, total=total)
 
+class AccountantProxy:
+    def __init__(self, mode, uri, base_port):
+        self.num_procs = config.getint("accountant", "num_procs")
+        self.proxies = []
+        for i in range(self.num_procs):
+            if mode == "dealer":
+                proxy = dealer_proxy_async(uri % (base_port + i))
+            elif mode == "push":
+                proxy = dealer_proxy_async(uri % (base_port + i))
+            else:
+                raise Exception("Unsupported proxy mode: %s." % mode)
+            self.proxies.append(proxy)
+
+    def __getattr__(self, key):
+        if key.startswith("__") and key.endswith("__"):
+            raise AttributeError
+
+        def routed_method(username, *args, **kwargs):
+            proxy = self.proxies[ord(username[0]) % self.num_procs]
+            return getattr(proxy, key)(*args, **kwargs)
+
+        return routed_method
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
