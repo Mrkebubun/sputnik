@@ -378,8 +378,7 @@ class Accountant:
         uid = transaction["uid"]
 
         contract = self.get_contract(ticker)
-        aggressive_user = self.get_user(aggressive_username)
-        passive_user = self.get_user(passive_username)
+        user = self.get_user(username)
 
         next = time.time()
         elapsed = (next - last) * 1000
@@ -464,15 +463,15 @@ class Accountant:
         if aggressive:
             note = "{aggressive: True}"
 
-        user_denominated = ledger.create_posting(aggressive_user,
+        user_denominated = ledger.create_posting(user,
                 denominated_contract, cash_spent_int, denominated_direction)
-        user_payout = ledger.create_posting(aggressive_user,
+        user_payout = ledger.create_posting(user,
                 payout_contract, quantity, payout_direction, note)
 
         # calculate fees
         # We aren't charging the liquidity provider
         fees = {}
-        fees = util.get_fees(aggressive_username, contract,
+        fees = util.get_fees(username, contract,
                 abs(cash_spent_int), trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
