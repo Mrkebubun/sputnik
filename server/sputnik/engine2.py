@@ -16,6 +16,7 @@ import heapq
 
 import database
 import models
+import uuid
 
 from twisted.internet import reactor
 from zmq_util import export, router_share_async, push_proxy_async
@@ -314,27 +315,32 @@ class AccountantNotifier(EngineListener):
         self.ticker = self.contract.ticker
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        self.accountant.post_transaction(order.username,
+        uid = uuid.uuid4().get_hex()
+        self.accountant.post_transaction(
                 {
-                    'aggressive_username': order.username,
-                    'passive_username': passive_order.username,
+                    'username': order.username,
+                    'aggressive': True,
                     'contract': order.contract,
+                    'order': order.id
                     'side': order.side,
                     'quantity': quantity,
                     'price': price,
                     'timestamp': order.timestamp
+                    'uid': uid
                 }
             )
 
-        self.accountant.post_transaction(passive_order.username,
+        self.accountant.post_transaction(
                 {
-                    'aggressive_username': order.username,
-                    'passive_username': passive_order.username,
+                    'username': passive_order.username,
+                    'aggressive': False,
                     'contract': order.contract,
+                    'order': passive_order.id
                     'side': passive_order.side,
                     'quantity': quantity,
                     'price': price,
                     'timestamp': order.timestamp
+                    'uid': uid
                 }
             )
 
