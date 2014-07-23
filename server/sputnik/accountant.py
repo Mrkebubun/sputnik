@@ -137,7 +137,7 @@ class Accountant:
         def publish_transactions(result):
             for posting in postings:
                 transaction = {'contract': posting['contract'],
-                          'timestamp': util.dt_to_timestamp(posting['timestamp']),
+                          'timestamp': posting['timestamp'],
                           'quantity': posting['quantity'],
                           'type': posting['type']
                 }
@@ -910,7 +910,7 @@ class CashierExport:
 
     @export
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
-        return self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
+        return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
     def get_position(self, username, ticker):
@@ -944,7 +944,7 @@ class AdministratorExport:
 
     @export
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
-        return self.accountant.transfer_position(self, username, ticker, direction, quantity, note, uid)
+        return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
     def change_permission_group(self, username, id):

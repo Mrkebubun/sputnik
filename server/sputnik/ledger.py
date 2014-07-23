@@ -15,6 +15,8 @@ import config
 import database
 from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export
+import util
+import datetime
 from watchdog import watchdog
 
 class LedgerException(Exception):
@@ -176,7 +178,8 @@ class Ledger:
                         "contract":{"type":"string", "required":True},
                         "quantity":{"type":"number", "required":True},
                         "direction":{"type":"string", "required":True},
-                        "note":{"type":"string", "required":False}
+                        "note":{"type":"string", "required":False,
+                        "timestamp":{"type":"number", "required": False}}
                     }
                 }
             })
@@ -205,9 +208,12 @@ class AccountantExport:
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
-def create_posting(type, username, contract, quantity, direction, note=None):
+def create_posting(type, username, contract, quantity, direction, note=None, timestamp=None):
+    if timestamp is None:
+        timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+
     return {"username":username, "contract":contract, "quantity":quantity,
-            "direction":direction, "note": note, "type": type}
+            "direction":direction, "note": note, "type": type, "timestamp": timestamp}
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
