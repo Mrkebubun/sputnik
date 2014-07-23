@@ -5,8 +5,12 @@ from twisted.internet import ssl
 from OpenSSL import SSL
 import models
 import math
+import uuid
 from sqlalchemy.orm.exc import NoResultFound
 import logging
+
+def get_uid():
+    return uuid.uuid4().get_hex()
 
 def price_to_wire(contract, price):
     if contract.contract_type == "prediction":

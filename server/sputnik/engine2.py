@@ -18,7 +18,7 @@ import database
 import models
 import accountant
 
-import uuid
+import util
 
 from twisted.internet import reactor
 from zmq_util import export, router_share_async, push_proxy_async
@@ -317,7 +317,7 @@ class AccountantNotifier(EngineListener):
         self.ticker = self.contract.ticker
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        uid = uuid.uuid4().get_hex()
+        uid = util.get_uid()
         self.accountant.post_transaction(order.username,
                 {
                     'username': order.username,

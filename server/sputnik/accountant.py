@@ -94,9 +94,6 @@ class Accountant:
         self.webserver = webserver
         self.audit_cache = None
 
-    def get_uid(self):
-        return uuid.uuid4().get_hex()
-
     def post_or_fail(self, *postings):
         def on_success(result):
             try:
@@ -200,7 +197,7 @@ class Accountant:
         user = self.get_user(username)
         adjustment_user = self.get_user('adjustments')
         contract = self.get_contract(ticker)
-        uid = self.get_uid()
+        uid = util.get_uid()
         user_posting = {"uid": uid,
                         "count": 2,
                         "type": "adjustment",
