@@ -615,7 +615,8 @@ class Accountant:
                 direction, note)
         posting.count = 2
         posting.uid = uid
-        self.post_or_fail(posting)
+        d = self.post_or_fail(posting)
+        return d
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
