@@ -493,7 +493,7 @@ class Accountant:
             posting["count"] = count
             posting["uid"] = uid
 
-        d = self.post_or_fail(postings)
+        d = self.post_or_fail(*postings)
         
         def notify_fill():
             # Send notifications
@@ -998,7 +998,7 @@ class AccountantExport:
 
     @export
     def remote_post(self, *postings):
-        self.accountant.post_or_fail(postings)
+        self.accountant.post_or_fail(*postings)
         # we do not want or need this to propogate back to the caller
         return None
 
