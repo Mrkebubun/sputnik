@@ -194,34 +194,6 @@ class PublicInterface:
         """
         return [True, self.factory.markets]
 
-    @exportRpc("get_audit")
-    def get_audit(self):
-        """
-
-        :returns: Deferred
-        """
-
-        def _cb(result):
-            """
-
-            :param result: what we get from the accountant
-            :returns: list
-            """
-            return [True, result]
-
-        def _cb_error(failure):
-            """
-
-            :param failure: The failure details from ZMQ
-            :returns: list
-            """
-            return [False, failure.value.args]
-
-        d = self.factory.accountant.get_audit()
-        d.addCallback(_cb)
-        d.addErrback(_cb_error)
-        return d
-
     @exportRpc("get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
@@ -560,7 +532,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
         # Check for login permissions
-        d = self.factory.accountant.get_permissions(username)
+        d = self.factory.accountant.get_permissions(username, username)
         d.addCallback(_cb_perms)
         d.addErrback(_cb_error)
         return d
@@ -713,7 +685,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = self.factory.accountant.get_permissions(self.username)
+        d = self.factory.accountant.get_permissions(self.username,
+                self.username)
         def onGetPermsSuccess(result):
             """
 
@@ -945,7 +918,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_transaction_history(self.username, from_timestamp, to_timestamp)
+        d = self.factory.accountant.get_transaction_history(self.username, self.username, from_timestamp, to_timestamp)
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
@@ -1030,7 +1003,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onRequestWithdrawalFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.request_withdrawal(self.username, ticker, amount, address)
+        d = self.factory.accountant.request_withdrawal(self.username, self.username, ticker, amount, address)
         d.addCallbacks(onRequestWithdrawalSuccess, onRequestWithdrawalFail)
 
         return d
@@ -1226,7 +1199,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             def onFail(failure):
                 return [False, failure.value.args]
 
-            d = self.factory.accountant.place_order(order)
+            d = self.factory.accountant.place_order(self.username, order)
             d.addCallbacks(onSuccess, onFail)
             return d
 
@@ -1265,7 +1238,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.cancel_order(order_id, username=self.username)
+        d = self.factory.accountant.cancel_order(self.username, order_id, username=self.username)
         d.addCallbacks(onSuccess, onFail)
         return d
 
@@ -1607,8 +1580,9 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    accountant = dealer_proxy_async(
-            config.get("accountant", "webserver_export"))
+    accountant = accountant.AccountantProxy("push",
+            config.get("accountant", "engine_export"),
+            config.getint("accountant", "webserver_export_base_port"))
     administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
     cashier = dealer_proxy_async(config.get("cashier", "webserver_export"))
