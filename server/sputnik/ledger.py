@@ -168,7 +168,6 @@ class Ledger:
                 "items":
                 {
                     "type":"object",
-                    "required":True,
                     "properties":
                     {
                         "uid":{"type":"string", "required":True},
@@ -180,7 +179,8 @@ class Ledger:
                         "direction":{"type":"string", "required":True},
                         "note":{"type":"string", "required":False},
                         "timestamp":{"type":"number", "required": False}
-                    }
+                    },
+                    "additionalProperties": False
                 }
             })
         except ValidationError, e:
