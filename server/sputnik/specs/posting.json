@@ -1,0 +1,67 @@
+{
+    "type":"array",
+    "description": "Internal representation of a journal posting.",
+    "items":
+    {
+        "type":"object",
+        "properties":
+        {
+            "uid":
+            {
+                "type":"string",
+                "description": "Unique ID shared between all postings in the group.",
+                "required":True
+            },
+            "count":
+            {
+                "type":"number",
+                "description": "Number of postings in the group."
+                "required":True
+            },
+            "type":
+            {
+                "type":"string",
+                "description": "Either 'Deposit', 'Withdrawal', 'Trade', or 'Transfer'. All postings in the group must have the same type.",
+                "required":True
+            },
+            "username":
+            {
+                "type":"string",
+                "description": "Username of affected account."
+                "required":True
+            },
+            "ticker":
+            {
+                "type":"string",
+                "description": "Ticker of affected contract.",
+                "required":True
+            },
+            "quantity":
+            {
+                "type":"number",
+                "description": "Change in position for affected contract.",
+                "required":True
+            },
+            "direction":
+            {
+                "type":"string",
+                "description": "Either 'credit' or 'debit'. This is the accounting column of the posting.",
+                "required":True
+            },
+            "note":
+            {
+                "type":"string",
+                "description":"This may be any small string.",
+                "required":False
+            },
+            "timestamp":
+            {
+                "type":"number",
+                "Milliseconds since the epoch when the relevant accounting entry was generated. This probably will not be the same as when it is commited to the database."
+                "required": True
+            }
+        },
+        "additionalProperties": False
+    }
+}
+
