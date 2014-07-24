@@ -209,7 +209,9 @@ class TestSputnik(unittest.TestCase):
         logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                             level=logging.DEBUG)
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        test_config = "[database]\nuri = sqlite://"
+        spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
+        test_config = "[database]\nuri = sqlite://\n[specs]\nspec_root=%s" % \
+                spec_dir
         from sputnik import config
 
         config.reset()

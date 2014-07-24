@@ -15,7 +15,7 @@
             "count":
             {
                 "type": "number",
-                "description": "Number of postings in the group."
+                "description": "Number of postings in the group.",
                 "required": true
             },
             "type":
@@ -27,10 +27,10 @@
             "username":
             {
                 "type": "string",
-                "description": "Username of affected account."
+                "description": "Username of affected account.",
                 "required": true
             },
-            "ticker":
+            "contract":
             {
                 "type": "string",
                 "description": "Ticker of affected contract.",
@@ -57,8 +57,8 @@
             "timestamp":
             {
                 "type": "number",
-                "Milliseconds since the epoch when the relevant accounting entry was generated. This probably will not be the same as when it is commited to the database."
-                "required": true
+                "description":"Milliseconds since the epoch when the relevant accounting entry was generated. This probably will not be the same as when it is commited to the database.",
+                "required": false
             }
         },
         "additionalProperties": false

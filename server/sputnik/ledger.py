@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
+import os
 import logging
+import json
 from collections import defaultdict
 
 from twisted.internet import reactor
@@ -73,6 +75,10 @@ class Ledger:
     def __init__(self, session, timeout=None):
         self.session = session
         self.pending = defaultdict(lambda: PostingGroup(timeout))
+        schema_path = os.path.join(config.get("specs", "spec_root", None),
+                "posting.json")
+        with open(schema_path) as schemafile:
+            self.schema = json.load(schemafile)
 
     def atomic_commit(self, postings):
         try:
@@ -162,27 +168,7 @@ class Ledger:
 
         # validate the posting
         try:
-            validate(postings,
-            {
-                "type":"array",
-                "items":
-                {
-                    "type":"object",
-                    "properties":
-                    {
-                        "uid":{"type":"string", "required":True},
-                        "count":{"type":"number", "required":True},
-                        "type":{"type":"string", "required":True},
-                        "username":{"type":"string", "required":True},
-                        "contract":{"type":"string", "required":True},
-                        "quantity":{"type":"number", "required":True},
-                        "direction":{"type":"string", "required":True},
-                        "note":{"type":"string", "required":False},
-                        "timestamp":{"type":"number", "required": False}
-                    },
-                    "additionalProperties": False
-                }
-            })
+            validate(postings, self.schema)
         except ValidationError, e:
             logging.error("Received improperly formated posting(s):")
             logging.error(str(postings))
