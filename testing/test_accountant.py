@@ -77,7 +77,7 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
-        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        d = self.cashier_export.deposit_cash("test", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
 
         def onSuccess(result):
             position = self.session.query(models.Position).filter_by(
@@ -110,7 +110,7 @@ class TestCashierExport(TestAccountant):
         # Set a deposit limit
         self.accountant.deposit_limits['BTC'] = 100000000
 
-        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
+        d = self.cashier_export.deposit_cash("test", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 1000000000)
 
         def onSuccess(result):
             position = self.session.query(models.Position).filter_by(
@@ -160,7 +160,7 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.session.commit()
 
-        d = self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        d = self.cashier_export.deposit_cash("test", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
 
         def onSuccess(result):
             # Make sure the position didn't get updated
@@ -212,8 +212,8 @@ class TestCashierExport(TestAccountant):
         self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('from_account', 'Deposit')
         self.set_permissions_group('to_account', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
         from sputnik import util
 
@@ -279,7 +279,7 @@ class TestCashierExport(TestAccountant):
         self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
 
-        self.cashier_export.deposit_cash("18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
+        self.cashier_export.deposit_cash("test", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 10)
         position = self.cashier_export.get_position('test', 'BTC')
         self.assertEqual(position, 10)
 
@@ -292,8 +292,8 @@ class TestAdministratorExport(TestAccountant):
         self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('from_account', 'Deposit')
         self.set_permissions_group('to_account', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash("from_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
         from sputnik import util
 
@@ -361,7 +361,7 @@ class TestAdministratorExport(TestAccountant):
 
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
+        self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
         d = self.administrator_export.adjust_position('test', 'BTC', 10)
 
@@ -433,8 +433,8 @@ class TestEngineExport(TestAccountant):
         self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("aggressive_user", 'Deposit')
         self.set_permissions_group("passive_user", "Deposit")
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
+        self.cashier_export.deposit_cash('aggressive_user', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('passive_user', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
         uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
@@ -498,8 +498,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
@@ -538,7 +538,7 @@ class TestWebserverExport(TestAccountant):
     def test_place_order_prediction_buy(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
@@ -584,7 +584,7 @@ class TestWebserverExport(TestAccountant):
     def test_place_order_prediction_sell(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
@@ -631,8 +631,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
 
         # Place a sell order, we have enough cash
         from sputnik import accountant
@@ -663,8 +663,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
 
@@ -683,8 +683,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
@@ -735,8 +735,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
@@ -768,8 +768,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
@@ -804,8 +804,8 @@ class TestWebserverExport(TestAccountant):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         def cancelSuccess(result):
@@ -876,7 +876,7 @@ class TestWebserverExport(TestAccountant):
     def test_request_withdrawal_success(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group('test', 'Withdraw')
         result = self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
@@ -937,7 +937,7 @@ class TestWebserverExport(TestAccountant):
     def test_request_withdrawal_no_margin_btc(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group('test', 'Withdraw')
 
         from sputnik import accountant
@@ -950,7 +950,7 @@ class TestWebserverExport(TestAccountant):
     def test_request_withdrawal_no_margin_fiat(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
-        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group('test', 'Withdraw')
 
         from sputnik import accountant

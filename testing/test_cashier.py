@@ -204,7 +204,7 @@ class TestAdministratorExport(TestCashier):
 
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('TEST_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ("test", 'TEST_ADDRESS', 123000000L), {})]))
 
         def onFail(failure):
             self.assertFalse(True)
@@ -562,7 +562,7 @@ class TestBitcoinNotify(TestCashier):
         def rendered(ignored):
             self.assertEquals(request.responseCode, 200)
             self.assertEquals("".join(request.written), "OK")
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ("test", u'NEW_ADDRESS', 123000000L), {})]))
 
         d.addCallback(rendered)
         return d
@@ -606,8 +606,8 @@ class TestBitcoinNotify(TestCashier):
             self.assertEqual(request.responseCode, 200)
             self.assertEqual("".join(request.written), "OK")
             self.assertTrue(
-                self.accountant.check_for_calls([('deposit_cash', ('SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
-                                                 ('deposit_cash', ('ADDRESS_FOR_TEST3', 341240000L), {})]
+                self.accountant.check_for_calls([('deposit_cash', ("test2", 'SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
+                                                 ('deposit_cash', ("test3", 'ADDRESS_FOR_TEST3', 341240000L), {})]
                 ))
 
         d.addCallback(rendered)
