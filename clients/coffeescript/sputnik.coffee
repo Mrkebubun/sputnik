@@ -745,7 +745,14 @@ class @Sputnik extends EventEmitter
 
     onTransaction: (transaction) =>
         @log ["transaction received", transaction]
-        @positions[transaction.contract].position += transaction.quantity
+        # For regular clients the only type of account is a liability
+        # So we always say credit is positive
+        if transaction.direction == 'credit'
+            sign = 1
+        else
+            sign = -1
+
+        @positions[transaction.contract].position += sign * transaction.quantity
         @emit "transaction", @transactionFromWire(transaction)
 
         positions = {}

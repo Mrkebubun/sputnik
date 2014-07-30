@@ -152,6 +152,17 @@ class Order(db.Base, QuantityUI, PriceUI):
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
 
 
+    def to_webserver(self):
+        return {"id": self.id,
+                "contract": self.contract.ticker,
+                "quantity": self.quantity,
+                "quantity_left": self.quantity_left,
+                "price": self.price,
+                "side": self.side,
+                "is_cancelled": self.is_cancelled,
+                "timestamp": util.dt_to_timestamp(self.timestamp)
+        }
+
     def to_matching_engine_order(self):
         """
 
@@ -639,4 +650,12 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     def __repr__(self):
         return '<Trade(%s:%d@%d)>' % (self.contract.ticker, self.price, self.quantity)
+
+    def to_webserver(self):
+        return {"contract": self.contract.ticker,
+                "price": self.price,
+                "quantity": self.quantity,
+                "id": self.id,
+                "timestamp": util.dt_to_timestamp(self.timestamp)
+        }
 

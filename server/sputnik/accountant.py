@@ -371,6 +371,7 @@ class Accountant:
         aggressive = transaction["aggressive"]
         ticker = transaction["contract"]
         order = transaction["order"]
+        other_order = transaction["other_order"]
         side = transaction["side"]
         price = transaction["price"]
         quantity = transaction["quantity"]
@@ -527,7 +528,28 @@ class Accountant:
             logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
         d.addCallback(notify_fill)
-        # TODO: update order in db
+        def update_order(result):
+            db_order = self.session.query(models.Order).filter_by(id=order).one()
+            db_order.quantity_left -= quantity
+            self.session.add(db_order)
+            self.session.commit()
+            self.webserver.order(username, db_order.to_webserver())
+            logging.debug("to ws: " + str({"order": [username, db_order.to_webserver()]}))
+
+        d.addCallback(update_order)
+
+        def publish_trade(result):
+            aggressive_order = self.session.query(models.Order).filter_by(id=order).one()
+            passive_order = self.session.query(models.Order).filter_by(id=other_order).one()
+
+            trade = models.Trade(aggressive_order, passive_order, price, quantity)
+            self.session.add(trade)
+            self.session.commit()
+            self.webserver.trade(ticker, trade.to_webserver())
+            logging.debug("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
+
+        if aggressive:
+            d.addCallback(publish_trade)
 
         return d
 
@@ -549,6 +571,17 @@ class Accountant:
                 raise AccountantException(0, "User %s does not own the order" % username)
 
             d = self.engines[order.contract.ticker].cancel_order(order_id)
+
+            def update_order(result):
+                order.is_cancelled = True
+                self.session.add(order)
+                self.session.commit()
+
+            def publish_order(result):
+                self.webserver.order(username, order.to_webserver())
+
+            d.addCallback(update_order)
+            d.addCallback(publish_order)
             d.addErrback(self.raiseException)
             return d
         except NoResultFound:
@@ -598,7 +631,11 @@ class Accountant:
 
         self.accept_order(o)
         d = self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
+        def publish_order(result):
+            self.webserver.order(username, o.to_webserver())
+
         d.addErrback(self.raiseException)
+        d.addCallback(publish_order)
         return d
 
     def transfer_position(self, username, ticker, direction, quantity, note, uid):

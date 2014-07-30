@@ -1331,19 +1331,6 @@ class EngineExport:
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/safe_prices#%s" % ticker, price)
 
-    @export
-    def trade(self, ticker, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
-        self.webserver.trade_history[ticker].append(trade)
-        for period in ["day", "hour", "minute"]:
-            self.webserver.update_ohlcv(trade, period=period, update_feed=True)
-
-    @export
-    def order(self, user, order):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/orders#%s" % user, order)
-
 class AccountantExport:
     def __init__(self, webserver):
         self.webserver = webserver
@@ -1357,6 +1344,20 @@ class AccountantExport:
     def transaction(self, user, transaction):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
+
+    @export
+    def trade(self, ticker, trade):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
+        self.webserver.trade_history[ticker].append(trade)
+        for period in ["day", "hour", "minute"]:
+            self.webserver.update_ohlcv(trade, period=period, update_feed=True)
+
+    @export
+    def order(self, username, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/orders#%s" % username, order)
+
 
 class PepsiColaServerFactory(WampServerFactory):
     """

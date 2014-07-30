@@ -46,16 +46,6 @@ class Order:
         self.username = username
         self.timestamp = int(time.time() * 1e6)
 
-    def to_webserver(self):
-        return {"id": self.id,
-                "contract": self.contract,
-                "quantity": self.quantity,
-                "quantity_left": self.quantity_left,
-                "price": self.price,
-                "side": OrderSide.name(self.side),
-                "is_cancelled": False,
-                "timestamp": self.timestamp}
-
     def matchable(self, other):
         if self.side == other.side:
             return False
@@ -322,8 +312,9 @@ class AccountantNotifier(EngineListener):
                 {
                     'username': order.username,
                     'aggressive': True,
-                    'contract': order.contract,
+                    'contract': self.ticker,
                     'order': order.id,
+                    'other_order': passive_order.id,
                     'side': OrderSide.name(order.side),
                     'quantity': quantity,
                     'price': price,
@@ -336,8 +327,9 @@ class AccountantNotifier(EngineListener):
                 {
                     'username': passive_order.username,
                     'aggressive': False,
-                    'contract': order.contract,
+                    'contract': self.ticker,
                     'order': passive_order.id,
+                    'other_order': order.id,
                     'side': OrderSide.name(passive_order.side),
                     'quantity': quantity,
                     'price': price,
@@ -353,13 +345,9 @@ class WebserverNotifier(EngineListener):
         self.contract = contract
 
     def on_queue_success(self, order):
-        self.webserver.order(order.username, order.to_webserver())
         self.update_book()
 
     def on_cancel_success(self, order):
-        order = order.to_webserver()
-        order["is_cancelled"] = True
-        self.webserver.order(order.username, order)
         self.update_book()
 
     def update_book(self):
