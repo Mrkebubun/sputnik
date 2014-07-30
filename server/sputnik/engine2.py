@@ -127,7 +127,7 @@ class Engine:
                 break
 
             # Trade.
-            self.match(order, passive_order)
+            price, quantity = self.match(order, passive_order)
 
             # If the passive order is used up, remove it.
             if passive_order.quantity_left <= 0:
@@ -158,6 +158,8 @@ class Engine:
         # Adjust orders on the books
         order.quantity_left -= quantity
         passive_order.quantity_left -= quantity
+
+        return price, quantity
 
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
