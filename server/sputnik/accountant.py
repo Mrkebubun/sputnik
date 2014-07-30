@@ -321,7 +321,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = ledger.create_posting("Trade", user.username,
+            user_posting = create_posting("Trade", user.username,
                     contract.ticker, fee, 'debit')
             user_postings.append(user_posting)
 
@@ -333,7 +333,7 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = ledger.create_posting("Trade",
+                vendor_posting = create_posting("Trade",
                         vendor_user.username, contract.ticker, vendor_credit,
                         'credit')
                 vendor_postings.append(vendor_posting)
@@ -343,7 +343,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = ledger.create_posting("Trade",
+            remainder_posting = create_posting("Trade",
                     remainder_user.username, contract.ticker, remaining_fee,
                     'credit')
             remainder_postings.append(remainder_posting)
