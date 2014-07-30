@@ -1,0 +1,58 @@
+{
+    "type": "object",
+    "description": "Sputnik contract object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Short name symbolizing the contract.",
+            "required": true
+        },
+        "description":
+        {
+            "type": "string",
+            "description": "Short human readable string describing the contract.",
+            "required": true
+        },
+        "full_description":
+        {
+            "type": "string",
+            "description": "Human readable description detailing the contract.",
+            "required": true
+        },
+        "contract_type":
+        {
+            "type": "string",
+            "oneOf":["futures", "prediction", "cash_pair", "cash"],
+            "description": "The contract type.",
+            "required": true
+        },
+        "tick_size":
+        {
+            "type": "integer",
+            "description": "The minimum increment in price.",
+            "required": true
+        },
+        "lot_size":
+        {
+            "type": "integer",
+            "description": "The minimum increment in quantity.",
+            "required": true
+        },
+        "denominator":
+        {
+            "type": "integer",
+            "description": "Additional scaling factor.",
+            "required": true
+        },
+        "expiration":
+        {
+            "type": "number",
+            "description": "The time the contract expires.",
+            "required": false
+        }
+    },
+    "additionalProperties": false
+}
+
