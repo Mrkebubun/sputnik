@@ -1,0 +1,52 @@
+{
+    "type": "object",
+    "description": "Sputnik fill object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the fill contract.",
+            "required": true
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Fill price.",
+            "required": true
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Fill volume.",
+            "required": true
+        },
+        "side":
+        {
+            "type": "string",
+            "oneOf": ["BUY", "SELL"],
+            "description": "The filled order side.",
+            "required": true
+        },
+        "id":
+        {
+            "type": "integer",
+            "description": "The filled order id.",
+            "required": true
+        },
+        "timestamp":
+        {
+            "type": "integer",
+            "description": "UTC microseconds from epoch when the filled happened.",
+            "required": true
+        },
+        "fees":
+        {
+            "type": "object",
+            "description": "Fee breakdown by contract.",
+            "required": true
+        },
+    },
+    "additionalProperties": false
+}
+
