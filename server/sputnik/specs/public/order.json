@@ -1,0 +1,58 @@
+{
+    "type": "object",
+    "description": "Sputnik order object as sent by the trading platform.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the order contract.",
+            "required": true
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Order price.",
+            "required": true
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Order volume.",
+            "required": true
+        },
+        "side":
+        {
+            "type": "string",
+            "oneOf": ["BUY", "SELL"],
+            "description": "The order side on the books.",
+            "required": true
+        },
+        "quantity_left":
+        {
+            "type": "integer",
+            "description": "Order volume left. Set by the trading platform.",
+            "required": true
+        },
+        "timestamp":
+        {
+            "type": "integer",
+            "description": "UTC microseconds from epoch when order was placed. Set by the trading platform.",
+            "required": true
+        },
+        "id":
+        {
+            "type": "integer",
+            "description": "Unique ID for order. Set by the trading platform.",
+            "required": true
+        },
+        "cancelled":
+        {
+            "type": "boolean",
+            "description": "Order cancel status. Set by the trading platform.",
+            "required": true
+        },
+    },
+    "additionalProperties": false
+}
+
