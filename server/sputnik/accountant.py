@@ -986,7 +986,7 @@ class AccountantProxy:
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-    accountant_number = args[0]
+    accountant_number = int(args[0])
     session = database.make_session()
     engines = {}
     engine_base_port = config.getint("engine", "base_port")
