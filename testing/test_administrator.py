@@ -447,6 +447,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d.addCallback(rendered)
         return d
 
+
     def test_change_permission_group(self):
         self.create_account('test')
         from sputnik import models
@@ -477,14 +478,20 @@ class TestAdministratorWebUI(TestAdministrator):
     def test_new_permission_group(self):
         request = StupidRequest([''],
                                 path='/new_permission_group',
-                                args={'name': ['TestGroup'],
+                                args={'name': ['New Test Group'],
                                       'permissions': ['trade', 'deposit']})
         d = self.render_test_helper(self.web_ui_factory(4), request)
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>Permissions</title>')
-            self.assertTrue(self.administrator.accountant.check_for_calls(
-                [('new_permission_group', ('TestGroup', ['trade', 'deposit']), {})]))
+
+            from sputnik import models
+            group = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').one()
+
+            self.assertTrue(group.deposit)
+            self.assertFalse(group.withdraw)
+            self.assertTrue(group.trade)
+            self.assertFalse(group.login)
 
         d.addCallback(rendered)
         return d

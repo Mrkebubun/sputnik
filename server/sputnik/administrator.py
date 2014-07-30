@@ -635,12 +635,18 @@ class Administrator:
     def new_permission_group(self, name, permissions):
         """Create a new permission group
 
-        :param name: The name of the new group
+        :param name: the new group's name
         :type name: str
         """
-        # TODO: do not delegate to accounant
-        logging.debug("Creating new permission group %s" % name)
-        self.accountant.new_permission_group(name, permissions)
+
+        try:
+            logging.debug("Creating new permission group %s" % name)
+            permission_group = models.PermissionGroup(name, permissions)
+            self.session.add(permission_group)
+            self.session.commit()
+        except Exception as e:
+            logging.error("Error: %s" % e)
+            self.session.rollback()
 
     def process_withdrawal(self, id, online=False, cancel=False):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel)

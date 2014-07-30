@@ -318,7 +318,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = create_posting("Trade", user.username,
+            user_posting = ledger.create_posting("Trade", user.username,
                     contract.ticker, fee, 'debit')
             user_postings.append(user_posting)
 
@@ -330,7 +330,7 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = create_posting("Trade",
+                vendor_posting = ledger.create_posting("Trade",
                         vendor_user.username, contract.ticker, vendor_credit,
                         'credit')
                 vendor_postings.append(vendor_posting)
@@ -340,7 +340,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = create_posting("Trade",
+            remainder_posting = ledger.create_posting("Trade",
                     remainder_user.username, contract.ticker, remaining_fee,
                     'credit')
             remainder_postings.append(remainder_posting)
@@ -462,10 +462,10 @@ class Accountant:
 
         note = "{%s order: %s}" % (ap, order)
 
-        user_denominated = create_posting("Trade", user,
+        user_denominated = ledger.create_posting("Trade", user,
                 denominated_contract, cash_spent_int, denominated_direction,
                 note)
-        user_payout = create_posting("Trade", user, payout_contract,
+        user_payout = ledger.create_posting("Trade", user, payout_contract,
                 quantity, payout_direction, note)
 
         # calculate fees
@@ -600,7 +600,7 @@ class Accountant:
         :param quantity: the qty to transfer
         :type quantity: int
         """
-        posting = create_posting("Transfer", username, ticker, quantity,
+        posting = ledger.create_posting("Transfer", username, ticker, quantity,
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
@@ -635,11 +635,11 @@ class Accountant:
                 raise INVALID_CURRENCY_QUANTITY
 
             uid = util.get_uid()
-            credit_posting = create_posting("Withdrawal",
+            credit_posting = ledger.create_posting("Withdrawal",
                     'pendingwithdrawal', ticker, amount, 'credit', note=address)
             credit_posting['uid'] = uid
             credit_posting['count'] = 2
-            debit_posting = create_posting("Withdrawal", user.username,
+            debit_posting = ledger.create_posting("Withdrawal", user.username,
                     ticker, amount, 'debit')
             debit_posting['uid'] = uid
             debit_posting['count'] = 2
@@ -702,14 +702,14 @@ class Accountant:
 
             #prepare cash deposit
             postings = []
-            debit_posting = create_posting("Deposit", 'onlinecash',
+            debit_posting = ledger.create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
                                                   note=address)
             postings.append(debit_posting)
 
-            credit_posting = create_posting("Deposit", user.username,
+            credit_posting = ledger.create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
                                                    'credit')
@@ -735,11 +735,11 @@ class Accountant:
 
             if excess_deposit > 0:
                 # There was an excess deposit, transfer that amount into overflow cash
-                excess_debit_posting = create_posting("Deposit",
+                excess_debit_posting = ledger.create_posting("Deposit",
                         user.username, contract.ticker, excess_deposit,
                         'debit', note="Excess Deposit")
 
-                excess_credit_posting = create_posting("Deposit",
+                excess_credit_posting = ledger.create_posting("Deposit",
                         'depositoverflow', contract.ticker, excess_deposit,
                         'credit')
 
@@ -834,22 +834,6 @@ class Accountant:
             user = self.get_user(username)
             user.permission_group_id = id
             self.session.add(user)
-            self.session.commit()
-        except Exception as e:
-            logging.error("Error: %s" % e)
-            self.session.rollback()
-
-    def new_permission_group(self, name, permissions):
-        """Create a new permission group
-
-        :param name: the new group's name
-        :type name: str
-        """
-
-        try:
-            logging.debug("Creating new permission group %s" % name)
-            permission_group = models.PermissionGroup(name, permissions)
-            self.session.add(permission_group)
             self.session.commit()
         except Exception as e:
             logging.error("Error: %s" % e)
@@ -963,10 +947,6 @@ class AdministratorExport:
     @export
     def change_permission_group(self, username, id):
         self.accountant.change_permission_group(username, id)
-
-    @export
-    def new_permission_group(self, name, permissions):
-        self.accountant.new_permission_group(name, permissions)
 
     @export
     def deposit_cash(self, username, address, received, total=True):
