@@ -998,7 +998,7 @@ if __name__ == "__main__":
     ledger = dealer_proxy_async(config.get("ledger", "accountant_export"))
     webserver = push_proxy_async(config.get("webserver", "accountant_export"))
     cashier = push_proxy_async(config.get("cashier", "accountant_export"))
-    accountant_proxy = accountant.AccountantProxy("push",
+    accountant_proxy = AccountantProxy("push",
             config.get("accountant", "accountant_export"),
             config.getint("accountant", "accountant_export_base_port"))
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
