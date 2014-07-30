@@ -980,7 +980,7 @@ class AccountantProxy:
 
         def routed_method(username, *args, **kwargs):
             proxy = self.proxies[ord(username[0]) % self.num_procs]
-            return getattr(proxy, key)(username, *args, **kwargs)
+            return getattr(proxy, key)(*args, **kwargs)
 
         return routed_method
 
