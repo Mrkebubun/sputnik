@@ -343,12 +343,12 @@ class WebserverNotifier(EngineListener):
         self.engine = engine
         self.webserver = webserver
         self.contract = contract
-        self.aggregated_book = {"bids": defaultdict(0), "asks": defaultdict(0)}
+        self.aggregated_book = {"bids": defaultdict(int), "asks": defaultdict(int)}
 
     def on_init(self):
         for bids in self.engine.orderbook[OrderSide.BUY]:
             self.aggregated_book["bids"][bids.price] += bids.quantity
-        for asks in self.engine.orderbook[OrderSide.ASK]:
+        for asks in self.engine.orderbook[OrderSide.SELL]:
             self.aggregated_book["asks"][asks.price] += asks.quantity
 
         self.publish_book()
@@ -378,10 +378,10 @@ class WebserverNotifier(EngineListener):
         self.publish_book()
 
     def publish_book(self):
-        wire_book = {"bids": [ {"quantity": row.quantity,
-                                "price": row.price} for row in self.aggregated_book["bids"]],
-                     "asks": [ {"quantity": row.quantity,
-                                "price": row.price} for row in self.aggregated_book["asks"]]}
+        wire_book = {"bids": [ {"quantity": row[1],
+                                "price": row[0]} for row in self.aggregated_book["bids"].iteritems()],
+                     "asks": [ {"quantity": row[1],
+                                "price": row[0]} for row in self.aggregated_book["asks"].iteritems()]}
 
         self.webserver.book(self.contract.ticker, wire_book)
 
