@@ -410,19 +410,6 @@ class TestAdministratorExport(TestAccountant):
         user = self.session.query(models.User).filter_by(username='test').one()
         self.assertEqual(user.permission_group_id, id)
 
-    def test_new_permission_group(self):
-        from sputnik import models
-
-        new_permissions = ['trade', 'login']
-        self.administrator_export.new_permission_group('New Test Group', new_permissions)
-
-        group = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').one()
-
-        self.assertFalse(group.deposit)
-        self.assertFalse(group.withdraw)
-        self.assertTrue(group.trade)
-        self.assertTrue(group.login)
-
 
 class TestEngineExport(TestAccountant):
     def test_post_transaction(self):
