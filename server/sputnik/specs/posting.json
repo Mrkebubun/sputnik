@@ -50,7 +50,7 @@
             },
             "note":
             {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "This may be any small string.",
                 "required": false
             },
