@@ -88,9 +88,8 @@ class Cashier():
         # or to double credit someone incorrectly. Increasing "accounted_for" and increasing
         # the position is an atomic transaction. Cashier is *only telling* the accountant
         # what the state of the bitcoin client is.
-        
-        # TODO: resolve username
-        self.accountant.deposit_cash(address, total_received)
+
+        self.accountant.deposit_cash(address.username, address.address, total_received)
 
     def rescan_address(self, address_str):
         """Check an address to see if deposits have been made against it
@@ -125,7 +124,7 @@ class Cashier():
                 def notifyAccountant(result):
                     total_received = long(round(result['result'] * denominator))
                     if total_received > accounted_for:
-                        self.notify_accountant(address_str, total_received)
+                        self.notify_accountant(address, total_received)
                     return True
 
                 def error(failure):
@@ -155,15 +154,15 @@ class Cashier():
             # ok, so now for each address get how much was received
             total_received = {row['address']: long(round(row['amount'] * contract.denominator)) for row in confirmed_deposits}
             # but how much have we already accounted for?
-            accounted_for = {row.address: row.accounted_for for row in
+            accounted_for = {row.address: [row.accounted_for,row] for row in
                              self.session.query(models.Addresses).filter_by(active=True)}
 
             # so for all the addresses we're dealing with
             for address in set(total_received.keys()).intersection(set(accounted_for.keys())):
                 # if we haven't accounted for all the deposits
-                if total_received[address] > accounted_for[address]:
+                if total_received[address] > accounted_for[address][0]:
                     # tell the accountant
-                    self.notify_accountant(address, total_received[address])
+                    self.notify_accountant(accounted_for[address][1], total_received[address])
 
         def error(failure):
             logging.error("listreceivedbyaddress failed: %s" % failure)

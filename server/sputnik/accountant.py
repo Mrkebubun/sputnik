@@ -656,8 +656,10 @@ class Accountant:
             logging.error("Exception received while attempting withdrawal: %s" % e)
             raise e
 
-    def deposit_cash(self, address, received, total=True):
+    def deposit_cash(self, username, address, received, total=True):
         """Deposits cash
+        :param username: The username for this address
+        :type username: str
         :param address: The address where the cash was deposited
         :type address: str
         :param received: how much total was received at that address
@@ -908,8 +910,8 @@ class CashierExport:
         self.accountant = accountant
 
     @export
-    def deposit_cash(self, address, received, total=True):
-        return self.accountant.deposit_cash(address, received, total=total)
+    def deposit_cash(self, username, address, received, total=True):
+        return self.accountant.deposit_cash(username, address, received, total=total)
 
     @export
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
