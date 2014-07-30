@@ -146,6 +146,7 @@ class Order(db.Base, QuantityUI, PriceUI):
     side = Column(Enum('BUY', 'SELL', name='side_types'))
     is_cancelled = Column(Boolean, nullable=False)
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
+    dispatched = Column(Boolean, nullable=False, server_default=sql.false())
     timestamp = Column(DateTime)
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")

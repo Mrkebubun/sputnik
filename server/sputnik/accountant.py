@@ -631,10 +631,17 @@ class Accountant:
 
         self.accept_order(o)
         d = self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
+
+        def mark_order_dispatched(result):
+            o.dispatched = True
+            self.session.add(o)
+            self.session.commit()
+
         def publish_order(result):
             self.webserver.order(username, o.to_webserver())
 
         d.addErrback(self.raiseException)
+        d.addCallback(mark_order_dispatched)
         d.addCallback(publish_order)
         return d
 
