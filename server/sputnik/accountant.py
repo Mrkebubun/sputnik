@@ -524,6 +524,8 @@ class Accountant:
             logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
 
         d.addCallback(notify_fill)
+        # TODO: update order in db
+
         return d
 
     def raiseException(self, failure):
