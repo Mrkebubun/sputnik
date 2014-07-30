@@ -1582,7 +1582,7 @@ if __name__ == '__main__':
     uri += "%s:%s/" % (address, port)
 
     accountant = AccountantProxy("push",
-            config.get("accountant", "engine_export"),
+            config.get("accountant", "webserver_export"),
             config.getint("accountant", "webserver_export_base_port"))
     administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
