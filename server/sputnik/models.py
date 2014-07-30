@@ -450,7 +450,7 @@ class Posting(db.Base, QuantityUI):
         """
         self.user = user
         self.contract = contract
-        if direction is 'debit':
+        if direction == 'debit':
             if self.user.type == 'Asset':
                 sign = 1
             else:
