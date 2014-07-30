@@ -103,7 +103,7 @@ class Accountant:
                 for posting in postings:
                     position = self.get_position(posting['username'], posting['contract'])
                     user = self.get_user(posting['username'])
-                    if posting['direction'] is 'debit':
+                    if posting['direction'] == 'debit':
                         if user.type == 'Asset':
                             sign = 1
                         else:
@@ -116,6 +116,7 @@ class Accountant:
 
                     logging.debug("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
+                    logging.debug("New position: %s" % position)
                     self.session.merge(position)
                 self.session.commit()
             finally:
