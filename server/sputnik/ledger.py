@@ -191,6 +191,7 @@ class AccountantExport:
     def __init__(self, ledger):
         self.ledger = ledger
 
+    @export
     def post(self, *postings):
         return self.ledger.post(list(postings))
 

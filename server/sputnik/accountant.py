@@ -30,6 +30,8 @@ import util
 import ledger
 from alerts import AlertsProxy
 
+from ledger import create_posting
+
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException
 
@@ -209,9 +211,15 @@ class Accountant:
             raise AccountantException(0, "Position modification not allowed")
 
         uid = util.get_uid()
-        d1 = self.transfer_position(username, ticker, 'credit', quantity, 'Adjustment', uid)
-        d2 = self.transfer_position('adjustments', ticker, 'debit', quantity, None, uid)
-        return defer.DeferredList([d1, d2])
+        credit = create_posting("Transfer", username, ticker, quantity,
+                "credit", "Adjustment")
+        debit = create_posting("Transfer", username, ticker, quantity,
+                "debit", "Adjustment")
+        credit.count = 2
+        debit.count = 2
+        credit.uid = uid
+        debit.uid = uid
+        return self.post_or_fail(credit, debit)
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -310,7 +318,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = ledger.create_posting("Trade", user.username,
+            user_posting = create_posting("Trade", user.username,
                     contract.ticker, fee, 'debit')
             user_postings.append(user_posting)
 
@@ -322,7 +330,7 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = ledger.create_posting("Trade",
+                vendor_posting = create_posting("Trade",
                         vendor_user.username, contract.ticker, vendor_credit,
                         'credit')
                 vendor_postings.append(vendor_posting)
@@ -332,7 +340,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = ledger.create_posting("Trade",
+            remainder_posting = create_posting("Trade",
                     remainder_user.username, contract.ticker, remaining_fee,
                     'credit')
             remainder_postings.append(remainder_posting)
@@ -454,10 +462,10 @@ class Accountant:
 
         note = "{%s order: %s}" % (ap, order)
 
-        user_denominated = ledger.create_posting("Trade", user,
+        user_denominated = create_posting("Trade", user,
                 denominated_contract, cash_spent_int, denominated_direction,
                 note)
-        user_payout = ledger.create_posting("Trade", user, payout_contract,
+        user_payout = create_posting("Trade", user, payout_contract,
                 quantity, payout_direction, note)
 
         # calculate fees
@@ -592,7 +600,7 @@ class Accountant:
         :param quantity: the qty to transfer
         :type quantity: int
         """
-        posting = ledger.create_posting("Transfer", username, ticker, quantity,
+        posting = create_posting("Transfer", username, ticker, quantity,
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
@@ -627,11 +635,11 @@ class Accountant:
                 raise INVALID_CURRENCY_QUANTITY
 
             uid = util.get_uid()
-            credit_posting = ledger.create_posting("Withdrawal",
+            credit_posting = create_posting("Withdrawal",
                     'pendingwithdrawal', ticker, amount, 'credit', note=address)
             credit_posting['uid'] = uid
             credit_posting['count'] = 2
-            debit_posting = ledger.create_posting("Withdrawal", user.username,
+            debit_posting = create_posting("Withdrawal", user.username,
                     ticker, amount, 'debit')
             debit_posting['uid'] = uid
             debit_posting['count'] = 2
@@ -694,14 +702,14 @@ class Accountant:
 
             #prepare cash deposit
             postings = []
-            debit_posting = ledger.create_posting("Deposit", 'onlinecash',
+            debit_posting = create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
                                                   note=address)
             postings.append(debit_posting)
 
-            credit_posting = ledger.create_posting("Deposit", user.username,
+            credit_posting = create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
                                                    'credit')
@@ -727,11 +735,11 @@ class Accountant:
 
             if excess_deposit > 0:
                 # There was an excess deposit, transfer that amount into overflow cash
-                excess_debit_posting = ledger.create_posting("Deposit",
+                excess_debit_posting = create_posting("Deposit",
                         user.username, contract.ticker, excess_deposit,
                         'debit', note="Excess Deposit")
 
-                excess_credit_posting = ledger.create_posting("Deposit",
+                excess_credit_posting = create_posting("Deposit",
                         'depositoverflow', contract.ticker, excess_deposit,
                         'credit')
 
