@@ -344,6 +344,9 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
         self.contract = contract
 
+    def on_trade_success(self, order, passive_order, price, quantity):
+        self.update_book()
+
     def on_queue_success(self, order):
         self.update_book()
 
