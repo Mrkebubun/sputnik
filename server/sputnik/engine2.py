@@ -421,6 +421,8 @@ class AccountantExport:
         return "pong"
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+
     session = database.make_session()
     ticker = args[0]
 
