@@ -351,13 +351,15 @@ class WebserverNotifier(EngineListener):
         for asks in self.engine.orderbook[OrderSide.ASK]:
             self.aggregated_book["asks"][asks.price] += asks.quantity
 
+        self.publish_book()
+
     def on_trade_success(self, order, passive_order, price, quantity):
         if OrderSide.name(passive_order.side) == "BUY":
             self.aggregated_book["bids"][passive_order.price] -= quantity
         else:
             self.aggregated_book["asks"][passive_order.price] -= quantity
 
-        self.update_book()
+        self.publish_book()
 
     def on_queue_success(self, order):
         if OrderSide.name(order.side) == "BUY":
@@ -365,7 +367,7 @@ class WebserverNotifier(EngineListener):
         else:
             self.aggregated_book["asks"][order.price] += order.quantity
 
-        self.update_book()
+        self.publish_book()
 
     def on_cancel_success(self, order):
         if OrderSide.name(order.side) == "BUY":
@@ -373,7 +375,7 @@ class WebserverNotifier(EngineListener):
         else:
             self.aggregated_book["asks"][order.price] -= order.quantity_left
 
-        self.update_book()
+        self.publish_book()
 
     def publish_book(self):
         wire_book = {"bids": [ {"quantity": row.quantity,
