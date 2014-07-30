@@ -549,6 +549,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         logging.debug("Manual deposit of %d to %s" % (quantity, address))
+        # TODO: resolve user first
         self.accountant.deposit_cash(address, quantity, total=False)
 
     def get_balance_sheet(self):
@@ -638,6 +639,7 @@ class Administrator:
         :param name: The name of the new group
         :type name: str
         """
+        # TODO: do not delegate to accounant
         logging.debug("Creating new permission group %s" % name)
         self.accountant.new_permission_group(name, permissions)
 

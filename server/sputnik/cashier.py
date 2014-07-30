@@ -88,6 +88,8 @@ class Cashier():
         # or to double credit someone incorrectly. Increasing "accounted_for" and increasing
         # the position is an atomic transaction. Cashier is *only telling* the accountant
         # what the state of the bitcoin client is.
+        
+        # TODO: resolve username
         self.accountant.deposit_cash(address, total_received)
 
     def rescan_address(self, address_str):

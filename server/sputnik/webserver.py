@@ -539,7 +539,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
         # Check for login permissions
-        d = self.factory.accountant.get_permissions(username, username)
+        d = self.factory.accountant.get_permissions(username)
         d.addCallback(_cb_perms)
         d.addErrback(_cb_error)
         return d
@@ -692,8 +692,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = self.factory.accountant.get_permissions(self.username,
-                self.username)
+        d = self.factory.accountant.get_permissions(self.username)
         def onGetPermsSuccess(result):
             """
 
@@ -925,7 +924,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_transaction_history(self.username, self.username, from_timestamp, to_timestamp)
+        d = self.factory.accountant.get_transaction_history(self.username, from_timestamp, to_timestamp)
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
@@ -1010,7 +1009,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onRequestWithdrawalFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.request_withdrawal(self.username, self.username, ticker, amount, address)
+        d = self.factory.accountant.request_withdrawal(self.username, ticker, amount, address)
         d.addCallbacks(onRequestWithdrawalSuccess, onRequestWithdrawalFail)
 
         return d
@@ -1245,7 +1244,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.cancel_order(self.username, order_id, username=self.username)
+        d = self.factory.accountant.cancel_order(self.username, order_id)
         d.addCallbacks(onSuccess, onFail)
         return d
 
