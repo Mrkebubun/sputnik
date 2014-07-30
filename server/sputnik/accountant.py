@@ -495,13 +495,16 @@ class Accountant:
         #postings.extend(vendor_fees)
         #postings.extend(remainder_fees)
 
-        for fee in vendor_fees:
-            self.accountant_proxy.remote_post(fee["username"], fee)
-        self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
-        for posting in postings:
+        for posting in postings + vendor_fees + remainder_fees:
             posting["count"] = count
             posting["uid"] = uid
+
+
+        for fee in vendor_fees:
+            self.accountant_proxy.remote_post(fee["username"], fee)
+
+        self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
         d = self.post_or_fail(*postings)
         
