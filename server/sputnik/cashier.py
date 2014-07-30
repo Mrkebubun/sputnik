@@ -15,6 +15,7 @@ from txbitcoinrpc import BitcoinRpc
 from compropago import Compropago
 from watchdog import watchdog
 from sendmail import Sendmail
+from accountant import AccountantProxy
 import util
 
 import config
@@ -599,7 +600,9 @@ class AccountantExport:
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
-    accountant = dealer_proxy_sync(config.get("accountant", "cashier_export"))
+    accountant = AccountantProxy("push",
+            config.get("accountant", "cashier_export"),
+            config.getint("accountant", "cashier_export_base_port"))
 
     session = db.make_session()
     bitcoin_conf = config.get("cashier", "bitcoin_conf")
