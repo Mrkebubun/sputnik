@@ -968,8 +968,8 @@ class AdministratorExport:
         self.accountant.new_permission_group(name, permissions)
 
     @export
-    def deposit_cash(self, address, received, total=True):
-        self.accountant.deposit_cash(address, received, total=total)
+    def deposit_cash(self, username, address, received, total=True):
+        self.accountant.deposit_cash(username, address, received, total=total)
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):
