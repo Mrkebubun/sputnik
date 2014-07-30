@@ -265,7 +265,7 @@ class LoggingListener:
         logging.warn("%s cannot be queued because %s." % (order, reason))
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, order.side * quantity, price))
+        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, quantity, price))
         self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
