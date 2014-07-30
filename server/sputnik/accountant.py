@@ -529,7 +529,7 @@ class Accountant:
     def raiseException(self, failure):
         raise failure.value
 
-    def cancel_order(self, order_id, username=None):
+    def cancel_order(self, username, order_id):
         """Cancel an order by id.
 
         :param id: The order id to cancel
