@@ -602,7 +602,7 @@ class Accountant:
         :param quantity: the qty to transfer
         :type quantity: int
         """
-        posting = ledger.create_posting("Transfer", username, ticker, quantity,
+        posting = create_posting("Transfer", username, ticker, quantity,
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
