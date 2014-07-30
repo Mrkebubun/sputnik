@@ -215,10 +215,10 @@ class Accountant:
                 "credit", "Adjustment")
         debit = create_posting("Transfer", username, ticker, quantity,
                 "debit", "Adjustment")
-        credit.count = 2
-        debit.count = 2
-        credit.uid = uid
-        debit.uid = uid
+        credit["count"] = 2
+        debit["count"] = 2
+        credit["uid"] = uid
+        debit["uid"] = uid
         return self.post_or_fail(credit, debit)
 
     def get_position(self, username, ticker, reference_price=0):
