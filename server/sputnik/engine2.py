@@ -289,7 +289,7 @@ class LoggingListener:
         logging.info("Cannot cancel %s because %s." % (order, reason))
 
     def print_order_book(self):
-        logging.debug("Orderbook for %s:" % self.engine.ticker)
+        logging.debug("Orderbook for %s:" % self.contract.ticker)
         logging.debug("Bids                   Asks")
         logging.debug("Vol.  Price     Price  Vol.")
         length = max(len(self.engine.orderbook[OrderSide.BUY]), len(self.engine.orderbook[OrderSide.SELL]))
@@ -382,7 +382,7 @@ class SafePriceNotifier(EngineListener):
         self.decay = 0.9
 
     def on_init(self):
-        self.ticker = self.engine.ticker
+        self.ticker = self.contract.ticker
 
         # TODO: seriously, fix this hack
         try:
