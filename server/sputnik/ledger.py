@@ -99,6 +99,7 @@ class Ledger:
             credits = [posting["quantity"] for posting in postings
                     if posting["direction"] == "credit"]
             if sum(credits) - sum(debits) is not 0:
+                logging.debug("Debits: %s\nCredits: %s\n" % (debits, credits))
                 raise QUANTITY_MISMATCH
 
             # create the journal and postings
