@@ -133,6 +133,8 @@ class Engine:
                 heapq.heappop(self.orderbook[passive_order.side])
                 del self.ordermap[passive_order.id]
 
+            # Notify listeners.
+            self.notify_trade_success(order, passive_order, price, quantity)
 
         # If order is not completely filled, push remainder onto heap and make
         #   an entry in the map.
@@ -155,9 +157,6 @@ class Engine:
         # Adjust orders on the books
         order.quantity_left -= quantity
         passive_order.quantity_left -= quantity
-
-        # Notify listeners.
-        self.notify_trade_success(order, passive_order, price, quantity)
 
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
