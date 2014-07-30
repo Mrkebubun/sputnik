@@ -22,6 +22,7 @@ import util
 
 from twisted.internet import reactor
 from zmq_util import export, router_share_async, push_proxy_async
+from collections import defaultdict
 
 class OrderSide:
     BUY = -1
@@ -343,23 +344,45 @@ class WebserverNotifier(EngineListener):
         self.engine = engine
         self.webserver = webserver
         self.contract = contract
+        self.aggregated_book = {"bids": defaultdict(0), "asks": defaultdict(0)}
+
+    def on_init(self):
+        for bids in self.engine.orderbook[OrderSide.BUY]:
+            self.aggregated_book["bids"][bids.price] += bids.quantity
+        for asks in self.engine.orderbook[OrderSide.ASK]:
+            self.aggregated_book["asks"][asks.price] += asks.quantity
 
     def on_trade_success(self, order, passive_order, price, quantity):
+        if OrderSide.name(passive_order.side) == "BUY":
+            self.aggregated_book["bids"][passive_order.price] -= quantity
+        else:
+            self.aggregated_book["asks"][passive_order.price] -= quantity
+
         self.update_book()
 
     def on_queue_success(self, order):
+        if OrderSide.name(order.side) == "BUY":
+            self.aggregated_book["bids"][order.price] += order.quantity
+        else:
+            self.aggregated_book["asks"][order.price] += order.quantity
+
         self.update_book()
 
     def on_cancel_success(self, order):
+        if OrderSide.name(order.side) == "BUY":
+            self.aggregated_book["bids"][order.price] -= order.quantity_left
+        else:
+            self.aggregated_book["asks"][order.price] -= order.quantity_left
+
         self.update_book()
 
-    def update_book(self):
-        book = {"contract": self.contract.ticker, "bids": [], "asks": []}
-        for entry in self.engine.orderbook[OrderSide.BUY]:
-            quantity = book["bids"].setdefault(entry.price, 0)
-            quantity += entry.quantity
-            book["bids"][entry.price] = quantity
-        self.webserver.book(self.contract.ticker, book)
+    def publish_book(self):
+        wire_book = {"bids": [ {"quantity": row.quantity,
+                                "price": row.price} for row in self.aggregated_book["bids"]],
+                     "asks": [ {"quantity": row.quantity,
+                                "price": row.price} for row in self.aggregated_book["asks"]]}
+
+        self.webserver.book(self.contract.ticker, wire_book)
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder, accountant, webserver):
