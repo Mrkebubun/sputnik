@@ -49,7 +49,7 @@
         "expiration":
         {
             "type": "number",
-            "description": "The time the contract expires.",
+            "description": "UTC microseconds from epoch when the contract expires.",
             "required": false
         }
     },

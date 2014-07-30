@@ -1,0 +1,33 @@
+{
+    "type": "object",
+    "description": "Sputnik trade object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the trade contract.",
+            "required": true
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Trade price.",
+            "required": true
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Trade volume.",
+            "required": true
+        },
+        "timestamp":
+        {
+            "type": "number",
+            "description": "UTC microseconds from epoch when trade occured.",
+            "required": false
+        }
+    },
+    "additionalProperties": false
+}
+
