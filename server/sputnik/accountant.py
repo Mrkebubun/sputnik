@@ -98,6 +98,7 @@ class Accountant:
 
     def post_or_fail(self, *postings):
         def on_success(result):
+            logging.debug("Post success: %s" % result)
             try:
                 for posting in postings:
                     position = self.get_position(posting['username'], posting['contract'])
@@ -113,6 +114,7 @@ class Accountant:
                         else:
                             sign = 1
 
+                    logging.debug("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
                     self.session.merge(position)
                 self.session.commit()
@@ -213,7 +215,7 @@ class Accountant:
         uid = util.get_uid()
         credit = create_posting("Transfer", username, ticker, quantity,
                 "credit", "Adjustment")
-        debit = create_posting("Transfer", username, ticker, quantity,
+        debit = create_posting("Transfer", "adjustments", ticker, quantity,
                 "debit", "Adjustment")
         credit["count"] = 2
         debit["count"] = 2
