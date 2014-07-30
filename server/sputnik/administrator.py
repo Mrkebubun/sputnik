@@ -549,8 +549,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         logging.debug("Manual deposit of %d to %s" % (quantity, address))
-        # TODO: resolve user first
-        self.accountant.deposit_cash(address, quantity, total=False)
+        self.accountant.deposit_cash(address_db.username, address, quantity, total=False)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
