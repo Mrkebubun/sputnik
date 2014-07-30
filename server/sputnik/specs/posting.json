@@ -14,7 +14,7 @@
             },
             "count":
             {
-                "type": "number",
+                "type": "integer",
                 "description": "Number of postings in the group.",
                 "required": true
             },
@@ -38,7 +38,7 @@
             },
             "quantity":
             {
-                "type": "number",
+                "type": "integer",
                 "description": "Change in position for affected contract.",
                 "required": true
             },
