@@ -986,7 +986,7 @@ class AccountantProxy:
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-
+    accountant_number = args[0]
     session = database.make_session()
     engines = {}
     engine_base_port = config.getint("engine", "base_port")
@@ -1012,13 +1012,17 @@ if __name__ == "__main__":
     watchdog(config.get("watchdog", "accountant"))
 
     router_share_async(webserver_export,
-                       config.get("accountant", "webserver_export"))
+                       config.get("accountant", "webserver_export") %
+                       (config.getint("accountant", "webserver_export_base_port") + accountant_number))
     pull_share_async(engine_export,
-                     config.get("accountant", "engine_export"))
+                     config.get("accountant", "engine_export") %
+                     (config.getint("accountant", "engine_export_base_port") + accountant_number))
     router_share_async(cashier_export,
-                        config.get("accountant", "cashier_export"))
+                        config.get("accountant", "cashier_export") %
+                        (config.getint("accountant", "cashier_export_base_port") + accountant_number))
     router_share_async(administrator_export,
-                     config.get("accountant", "administrator_export"))
+                     config.get("accountant", "administrator_export") %
+                     (config.getint("accountant", "administrator_export_base_port") + accountant_number))
 
     reactor.run()
 
