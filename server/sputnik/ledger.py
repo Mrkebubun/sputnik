@@ -94,13 +94,18 @@ class Ledger:
                 raise COUNT_MISMATCH
 
             # balance check
-            debits = [posting["quantity"] for posting in postings
-                    if posting["direction"] == "debit"]
-            credits = [posting["quantity"] for posting in postings
-                    if posting["direction"] == "credit"]
-            if sum(credits) - sum(debits) is not 0:
-                logging.debug("Debits: %s\nCredits: %s\n" % (debits, credits))
-                raise QUANTITY_MISMATCH
+            debitsum = defaultdict(int)
+            creditsum = defaultdict(int)
+
+            for posting in postings:
+                if posting["direction"] == "debit":
+                    debitsum[posting["contract"]] += posting["quantity"]
+                if posting["direction"] == "credit":
+                    creditsum[posting["contract"]] += posting["quantity"]
+
+            for ticker in debitsum:
+                if debitsum[ticker] - creditsum[ticker] is not 0:
+                    raise QUANTITY_MISMATCH
 
             # create the journal and postings
             db_postings = []
