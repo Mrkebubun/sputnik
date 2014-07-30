@@ -33,6 +33,7 @@ from util import dt_to_timestamp, ChainedOpenSSLContextFactory
 import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
+from accountant import AccountantProxy
 from zendesk import Zendesk
 from watchdog import watchdog
 
@@ -1580,7 +1581,7 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    accountant = accountant.AccountantProxy("push",
+    accountant = AccountantProxy("push",
             config.get("accountant", "engine_export"),
             config.getint("accountant", "webserver_export_base_port"))
     administrator = dealer_proxy_async(
