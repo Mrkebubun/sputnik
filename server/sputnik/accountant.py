@@ -1009,7 +1009,8 @@ if __name__ == "__main__":
     cashier_export = CashierExport(accountant)
     administrator_export = AdministratorExport(accountant)
 
-    watchdog(config.get("watchdog", "accountant"))
+    watchdog(config.get("watchdog", "accountant") %
+             (config.getint("watchdog", "accountant_base_port") + accountant_number))
 
     router_share_async(webserver_export,
                        config.get("accountant", "webserver_export") %

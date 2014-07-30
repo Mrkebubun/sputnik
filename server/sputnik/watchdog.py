@@ -51,16 +51,18 @@ class Watchdog():
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
-    monitors = config.items("watchdog")
+    monitors = ["administrator", "cashier", "ledger", "webserver"]
     session = database.make_session()
     proxy = AlertsProxy(config.get("alerts", "export"))
     watchdogs = {}
-    for name, address in monitors:
-        watchdogs[name] = Watchdog(name, address, proxy)
-        # TODO: Remove this once we move journal commits from accountant to ledger
-        if name == "accountant":
-            watchdogs[name].ping_limit_ms = 2000
+    for name in monitors:
+        watchdogs[name] = Watchdog(name, config.get("watchdog", name), proxy)
+        watchdogs[name].run()
 
+    num_accountants = config.getint("accountant", "num_procs")
+    for i in range(num_accountants):
+        name = "accountant_%d" % i
+        watchdogs[name] = Watchdog(name, config.get("watchdog", "accountant") % (config.getint("watchdog", "accountant_base_port") + i), proxy)
         watchdogs[name].run()
 
     engine_base_port = config.getint("engine", "base_port")
