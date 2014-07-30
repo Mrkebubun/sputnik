@@ -209,9 +209,15 @@ class Accountant:
             raise AccountantException(0, "Position modification not allowed")
 
         uid = util.get_uid()
-        d1 = self.transfer_position(username, ticker, 'credit', quantity, 'Adjustment', uid)
-        d2 = self.transfer_position('adjustments', ticker, 'debit', quantity, None, uid)
-        return defer.DeferredList([d1, d2])
+        credit = ledger.create_posting("Transfer", username, ticker, quantity,
+                "credit", "Adjustment")
+        debit = ledger.create_posting("Transfer", username, ticker, quantity,
+                "debit", "Adjustment")
+        credit.count = 2
+        debit.count = 2
+        credit.uid = uid
+        debit.uid = uid
+        return self.post_or_fail(credit, debit)
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
