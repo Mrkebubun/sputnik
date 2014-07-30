@@ -1,0 +1,41 @@
+{
+    "type": "object",
+    "description": "Sputnik transaction object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the transaction contract.",
+            "required": true
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Transaction quantity.",
+            "required": true
+        },
+        "direction":
+        {
+            "type": "string",
+            "oneOf": ["credit", "debit"],
+            "description": "Transaction direction in accounting books.",
+            "required": true
+        },
+        "timestamp":
+        {
+            "type": "number",
+            "description": "UTC microseconds from epoch when transaction occured.",
+            "required": true
+        },
+        "type":
+        {
+            "type": "string",
+            "oneOf": ["Trade", "Transfer", "Deposit", "Withdrawal", "Fee", "Adjustment"],
+            "description": "Transaction type.",
+            "required": true
+        }
+    },
+    "additionalProperties": false
+}
+
