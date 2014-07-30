@@ -416,6 +416,9 @@ class AccountantExport:
     def cancel_order(self, id):
         return self.engine.cancel_order(id)
 
+    @export
+    def ping(self):
+        return "pong"
 
 if __name__ == "__main__":
     session = database.make_session()
