@@ -458,8 +458,8 @@ class TestEngineExport(TestAccountant):
                    'uid': uid,
                    'timestamp': timestamp}
 
-        d1 = self.engine_export.post_transaction(aggressive)
-        d2 = self.engine_export.post_transaction(passive)
+        d1 = self.engine_export.post_transaction('aggressive_user', aggressive)
+        d2 = self.engine_export.post_transaction('passive_user', passive)
 
         def onSuccess(result):
             # Inspect the positions

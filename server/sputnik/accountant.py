@@ -345,7 +345,7 @@ class Accountant:
 
 
 
-    def post_transaction(self, transaction):
+    def post_transaction(self, username, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
 
         :param transaction: the transaction object
@@ -353,8 +353,9 @@ class Accountant:
         """
         logging.info("Processing transaction %s." % transaction)
         last = time.time()
+        if username != transaction["username"]:
+            raise RemoteCallException("username does not match transaction")
 
-        username = transaction["username"]
         aggressive = transaction["aggressive"]
         ticker = transaction["contract"]
         order = transaction["order"]
@@ -898,8 +899,8 @@ class EngineExport:
         self.accountant.safe_prices[ticker] = price
 
     @export
-    def post_transaction(self, transaction):
-        return self.accountant.post_transaction(transaction)
+    def post_transaction(self, username, transaction):
+        return self.accountant.post_transaction(username, transaction)
 
 
 class CashierExport:
