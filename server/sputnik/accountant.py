@@ -31,7 +31,7 @@ import ledger
 from alerts import AlertsProxy
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
-    dealer_proxy_sync, RemoteCallTimedOut, RemoteCallException
+    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException
 
 from twisted.internet import reactor, defer
 from sqlalchemy.orm.exc import NoResultFound
@@ -969,7 +969,7 @@ class AccountantProxy:
             if mode == "dealer":
                 proxy = dealer_proxy_async(uri % (base_port + i))
             elif mode == "push":
-                proxy = dealer_proxy_async(uri % (base_port + i))
+                proxy = push_proxy_async(uri % (base_port + i))
             else:
                 raise Exception("Unsupported proxy mode: %s." % mode)
             self.proxies.append(proxy)
