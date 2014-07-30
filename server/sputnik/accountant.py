@@ -993,9 +993,9 @@ if __name__ == "__main__":
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
-    ledger = dealer_proxy_sync(config.get("ledger", "accountant_export"))
-    webserver = push_proxy_sync(config.get("webserver", "accountant_export"))
-    cashier = push_proxy_sync(config.get("cashier", "accountant_export"))
+    ledger = dealer_proxy_async(config.get("ledger", "accountant_export"))
+    webserver = push_proxy_async(config.get("webserver", "accountant_export"))
+    cashier = push_proxy_async(config.get("cashier", "accountant_export"))
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
