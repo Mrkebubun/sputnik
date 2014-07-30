@@ -979,7 +979,7 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     accountant_number = int(args[0])
     num_procs = config.getint("accountant", "num_procs")
-    logging.info("Accountant %d of %d" % (accountant_number, num_procs))
+    logging.info("Accountant %d of %d" % (accountant_number+1, num_procs))
 
     session = database.make_session()
     engines = {}
