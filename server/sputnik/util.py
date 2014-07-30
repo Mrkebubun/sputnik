@@ -148,7 +148,7 @@ def get_contract(session, ticker):
     try:
         ticker = int(ticker)
         return session.query(models.Contract).filter_by(
-            contract_id=ticker).one()
+            id=ticker).one()
     except NoResultFound:
         raise Exception("Could not resolve contract '%s'." % ticker)
     except ValueError:
