@@ -544,7 +544,7 @@ class Accountant:
         except NoResultFound:
             raise AccountantException(0, "No order %d found" % order_id)
 
-    def place_order(self, order):
+    def place_order(self, username, order):
         """Place an order
 
         :param order: dictionary representing the order to be placed
@@ -862,12 +862,12 @@ class WebserverExport:
         self.accountant = accountant
 
     @export
-    def place_order(self, order):
+    def place_order(self, username, order):
         return self.accountant.place_order(order)
 
     @export
-    def cancel_order(self, order_id, username=None):
-        return self.accountant.cancel_order(order_id, username=username)
+    def cancel_order(self, username, order_id):
+        return self.accountant.cancel_order(username, order_i)
 
     @export
     def get_permissions(self, username):
