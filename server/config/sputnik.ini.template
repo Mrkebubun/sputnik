@@ -37,9 +37,9 @@ recaptcha_private_key = ${recaptcha_private_key}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d
-webserver_export = tcp://127.0.0.1:4470
-cashier_export = tcp://127.0.0.1:4410
-administrator_export = tcp://127.0.0.1:4460
+webserver_export = tcp://127.0.0.1:%d
+cashier_export = tcp://127.0.0.1:%d
+administrator_export = tcp://127.0.0.1:%d
 engine_export_base_port = 4420
 webserver_export_base_port = 4470
 cashier_export_base_port = 4410
