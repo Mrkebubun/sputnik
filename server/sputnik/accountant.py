@@ -466,9 +466,9 @@ class Accountant:
         note = "{%s order: %s}" % (ap, order)
 
         user_denominated = ledger.create_posting("Trade", username,
-                denominated_contract, cash_spent_int, denominated_direction,
+                denominated_contract.ticker, cash_spent_int, denominated_direction,
                 note)
-        user_payout = ledger.create_posting("Trade", username, payout_contract,
+        user_payout = ledger.create_posting("Trade", username, payout_contract.ticker,
                 quantity, payout_direction, note)
 
         # calculate fees
