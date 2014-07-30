@@ -64,11 +64,17 @@ zf = ZmqFactory()
 import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
-dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+dbpassword = config.get("database", "password")
+if dbpassword:
+    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
-                               password=config.get("database", "password"),
+                               password=dbpassword,
                                host=config.get("database", "host"),
                                port=config.get("database", "port"),
+                               database=config.get("database", "dbname"))
+else:
+    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+                               user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
 
@@ -1581,7 +1587,7 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    accountant = AccountantProxy("push",
+    accountant = AccountantProxy("dealer",
             config.get("accountant", "webserver_export"),
             config.getint("accountant", "webserver_export_base_port"))
     administrator = dealer_proxy_async(
