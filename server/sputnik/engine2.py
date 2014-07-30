@@ -378,7 +378,8 @@ class WebserverNotifier(EngineListener):
         self.publish_book()
 
     def publish_book(self):
-        wire_book = {"bids": [ {"quantity": row[1],
+        wire_book = {"contract": self.contract.ticker,
+                     "bids": [ {"quantity": row[1],
                                 "price": row[0]} for row in self.aggregated_book["bids"].iteritems()],
                      "asks": [ {"quantity": row[1],
                                 "price": row[0]} for row in self.aggregated_book["asks"].iteritems()]}
