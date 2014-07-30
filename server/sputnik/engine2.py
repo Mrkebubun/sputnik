@@ -257,12 +257,12 @@ class Engine:
 class LoggingListener:
     def __init__(self, engine, contract):
         self.engine = engine
-        self.contract_id = contract.id
+        self.contract = contract
 
     def on_init(self):
         self.ticker = self.contract.ticker
-        logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
-        logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
+        logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
+        logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract.id))
 
     def on_shutdown(self):
         logging.info("Engine for contract %s stopped." % self.ticker)
