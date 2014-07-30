@@ -57,7 +57,7 @@ class Accountant:
     """The Accountant primary class
 
     """
-    def __init__(self, session, engines, cashier, ledger, webserver,
+    def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
                  alerts_proxy, debug, trial_period=False):
         """Initialize the Accountant
 
@@ -79,6 +79,7 @@ class Accountant:
         self.engines = engines
         self.ledger = ledger
         self.cashier = cashier
+        self.accountant_proxy = accountant_proxy
         self.trial_period = trial_period
         self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
@@ -490,9 +491,13 @@ class Accountant:
         # (user denominated, user payout, remainder) x 2 = 6
         count = 6 + 2 * len(user_fees) + 2 * len(vendor_fees)
         postings = [user_denominated, user_payout]
-        postings.extend(user_fees,)
-        postings.extend(vendor_fees)
-        postings.extend(remainder_fees)
+        postings.extend(user_fees)
+        #postings.extend(vendor_fees)
+        #postings.extend(remainder_fees)
+
+        for fee in vendor_fees:
+            self.accountant_proxy.remote_post(fee["username"], fee)
+        self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
         for posting in postings:
             posting["count"] = count
@@ -926,7 +931,7 @@ class AccountantExport:
         self.accountant = accountant
 
     @export
-    def remote_post(self, *postings):
+    def remote_post(self, username, *postings):
         self.accountant.post_or_fail(*postings)
         # we do not want or need this to propogate back to the caller
         return None
@@ -993,11 +998,14 @@ if __name__ == "__main__":
     ledger = dealer_proxy_async(config.get("ledger", "accountant_export"))
     webserver = push_proxy_async(config.get("webserver", "accountant_export"))
     cashier = push_proxy_async(config.get("cashier", "accountant_export"))
+    accountant_proxy = AccountantProxy("push",
+            config.get("accountant", "accountant_export"),
+            config.getint("accountant", "accountant_export_base_port"))
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
 
-    accountant = Accountant(session, engines, cashier, ledger, webserver, alerts_proxy,
+    accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             debug=debug,
                             trial_period=trial_period)
 
@@ -1005,6 +1013,7 @@ if __name__ == "__main__":
     engine_export = EngineExport(accountant)
     cashier_export = CashierExport(accountant)
     administrator_export = AdministratorExport(accountant)
+    accountant_export = AccountantExport(accountant)
 
     watchdog(config.get("watchdog", "accountant") %
              (config.getint("watchdog", "accountant_base_port") + accountant_number))
@@ -1021,6 +1030,9 @@ if __name__ == "__main__":
     router_share_async(administrator_export,
                      config.get("accountant", "administrator_export") %
                      (config.getint("accountant", "administrator_export_base_port") + accountant_number))
+    pull_share_async(accountant_export,
+                       config.get("accountant", "accountant_export") %
+                       (config.getint("accountant", "accountant_export_base_port") + accountant_number))
 
     reactor.run()
 
