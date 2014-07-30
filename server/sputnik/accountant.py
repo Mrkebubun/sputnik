@@ -791,7 +791,7 @@ class Accountant:
                     order["quantity"] = -position.position
                     order["side"] = 1  # buy
                 #order["price"] = details["price"] #todo what's that missing details?
-                self.place_order(order)
+                self.place_order(order["username"], order)
             self.session.commit()
         except:
             self.session.rollback()
@@ -863,11 +863,11 @@ class WebserverExport:
 
     @export
     def place_order(self, username, order):
-        return self.accountant.place_order(order)
+        return self.accountant.place_order(username, order)
 
     @export
     def cancel_order(self, username, order_id):
-        return self.accountant.cancel_order(username, order_i)
+        return self.accountant.cancel_order(username, order_id)
 
     @export
     def get_permissions(self, username):
