@@ -174,7 +174,7 @@ class Engine:
         if id not in self.ordermap:
             # Too late to cancel.
             logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
-            self.notify_cancel_failed(id, "the order is no longer on the book")
+            self.notify_cancel_fail(id, "the order is no longer on the book")
             return False
 
         # Find the order object.
