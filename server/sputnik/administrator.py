@@ -1071,7 +1071,7 @@ if __name__ == "__main__":
     session = database.make_session()
 
     debug = config.getboolean("administrator", "debug")
-    accountant = AccountantProxy("push",
+    accountant = AccountantProxy("dealer",
             config.get("accountant", "administrator_export"),
             config.getint("accountant", "administrator_export_base_port"))
 
