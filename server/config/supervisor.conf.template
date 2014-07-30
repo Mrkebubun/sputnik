@@ -1,5 +1,5 @@
 [program:engine_BTC_MXN]
-command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini BTC/MXN
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/MXN
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
@@ -9,7 +9,7 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [program:engine_BTC_HUF]
-command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini BTC/HUF
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/HUF
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
@@ -19,7 +19,7 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [program:engine_BTC_PLN]
-command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini BTC/PLN
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/PLN
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
@@ -29,7 +29,7 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [program:engine_NETS2014]
-command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini NETS2014
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini NETS2014
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
