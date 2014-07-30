@@ -1,30 +1,31 @@
 {
     "type": "object",
-    "description": "Sputnik trade object.",
+    "description": "Sputnik order object as sent by the user.",
     "properties":
     {
         "ticker":
          {
             "type": "string",
-            "description": "Ticker of the trade contract.",
+            "description": "Ticker of the order contract.",
             "required": true
         },
         "price":
         {
             "type": "integer",
-            "description": "Trade price.",
+            "description": "Order price.",
             "required": true
         },
         "quantity":
         {
             "type": "integer",
-            "description": "Trade volume.",
+            "description": "Order volume.",
             "required": true
         },
-        "timestamp":
+        "side":
         {
-            "type": "number",
-            "description": "UTC microseconds from epoch when trade occured.",
+            "type": "string",
+            "oneOf": ["BUY", "SELL"],
+            "description": "The order side on the books.",
             "required": true
         }
     },
