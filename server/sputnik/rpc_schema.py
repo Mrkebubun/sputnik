@@ -17,6 +17,7 @@ def validate(x, full_uri):
         top_schema = json.load(schema_file)
     resolver = jsonschema.RefResolver("file://" + schema_root + "/", top_schema)
     schema = resolver.resolve_fragment(top_schema, fragment)
+    jsonschema.Draft4Validator.check_schema(schema)
     validator = jsonschema.Draft4Validator(schema, resolver=resolver)
     validator.validate(x)
 
