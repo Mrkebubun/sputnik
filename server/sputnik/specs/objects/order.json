@@ -1,0 +1,40 @@
+{
+    "type": "object",
+    "description": "Sputnik order object as sent by the trading platform.",
+    "properties":
+    {
+        "username":
+         {
+            "type": "string",
+            "description": "Username of user who placed the order."
+        },
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the order contract."
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Order price."
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Order volume."
+        },
+        "side":
+        {
+            "enum": ["BUY", "SELL"],
+            "description": "The order side on the books."
+        },
+        "timestamp":
+        {
+            "type": "integer",
+            "description": "UTC microseconds from epoch when order was placed. Set by the trading platform."
+        }
+    },
+    "required": ["username", "ticker", "price", "quantity", "side", "timestamp"],
+    "additionalProperties": false
+}
+

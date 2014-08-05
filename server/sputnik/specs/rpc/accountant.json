@@ -1,0 +1,20 @@
+{
+    "place_order": {
+        "type":"object",
+        "description": "webserver -> accountant place_order RPC call",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "order":
+            {
+                "$ref": "objects/order.json"
+            }
+        },
+        "required": ["username", "order"],
+        "additionalProperties": false
+    }
+}

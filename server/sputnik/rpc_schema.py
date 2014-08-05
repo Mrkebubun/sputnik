@@ -3,17 +3,20 @@ import os
 import inspect
 import json
 import jsonschema
+import jsonschema.compat
 
 class RPCSchemaException(Exception):
     pass
 
 # urldefrag
 
-def validate(x, name):
+def validate(x, full_uri):
+    uri, fragment = jsonschema.compat.urldefrag(full_uri)
     schema_root = config.get("specs", "schema_root")
-    with open(os.path.join(schema_root, name)) as schema_file:
-        schema = json.load(schema_file)
-    resolver = jsonschema.RefResolver("file://" + schema_root, schema)
+    with open(os.path.join(schema_root, uri)) as schema_file:
+        top_schema = json.load(schema_file)
+    resolver = jsonschema.RefResolver("file://" + schema_root + "/", top_schema)
+    schema = resolver.resolve_fragment(top_schema, fragment)
     validator = jsonschema.Draft4Validator(schema, resolver=resolver)
     validator.validate(x)
 
@@ -40,7 +43,12 @@ def validate_call(f, *args, **kwargs):
 
     validate(callargs, f.schema)
 
-@schema("rpc/test.json")
-def test(foo):
+@schema("rpc/accountant.json#place_order")
+def place_order(username, order):
     pass
+
+order = {"username":"foo", "price":1000, "quantity":1, "ticker":"BTC1401", "side":"BUY", "timestamp":1407213633486125}
+
+validate(order, "objects/order.json")
+validate_call(place_order, "foo", order)
 
