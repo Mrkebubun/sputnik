@@ -87,7 +87,7 @@ git_date = ${git_date}
 git_tag = ${git_tag}
 
 [specs]
-spec_root = ${spec_root}
+schema_root = ${schema_root}
 
 [watchdog]
 accountant = tcp://127.0.0.1:%d
