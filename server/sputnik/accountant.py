@@ -11,6 +11,7 @@ administrator. It is responsible for the following:
 """
 
 import config
+from rpc_schema import schema
 
 from optparse import OptionParser
 
@@ -587,6 +588,7 @@ class Accountant:
         except NoResultFound:
             raise AccountantException(0, "No order %d found" % order_id)
 
+    @schema("rpc/accountant.json#place_order")
     def place_order(self, username, order):
         """Place an order
 
@@ -830,7 +832,7 @@ class Accountant:
             orders = self.session.query(models.Order).filter_by(
                 contract=contract, is_cancelled=False).all()
             for order in orders:
-                self.cancel_order(order.id)
+                self.cancel_order(order.username, order.id)
             # place orders on behalf of users
             positions = self.session.query(models.Position).filter_by(
                 contract=contract).all()

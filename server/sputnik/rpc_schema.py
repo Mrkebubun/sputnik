@@ -24,7 +24,12 @@ def validate(x, full_uri):
 def schema(path):
     def wrap(f):
         f.schema = path
-        return f
+        def wrapped_f(*args, **kwargs):
+            validate_call(f, *args, **kwargs)
+            f(*args, **kwargs)
+
+        return wrapped_f
+
     return wrap
 
 def validate_call(f, *args, **kwargs):
@@ -48,8 +53,9 @@ def validate_call(f, *args, **kwargs):
 def place_order(username, order):
     pass
 
-order = {"username":"foo", "price":1000, "quantity":1, "ticker":"BTC1401", "side":"BUY", "timestamp":1407213633486125}
+if __name__ == "__main__":
+    order = {"username":"foo", "price":1000, "quantity":1, "ticker":"BTC1401", "side":"BUY", "timestamp":1407213633486125}
 
-validate(order, "objects/order.json")
-validate_call(place_order, "foo", order)
+    validate(order, "objects/order.json")
+    validate_call(place_order, "foo", order)
 

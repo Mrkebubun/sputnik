@@ -47,10 +47,12 @@ class TestAccountant(TestSputnik):
         self.cashier = FakeProxy()
         self.ledger = FakeLedger()
         self.alerts_proxy = FakeProxy()
+        self.accountant_proxy = FakeProxy()
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
                                                 self.ledger,
                                                 self.webserver,
+                                                self.accountant_proxy,
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False)
@@ -423,6 +425,8 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('aggressive_user', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('passive_user', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
+        # TODO: We have to actually put the orders in the db otherwise it will fail
+
         uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
         aggressive = {'username': 'aggressive_user',
@@ -431,6 +435,7 @@ class TestEngineExport(TestAccountant):
                       'price': 60000000,
                       'quantity': 3000000,
                       'order': 50,
+                      'other_order': 54,
                       'side': 'SELL',
                       'uid': uid,
                       'timestamp': timestamp}
@@ -441,6 +446,7 @@ class TestEngineExport(TestAccountant):
                    'price': 60000000,
                    'quantity': 3000000,
                    'order': 54,
+                   'other_order': 50,
                    'side': 'BUY',
                    'uid': uid,
                    'timestamp': timestamp}
@@ -490,7 +496,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -529,7 +535,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'NETS2014',
                                                'price': 500,
                                                'quantity': 3,
@@ -575,7 +581,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'NETS2014',
                                                'price': 100,
                                                'quantity': 3,
@@ -625,7 +631,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
-            self.webserver_export.place_order({'username': 'test',
+            self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -640,7 +646,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
-            self.webserver_export.place_order({'username': 'test',
+            self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -659,7 +665,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
-            result = self.webserver_export.place_order({'username': 'test',
+            result = self.webserver_export.place_order('test', {'username': 'test',
                                                         'contract': 'BTC/MXN',
                                                         'price': 1000000,
                                                         'quantity': 9000000,
@@ -675,7 +681,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -727,7 +733,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -760,7 +766,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
-        d = self.webserver_export.place_order({'username': 'test',
+        d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
@@ -805,7 +811,7 @@ class TestWebserverExport(TestAccountant):
 
         id = 5
         with self.assertRaisesRegexp(accountant.AccountantException, "No order 5 found"):
-            d = self.webserver_export.cancel_order(id, username='wrong')
+            d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
 
