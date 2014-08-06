@@ -638,9 +638,11 @@ class Accountant:
             o.dispatched = True
             self.session.add(o)
             self.session.commit()
+            return result
 
         def publish_order(result):
             self.webserver.order(username, o.to_webserver())
+            return result
 
         d.addErrback(self.raiseException)
         d.addCallback(mark_order_dispatched)

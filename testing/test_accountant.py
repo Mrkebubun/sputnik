@@ -715,7 +715,7 @@ class TestWebserverExport(TestAccountant):
             from sputnik import accountant
 
             with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
-                self.webserver_export.place_order({'username': 'test',
+                self.webserver_export.place_order('test', {'username': 'test',
                                                    'contract': 'BTC/MXN',
                                                    'price': 1000000,
                                                    'quantity': 3000000,
@@ -749,7 +749,7 @@ class TestWebserverExport(TestAccountant):
             def cancelFail(failure):
                 self.assertTrue(False)
 
-            d = self.webserver_export.cancel_order(id, username='test')
+            d = self.webserver_export.cancel_order('test', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
 
@@ -785,7 +785,7 @@ class TestWebserverExport(TestAccountant):
             from sputnik import accountant
 
             with self.assertRaisesRegexp(accountant.AccountantException, "User wrong does not own the order"):
-                d = self.webserver_export.cancel_order(id, username='wrong')
+                d = self.webserver_export.cancel_order('wrong', id)
                 d.addCallbacks(cancelSuccess, cancelFail)
                 return d
 
