@@ -36,46 +36,35 @@ def schema(path):
     def wrap(f):
         f.schema = path
         f.validator = validator(path)
-        if inspect.ismethod(f):
-            def wrapped_f(*args, **kwargs):
-                validate_method(f, *args, **kwargs)
-                f(*args, **kwargs)
-        else:
-            def wrapped_f(*args, **kwargs):
-                validate_function(f, *args, **kwargs)
-                f(*args, **kwargs)
+        def wrapped_f(*args, **kwargs):
+            callargs = inspect.getcallargs(f, *args, **kwargs)
+
+            # hack to handle methods
+            if "self" in callargs:
+                del callargs["self"]
+
+            # json only accepts lists as arrays, not tuples
+            for key in callargs:
+                if type(callargs[key]) == tuple:
+                    callargs[key] = list(callargs[key])
+
+            # validate
+            f.validator.validate(callargs)
+
+            f(*args, **kwargs)
         return wrapped_f
     return wrap
 
-def validate_function(f, *args, **kwargs):
-    callargs = inspect.getcallargs(f, *args, **kwargs)
-
-    # json only accepts lists as arrays, not tuples
-    for key in callargs:
-        if type(callargs[key]) == tuple:
-            callargs[key] = list(callargs[key])
-
-    f.validator.validate(callargs)
-
-
-def validate_method(f, *args, **kwargs):
-    callargs = inspect.getcallargs(f, None, *args, **kwargs)
-    del callargs["self"]
-
-    # json only accepts lists as arrays, not tuples
-    for key in callargs:
-        if type(callargs[key]) == tuple:
-            callargs[key] = list(callargs[key])
-    
-    f.validator.validate(callargs)
-
-
 @schema("rpc/accountant.json#place_order")
-def place_order(username, order):
+def place_order( username, order):
     pass
 
 if __name__ == "__main__":
     order = {"username":"foo", "price":1000, "quantity":1, "ticker":"BTC1401", "side":"BUY", "timestamp":1407213633486125}
 
-    place_order("foo", order)
+    import time
+    start = time.time()
+    for i in range(10000):
+        place_order("foo", order)
+    print (time.time() - start)/10000
 
