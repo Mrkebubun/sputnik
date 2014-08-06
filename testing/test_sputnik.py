@@ -210,7 +210,7 @@ class TestSputnik(unittest.TestCase):
                             level=logging.DEBUG)
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
         spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
-        test_config = "[database]\nuri = sqlite://\n[specs]\nspec_root=%s" % \
+        test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s" % \
                 spec_dir
         from sputnik import config
 
