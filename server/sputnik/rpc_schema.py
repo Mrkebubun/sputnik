@@ -24,12 +24,7 @@ def validate(x, full_uri):
 def schema(path):
     def wrap(f):
         f.schema = path
-        def wrapped_f(*args, **kwargs):
-            validate_call(f, *args, **kwargs)
-            f(*args, **kwargs)
-
-        return wrapped_f
-
+        return f
     return wrap
 
 def validate_call(f, *args, **kwargs):
