@@ -1,11 +1,20 @@
 {
     "post":
     {
-        "type": "array",
-        "description": "Internal representation of a journal posting.",
-        "items":
+        "type": "object",
+        "properties":
         {
-            "$ref": "objects/posting.json"
-        }
+            "postings":
+            {
+                "type": "array",
+                "description": "Journal postings.",
+                "items":
+                {
+                    "$ref": "objects/posting.json"
+                }
+            }
+        },
+        "required": ["postings"],
+        "additionalProperties": false
     }
 }
