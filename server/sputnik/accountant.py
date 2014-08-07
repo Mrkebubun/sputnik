@@ -944,8 +944,8 @@ class WebserverExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.webserver.json#request_withdrawal")
-    def request_withdrawal(self, username, ticker, amount, address):
-        return self.accountant.request_withdrawal(username, ticker, amount, address)
+    def request_withdrawal(self, username, ticker, quantity, address):
+        return self.accountant.request_withdrawal(username, ticker, quantity, address)
 
 
 class EngineExport(ComponentExport):
