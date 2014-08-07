@@ -222,7 +222,7 @@ class TestAdministratorExport(TestCashier):
 
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertEquals(self.accountant.log, [])
+            self.assertEquals(self.accountant.component.log, [])
 
         def onFail(failure):
             self.assertFalse(True)
@@ -237,7 +237,7 @@ class TestAdministratorExport(TestCashier):
 
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertEquals(self.accountant.log, [])
+            self.assertEquals(self.accountant.component.log, [])
 
         def onFail(failure):
             self.assertFalse(True)
@@ -304,8 +304,8 @@ class TestAdministratorExport(TestCashier):
 
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                self.assertEqual(self.accountant.log, [])
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.accountant.component.log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                 self.assertTrue(withdrawal.pending)
 
             d.addCallbacks(onSuccess, onFail)
@@ -333,8 +333,8 @@ class TestAdministratorExport(TestCashier):
 
                     withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                    self.assertEqual(self.accountant.log, [])
-                    self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                    self.assertEqual(self.accountant.component.log, [])
+                    self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                     self.assertTrue(withdrawal.pending)
 
                 def onSuccess(result):
@@ -375,7 +375,7 @@ class TestAdministratorExport(TestCashier):
                                                                    None),
                                                                   {})]))
 
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                 self.assertFalse(withdrawal.pending)
 
             def onFail(failure):
@@ -418,7 +418,7 @@ class TestAdministratorExport(TestCashier):
                                                                   {})]
                 ))
 
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                 self.assertFalse(withdrawal.pending)
 
             def onFail(failure):
@@ -477,8 +477,8 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
+            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertEqual(self.cashier.accountant.component.log, [])
             self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
@@ -502,8 +502,8 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
+            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertEqual(self.cashier.accountant.component.log, [])
             self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
@@ -526,8 +526,8 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
+            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertEqual(self.cashier.accountant.component.log, [])
             self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
@@ -581,7 +581,7 @@ class TestBitcoinNotify(TestCashier):
         def rendered(ignored):
             self.assertEquals(request.responseCode, 200)
             self.assertEquals("".join(request.written), "OK")
-            self.assertEqual(self.accountant.log, [])
+            self.assertEqual(self.accountant.component.log, [])
 
         d.addCallback(rendered)
         return d
