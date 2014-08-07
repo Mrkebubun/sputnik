@@ -1172,7 +1172,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                      "side": {"type": "string", "required": True}
                  }})
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
-
+        order["timestamp"] = dt_to_timestamp(datetime.utcnow())
         # enforce minimum tick_size for prices:
 
         def _cb(result):
@@ -1190,7 +1190,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
-            order["timestamp"] = dt_to_timestamp(datetime.utcnow())
+
 
             # Check for zero price or quantity
             if order["price"] == 0 or order["quantity"] == 0:
