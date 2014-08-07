@@ -126,23 +126,27 @@ def dumpArgs(func):
     return wrapper
 
 class FakeProxy:
-    def __init__(self, name=None):
+    def __init__(self, name=None, schema=None):
         self.log = []
         self.name = name
+
+    def _log_call(self, key, *args, **kwargs):
+        self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
+        if self.name:
+            callspec = []
+            callspec.extend(args)
+            callspec.extend("%s=%s" % (key, repr(value)) \
+                    for key, value in kwargs.iteritems())
+            logging.info("Method call: %s.%s%s" %
+                    (self.name, key, str(tuple(callspec))))
 
     def __getattr__(self, key):
         if key.startswith("__"):
             raise AttributeError
 
         def proxy_method(*args, **kwargs):
-            self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
-            if self.name:
-                callspec = []
-                callspec.extend(args)
-                callspec.extend("%s=%s" % (key, repr(value)) \
-                        for key, value in kwargs.iteritems())
-                logging.info("Method call: %s.%s%s" %
-                        (self.name, key, str(tuple(callspec))))
+            self._log_call(key, *args, **kwargs)
+
             return None
 
         return proxy_method
