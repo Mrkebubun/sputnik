@@ -60,7 +60,7 @@
                 "description": "the hash of the new password"
             },
             "token": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "if a valid reset token is passed here we don't need the old hash"
             }
         },
