@@ -1,0 +1,20 @@
+{
+    "post":
+    {
+        "type": "object",
+        "properties":
+        {
+            "postings":
+            {
+                "type": "array",
+                "description": "Journal postings.",
+                "items":
+                {
+                    "$ref": "objects/posting.json"
+                }
+            }
+        },
+        "required": ["postings"],
+        "additionalProperties": false
+    }
+}

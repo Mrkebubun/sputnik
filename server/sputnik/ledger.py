@@ -17,6 +17,7 @@ import config
 import database
 from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export
+from rpc_schema import schema
 import util
 import datetime
 from watchdog import watchdog
@@ -172,16 +173,6 @@ class Ledger:
             logging.error("Received empty argument list.")
             raise ARGUMENT_ERROR
 
-        # validate the posting
-        try:
-            validate(postings, self.schema)
-        except ValidationError, e:
-            logging.error("Received improperly formated posting(s):")
-            logging.error(str(postings))
-            logging.error("Exception follows:")
-            logging.error(e)
-            raise ARGUMENT_ERROR
-      
         # make sure all the postings have the same uid
         uids = [posting["uid"] for posting in postings]
         if not all(uid == uids[0] for uid in uids):
@@ -198,6 +189,7 @@ class AccountantExport:
         self.ledger = ledger
 
     @export
+    @schema("rpc/ledger.json#post")
     def post(self, *postings):
         return self.ledger.post(list(postings))
 
