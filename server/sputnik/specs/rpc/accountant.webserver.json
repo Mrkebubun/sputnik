@@ -65,7 +65,7 @@
                 "description": "Destination address."
             }
         },
-        "required": ["username", "ticker", "amount", "address"],
+        "required": ["username", "ticker", "quantity", "address"],
         "additionalProperties": false
     }
 }
