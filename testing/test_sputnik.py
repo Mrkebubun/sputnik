@@ -198,6 +198,10 @@ class FakeComponent:
 
         return True
 
+# TODO: Remove this once we've removed all FakeProxy
+class FakeProxy(FakeComponent):
+    pass
+
 class FakeSendmail(FakeProxy):
     def __init__(self, from_address):
         """
