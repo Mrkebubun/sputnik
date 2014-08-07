@@ -52,7 +52,7 @@
                 "description": "the new username"
             },
             "old_password_hash": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "the user's old/existing password hash"
             },
             "new_password_hash": {
