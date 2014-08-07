@@ -16,5 +16,22 @@
         },
         "required": ["username", "order"],
         "additionalProperties": false
+    },
+    "post_transaction": {
+        "type": "object",
+        "description": "engine -> accountant post_transaction RPC call (when a fill happens)",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "transaction":
+            {
+                "$ref": "objects/transaction.json"
+            }
+        },
+        "required": ["username", "transaction"]
     }
 }
