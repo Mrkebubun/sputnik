@@ -125,6 +125,7 @@ def dumpArgs(func):
 
     return wrapper
 
+
 class FakeProxy:
     def __init__(self, name=None):
         self.log = []
@@ -193,6 +194,9 @@ class FakeProxy:
                 return False
 
         return True
+
+class FakeComponent(FakeProxy):
+    pass
 
 class FakeSendmail(FakeProxy):
     def __init__(self, from_address):

@@ -309,9 +309,10 @@ class AccountantNotifier(EngineListener):
         self.engine = engine
         self.accountant = accountant
         self.contract = contract
+        self.ticker = self.contract.ticker
 
     def on_init(self):
-        self.ticker = self.contract.ticker
+        pass
 
     def on_trade_success(self, order, passive_order, price, quantity):
         uid = util.get_uid()
