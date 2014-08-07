@@ -9,7 +9,7 @@ import os
 import __main__ as main
 import logging
 from supervisor import childutils
-from zmq_util import export, pull_share_async, push_proxy_async
+from zmq_util import export, pull_share_async, push_proxy_async, ComponentExport
 import collections
 
 
@@ -38,9 +38,10 @@ class Alerts():
     def start(self, time=60):
         self.looping_call.start(time, now=False)
 
-class AlertsExport():
+class AlertsExport(ComponentExport):
     def __init__(self, alerts):
         self.alerts = alerts
+        ComponentExport.__init__(self, alerts)
 
     @export
     def send_alert(self, message, subject, cache=True):

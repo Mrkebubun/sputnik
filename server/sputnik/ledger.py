@@ -16,7 +16,7 @@ from jsonschema import validate, ValidationError
 import config
 import database
 from models import Posting, Journal, User, Contract
-from zmq_util import router_share_async, export
+from zmq_util import router_share_async, export, ComponentExport
 from rpc_schema import schema
 import util
 import datetime
@@ -184,9 +184,10 @@ class Ledger:
         return deferreds[0]
 
 
-class AccountantExport:
+class AccountantExport(ComponentExport):
     def __init__(self, ledger):
         self.ledger = ledger
+        ComponentExport.__init__(self, ledger)
 
     @export
     @schema("rpc/ledger.json#post")

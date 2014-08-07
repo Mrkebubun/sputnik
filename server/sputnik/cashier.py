@@ -19,7 +19,7 @@ from accountant import AccountantProxy
 import util
 
 import config
-from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export
+from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export, ComponentExport
 import models
 import database as db
 from sqlalchemy.orm.exc import NoResultFound
@@ -557,9 +557,10 @@ class BitcoinNotify(Resource):
         d.addCallbacks(_cb, _err)
         return NOT_DONE_YET
 
-class WebserverExport:
+class WebserverExport(ComponentExport):
     def __init__(self, cashier):
         self.cashier = cashier
+        ComponentExport.__init__(self, cashier)
 
     @export
     def get_new_address(self, username, ticker):
@@ -573,7 +574,7 @@ class WebserverExport:
     def get_deposit_instructions(self, ticker):
         return self.cashier.get_deposit_instructions(ticker)
 
-class AdministratorExport:
+class AdministratorExport(ComponentExport):
     def __init__(self, cashier):
         """
 
@@ -581,6 +582,7 @@ class AdministratorExport:
         :type cashier: Cashier
         """
         self.cashier = cashier
+        ComponentExport.__init__(self, cashier)
 
     @export
     def rescan_address(self, address):
@@ -590,9 +592,10 @@ class AdministratorExport:
     def process_withdrawal(self, address, online=False, cancel=False):
         return self.cashier.process_withdrawal(address, online=online, cancel=cancel)
 
-class AccountantExport:
+class AccountantExport(ComponentExport):
     def __init__(self, cashier):
         self.cashier = cashier
+        ComponentExport.__init__(self, cashier)
 
     @export
     def request_withdrawal(self, username, ticker, address, amount):

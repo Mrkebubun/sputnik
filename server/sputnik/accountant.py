@@ -34,7 +34,7 @@ from alerts import AlertsProxy
 from ledger import create_posting
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
-    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, BasicExport
+    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
 from twisted.internet import reactor, defer
 from sqlalchemy.orm.exc import NoResultFound
@@ -913,12 +913,13 @@ class Accountant:
         return permissions
 
 
-class WebserverExport:
+class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
 
     @export
     @schema("rpc/accountant.json#place_order")
@@ -942,13 +943,13 @@ class WebserverExport:
         return self.accountant.request_withdrawal(username, ticker, amount, address)
 
 
-class EngineExport(BasicExport):
+class EngineExport(ComponentExport):
     """Accountant functions exposed to the Engine
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
-        BasicExport.__init__(self, accountant)
+        ComponentExport.__init__(self, accountant)
 
     @export
     def safe_prices(self, ticker, price):
@@ -960,12 +961,13 @@ class EngineExport(BasicExport):
         return self.accountant.post_transaction(username, transaction)
 
 
-class CashierExport:
+class CashierExport(ComponentExport):
     """Accountant functions exposed to the cashier
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
 
     @export
     def deposit_cash(self, username, address, received, total=True):
@@ -980,12 +982,13 @@ class CashierExport:
         position = self.accountant.get_position(username, ticker)
         return position.position
 
-class AccountantExport:
+class AccountantExport(ComponentExport):
     """Accountant private chit chat link
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
 
     @export
     def remote_post(self, username, *postings):
@@ -994,12 +997,13 @@ class AccountantExport:
         return None
 
 
-class AdministratorExport:
+class AdministratorExport(ComponentExport):
     """Accountant functions exposed to the administrator
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
 
     @export
     def adjust_position(self, username, ticker, quantity):

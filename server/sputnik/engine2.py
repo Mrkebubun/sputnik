@@ -22,7 +22,7 @@ import accountant
 import util
 
 from twisted.internet import reactor
-from zmq_util import export, router_share_async, push_proxy_async
+from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
 from collections import defaultdict
 
 
@@ -430,9 +430,10 @@ class SafePriceNotifier(EngineListener):
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
-class AccountantExport:
+class AccountantExport(ComponentExport):
     def __init__(self, engine):
         self.engine = engine
+        ComponentExport.__init__(self, engine)
 
     @export
     def place_order(self, order):

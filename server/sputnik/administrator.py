@@ -21,7 +21,7 @@ from sendmail import Sendmail
 from watchdog import watchdog
 from accountant import AccountantProxy
 
-from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async
+from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -1024,7 +1024,7 @@ class SimpleRealm(object):
         else:
             raise NotImplementedError
 
-class WebserverExport:
+class WebserverExport(ComponentExport):
     """
     For security reasons, the webserver only has access to a limit subset of
         the administrator functionality. This is exposed here.
@@ -1032,6 +1032,7 @@ class WebserverExport:
 
     def __init__(self, administrator):
         self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
 
     @export
     def make_account(self, username, password):
@@ -1057,12 +1058,13 @@ class WebserverExport:
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
 
-class TicketServerExport:
+class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer
 
     """
     def __init__(self, administrator):
         self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
 
     @export
     def check_support_nonce(self, username, nonce, type):

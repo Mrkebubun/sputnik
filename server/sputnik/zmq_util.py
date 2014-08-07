@@ -14,7 +14,7 @@ from functools import partial
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass
 
-class BasicExport():
+class ComponentExport():
     def __init__(self, component):
         self.component = component
 
