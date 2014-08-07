@@ -34,7 +34,7 @@
             {
                 "type": "string",
                 "description": "Unique id for the transfer."
-            },
+            }
         },
         "required": ["username", "ticker", "direction", "quantity", "uid"],
         "additionalProperties": false
