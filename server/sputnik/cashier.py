@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import config
 import json
 from optparse import OptionParser
 import logging
@@ -18,7 +19,6 @@ from sendmail import Sendmail
 from accountant import AccountantProxy
 import util
 
-import config
 from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export, ComponentExport
 import models
 import database as db
@@ -30,7 +30,7 @@ from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 
 parser = OptionParser()
-parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
+parser.add_option("-c", "--config", dest="filename", help="config file")
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
