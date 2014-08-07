@@ -8,12 +8,12 @@
             "type": "string",
             "description": "Username of transaction user."
         },
-        "aggresive":
+        "aggressive":
          {
             "type": "boolean",
             "description": "Whether user's order was aggressive."
         },
-        "ticker":
+        "contract":
          {
             "type": "string",
             "description": "Ticker of the transaction contract."
@@ -54,7 +54,7 @@
             "description": "Unique ID for the match shared by all transactions."
         }
     },
-    "required": ["username", "aggressive", "ticker", "order", "other_order", "side", "price", "quantity", "timestamp", "uid"],
+    "required": ["username", "aggressive", "contract", "order", "other_order", "side", "price", "quantity", "timestamp", "uid"],
     "additionalProperties": false
 }
 

@@ -536,6 +536,7 @@ class Accountant:
             self.session.commit()
             self.webserver.order(username, db_order.to_webserver())
             logging.debug("to ws: " + str({"order": [username, db_order.to_webserver()]}))
+            return result
 
         d.addCallback(update_order)
 
@@ -548,6 +549,7 @@ class Accountant:
             self.session.commit()
             self.webserver.trade(ticker, trade.to_webserver())
             logging.debug("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
+            return result
 
         if aggressive:
             d.addCallback(publish_trade)
@@ -588,7 +590,6 @@ class Accountant:
         except NoResultFound:
             raise AccountantException(0, "No order %d found" % order_id)
 
-    @schema("rpc/accountant.json#place_order")
     def place_order(self, username, order):
         """Place an order
 
@@ -920,6 +921,7 @@ class WebserverExport:
         self.accountant = accountant
 
     @export
+    @schema("rpc/accountant.json#place_order")
     def place_order(self, username, order):
         return self.accountant.place_order(username, order)
 
@@ -952,6 +954,7 @@ class EngineExport:
         self.accountant.safe_prices[ticker] = price
 
     @export
+    @schema("rpc/accountant.json#post_transaction")
     def post_transaction(self, username, transaction):
         return self.accountant.post_transaction(username, transaction)
 
