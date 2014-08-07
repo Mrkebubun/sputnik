@@ -929,8 +929,8 @@ class WebserverExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.webserver.json#cancel_order")
-    def cancel_order(self, username, order_id):
-        return self.accountant.cancel_order(username, order_id)
+    def cancel_order(self, username, id):
+        return self.accountant.cancel_order(username, id)
 
     @export
     @schema("rpc/accountant.webserver.json#get_permissions")
