@@ -536,6 +536,7 @@ class Accountant:
             self.session.commit()
             self.webserver.order(username, db_order.to_webserver())
             logging.debug("to ws: " + str({"order": [username, db_order.to_webserver()]}))
+            return result
 
         d.addCallback(update_order)
 
@@ -548,6 +549,7 @@ class Accountant:
             self.session.commit()
             self.webserver.trade(ticker, trade.to_webserver())
             logging.debug("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
+            return result
 
         if aggressive:
             d.addCallback(publish_trade)

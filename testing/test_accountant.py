@@ -425,58 +425,85 @@ class TestEngineExport(TestAccountant):
         self.cashier_export.deposit_cash('aggressive_user', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.cashier_export.deposit_cash('passive_user', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
 
-        # TODO: We have to actually put the orders in the db otherwise it will fail
+        self.add_address('aggressive_user', 'MXN_address', 'MXN')
+        self.add_address('passive_user', 'BTC_address', 'BTC')
 
-        uid = util.get_uid()
-        timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
-        aggressive = {'username': 'aggressive_user',
-                      'aggressive': True,
-                      'contract': 'BTC/MXN',
-                      'price': 60000000,
-                      'quantity': 3000000,
-                      'order': 50,
-                      'other_order': 54,
-                      'side': 'SELL',
-                      'uid': uid,
-                      'timestamp': timestamp}
+        self.cashier_export.deposit_cash('aggressive_user', 'MXN_address', 500000)
+        self.cashier_export.deposit_cash('passive_user', 'BTC_address', 400000000)
 
-        passive = {'username': 'passive_user',
-                   'aggressive': False,
-                   'contract': 'BTC/MXN',
-                   'price': 60000000,
-                   'quantity': 3000000,
-                   'order': 54,
-                   'other_order': 50,
-                   'side': 'BUY',
-                   'uid': uid,
-                   'timestamp': timestamp}
+        self.set_permissions_group("aggressive_user", 'Trade')
+        self.set_permissions_group("passive_user", "Trade")
 
-        d1 = self.engine_export.post_transaction('aggressive_user', aggressive)
-        d2 = self.engine_export.post_transaction('passive_user', passive)
 
-        def onSuccess(result):
-            # Inspect the positions
-            BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-            MXN = self.session.query(models.Contract).filter_by(ticker='MXN').one()
-            aggressive_user_btc_position = self.session.query(models.Position).filter_by(username='aggressive_user',
-                                                                                         contract=BTC).one()
-            passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
-                                                                                      contract=BTC).one()
-            aggressive_user_mxn_position = self.session.query(models.Position).filter_by(username='aggressive_user',
-                                                                                         contract=MXN).one()
-            passive_user_mxn_position = self.session.query(models.Position).filter_by(username='passive_user',
-                                                                                      contract=MXN).one()
+        passive_deferred = self.webserver_export.place_order('passive_user', {'username': 'passive_user',
+                                                                                    'contract': 'BTC/MXN',
+                                                                                    'price': 60000000,
+                                                                                    'quantity': 3000000,
+                                                                                    'side': 'BUY',
+                                                                                    'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
-            # This is based on all BTC fees being zero
-            self.assertEqual(aggressive_user_btc_position.position, 2000000)
-            self.assertEqual(passive_user_btc_position.position, 3000000)
+        aggressive_deferred = self.webserver_export.place_order('aggressive_user', {'username': 'aggressive_user',
+                                                                                    'contract': 'BTC/MXN',
+                                                                                    'price': 60000000,
+                                                                                    'quantity': 3000000,
+                                                                                    'side': 'SELL',
+                                                                                    'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
-            # This is based on 40bps MXN fee, only charged to the aggressive_user
-            self.assertEqual(aggressive_user_mxn_position.position, 1792800)
-            self.assertEqual(passive_user_mxn_position.position, 1200000)
+        def onSuccessPlaceOrder(result):
+            (dummy, passive_order), (dummy, aggressive_order) = result
+            uid = util.get_uid()
+            timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+            aggressive = {'username': 'aggressive_user',
+                          'aggressive': True,
+                          'contract': 'BTC/MXN',
+                          'price': 60000000,
+                          'quantity': 3000000,
+                          'order': aggressive_order,
+                          'other_order': passive_order,
+                          'side': 'SELL',
+                          'uid': uid,
+                          'timestamp': timestamp}
 
-        # We only need to callback d1 because both will trigger when the transaction posts
-        d1.addCallback(onSuccess)
+            passive = {'username': 'passive_user',
+                       'aggressive': False,
+                       'contract': 'BTC/MXN',
+                       'price': 60000000,
+                       'quantity': 3000000,
+                       'order': passive_order,
+                       'other_order': aggressive_order,
+                       'side': 'BUY',
+                       'uid': uid,
+                       'timestamp': timestamp}
+
+            d1 = self.engine_export.post_transaction('aggressive_user', aggressive)
+            d2 = self.engine_export.post_transaction('passive_user', passive)
+
+            def onSuccess(result):
+                # Inspect the positions
+                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                MXN = self.session.query(models.Contract).filter_by(ticker='MXN').one()
+                aggressive_user_btc_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                             contract=BTC).one()
+                passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                          contract=BTC).one()
+                aggressive_user_mxn_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                             contract=MXN).one()
+                passive_user_mxn_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                          contract=MXN).one()
+
+                # This is based on all BTC fees being zero
+                self.assertEqual(aggressive_user_btc_position.position, 2000000)
+                self.assertEqual(passive_user_btc_position.position, 400000000 + 3000000)
+
+                # This is based on 40bps MXN fee, only charged to the aggressive_user
+                self.assertEqual(aggressive_user_mxn_position.position, 1792800 + 500000)
+                self.assertEqual(passive_user_mxn_position.position, 1200000)
+
+            dl = defer.DeferredList([d1, d2])
+            dl.addCallback(onSuccess)
+
+        dl = defer.DeferredList([aggressive_deferred, passive_deferred])
+        dl.addCallback(onSuccessPlaceOrder)
 
     """
     # Not implemented yet
