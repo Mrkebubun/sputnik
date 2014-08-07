@@ -143,9 +143,9 @@ class TestNotifier(TestEngine):
         self.contract = models.Contract("FOO")
 
         self.order = engine2.Order(id=1, contract=self.contract.ticker, quantity=10,
-                                   price=13, side='BUY', username='aggressive')
+                                   price=13, side=-1, username='aggressive')
         self.passive_order = engine2.Order(id=2, contract=self.contract.ticker, quantity=10,
-                                           price=10, side='SELL', username='passive')
+                                           price=10, side=1, username='passive')
 
 
 class TestAccountantNotifier(TestNotifier):
@@ -164,6 +164,7 @@ class TestAccountantNotifier(TestNotifier):
                                                            {'aggressive': True,
                                                             'contract': self.contract.ticker,
                                                             'order': 1,
+                                                            'other_order': 2,
                                                             'price': 10,
                                                             'quantity': 10,
                                                             'side': u'BUY',
@@ -174,6 +175,7 @@ class TestAccountantNotifier(TestNotifier):
                                                            {'aggressive': False,
                                                             'contract': self.contract.ticker,
                                                             'order': 2,
+                                                            'other_order': 1,
                                                             'price': 10,
                                                             'quantity': 10,
                                                             'side': u'SELL',

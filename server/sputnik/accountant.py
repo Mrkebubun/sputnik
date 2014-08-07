@@ -34,7 +34,7 @@ from alerts import AlertsProxy
 from ledger import create_posting
 
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
-    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException
+    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, BasicExport
 
 from twisted.internet import reactor, defer
 from sqlalchemy.orm.exc import NoResultFound
@@ -942,12 +942,13 @@ class WebserverExport:
         return self.accountant.request_withdrawal(username, ticker, amount, address)
 
 
-class EngineExport:
+class EngineExport(BasicExport):
     """Accountant functions exposed to the Engine
 
     """
     def __init__(self, accountant):
         self.accountant = accountant
+        BasicExport.__init__(self, accountant)
 
     @export
     def safe_prices(self, ticker, price):
