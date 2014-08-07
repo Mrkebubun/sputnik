@@ -20,12 +20,12 @@ class FakeEngine(FakeComponent):
     name = "engine"
 
     def place_order(self, order):
-        self.log.append(('place_order', (order), {}))
+        self._log_call(('place_order', (order), {}))
         # Always return a good fake result
         return defer.succeed(order['id'])
 
     def cancel_order(self, id):
-        self.log.append(('cancel_order', (id), {}))
+        self._log_call(('cancel_order', (id), {}))
         # Always return success, with None
         return defer.succeed(None)
 
@@ -34,7 +34,7 @@ class FakeLedger(FakeComponent):
     name = "ledger"
 
     def post(self, *postings):
-        self.log.append(('post', postings, {}))
+        self._log_call(('post', postings, {}))
         return defer.succeed(None)
 
 

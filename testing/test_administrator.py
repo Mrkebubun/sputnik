@@ -18,6 +18,7 @@ class FakeAccountant(FakeComponent):
     name = "accountant"
 
     def get_balance_sheet(self):
+        self._log_call("get_balance_sheet", (), {})
         return defer.succeed({})
 
 
