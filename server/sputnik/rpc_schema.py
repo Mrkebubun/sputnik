@@ -51,7 +51,7 @@ def schema(path):
             # validate
             f.validator.validate(callargs)
 
-            f(*args, **kwargs)
+            return f(*args, **kwargs)
         return wrapped_f
     return wrap
 
