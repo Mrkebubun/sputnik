@@ -66,7 +66,7 @@ class TestCashier(TestSputnik):
         TestSputnik.setUp(self)
 
         from sputnik import cashier
-        from sputnik import accounant
+        from sputnik import accountant
 
         self.accountant = accountant.CashierExport(FakeComponent("accountant"))
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
