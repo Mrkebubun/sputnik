@@ -568,6 +568,11 @@ class Position(db.Base, QuantityUI):
         calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
         return calculated
 
+    @property
+    def position_calculated_fmt(self):
+        position_calculated_ui = util.quantity_from_wire(self.contract, self.position_calculated)
+        return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=position_calculated_ui)
+
     def __repr__(self):
         return "<Position('%s', '%s', %d)>" \
                % (self.contract, self.user,

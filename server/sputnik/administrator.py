@@ -572,14 +572,14 @@ class Administrator:
 
                 position_details = { 'username': position.user.username,
                                                                     'hash': position.user.user_hash,
-                                                                    'position': position.position,
-                                                                    'position_fmt': position.quantity_fmt
+                                                                    'position': position.position_calculated,
+                                                                    'position_fmt': position.position_calculated_fmt
                 }
                 if position.contract.ticker in side:
-                    side[position.contract.ticker]['total'] += position.position
+                    side[position.contract.ticker]['total'] += position.position_calculated
                     side[position.contract.ticker]['positions_raw'].append(position_details)
                 else:
-                    side[position.contract.ticker] = {'total': position.position,
+                    side[position.contract.ticker] = {'total': position.position_calculated,
                                                       'positions_raw': [position_details],
                                                       'contract': position.contract.ticker}
 
