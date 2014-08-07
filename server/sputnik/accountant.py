@@ -875,17 +875,6 @@ class Accountant:
             logging.error("Error: %s" % e)
             self.session.rollback()
 
-    def get_permissions(self, username):
-        """Gets the permissions for a user
-
-        :param username: The user
-        :type username: str, models.User
-        :returns: dict -- a dict of the permissions for that user
-        """
-        user = self.get_user(username)
-        permissions = user.permissions.dict
-        return permissions
-
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
@@ -904,16 +893,6 @@ class WebserverExport(ComponentExport):
     @schema("rpc/accountant.webserver.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
-
-    @export
-    #@schema("rpc/accountant.webserver.json#get_permissions")
-    def get_permissions(self, username):
-        return self.accountant.get_permissions(username)
-
-    # @export
-    # @schema("rpc/accountant.webserver.json#get_transaction_history")
-    # def get_transaction_history(self, username, from_timestamp, to_timestamp):
-    #     return self.accountant.get_transaction_history(username, from_timestamp, to_timestamp)
 
     @export
     @schema("rpc/accountant.webserver.json#request_withdrawal")

@@ -504,7 +504,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result: the permissions for the user
             :returns: dict - the permissions for the user
             """
-            if result['login']:
+            if result[0][0]:
                 # TODO: SECURITY: This is susceptible to a timing attack.
                 def _cb(result):
                     if result:
@@ -539,7 +539,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
         # Check for login permissions
-        d = self.factory.accountant.get_permissions(username)
+        d = dbpool.runQuery('SELECT permissions.login FROM users, permission_groups WHERE '
+                            'users.permission_group_id=permission_groups.id AND users.username=%s',
+            (username,))
         d.addCallback(_cb_perms)
         d.addErrback(_cb_error)
         return d
@@ -692,7 +694,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = self.factory.accountant.get_permissions(self.username)
+        d = dbpool.runQuery("SELECT permissions.name, permissions.login, permissions.deposit, permissions.withdraw, permissions.trade "
+                            "FROM permission_groups, users WHERE "
+                            "users.permission_group_id=permission_groups.id AND users.username=%s",
+                            (self.username,))
+
         def onGetPermsSuccess(result):
             """
 
@@ -700,7 +706,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :type result: dict
             :returns: list - [True, permissions]
             """
-            return [True, result]
+            permissions = { 'name': result[0][0],
+                            'login': result[0][1],
+                            'deposit': result[0][2],
+                            'withdraw': result[0][3],
+                            'trade': result[0][4]}
+            return [True, permissions]
 
         def onGetPermsFail(failure):
             """

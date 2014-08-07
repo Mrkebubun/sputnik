@@ -886,57 +886,6 @@ class TestWebserverExport(TestAccountant):
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
 
-    def test_get_permissions(self):
-        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.set_permissions_group("test", 'Deposit')
-        permissions = self.webserver_export.get_permissions('test')
-        self.assertDictEqual(permissions,
-                             {'name': 'Deposit', 'deposit': True, 'login': True, 'trade': False, 'withdraw': False})
-
-
-    #    def test_get_transaction_history(self):
-    #        self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-    #        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
-    #        self.set_permissions_group("aggressive_user", 'Deposit')
-    #        self.set_permissions_group("passive_user", "Deposit")
-    #        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000000)
-    #        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
-    #
-    #        import datetime
-    #        from sputnik import util
-    #
-    #        test_transaction = {'aggressive_username': 'aggressive_user',
-    #                            'passive_username': 'passive_user',
-    #                            'contract': 'BTC/MXN',
-    #                            'price': 60000000,
-    #                            'quantity': 3000000,
-    #                            'aggressive_order_id': 54,
-    #                            'passive_order_id': 50,
-    #                            'side': 'SELL',
-    #                            'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())}
-    #        self.engine_export.post_transaction(test_transaction)
-    #        self.set_permissions_group("aggressive_user", 'Withdraw')
-    #        self.webserver_export.request_withdrawal('aggressive_user', 'BTC', 3000000, 'bad_address')
-    #        to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
-    #        from_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=30))
-    #        history = self.webserver_export.get_transaction_history('aggressive_user', from_timestamp, to_timestamp)
-    #        FakeProxy.check(history, [{'contract': u'BTC',
-    #                                   'quantity': 50000000,
-    #                                   'type': u'Deposit'},
-    #                                  {'contract': u'MXN',
-    #                                   'quantity': 1800000,
-    #                                   'type': u'Trade'},
-    #                                  {'contract': u'BTC',
-    #                                   'quantity': -3000000,
-    #                                   'type': u'Trade'},
-    #                                  {'contract': u'MXN',
-    #                                   'quantity': -7200,
-    #                                   'type': u'Trade'},
-    #                                  {'contract': u'BTC',
-    #                                   'quantity': -3000000,
-    #                                   'type': u'Withdrawal'}]
-    #        )
-
     def test_request_withdrawal_success(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.set_permissions_group('test', 'Deposit')
