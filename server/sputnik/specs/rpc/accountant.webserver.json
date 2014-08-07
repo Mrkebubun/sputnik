@@ -1,0 +1,71 @@
+{
+    "place_order":
+    {
+        "type":"object",
+        "description": "webserver -> accountant place_order RPC call",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "order":
+            {
+                "$ref": "objects/order.json"
+            }
+        },
+        "required": ["username", "order"],
+        "additionalProperties": false
+    },
+    "cancel_order":
+    {
+        "type":"object",
+        "description": "Cancel an open order.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "Order id of order to cancel."
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    },
+    "request_withdrawal":
+    {
+        "type":"object",
+        "description": "Request withdrawal of funds.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of the affected user."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Ticker of affected contract."
+            },
+            "quantity":
+            {
+                "type": "integer",
+                "description": "Amount to withdraw."
+            },
+            "address":
+            {
+                "type": "string",
+                "description": "Destination address."
+            }
+        },
+        "required": ["username", "ticker", "amount", "address"],
+        "additionalProperties": false
+    }
+}

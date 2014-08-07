@@ -1,10 +1,15 @@
 {
-    "post":
+    "remote_post":
     {
         "type": "object",
-        "description": "Submit postings to the ledger.",
+        "description": "Submit postings to the ledger on behalf of callee."
         "properties":
         {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of affected user."
+            },
             "postings":
             {
                 "type": "array",
@@ -15,7 +20,7 @@
                 }
             }
         },
-        "required": ["postings"],
+        "required": ["username", "postings"],
         "additionalProperties": false
     }
 }
