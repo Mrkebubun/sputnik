@@ -1,25 +1,24 @@
 #!/usr/bin/python
 
 import os
-import logging
+import sys
 import json
+import datetime
 from collections import defaultdict
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.protocols.policies import TimeoutMixin
+from twisted.python import log
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from jsonschema import validate, ValidationError
-
 import config
+import util
 import database
 from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export, ComponentExport
 from rpc_schema import schema
-import util
-import datetime
 from watchdog import watchdog
 
 class LedgerException(Exception):
@@ -66,10 +65,10 @@ class PostingGroup(TimeoutMixin):
             deferred.errback(exception)
 
     def timeoutConnection(self):
-        logging.error("Posting group with uid: %s timed out." % self.uid)
-        logging.error("Postings were:")
+        log.err("Posting group with uid: %s timed out." % self.uid)
+        log.err("Postings were:")
         for posting in self.postings:
-            logging.error(str(posting))
+            log.err(str(posting))
         self.fail(GROUP_TIMEOUT)
 
 class Ledger:
@@ -120,15 +119,15 @@ class Ledger:
             self.session.add_all(db_postings)
             self.session.add(journal)
             self.session.commit()
-            logging.info("Journal: %s" % journal)
+            log.msg("Journal: %s" % journal)
             return True
 
         except Exception, e:
-            logging.error("Caught exception trying to commit. Postings were:")
+            log.err("Caught exception trying to commit. Postings were:")
             for posting in postings:
-                logging.error(str(posting))
-            logging.error("Stack trace follows:")
-            logging.exception(e)
+                log.err(str(posting))
+            log.err("Stack trace follows:")
+            log.err()
             if isinstance(e, SQLAlchemyError):
                 raise DATABASE_ERROR
             raise e
@@ -166,7 +165,7 @@ class Ledger:
         # an empty postings list might mean an error caller side
         # return ARGUMENT_ERROR
         if len(postings) == 0:
-            logging.error("Received empty argument list.")
+            log.err("Received empty argument list.")
             raise ARGUMENT_ERROR
 
         # make sure all the postings have the same uid
@@ -198,7 +197,7 @@ def create_posting(type, username, contract, quantity, direction, note=None, tim
             "direction":direction, "note": note, "type": type, "timestamp": timestamp}
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    log.startLogging(sys.stdout)
     session = database.make_session()
     timeout = config.getint("ledger", "timeout")
     ledger = Ledger(session, timeout)

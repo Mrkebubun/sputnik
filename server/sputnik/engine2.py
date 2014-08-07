@@ -11,7 +11,7 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
-import logging
+import sys
 import time
 import heapq
 
@@ -22,6 +22,7 @@ import accountant
 import util
 
 from twisted.internet import reactor
+from twisted.python import log
 from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 from collections import defaultdict
@@ -174,7 +175,7 @@ class Engine:
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
             # Too late to cancel.
-            logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
+            log.msg("The order id=%s cannot be cancelled, it's already outside the book." % id)
             self.notify_cancel_fail(id, "the order is no longer on the book")
             return False
 
@@ -203,56 +204,64 @@ class Engine:
             try:
                 listener.on_init()
             except Exception, e:
-                logging.warn("Exception in on_init of %s: %s." % (listener, e))
+                log.err("Exception in on_init of %s: %s." % (listener, e))
+                log.err()
 
     def notify_shutdown(self):
         for listener in self.listeners:
             try:
                 listener.on_shutdown()
             except Exception, e:
-                logging.warn("Exception in on_shutdown of %s: %s." % (listener, e))
+                log.err("Exception in on_shutdown of %s: %s." % (listener, e))
+                log.err()
 
     def notify_queue_success(self, order):
         for listener in self.listeners:
             try:
                 listener.on_queue_success(order)
             except Exception, e:
-                logging.warn("Exception in on_queue_success of %s: %s." % (listener, e))
+                log.err("Exception in on_queue_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_queue_fail(self, order, reason):
         for listener in self.listeners:
             try:
                 listener.on_queue_fail(order, reason)
             except Exception, e:
-                logging.warn("Exception in on_queue_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_queue_fail of %s: %s." % (listener, e))
+                log.err()
 
     def notify_trade_success(self, order, passive_order, price, quantity):
         for listener in self.listeners:
             try:
                 listener.on_trade_success(order, passive_order, price, quantity)
             except Exception, e:
-                logging.warn("Exception in on_trade_success of %s: %s." % (listener, e))
+                log.err("Exception in on_trade_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_trade_fail(self, order, passive_order, reason):
         for listener in self.listeners:
             try:
                 listener.on_trade_fail(order, passive_order, reason)
             except Exception, e:
-                logging.warn("Exception in on_trade_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_trade_fail of %s: %s." % (listener, e))
+                log.err()
 
     def notify_cancel_success(self, order):
         for listener in self.listeners:
             try:
                 listener.on_cancel_success(order)
             except Exception, e:
-                logging.warn("Exception in on_cancel_success of %s: %s." % (listener, e))
+                log.err("Exception in on_cancel_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_cancel_fail(self, order, reason):
         for listener in self.listeners:
             try:
                 listener.on_cancel_fail(order, reason)
             except Exception, e:
-                logging.warn("Exception in on_cancel_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_cancel_fail of %s: %s." % (listener, e))
+                log.err()
 
 
 class LoggingListener:
@@ -262,39 +271,39 @@ class LoggingListener:
 
     def on_init(self):
         self.ticker = self.contract.ticker
-        logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
-        logging.info(
+        log.msg("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
+        log.msg(
             "Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract.id))
 
     def on_shutdown(self):
-        logging.info("Engine for contract %s stopped." % self.ticker)
+        log.msg("Engine for contract %s stopped." % self.ticker)
 
     def on_queue_success(self, order):
-        logging.info("%s queued." % order)
+        log.msg("%s queued." % order)
         self.print_order_book()
 
     def on_queue_fail(self, order, reason):
-        logging.warn("%s cannot be queued because %s." % (order, reason))
+        log.msg("%s cannot be queued because %s." % (order, reason))
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (
+        log.msg("Successful trade between order id=%s and id=%s for %s lots at %s each." % (
             order.id, passive_order.id, quantity, price))
         self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
-        logging.warn("Cannot complete trade between %s and %s." % (order, passive_order))
+        log.msg("Cannot complete trade between %s and %s." % (order, passive_order))
 
     def on_cancel_success(self, order):
-        logging.info("%s cancelled." % order)
+        log.msg("%s cancelled." % order)
         self.print_order_book()
 
     def on_cancel_fail(self, order, reason):
-        logging.info("Cannot cancel %s because %s." % (order, reason))
+        log.msg("Cannot cancel %s because %s." % (order, reason))
 
     def print_order_book(self):
-        logging.debug("Orderbook for %s:" % self.contract.ticker)
-        logging.debug("Bids                   Asks")
-        logging.debug("Vol.  Price     Price  Vol.")
+        log.msg("Orderbook for %s:" % self.contract.ticker)
+        log.msg("Bids                   Asks")
+        log.msg("Vol.  Price     Price  Vol.")
         length = max(len(self.engine.orderbook[OrderSide.BUY]), len(self.engine.orderbook[OrderSide.SELL]))
         for i in range(length):
             try:
@@ -307,7 +316,7 @@ class LoggingListener:
                 bid_str = "{:>5} {:>5}".format(bid.quantity_left, bid.price)
             except:
                 bid_str = "           "
-            logging.debug("{}     {}".format(bid_str, ask_str))
+            log.msg("{}     {}".format(bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
@@ -457,16 +466,15 @@ class AccountantExport(ComponentExport):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
-                        level=logging.DEBUG)
-
+    log.startLogging(sys.stdout)
     session = database.make_session()
     ticker = args[0]
 
     try:
         contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
-        logging.critical("Cannot determine ticker id. %s" % e)
+        log.err("Cannot determine ticker id. %s" % e)
+        log.err()
         raise e
 
     engine = Engine()

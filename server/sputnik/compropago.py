@@ -5,9 +5,10 @@ import datetime
 __author__ = 'satosushi'
 
 import json
+import sys
 import treq
 
-import logging
+from twisted.python import log
 import math
 
 from jsonschema import validate
@@ -83,7 +84,7 @@ class Compropago:
         :raises: Exception
         """
         if amount < 361:
-            logging.error("attempted a compropago deposit of %d. Deposit must be more than 361 and less than 1800000"
+            log.err("attempted a compropago deposit of %d. Deposit must be more than 361 and less than 1800000"
                           % amount)
             raise Exception("Invalid compropago amount")
 
@@ -129,13 +130,13 @@ class Compropago:
                 if response.code != 200:
                     # this should happen sufficiently rarely enough that it is
                     # worth logging here in addition to the failure
-                    logging.warn("Received code: %s from Compropago for sending sms to %s for charge: %s" %
+                    log.msg("Received code: %s from Compropago for sending sms to %s for charge: %s" %
                                  (response.code, customer_phone, str(id)))
                     raise Exception("Compropago returned code: %s." % response.code)
                 else:
                     # TODO: Once we are sure what Compropago returns,
                     # remove this spam
-                    logging.info("Received 200 OK from Compropago for sending sms to %s for charge: %s" % (customer_phone,str(id)))
+                    log.msg("Received 200 OK from Compropago for sending sms to %s for charge: %s" % (customer_phone,str(id)))
                     # if the JSON cannot be decoded, let the error float up
                     cgo_sms_response = json.loads(content)
                     return cgo_sms_response
@@ -302,12 +303,12 @@ class Compropago:
                 if response.code != 200:
                     # this should happen sufficiently rarely enough that it is
                     # worth logging here in addition to the failure
-                    logging.warn("Received code: %s from Compropago for charge: %s. Content follows: %s" % (response.code, str(charge), content))
+                    log.msg("Received code: %s from Compropago for charge: %s. Content follows: %s" % (response.code, str(charge), content))
                     raise Exception("Compropago returned code: %s." % response.code)
                 else:
                     # TODO: Once we are sure what Compropago returns,
                     # remove this spam
-                    logging.info("Received 200 OK from Compropago. Charge: %s. Content follows: %s" % (str(charge), content))
+                    log.msg("Received 200 OK from Compropago. Charge: %s. Content follows: %s" % (str(charge), content))
                     # if the JSON cannot be decoded, let the error float up
                     cgo_bill = json.loads(content)
                     if "type" in cgo_bill and cgo_bill["type"] == "error":
@@ -356,12 +357,12 @@ class Compropago:
                 if response.code != 200:
                     # this should happen sufficiently rarely enough that it is
                     # worth logging here in addition to the failure
-                    logging.warn("Received code: %s from Compropago for bill: %s. Content follows: %s" % (response.code, payment_id, content))
+                    log.msg("Received code: %s from Compropago for bill: %s. Content follows: %s" % (response.code, payment_id, content))
                     raise Exception("Compropago returned code: %s." % response.code)
                 else:
                     # TODO: Once we are sure what Compropago returns,
                     # remove this spam
-                    logging.info("Received 200 OK from Compropago. Bill: %s. Content follows: %s" % (payment_id, content))
+                    log.msg("Received 200 OK from Compropago. Bill: %s. Content follows: %s" % (payment_id, content))
                     # if the JSON cannot be decoded, let the error float up
                     cgo_bill = json.loads(content)
                     if "type" in cgo_bill and cgo_bill["type"] == "error":
@@ -460,7 +461,7 @@ def main():
 
 # 'sk_test_5b82f569d4833add'
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     from twisted.internet import reactor
+    log.startLogging(sys.stdout)
     main()
     reactor.run()

@@ -2,10 +2,10 @@ __author__ = 'sameer'
 
 import treq
 import json
-import logging
 import random
 import string
 from twisted.internet import defer
+from twisted.python import log
 
 
 class Zendesk(object):
@@ -69,10 +69,10 @@ class Zendesk(object):
                     if response.code != 201:
                         # this should happen sufficiently rarely enough that it is
                         # worth logging here in addition to the failure
-                        logging.warn("Received code: %s from zendesk for new ticket %s: %s" % (response.code, str(ticket), content))
+                        log.msg("Received code: %s from zendesk for new ticket %s: %s" % (response.code, str(ticket), content))
                         raise Exception("Zendesk returned code: %s." % response.code)
                     else:
-                        logging.debug("Received 201 Created from Zendesk. Ticket: %s. Content follows: %s" % (str(ticket), content))
+                        log.msg("Received 201 Created from Zendesk. Ticket: %s. Content follows: %s" % (str(ticket), content))
                         # if the JSON cannot be decoded, let the error float up
                         ticket_returned = json.loads(content)
                         id = ticket_returned['ticket']['id']
@@ -112,10 +112,10 @@ class Zendesk(object):
         def handle_response(response):
             def parse_content(content):
                 if response.code != 201:
-                    logging.warn("Received code: %s from zendesk for file upload" % response.code)
+                    log.msg("Received code: %s from zendesk for file upload" % response.code)
                     raise Exception("Zendesk returned code %s" % response.code)
                 else:
-                    logging.debug("Received 201 Created from Zendesk. Content: %s" % content)
+                    log.msg("Received 201 Created from Zendesk. Content: %s" % content)
                     token_data = json.loads(content)
                     token = token_data['upload']['token']
                     return token

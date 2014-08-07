@@ -21,7 +21,6 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import cgi
-import logging
 import sys
 import datetime
 import time
@@ -44,6 +43,7 @@ from twisted.web.server import Site
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.resource import Resource
 from twisted.web.static import File
+from twisted.python import log
 from autobahn.twisted.websocket import listenWS
 from autobahn.wamp1.protocol import exportRpc, \
     WampCraProtocol, \
@@ -98,7 +98,7 @@ class RateLimitedCallHandler(CallHandler):
         now = time.time()
         if now - call.proto.last_call < 0.01:
             # try again later
-            logging.info("rate limiting...")
+            log.msg("rate limiting...")
             delay = max(0, call.proto.last_call + 0.01 - now)
             d = task.deferLater(reactor, delay, self._callProcedure, call)
             return d
@@ -320,7 +320,7 @@ class PublicInterface:
             return [True, self.factory.all_books[ticker]]
         else:
             # Just return an empty book if there's no book for this market
-            logging.warning("No book for %s" % ticker)
+            log.err("No book for %s" % ticker)
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
@@ -443,7 +443,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         triggered when the connection is lost
         :param reason: reason why the connection was lost
         """
-        logging.info("Connection was lost: %s" % reason)
+        log.msg("Connection was lost: %s" % reason)
 
     def onSessionOpen(self):
         """
@@ -452,7 +452,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         and overrides some global options
         """
 
-        logging.info("in session open")
+        log.msg("in session open")
         ## register a single, fixed URI as PubSub topic
         self.registerForPubSub(self.base_uri + "/feeds/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
@@ -473,7 +473,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if (self.clientAuthTimeout, self.clientAuthAllowAnonymous) != (0, True):
             # if we never see this warning in the weeks following 02/01
             # we can get rid of this
-            logging.warning("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
+            log.err("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
                             "is useless, __init__ took care of it")
 
         # noinspection PyPep8Naming
@@ -523,7 +523,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
                                        (username,)).addCallback(_cb)
             else:
-                logging.error("User %s not permitted to login" % username)
+                log.err("User %s not permitted to login" % username)
                 return {"authextra": "",
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
@@ -533,7 +533,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param failure:
             :returns: dict - fake permissions so we don't leak which users exist or not
             """
-            logging.error("Unable to get permissions for %s: %s" % (username, failure.value.args))
+            log.err("Unable to get permissions for %s: %s" % (username, failure.value.args))
             return {"authextra": "",
                     "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
@@ -586,7 +586,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             else:
                 auth_secret = secret
 
-            logging.info("returning auth secret: %s" % auth_secret)
+            log.msg("returning auth secret: %s" % auth_secret)
             return auth_secret
 
         def auth_secret_errback(fail=None):
@@ -595,7 +595,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param fail:
             :returns: str
             """
-            logging.warning("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
+            log.err("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
@@ -629,13 +629,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # search for a saved session
         self.username = self.factory.cookies.get(auth_key)
         if not self.username:
-            logging.info("Normal user login for: %s" % auth_key)
+            log.msg("Normal user login for: %s" % auth_key)
             self.username = auth_key
             uid = str(uuid.uuid4())
             self.factory.cookies[uid] = auth_key
             self.cookie = uid
         else:
-            logging.info("Cookie login for: %s" % self.username)
+            log.msg("Cookie login for: %s" % self.username)
             self.cookie = auth_key
 
         def _cb(result):
@@ -644,7 +644,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result: results from the db query
             """
             self.nickname = result[0][0] if result[0][0] else "anonymous"
-            logging.warning("SETTING SELF.NICKNAME TO %s" % self.nickname)
+            log.msg("SETTING SELF.NICKNAME TO %s" % self.nickname)
 
 
         # moved from onSessionOpen
@@ -869,7 +869,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 txn.execute("SELECT id FROM contracts WHERE ticker=%s", ('MXN', ))
                 res = txn.fetchall()
                 if not res:
-                    logging.error("Unable to find MXN contract!")
+                    log.err("Unable to find MXN contract!")
                     return [False, "Internal error: No MXN contract"]
 
                 contract_id = res[0][0]
@@ -890,7 +890,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param failure:
             :returns: list - [False, message]
             """
-            logging.warn("Could not create bill: %s" % str(failure))
+            log.err("Could not create bill: %s" % str(failure))
             # TODO: set a correct error code
             return [False, (0, "We are unable to connect to Compropago. Please try again later. We are sorry for the inconvenience.")]
 
@@ -1288,12 +1288,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param topic_uri_prefix: prefix of the URI
         :param topic_uri_suffix:suffix part, in this case always "chat"
         """
-        logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
+        log.msg("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if self.username:
-            logging.info("he's logged in as %s so we'll let him" % self.username)
+            log.msg("he's logged in as %s so we'll let him" % self.username)
             return True
         else:
-            logging.info("but he's not logged in, so we won't let him")
+            log.msg("but he's not logged in, so we won't let him")
             return False
 
     @exportPub("chat")
@@ -1306,20 +1306,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param event: event being published, a json object
         """
         print 'string?', event
-        logging.info("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
+        log.msg("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if not self.username:
-            logging.info("he's not logged in though, so no")
+            log.msg("he's not logged in though, so no")
             return None
         else:
-            logging.info("he's logged as %s in so that's cool" % self.username)
+            log.msg("he's logged as %s in so that's cool" % self.username)
             if type(event) not in [str, unicode]:
-                logging.warning("but the event type isn't a string, that's way uncool so no")
+                log.err("but the event type isn't a string, that's way uncool so no")
                 return None
             elif len(event) > 0:
                 message = cgi.escape(event)
                 if len(message) > 128:
                     message = message[:128] + u"[\u2026]"
-                chat_log.info('%s:%s' % (self.nickname, message))
+                # TODO: enable this
+                # chat_log.info('%s:%s' % (self.nickname, message))
 
                 #pause message rate if necessary
                 time_span = time.time() - self.troll_throttle
@@ -1333,7 +1334,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.factory.chats.append(msg)
                 if len(self.factory.chats) > 50:
                     self.factory.chats = self.factory.chats[-50:]
-                logging.warning(self.factory.chats)
+                log.msg(self.factory.chats)
                 return msg
 
 
@@ -1489,9 +1490,7 @@ class TicketServer(Resource):
 
         :param request:
         """
-        line = '%s "%s %s %s" %d %s "%s" "%s" "%s"'
-        logging.info(line,
-                     request.getClientIP(),
+        log.msg(request.getClientIP(),
                      request.method,
                      request.uri,
                      request.clientproto,
@@ -1524,7 +1523,7 @@ class TicketServer(Resource):
 
             :param failure:
             """
-            logging.error("unable to create support ticket: %s" % str(failure.value.args))
+            log.err("unable to create support ticket: %s" % str(failure.value.args))
             request.write("Failure: %s" % str(failure.value.args))
             request.finish()
 
@@ -1546,11 +1545,11 @@ class TicketServer(Resource):
 
             def onCreateTicketSuccess(ticket_number):
                 def onRegisterTicketSuccess(result):
-                    logging.debug("Ticket registered successfully")
+                    log.msg("Ticket registered successfully")
                     request.write("OK")
                     request.finish()
 
-                logging.debug("Ticket created: %s" % ticket_number)
+                log.msg("Ticket created: %s" % ticket_number)
                 d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
                 d3.addCallbacks(onRegisterTicketSuccess, onFail)
 
@@ -1578,13 +1577,13 @@ class TicketServer(Resource):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-    chat_log = logging.getLogger('chat_log')
+    log.startLogging(sys.stdout)
+    #chat_log = logging.getLogger('chat_log')
 
-    chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
-    chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
-    chat_log_handler.setFormatter(chat_log_formatter)
-    chat_log.addHandler(chat_log_handler)
+    #chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
+    #chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
+    #chat_log_handler.setFormatter(chat_log_formatter)
+    #chat_log.addHandler(chat_log_handler)
 
     if config.getboolean("webserver", "debug"):
         log.startLogging(sys.stdout)

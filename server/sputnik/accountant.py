@@ -11,6 +11,7 @@ administrator. It is responsible for the following:
 """
 
 import config
+import sys
 from rpc_schema import schema
 
 from optparse import OptionParser
@@ -37,12 +38,12 @@ from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_
     dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
 from twisted.internet import reactor, defer
+from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import DataError
 from datetime import datetime, date
 from watchdog import watchdog
 
-import logging
 import time
 import uuid
 
@@ -91,7 +92,7 @@ class Accountant:
                     models.Trade.timestamp.desc()).first()
                 self.safe_prices[contract.ticker] = int(last_trade.price)
             except:
-                logging.warning(
+                log.msg(
                     "warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
                 self.safe_prices[contract.ticker] = 42
 
@@ -100,7 +101,7 @@ class Accountant:
 
     def post_or_fail(self, *postings):
         def on_success(result):
-            logging.debug("Post success: %s" % result)
+            log.msg("Post success: %s" % result)
             try:
                 for posting in postings:
                     position = self.get_position(posting['username'], posting['contract'])
@@ -116,9 +117,9 @@ class Accountant:
                         else:
                             sign = 1
 
-                    logging.debug("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
+                    log.msg("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
-                    logging.debug("New position: %s" % position)
+                    log.msg("New position: %s" % position)
                     self.session.merge(position)
                 self.session.commit()
             finally:
@@ -126,19 +127,19 @@ class Accountant:
 
         def on_fail_ledger(failure):
             e = failure.trap(ledger.LedgerException)
-            logging.error("Ledger exception:")
-            logging.error(str(failure.value))
+            log.err("Ledger exception:")
+            log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
             raise e
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
             if isinstance(e, RemoteCallTimedOut):
-                logging.error("Ledger call timed out.")
+                log.err("Ledger call timed out.")
                 self.alerts_proxy.send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
-                logging.error("Improper ledger RPC invocation:")
-                logging.error(str(failure.value))
+                log.err("Improper ledger RPC invocation:")
+                log.err(failure)
             raise e
 
         def publish_transactions(result):
@@ -245,7 +246,7 @@ class Accountant:
             return self.session.query(models.Position).filter_by(
                 user=user, contract=contract).one()
         except NoResultFound:
-            logging.debug("Creating new position for %s on %s." %
+            log.msg("Creating new position for %s on %s." %
                           (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
@@ -255,7 +256,7 @@ class Accountant:
     def check_margin(self, username, low_margin, high_margin):
         cash_position = self.get_position(username, "BTC")
 
-        logging.info("high_margin = %d, low_margin = %d, cash_position = %d" %
+        log.msg("high_margin = %d, low_margin = %d, cash_position = %d" %
                      (high_margin, low_margin, cash_position.position))
 
         if high_margin > cash_position.position:
@@ -270,11 +271,11 @@ class Accountant:
         :type order: models.Order
         :raises: INSUFFICIENT_MARGIN, TRADE_NOT_PERMITTED
         """
-        logging.info("Trying to accept order %s." % order)
+        log.msg("Trying to accept order %s." % order)
 
         user = order.user
         if not user.permissions.trade:
-            logging.info("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
+            log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
             self.session.delete(order)
             self.session.commit()
             raise TRADE_NOT_PERMITTED
@@ -289,12 +290,12 @@ class Accountant:
             trial_period=self.trial_period)
 
         if self.check_margin(order.username, low_margin, high_margin):
-            logging.info("Order accepted.")
+            log.msg("Order accepted.")
             order.accepted = True
             self.session.merge(order)
             self.session.commit()
         else:
-            logging.info("Order rejected due to margin.")
+            log.msg("Order rejected due to margin.")
             self.session.delete(order)
             self.session.commit()
             raise INSUFFICIENT_MARGIN
@@ -352,7 +353,7 @@ class Accountant:
             next = time.time()
             elapsed = (next - last) * 1000
             last = next
-            logging.debug("charge_fees: %s: %.3f ms." % (ticker, elapsed))
+            log.msg("charge_fees: %s: %.3f ms." % (ticker, elapsed))
 
         return user_postings, vendor_postings, remainder_postings
 
@@ -364,7 +365,7 @@ class Accountant:
         :param transaction: the transaction object
         :type transaction: dict
         """
-        logging.info("Processing transaction %s." % transaction)
+        log.msg("Processing transaction %s." % transaction)
         last = time.time()
         if username != transaction["username"]:
             raise RemoteCallException("username does not match transaction")
@@ -385,12 +386,12 @@ class Accountant:
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
-        logging.debug("post_transaction: part 1: %.3f ms." % elapsed)
+        log.msg("post_transaction: part 1: %.3f ms." % elapsed)
 
         if contract.contract_type == "futures":
             raise NotImplementedError
 
-            # logging.debug("This is a futures trade.")
+            # log.msg("This is a futures trade.")
             # aggressive_cash_position = self.get_position(aggressive_username, "BTC")
             # aggressive_future_position = self.get_position(aggressive_username, ticker, price)
             #
@@ -427,7 +428,7 @@ class Accountant:
             if cash_spent_float != cash_spent_int:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
                           (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
-                logging.error(message)
+                log.err(message)
                 self.alerts_proxy.send_alert(message, "Integer failure")
                 # TODO: abort?
 
@@ -441,18 +442,18 @@ class Accountant:
             if cash_spent_float != cash_spent_int:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.denominator=%d payout_contract.denominator=%d)" % \
                               (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
-                logging.error(message)
+                log.err(message)
                 self.alerts_proxy.send_alert(message, "Integer failure")
                 # TODO: abort?
         else:
-            logging.error("Unknown contract type '%s'." %
+            log.err("Unknown contract type '%s'." %
                           contract.contract_type)
             raise NotImplementedError
 
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
-        logging.debug("post_transaction: part 2: %.3f ms." % elapsed)
+        log.msg("post_transaction: part 2: %.3f ms." % elapsed)
 
         if side == "BUY":
             denominated_direction = "debit"
@@ -487,7 +488,7 @@ class Accountant:
 
         next = time.time()
         elapsed = (next - last) * 1000
-        logging.debug("post_transaction: part 3: %.3f ms." % elapsed)
+        log.msg("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Submit to ledger
         # (user denominated, user payout, remainder) x 2 = 6
@@ -522,11 +523,11 @@ class Accountant:
                     'fees': fees
                    }
             self.webserver.fill(username, fill)
-            logging.debug('to ws: ' + str({"fills": [username, fill]}))
+            log.msg('to ws: ' + str({"fills": [username, fill]}))
 
             next = time.time()
             elapsed = (next - last) * 1000
-            logging.debug("post_transaction: part 6: %.3f ms." % elapsed)
+            log.msg("post_transaction: part 6: %.3f ms." % elapsed)
 
         d.addCallback(notify_fill)
         def update_order(result):
@@ -535,7 +536,7 @@ class Accountant:
             self.session.add(db_order)
             self.session.commit()
             self.webserver.order(username, db_order.to_webserver())
-            logging.debug("to ws: " + str({"order": [username, db_order.to_webserver()]}))
+            log.msg("to ws: " + str({"order": [username, db_order.to_webserver()]}))
             return result
 
         d.addCallback(update_order)
@@ -548,7 +549,7 @@ class Accountant:
             self.session.add(trade)
             self.session.commit()
             self.webserver.trade(ticker, trade.to_webserver())
-            logging.debug("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
+            log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
 
         if aggressive:
@@ -566,7 +567,7 @@ class Accountant:
         :type id: int
         :returns: tuple -- (True/False, Result/Error)
         """
-        logging.info("Received request to cancel order id %d." % order_id)
+        log.msg("Received request to cancel order id %d." % order_id)
 
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
@@ -608,7 +609,7 @@ class Accountant:
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
-            logging.critical("Webserver allowed a 'cash' contract!")
+            log.err("Webserver allowed a 'cash' contract!")
             raise AccountantException(0, "Not a valid contract type.")
 
         if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
@@ -629,7 +630,7 @@ class Accountant:
             self.session.add(o)
             self.session.commit()
         except Exception as e:
-            logging.error("Error adding data %s" % e)
+            log.err("Error adding data %s" % e)
             self.session.rollback()
             raise e
 
@@ -684,17 +685,17 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             if self.trial_period:
-                logging.error("Withdrawals not permitted during trial period")
+                log.err("Withdrawals not permitted during trial period")
                 raise WITHDRAW_NOT_PERMITTED
 
-            logging.debug("Withdrawal request for %s %s for %d to %s received" % (username, ticker, amount, address))
+            log.msg("Withdrawal request for %s %s for %d to %s received" % (username, ticker, amount, address))
             user = self.get_user(username)
             if not user.permissions.withdraw:
-                logging.error("Withdraw request for %s failed due to no permissions" % username)
+                log.err("Withdraw request for %s failed due to no permissions" % username)
                 raise WITHDRAW_NOT_PERMITTED
 
             if amount % contract.lot_size != 0:
-                logging.error("Withdraw request for a wrong lot_size qty: %d" % amount)
+                log.err("Withdraw request for a wrong lot_size qty: %d" % amount)
                 raise INVALID_CURRENCY_QUANTITY
 
             uid = util.get_uid()
@@ -713,7 +714,7 @@ class Accountant:
                     withdrawals={ticker:amount},
                     trial_period=self.trial_period)
             if not self.check_margin(username, low_margin, high_margin):
-                logging.info("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
+                log.msg("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
                 d = self.post_or_fail(credit_posting, debit_posting)
@@ -725,7 +726,7 @@ class Accountant:
                 return d
         except Exception as e:
             self.session.rollback()
-            logging.error("Exception received while attempting withdrawal: %s" % e)
+            log.err("Exception received while attempting withdrawal: %s" % e)
             raise e
 
     def deposit_cash(self, username, address, received, total=True):
@@ -740,7 +741,7 @@ class Accountant:
         :type total: bool
         """
         try:
-            logging.debug('received %d at %s - total=%s' % (received, address, total))
+            log.msg('received %d at %s - total=%s' % (received, address, total))
 
             #query for db objects we want to update
 
@@ -786,13 +787,13 @@ class Accountant:
             potential_new_position = user_cash_position.position + deposit
             excess_deposit = 0
             if not user.permissions.deposit:
-                logging.error("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
+                log.err("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
                               (deposit, address, user.username))
 
                 # The user's not permitted to deposit at all. The excess deposit is the entire value
                 excess_deposit = deposit
             elif potential_new_position > deposit_limit:
-                logging.error("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
+                log.err("Deposit of %d failed for address=%s because user %s exceeded deposit limit=%d" %
                               (deposit, address, total_deposited_at_address.username, deposit_limit))
                 excess_deposit = potential_new_position - deposit_limit
 
@@ -819,7 +820,7 @@ class Accountant:
             return d
         except Exception as e:
             self.session.rollback()
-            logging.error(
+            log.err(
                 "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
 
     def clear_contract(self, ticker):
@@ -866,13 +867,13 @@ class Accountant:
         """
 
         try:
-            logging.debug("Changing permission group for %s to %d" % (username, id))
+            log.msg("Changing permission group for %s to %d" % (username, id))
             user = self.get_user(username)
             user.permission_group_id = id
             self.session.add(user)
             self.session.commit()
         except Exception as e:
-            logging.error("Error: %s" % e)
+            log.err("Error: %s" % e)
             self.session.rollback()
 
 
@@ -1010,10 +1011,10 @@ class AccountantProxy:
         return routed_method
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    log.startLogging(sys.stdout)
     accountant_number = int(args[0])
     num_procs = config.getint("accountant", "num_procs")
-    logging.info("Accountant %d of %d" % (accountant_number+1, num_procs))
+    log.msg("Accountant %d of %d" % (accountant_number+1, num_procs))
 
     session = database.make_session()
     engines = {}
