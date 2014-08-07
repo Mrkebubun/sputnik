@@ -602,6 +602,19 @@ class Administrator:
                 # Return the cache if it's been less than a day
                 return self.audit_cache
 
+        balance_sheet = self.get_balance_sheet()
+        for side in balance_sheet.values():
+            for ticker, details in side.iteritems():
+                details['positions'] = []
+                for position in details['positions_raw']:
+                    details['positions'].append((position['hash'], position['position']))
+                del details['positions_raw']
+
+        balance_sheet['timestamp'] = now
+        self.audit_cache = balance_sheet
+        return balance_sheet
+
+
     def get_permission_groups(self):
         """Get all the permission groups
 
