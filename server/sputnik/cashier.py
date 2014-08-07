@@ -27,6 +27,7 @@ from datetime import datetime
 import base64
 from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
+from rpc_schema import schema
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file", default="../config/sputnik.ini")
@@ -563,14 +564,17 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @schema("rpc/cashier.json#get_new_address")
     def get_new_address(self, username, ticker):
         return self.cashier.get_new_address(username, ticker)
 
     @export
+    @schema("rpc/cashier.json#get_current_address")
     def get_current_address(self, username, ticker):
         return self.cashier.get_current_address(username, ticker)
 
     @export
+    @schema("rpc/cashier.json#get_deposit_instructions")
     def get_deposit_instructions(self, ticker):
         return self.cashier.get_deposit_instructions(ticker)
 
@@ -585,10 +589,12 @@ class AdministratorExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @schema("rpc/cashier.json#rescan_address")
     def rescan_address(self, address):
         return self.cashier.rescan_address(address)
 
     @export
+    @schema("rpc/cashier.json#process_withdrawal")
     def process_withdrawal(self, address, online=False, cancel=False):
         return self.cashier.process_withdrawal(address, online=online, cancel=cancel)
 
@@ -598,6 +604,7 @@ class AccountantExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @schema("rpc/cashier.json#request_withdrawal")
     def request_withdrawal(self, username, ticker, address, amount):
         return self.cashier.request_withdrawal(username, ticker, address, amount)
 
