@@ -55,7 +55,7 @@
                 "type": ["string", "null"],
                 "description": "Optional short note."
             },
-            "id":
+            "uid":
             {
                 "type": "string",
                 "description": "Unique id for the transfer."
