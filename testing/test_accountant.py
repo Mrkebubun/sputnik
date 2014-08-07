@@ -528,12 +528,15 @@ class TestWebserverExport(TestAccountant):
         self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
+        from sputnik import util
+        import datetime
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -568,11 +571,14 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
+        from sputnik import util
+        import datetime
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'NETS2014',
                                                'price': 500,
                                                'quantity': 3,
-                                               'side': 'BUY'})
+                                               'side': 'BUY',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onSuccess(id):
             from sputnik import models
@@ -614,11 +620,14 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a buy order, we have enough cash
+        from sputnik import util
+        import datetime
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'NETS2014',
                                                'price': 100,
                                                'quantity': 3,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onSuccess(id):
             from sputnik import models
@@ -662,13 +671,15 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have enough cash
         from sputnik import accountant
-
+        from sputnik import util
+        import datetime
         with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
     def test_place_order_no_cash(self):
@@ -677,13 +688,15 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have no cash
         from sputnik import accountant
-
+        from sputnik import util
+        import datetime
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
     def test_place_order_little_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -696,13 +709,15 @@ class TestWebserverExport(TestAccountant):
 
         # Place a sell order, we have too little cash
         from sputnik import accountant
-
+        from sputnik import util
+        import datetime
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             result = self.webserver_export.place_order('test', {'username': 'test',
                                                         'contract': 'BTC/MXN',
                                                         'price': 1000000,
                                                         'quantity': 9000000,
-                                                        'side': 'SELL'})
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
     def test_place_many_orders(self):
@@ -714,11 +729,14 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
+        from sputnik import util
+        import datetime
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
         def onFail():
@@ -746,13 +764,15 @@ class TestWebserverExport(TestAccountant):
 
             # Place another sell, we have insufficient cash now
             from sputnik import accountant
-
+            from sputnik import util
+            import datetime
             with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
                 self.webserver_export.place_order('test', {'username': 'test',
                                                    'contract': 'BTC/MXN',
                                                    'price': 1000000,
                                                    'quantity': 3000000,
-                                                   'side': 'SELL'})
+                                                   'side': 'SELL',
+                                                   'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         d.addCallbacks(onSuccess, onFail)
         return d
@@ -766,11 +786,14 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
+        from sputnik import util
+        import datetime
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -799,11 +822,14 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
+        from sputnik import util
+        import datetime
         d = self.webserver_export.place_order('test', {'username': 'test',
                                                'contract': 'BTC/MXN',
                                                'price': 1000000,
                                                'quantity': 3000000,
-                                               'side': 'SELL'})
+                                               'side': 'SELL',
+                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)

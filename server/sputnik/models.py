@@ -172,10 +172,11 @@ class Order(db.Base, QuantityUI, PriceUI):
         """
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
                 'quantity_left': self.quantity_left,
+                'timestamp': util.dt_to_timestamp(self.timestamp),
                 'price': self.price, 'side': (-1 if self.side == "BUY" else 1)}
 
 
-    def __init__(self, user, contract, quantity, price, side):
+    def __init__(self, user, contract, quantity, price, side, timestamp=None):
         """
 
         :param user:
@@ -195,7 +196,11 @@ class Order(db.Base, QuantityUI, PriceUI):
         self.quantity_left = quantity
         self.price = price
         self.side = side
-        self.timestamp = datetime.utcnow()
+        if timestamp is not None:
+            self.timestamp = timestamp
+        else:
+            self.timestamp = datetime.utcnow()
+
         self.is_cancelled = False
 
     def __repr__(self):

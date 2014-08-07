@@ -623,7 +623,8 @@ class Accountant:
             if not order["quantity"] % contract.lot_size == 0:
                 raise AccountantException(0, "invalid price or quantity")
 
-        o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper())
+        o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper(),
+                         timestamp=util.timestamp_to_dt(order['timestamp']))
         try:
             self.session.add(o)
             self.session.commit()

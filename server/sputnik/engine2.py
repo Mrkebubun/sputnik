@@ -24,6 +24,7 @@ import util
 from twisted.internet import reactor
 from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
 from collections import defaultdict
+from datetime import datetime
 
 
 class OrderSide:
@@ -39,7 +40,8 @@ class OrderSide:
 
 class Order:
     def __init__(self, id=None, contract=None, quantity=None,
-                 quantity_left=None, price=None, side=None, username=None):
+                 quantity_left=None, price=None, side=None, username=None,
+                 timestamp=None):
         self.id = id
         self.contract = contract
         self.quantity = quantity
@@ -47,7 +49,10 @@ class Order:
         self.price = price
         self.side = side
         self.username = username
-        self.timestamp = int(time.time() * 1e6)
+        if timestamp is not None:
+            self.timestamp = timestamp
+        else:
+            self.timestamp = util.dt_to_timestamp(datetime.utcnow())
 
     def matchable(self, other):
         if self.side == other.side:
