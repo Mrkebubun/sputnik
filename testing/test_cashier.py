@@ -16,11 +16,11 @@ class FakeBitcoin(FakeComponent):
     balance = 0.0
 
     def getnewaddress(self):
-        self._log_call("getnewaddress", (), {})
+        self._log_call("getnewaddress")
         return defer.succeed({'result': "NEW_TEST_ADDRESS"})
 
     def getreceivedbyaddress(self, address, minimum_confirmations):
-        self._log_call("getreceivedbyaddress", (address, minimum_confirmations), {})
+        self._log_call("getreceivedbyaddress")
         if address in self.received:
             if self.received[address]['confirmations'] >= minimum_confirmations:
                 return defer.succeed({'result': self.received[address]['amount']})
@@ -28,7 +28,7 @@ class FakeBitcoin(FakeComponent):
         return defer.succeed({'result': 0.0})
 
     def listreceivedbyaddress(self, minimum_confirmations):
-        self._log_call("listreceivedbyaddress", (minimum_confirmations), {})
+        self._log_call("listreceivedbyaddress", minimum_confirmations)
         received = []
 
         for address, info in self.received.iteritems():
@@ -42,16 +42,16 @@ class FakeBitcoin(FakeComponent):
 
 
     def getbalance(self):
-        self._log_call("getbalance", (), {})
+        self._log_call("getbalance")
         return defer.succeed({'result': self.balance})
 
     def sendtoaddress(self, address, amount):
-        self._log_call("sendtoaddress", (address, amount), {})
+        self._log_call("sendtoaddress", address, amount)
         return defer.succeed({'result': "TXSUCCESS"})
 
     # Utility functions for tester
     def receive_at_address(self, address, amount):
-        self._log_call("receive_at_address", (address, amount), {})
+        self._log_call("receive_at_address", address, amount)
         if address in self.received:
             if self.received[address]['amount'] == amount:
                 self.received[address]['confirmations'] += 1
@@ -64,7 +64,7 @@ class FakeBitcoin(FakeComponent):
             }
 
     def set_balance(self, amount):
-        self._log_call("set_balance", (amount), {})
+        self._log_call("set_balance", amount)
         self.balance = amount
 
 class TestCashier(TestSputnik):

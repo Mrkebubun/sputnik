@@ -20,12 +20,12 @@ class FakeEngine(FakeComponent):
     name = "engine"
 
     def place_order(self, order):
-        self._log_call(('place_order', (order), {}))
+        self._log_call('place_order', order)
         # Always return a good fake result
         return defer.succeed(order['id'])
 
     def cancel_order(self, id):
-        self._log_call(('cancel_order', (id), {}))
+        self._log_call('cancel_order', id)
         # Always return success, with None
         return defer.succeed(None)
 
@@ -34,7 +34,7 @@ class FakeLedger(FakeComponent):
     name = "ledger"
 
     def post(self, *postings):
-        self._log_call(('post', postings, {}))
+        self._log_call('post', *postings)
         return defer.succeed(None)
 
 
@@ -92,19 +92,19 @@ class TestCashierExport(TestAccountant):
                 username="test").one()
             self.assertEqual(position.position, 10)
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             (u'onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'quantity': 10,
-                                                               'direction': 'debit',
-                                                               'type': u'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'quantity': 10,
-                                                               'direction': 'credit',
-                                                               'type': u'Deposit'}),
-                                                             {})]))
+                                                                       (u'onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'quantity': 10,
+                                                                         'direction': 'debit',
+                                                                         'type': u'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'quantity': 10,
+                                                                         'direction': 'credit',
+                                                                         'type': u'Deposit'}),
+                                                                       {})]))
 
         d.addCallback(onSuccess)
         return d
@@ -131,33 +131,33 @@ class TestCashierExport(TestAccountant):
                 username="depositoverflow").one()
             self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 1000000000,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 1000000000,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 900000000,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('depositoverflow',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 900000000,
-                                                               'type': 'Deposit'}),
-                                                             {})]))
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 1000000000,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 1000000000,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 900000000,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('depositoverflow',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 900000000,
+                                                                         'type': 'Deposit'}),
+                                                                       {})]))
 
         d.addCallback(onSuccess)
         return d
@@ -181,33 +181,33 @@ class TestCashierExport(TestAccountant):
                 username="depositoverflow").one()
             self.assertEqual(overflow_position.position, 10)
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('depositoverflow',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {})]
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('depositoverflow',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {})]
             ))
 
         d.addCallback(onSuccess)
@@ -237,47 +237,47 @@ class TestCashierExport(TestAccountant):
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'from_account',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'to_account',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('from_account',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 5,
-                                                               'type': 'Transfer'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('to_account',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 5,
-                                                               'type': 'Transfer'}),
-                                                             {})]
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'from_account',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'to_account',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('from_account',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 5,
+                                                                         'type': 'Transfer'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('to_account',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 5,
+                                                                         'type': 'Transfer'}),
+                                                                       {})]
             ))
 
         d.addCallback(onSuccess)
@@ -317,47 +317,47 @@ class TestAdministratorExport(TestAccountant):
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'from_account',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'to_account',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('from_account',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 5,
-                                                               'type': 'Transfer'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('to_account',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 5,
-                                                               'type': 'Transfer'}),
-                                                             {})]
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'from_account',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'to_account',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('from_account',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 5,
+                                                                         'type': 'Transfer'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('to_account',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 5,
+                                                                         'type': 'Transfer'}),
+                                                                       {})]
             ))
 
 
@@ -378,33 +378,33 @@ class TestAdministratorExport(TestAccountant):
                 username="test").one()
             self.assertEqual(position.position, 20)
             self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                             ('onlinecash',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             (u'test',
-                                                              {'contract': u'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Deposit'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('test',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'credit',
-                                                               'quantity': 10,
-                                                               'type': 'Transfer'}),
-                                                             {}),
-                                                            ('transaction',
-                                                             ('adjustments',
-                                                              {'contract': 'BTC',
-                                                               'direction': 'debit',
-                                                               'quantity': 10,
-                                                               'type': 'Transfer'}),
-                                                             {})]))
+                                                                       ('onlinecash',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       (u'test',
+                                                                        {'contract': u'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Deposit'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('test',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'credit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Transfer'}),
+                                                                       {}),
+                                                                      ('transaction',
+                                                                       ('adjustments',
+                                                                        {'contract': 'BTC',
+                                                                         'direction': 'debit',
+                                                                         'quantity': 10,
+                                                                         'type': 'Transfer'}),
+                                                                       {})]))
 
         d.addCallback(onSuccess)
         return d
@@ -440,20 +440,21 @@ class TestEngineExport(TestAccountant):
         self.set_permissions_group("aggressive_user", 'Trade')
         self.set_permissions_group("passive_user", "Trade")
 
-
         passive_deferred = self.webserver_export.place_order('passive_user', {'username': 'passive_user',
-                                                                                    'contract': 'BTC/MXN',
-                                                                                    'price': 60000000,
-                                                                                    'quantity': 3000000,
-                                                                                    'side': 'BUY',
-                                                                                    'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                                              'contract': 'BTC/MXN',
+                                                                              'price': 60000000,
+                                                                              'quantity': 3000000,
+                                                                              'side': 'BUY',
+                                                                              'timestamp': util.dt_to_timestamp(
+                                                                                  datetime.datetime.utcnow())})
 
         aggressive_deferred = self.webserver_export.place_order('aggressive_user', {'username': 'aggressive_user',
                                                                                     'contract': 'BTC/MXN',
                                                                                     'price': 60000000,
                                                                                     'quantity': 3000000,
                                                                                     'side': 'SELL',
-                                                                                    'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                                                    'timestamp': util.dt_to_timestamp(
+                                                                                        datetime.datetime.utcnow())})
 
         def onSuccessPlaceOrder(result):
             (dummy, passive_order), (dummy, aggressive_order) = result
@@ -532,11 +533,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
         # Place a sell order, we have enough cash
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -552,14 +553,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
-                                                                      {'contract': 5,
-                                                                       'id': 1,
-                                                                       'price': 1000000,
-                                                                       'quantity': 3000000,
-                                                                       'quantity_left': 3000000,
-                                                                       'side': 1,
-                                                                       'username': u'test'},
-                                                                      {})]))
+                                                                                ({'contract': 5,
+                                                                                  'id': 1,
+                                                                                  'price': 1000000,
+                                                                                  'quantity': 3000000,
+                                                                                  'quantity_left': 3000000,
+                                                                                  'side': 1,
+                                                                                  'username': u'test'},),
+                                                                                {})]))
 
         d.addCallbacks(onSuccess, onFail)
         return d
@@ -573,12 +574,13 @@ class TestWebserverExport(TestAccountant):
         # Place a buy order, we have enough cash
         from sputnik import util
         import datetime
+
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'NETS2014',
-                                               'price': 500,
-                                               'quantity': 3,
-                                               'side': 'BUY',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'NETS2014',
+                                                       'price': 500,
+                                                       'quantity': 3,
+                                                       'side': 'BUY',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onSuccess(id):
             from sputnik import models
@@ -591,14 +593,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'BUY')
 
             self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
-                                                                       {'contract': 8,
-                                                                        'id': 1,
-                                                                        'price': 500,
-                                                                        'quantity': 3,
-                                                                        'quantity_left': 3,
-                                                                        'side': -1,
-                                                                        'username': u'test'},
-                                                                       {})]))
+                                                                                 ({'contract': 8,
+                                                                                   'id': 1,
+                                                                                   'price': 500,
+                                                                                   'quantity': 3,
+                                                                                   'quantity_left': 3,
+                                                                                   'side': -1,
+                                                                                   'username': u'test'},),
+                                                                                 {})]))
 
             # Check to make sure margin is right
             from sputnik import margin
@@ -622,12 +624,13 @@ class TestWebserverExport(TestAccountant):
         # Place a buy order, we have enough cash
         from sputnik import util
         import datetime
+
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'NETS2014',
-                                               'price': 100,
-                                               'quantity': 3,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'NETS2014',
+                                                       'price': 100,
+                                                       'quantity': 3,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onSuccess(id):
             from sputnik import models
@@ -640,14 +643,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
-                                                                       {'contract': 8,
-                                                                        'id': 1,
-                                                                        'price': 100,
-                                                                        'quantity': 3,
-                                                                        'quantity_left': 3,
-                                                                        'side': 1,
-                                                                        'username': u'test'},
-                                                                       {})]))
+                                                                                 ({'contract': 8,
+                                                                                   'id': 1,
+                                                                                   'price': 100,
+                                                                                   'quantity': 3,
+                                                                                   'quantity_left': 3,
+                                                                                   'side': 1,
+                                                                                   'username': u'test'},),
+                                                                                 {})]))
 
             # Check to make sure margin is right
             from sputnik import margin
@@ -673,13 +676,14 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
         from sputnik import util
         import datetime
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
             self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
     def test_place_order_no_cash(self):
@@ -690,13 +694,14 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
         from sputnik import util
         import datetime
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
     def test_place_order_little_cash(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -711,13 +716,15 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
         from sputnik import util
         import datetime
+
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             result = self.webserver_export.place_order('test', {'username': 'test',
-                                                        'contract': 'BTC/MXN',
-                                                        'price': 1000000,
-                                                        'quantity': 9000000,
-                                                        'side': 'SELL',
-                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                                'contract': 'BTC/MXN',
+                                                                'price': 1000000,
+                                                                'quantity': 9000000,
+                                                                'side': 'SELL',
+                                                                'timestamp': util.dt_to_timestamp(
+                                                                    datetime.datetime.utcnow())})
 
 
     def test_place_many_orders(self):
@@ -731,12 +738,13 @@ class TestWebserverExport(TestAccountant):
         # Place a sell order, we have enough cash
         from sputnik import util
         import datetime
+
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
         def onFail():
@@ -753,26 +761,28 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.side, 'SELL')
 
             self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
-                                                                      {'contract': 5,
-                                                                       'id': 1,
-                                                                       'price': 1000000,
-                                                                       'quantity': 3000000,
-                                                                       'quantity_left': 3000000,
-                                                                       'side': 1,
-                                                                       'username': u'test'},
-                                                                      {})]))
+                                                                                ({'contract': 5,
+                                                                                  'id': 1,
+                                                                                  'price': 1000000,
+                                                                                  'quantity': 3000000,
+                                                                                  'quantity_left': 3000000,
+                                                                                  'side': 1,
+                                                                                  'username': u'test'},),
+                                                                                {})]))
 
             # Place another sell, we have insufficient cash now
             from sputnik import accountant
             from sputnik import util
             import datetime
+
             with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
                 self.webserver_export.place_order('test', {'username': 'test',
-                                                   'contract': 'BTC/MXN',
-                                                   'price': 1000000,
-                                                   'quantity': 3000000,
-                                                   'side': 'SELL',
-                                                   'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                           'contract': 'BTC/MXN',
+                                                           'price': 1000000,
+                                                           'quantity': 3000000,
+                                                           'side': 'SELL',
+                                                           'timestamp': util.dt_to_timestamp(
+                                                               datetime.datetime.utcnow())})
 
         d.addCallbacks(onSuccess, onFail)
         return d
@@ -788,12 +798,13 @@ class TestWebserverExport(TestAccountant):
         # Place a sell order, we have enough cash
         from sputnik import util
         import datetime
+
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -824,12 +835,13 @@ class TestWebserverExport(TestAccountant):
         # Place a sell order, we have enough cash
         from sputnik import util
         import datetime
+
         d = self.webserver_export.place_order('test', {'username': 'test',
-                                               'contract': 'BTC/MXN',
-                                               'price': 1000000,
-                                               'quantity': 3000000,
-                                               'side': 'SELL',
-                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def onFail(failure):
             self.assertFalse(True)
@@ -882,48 +894,48 @@ class TestWebserverExport(TestAccountant):
                              {'name': 'Deposit', 'deposit': True, 'login': True, 'trade': False, 'withdraw': False})
 
 
-#    def test_get_transaction_history(self):
-#        self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-#        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
-#        self.set_permissions_group("aggressive_user", 'Deposit')
-#        self.set_permissions_group("passive_user", "Deposit")
-#        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000000)
-#        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
-#
-#        import datetime
-#        from sputnik import util
-#
-#        test_transaction = {'aggressive_username': 'aggressive_user',
-#                            'passive_username': 'passive_user',
-#                            'contract': 'BTC/MXN',
-#                            'price': 60000000,
-#                            'quantity': 3000000,
-#                            'aggressive_order_id': 54,
-#                            'passive_order_id': 50,
-#                            'side': 'SELL',
-#                            'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())}
-#        self.engine_export.post_transaction(test_transaction)
-#        self.set_permissions_group("aggressive_user", 'Withdraw')
-#        self.webserver_export.request_withdrawal('aggressive_user', 'BTC', 3000000, 'bad_address')
-#        to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
-#        from_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=30))
-#        history = self.webserver_export.get_transaction_history('aggressive_user', from_timestamp, to_timestamp)
-#        FakeProxy.check(history, [{'contract': u'BTC',
-#                                   'quantity': 50000000,
-#                                   'type': u'Deposit'},
-#                                  {'contract': u'MXN',
-#                                   'quantity': 1800000,
-#                                   'type': u'Trade'},
-#                                  {'contract': u'BTC',
-#                                   'quantity': -3000000,
-#                                   'type': u'Trade'},
-#                                  {'contract': u'MXN',
-#                                   'quantity': -7200,
-#                                   'type': u'Trade'},
-#                                  {'contract': u'BTC',
-#                                   'quantity': -3000000,
-#                                   'type': u'Withdrawal'}]
-#        )
+    #    def test_get_transaction_history(self):
+    #        self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+    #        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+    #        self.set_permissions_group("aggressive_user", 'Deposit')
+    #        self.set_permissions_group("passive_user", "Deposit")
+    #        self.cashier_export.deposit_cash('18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 50000000)
+    #        self.cashier_export.deposit_cash('28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
+    #
+    #        import datetime
+    #        from sputnik import util
+    #
+    #        test_transaction = {'aggressive_username': 'aggressive_user',
+    #                            'passive_username': 'passive_user',
+    #                            'contract': 'BTC/MXN',
+    #                            'price': 60000000,
+    #                            'quantity': 3000000,
+    #                            'aggressive_order_id': 54,
+    #                            'passive_order_id': 50,
+    #                            'side': 'SELL',
+    #                            'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())}
+    #        self.engine_export.post_transaction(test_transaction)
+    #        self.set_permissions_group("aggressive_user", 'Withdraw')
+    #        self.webserver_export.request_withdrawal('aggressive_user', 'BTC', 3000000, 'bad_address')
+    #        to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+    #        from_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(days=30))
+    #        history = self.webserver_export.get_transaction_history('aggressive_user', from_timestamp, to_timestamp)
+    #        FakeProxy.check(history, [{'contract': u'BTC',
+    #                                   'quantity': 50000000,
+    #                                   'type': u'Deposit'},
+    #                                  {'contract': u'MXN',
+    #                                   'quantity': 1800000,
+    #                                   'type': u'Trade'},
+    #                                  {'contract': u'BTC',
+    #                                   'quantity': -3000000,
+    #                                   'type': u'Trade'},
+    #                                  {'contract': u'MXN',
+    #                                   'quantity': -7200,
+    #                                   'type': u'Trade'},
+    #                                  {'contract': u'BTC',
+    #                                   'quantity': -3000000,
+    #                                   'type': u'Withdrawal'}]
+    #        )
 
     def test_request_withdrawal_success(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -945,35 +957,36 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(pending_position.position, 3000000)
 
         self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                         (u'onlinecash',
-                                                          {'contract': u'BTC',
-                                                           'quantity': 5000000,
-                                                           'direction': 'debit',
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'direction': 'credit',
-                                                           'quantity': 5000000,
-                                                           'type': u'Deposit'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'pendingwithdrawal',
-                                                          {'contract': u'BTC',
-                                                           'direction': 'credit',
-                                                           'quantity': 3000000,
-                                                           'type': u'Withdrawal'}),
-                                                         {}),
-                                                        ('transaction',
-                                                         (u'test',
-                                                          {'contract': u'BTC',
-                                                           'direction': 'debit',
-                                                           'quantity': 3000000,
-                                                           'type': u'Withdrawal'}),
-                                                         {})]))
+                                                                   (u'onlinecash',
+                                                                    {'contract': u'BTC',
+                                                                     'quantity': 5000000,
+                                                                     'direction': 'debit',
+                                                                     'type': u'Deposit'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'test',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'credit',
+                                                                     'quantity': 5000000,
+                                                                     'type': u'Deposit'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'pendingwithdrawal',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'credit',
+                                                                     'quantity': 3000000,
+                                                                     'type': u'Withdrawal'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'test',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'debit',
+                                                                     'quantity': 3000000,
+                                                                     'type': u'Withdrawal'}),
+                                                                   {})]))
         self.assertTrue(
-            self.cashier.component.check_for_calls([('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
+            self.cashier.component.check_for_calls(
+                [('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
 
 
     def test_request_withdrawal_no_perms(self):
