@@ -1,0 +1,29 @@
+{
+    "place_order": {
+        "type":"object",
+        "description": "accountant -> engine place_order RPC call",
+        "properties":
+        {
+            "order":
+            {
+                "$ref": "objects/order.json"
+            }
+        },
+        "required": ["order"],
+        "additionalProperties": false
+    },
+    "cancel_order": {
+        "type":"object",
+        "description": "accountant -> engine cancel_order RPC call",
+        "properties":
+        {
+            "id":
+            {
+                "type": "integer",
+                "description": "Order id to cancel."
+            }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+    }
+}
