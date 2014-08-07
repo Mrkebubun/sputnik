@@ -59,9 +59,9 @@
         "type": "object",
         "description": "administrator -> cashier RPC call to process a cash withdrawal",
         "properties": {
-            "address": {
-                "type": "string",
-                "description": "the withdrawal address we are dealing with"
+            "id": {
+                "type": "integer",
+                "description": "the id of the withdrawal db entry we want to process"
             },
             "online": {
                 "type": "boolean",
@@ -72,7 +72,7 @@
                 "description": "if true, cancel the pending withdrawal and return funds to the relevant user"
             }
         },
-        "required": [ "address" ],
+        "required": [ "id" ],
         "additionalProperties": false
     },
     "request_withdrawal": {
