@@ -1,7 +1,7 @@
 import sys
 import os
 import copy
-from test_sputnik import TestSputnik, FakeProxy, FakeComponent
+from test_sputnik import TestSputnik, FakeComponent
 from twisted.internet import defer
 from pprint import pprint
 
@@ -18,7 +18,7 @@ class TestEngine(TestSputnik):
         from sputnik import engine2
 
         self.engine = engine2.Engine()
-        self.fake_listener = FakeProxy()
+        self.fake_listener = FakeComponent("listener")
         self.engine.add_listener(self.fake_listener)
         self.order_counter = 0
 
@@ -36,8 +36,8 @@ class TestEngineInternals(TestEngine):
         # make a copy of the order to compare against
         order2 = self.create_order(1, 100, -1)
         self.engine.place_order(order)
-        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [order2], 1: []}))
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [order2], 1: []}))
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order2,),
                                                              {})]))
 
@@ -46,8 +46,8 @@ class TestEngineInternals(TestEngine):
         # make a copy of the order to compare against
         order2 = self.create_order(1, 100, 1)
         self.engine.place_order(order)
-        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [], 1: [order2]}))
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: [order2]}))
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order2,),
                                                              {})]))
 
@@ -63,8 +63,8 @@ class TestEngineInternals(TestEngine):
 
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
-        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [], 1: []}))
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: []}))
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order_bid2,),
                                                              {}),
                                                             ('on_trade_success',
@@ -85,8 +85,8 @@ class TestEngineInternals(TestEngine):
 
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
-        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [], 1: []}))
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: []}))
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order_bid2,),
                                                              {}),
                                                             ('on_trade_success',
@@ -103,8 +103,8 @@ class TestEngineInternals(TestEngine):
 
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
-        self.assertTrue(FakeProxy.check(self.engine.orderbook, {-1: [order_bid], 1: [order_ask]}))
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [order_bid], 1: [order_ask]}))
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order_bid,),
                                                              {}),
                                                             ('on_queue_success',
@@ -122,7 +122,7 @@ class TestEngineInternals(TestEngine):
 
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
-        self.assertTrue(self.fake_listener.check_for_calls([('on_queue_success',
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
                                                              (order_bid2,),
                                                              {}),
                                                             ('on_trade_success',
@@ -151,9 +151,10 @@ class TestNotifier(TestEngine):
 class TestAccountantNotifier(TestNotifier):
     def setUp(self):
         TestNotifier.setUp(self)
-        from sputnik import engine2, accountant
+        from sputnik import engine2
+        from sputnik import accountant
 
-        self.accountant = accountant.EngineExport(FakeComponent())
+        self.accountant = accountant.EngineExport(FakeComponent("accountant"))
         self.accountant_notifier = engine2.AccountantNotifier(self.engine, self.accountant, self.contract)
 
     def test_on_trade_success(self):
@@ -187,12 +188,12 @@ class TestWebserverNotifier(TestNotifier):
         TestNotifier.setUp(self)
         from sputnik import engine2
 
-        self.webserver = FakeProxy()
+        self.webserver = FakeComponent()
         self.webserver_notifier = engine2.WebserverNotifier(self.engine, self.webserver, self.contract)
 
     def test_on_queue_success(self):
         self.webserver_notifier.on_queue_success(self.order)
-        self.assertTrue(self.webserver.check_for_calls([('order',
+        self.assertTrue(self.webserver.component.check_for_calls([('order',
                                                          ('aggressive',
                                                           {'contract': self.contract.ticker,
                                                            'id': 1,

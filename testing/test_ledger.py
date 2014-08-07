@@ -4,7 +4,7 @@ import os
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import task
 
-from test_sputnik import TestSputnik, FakeProxy
+from test_sputnik import TestSputnik
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))

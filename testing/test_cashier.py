@@ -1,7 +1,7 @@
 import sys
 import os
 from twisted.internet import defer
-from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
 
@@ -11,7 +11,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 
-class FakeBitcoin(FakeProxy):
+class FakeBitcoin(FakeComponent):
     received = {}
     balance = 0.0
 
@@ -66,10 +66,11 @@ class TestCashier(TestSputnik):
         TestSputnik.setUp(self)
 
         from sputnik import cashier
+        from sputnik import accounant
 
-        self.accountant = FakeProxy()
+        self.accountant = accountant.CashierExport(FakeComponent("accountant"))
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
-        self.compropago = FakeProxy()
+        self.compropago = FakeComponent()
         self.sendmail = FakeSendmail('test-email@m2.io')
         self.cashier = cashier.Cashier(self.session, self.accountant,
                                        self.bitcoinrpc,
@@ -204,7 +205,7 @@ class TestAdministratorExport(TestCashier):
 
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ("test", 'TEST_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", 'TEST_ADDRESS', 123000000L), {})]))
 
         def onFail(failure):
             self.assertFalse(True)
@@ -257,7 +258,7 @@ class TestAdministratorExport(TestCashier):
 
             def onSuccess(txid):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
                                                                   ('pendingwithdrawal',
                                                                    u'BTC',
                                                                    'debit',
@@ -359,7 +360,7 @@ class TestAdministratorExport(TestCashier):
                 from sputnik import models
 
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
                                                                   ('pendingwithdrawal',
                                                                    u'MXN',
                                                                    'debit',
@@ -401,7 +402,7 @@ class TestAdministratorExport(TestCashier):
                 from sputnik import models
 
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
                                                                   ('pendingwithdrawal',
                                                                    u'MXN',
                                                                    'debit',
@@ -444,7 +445,7 @@ class TestAccountantExport(TestCashier):
 
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertFalse(withdrawal.pending)
-            self.assertTrue(self.accountant.check_for_calls([('transfer_position',
+            self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
                                                               ('pendingwithdrawal',
                                                                u'BTC',
                                                                'debit',
@@ -478,7 +479,7 @@ class TestAccountantExport(TestCashier):
 
             self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
             self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -503,7 +504,7 @@ class TestAccountantExport(TestCashier):
 
             self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
             self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -527,7 +528,7 @@ class TestAccountantExport(TestCashier):
 
             self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
             self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -562,7 +563,7 @@ class TestBitcoinNotify(TestCashier):
         def rendered(ignored):
             self.assertEquals(request.responseCode, 200)
             self.assertEquals("".join(request.written), "OK")
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ("test", u'NEW_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", u'NEW_ADDRESS', 123000000L), {})]))
 
         d.addCallback(rendered)
         return d
@@ -606,7 +607,7 @@ class TestBitcoinNotify(TestCashier):
             self.assertEqual(request.responseCode, 200)
             self.assertEqual("".join(request.written), "OK")
             self.assertTrue(
-                self.accountant.check_for_calls([('deposit_cash', ("test2", 'SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
+                self.accountant.component.check_for_calls([('deposit_cash', ("test2", 'SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
                                                  ('deposit_cash', ("test3", 'ADDRESS_FOR_TEST3', 341240000L), {})]
                 ))
 
