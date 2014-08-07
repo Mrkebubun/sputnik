@@ -54,7 +54,7 @@
                 "type": "string",
                 "description": "Ticker of affected contract."
             },
-            "amount":
+            "quantity":
             {
                 "type": "integer",
                 "description": "Amount to withdraw."
