@@ -49,6 +49,7 @@ import string, Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 
 from autobahn.wamp1.protocol import WampCraProtocol
+from rpc_schema import schema
 
 class AdministratorException(Exception): pass
 
@@ -1035,26 +1036,32 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @schema("rpc/administrator.json#make_account")
     def make_account(self, username, password):
         return self.administrator.make_account(username, password)
 
     @export
+    @schema("rpc/administrator.json#change_profile")
     def change_profile(self, username, profile):
         return self.administrator.change_profile(username, profile)
 
     @export
+    @schema("rpc/administrator.json#reset_password_hash")
     def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash, token=token)
 
     @export
+    @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
 
     @export
+    @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
     @export
+    @schema("rpc/administrator.json#request_support_nonce")
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
 
@@ -1067,10 +1074,12 @@ class TicketServerExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @schema("rpc/administrator.json#check_support_nonce")
     def check_support_nonce(self, username, nonce, type):
         return self.administrator.check_support_nonce(username, nonce, type)
 
     @export
+    @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
