@@ -75,7 +75,7 @@
         "required": [ "address" ],
         "additionalProperties": false
     },
-    "process_withdrawal": {
+    "request_withdrawal": {
         "type": "object",
         "description": "accountant -> cashier RPC call to request a cash withdrawal",
         "properties": {
