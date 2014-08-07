@@ -201,6 +201,34 @@ class PublicInterface:
         """
         return [True, self.factory.markets]
 
+    @exportRpc("get_audit")
+    def get_audit(self):
+        """
+
+        :returns: Deferred
+        """
+
+        def _cb(result):
+            """
+
+            :param result: what we get from the accountant
+            :returns: list
+            """
+            return [True, result]
+
+        def _cb_error(failure):
+            """
+
+            :param failure: The failure details from ZMQ
+            :returns: list
+            """
+            return [False, failure.value.args]
+
+        d = self.factory.administrator.get_audit()
+        d.addCallback(_cb)
+        d.addErrback(_cb_error)
+        return d
+
     @exportRpc("get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span

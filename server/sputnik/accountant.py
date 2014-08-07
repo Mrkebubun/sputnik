@@ -96,7 +96,6 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
 
         self.webserver = webserver
-        self.audit_cache = None
 
     def post_or_fail(self, *postings):
         def on_success(result):

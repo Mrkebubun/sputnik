@@ -104,6 +104,7 @@ class Administrator:
         self.base_uri = base_uri
         self.sendmail = sendmail
         self.user_limit = user_limit
+        self.bs_cache = None
 
 
     @session_aware
@@ -557,6 +558,12 @@ class Administrator:
 
         :returns: dict -- the balance sheet
         """
+        now = util.dt_to_timestamp(datetime.utcnow())
+        if self.bs_cache is not None:
+            one_day = 24 * 3600 * 1000000
+            if now - self.bs_cache['timestamp'] < one_day:
+                # Return the cache if it's been less than a day
+                return self.bs_cache
 
         positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
@@ -587,7 +594,8 @@ class Administrator:
                     ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
                         total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
                 )
-
+        balance_sheet['timestamp'] = now
+        self.bs_cache = balance_sheet
         return balance_sheet
 
     def get_audit(self):
@@ -595,23 +603,16 @@ class Administrator:
 
         :returns: dict -- the audit
         """
-        now = util.dt_to_timestamp(datetime.utcnow())
-        if self.audit_cache is not None:
-            one_day = 24 * 3600 * 1000000
-            if now - self.audit_cache['timestamp'] < one_day:
-                # Return the cache if it's been less than a day
-                return self.audit_cache
 
         balance_sheet = self.get_balance_sheet()
-        for side in balance_sheet.values():
-            for ticker, details in side.iteritems():
+        for side in ["assets", "liabilities"]:
+            for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
                     details['positions'].append((position['hash'], position['position']))
                 del details['positions_raw']
 
-        balance_sheet['timestamp'] = now
-        self.audit_cache = balance_sheet
+
         return balance_sheet
 
 
@@ -970,14 +971,12 @@ class AdminWebUI(Resource):
         """Display the full balance sheet of the system
 
         """
-        def _cb(balance_sheet):
-            t = self.jinja_env.get_template('balance_sheet.html')
-            rendered = t.render(balance_sheet=balance_sheet)
-            request.write(rendered.encode('utf-8'))
-            request.finish()
 
-        self.administrator.get_balance_sheet().addCallbacks(_cb)
-        return NOT_DONE_YET
+        balance_sheet = self.administrator.get_balance_sheet()
+
+        t = self.jinja_env.get_template('balance_sheet.html')
+        rendered = t.render(balance_sheet=balance_sheet)
+        return rendered.encode('utf-8')
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
@@ -1077,6 +1076,11 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#request_support_nonce")
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
+
+    @export
+    @schema("rpc/administrator.json#get_audit")
+    def get_audit(self):
+        return self.administrator.get_audit()
 
 class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer

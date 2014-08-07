@@ -138,6 +138,11 @@
         },
         "required": [ "username", "nonce", "type" ],
         "additionalProperties": false
+    },
+    "get_audit": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get the balance sheet audit",
+        "additionalProperties": false
     }
 }
 
