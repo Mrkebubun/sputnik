@@ -193,18 +193,9 @@ class TestWebserverNotifier(TestNotifier):
 
     def test_on_queue_success(self):
         self.webserver_notifier.on_queue_success(self.order)
-        self.assertTrue(self.webserver.component.check_for_calls([('order',
-                                                         ('aggressive',
-                                                          {'contract': self.contract.ticker,
-                                                           'id': 1,
-                                                           'is_cancelled': False,
-                                                           'price': 13,
-                                                           'quantity': 10,
-                                                           'quantity_left': 10,
-                                                           'side': 'SELL',
-                                                          }),
-                                                         {}),
-                                                        ('book', ('FOO', {'asks': [], 'bids': [], 'contract': 'FOO'}),
+        pprint(self.webserver.component.log)
+        self.assertTrue(self.webserver.component.check_for_calls([
+                                                        ('book', ('FOO', {'asks': [], 'bids': [{'price': 13, 'quantity': 10}], 'contract': 'FOO'}),
                                                          {})]))
 
     def test_on_cancel_success(self):
