@@ -86,7 +86,7 @@
                 "description": "Ticker of contract to query."
             }
         },
-        "required": ["username", "address", "received", "total"],
+        "required": ["username", "ticker"],
         "additionalProperties": false
     }
 }
