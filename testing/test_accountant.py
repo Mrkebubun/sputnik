@@ -1,6 +1,6 @@
 import sys
 import os
-from test_sputnik import TestSputnik, FakeProxy
+from test_sputnik import TestSputnik, FakeComponent
 from twisted.internet import defer
 from pprint import pprint
 
@@ -16,7 +16,9 @@ permissions add Withdraw withdraw login
 """
 
 
-class FakeEngine(FakeProxy):
+class FakeEngine(FakeComponent):
+    name = "engine"
+
     def place_order(self, order):
         self.log.append(('place_order', (order), {}))
         # Always return a good fake result
@@ -28,7 +30,9 @@ class FakeEngine(FakeProxy):
         return defer.succeed(None)
 
 
-class FakeLedger(FakeProxy):
+class FakeLedger(FakeComponent):
+    name = "ledger"
+
     def post(self, *postings):
         self.log.append(('post', postings, {}))
         return defer.succeed(None)
@@ -40,14 +44,16 @@ class TestAccountant(TestSputnik):
         self.run_leo(accountant_init)
 
         from sputnik import accountant
+        from sputnik import ledger
+        from sputnik import cashier
 
         self.engines = {"BTC/MXN": FakeEngine(),
                         "NETS2014": FakeEngine()}
-        self.webserver = FakeProxy("webserver")
-        self.cashier = FakeProxy()
-        self.ledger = FakeLedger()
-        self.alerts_proxy = FakeProxy()
-        self.accountant_proxy = FakeProxy()
+        self.webserver = FakeComponent("webserver")
+        self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
+        self.ledger = ledger.AccountantExport(FakeLedger())
+        self.alerts_proxy = FakeComponent("alerts")
+        self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
                                                 self.ledger,
@@ -85,7 +91,7 @@ class TestCashierExport(TestAccountant):
             position = self.session.query(models.Position).filter_by(
                 username="test").one()
             self.assertEqual(position.position, 10)
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              (u'onlinecash',
                                                               {'contract': u'BTC',
                                                                'quantity': 10,
@@ -124,7 +130,7 @@ class TestCashierExport(TestAccountant):
             overflow_position = self.session.query(models.Position).filter_by(
                 username="depositoverflow").one()
             self.assertEqual(overflow_position.position, 1000000000 - self.accountant.deposit_limits['BTC'])
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
                                                                'direction': 'debit',
@@ -174,7 +180,7 @@ class TestCashierExport(TestAccountant):
             overflow_position = self.session.query(models.Position).filter_by(
                 username="depositoverflow").one()
             self.assertEqual(overflow_position.position, 10)
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
                                                                'direction': 'debit',
@@ -230,7 +236,7 @@ class TestCashierExport(TestAccountant):
 
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
                                                                'direction': 'debit',
@@ -310,7 +316,7 @@ class TestAdministratorExport(TestAccountant):
 
             self.assertEqual(from_position.position, 5)
             self.assertEqual(to_position.position, 15)
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
                                                                'direction': 'debit',
@@ -371,7 +377,7 @@ class TestAdministratorExport(TestAccountant):
             position = self.session.query(models.Position).filter_by(
                 username="test").one()
             self.assertEqual(position.position, 20)
-            self.assertTrue(self.webserver.check_for_calls([('transaction',
+            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                              ('onlinecash',
                                                               {'contract': u'BTC',
                                                                'direction': 'debit',
@@ -542,7 +548,7 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
 
-            self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+            self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
                                                                       {'contract': 5,
                                                                        'id': 1,
                                                                        'price': 1000000,
@@ -578,7 +584,7 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'BUY')
 
-            self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+            self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
                                                                        {'contract': 8,
                                                                         'id': 1,
                                                                         'price': 500,
@@ -624,7 +630,7 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'SELL')
 
-            self.assertTrue(self.engines['NETS2014'].check_for_calls([('place_order',
+            self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
                                                                        {'contract': 8,
                                                                         'id': 1,
                                                                         'price': 100,
@@ -728,7 +734,7 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
 
-            self.assertTrue(self.engines['BTC/MXN'].check_for_calls([('place_order',
+            self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
                                                                       {'contract': 5,
                                                                        'id': 1,
                                                                        'price': 1000000,
@@ -912,7 +918,7 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(user_position.position, 2000000)
         self.assertEqual(pending_position.position, 3000000)
 
-        self.assertTrue(self.webserver.check_for_calls([('transaction',
+        self.assertTrue(self.webserver.component.check_for_calls([('transaction',
                                                          (u'onlinecash',
                                                           {'contract': u'BTC',
                                                            'quantity': 5000000,
@@ -941,7 +947,7 @@ class TestWebserverExport(TestAccountant):
                                                            'type': u'Withdrawal'}),
                                                          {})]))
         self.assertTrue(
-            self.cashier.check_for_calls([('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
+            self.cashier.component.check_for_calls([('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
 
 
     def test_request_withdrawal_no_perms(self):
@@ -952,7 +958,7 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Withdrawals not permitted'):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
-        self.assertEqual(self.cashier.log, [])
+        self.assertEqual(self.cashier.component.log, [])
 
     def test_request_withdrawal_no_margin_btc(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -965,7 +971,7 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
-        self.assertEqual(self.cashier.log, [])
+        self.assertEqual(self.cashier.component.log, [])
 
     def test_request_withdrawal_no_margin_fiat(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
@@ -978,6 +984,6 @@ class TestWebserverExport(TestAccountant):
         with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
             self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
 
-        self.assertEqual(self.cashier.log, [])
+        self.assertEqual(self.cashier.component.log, [])
 
 

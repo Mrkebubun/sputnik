@@ -2,7 +2,7 @@ __author__ = 'sameer'
 
 import sys
 import os
-from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
@@ -14,7 +14,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 
-class FakeAccountant(FakeProxy):
+class FakeAccountant(FakeComponent):
+    name = "accountant"
+
     def get_balance_sheet(self):
         return defer.succeed({})
 
@@ -24,9 +26,11 @@ class TestAdministrator(TestSputnik):
         TestSputnik.setUp(self)
 
         from sputnik import administrator
+        from sputnik import accountant
+        from sputnik import cashier
 
-        accountant = FakeAccountant()
-        cashier = FakeProxy()
+        accountant = accountant.AdministratorExport(FakeAccountant())
+        cashier = cashier.AdministratorExport(FakeComponent())
         zendesk_domain = 'testing'
 
         self.administrator = administrator.Administrator(self.session, accountant, cashier, zendesk_domain,
@@ -379,7 +383,7 @@ class TestAdministratorWebUI(TestAdministrator):
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
-            self.assertTrue(self.administrator.cashier.check_for_calls([('rescan_address', ('address_test',), {})]))
+            self.assertTrue(self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
 
 
         d.addCallback(rendered)
@@ -466,7 +470,7 @@ class TestAdministratorWebUI(TestAdministrator):
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
             self.assertTrue(
-                self.administrator.accountant.check_for_calls([('change_permission_group', ('test', new_id), {})]))
+                self.administrator.accountant.component.check_for_calls([('change_permission_group', ('test', new_id), {})]))
 
         d.addCallback(rendered)
         return d
@@ -507,7 +511,7 @@ class TestAdministratorWebUI(TestAdministrator):
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
-            self.assertTrue(self.administrator.cashier.check_for_calls(
+            self.assertTrue(self.administrator.cashier.component.check_for_calls(
                 [('process_withdrawal', (5,), {'cancel': False, 'online': True})]))
 
         d.addCallback(rendered)
