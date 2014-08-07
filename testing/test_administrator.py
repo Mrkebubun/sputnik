@@ -18,7 +18,7 @@ class FakeAccountant(FakeComponent):
     name = "accountant"
 
     def get_balance_sheet(self):
-        self._log_call("get_balance_sheet", (), {})
+        self._log_call("get_balance_sheet")
         return defer.succeed({})
 
 
@@ -384,7 +384,8 @@ class TestAdministratorWebUI(TestAdministrator):
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
-            self.assertTrue(self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
+            self.assertTrue(
+                self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
 
 
         d.addCallback(rendered)
@@ -471,7 +472,8 @@ class TestAdministratorWebUI(TestAdministrator):
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
             self.assertTrue(
-                self.administrator.accountant.component.check_for_calls([('change_permission_group', ('test', new_id), {})]))
+                self.administrator.accountant.component.check_for_calls(
+                    [('change_permission_group', ('test', new_id), {})]))
 
         d.addCallback(rendered)
         return d
@@ -491,6 +493,7 @@ class TestAdministratorWebUI(TestAdministrator):
             self.assertRegexpMatches(''.join(request.written), '<title>Permissions</title>')
 
             from sputnik import models
+
             group = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').one()
 
             self.assertTrue(group.deposit)

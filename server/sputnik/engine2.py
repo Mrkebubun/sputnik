@@ -23,6 +23,7 @@ import util
 
 from twisted.internet import reactor
 from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
+from rpc_schema import schema
 from collections import defaultdict
 from datetime import datetime
 

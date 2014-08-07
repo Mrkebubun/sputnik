@@ -76,10 +76,6 @@ class Ledger:
     def __init__(self, session, timeout=None):
         self.session = session
         self.pending = defaultdict(lambda: PostingGroup(timeout))
-        schema_path = os.path.join(config.get("specs", "schema_root", None),
-                "posting.json")
-        with open(schema_path) as schemafile:
-            self.schema = json.load(schemafile)
 
     def atomic_commit(self, postings):
         try:

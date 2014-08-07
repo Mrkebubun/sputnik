@@ -52,7 +52,7 @@
                 "description": "the new username"
             },
             "old_password_hash": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "the user's old/existing password hash"
             },
             "new_password_hash": {
@@ -60,7 +60,7 @@
                 "description": "the hash of the new password"
             },
             "token": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "if a valid reset token is passed here we don't need the old hash"
             }
         },

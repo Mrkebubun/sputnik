@@ -376,6 +376,7 @@ class Cashier():
             raise "error couldn't process compropago payment, amount not a number of cents"
 
         amount = self.compropago.amount_after_fees(cents)
+        # TODO: This needs to change to id, not address
         return self.process_withdrawal(address, amount)
 
     def notify_pending_withdrawal(self, withdrawal):
@@ -595,8 +596,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/cashier.json#process_withdrawal")
-    def process_withdrawal(self, address, online=False, cancel=False):
-        return self.cashier.process_withdrawal(address, online=online, cancel=cancel)
+    def process_withdrawal(self, id, online=False, cancel=False):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel)
 
 class AccountantExport(ComponentExport):
     def __init__(self, cashier):
