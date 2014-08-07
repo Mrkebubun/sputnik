@@ -3,7 +3,6 @@ import os
 import copy
 from test_sputnik import TestSputnik, FakeComponent
 from twisted.internet import defer
-from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -193,7 +192,6 @@ class TestWebserverNotifier(TestNotifier):
 
     def test_on_queue_success(self):
         self.webserver_notifier.on_queue_success(self.order)
-        pprint(self.webserver.component.log)
         self.assertTrue(self.webserver.component.check_for_calls([
                                                         ('book', ('FOO', {'asks': [], 'bids': [{'price': 13, 'quantity': 10}], 'contract': 'FOO'}),
                                                          {})]))
