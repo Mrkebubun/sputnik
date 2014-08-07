@@ -29,7 +29,7 @@ import onetimepass as otp
 import hashlib
 import uuid
 import random
-from util import dt_to_timestamp, ChainedOpenSSLContextFactory
+from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
 import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
@@ -914,7 +914,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :type result: list
             :returns: list - [True, list of transactions]
             """
-            return [True, result]
+            transactions = [{'contract': row[0],
+                             'timestamp': dt_to_timestamp(row[1]),
+                             'quantity': row[2],
+                             'type': row[3]}
+                             for row in result]
+
+            return [True, transactions]
 
         def _cb_error(failure):
             """
@@ -924,7 +930,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_transaction_history(self.username, from_timestamp, to_timestamp)
+        d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type "
+                            "FROM postings, journal, contracts WHERE postings.journal_id=journal.id AND "
+                            "postings.username=%s AND journal.timestamp<=%s AND journal.timestamp>=%s "
+                            "AND postings.contract_id=contract.id",
+            (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
+
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
