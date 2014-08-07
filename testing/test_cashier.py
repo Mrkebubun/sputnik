@@ -311,7 +311,7 @@ class TestAdministratorExport(TestCashier):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
                 self.assertEqual(self.accountant.component.log, [])
-                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
+                self.assertTrue(self.bitcoinrpc['BTC'].component.check_for_calls([('getbalance', (), {}), ('set_balance', (0.0,), {}), ('getbalance', (), {})]))
                 self.assertTrue(withdrawal.pending)
 
             d.addCallbacks(onSuccess, onFail)
@@ -483,7 +483,7 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (1.0,), {}), ('getbalance', (), {})]))
             self.assertEqual(self.cashier.accountant.component.log, [])
             self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
@@ -508,7 +508,7 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (100.0,), {})]))
             self.assertEqual(self.cashier.accountant.component.log, [])
             self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
