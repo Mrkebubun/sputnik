@@ -125,8 +125,8 @@ def dumpArgs(func):
 
     return wrapper
 
-class FakeProxy:
-    def __init__(self, name=None, schema=None):
+class FakeComponent:
+    def __init__(self, name=None):
         self.log = []
         self.name = name
 
