@@ -1,0 +1,54 @@
+{
+    "type": "object",
+    "properties":
+    {
+        "uid":
+        {
+            "type": "string",
+            "description": "Unique ID shared between all postings in the group."
+        },
+        "count":
+        {
+            "type": "integer",
+            "description": "Number of postings in the group."
+        },
+        "type":
+        {
+            "type": "string",
+            "description": "Either 'Deposit', 'Withdrawal', 'Trade', or 'Transfer'. All postings in the group must have the same type."
+        },
+        "username":
+        {
+            "type": "string",
+            "description": "Username of affected account."
+        },
+        "contract":
+        {
+            "type": "string",
+            "description": "Ticker of affected contract."
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Change in position for affected contract."
+        },
+        "direction":
+        {
+            "enum": ["credit", "debit"],
+            "description": "This is the accounting column of the posting."
+        },
+        "note":
+        {
+            "type": ["string", "null"],
+            "description": "This may be any small string."
+        },
+        "timestamp":
+        {
+            "type": "number",
+            "description":"Milliseconds since the epoch when the relevant accounting entry was generated. This probably will not be the same as when it is commited to the database."
+        }
+    },
+    "required": ["uid", "count", "type", "username", "contract", "quantity", "direction"],
+    "additionalProperties": false
+}
+

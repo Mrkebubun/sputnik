@@ -1,0 +1,11 @@
+{
+    "post":
+    {
+        "type": "array",
+        "description": "Internal representation of a journal posting.",
+        "items":
+        {
+            "$ref": "objects/posting.json"
+        }
+    }
+}
