@@ -2,7 +2,7 @@
     "remote_post":
     {
         "type": "object",
-        "description": "Submit postings to the ledger on behalf of callee."
+        "description": "Submit postings to the ledger on behalf of callee.",
         "properties":
         {
             "username":
