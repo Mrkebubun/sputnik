@@ -933,7 +933,7 @@ class WebserverExport(ComponentExport):
         return self.accountant.cancel_order(username, id)
 
     @export
-    @schema("rpc/accountant.webserver.json#get_permissions")
+    #@schema("rpc/accountant.webserver.json#get_permissions")
     def get_permissions(self, username):
         return self.accountant.get_permissions(username)
 

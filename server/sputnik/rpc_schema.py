@@ -55,3 +55,18 @@ def schema(path):
         return wrapped_f
     return wrap
 
+
+
+if __name__ == "__main__":
+    @schema("rpc/accountant.json#place_order")
+    def place_order( username, order):
+        pass
+
+    order = {"username":"foo", "price":1000, "quantity":1, "ticker":"BTC1401", "side":"BUY", "timestamp":1407213633486125}
+
+    import time
+    start = time.time()
+    for i in range(10000):
+        place_order("foo", order)
+    print (time.time() - start)/10000
+
