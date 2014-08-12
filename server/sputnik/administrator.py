@@ -104,7 +104,10 @@ class Administrator:
         self.base_uri = base_uri
         self.sendmail = sendmail
         self.user_limit = user_limit
+
+        # Initialize the balance sheet cache
         self.bs_cache = None
+        self.get_balance_sheet()
 
 
     @session_aware

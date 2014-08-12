@@ -16,7 +16,7 @@ $ ->
     <div class="panel-heading">Balance Sheet</div>
     <div class="panel-body">
     {% for side in ['assets', 'liabilities'] %}
-    {{side}}
+    <b>{{side.upper()}}</b>
     <table id="{{side}}" class="table table-striped table-hover">
         <thead>
             <tr><th></th><th>Contract</th><th>Quantity</th></tr>
