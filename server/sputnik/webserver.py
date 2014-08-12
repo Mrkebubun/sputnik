@@ -37,6 +37,7 @@ from zendesk import Zendesk
 from watchdog import watchdog
 
 from jsonschema import validate
+from rpc_schema import schema
 from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.web.server import Site
@@ -230,6 +231,7 @@ class PublicInterface:
         return d
 
     @exportRpc("get_ohlcv_history")
+    @schema("rpc/webserver.json#get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
@@ -244,13 +246,6 @@ class PublicInterface:
 
         if end_timestamp is None:
             end_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
-
-        validate(ticker, {"type": "string"})
-        if period is not None:
-            validate(period, {"type": "string"})
-
-        validate(start_timestamp, {"type": "number"})
-        validate(end_timestamp, {"type": "number"})
 
         if period is not None:
             if period in self.factory.ohlcv_history[ticker]:
@@ -270,6 +265,7 @@ class PublicInterface:
         return [True, ohlcv]
 
     @exportRpc("get_reset_token")
+    @schema("rpc/webserver.json#get_reset_token")
     def get_reset_token(self, username):
         """Get a password reset token for a certain user -- mail it to them
 
@@ -298,6 +294,7 @@ class PublicInterface:
         return d.addCallbacks(onTokenSuccess, onTokenFail)
 
     @exportRpc("get_trade_history")
+    @schema("rpc/webserver.json#get_trade_history")
     def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         """
         Gets a list of trades in recent history
@@ -308,18 +305,10 @@ class PublicInterface:
         # TODO: cache this
         # TODO: make sure return format is correct
 
-        # sanitize input
-        ticker_schema = {"type": "string"}
-        validate(ticker, ticker_schema)
-        time_span_schema = {"type": "number"}
-        if from_timestamp is not None:
-            validate(from_timestamp, time_span_schema)
-        else:
+        if from_timestamp is None:
             from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() - datetime.timedelta(hours=1))
 
-        if to_timestamp is not None:
-            validate(to_timestamp, time_span_schema)
-        else:
+        if to_timestamp is None:
             to_timestamp=dt_to_timestamp(datetime.datetime.utcnow())
 
         # Don't get more than a couple days of trades
@@ -1207,6 +1196,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
     @exportRpc("place_order")
+    #@schema("rpc/webserver.json#place_order")
     def place_order(self, order):
         """
         Places an order on the engine
@@ -1214,16 +1204,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :type order: dict
         :returns: Deferred
         """
-        # sanitize inputs:
-        validate(order,
-                 {"type": "object", "properties": {
-                     "contract": {"type": "string", "required": True},
-                     "price": {"type": "number", "required": True},
-                     "quantity": {"type": "number", "required": True},
-                     "side": {"type": "string", "required": True}
-                 }})
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
-        order["timestamp"] = dt_to_timestamp(datetime.utcnow())
+        order["timestamp"] = dt_to_timestamp(datetime.datetime.utcnow())
         # enforce minimum tick_size for prices:
 
         def _cb(result):

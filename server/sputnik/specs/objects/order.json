@@ -32,6 +32,11 @@
         {
             "type": "integer",
             "description": "UTC microseconds from epoch when order was placed. Set by the trading platform."
+        },
+        "quantity_left":
+        {
+            "type": ["integer", "null"],
+            "description": "how much is left in the order"
         }
     },
     "required": ["username", "contract", "price", "quantity", "side", "timestamp"],

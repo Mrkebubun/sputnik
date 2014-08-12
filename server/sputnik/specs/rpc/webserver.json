@@ -1,0 +1,84 @@
+{
+    "get_ohlcv_history":
+    {
+        "type": "object",
+        "description": "Get historical ohlcv data",
+        "properties":
+        {
+            "ticker":
+            {
+                "type": "string",
+                "description": "The contract in question"
+            },
+            "period":
+            {
+                "enum": ["minute", "hour", "day"],
+                "description": "minute, hour, day, etc"
+            },
+            "start_timestamp":
+            {
+                "type": "number",
+                "description": "starting time for history"
+            },
+            "end_timestamp":
+            {
+                "type": "number",
+                "description": "ending time for history"
+            }
+        },
+        "required": ["ticker", "period", "start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "get_trade_history":
+    {
+        "type": "object",
+        "description": "Get historical ohlcv data",
+        "properties":
+        {
+            "ticker":
+            {
+                "type": "string",
+                "description": "The contract in question"
+            },
+            "start_timestamp":
+            {
+                "type": ["number", "null"],
+                "description": "starting time for history"
+            },
+            "end_timestamp":
+            {
+                "type": ["number", "null"],
+                "description": "ending time for history"
+            }
+        },
+        "required": ["ticker", "start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "place_order":
+    {
+        "type": "object",
+        "description": "place an order",
+        "properties":
+        {
+            "order": {
+                "$ref": "inbound/order.json"
+            }
+        },
+        "required": ["order"],
+        "additionalProperties": false
+    },
+    "get_reset_token":
+    {
+        "type": "object",
+        "description": "get a password reset token",
+        "properties":
+        {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    }
+}

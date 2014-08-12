@@ -6,29 +6,26 @@
         "ticker":
          {
             "type": "string",
-            "description": "Ticker of the order contract.",
-            "required": true
+            "description": "Ticker of the order contract."
         },
         "price":
         {
             "type": "integer",
-            "description": "Order price.",
-            "required": true
+            "description": "Order price."
         },
         "quantity":
         {
             "type": "integer",
-            "description": "Order volume.",
-            "required": true
+            "description": "Order volume."
         },
         "side":
         {
             "type": "string",
-            "oneOf": ["BUY", "SELL"],
-            "description": "The order side on the books.",
-            "required": true
+            "enum": ["BUY", "SELL"],
+            "description": "The order side on the books."
         }
     },
+    "required": ["ticker", "price", "quantity", "side"],
     "additionalProperties": false
 }
 
