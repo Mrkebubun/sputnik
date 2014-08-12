@@ -567,7 +567,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
 
         # Check for login permissions
-        d = dbpool.runQuery('SELECT permissions.login FROM users, permission_groups WHERE '
+        d = dbpool.runQuery('SELECT permission_groups.login FROM users, permission_groups WHERE '
                             'users.permission_group_id=permission_groups.id AND users.username=%s',
             (username,))
         d.addCallback(_cb_perms)
@@ -722,7 +722,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = dbpool.runQuery("SELECT permissions.name, permissions.login, permissions.deposit, permissions.withdraw, permissions.trade "
+        d = dbpool.runQuery("SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade "
                             "FROM permission_groups, users WHERE "
                             "users.permission_group_id=permission_groups.id AND users.username=%s",
                             (self.username,))
@@ -956,7 +956,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             transactions = [{'contract': row[0],
                              'timestamp': dt_to_timestamp(row[1]),
                              'quantity': row[2],
-                             'type': row[3]}
+                             'type': row[3],
+                             'note': row[4]}
                              for row in result]
 
             return [True, transactions]
@@ -969,10 +970,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type "
-                            "FROM postings, journal, contracts WHERE postings.journal_id=journal.id AND "
-                            "postings.username=%s AND journal.timestamp<=%s AND journal.timestamp>=%s "
-                            "AND postings.contract_id=contract.id",
+        d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
+                            "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
+                            "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
+                            "AND posting.contract_id=contracts.id",
             (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
 
         d.addCallback(_cb)
