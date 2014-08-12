@@ -393,7 +393,6 @@ class Journal(db.Base):
         :raises: Exception
         """
         self.type = type
-        self.timestamp = timestamp
         self.postings = [p for p in postings]
         if timestamp is None:
             self.timestamp = datetime.utcnow()
@@ -449,11 +448,12 @@ class Posting(db.Base, QuantityUI):
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
     note = Column(String)
+    timestamp = Column(DateTime)
 
     def __repr__(self):
         return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
 
-    def __init__(self, user, contract, quantity, direction, note=None):
+    def __init__(self, user, contract, quantity, direction, note=None, timestamp=None):
         """
 
         :param user:
@@ -479,6 +479,10 @@ class Posting(db.Base, QuantityUI):
                 sign = 1
 
         self.quantity = sign * quantity
+        if timestamp is None:
+            self.timestamp = datetime.utcnow()
+        else:
+            self.timestamp = timestamp
 
 class Addresses(db.Base, QuantityUI):
     """

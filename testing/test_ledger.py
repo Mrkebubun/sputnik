@@ -3,6 +3,7 @@ import os
 
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import task
+import datetime
 
 from test_sputnik import TestSputnik
 
@@ -13,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 from sputnik import ledger
 from sputnik import models
+from sputnik import util
 
 class TestLedger(TestSputnik):
     def setUp(self):
@@ -23,17 +25,21 @@ class TestLedger(TestSputnik):
 
     def test_post_sequentially(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "test_debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "test_debit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "test_credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "test_credit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.export.post(post1)
         return self.export.post(post2)
 
     def test_post_results_agree(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.export.post(post1)
         d2 = self.export.post(post2)
         return self.assertEqual(self.successResultOf(d1),
@@ -41,16 +47,20 @@ class TestLedger(TestSputnik):
 
     def test_post_simultaneously(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": 'credit'}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": 'credit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         return self.export.post(post1, post2)
 
     def test_database_commit(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit" }
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d = self.export.post(post1, post2)
 
         def dbtest(arg):
@@ -70,21 +80,26 @@ class TestLedger(TestSputnik):
 
     def test_count_mismatch(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":1, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
                 ledger.LedgerException)
+
         return self.assertEqual(self.successResultOf(d2),
                 ledger.COUNT_MISMATCH)
 
     def test_type_mismatch(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit"}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": "debit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Deposit", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit"}
+                 "contract":"MXN", "quantity":5, "direction":"credit", "note": "credit",
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
@@ -94,9 +109,11 @@ class TestLedger(TestSputnik):
 
     def test_quantity_mismatch(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         post2 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":1, "direction":"credit", "note": 'credit'}
+                 "contract":"MXN", "quantity":1, "direction":"credit", "note": 'credit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
@@ -106,7 +123,8 @@ class TestLedger(TestSputnik):
 
     def test_timeout(self):
         post1 = {"uid":"foo", "count":2, "type":"Trade", "username":"customer",
-                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit'}
+                 "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit',
+                 "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.assertFailure(self.export.post(post1),
                 ledger.LedgerException)
         group = self.ledger.pending["foo"]

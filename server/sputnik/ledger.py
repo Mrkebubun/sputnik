@@ -106,13 +106,18 @@ class Ledger:
             # create the journal and postings
             db_postings = []
             for posting in postings:
-                # TODO: change Posting contractor to take username
+                # TODO: change Posting constructor to take username
                 user = self.session.query(User).filter_by(username=posting["username"]).one()
                 contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
                 quantity = posting["quantity"]
                 direction = posting["direction"]
                 note = posting["note"]
-                db_postings.append(Posting(user, contract, quantity, direction, note))
+                if posting["timestamp"] is not None:
+                    timestamp = util.timestamp_to_dt(posting["timestamp"])
+                else:
+                    timestamp = None
+
+                db_postings.append(Posting(user, contract, quantity, direction, note=note, timestamp=timestamp))
             journal = Journal(types[0], db_postings)
 
             # add all
@@ -143,6 +148,8 @@ class Ledger:
 
     def post_one(self, posting):
         uid = posting["uid"]
+        if posting["timestamp"] is None:
+            posting["timestamp"] = util.dt_to_timestamp(datetime.datetime.utcnow())
         group = self.pending[uid]
 
         # acquire the deferred we will return

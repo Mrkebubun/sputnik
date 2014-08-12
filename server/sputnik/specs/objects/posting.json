@@ -44,11 +44,11 @@
         },
         "timestamp":
         {
-            "type": "number",
+            "type": ["number", "null"],
             "description":"Milliseconds since the epoch when the relevant accounting entry was generated. This probably will not be the same as when it is commited to the database."
         }
     },
-    "required": ["uid", "count", "type", "username", "contract", "quantity", "direction"],
+    "required": ["uid", "count", "type", "username", "contract", "quantity", "direction", "timestamp"],
     "additionalProperties": false
 }
 
