@@ -47,7 +47,6 @@ class TestAdministrator(TestSputnik):
 class TestWebserverExport(TestAdministrator):
     def test_get_audit(self):
         audit = self.webserver_export.get_audit()
-        pprint(audit)
         for side in ['assets', 'liabilities']:
             for currency in audit[side].keys():
                 total = sum([x[1] for x in audit[side][currency]['positions']])
