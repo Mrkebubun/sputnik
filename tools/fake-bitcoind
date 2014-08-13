@@ -1,0 +1,45 @@
+#!/usr/bin/python
+
+import shelve
+import uuid
+from twisted.internet import reactor
+from twisted.web import server
+from txjsonrpc.web import jsonrpc
+
+class Bitcoind(jsonrpc.JSONRPC):
+    def __init__(self, dbfile):
+        self.database = shelve.open(dbfile)
+
+    def jsonrpc_keypoolrefill(self):
+        pass
+
+    def jsonrpc_getreceivedbyaddress(self, bitcoinaddress, minconf=1):
+        return {'result':0.5}
+
+    def jsonrpc_getbalance(self):
+        return ('result':5.0}
+
+    def jsonrpc_listreceivedbyaddress(self, minconf=1, includeempty=False):
+        result = []
+        for address in self.database:
+            entry = {"account":"", "confirmations":100, "amount":0.5,
+                     "address":address}
+            result.append(entry)
+        return {'result': result}
+
+    def jsonrpc_sendtoaddress(self, address, amount):
+        return {'result': {'txid': "send: %s" % address}}
+
+    def jsonrpc_getnewaddress(self, account=""):
+        address = str(uuid.uuid4())
+        self.database[address] = 0.5
+        return {'result': address}
+
+    def __del__(self):
+        self.database.close()
+
+site = server.Site(Bitcoind("/home/sameer/sputnik/dist/bitcoin/bitcoin.fakedb"))
+reactor.listenTCP(8332, site)
+reactor.listenTCP(18332, site)
+reactor.run()
+
