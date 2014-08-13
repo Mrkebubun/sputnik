@@ -28,7 +28,7 @@ class Bitcoind(jsonrpc.JSONRPC):
         return {'result': result}
 
     def jsonrpc_sendtoaddress(self, address, amount):
-        return {'txid': "send: %s" % address}
+        return {'result': {'txid': "send: %s" % address}}
 
     def jsonrpc_getnewaddress(self, account=""):
         address = str(uuid.uuid4())
