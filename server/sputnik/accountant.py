@@ -135,7 +135,7 @@ class Accountant:
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
-            if isinstance(e, RemoteCallTimedOut):
+            if isinstance(e.value, RemoteCallTimedOut):
                 log.err("Ledger call timed out.")
                 self.alerts_proxy.send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
