@@ -111,7 +111,7 @@ class Administrator:
         # Initialize the balance sheet cache
         if bs_cache_update_period is not None:
             self.bs_updater = LoopingCall(self.update_bs_cache)
-            self.bs_updater.start(bs_cache_update_period)
+            self.bs_updater.start(bs_cache_update_period, now=True)
         else:
             self.update_bs_cache()
 
