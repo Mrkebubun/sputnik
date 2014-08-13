@@ -563,6 +563,9 @@ class Accountant:
         if aggressive:
             d.addCallback(publish_trade)
 
+        # if post fails, we still want deduct the quantity since the engine thinks it is used up
+        d.addErrback(update_order)
+
         return d
 
     def raiseException(self, failure):
