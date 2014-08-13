@@ -131,17 +131,17 @@ class Accountant:
             log.err("Ledger exception:")
             log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
-            raise e
+            failure.raiseException()
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
-            if isinstance(e, RemoteCallTimedOut):
+            if isinstance(failure.value, RemoteCallTimedOut):
                 log.err("Ledger call timed out.")
                 self.alerts_proxy.send_alert("Ledger call timed out. Ledger may be overloaded.")
             else:
                 log.err("Improper ledger RPC invocation:")
                 log.err(failure)
-            raise e
+            failure.raiseException()
 
         def publish_transactions(result):
             for posting in postings:
