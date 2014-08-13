@@ -77,6 +77,7 @@ class Ledger:
         self.pending = defaultdict(lambda: PostingGroup(timeout))
 
     def atomic_commit(self, postings):
+        log.msg("atomic commit called for %s" % postings)
         try:
             # sanity check
             if len(postings) == 0:
@@ -93,6 +94,7 @@ class Ledger:
             debitsum = defaultdict(int)
             creditsum = defaultdict(int)
 
+            log.msg("auditing postings")
             for posting in postings:
                 if posting["direction"] == "debit":
                     debitsum[posting["contract"]] += posting["quantity"]
@@ -104,6 +106,7 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
+            log.msg("creating the db postings")
             db_postings = []
             for posting in postings:
                 # TODO: change Posting constructor to take username
@@ -118,9 +121,11 @@ class Ledger:
                     timestamp = None
 
                 db_postings.append(Posting(user, contract, quantity, direction, note=note, timestamp=timestamp))
+            log.msg("creating the journal")
             journal = Journal(types[0], db_postings)
 
             # add all
+            log.msg("committing")
             self.session.add_all(db_postings)
             self.session.add(journal)
             self.session.commit()
