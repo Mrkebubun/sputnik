@@ -571,25 +571,30 @@ class Accountant:
 
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
-            if username is not None and order.username != username:
-                raise AccountantException(0, "User %s does not own the order" % username)
-
-            d = self.engines[order.contract.ticker].cancel_order(order_id)
-
-            def update_order(result):
-                order.is_cancelled = True
-                self.session.add(order)
-                self.session.commit()
-
-            def publish_order(result):
-                self.webserver.order(username, order.to_webserver())
-
-            d.addCallback(update_order)
-            d.addCallback(publish_order)
-            d.addErrback(self.raiseException)
-            return d
         except NoResultFound:
             raise AccountantException(0, "No order %d found" % order_id)
+
+        if username is not None and order.username != username:
+            raise AccountantException(0, "User %s does not own the order" % username)
+
+        if order.is_cancelled:
+            raise AccountantException(0, "Order %d is already cancelled" % order_id)
+
+        d = self.engines[order.contract.ticker].cancel_order(order_id)
+
+        def update_order(result):
+            order.is_cancelled = True
+            self.session.add(order)
+            self.session.commit()
+
+        def publish_order(result):
+            self.webserver.order(username, order.to_webserver())
+
+        d.addCallback(update_order)
+        d.addCallback(publish_order)
+        d.addErrback(self.raiseException)
+        return d
+
 
     def place_order(self, username, order):
         """Place an order
