@@ -784,19 +784,20 @@ class Accountant:
             self.session.commit()
 
             #prepare cash deposit
-            postings = []
+            my_postings = []
+            remote_postings = []
             debit_posting = create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
                                                   note=address)
-            postings.append(debit_posting)
+            remote_postings.append(debit_posting)
 
             credit_posting = create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
                                                    'credit')
-            postings.append(credit_posting)
+            my_postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
                 deposit_limit = self.deposit_limits[total_deposited_at_address.contract.ticker]
@@ -826,16 +827,19 @@ class Accountant:
                         'depositoverflow', contract.ticker, excess_deposit,
                         'credit')
 
-                postings.append(excess_debit_posting)
-                postings.append(excess_credit_posting)
+                my_postings.append(excess_debit_posting)
+                remote_postings.append(excess_credit_posting)
 
-            count = len(postings)
+            count = len(remote_postings + my_postings)
             uid = util.get_uid()
-            for posting in postings:
+            for posting in my_postings + remote_postings:
                 posting['count'] = count
                 posting['uid'] = uid
 
-            d = self.post_or_fail(*postings)
+            d = self.post_or_fail(*my_postings)
+            for posting in remote_postings:
+                self.accountant_proxy.remote_post(posting['username'], posting)
+
             return d
         except Exception as e:
             self.session.rollback()
