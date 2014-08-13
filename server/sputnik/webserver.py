@@ -959,18 +959,18 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             for row in result:
                 quantity = abs(row[2])
 
-            # Here we assume that the user is a Liability user
-            if row[2] < 0:
-                direction = 'debit'
-            else:
-                direction = 'credit'
+                # Here we assume that the user is a Liability user
+                if row[2] < 0:
+                    direction = 'debit'
+                else:
+                    direction = 'credit'
 
-            transactions.append({'contract': row[0],
-                             'timestamp': dt_to_timestamp(row[1]),
-                             'quantity': quantity,
-                             'type': row[3],
-                             'direction': direction,
-                             'note': row[4]})
+                transactions.append({'contract': row[0],
+                                 'timestamp': dt_to_timestamp(row[1]),
+                                 'quantity': quantity,
+                                 'type': row[3],
+                                 'direction': direction,
+                                 'note': row[4]})
 
 
             return [True, transactions]
