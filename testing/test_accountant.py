@@ -54,16 +54,16 @@ class TestAccountant(TestSputnik):
         self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
         self.ledger = ledger.AccountantExport(ledger.Ledger(self.session, 5000))
         self.alerts_proxy = FakeComponent("alerts")
-        self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
+        #self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
                                                 self.ledger,
                                                 self.webserver,
-                                                self.accountant_proxy,
+                                                None,
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False)
-        #self.accountant_proxy = self.accountant.accountant_proxy = self.accountant
+        self.accountant.accountant_proxy = accountant.AccountantExport(self.accountant)
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
         self.webserver_export = accountant.WebserverExport(self.accountant)
