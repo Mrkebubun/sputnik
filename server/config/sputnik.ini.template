@@ -60,6 +60,7 @@ address = ${webserver_address}
 debug = ${debug}
 email = ${administrator_email}
 user_limit = 500
+bs_cache_update = ${bs_cache_update}
 
 [ticketserver]
 ticketserver_port = ${ticketserver_port}

@@ -27,6 +27,7 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
+from twisted.internet.task import LoopingCall
 
 from zope.interface import implements
 
@@ -83,7 +84,8 @@ class Administrator:
                  zendesk_domain,
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
-                 user_limit=500):
+                 user_limit=500,
+                 bs_cache_update=86400):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -106,9 +108,8 @@ class Administrator:
         self.user_limit = user_limit
 
         # Initialize the balance sheet cache
-        self.bs_cache = None
-        self.get_balance_sheet()
-
+        self.bs_updater = LoopingCall(self.update_bs_cache)
+        self.bs_updater.start(bs_cache_update)
 
     @session_aware
     def make_account(self, username, password):
@@ -561,12 +562,10 @@ class Administrator:
 
         :returns: dict -- the balance sheet
         """
+        return self.bs_cache
+
+    def update_bs_cache(self):
         now = util.dt_to_timestamp(datetime.utcnow())
-        if self.bs_cache is not None:
-            one_day = 24 * 3600 * 1000000
-            if now - self.bs_cache['timestamp'] < one_day:
-                # Return the cache if it's been less than a day
-                return self.bs_cache
 
         positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
@@ -599,7 +598,6 @@ class Administrator:
                 )
         balance_sheet['timestamp'] = now
         self.bs_cache = balance_sheet
-        return balance_sheet
 
     def get_audit(self):
         """Gets the audit, which is the balance sheet but scrubbed of usernames
@@ -1128,11 +1126,13 @@ if __name__ == "__main__":
     zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
     user_limit = config.getint("administrator", "user_limit")
+    bs_cache_update = config.getint("administrator", "bs_cache_update")
     administrator = Administrator(session, accountant, cashier,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
-                                  user_limit=user_limit)
+                                  user_limit=user_limit,
+                                  bs_cache_update=bs_cache_update)
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
