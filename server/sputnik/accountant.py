@@ -54,6 +54,7 @@ INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
 TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
+FAILED_AUDIT = AccountantException(4, "Audit failure. Please try again later.")
 
 class Accountant:
     """The Accountant primary class
@@ -97,6 +98,7 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
 
         self.webserver = webserver
+        self.checked_users = {}
 
     def post_or_fail(self, *postings):
         def on_success(result):
@@ -284,6 +286,12 @@ class Accountant:
         # cash_pairs don't have positions
         if order.contract.contract_type != "cash_pair":
             self.get_position(order.username, order.contract)
+
+        # Audit the user
+        if not self.audit(user):
+            log.err("%s failed audit" % user.username)
+            self.alerts_proxy.send_alert("%s failed audit" % user.username)
+            raise FAILED_AUDIT
 
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id,
@@ -713,6 +721,12 @@ class Accountant:
             debit_posting['uid'] = uid
             debit_posting['count'] = 2
 
+            # Audit the user
+            if not self.audit(username):
+                log.err("%s failed audit" % username)
+                self.alerts_proxy.send_alert("%s failed audit" % username)
+                raise FAILED_AUDIT
+
             # Check margin now
             low_margin, high_margin = margin.calculate_margin(username,
                     self.session, self.safe_prices,
@@ -880,6 +894,28 @@ class Accountant:
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+
+    def audit(self, user):
+        user = self.get_user(user)
+        if user.username in self.checked_users:
+            return True
+        else:
+            # Get all positions for this user
+            for position in user.positions:
+                position_calculated = position.position_calculated
+                position.position_cp_timestamp = datetime.datetime.utcnow()
+                if position.position == position_calculated:
+                    position.position_checkpoint = position_calculated
+                    session.add(position)
+                else:
+                    log.err("Audit failure for %s" % position)
+                    return False
+
+        self.session.commit()
+        self.checked_users[user.username] = True
+        return True
+
+
 
 
 class WebserverExport(ComponentExport):
