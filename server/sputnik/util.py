@@ -5,8 +5,19 @@ from twisted.internet import ssl
 from OpenSSL import SSL
 import models
 import math
+import time
 import uuid
 from sqlalchemy.orm.exc import NoResultFound
+from twisted.python import log
+
+def timed(f):
+    def wrapped(*args, **kwargs):
+        start = time.time()
+        result = f(*args, **kwargs)
+        stop = time.time()
+        log.msg("%s completed in %dms" % (f.__name__, (stop - start) * 1000))
+        return result
+    return wrapped
 
 def get_uid():
     return uuid.uuid4().get_hex()
