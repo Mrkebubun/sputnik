@@ -89,7 +89,7 @@ class TestLedger(TestSputnik):
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
                 ledger.LedgerException)
-
+        self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.COUNT_MISMATCH)
 
@@ -104,6 +104,7 @@ class TestLedger(TestSputnik):
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
                 ledger.LedgerException)
+        self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.TYPE_MISMATCH)
 
@@ -118,6 +119,7 @@ class TestLedger(TestSputnik):
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
                 ledger.LedgerException)
+        self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.QUANTITY_MISMATCH)
 
