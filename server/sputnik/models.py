@@ -540,6 +540,8 @@ class Position(db.Base, QuantityUI):
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
     position = Column(BigInteger)
+    position_checkpoint = Column(BigInteger, server_default="0")
+    position_cp_timestamp = Column(DateTime)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
 
     @property
@@ -568,7 +570,9 @@ class Position(db.Base, QuantityUI):
     def position_calculated(self):
         """Make sure that the sum of all postings for this position sum to the position
         """
-        calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
+        calculated = self.position_checkpoint + \
+                     sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id
+                            and x.journal.timestamp >= self.position_cp_timestamp])
         return calculated
 
     @property
@@ -577,9 +581,9 @@ class Position(db.Base, QuantityUI):
         return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=position_calculated_ui)
 
     def __repr__(self):
-        return "<Position('%s', '%s', %d)>" \
+        return "<Position('%s', '%s', %d/%d)>" \
                % (self.contract, self.user,
-                  self.position)
+                  self.position, self.position_checkpoint)
 
 
 class Withdrawal(db.Base, QuantityUI):
