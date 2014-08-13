@@ -664,6 +664,31 @@ class TestWebserverExport(TestAccountant):
         d.addCallbacks(onSuccess, onFail)
         return d
 
+    def test_place_order_bad_audit(self):
+        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
+        self.set_permissions_group("test", 'Deposit')
+        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+
+        # Mess with a position
+        from sputnik import models
+        btc_position = self.session.query(models.Position).filter_by(username='test').filter(models.Position.contract.ticker=='BTC').one()
+
+        self.set_permissions_group("test", 'Trade')
+        # Place a sell order, we have enough cash
+        from sputnik import accountant
+        from sputnik import util
+        import datetime
+
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Audit Failure'):
+            self.webserver_export.place_order('test', {'username': 'test',
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
