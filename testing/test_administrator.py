@@ -13,7 +13,6 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
-
 class FakeAccountant(FakeComponent):
     name = "accountant"
 
@@ -25,6 +24,7 @@ class FakeAccountant(FakeComponent):
 class TestAdministrator(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
+
 
         from sputnik import administrator
         from sputnik import accountant
@@ -39,7 +39,8 @@ class TestAdministrator(TestSputnik):
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates",
-                                                         user_limit=50)
+                                                         user_limit=50,
+                                                         bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 

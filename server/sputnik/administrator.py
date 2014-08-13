@@ -85,7 +85,7 @@ class Administrator:
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
-                 bs_cache_update=86400):
+                 bs_cache_update_period=86400):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -108,8 +108,11 @@ class Administrator:
         self.user_limit = user_limit
 
         # Initialize the balance sheet cache
-        self.bs_updater = LoopingCall(self.update_bs_cache)
-        self.bs_updater.start(bs_cache_update)
+        if bs_cache_update_period is not None:
+            self.bs_updater = LoopingCall(self.update_bs_cache)
+            self.bs_updater.start(bs_cache_update_period)
+        else:
+            self.update_bs_cache()
 
     @session_aware
     def make_account(self, username, password):
@@ -1132,7 +1135,7 @@ if __name__ == "__main__":
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
-                                  bs_cache_update=bs_cache_update)
+                                  bs_cache_update_period=bs_cache_update)
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
