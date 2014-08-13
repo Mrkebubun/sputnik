@@ -18,8 +18,10 @@ import util
 import database
 from models import Posting, Journal, User, Contract
 from zmq_util import router_share_async, export, ComponentExport
+from util import timed
 from rpc_schema import schema
 from watchdog import watchdog
+import time
 
 class LedgerException(Exception):
     pass
@@ -76,8 +78,11 @@ class Ledger:
         self.session = session
         self.pending = defaultdict(lambda: PostingGroup(timeout))
 
+    @timed
     def atomic_commit(self, postings):
-        log.msg("atomic commit called for %s" % postings)
+
+        start = time.time()
+        log.msg("atomic commit called for %s at %f" % (postings, start))
         try:
             # sanity check
             if len(postings) == 0:
@@ -94,7 +99,7 @@ class Ledger:
             debitsum = defaultdict(int)
             creditsum = defaultdict(int)
 
-            log.msg("auditing postings")
+            log.msg("auditing postings at %f" % (time.time() - start))
             for posting in postings:
                 if posting["direction"] == "debit":
                     debitsum[posting["contract"]] += posting["quantity"]
@@ -106,7 +111,7 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
-            log.msg("creating the db postings")
+            log.msg("creating the db postings at %f" % (time.time() - start))
             db_postings = []
             for posting in postings:
                 # TODO: change Posting constructor to take username
@@ -121,11 +126,11 @@ class Ledger:
                     timestamp = None
 
                 db_postings.append(Posting(user, contract, quantity, direction, note=note, timestamp=timestamp))
-            log.msg("creating the journal")
+            log.msg("creating the journal at %f" % (time.time() - start))
             journal = Journal(types[0], db_postings)
 
             # add all
-            log.msg("committing")
+            log.msg("committing at %f" % (time.time() - start))
             self.session.add_all(db_postings)
             self.session.add(journal)
             self.session.commit()
