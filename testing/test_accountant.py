@@ -22,7 +22,7 @@ class FakeEngine(FakeComponent):
     def place_order(self, order):
         self._log_call('place_order', order)
         # Always return a good fake result
-        return defer.succeed(order['id'])
+        return defer.succeed(order.id)
 
     def cancel_order(self, id):
         self._log_call('cancel_order', id)
@@ -552,14 +552,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.price, 1000000)
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
-
+            from sputnik import engine2
             self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
-                                                                                ({'contract': 5,
+                                                                                (engine2.Order(**{'contract': 5,
                                                                                   'id': 1,
                                                                                   'price': 1000000,
                                                                                   'quantity': 3000000,
                                                                                   'side': 1,
-                                                                                  'username': u'test'},),
+                                                                                  'username': u'test'}),),
                                                                                 {})]))
 
         d.addCallbacks(onSuccess, onFail)
@@ -591,14 +591,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.price, 500)
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'BUY')
-
+            from sputnik import engine2
             self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
-                                                                                 ({'contract': 8,
+                                                                                 (engine2.Order(**{'contract': 8,
                                                                                    'id': 1,
                                                                                    'price': 500,
                                                                                    'quantity': 3,
                                                                                    'side': -1,
-                                                                                   'username': u'test'},),
+                                                                                   'username': u'test'}),),
                                                                                  {})]))
 
             # Check to make sure margin is right
@@ -641,13 +641,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.quantity, 3)
             self.assertEqual(order.side, 'SELL')
 
+            from sputnik import engine2
             self.assertTrue(self.engines['NETS2014'].component.check_for_calls([('place_order',
-                                                                                 ({'contract': 8,
+                                                                                 (engine2.Order(**{'contract': 8,
                                                                                    'id': 1,
                                                                                    'price': 100,
                                                                                    'quantity': 3,
                                                                                    'side': 1,
-                                                                                   'username': u'test'},),
+                                                                                   'username': u'test'}),),
                                                                                  {})]))
 
             # Check to make sure margin is right
@@ -757,14 +758,14 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.price, 1000000)
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
-
+            from sputnik import engine2
             self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
-                                                                                ({'contract': 5,
+                                                                                (engine2.Order(**{'contract': 5,
                                                                                   'id': 1,
                                                                                   'price': 1000000,
                                                                                   'quantity': 3000000,
                                                                                   'side': 1,
-                                                                                  'username': u'test'},),
+                                                                                  'username': u'test'}),),
                                                                                 {})]))
 
             # Place another sell, we have insufficient cash now
