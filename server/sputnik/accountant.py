@@ -736,7 +736,8 @@ class Accountant:
                 log.msg("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                d = self.post_or_fail(credit_posting, debit_posting)
+                self.accountant_proxy.remote_post('pendingwithdrawal', credit_posting)
+                d = self.post_or_fail(debit_posting)
                 def onSuccess(result):
                     self.cashier.request_withdrawal(username, ticker, address, amount)
                     return True
