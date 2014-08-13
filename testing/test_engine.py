@@ -3,6 +3,7 @@ import os
 import copy
 from test_sputnik import TestSputnik, FakeComponent
 from twisted.internet import defer
+from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -37,8 +38,8 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order)
         self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [order2], 1: []}))
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order2,),
-                                                             {})]))
+                                                                       (order2,),
+                                                                       {})]))
 
     def test_ask(self):
         order = self.create_order(1, 100, 1)
@@ -47,8 +48,8 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order)
         self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: [order2]}))
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order2,),
-                                                             {})]))
+                                                                       (order2,),
+                                                                       {})]))
 
     def test_trade_perfect_match(self):
         order_bid = self.create_order(1, 100, -1)
@@ -64,14 +65,14 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order_ask)
         self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: []}))
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order_bid2,),
-                                                             {}),
-                                                            ('on_trade_success',
-                                                             (order_ask2,
-                                                              order_bid3,
-                                                              100,
-                                                              1),
-                                                             {})]))
+                                                                       (order_bid2,),
+                                                                       {}),
+                                                                      ('on_trade_success',
+                                                                       (order_ask2,
+                                                                        order_bid3,
+                                                                        100,
+                                                                        1),
+                                                                       {})]))
 
     def test_trade_crossed(self):
         order_bid = self.create_order(1, 100, -1)
@@ -86,15 +87,15 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order_ask)
         self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [], 1: []}))
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order_bid2,),
-                                                             {}),
-                                                            ('on_trade_success',
-                                                             (
-                                                                 order_ask2,
-                                                                 order_bid3,
-                                                                 100,
-                                                                 1),
-                                                             {})]))
+                                                                       (order_bid2,),
+                                                                       {}),
+                                                                      ('on_trade_success',
+                                                                       (
+                                                                           order_ask2,
+                                                                           order_bid3,
+                                                                           100,
+                                                                           1),
+                                                                       {})]))
 
     def test_no_trade(self):
         order_bid = self.create_order(1, 100, -1)
@@ -104,11 +105,11 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order_ask)
         self.assertTrue(FakeComponent.check(self.engine.orderbook, {-1: [order_bid], 1: [order_ask]}))
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order_bid,),
-                                                             {}),
-                                                            ('on_queue_success',
-                                                             (order_ask,),
-                                                             {})]))
+                                                                       (order_bid,),
+                                                                       {}),
+                                                                      ('on_queue_success',
+                                                                       (order_ask,),
+                                                                       {})]))
 
     def test_trade_different_size(self):
         order_bid = self.create_order(2, 100, -1)
@@ -122,15 +123,27 @@ class TestEngineInternals(TestEngine):
         self.engine.place_order(order_bid)
         self.engine.place_order(order_ask)
         self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
-                                                             (order_bid2,),
-                                                             {}),
-                                                            ('on_trade_success',
-                                                             (order_ask2,
-                                                              order_bid3,
-                                                              100,
-                                                              1),
-                                                             {})]
+                                                                       (order_bid2,),
+                                                                       {}),
+                                                                      ('on_trade_success',
+                                                                       (order_ask2,
+                                                                        order_bid3,
+                                                                        100,
+                                                                        1),
+                                                                       {})]
         ))
+
+    def test_cancel_order(self):
+        order_bid = self.create_order(2, 100, -1)
+        self.engine.place_order(order_bid)
+        self.assertTrue(self.engine.cancel_order(order_bid.id))
+        self.assertTrue(self.fake_listener.component.check_for_calls(
+            [('on_queue_success',
+              (order_bid,),
+              {}),
+             ('on_cancel_success',
+              (order_bid,),
+              {})]))
 
 
 class TestNotifier(TestEngine):
@@ -159,27 +172,27 @@ class TestAccountantNotifier(TestNotifier):
     def test_on_trade_success(self):
         self.accountant_notifier.on_trade_success(self.order, self.passive_order, 10, 10)
         self.assertTrue(self.accountant.component.check_for_calls([('post_transaction',
-                                                          (u'aggressive',
-                                                           {'aggressive': True,
-                                                            'contract': self.contract.ticker,
-                                                            'order': 1,
-                                                            'other_order': 2,
-                                                            'price': 10,
-                                                            'quantity': 10,
-                                                            'side': u'BUY',
-                                                            'username': u'aggressive'},),
-                                                          {}),
-                                                         ('post_transaction',
-                                                          (u'passive',
-                                                           {'aggressive': False,
-                                                            'contract': self.contract.ticker,
-                                                            'order': 2,
-                                                            'other_order': 1,
-                                                            'price': 10,
-                                                            'quantity': 10,
-                                                            'side': u'SELL',
-                                                            'username': u'passive'},),
-                                                          {})]))
+                                                                    (u'aggressive',
+                                                                     {'aggressive': True,
+                                                                      'contract': self.contract.ticker,
+                                                                      'order': 1,
+                                                                      'other_order': 2,
+                                                                      'price': 10,
+                                                                      'quantity': 10,
+                                                                      'side': u'BUY',
+                                                                      'username': u'aggressive'},),
+                                                                    {}),
+                                                                   ('post_transaction',
+                                                                    (u'passive',
+                                                                     {'aggressive': False,
+                                                                      'contract': self.contract.ticker,
+                                                                      'order': 2,
+                                                                      'other_order': 1,
+                                                                      'price': 10,
+                                                                      'quantity': 10,
+                                                                      'side': u'SELL',
+                                                                      'username': u'passive'},),
+                                                                    {})]))
 
 
 class TestWebserverNotifier(TestNotifier):
@@ -193,8 +206,8 @@ class TestWebserverNotifier(TestNotifier):
     def test_on_queue_success(self):
         self.webserver_notifier.on_queue_success(self.order)
         self.assertTrue(self.webserver.component.check_for_calls([
-                                                        ('book', ('FOO', {'asks': [], 'bids': [{'price': 13, 'quantity': 10}], 'contract': 'FOO'}),
-                                                         {})]))
+            ('book', ('FOO', {'asks': [], 'bids': [{'price': 13, 'quantity': 10}], 'contract': 'FOO'}),
+             {})]))
 
     def test_on_cancel_success(self):
         pass
