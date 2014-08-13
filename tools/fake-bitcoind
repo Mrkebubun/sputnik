@@ -17,7 +17,7 @@ class Bitcoind(jsonrpc.JSONRPC):
         return {'result':0.5}
 
     def jsonrpc_getbalance(self):
-        return ('result':5.0}
+        return {'result':5.0}
 
     def jsonrpc_listreceivedbyaddress(self, minconf=1, includeempty=False):
         result = []
