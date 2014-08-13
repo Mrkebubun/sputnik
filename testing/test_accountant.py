@@ -46,9 +46,10 @@ class TestAccountant(TestSputnik):
         from sputnik import accountant
         from sputnik import ledger
         from sputnik import cashier
+        from sputnik import engine2
 
-        self.engines = {"BTC/MXN": FakeEngine(),
-                        "NETS2014": FakeEngine()}
+        self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
+                        "NETS2014": engine2.AccountantExport(FakeEngine())}
         self.webserver = FakeComponent("webserver")
         self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
         self.ledger = ledger.AccountantExport(FakeLedger())
