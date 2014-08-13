@@ -673,7 +673,11 @@ class TestWebserverExport(TestAccountant):
 
         # Mess with a position
         from sputnik import models
-        btc_position = self.session.query(models.Position).filter_by(username='test').filter(models.Position.contract.ticker=='BTC').one()
+        btc_contract = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+        btc_position = self.session.query(models.Position).filter_by(username='test', contract=btc_contract).one()
+        btc_position.position = 10000000
+        self.session.add(btc_position)
+        self.session.commit()
 
         self.set_permissions_group("test", 'Trade')
         # Place a sell order, we have enough cash
@@ -681,7 +685,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Audit Failure'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Audit failure'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
