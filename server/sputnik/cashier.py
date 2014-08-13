@@ -612,7 +612,7 @@ class AccountantExport(ComponentExport):
         return self.cashier.request_withdrawal(username, ticker, address, amount)
 
 if __name__ == '__main__':
-    log.startLoggingWithObserver(log.PythonLoggingObserver())
+    log.startLogging(sys.stdout)
 
     accountant = AccountantProxy("push",
             config.get("accountant", "cashier_export"),
