@@ -614,7 +614,7 @@ class AccountantExport(ComponentExport):
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
 
-    accountant = AccountantProxy("push",
+    accountant = AccountantProxy("dealer",
             config.get("accountant", "cashier_export"),
             config.getint("accountant", "cashier_export_base_port"))
 
