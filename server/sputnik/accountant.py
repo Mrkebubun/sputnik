@@ -333,7 +333,7 @@ class Accountant:
 
             # Debit the fee from the user's account
             user_posting = create_posting("Trade", user.username,
-                    contract.ticker, fee, 'debit')
+                    contract.ticker, fee, 'debit', note="Fee")
             user_postings.append(user_posting)
 
             remaining_fee = fee
@@ -346,7 +346,7 @@ class Accountant:
                 # Credit the fee to the vendor's account
                 vendor_posting = create_posting("Trade",
                         vendor_user.username, contract.ticker, vendor_credit,
-                        'credit')
+                        'credit', note="Vendor Credit")
                 vendor_postings.append(vendor_posting)
 
             # There might be some fee leftover due to rounding,
@@ -717,7 +717,7 @@ class Accountant:
             credit_posting['uid'] = uid
             credit_posting['count'] = 2
             debit_posting = create_posting("Withdrawal", user.username,
-                    ticker, amount, 'debit')
+                    ticker, amount, 'debit', note=address)
             debit_posting['uid'] = uid
             debit_posting['count'] = 2
 
@@ -797,7 +797,8 @@ class Accountant:
             credit_posting = create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
-                                                   'credit')
+                                                   'credit',
+                                                   note=address)
             my_postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
@@ -822,11 +823,11 @@ class Accountant:
                 # There was an excess deposit, transfer that amount into overflow cash
                 excess_debit_posting = create_posting("Deposit",
                         user.username, contract.ticker, excess_deposit,
-                        'debit', note="Excess Deposit")
+                        'debit', note="Excess Deposit: %s" % address)
 
                 excess_credit_posting = create_posting("Deposit",
                         'depositoverflow', contract.ticker, excess_deposit,
-                        'credit')
+                        'credit', note="Excess Deposit: %s" % address)
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)

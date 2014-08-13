@@ -411,8 +411,8 @@ class Journal(db.Base):
         """Get all the notes for all the postings
         :returns: string
         """
-        return '\n'.join([posting.note for posting in self.postings if posting.note is not None])
-
+        dedup_notes = set([posting.note for posting in self.postings if posting.note is not None])
+        return '\n'.join(dedup_notes)
 
     @property
     def audit(self):

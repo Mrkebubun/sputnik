@@ -260,11 +260,12 @@ class Cashier():
                 d = self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
                                                           float(amount) / contract.denominator)
                 def onSendSuccess(result):
-                    txid = result['txid']
+                    txid = result['result']
                     uid = util.get_uid()
+                    note = "%s: %s" % (contract.cold_wallet_address, txid)
                     self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
-                                                      "%s: %s" % (contract.cold_wallet_address, txid), uid)
-                    self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, None, uid)
+                                                      note, uid)
+                    self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, note, uid)
 
                 def error(failure):
                     log.err("Unable to send to address: %s" % failure)
@@ -297,11 +298,12 @@ class Cashier():
             try:
 
                 uid = util.get_uid()
+                note = "%s: %s" % (withdrawal.address, txid)
                 self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
                                                   withdrawal.amount,
-                                                  "%s: %s" % (withdrawal.address, txid), uid)
+                                                  note, uid)
                 self.accountant.transfer_position(to_user, withdrawal.contract.ticker, 'credit', withdrawal.amount,
-                                                  None, uid)
+                                                  note, uid)
 
                 withdrawal.pending = False
                 withdrawal.completed = datetime.utcnow()
