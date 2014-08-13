@@ -1228,18 +1228,24 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :returns: Deferred
         """
         # sanitize inputs:
-        validate(order,
-                 {"type": "object", "properties": {
-                     "contract": {"type": "string", "required": True},
-                     "price": {"type": "number", "required": True},
-                     "quantity": {"type": "number", "required": True},
-                     "side": {"type": "string", "required": True},
-                     "quantity_left": {"type": ["number", "null"], "required": False},
-                     "id": {"type": "number", "required": False},
-                     "timestamp": {"type": "number", "required": False}
-                 }})
+        try:
+            validate(order,
+                     {"type": "object", "properties": {
+                         "contract": {"type": "string"},
+                         "price": {"type": "number"},
+                         "quantity": {"type": "number"},
+                         "side": {"type": "string"},
+                         "quantity_left": {"type": ["number", "null"]},
+                         "id": {"type": "number"},
+                         "timestamp": {"type": "number"}
+                     },
+                        "required": ["contract", "price", "quantity", "side"],
+                        "additionalProperties": False})
+        except Exception as e:
+            log.err("Schema validation error: %s" % e)
+            raise e
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
-        order["timestamp"] = dt_to_timestamp(datetime.utcnow())
+        order["timestamp"] = dt_to_timestamp(datetime.datetime.utcnow())
         # enforce minimum tick_size for prices:
 
         def _cb(result):
