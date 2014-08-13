@@ -557,6 +557,7 @@ class Accountant:
             log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
 
+        # TODO: add errbacks for these
         d.addBoth(update_order)
         d.addCallback(notify_fill)
         if aggressive:
