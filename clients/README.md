@@ -126,6 +126,8 @@ corresponding server objects. Each is encoded in JSON.
      timestamp: "23423423"
      quantity: 23423
      type: "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment"
+     note: "note about the transaction"
+     direction: "debit|credit"
 }
 ```
 
@@ -235,7 +237,8 @@ Each event is a chat message in the format [nickname, message]. This feed allows
 
 ### place_order(order)
 
-order must be an ```order``` object, however the timestamp and id are ignored. This returns the order id on success.
+order must be an ```order``` object, however the timestamp, id, and quantity_left
+are ignored. This returns the order id on success.
 
 ### cancel_order(id)
 
