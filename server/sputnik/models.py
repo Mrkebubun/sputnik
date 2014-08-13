@@ -482,6 +482,7 @@ class Posting(db.Base, QuantityUI):
             self.timestamp = datetime.utcnow()
         else:
             self.timestamp = timestamp
+        self.note = note
 
 class Addresses(db.Base, QuantityUI):
     """
