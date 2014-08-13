@@ -171,7 +171,6 @@ class Order(db.Base, QuantityUI, PriceUI):
         :returns: dict
         """
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
-                'quantity_left': self.quantity_left,
                 'timestamp': util.dt_to_timestamp(self.timestamp),
                 'price': self.price, 'side': (-1 if self.side == "BUY" else 1)}
 

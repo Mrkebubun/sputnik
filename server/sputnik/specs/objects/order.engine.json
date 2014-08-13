@@ -10,8 +10,8 @@
         },
         "contract":
          {
-            "type": "string",
-            "description": "Ticker of the order contract."
+            "type": "number",
+            "description": "Contract id of the order contract"
         },
         "price":
         {
@@ -25,16 +25,21 @@
         },
         "side":
         {
-            "enum": ["BUY", "SELL"],
-            "description": "The order side on the books."
+            "type": "number",
+            "description": "The order side on the books. -1 is BUY, 1 is SELL"
         },
         "timestamp":
         {
             "type": "integer",
             "description": "UTC microseconds from epoch when order was placed. Set by the trading platform."
+        },
+        "id":
+        {
+            "type": "integer",
+            "description": "The id in the db of the order"
         }
     },
-    "required": ["username", "contract", "price", "quantity", "side", "timestamp"],
+    "required": ["username", "contract", "price", "quantity", "side", "timestamp", "id"],
     "additionalProperties": false
 }
 

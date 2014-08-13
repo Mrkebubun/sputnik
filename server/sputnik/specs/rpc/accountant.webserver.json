@@ -12,7 +12,7 @@
             },
             "order":
             {
-                "$ref": "objects/order.json"
+                "$ref": "objects/order.accountant.json"
             }
         },
         "required": ["username", "order"],

@@ -6,7 +6,7 @@
         {
             "order":
             {
-                "$ref": "objects/order.json"
+                "$ref": "objects/order.engine.json"
             }
         },
         "required": ["order"],
