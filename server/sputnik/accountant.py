@@ -906,7 +906,7 @@ class Accountant:
                 position.position_cp_timestamp = datetime.utcnow()
                 if position.position == position_calculated:
                     position.position_checkpoint = position_calculated
-                    session.add(position)
+                    self.session.add(position)
                 else:
                     log.err("Audit failure for %s" % position)
                     return False

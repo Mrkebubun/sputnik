@@ -52,7 +52,7 @@ class TestAccountant(TestSputnik):
                         "NETS2014": engine2.AccountantExport(FakeEngine())}
         self.webserver = FakeComponent("webserver")
         self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
-        self.ledger = ledger.AccountantExport(FakeLedger())
+        self.ledger = ledger.AccountantExport(ledger.Ledger(self.session, 5000))
         self.alerts_proxy = FakeComponent("alerts")
         self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
         self.accountant = accountant.Accountant(self.session, self.engines,

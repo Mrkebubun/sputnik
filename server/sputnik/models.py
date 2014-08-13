@@ -570,9 +570,12 @@ class Position(db.Base, QuantityUI):
     def position_calculated(self):
         """Make sure that the sum of all postings for this position sum to the position
         """
-        calculated = self.position_checkpoint + \
-                     sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id
-                            and x.journal.timestamp >= self.position_cp_timestamp])
+        if self.position_cp_timestamp is None:
+            calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
+        else:
+            calculated = self.position_checkpoint + \
+                         sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id
+                                and x.journal.timestamp >= self.position_cp_timestamp])
         return calculated
 
     @property
