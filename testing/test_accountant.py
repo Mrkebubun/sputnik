@@ -557,7 +557,6 @@ class TestWebserverExport(TestAccountant):
                                                                                   'id': 1,
                                                                                   'price': 1000000,
                                                                                   'quantity': 3000000,
-                                                                                  'quantity_left': 3000000,
                                                                                   'side': 1,
                                                                                   'username': u'test'},),
                                                                                 {})]))
@@ -597,7 +596,6 @@ class TestWebserverExport(TestAccountant):
                                                                                    'id': 1,
                                                                                    'price': 500,
                                                                                    'quantity': 3,
-                                                                                   'quantity_left': 3,
                                                                                    'side': -1,
                                                                                    'username': u'test'},),
                                                                                  {})]))
@@ -647,7 +645,6 @@ class TestWebserverExport(TestAccountant):
                                                                                    'id': 1,
                                                                                    'price': 100,
                                                                                    'quantity': 3,
-                                                                                   'quantity_left': 3,
                                                                                    'side': 1,
                                                                                    'username': u'test'},),
                                                                                  {})]))
@@ -765,7 +762,6 @@ class TestWebserverExport(TestAccountant):
                                                                                   'id': 1,
                                                                                   'price': 1000000,
                                                                                   'quantity': 3000000,
-                                                                                  'quantity_left': 3000000,
                                                                                   'side': 1,
                                                                                   'username': u'test'},),
                                                                                 {})]))
