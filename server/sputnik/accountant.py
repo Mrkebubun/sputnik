@@ -518,7 +518,16 @@ class Accountant:
         self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
         d = self.post_or_fail(*postings)
-        
+
+        def update_order(result):
+            db_order = self.session.query(models.Order).filter_by(id=order).one()
+            db_order.quantity_left -= quantity
+            self.session.add(db_order)
+            self.session.commit()
+            self.webserver.order(username, db_order.to_webserver())
+            log.msg("to ws: " + str({"order": [username, db_order.to_webserver()]}))
+            return result
+
         def notify_fill(result):
             last = time.time()
             # Send notifications
@@ -537,18 +546,6 @@ class Accountant:
             elapsed = (next - last) * 1000
             log.msg("post_transaction: part 6: %.3f ms." % elapsed)
 
-        d.addCallback(notify_fill)
-        def update_order(result):
-            db_order = self.session.query(models.Order).filter_by(id=order).one()
-            db_order.quantity_left -= quantity
-            self.session.add(db_order)
-            self.session.commit()
-            self.webserver.order(username, db_order.to_webserver())
-            log.msg("to ws: " + str({"order": [username, db_order.to_webserver()]}))
-            return result
-
-        d.addCallback(update_order)
-
         def publish_trade(result):
             aggressive_order = self.session.query(models.Order).filter_by(id=order).one()
             passive_order = self.session.query(models.Order).filter_by(id=other_order).one()
@@ -560,6 +557,9 @@ class Accountant:
             log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
 
+        # TODO: add errbacks for these
+        d.addBoth(update_order)
+        d.addCallback(notify_fill)
         if aggressive:
             d.addCallback(publish_trade)
 
