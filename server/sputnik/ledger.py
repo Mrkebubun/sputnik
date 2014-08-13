@@ -207,7 +207,8 @@ def create_posting(type, username, contract, quantity, direction, note=None, tim
             "direction":direction, "note": note, "type": type, "timestamp": timestamp}
 
 if __name__ == "__main__":
-    log.startLogging(sys.stdout)
+    fo = log.startLogging(sys.stdout)
+    fo.formatTime = lambda x: datetime.datetime.fromtimestamp(x).strftime("%H:%M:%S.%f")
     session = database.make_session()
     timeout = config.getint("ledger", "timeout")
     ledger = Ledger(session, timeout)
