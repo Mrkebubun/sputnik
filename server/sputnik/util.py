@@ -15,7 +15,7 @@ def timed(f):
         start = time.time()
         result = f(*args, **kwargs)
         stop = time.time()
-        log.msg("%s completed in %dms" % (f.__name__, (stop - start) * 1000))
+        log.msg("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
         return result
     return wrapped
 
