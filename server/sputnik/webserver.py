@@ -256,6 +256,8 @@ class PublicInterface:
             if period in self.factory.ohlcv_history[ticker]:
                 ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
                                           if value['open_timestamp'] <= end_timestamp and value['close_timestamp'] >= start_timestamp }
+            else:
+                ohlcv = {}
         else:
             ohlcv = {}
             for period in ["minute", "hour", "day"]:
@@ -953,12 +955,23 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :type result: list
             :returns: list - [True, list of transactions]
             """
-            transactions = [{'contract': row[0],
+            transactions = []
+            for row in result:
+                quantity = abs(row[2])
+
+            # Here we assume that the user is a Liability user
+            if row[2] < 0:
+                direction = 'debit'
+            else:
+                direction = 'credit'
+
+            transactions.append({'contract': row[0],
                              'timestamp': dt_to_timestamp(row[1]),
-                             'quantity': row[2],
+                             'quantity': quantity,
                              'type': row[3],
-                             'note': row[4]}
-                             for row in result]
+                             'direction': direction,
+                             'note': row[4]})
+
 
             return [True, transactions]
 
@@ -1220,7 +1233,10 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                      "contract": {"type": "string", "required": True},
                      "price": {"type": "number", "required": True},
                      "quantity": {"type": "number", "required": True},
-                     "side": {"type": "string", "required": True}
+                     "side": {"type": "string", "required": True},
+                     "quantity_left": {"type": ["number", "null"], "required": False},
+                     "id": {"type": "number", "required": False},
+                     "timestamp": {"type": "number", "required": False}
                  }})
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
         order["timestamp"] = dt_to_timestamp(datetime.utcnow())
