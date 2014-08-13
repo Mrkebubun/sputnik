@@ -153,8 +153,6 @@ class Ledger:
 
     def post_one(self, posting):
         uid = posting["uid"]
-        if posting["timestamp"] is None:
-            posting["timestamp"] = util.dt_to_timestamp(datetime.datetime.utcnow())
         group = self.pending[uid]
 
         # acquire the deferred we will return
