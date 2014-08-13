@@ -13,6 +13,7 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 import config
 import database
 import models
+import sys
 import collections
 from datetime import datetime
 from util import ChainedOpenSSLContextFactory
@@ -32,6 +33,7 @@ from twisted.internet.task import LoopingCall
 from zope.interface import implements
 
 from twisted.internet import reactor, defer
+from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
 from twisted.cred.credentials import IUsernameDigestHash
@@ -40,7 +42,6 @@ from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
 import json
 
-import logging
 import Crypto.Random.random
 import sqlalchemy.orm.exc
 
@@ -127,13 +128,13 @@ class Administrator:
         """
         user_count = self.session.query(models.User).count()
         if user_count > self.user_limit:
-            logging.error("User limit reached")
+            log.err("User limit reached")
             raise USER_LIMIT_REACHED
 
         existing = self.session.query(models.User).filter_by(
             username=username).first()
         if existing:
-            logging.error("Account creation failed: %s username is taken" % username)
+            log.err("Account creation failed: %s username is taken" % username)
             raise USERNAME_TAKEN
 
         user = models.User(username, password)
@@ -147,7 +148,7 @@ class Administrator:
 
         self.session.commit()
 
-        logging.info("Account created for %s" % username)
+        log.msg("Account created for %s" % username)
         return True
 
     @session_aware
@@ -171,7 +172,7 @@ class Administrator:
         self.session.merge(user)
 
         self.session.commit()
-        logging.info("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
+        log.msg("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
         return True
 
     def check_token(self, username, input_token):
@@ -278,21 +279,21 @@ class Administrator:
             # If we have no user, we will silently fail because we don't want to
             # create a username oracle
             # We should log this though
-            logging.debug("get_reset_token: No such user %s" % username)
+            log.msg("get_reset_token: No such user %s" % username)
             return True
 
         token = models.ResetToken(username, hours_to_expiry)
         self.session.add(token)
         self.session.commit()
 
-        logging.debug("Created token: %s" % token)
+        log.msg("Created token: %s" % token)
         # Now email the token
         t = self.jinja_env.get_template('reset_password.email')
         content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
                            user=user, base_uri=self.base_uri).encode('utf-8')
 
         # Now email the token
-        logging.debug("Sending mail: %s" % content)
+        log.msg("Sending mail: %s" % content)
         s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email, user.nickname),
                           subject='Reset password link enclosed')
 
@@ -372,7 +373,7 @@ class Administrator:
         :returns: dict -- the user's username, email, and nickname
         :raises: INVALID_SUPPORT_NONCE, SUPPORT_NONCE_USED
         """
-        logging.debug("Checking nonce for %s: %s/%s" % (username, nonce, type))
+        log.msg("Checking nonce for %s: %s/%s" % (username, nonce, type))
         try:
             ticket = self.session.query(models.SupportTicket).filter_by(username=username, nonce=nonce, type=type).one()
         except NoResultFound:
@@ -403,7 +404,7 @@ class Administrator:
             ticket.foreign_key = foreign_key
             self.session.add(ticket)
             self.session.commit()
-            logging.debug("Registered foreign key: %s for %s" % (foreign_key, username))
+            log.msg("Registered foreign key: %s for %s" % (foreign_key, username))
             return True
 
     @session_aware
@@ -441,7 +442,7 @@ class Administrator:
         user = models.AdminUser(username, password_hash, level)
         self.session.add(user)
         self.session.commit()
-        logging.info("Admin user %s created" % username)
+        log.msg("Admin user %s created" % username)
         return True
 
     @session_aware
@@ -470,7 +471,7 @@ class Administrator:
         user.password_hash = new_password_hash
         self.session.add(user)
         self.session.commit()
-        logging.info("Admin user %s has password reset" % username)
+        log.msg("Admin user %s has password reset" % username)
         return True
 
     @session_aware
@@ -492,7 +493,7 @@ class Administrator:
         user.password_hash = new_password_hash
         self.session.add(user)
         self.session.commit()
-        logging.info("Admin user %s has password force reset" % username)
+        log.msg("Admin user %s has password force reset" % username)
         return True
 
     def get_positions(self):
@@ -526,7 +527,7 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
-        logging.debug("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
+        log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
         self.accountant.adjust_position(username, ticker, quantity)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
@@ -544,7 +545,7 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
         
-        logging.debug("Transferring %d of %s from %s to %s" % (
+        log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
@@ -554,10 +555,10 @@ class Administrator:
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
         if quantity % address_db.contract.lot_size != 0:
-            logging.error("Manual deposit for invalid quantity: %d" % quantity)
+            log.err("Manual deposit for invalid quantity: %d" % quantity)
             raise INVALID_CURRENCY_QUANTITY
 
-        logging.debug("Manual deposit of %d to %s" % (quantity, address))
+        log.msg("Manual deposit of %d to %s" % (quantity, address))
         self.accountant.deposit_cash(address_db.username, address, quantity, total=False)
 
     def get_balance_sheet(self):
@@ -648,7 +649,7 @@ class Administrator:
         :param id: the id of the new permission group
         :type id: int
         """
-        logging.debug("Changing permission group for %s to %d" % (username, id))
+        log.msg("Changing permission group for %s to %d" % (username, id))
         self.accountant.change_permission_group(username, id)
 
     def new_permission_group(self, name, permissions):
@@ -659,12 +660,12 @@ class Administrator:
         """
 
         try:
-            logging.debug("Creating new permission group %s" % name)
+            log.msg("Creating new permission group %s" % name)
             permission_group = models.PermissionGroup(name, permissions)
             self.session.add(permission_group)
             self.session.commit()
         except Exception as e:
-            logging.error("Error: %s" % e)
+            log.err("Error: %s" % e)
             self.session.rollback()
 
     def process_withdrawal(self, id, online=False, cancel=False):
@@ -721,7 +722,7 @@ class AdminWebUI(Resource):
 
         """
         line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
-        logging.info(line,
+        log.msg(
                      self.avatarId,
                      request.getClientIP(),
                      request.getUser(),
@@ -1105,7 +1106,7 @@ class TicketServerExport(ComponentExport):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    log.startLogging(sys.stdout)
 
     session = database.make_session()
 
