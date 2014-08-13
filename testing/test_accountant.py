@@ -63,6 +63,7 @@ class TestAccountant(TestSputnik):
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False)
+        #self.accountant_proxy = self.accountant.accountant_proxy = self.accountant
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
         self.webserver_export = accountant.WebserverExport(self.accountant)
@@ -509,10 +510,11 @@ class TestEngineExport(TestAccountant):
 
             dl = defer.DeferredList([d1, d2])
             dl.addCallback(onSuccess)
+            return dl
 
         dl = defer.DeferredList([aggressive_deferred, passive_deferred])
         dl.addCallback(onSuccessPlaceOrder)
-
+        return dl
     """
     # Not implemented yet
     def test_safe_prices(self):
