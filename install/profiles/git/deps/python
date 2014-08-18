@@ -13,6 +13,4 @@ superlance
 txJSON-RPC==0.3.1
 superlance
 pycrypto
-service_identity
-bitcoin-python==0.3
-coverage
+service_identitycoverage
