@@ -1,4 +1,0 @@
-#!/bin/bash
-
-cp -r ${profile_git_root}/dist/admin_templates ${profile_root}/server/sputnik
-

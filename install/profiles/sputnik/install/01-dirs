@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# create the sputnik directories
-mkdir -p $profile_root
-mkdir -p $profile_root/server/config
-mkdir -p $profile_root/server/keys
-mkdir -p $profile_root/tools
-

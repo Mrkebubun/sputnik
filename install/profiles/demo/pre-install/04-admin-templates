@@ -1,3 +1,4 @@
 #!/bin/bash
 
 cp -rH ${profile_git_root}/server/sputnik/admin_templates ${profile_git_root}/dist
+
