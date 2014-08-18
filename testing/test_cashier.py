@@ -276,7 +276,7 @@ class TestAdministratorExport(TestCashier):
                                                                    u'BTC',
                                                                    'credit',
                                                                    1000000,
-                                                                   None),
+                                                                   'WITHDRAWAL_ADDRESS: TXSUCCESS'),
                                                                   {})]))
                 self.assertFalse(withdrawal.pending)
 
@@ -378,7 +378,7 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   None),
+                                                                   'WITHDRAWAL_ADDRESS: offline'),
                                                                   {})]))
 
                 self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
@@ -420,7 +420,7 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   None),
+                                                                   'WITHDRAWAL_ADDRESS: cancel'),
                                                                   {})]
                 ))
 
@@ -463,7 +463,7 @@ class TestAccountantExport(TestCashier):
                                                                u'BTC',
                                                                'credit',
                                                                1000000,
-                                                               None,),
+                                                               'WITHDRAWAL_ADDRESS: TXSUCCESS',),
                                                               {})]))
 
         def onFail(failure):
