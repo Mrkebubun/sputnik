@@ -53,10 +53,10 @@ class TestAsyncRouterDealer(unittest.TestCase):
             self.assertTrue(False)
 
         def onFail(failure):
+            self.flushLoggedErrors()
             self.assertEqual(failure.value.args, (u'Ack',))
 
-        d.addCallbacks(onSuccess, onFail)
-        return d
+        return d.addCallbacks(onSuccess, onFail)
 
     def test_bad_method(self):
         d = self.dealer_proxy.bad_method(True)

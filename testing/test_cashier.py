@@ -1,7 +1,7 @@
 import sys
 import os
 from twisted.internet import defer
-from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
 
@@ -11,14 +11,16 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
 
-class FakeBitcoin(FakeProxy):
+class FakeBitcoin(FakeComponent):
     received = {}
     balance = 0.0
 
     def getnewaddress(self):
+        self._log_call("getnewaddress")
         return defer.succeed({'result': "NEW_TEST_ADDRESS"})
 
     def getreceivedbyaddress(self, address, minimum_confirmations):
+        self._log_call("getreceivedbyaddress")
         if address in self.received:
             if self.received[address]['confirmations'] >= minimum_confirmations:
                 return defer.succeed({'result': self.received[address]['amount']})
@@ -26,6 +28,7 @@ class FakeBitcoin(FakeProxy):
         return defer.succeed({'result': 0.0})
 
     def listreceivedbyaddress(self, minimum_confirmations):
+        self._log_call("listreceivedbyaddress", minimum_confirmations)
         received = []
 
         for address, info in self.received.iteritems():
@@ -39,13 +42,16 @@ class FakeBitcoin(FakeProxy):
 
 
     def getbalance(self):
+        self._log_call("getbalance")
         return defer.succeed({'result': self.balance})
 
     def sendtoaddress(self, address, amount):
+        self._log_call("sendtoaddress", address, amount)
         return defer.succeed({'result': "TXSUCCESS"})
 
     # Utility functions for tester
     def receive_at_address(self, address, amount):
+        self._log_call("receive_at_address", address, amount)
         if address in self.received:
             if self.received[address]['amount'] == amount:
                 self.received[address]['confirmations'] += 1
@@ -58,18 +64,19 @@ class FakeBitcoin(FakeProxy):
             }
 
     def set_balance(self, amount):
+        self._log_call("set_balance", amount)
         self.balance = amount
-
 
 class TestCashier(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
 
         from sputnik import cashier
+        from sputnik import accountant
 
-        self.accountant = FakeProxy()
+        self.accountant = accountant.CashierExport(FakeComponent("accountant"))
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
-        self.compropago = FakeProxy()
+        self.compropago = FakeComponent()
         self.sendmail = FakeSendmail('test-email@m2.io')
         self.cashier = cashier.Cashier(self.session, self.accountant,
                                        self.bitcoinrpc,
@@ -201,9 +208,10 @@ class TestAdministratorExport(TestCashier):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS', 1.23)
 
         d = self.administrator_export.rescan_address('TEST_ADDRESS')
+
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('TEST_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", 'TEST_ADDRESS', 123000000L), {})]))
 
         def onFail(failure):
             self.assertFalse(True)
@@ -217,9 +225,10 @@ class TestAdministratorExport(TestCashier):
             self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS_2', 1.23)
 
         d = self.administrator_export.rescan_address('TEST_ADDRESS_2')
+
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertEquals(self.accountant.log, [])
+            self.assertEquals(self.accountant.component.log, [])
 
         def onFail(failure):
             self.assertFalse(True)
@@ -231,9 +240,10 @@ class TestAdministratorExport(TestCashier):
         self.create_account('test', 'TEST_ADDRESS_3')
 
         d = self.administrator_export.rescan_address('TEST_ADDRESS_3')
+
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertEquals(self.accountant.log, [])
+            self.assertEquals(self.accountant.component.log, [])
 
         def onFail(failure):
             self.assertFalse(True)
@@ -244,17 +254,29 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_online_have_cash(self):
         self.create_account('test')
         d = self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+
         def onSuccess(withdrawal_id):
             self.cashier.bitcoinrpc['BTC'].set_balance(0.01)
 
             from sputnik import models
+
             d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
 
             def onSuccess(txid):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
-                                                                  (u'BTC', 'pendingwithdrawal', 'onlinecash', 1000000,
-                                                                   u'WITHDRAWAL_ADDRESS: %s' % txid),
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                                  ('pendingwithdrawal',
+                                                                   u'BTC',
+                                                                   'debit',
+                                                                   1000000,
+                                                                   u'WITHDRAWAL_ADDRESS: TXSUCCESS'),
+                                                                  {}),
+                                                                 ('transfer_position',
+                                                                  ('onlinecash',
+                                                                   u'BTC',
+                                                                   'credit',
+                                                                   1000000,
+                                                                   None),
                                                                   {})]))
                 self.assertFalse(withdrawal.pending)
 
@@ -273,20 +295,23 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_online_no_cash(self):
         self.create_account('test')
         d = self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+
         def onSuccess(withdrawal_id):
             self.cashier.bitcoinrpc['BTC'].set_balance(0.0)
 
             d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
+
             def onSuccess(result):
                 self.assertTrue(False)
 
             def onFail(failure):
                 self.assertEqual(failure.value.args[1], "Insufficient funds in wallet")
                 from sputnik import models
+
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                self.assertEqual(self.accountant.log, [])
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.accountant.component.log, [])
+                self.assertTrue(self.bitcoinrpc['BTC'].component.check_for_calls([('getbalance', (), {}), ('set_balance', (0.0,), {}), ('getbalance', (), {})]))
                 self.assertTrue(withdrawal.pending)
 
             d.addCallbacks(onSuccess, onFail)
@@ -300,20 +325,22 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_online_fiat(self):
         self.create_account('test')
 
-
         d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+
         def onSuccess(withdrawal_id):
             from sputnik import cashier
+
             with self.assertRaisesRegexp(cashier.CashierException, "No automatic withdrawals"):
                 d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
 
                 def onFail(failure):
                     self.assertEqual(failure.value.args[1], "No automatic withdrawals")
                     from sputnik import models
+
                     withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                    self.assertEqual(self.accountant.log, [])
-                    self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                    self.assertEqual(self.accountant.component.log, [])
+                    self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                     self.assertTrue(withdrawal.pending)
 
                 def onSuccess(result):
@@ -331,22 +358,30 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_offline(self):
         self.create_account('test')
         d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+
         def onSuccess(withdrawal_id):
             d = self.administrator_export.process_withdrawal(withdrawal_id, online=False)
 
             def onSuccess(txid):
                 from sputnik import models
-                withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
-                                                                  (u'MXN',
-                                                                   'pendingwithdrawal',
-                                                                   'offlinecash',
+                withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                                  ('pendingwithdrawal',
+                                                                   u'MXN',
+                                                                   'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: %s' % txid),
+                                                                   u'WITHDRAWAL_ADDRESS: offline'),
+                                                                  {}),
+                                                                 ('transfer_position',
+                                                                  ('offlinecash',
+                                                                   u'MXN',
+                                                                   'credit',
+                                                                   100000000,
+                                                                   None),
                                                                   {})]))
 
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                 self.assertFalse(withdrawal.pending)
 
             def onFail(failure):
@@ -365,22 +400,31 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_cancel(self):
         self.create_account('test')
         d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+
         def onSuccess(withdrawal_id):
             d = self.administrator_export.process_withdrawal(withdrawal_id, cancel=True)
 
             def onSuccess(txid):
                 from sputnik import models
+
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
-
-                self.assertTrue(self.accountant.check_for_calls([('transfer_position',
-                                                                  (u'MXN',
-                                                                   'pendingwithdrawal',
-                                                                   'test',
+                self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                                  ('pendingwithdrawal',
+                                                                   u'MXN',
+                                                                   'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: %s' % txid),
-                                                                  {})]))
+                                                                   u'WITHDRAWAL_ADDRESS: cancel'),
+                                                                  {}),
+                                                                 ('transfer_position',
+                                                                  (u'test',
+                                                                   u'MXN',
+                                                                   'credit',
+                                                                   100000000,
+                                                                   None),
+                                                                  {})]
+                ))
 
-                self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
                 self.assertFalse(withdrawal.pending)
 
             def onFail(failure):
@@ -404,13 +448,23 @@ class TestAccountantExport(TestCashier):
 
         def onSuccess(withdrawal_id):
             from sputnik import models
+
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertFalse(withdrawal.pending)
-
-            self.assertTrue(self.accountant.check_for_calls([('transfer_position',
-                                                                      (u'BTC', 'pendingwithdrawal', 'onlinecash', 1000000,
-                                                                       u'WITHDRAWAL_ADDRESS: TXSUCCESS'),
-                                                                      {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                              ('pendingwithdrawal',
+                                                               u'BTC',
+                                                               'debit',
+                                                               1000000,
+                                                               u'WITHDRAWAL_ADDRESS: TXSUCCESS',),
+                                                              {}),
+                                                             ('transfer_position',
+                                                              ('onlinecash',
+                                                               u'BTC',
+                                                               'credit',
+                                                               1000000,
+                                                               None,),
+                                                              {})]))
 
         def onFail(failure):
             self.assertFalse(True)
@@ -429,9 +483,9 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (1.0,), {}), ('getbalance', (), {})]))
+            self.assertEqual(self.cashier.accountant.component.log, [])
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -454,9 +508,9 @@ class TestAccountantExport(TestCashier):
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (100.0,), {})]))
+            self.assertEqual(self.cashier.accountant.component.log, [])
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -473,15 +527,14 @@ class TestAccountantExport(TestCashier):
         d = self.accountant_export.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1200000)
 
         def onSuccess(withdrawal_id):
-
             from sputnik import models
 
             withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
             self.assertTrue(withdrawal.pending)
 
-            self.assertEqual(self.cashier.bitcoinrpc['BTC'].log, [])
-            self.assertEqual(self.cashier.accountant.log, [])
-            self.assertTrue(self.cashier.sendmail.check_for_calls([('send_mail',
+            self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
+            self.assertEqual(self.cashier.accountant.component.log, [])
+            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
                                                                     (
                                                                         'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
                                                                     {'subject': 'Your withdrawal request is pending',
@@ -503,6 +556,7 @@ class TestBitcoinNotify(TestCashier):
     """http://stackoverflow.com/questions/5210889/how-to-test-twisted-web-resource-with-trial
 
     """
+
     def test_render_GET_little_received(self):
         self.create_account('test', 'NEW_ADDRESS')
 
@@ -511,10 +565,11 @@ class TestBitcoinNotify(TestCashier):
 
         request = DummyRequest([''])
         d = self.render_test_helper(self.bitcoin_notify, request)
+
         def rendered(ignored):
             self.assertEquals(request.responseCode, 200)
             self.assertEquals("".join(request.written), "OK")
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', (u'NEW_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", u'NEW_ADDRESS', 123000000L), {})]))
 
         d.addCallback(rendered)
         return d
@@ -528,10 +583,11 @@ class TestBitcoinNotify(TestCashier):
 
         request = DummyRequest([''])
         d = self.render_test_helper(self.bitcoin_notify, request)
+
         def rendered(ignored):
             self.assertEquals(request.responseCode, 200)
             self.assertEquals("".join(request.written), "OK")
-            self.assertEqual(self.accountant.log, [])
+            self.assertEqual(self.accountant.component.log, [])
 
         d.addCallback(rendered)
         return d
@@ -552,12 +608,14 @@ class TestBitcoinNotify(TestCashier):
 
         request = DummyRequest([''])
         d = self.render_test_helper(self.bitcoin_notify, request)
+
         def rendered(ignored):
             self.assertEqual(request.responseCode, 200)
             self.assertEqual("".join(request.written), "OK")
-            self.assertTrue(self.accountant.check_for_calls([('deposit_cash', ('SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
-                                                             ('deposit_cash', ('ADDRESS_FOR_TEST3', 341240000L), {})]
-            ))
+            self.assertTrue(
+                self.accountant.component.check_for_calls([('deposit_cash', ("test2", 'SECOND_ADDRESS_FOR_TEST2', 400000000L), {}),
+                                                 ('deposit_cash', ("test3", 'ADDRESS_FOR_TEST3', 341240000L), {})]
+                ))
 
         d.addCallback(rendered)
         return d

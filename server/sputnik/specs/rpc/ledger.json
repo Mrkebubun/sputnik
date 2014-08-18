@@ -1,0 +1,21 @@
+{
+    "post":
+    {
+        "type": "object",
+        "description": "Submit postings to the ledger.",
+        "properties":
+        {
+            "postings":
+            {
+                "type": "array",
+                "description": "Journal postings.",
+                "items":
+                {
+                    "$ref": "objects/posting.json"
+                }
+            }
+        },
+        "required": ["postings"],
+        "additionalProperties": false
+    }
+}

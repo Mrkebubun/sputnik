@@ -3,22 +3,31 @@
 import config
 
 from optparse import OptionParser
+
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
-        help="config file", default=None)
+                  help="config file", default=None)
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
 
-import logging
+import sys
 import time
 import heapq
 
 import database
 import models
+import accountant
+
+import util
 
 from twisted.internet import reactor
-from zmq_util import export, router_share_async, push_proxy_async
+from twisted.python import log
+from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
+from rpc_schema import schema
+from collections import defaultdict
+from datetime import datetime
+
 
 class OrderSide:
     BUY = -1
@@ -33,7 +42,8 @@ class OrderSide:
 
 class Order:
     def __init__(self, id=None, contract=None, quantity=None,
-            quantity_left=None, price=None, side=None, username=None):
+                 quantity_left=None, price=None, side=None, username=None,
+                 timestamp=None):
         self.id = id
         self.contract = contract
         self.quantity = quantity
@@ -41,17 +51,10 @@ class Order:
         self.price = price
         self.side = side
         self.username = username
-        self.timestamp = int(time.time() * 1e6)
-
-    def to_webserver(self):
-        return {"id": self.id,
-                "contract": self.contract,
-                "quantity": self.quantity,
-                "quantity_left": self.quantity_left,
-                "price": self.price,
-                "side": OrderSide.name(self.side),
-                "is_cancelled": False,
-                "timestamp": self.timestamp}
+        if timestamp is not None:
+            self.timestamp = timestamp
+        else:
+            self.timestamp = util.dt_to_timestamp(datetime.utcnow())
 
     def matchable(self, other):
         if self.side == other.side:
@@ -59,7 +62,8 @@ class Order:
         return (self.price - other.price) * self.side <= 0
 
     def __str__(self):
-        return "%sOrder(price=%s, quantity=%s/%s, id=%d)" % ("Bid" if self.side < 0 else "Ask", self.price, self.quantity_left, self.quantity, self.id)
+        return "%sOrder(price=%s, quantity=%s/%s, id=%d)" % (
+            "Bid" if self.side < 0 else "Ask", self.price, self.quantity_left, self.quantity, self.id)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -133,13 +137,15 @@ class Engine:
                 break
 
             # Trade.
-            self.match(order, passive_order)
+            price, quantity = self.match(order, passive_order)
 
             # If the passive order is used up, remove it.
             if passive_order.quantity_left <= 0:
                 heapq.heappop(self.orderbook[passive_order.side])
                 del self.ordermap[passive_order.id]
 
+            # Notify listeners.
+            self.notify_trade_success(order, passive_order, price, quantity)
 
         # If order is not completely filled, push remainder onto heap and make
         #   an entry in the map.
@@ -163,15 +169,14 @@ class Engine:
         order.quantity_left -= quantity
         passive_order.quantity_left -= quantity
 
-        # Notify listeners.
-        self.notify_trade_success(order, passive_order, price, quantity)
+        return price, quantity
 
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
             # Too late to cancel.
-            logging.info("The order id=%s cannot be cancelled, it's already outside the book." % id)
-            self.notify_cancel_failed(id, "the order is no longer on the book")
+            log.msg("The order id=%s cannot be cancelled, it's already outside the book." % id)
+            self.notify_cancel_fail(id, "the order is no longer on the book")
             return False
 
         # Find the order object.
@@ -199,96 +204,106 @@ class Engine:
             try:
                 listener.on_init()
             except Exception, e:
-                logging.warn("Exception in on_init of %s: %s." % (listener, e))
+                log.err("Exception in on_init of %s: %s." % (listener, e))
+                log.err()
 
     def notify_shutdown(self):
         for listener in self.listeners:
             try:
                 listener.on_shutdown()
             except Exception, e:
-                logging.warn("Exception in on_shutdown of %s: %s." % (listener, e))
+                log.err("Exception in on_shutdown of %s: %s." % (listener, e))
+                log.err()
 
     def notify_queue_success(self, order):
         for listener in self.listeners:
             try:
                 listener.on_queue_success(order)
             except Exception, e:
-                logging.warn("Exception in on_queue_success of %s: %s." % (listener, e))
+                log.err("Exception in on_queue_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_queue_fail(self, order, reason):
         for listener in self.listeners:
             try:
                 listener.on_queue_fail(order, reason)
             except Exception, e:
-                logging.warn("Exception in on_queue_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_queue_fail of %s: %s." % (listener, e))
+                log.err()
 
     def notify_trade_success(self, order, passive_order, price, quantity):
         for listener in self.listeners:
             try:
                 listener.on_trade_success(order, passive_order, price, quantity)
             except Exception, e:
-                logging.warn("Exception in on_trade_success of %s: %s." % (listener, e))
+                log.err("Exception in on_trade_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_trade_fail(self, order, passive_order, reason):
         for listener in self.listeners:
             try:
                 listener.on_trade_fail(order, passive_order, reason)
             except Exception, e:
-                logging.warn("Exception in on_trade_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_trade_fail of %s: %s." % (listener, e))
+                log.err()
 
     def notify_cancel_success(self, order):
         for listener in self.listeners:
             try:
                 listener.on_cancel_success(order)
             except Exception, e:
-                logging.warn("Exception in on_cancel_success of %s: %s." % (listener, e))
+                log.err("Exception in on_cancel_success of %s: %s." % (listener, e))
+                log.err()
 
     def notify_cancel_fail(self, order, reason):
         for listener in self.listeners:
             try:
                 listener.on_cancel_fail(order, reason)
             except Exception, e:
-                logging.warn("Exception in on_cancel_fail of %s: %s." % (listener, e))
+                log.err("Exception in on_cancel_fail of %s: %s." % (listener, e))
+                log.err()
 
 
 class LoggingListener:
     def __init__(self, engine, contract):
         self.engine = engine
-        self.contract_id = contract.id
+        self.contract = contract
 
     def on_init(self):
         self.ticker = self.contract.ticker
-        logging.info("Engine for contract %s (%d) started." % (self.ticker, self.contract_id))
-        logging.info("Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract_id))
+        log.msg("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
+        log.msg(
+            "Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract.id))
 
     def on_shutdown(self):
-        logging.info("Engine for contract %s stopped." % self.ticker)
+        log.msg("Engine for contract %s stopped." % self.ticker)
 
     def on_queue_success(self, order):
-        logging.info("%s queued." % order)
+        log.msg("%s queued." % order)
         self.print_order_book()
 
     def on_queue_fail(self, order, reason):
-        logging.warn("%s cannot be queued because %s." % (order, reason))
+        log.msg("%s cannot be queued because %s." % (order, reason))
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        logging.info("Successful trade between order id=%s and id=%s for %s lots at %s each." % (order.id, passive_order.id, order.side * quantity, price))
+        log.msg("Successful trade between order id=%s and id=%s for %s lots at %s each." % (
+            order.id, passive_order.id, quantity, price))
         self.print_order_book()
 
     def on_trade_fail(self, order, passive_order, reason):
-        logging.warn("Cannot complete trade between %s and %s." % (order, passive_order))
+        log.msg("Cannot complete trade between %s and %s." % (order, passive_order))
 
     def on_cancel_success(self, order):
-        logging.info("%s cancelled." % order)
+        log.msg("%s cancelled." % order)
         self.print_order_book()
 
     def on_cancel_fail(self, order, reason):
-        logging.info("Cannot cancel %s because %s." % (order, reason))
+        log.msg("Cannot cancel %s because %s." % (order, reason))
 
     def print_order_book(self):
-        logging.debug("Orderbook for %s:" % self.engine.ticker)
-        logging.debug("Bids                   Asks")
-        logging.debug("Vol.  Price     Price  Vol.")
+        log.msg("Orderbook for %s:" % self.contract.ticker)
+        log.msg("Bids                   Asks")
+        log.msg("Vol.  Price     Price  Vol.")
         length = max(len(self.engine.orderbook[OrderSide.BUY]), len(self.engine.orderbook[OrderSide.SELL]))
         for i in range(length):
             try:
@@ -301,7 +316,7 @@ class LoggingListener:
                 bid_str = "{:>5} {:>5}".format(bid.quantity_left, bid.price)
             except:
                 bid_str = "           "
-            logging.debug("{}     {}".format(bid_str, ask_str))
+            log.msg("{}     {}".format(bid_str, ask_str))
 
 
 class AccountantNotifier(EngineListener):
@@ -309,58 +324,92 @@ class AccountantNotifier(EngineListener):
         self.engine = engine
         self.accountant = accountant
         self.contract = contract
-
-    def on_init(self):
         self.ticker = self.contract.ticker
 
+    def on_init(self):
+        pass
+
     def on_trade_success(self, order, passive_order, price, quantity):
+        uid = util.get_uid()
         self.accountant.post_transaction(order.username,
-                {
-                    'aggressive_username': order.username,
-                    'passive_username': passive_order.username,
-                    'contract': order.contract,
-                    'side': order.side,
-                    'quantity': quantity,
-                    'price': price,
-                    'timestamp': order.timestamp
-                }
-            )
+                                         {
+                                             'username': order.username,
+                                             'aggressive': True,
+                                             'contract': self.ticker,
+                                             'order': order.id,
+                                             'other_order': passive_order.id,
+                                             'side': OrderSide.name(order.side),
+                                             'quantity': quantity,
+                                             'price': price,
+                                             'timestamp': order.timestamp,
+                                             'uid': uid
+                                         }
+        )
 
         self.accountant.post_transaction(passive_order.username,
-                {
-                    'aggressive_username': order.username,
-                    'passive_username': passive_order.username,
-                    'contract': order.contract,
-                    'side': passive_order.side,
-                    'quantity': quantity,
-                    'price': price,
-                    'timestamp': order.timestamp
-                }
-            )
+                                         {
+                                             'username': passive_order.username,
+                                             'aggressive': False,
+                                             'contract': self.ticker,
+                                             'order': passive_order.id,
+                                             'other_order': order.id,
+                                             'side': OrderSide.name(passive_order.side),
+                                             'quantity': quantity,
+                                             'price': price,
+                                             'timestamp': order.timestamp,
+                                             'uid': uid
+                                         }
+        )
+
 
 class WebserverNotifier(EngineListener):
     def __init__(self, engine, webserver, contract):
         self.engine = engine
         self.webserver = webserver
         self.contract = contract
+        self.aggregated_book = {"bids": defaultdict(int), "asks": defaultdict(int)}
+
+    def on_init(self):
+        for bids in self.engine.orderbook[OrderSide.BUY]:
+            self.aggregated_book["bids"][bids.price] += bids.quantity
+        for asks in self.engine.orderbook[OrderSide.SELL]:
+            self.aggregated_book["asks"][asks.price] += asks.quantity
+
+        self.publish_book()
+
+    def on_trade_success(self, order, passive_order, price, quantity):
+        if OrderSide.name(passive_order.side) == "BUY":
+            self.aggregated_book["bids"][passive_order.price] -= quantity
+        else:
+            self.aggregated_book["asks"][passive_order.price] -= quantity
+
+        self.publish_book()
 
     def on_queue_success(self, order):
-        self.webserver.order(order.username, order.to_webserver())
-        self.update_book()
+        if OrderSide.name(order.side) == "BUY":
+            self.aggregated_book["bids"][order.price] += order.quantity
+        else:
+            self.aggregated_book["asks"][order.price] += order.quantity
+
+        self.publish_book()
 
     def on_cancel_success(self, order):
-        order = order.to_webserver()
-        order["is_cancelled"] = True
-        self.webserver.order(order.username, order)
-        self.update_book()
+        if OrderSide.name(order.side) == "BUY":
+            self.aggregated_book["bids"][order.price] -= order.quantity_left
+        else:
+            self.aggregated_book["asks"][order.price] -= order.quantity_left
 
-    def update_book(self):
-        book = {"contract": self.contract.ticker, "bids": [], "asks": []}
-        for entry in self.engine.orderbook[OrderSide.BUY]:
-            quantity = book["bids"].setdefault(entry.price, 0)
-            quantity += entry.quantity
-            book["bids"][entry.price] = quantity
-        self.webserver.book(self.contract.ticker, book)
+        self.publish_book()
+
+    def publish_book(self):
+        wire_book = {"contract": self.contract.ticker,
+                     "bids": [{"quantity": row[1],
+                               "price": row[0]} for row in self.aggregated_book["bids"].iteritems()],
+                     "asks": [{"quantity": row[1],
+                               "price": row[0]} for row in self.aggregated_book["asks"].iteritems()]}
+
+        self.webserver.book(self.contract.ticker, wire_book)
+
 
 class SafePriceNotifier(EngineListener):
     def __init__(self, engine, forwarder, accountant, webserver):
@@ -374,7 +423,7 @@ class SafePriceNotifier(EngineListener):
         self.decay = 0.9
 
     def on_init(self):
-        self.ticker = self.engine.ticker
+        self.ticker = self.contract.ticker
 
         # TODO: seriously, fix this hack
         try:
@@ -396,45 +445,37 @@ class SafePriceNotifier(EngineListener):
         self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
 
 
-class AccountantExport:
+class AccountantExport(ComponentExport):
     def __init__(self, engine):
         self.engine = engine
+        ComponentExport.__init__(self, engine)
 
     @export
+    @schema("rpc/engine.json#place_order")
     def place_order(self, order):
         return self.engine.place_order(Order(**order))
 
     @export
+    @schema("rpc/engine.json#cancel_order")
     def cancel_order(self, id):
         return self.engine.cancel_order(id)
 
+    @export
+    def ping(self):
+        return "pong"
+
 
 if __name__ == "__main__":
+    log.startLogging(sys.stdout)
     session = database.make_session()
     ticker = args[0]
 
     try:
         contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
-        logging.critical("Cannot determine ticker id. %s" % e)
+        log.err("Cannot determine ticker id. %s" % e)
+        log.err()
         raise e
-
-    # We are no longer cancelling orders here.
-    # We should find a better place for this.
-    # Didn't we decide not to cancel orders when the engine restarts? We will have
-    # to load orders from the db and add them to the engine in this case
-    # Well... it is not possible if the engine does not touch the orders table.
-    """
-    try:
-        for order in session.query(models.Order).filter_by(
-                is_cancelled=False).filter_by(contract_id=self.contract_id):
-            order.is_cancelled = True
-            self.session.merge(order)
-        self.session.commit()
-    except Exception, e:
-        logging.critical("Cannot clear existing orders. %s" % e)
-        raise e
-    """
 
     engine = Engine()
     accountant_export = AccountantExport(engine)
@@ -442,7 +483,9 @@ if __name__ == "__main__":
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
 
     logger = LoggingListener(engine, contract)
-    accountant = push_proxy_async(config.get("accountant", "engine_export"))
+    accountant = accountant.AccountantProxy("push",
+                                            config.get("accountant", "engine_export"),
+                                            config.getint("accountant", "engine_export_base_port"))
     accountant_notifier = AccountantNotifier(engine, accountant, contract)
     webserver = push_proxy_async(config.get("webserver", "engine_export"))
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
@@ -451,6 +494,14 @@ if __name__ == "__main__":
     engine.add_listener(accountant_notifier)
     engine.add_listener(webserver_notifier)
     #engine.add_listener(safe_price_notifier)
+
+    # Add all orders that have been dispatched but not cancelled to the engine
+    for order in session.query(models.Order).filter_by(
+            is_cancelled=False).filter_by(
+            dispatched=True).filter_by(
+            contract_id=contract.id).filter(
+                    models.Order.quantity_left > 0):
+        accountant_export.place_order(order.to_matching_engine_order())
 
     engine.notify_init()
 

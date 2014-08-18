@@ -1,0 +1,102 @@
+{
+    "get_new_address": {
+        "type": "object",
+        "description": "webserver -> cashier RPC call to get a new deposit address for a given contract",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username for the new address to be signed to"
+            },
+            "ticker": {
+                "type": "string",
+                "description": "the currency for this address"
+            }
+        },
+        "required": [ "username", "ticker" ],
+        "additionalProperties": false
+    },
+    "get_current_address": {
+        "type": "object",
+        "description": "webserver -> cashier RPC call to get the current deposit address for a given contract",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username for the new address to be signed to"
+            },
+            "ticker": {
+                "type": "string",
+                "description": "the currency for this address"
+            }
+        },
+        "required": [ "username", "ticker" ],
+        "additionalProperties": false
+    },
+    "get_deposit_instructions": {
+        "type": "object",
+        "description": "webserver -> cashier RPC call to get deposit instructions for a given contract",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the currency for this address"
+            }
+        },
+        "required": [ "ticker" ],
+        "additionalProperties": false
+    },
+    "rescan_address": {
+        "type": "object",
+        "description": "administrator -> cashier RPC call to check an address again for deposits",
+        "properties": {
+            "address": {
+                "type": "string",
+                "description": "the address we are scanning"
+            }
+        },
+        "required": [ "address" ],
+        "additionalProperties": false
+    },
+    "process_withdrawal": {
+        "type": "object",
+        "description": "administrator -> cashier RPC call to process a cash withdrawal",
+        "properties": {
+            "id": {
+                "type": "integer",
+                "description": "the id of the withdrawal db entry we want to process"
+            },
+            "online": {
+                "type": "boolean",
+                "description": "if true, the cashier should actually process the withdrawal on-line"
+            },
+            "cancel": {
+                "type": "boolean",
+                "description": "if true, cancel the pending withdrawal and return funds to the relevant user"
+            }
+        },
+        "required": [ "id" ],
+        "additionalProperties": false
+    },
+    "request_withdrawal": {
+        "type": "object",
+        "description": "accountant -> cashier RPC call to request a cash withdrawal",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the user who is going to withdraw the cash"
+            },
+            "ticker": {
+                "type": "string",
+                "description": "the currency we are withdrawing"
+            },
+            "address": {
+                "type": "string",
+                "description": "where will the cash be going"
+            },
+            "amount": {
+                "type": "integer",
+                "description": "how much of a withdrawal"
+            }
+        },
+        "required": [ "username", "ticker", "address", "amount" ],
+        "additionalProperties": false
+    }
+}

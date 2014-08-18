@@ -146,11 +146,23 @@ class Order(db.Base, QuantityUI, PriceUI):
     side = Column(Enum('BUY', 'SELL', name='side_types'))
     is_cancelled = Column(Boolean, nullable=False)
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
+    dispatched = Column(Boolean, nullable=False, server_default=sql.false())
     timestamp = Column(DateTime)
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
 
+
+    def to_webserver(self):
+        return {"id": self.id,
+                "contract": self.contract.ticker,
+                "quantity": self.quantity,
+                "quantity_left": self.quantity_left,
+                "price": self.price,
+                "side": self.side,
+                "is_cancelled": self.is_cancelled,
+                "timestamp": util.dt_to_timestamp(self.timestamp)
+        }
 
     def to_matching_engine_order(self):
         """
@@ -159,11 +171,11 @@ class Order(db.Base, QuantityUI, PriceUI):
         :returns: dict
         """
         return {'id': self.id, 'username': self.username, 'contract': self.contract_id, 'quantity': self.quantity,
-                'quantity_left': self.quantity_left,
+                'timestamp': util.dt_to_timestamp(self.timestamp),
                 'price': self.price, 'side': (-1 if self.side == "BUY" else 1)}
 
 
-    def __init__(self, user, contract, quantity, price, side):
+    def __init__(self, user, contract, quantity, price, side, timestamp=None):
         """
 
         :param user:
@@ -183,7 +195,11 @@ class Order(db.Base, QuantityUI, PriceUI):
         self.quantity_left = quantity
         self.price = price
         self.side = side
-        self.timestamp = datetime.utcnow()
+        if timestamp is not None:
+            self.timestamp = timestamp
+        else:
+            self.timestamp = datetime.utcnow()
+
         self.is_cancelled = False
 
     def __repr__(self):
@@ -360,10 +376,9 @@ class Journal(db.Base):
                         'Trade', 'Fee',
                         name='journal_types'), nullable=False)
     timestamp = Column(DateTime)
-    notes = Column(String)
     postings = relationship('Posting', back_populates="journal")
 
-    def __init__(self, type, postings, timestamp=None, notes=None, alerts_proxy=None):
+    def __init__(self, type, postings, timestamp=None):
         """
 
         :param type:
@@ -377,20 +392,11 @@ class Journal(db.Base):
         :raises: Exception
         """
         self.type = type
-        self.timestamp = timestamp
-        self.notes = notes
-        # Don't include zero qty line items
-        self.postings = [p for p in postings if p.quantity != 0]
+        self.postings = [p for p in postings]
         if timestamp is None:
             self.timestamp = datetime.utcnow()
         else:
             self.timestamp = timestamp
-
-        if not self.audit:
-            if alerts_proxy is not None:
-                alerts_proxy.send_alert("Journal audit failed for %s" % self, "Journal audit failed")
-
-            raise Exception("Journal audit failed for %s" % self)
 
     def __repr__(self):
         header = "<Journal('%s', '%s', '%s')>\n" % (self.type, self.timestamp, self.notes)
@@ -399,6 +405,14 @@ class Journal(db.Base):
             postings += "\t%s\n" % posting
         footer = "</Journal>"
         return header + postings + footer
+
+    @property
+    def notes(self):
+        """Get all the notes for all the postings
+        :returns: string
+        """
+        dedup_notes = set([posting.note for posting in self.postings if posting.note is not None])
+        return '\n'.join(dedup_notes)
 
     @property
     def audit(self):
@@ -432,11 +446,13 @@ class Posting(db.Base, QuantityUI):
     username = Column(String, ForeignKey('users.username'))
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
+    note = Column(String)
+    timestamp = Column(DateTime)
 
     def __repr__(self):
-        return "<Posting('%s', '%s', %d)>" % (self.contract, self.user, self.quantity)
+        return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
 
-    def __init__(self, user, contract, quantity, side, update_position=False, position=None):
+    def __init__(self, user, contract, quantity, direction, note=None, timestamp=None):
         """
 
         :param user:
@@ -447,14 +463,10 @@ class Posting(db.Base, QuantityUI):
         :type quantity: int
         :param side:
         :type side: str
-        :param update_position: set to true if we need to update the underlying position
-        :type update_position: bool
-        :param position: The position we are updating
-        :type position: Position
         """
         self.user = user
         self.contract = contract
-        if side is 'debit':
+        if direction == 'debit':
             if self.user.type == 'Asset':
                 sign = 1
             else:
@@ -466,10 +478,11 @@ class Posting(db.Base, QuantityUI):
                 sign = 1
 
         self.quantity = sign * quantity
-
-        if update_position:
-            assert(self.contract == position.contract)
-            position.position += sign * quantity
+        if timestamp is None:
+            self.timestamp = datetime.utcnow()
+        else:
+            self.timestamp = timestamp
+        self.note = note
 
 class Addresses(db.Base, QuantityUI):
     """
@@ -528,6 +541,8 @@ class Position(db.Base, QuantityUI):
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
     position = Column(BigInteger)
+    position_checkpoint = Column(BigInteger, server_default="0")
+    position_cp_timestamp = Column(DateTime)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
 
     @property
@@ -556,13 +571,23 @@ class Position(db.Base, QuantityUI):
     def position_calculated(self):
         """Make sure that the sum of all postings for this position sum to the position
         """
-        calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
+        if self.position_cp_timestamp is None:
+            calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
+        else:
+            calculated = self.position_checkpoint + \
+                         sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id
+                                and x.journal.timestamp >= self.position_cp_timestamp])
         return calculated
 
+    @property
+    def position_calculated_fmt(self):
+        position_calculated_ui = util.quantity_from_wire(self.contract, self.position_calculated)
+        return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=position_calculated_ui)
+
     def __repr__(self):
-        return "<Position('%s', '%s', %d)>" \
+        return "<Position('%s', '%s', %d/%d)>" \
                % (self.contract, self.user,
-                  self.position)
+                  self.position, self.position_checkpoint)
 
 
 class Withdrawal(db.Base, QuantityUI):
@@ -647,4 +672,12 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     def __repr__(self):
         return '<Trade(%s:%d@%d)>' % (self.contract.ticker, self.price, self.quantity)
+
+    def to_webserver(self):
+        return {"contract": self.contract.ticker,
+                "price": self.price,
+                "quantity": self.quantity,
+                "id": self.id,
+                "timestamp": util.dt_to_timestamp(self.timestamp)
+        }
 

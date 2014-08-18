@@ -1,0 +1,92 @@
+{
+    "transfer_position":
+    {
+        "type":"object",
+        "description": "Transfer position from one user to another. Used for cold storage.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of one of the affected users."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Affected contract."
+            },
+            "direction":
+            {
+                "enum": ["credit", "debit"],
+                "description": "Transfer direction."
+            },
+            "quantity":
+            {
+                "type": "integer",
+                "description": "Transfer volume."
+            },
+            "note":
+            {
+                "type": ["string", "null"],
+                "description": "Optional short note."
+            },
+            "uid":
+            {
+                "type": "string",
+                "description": "Unique id for the transfer."
+            }
+        },
+        "required": ["username", "ticker", "direction", "quantity", "uid"],
+        "additionalProperties": false
+    },
+    "deposit_cash":
+    {
+        "type":"object",
+        "description": "Deposit cash in user's address.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom to deposit."
+            },
+            "address":
+            {
+                "type": "string",
+                "description": "User's address."
+            },
+            "received":
+            {
+                "type": "integer",
+                "description": "Amount received."
+            },
+            "total":
+            {
+                "type": "boolean",
+                "description": "Whether received is address total or delta."
+            }
+        },
+        "required": ["username", "address", "received", "total"],
+        "additionalProperties": false
+    },
+    "get_position":
+    {
+        "type":"object",
+        "description": "Query a user's position.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Ticker of contract to query."
+            }
+        },
+        "required": ["username", "ticker"],
+        "additionalProperties": false
+    }
+}

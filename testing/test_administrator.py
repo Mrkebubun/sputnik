@@ -2,7 +2,7 @@ __author__ = 'sameer'
 
 import sys
 import os
-from test_sputnik import TestSputnik, FakeProxy, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
@@ -13,9 +13,11 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
 
+class FakeAccountant(FakeComponent):
+    name = "accountant"
 
-class FakeAccountant(FakeProxy):
     def get_balance_sheet(self):
+        self._log_call("get_balance_sheet")
         return defer.succeed({})
 
 
@@ -23,10 +25,13 @@ class TestAdministrator(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
 
-        from sputnik import administrator
 
-        accountant = FakeAccountant()
-        cashier = FakeProxy()
+        from sputnik import administrator
+        from sputnik import accountant
+        from sputnik import cashier
+
+        accountant = accountant.AdministratorExport(FakeAccountant())
+        cashier = cashier.AdministratorExport(FakeComponent())
         zendesk_domain = 'testing'
 
         self.administrator = administrator.Administrator(self.session, accountant, cashier, zendesk_domain,
@@ -34,12 +39,20 @@ class TestAdministrator(TestSputnik):
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates",
-                                                         user_limit=50)
+                                                         user_limit=50,
+                                                         bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
 
 class TestWebserverExport(TestAdministrator):
+    def test_get_audit(self):
+        audit = self.webserver_export.get_audit()
+        for side in ['assets', 'liabilities']:
+            for currency in audit[side].keys():
+                total = sum([x[1] for x in audit[side][currency]['positions']])
+                self.assertEqual(audit[side][currency]['total'], total)
+
     def test_make_account_success(self):
         self.add_address(address='new_address_without_user')
         self.assertTrue(self.webserver_export.make_account('new_user', 'new_user_password_hash'))
@@ -379,7 +392,8 @@ class TestAdministratorWebUI(TestAdministrator):
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
-            self.assertTrue(self.administrator.cashier.check_for_calls([('rescan_address', ('address_test',), {})]))
+            self.assertTrue(
+                self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
 
 
         d.addCallback(rendered)
@@ -447,6 +461,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d.addCallback(rendered)
         return d
 
+
     def test_change_permission_group(self):
         self.create_account('test')
         from sputnik import models
@@ -465,22 +480,12 @@ class TestAdministratorWebUI(TestAdministrator):
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
             self.assertTrue(
-                self.administrator.accountant.check_for_calls([('change_permission_group', ('test', new_id), {})]))
+                self.administrator.accountant.component.check_for_calls(
+                    [('change_permission_group', ('test', new_id), {})]))
 
         d.addCallback(rendered)
         return d
 
-    def test_balance_sheet(self):
-        request = StupidRequest([''],
-                                path='/balance_sheet')
-        d = self.render_test_helper(self.web_ui_factory(3), request)
-
-        def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>Balance Sheet</title>')
-
-
-        d.addCallback(rendered)
-        return d
 
     def test_ledger(self):
         pass
@@ -488,14 +493,21 @@ class TestAdministratorWebUI(TestAdministrator):
     def test_new_permission_group(self):
         request = StupidRequest([''],
                                 path='/new_permission_group',
-                                args={'name': ['TestGroup'],
+                                args={'name': ['New Test Group'],
                                       'permissions': ['trade', 'deposit']})
         d = self.render_test_helper(self.web_ui_factory(4), request)
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>Permissions</title>')
-            self.assertTrue(self.administrator.accountant.check_for_calls(
-                [('new_permission_group', ('TestGroup', ['trade', 'deposit']), {})]))
+
+            from sputnik import models
+
+            group = self.session.query(models.PermissionGroup).filter_by(name='New Test Group').one()
+
+            self.assertTrue(group.deposit)
+            self.assertFalse(group.withdraw)
+            self.assertTrue(group.trade)
+            self.assertFalse(group.login)
 
         d.addCallback(rendered)
         return d
@@ -511,7 +523,7 @@ class TestAdministratorWebUI(TestAdministrator):
 
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
-            self.assertTrue(self.administrator.cashier.check_for_calls(
+            self.assertTrue(self.administrator.cashier.component.check_for_calls(
                 [('process_withdrawal', (5,), {'cancel': False, 'online': True})]))
 
         d.addCallback(rendered)
@@ -544,3 +556,14 @@ class TestAdministratorWebUI(TestAdministrator):
     def test_adjust_position(self):
         pass
 
+    def test_balance_sheet(self):
+        request = StupidRequest([''],
+                                path='/balance_sheet')
+        d = self.render_test_helper(self.web_ui_factory(3), request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Balance Sheet</title>')
+
+
+        d.addCallback(rendered)
+        return d

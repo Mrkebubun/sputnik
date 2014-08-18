@@ -1,11 +1,12 @@
 __author__ = 'arthurb'
 
 import models
-import logging
 import util
 import collections
 
-def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawal=None, trial_period=False):
+from twisted.python import log
+
+def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -43,7 +44,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
         if contract.contract_type == 'futures':
             SAFE_PRICE = safe_prices[position.contract.ticker]
 
-            logging.info(low_margin)
+            log.msg(low_margin)
             print 'max position:', max_position
             print 'contract.margin_low :', contract.margin_low
             print 'SAFE_PRICE :', SAFE_PRICE
@@ -57,8 +58,8 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
                 position.reference_price - SAFE_PRICE)
             high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
-            logging.info(low_max)
-            logging.info(low_min)
+            log.msg(low_max)
+            log.msg(low_min)
 
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
@@ -98,7 +99,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
                                                                           payout_contract.denominator)
             transaction_size_int = int(transaction_size_float)
             if transaction_size_float != transaction_size_int:
-                logging.error("Position change is not an integer.")
+                log.err("Position change is not an integer.")
 
             if order.side == 'BUY':
                 max_cash_spent[denominated_contract.ticker] += transaction_size_int
@@ -109,10 +110,17 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             for ticker, fee in fees.iteritems():
                 max_cash_spent[ticker] += fee
 
+
+
     # Make sure max_cash_spent has something in it for every cash contract
     for ticker in cash_position.iterkeys():
         if ticker not in max_cash_spent:
             max_cash_spent[ticker] = 0
+
+    # Deal with withdrawals
+    if withdrawals:
+        for ticker, amount in withdrawals.iteritems():
+            max_cash_spent[ticker] += amount
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
         if cash_ticker == 'BTC':

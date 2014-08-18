@@ -21,7 +21,6 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import cgi
-import logging
 import sys
 import datetime
 import time
@@ -29,10 +28,11 @@ import onetimepass as otp
 import hashlib
 import uuid
 import random
-from util import dt_to_timestamp, ChainedOpenSSLContextFactory
+from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
 import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
+from accountant import AccountantProxy
 from zendesk import Zendesk
 from watchdog import watchdog
 
@@ -43,6 +43,7 @@ from twisted.web.server import Site
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.resource import Resource
 from twisted.web.static import File
+from twisted.python import log
 from autobahn.twisted.websocket import listenWS
 from autobahn.wamp1.protocol import exportRpc, \
     WampCraProtocol, \
@@ -63,11 +64,17 @@ zf = ZmqFactory()
 import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
-dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+dbpassword = config.get("database", "password")
+if dbpassword:
+    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
-                               password=config.get("database", "password"),
+                               password=dbpassword,
                                host=config.get("database", "host"),
                                port=config.get("database", "port"),
+                               database=config.get("database", "dbname"))
+else:
+    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+                               user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
 
@@ -91,7 +98,7 @@ class RateLimitedCallHandler(CallHandler):
         now = time.time()
         if now - call.proto.last_call < 0.01:
             # try again later
-            logging.info("rate limiting...")
+            log.msg("rate limiting...")
             delay = max(0, call.proto.last_call + 0.01 - now)
             d = task.deferLater(reactor, delay, self._callProcedure, call)
             return d
@@ -217,7 +224,7 @@ class PublicInterface:
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_audit()
+        d = self.factory.administrator.get_audit()
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
@@ -249,6 +256,8 @@ class PublicInterface:
             if period in self.factory.ohlcv_history[ticker]:
                 ohlcv = { key: value for key, value in self.factory.ohlcv_history[ticker][period].iteritems()
                                           if value['open_timestamp'] <= end_timestamp and value['close_timestamp'] >= start_timestamp }
+            else:
+                ohlcv = {}
         else:
             ohlcv = {}
             for period in ["minute", "hour", "day"]:
@@ -341,7 +350,7 @@ class PublicInterface:
             return [True, self.factory.all_books[ticker]]
         else:
             # Just return an empty book if there's no book for this market
-            logging.warning("No book for %s" % ticker)
+            log.err("No book for %s" % ticker)
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
@@ -464,7 +473,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         triggered when the connection is lost
         :param reason: reason why the connection was lost
         """
-        logging.info("Connection was lost: %s" % reason)
+        log.msg("Connection was lost: %s" % reason)
 
     def onSessionOpen(self):
         """
@@ -473,7 +482,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         and overrides some global options
         """
 
-        logging.info("in session open")
+        log.msg("in session open")
         ## register a single, fixed URI as PubSub topic
         self.registerForPubSub(self.base_uri + "/feeds/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
                                prefixMatch=True)
@@ -494,7 +503,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if (self.clientAuthTimeout, self.clientAuthAllowAnonymous) != (0, True):
             # if we never see this warning in the weeks following 02/01
             # we can get rid of this
-            logging.warning("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
+            log.err("setting clientAuthTimeout and AuthAllowAnonymous in onConnect"
                             "is useless, __init__ took care of it")
 
         # noinspection PyPep8Naming
@@ -525,7 +534,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result: the permissions for the user
             :returns: dict - the permissions for the user
             """
-            if result['login']:
+            if result[0][0]:
                 # TODO: SECURITY: This is susceptible to a timing attack.
                 def _cb(result):
                     if result:
@@ -544,7 +553,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 return dbpool.runQuery("SELECT password FROM users WHERE username=%s LIMIT 1",
                                        (username,)).addCallback(_cb)
             else:
-                logging.error("User %s not permitted to login" % username)
+                log.err("User %s not permitted to login" % username)
                 return {"authextra": "",
                         "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
@@ -554,13 +563,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param failure:
             :returns: dict - fake permissions so we don't leak which users exist or not
             """
-            logging.error("Unable to get permissions for %s: %s" % (username, failure.value.args))
+            log.err("Unable to get permissions for %s: %s" % (username, failure.value.args))
             return {"authextra": "",
                     "permissions": {"pubsub": [], "rpc": [], "username": username}}
 
 
         # Check for login permissions
-        d = self.factory.accountant.get_permissions(username)
+        d = dbpool.runQuery('SELECT permission_groups.login FROM users, permission_groups WHERE '
+                            'users.permission_group_id=permission_groups.id AND users.username=%s',
+            (username,))
         d.addCallback(_cb_perms)
         d.addErrback(_cb_error)
         return d
@@ -605,7 +616,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             else:
                 auth_secret = secret
 
-            logging.info("returning auth secret: %s" % auth_secret)
+            log.msg("returning auth secret: %s" % auth_secret)
             return auth_secret
 
         def auth_secret_errback(fail=None):
@@ -614,7 +625,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param fail:
             :returns: str
             """
-            logging.warning("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
+            log.err("Error retrieving auth secret: %s" % fail if fail else "Error retrieving auth secret")
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
@@ -648,13 +659,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # search for a saved session
         self.username = self.factory.cookies.get(auth_key)
         if not self.username:
-            logging.info("Normal user login for: %s" % auth_key)
+            log.msg("Normal user login for: %s" % auth_key)
             self.username = auth_key
             uid = str(uuid.uuid4())
             self.factory.cookies[uid] = auth_key
             self.cookie = uid
         else:
-            logging.info("Cookie login for: %s" % self.username)
+            log.msg("Cookie login for: %s" % self.username)
             self.cookie = auth_key
 
         def _cb(result):
@@ -663,7 +674,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result: results from the db query
             """
             self.nickname = result[0][0] if result[0][0] else "anonymous"
-            logging.warning("SETTING SELF.NICKNAME TO %s" % self.nickname)
+            log.msg("SETTING SELF.NICKNAME TO %s" % self.nickname)
 
 
         # moved from onSessionOpen
@@ -713,7 +724,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = self.factory.accountant.get_permissions(self.username)
+        d = dbpool.runQuery("SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade "
+                            "FROM permission_groups, users WHERE "
+                            "users.permission_group_id=permission_groups.id AND users.username=%s",
+                            (self.username,))
+
         def onGetPermsSuccess(result):
             """
 
@@ -721,7 +736,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :type result: dict
             :returns: list - [True, permissions]
             """
-            return [True, result]
+            permissions = { 'name': result[0][0],
+                            'login': result[0][1],
+                            'deposit': result[0][2],
+                            'withdraw': result[0][3],
+                            'trade': result[0][4]}
+            return [True, permissions]
 
         def onGetPermsFail(failure):
             """
@@ -879,7 +899,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 txn.execute("SELECT id FROM contracts WHERE ticker=%s", ('MXN', ))
                 res = txn.fetchall()
                 if not res:
-                    logging.error("Unable to find MXN contract!")
+                    log.err("Unable to find MXN contract!")
                     return [False, "Internal error: No MXN contract"]
 
                 contract_id = res[0][0]
@@ -900,7 +920,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param failure:
             :returns: list - [False, message]
             """
-            logging.warn("Could not create bill: %s" % str(failure))
+            log.err("Could not create bill: %s" % str(failure))
             # TODO: set a correct error code
             return [False, (0, "We are unable to connect to Compropago. Please try again later. We are sorry for the inconvenience.")]
 
@@ -935,7 +955,25 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :type result: list
             :returns: list - [True, list of transactions]
             """
-            return [True, result]
+            transactions = []
+            for row in result:
+                quantity = abs(row[2])
+
+                # Here we assume that the user is a Liability user
+                if row[2] < 0:
+                    direction = 'debit'
+                else:
+                    direction = 'credit'
+
+                transactions.append({'contract': row[0],
+                                 'timestamp': dt_to_timestamp(row[1]),
+                                 'quantity': quantity,
+                                 'type': row[3],
+                                 'direction': direction,
+                                 'note': row[4]})
+
+
+            return [True, transactions]
 
         def _cb_error(failure):
             """
@@ -945,7 +983,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = self.factory.accountant.get_transaction_history(self.username, from_timestamp, to_timestamp)
+        d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
+                            "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
+                            "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
+                            "AND posting.contract_id=contracts.id",
+            (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
+
         d.addCallback(_cb)
         d.addErrback(_cb_error)
         return d
@@ -1185,15 +1228,24 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :returns: Deferred
         """
         # sanitize inputs:
-        validate(order,
-                 {"type": "object", "properties": {
-                     "contract": {"type": "string", "required": True},
-                     "price": {"type": "number", "required": True},
-                     "quantity": {"type": "number", "required": True},
-                     "side": {"type": "string", "required": True}
-                 }})
+        try:
+            validate(order,
+                     {"type": "object", "properties": {
+                         "contract": {"type": "string"},
+                         "price": {"type": "number"},
+                         "quantity": {"type": "number"},
+                         "side": {"type": "string"},
+                         "quantity_left": {"type": ["number", "null"]},
+                         "id": {"type": "number"},
+                         "timestamp": {"type": "number"}
+                     },
+                        "required": ["contract", "price", "quantity", "side"],
+                        "additionalProperties": False})
+        except Exception as e:
+            log.err("Schema validation error: %s" % e)
+            raise e
         order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
-
+        order["timestamp"] = dt_to_timestamp(datetime.datetime.utcnow())
         # enforce minimum tick_size for prices:
 
         def _cb(result):
@@ -1212,6 +1264,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             order["price"] = int(order["price"])
             order["quantity"] = int(order["quantity"])
 
+
             # Check for zero price or quantity
             if order["price"] == 0 or order["quantity"] == 0:
                 return [False, (0, "invalid price or quantity")]
@@ -1226,7 +1279,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             def onFail(failure):
                 return [False, failure.value.args]
 
-            d = self.factory.accountant.place_order(order)
+            d = self.factory.accountant.place_order(self.username, order)
             d.addCallbacks(onSuccess, onFail)
             return d
 
@@ -1265,7 +1318,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         def onFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.cancel_order(order_id, username=self.username)
+        d = self.factory.accountant.cancel_order(self.username, order_id)
         d.addCallbacks(onSuccess, onFail)
         return d
 
@@ -1286,12 +1339,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param topic_uri_prefix: prefix of the URI
         :param topic_uri_suffix:suffix part, in this case always "chat"
         """
-        logging.info("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
+        log.msg("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if self.username:
-            logging.info("he's logged in as %s so we'll let him" % self.username)
+            log.msg("he's logged in as %s so we'll let him" % self.username)
             return True
         else:
-            logging.info("but he's not logged in, so we won't let him")
+            log.msg("but he's not logged in, so we won't let him")
             return False
 
     @exportPub("chat")
@@ -1304,20 +1357,21 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         :param event: event being published, a json object
         """
         print 'string?', event
-        logging.info("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
+        log.msg("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
         if not self.username:
-            logging.info("he's not logged in though, so no")
+            log.msg("he's not logged in though, so no")
             return None
         else:
-            logging.info("he's logged as %s in so that's cool" % self.username)
+            log.msg("he's logged as %s in so that's cool" % self.username)
             if type(event) not in [str, unicode]:
-                logging.warning("but the event type isn't a string, that's way uncool so no")
+                log.err("but the event type isn't a string, that's way uncool so no")
                 return None
             elif len(event) > 0:
                 message = cgi.escape(event)
                 if len(message) > 128:
                     message = message[:128] + u"[\u2026]"
-                chat_log.info('%s:%s' % (self.nickname, message))
+                # TODO: enable this
+                # chat_log.info('%s:%s' % (self.nickname, message))
 
                 #pause message rate if necessary
                 time_span = time.time() - self.troll_throttle
@@ -1331,7 +1385,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                 self.factory.chats.append(msg)
                 if len(self.factory.chats) > 50:
                     self.factory.chats = self.factory.chats[-50:]
-                logging.warning(self.factory.chats)
+                log.msg(self.factory.chats)
                 return msg
 
 
@@ -1352,19 +1406,6 @@ class EngineExport:
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/safe_prices#%s" % ticker, price)
 
-    @export
-    def trade(self, ticker, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
-        self.webserver.trade_history[ticker].append(trade)
-        for period in ["day", "hour", "minute"]:
-            self.webserver.update_ohlcv(trade, period=period, update_feed=True)
-
-    @export
-    def order(self, user, order):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/orders#%s" % user, order)
-
 class AccountantExport:
     def __init__(self, webserver):
         self.webserver = webserver
@@ -1378,6 +1419,20 @@ class AccountantExport:
     def transaction(self, user, transaction):
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
+
+    @export
+    def trade(self, ticker, trade):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
+        self.webserver.trade_history[ticker].append(trade)
+        for period in ["day", "hour", "minute"]:
+            self.webserver.update_ohlcv(trade, period=period, update_feed=True)
+
+    @export
+    def order(self, username, order):
+        self.webserver.dispatch(
+            self.webserver.base_uri + "/feeds/orders#%s" % username, order)
+
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -1486,9 +1541,7 @@ class TicketServer(Resource):
 
         :param request:
         """
-        line = '%s "%s %s %s" %d %s "%s" "%s" "%s"'
-        logging.info(line,
-                     request.getClientIP(),
+        log.msg(request.getClientIP(),
                      request.method,
                      request.uri,
                      request.clientproto,
@@ -1521,7 +1574,7 @@ class TicketServer(Resource):
 
             :param failure:
             """
-            logging.error("unable to create support ticket: %s" % str(failure.value.args))
+            log.err("unable to create support ticket: %s" % str(failure.value.args))
             request.write("Failure: %s" % str(failure.value.args))
             request.finish()
 
@@ -1543,11 +1596,11 @@ class TicketServer(Resource):
 
             def onCreateTicketSuccess(ticket_number):
                 def onRegisterTicketSuccess(result):
-                    logging.debug("Ticket registered successfully")
+                    log.msg("Ticket registered successfully")
                     request.write("OK")
                     request.finish()
 
-                logging.debug("Ticket created: %s" % ticket_number)
+                log.msg("Ticket created: %s" % ticket_number)
                 d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
                 d3.addCallbacks(onRegisterTicketSuccess, onFail)
 
@@ -1575,13 +1628,13 @@ class TicketServer(Resource):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-    chat_log = logging.getLogger('chat_log')
+    log.startLogging(sys.stdout)
+    #chat_log = logging.getLogger('chat_log')
 
-    chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
-    chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
-    chat_log_handler.setFormatter(chat_log_formatter)
-    chat_log.addHandler(chat_log_handler)
+    #chat_log_handler = logging.FileHandler(filename=config.get("webserver", "chat_log"))
+    #chat_log_formatter = logging.Formatter('%(asctime)s %(message)s')
+    #chat_log_handler.setFormatter(chat_log_formatter)
+    #chat_log.addHandler(chat_log_handler)
 
     if config.getboolean("webserver", "debug"):
         log.startLogging(sys.stdout)
@@ -1607,8 +1660,9 @@ if __name__ == '__main__':
     port = config.getint("webserver", "ws_port")
     uri += "%s:%s/" % (address, port)
 
-    accountant = dealer_proxy_async(
-            config.get("accountant", "webserver_export"))
+    accountant = AccountantProxy("dealer",
+            config.get("accountant", "webserver_export"),
+            config.getint("accountant", "webserver_export_base_port"))
     administrator = dealer_proxy_async(
             config.get("administrator", "webserver_export"))
     cashier = dealer_proxy_async(config.get("cashier", "webserver_export"))

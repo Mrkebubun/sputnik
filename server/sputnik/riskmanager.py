@@ -23,10 +23,11 @@ from sqlalchemy.orm.exc import NoResultFound
 import zmq
 import models
 import database
-import logging
 import smtplib
 import margin
 from email.mime.text import MIMEText
+
+from twisted.python import log
 
 NAP_TIME_SECONDS = 10
 
@@ -87,18 +88,18 @@ if __name__ == "__main__":
                 if user.username not in bad_margin_users:
                     bad_margin_users[user.username] = datetime.datetime.utcnow()
                     email_user(user, cash_position, high_margin, severe=True)
-                    logging.warning("user %s's margin is below the low limit, margin call" % user.username)
+                    log.msg("user %s's margin is below the low limit, margin call" % user.username)
 
             elif cash_position < high_margin:
                 if user.username not in low_margin_users:
                     low_margin_users[user.username] = datetime.datetime.utcnow()
                     email_user(user, cash_position, high_margin, severe=False)
-                    logging.warning("user %s's margin is low, sending a warning" % user.username)
+                    log.msg("user %s's margin is low, sending a warning" % user.username)
 
             else:
                 del low_margin_users[user.username] # resolved
                 del bad_margin_users[user.username] # resolved
-                logging.info("user %s's margin is fine and dandy" % user.username)
+                log.msg("user %s's margin is fine and dandy" % user.username)
 
 
 

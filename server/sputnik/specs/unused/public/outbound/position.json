@@ -1,0 +1,27 @@
+{
+    "type": "object",
+    "description": "Sputnik position object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the position contract.",
+            "required": true
+        },
+        "position":
+        {
+            "type": "integer",
+            "description": "Position.",
+            "required": true
+        },
+        "reference_price":
+        {
+            "type": "integer",
+            "description": "Reference price.",
+            "required": true
+        }
+    },
+    "additionalProperties": false
+}
+

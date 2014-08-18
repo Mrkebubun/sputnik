@@ -1,0 +1,70 @@
+{
+    "type": "object",
+    "description": "Sputnik OHLCV object.",
+    "properties":
+    {
+        "ticker":
+         {
+            "type": "string",
+            "description": "Ticker of the trade contract.",
+            "required": true
+        },
+        "period":
+        {
+            "type": "string",
+            "oneOf": ["day", "hour", "minute"]
+            "description": "Duration between open and close.",
+            "required": true
+        },
+        "open":
+        {
+            "type": "integer",
+            "description": "Opening price.",
+            "required": true
+        },
+        "close":
+        {
+            "type": "integer",
+            "description": "Closing price.",
+            "required": true
+        },
+        "high":
+        {
+            "type": "integer",
+            "description": "High price.",
+            "required": true
+        },
+        "low":
+        {
+            "type": "integer",
+            "description": "Low price.",
+            "required": true
+        },
+        "volume":
+        {
+            "type": "integer",
+            "description": "Trading volume since market opened.",
+            "required": true
+        },
+        "vwap":
+        {
+            "type": "integer",
+            "description": "Volume weighted average price since market opened.",
+            "required": true
+        },
+        "open_timestamp":
+        {
+            "type": "number",
+            "description": "UTC microseconds from epoch when market opened.",
+            "required": true
+        },
+        "close_timestamp":
+        {
+            "type": "number",
+            "description": "UTC microseconds from epoch when market closed.",
+            "required": true
+        }
+    },
+    "additionalProperties": false
+}
+

@@ -125,16 +125,29 @@ def dumpArgs(func):
 
     return wrapper
 
-class FakeProxy:
-    def __init__(self):
+class FakeComponent:
+    def __init__(self, name=None):
         self.log = []
+        self.name = name
+        self.component = self
+
+    def _log_call(self, key, *args, **kwargs):
+        self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
+        if self.name:
+            callspec = []
+            callspec.extend(args)
+            callspec.extend("%s=%s" % (key, repr(value)) \
+                    for key, value in kwargs.iteritems())
+            logging.info("Method call: %s.%s%s" %
+                    (self.name, key, str(tuple(callspec))))
 
     def __getattr__(self, key):
         if key.startswith("__"):
             raise AttributeError
 
         def proxy_method(*args, **kwargs):
-            self.log.append((key, copy.deepcopy(args), copy.deepcopy(kwargs)))
+            self._log_call(key, *args, **kwargs)
+
             return None
 
         return proxy_method
@@ -157,12 +170,12 @@ class FakeProxy:
         else:
             if isinstance(arg, (list, tuple)) and isinstance(arg_compare, (list, tuple)):
                 for arg_a, arg_b in zip(arg, arg_compare):
-                    if not FakeProxy.check(arg_a, arg_b):
+                    if not FakeComponent.check(arg_a, arg_b):
                         return False
                 return True
             if isinstance(arg, dict) and isinstance(arg_compare, dict):
                 for key, value in arg.iteritems():
-                    if key not in arg_compare or not FakeProxy.check(value, arg_compare[key]):
+                    if key not in arg_compare or not FakeComponent.check(value, arg_compare[key]):
                         return False
 
                 return True
@@ -186,14 +199,18 @@ class FakeProxy:
 
         return True
 
-class FakeSendmail(FakeProxy):
+# TODO: Remove this once we've removed all FakeProxy
+class FakeProxy(FakeComponent):
+    pass
+
+class FakeSendmail(FakeComponent):
     def __init__(self, from_address):
         """
 
         :param from_address:
         """
         self.from_address = from_address
-        FakeProxy.__init__(self)
+        FakeComponent.__init__(self, "sendmail")
 
 
 class TestSputnik(unittest.TestCase):
@@ -201,7 +218,9 @@ class TestSputnik(unittest.TestCase):
         logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                             level=logging.DEBUG)
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        test_config = "[database]\nuri = sqlite://"
+        spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
+        test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s" % \
+                spec_dir
         from sputnik import config
 
         config.reset()

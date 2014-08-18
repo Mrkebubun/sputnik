@@ -3,7 +3,7 @@ __author__ = 'arthurb'
 
 import treq
 
-import logging
+from twisted.python import log
 from jsonschema import validate
 
 
@@ -32,11 +32,11 @@ class ReCaptcha:
 
             def parse_content(content):
                 if response.code != 200:
-                    logging.warn('Received code: %d from Google for recaptcha' % response.code)
+                    log.msg('Received code: %d from Google for recaptcha' % response.code)
                     raise Exception("Recaptacha returned code: %d" % response.code)
                 c = content.splitlines().append('') #being cheeky here
                 if len(c) < 2:
-                    logging.error("Received unexpected response from recaptcha: %s" % content)
+                    log.err("Received unexpected response from recaptcha: %s" % content)
                     raise Exception("Received unexpected response from recaptcha: %s" % content)
                 return [c[0] == "true", c[1]] #eheh c[1] always exist
 

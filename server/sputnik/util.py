@@ -5,8 +5,22 @@ from twisted.internet import ssl
 from OpenSSL import SSL
 import models
 import math
+import time
+import uuid
 from sqlalchemy.orm.exc import NoResultFound
-import logging
+from twisted.python import log
+
+def timed(f):
+    def wrapped(*args, **kwargs):
+        start = time.time()
+        result = f(*args, **kwargs)
+        stop = time.time()
+        log.msg("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
+        return result
+    return wrapped
+
+def get_uid():
+    return uuid.uuid4().get_hex()
 
 def price_to_wire(contract, price):
     if contract.contract_type == "prediction":
@@ -14,7 +28,11 @@ def price_to_wire(contract, price):
     else:
         price = price * contract.denominated_contract.denominator * contract.denominator
 
-    return price - price % contract.tick_size
+    p = price - price % contract.tick_size
+    if p != int(p):
+        raise Exception("price_to_wire returns non-integer value")
+    else:
+        return int(p)
 
 def price_from_wire(contract, price):
     if contract.contract_type == "prediction":
@@ -32,12 +50,17 @@ def quantity_from_wire(contract, quantity):
 
 def quantity_to_wire(contract, quantity):
     if contract.contract_type == "prediction":
-        return quantity
+        q = quantity
     elif contract.contract_type == "cash":
-        return quantity * contract.denominator
+        q = quantity * contract.denominator
     else:
         quantity = quantity * contract.payout_contract.denominator
-        return quantity - quantity % contract.lot_size
+        q = quantity - quantity % contract.lot_size
+
+    if q != int(q):
+        raise Exception("quantity_to_wire returns non-integer value")
+    else:
+        return int(q)
 
 def get_precision(numerator, denominator):
     if numerator <= denominator:
@@ -135,7 +158,7 @@ def get_contract(session, ticker):
     try:
         ticker = int(ticker)
         return session.query(models.Contract).filter_by(
-            contract_id=ticker).one()
+            id=ticker).one()
     except NoResultFound:
         raise Exception("Could not resolve contract '%s'." % ticker)
     except ValueError:

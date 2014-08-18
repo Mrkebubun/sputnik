@@ -1,0 +1,60 @@
+{
+    "type": "object",
+    "description": "Sputnik internal transaction object.",
+    "properties":
+    {
+        "username":
+         {
+            "type": "string",
+            "description": "Username of transaction user."
+        },
+        "aggressive":
+         {
+            "type": "boolean",
+            "description": "Whether user's order was aggressive."
+        },
+        "contract":
+         {
+            "type": "string",
+            "description": "Ticker of the transaction contract."
+        },
+        "order":
+         {
+            "type": "number",
+            "description": "Order number of user's order."
+        },
+        "other_order":
+         {
+            "type": "number",
+            "description": "Order number of matching order."
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Order price."
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Order volume."
+        },
+        "side":
+        {
+            "enum": ["BUY", "SELL"],
+            "description": "The order side on the books."
+        },
+        "timestamp":
+        {
+            "type": "integer",
+            "description": "UTC microseconds from epoch when match happened."
+        },
+        "uid":
+        {
+            "type": "string",
+            "description": "Unique ID for the match shared by all transactions."
+        }
+    },
+    "required": ["username", "aggressive", "contract", "order", "other_order", "side", "price", "quantity", "timestamp", "uid"],
+    "additionalProperties": false
+}
+

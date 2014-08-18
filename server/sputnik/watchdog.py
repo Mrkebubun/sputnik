@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import sys
 import zmq_util
 from twisted.internet import reactor
+from twisted.python import log
 from datetime import datetime
-import logging
 import config
 from alerts import AlertsProxy
 import database, models
@@ -28,7 +29,7 @@ class Watchdog():
     def got_ping(self, event=None):
         gap = datetime.utcnow() - self.last_ping_time
         ms = gap.total_seconds() * 1000
-        logging.info("%s ping received: %0.3f ms" % (self.name, ms))
+        log.msg("%s ping received: %0.3f ms" % (self.name, ms))
         if ms > self.ping_limit_ms:
             self.alerts_proxy.send_alert("%s lag > %d ms: %0.3f ms" % (self.name, self.ping_limit_ms,
                                                                        ms), "Excess lag detected")
@@ -46,21 +47,23 @@ class Watchdog():
         reactor.callLater(self.step, self.ping)
 
     def run(self):
-        logging.info("Watchdog %s starting" % self.name)
+        log.msg("Watchdog %s starting" % self.name)
         self.schedule_ping()
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
-    monitors = config.items("watchdog")
+    log.startLogging(sys.stdout)
+    monitors = ["administrator", "cashier", "ledger", "webserver"]
     session = database.make_session()
     proxy = AlertsProxy(config.get("alerts", "export"))
     watchdogs = {}
-    for name, address in monitors:
-        watchdogs[name] = Watchdog(name, address, proxy)
-        # TODO: Remove this once we move journal commits from accountant to ledger
-        if name == "accountant":
-            watchdogs[name].ping_limit_ms = 2000
+    for name in monitors:
+        watchdogs[name] = Watchdog(name, config.get("watchdog", name), proxy)
+        watchdogs[name].run()
 
+    num_accountants = config.getint("accountant", "num_procs")
+    for i in range(num_accountants):
+        name = "accountant_%d" % i
+        watchdogs[name] = Watchdog(name, config.get("watchdog", "accountant") % (config.getint("watchdog", "accountant_base_port") + i), proxy)
         watchdogs[name].run()
 
     engine_base_port = config.getint("engine", "base_port")

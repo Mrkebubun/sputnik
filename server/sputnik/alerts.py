@@ -3,13 +3,13 @@
 from sendmail import Sendmail
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
+from twisted.python import log
 from sys import stdin, stdout
 import config
 import os
 import __main__ as main
-import logging
 from supervisor import childutils
-from zmq_util import export, pull_share_async, push_proxy_async
+from zmq_util import export, pull_share_async, push_proxy_async, ComponentExport
 import collections
 
 
@@ -26,7 +26,7 @@ class Alerts():
         if cache:
             self.alert_cache[subject].append(message)
         else:
-            logging.debug("Sending alert: %s/%s" % (subject, message))
+            log.msg("Sending alert: %s/%s" % (subject, message))
             self.factory.send_mail(message, subject=self.subject_prefix + " " + subject,
                                    to_address=self.to_address)
 
@@ -38,9 +38,10 @@ class Alerts():
     def start(self, time=60):
         self.looping_call.start(time, now=False)
 
-class AlertsExport():
+class AlertsExport(ComponentExport):
     def __init__(self, alerts):
         self.alerts = alerts
+        ComponentExport.__init__(self, alerts)
 
     @export
     def send_alert(self, message, subject, cache=True):
@@ -55,7 +56,7 @@ class AlertsProxy():
         self.socket.send_alert(message, "%s: %s" % (program, subject))
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    log.startLogging(stdout)
     from_address = config.get("alerts", "from")
     to_address = config.get("alerts", "to")
     subject_prefix = config.get("alerts", "subject")
