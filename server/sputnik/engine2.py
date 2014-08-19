@@ -391,7 +391,7 @@ class WebserverNotifier(EngineListener):
     def on_queue_success(self, order):
         side = self.side_map[order.side]
 
-        self.aggregated_book[side][order.price] += order.quantity
+        self.aggregated_book[side][order.price] += order.quantity_left
         self.publish_book()
 
     def on_cancel_success(self, order):

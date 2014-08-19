@@ -133,6 +133,32 @@ class TestEngineInternals(TestEngine):
                                                                        {})]
         ))
 
+    def test_trade_aggressive_smaller(self):
+        order_bid = self.create_order(2, 100, -1)
+        order_bid2 = self.create_order(2, 100, -1)
+        order_bid3 = self.create_order(2, 100, -1)
+        order_bid3.quantity_left = 1
+        order_ask = self.create_order(1, 100, 1)
+        order_ask2 = self.create_order(1, 100, 1)
+        order_ask3 = self.create_order(1, 100, 1)
+        order_ask3.quantity_left = 0
+
+        self.engine.place_order(order_ask)
+        self.engine.place_order(order_bid)
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
+                                                                       (order_ask2,),
+                                                                       {}),
+                                                                      ('on_trade_success',
+                                                                       (order_bid3,
+                                                                        order_ask3,
+                                                                        100,
+                                                                        1),
+                                                                       {}),
+                                                                      ('on_queue_success',
+                                                                       (order_bid3,),
+                                                                       {})]))
+
+
     def test_price_priority(self):
         order_bid = self.create_order(1, 100, -1)
         order_bid_copy = self.create_order(1, 100, -1)
