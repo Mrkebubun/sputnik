@@ -368,6 +368,8 @@ class WebserverNotifier(EngineListener):
         self.webserver = webserver
         self.contract = contract
         self.aggregated_book = {"bids": defaultdict(int), "asks": defaultdict(int)}
+        self.side_map = { OrderSide.BUY: "bids",
+                          OrderSide.SELL: "asks"}
 
     def on_init(self):
         for bids in self.engine.orderbook[OrderSide.BUY]:
@@ -378,26 +380,26 @@ class WebserverNotifier(EngineListener):
         self.publish_book()
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        if OrderSide.name(passive_order.side) == "BUY":
-            self.aggregated_book["bids"][passive_order.price] -= quantity
-        else:
-            self.aggregated_book["asks"][passive_order.price] -= quantity
+        side = self.side_map[passive_order.side]
+
+        self.aggregated_book[side][passive_order.price] -= quantity
+        if self.aggregated_book[side][passive_order.price] == 0:
+            del self.aggregated_book[side][passive_order.price]
 
         self.publish_book()
 
     def on_queue_success(self, order):
-        if OrderSide.name(order.side) == "BUY":
-            self.aggregated_book["bids"][order.price] += order.quantity
-        else:
-            self.aggregated_book["asks"][order.price] += order.quantity
+        side = self.side_map[order.side]
 
+        self.aggregated_book[side][order.price] += order.quantity
         self.publish_book()
 
     def on_cancel_success(self, order):
-        if OrderSide.name(order.side) == "BUY":
-            self.aggregated_book["bids"][order.price] -= order.quantity_left
-        else:
-            self.aggregated_book["asks"][order.price] -= order.quantity_left
+        side = self.side_map[order.side]
+
+        self.aggregated_book[side][order.price] -= order.quantity_left
+        if self.aggregated_book[side][order.price] == 0:
+            del self.aggregated_book[side][order.price]
 
         self.publish_book()
 
@@ -496,6 +498,7 @@ if __name__ == "__main__":
     #engine.add_listener(safe_price_notifier)
 
     # Add all orders that have been dispatched but not cancelled to the engine
+    # TODO: Change this to cancel all dispatched orders (send a cancel_order to the accountant)
     for order in session.query(models.Order).filter_by(
             is_cancelled=False).filter_by(
             dispatched=True).filter_by(

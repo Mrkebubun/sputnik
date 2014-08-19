@@ -158,6 +158,8 @@ class TestNotifier(TestEngine):
                                    price=13, side=-1, username='aggressive')
         self.passive_order = engine2.Order(id=2, contract=self.contract.ticker, quantity=10,
                                            price=10, side=1, username='passive')
+        self.small_order = engine2.Order(id=3, contract=self.contract.ticker, quantity=5,
+                                         price=13, side=-1, username='aggressive')
 
 
 class TestAccountantNotifier(TestNotifier):
@@ -210,10 +212,61 @@ class TestWebserverNotifier(TestNotifier):
              {})]))
 
     def test_on_cancel_success(self):
-        pass
+        self.webserver_notifier.on_queue_success(self.order)
+        self.webserver_notifier.on_cancel_success(self.order)
 
-    def test_update_book(self):
-        pass
+        self.assertTrue(self.webserver.component.check_for_calls([('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 10}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO', {'asks': [], 'bids': [], 'contract': 'FOO'}),
+                                                                   {})]
+        ))
+
+    def test_on_cancel_success_not_all(self):
+        self.webserver_notifier.on_queue_success(self.order)
+        self.webserver_notifier.on_queue_success(self.order)
+
+        self.webserver_notifier.on_cancel_success(self.order)
+        self.assertTrue(self.webserver.component.check_for_calls([('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 10}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 20}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 10}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+        ]))
+
+    def test_on_trade_success(self):
+        self.webserver_notifier.on_queue_success(self.passive_order)
+        self.webserver_notifier.on_trade_success(self.order, self.passive_order, 13, 5)
+        self.assertTrue(self.webserver.component.check_for_calls([('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 10}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 13, 'quantity': 5}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+        ]))
 
 
 class TestSafePriceNotifier(TestNotifier):
