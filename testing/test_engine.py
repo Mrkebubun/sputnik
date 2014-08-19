@@ -133,6 +133,35 @@ class TestEngineInternals(TestEngine):
                                                                        {})]
         ))
 
+    def test_price_priority(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_bid_copy = self.create_order(1, 100, -1)
+        self.engine.place_order(order_bid)
+        order_bid2 = self.create_order(1, 101, -1)
+        order_bid2_copy = self.create_order(1, 101, -1)
+        order_bid2_zero = self.create_order(1, 101, -1)
+        order_bid2_zero.quantity_left = 0
+        self.engine.place_order(order_bid2)
+
+        # Should trade vs the 101 order
+        order_ask = self.create_order(1, 99, 1)
+        order_ask_zero = self.create_order(1, 99, 1)
+        order_ask_zero.quantity_left = 0
+        self.engine.place_order(order_ask)
+        self.assertTrue(self.fake_listener.component.check_for_calls([('on_queue_success',
+                                                                       (order_bid_copy,),
+                                                                       {}),
+                                                                      ('on_queue_success',
+                                                                       (order_bid2_copy,),
+                                                                       {}),
+                                                                      ('on_trade_success',
+                                                                       (order_ask_zero,
+                                                                        order_bid2_zero,
+                                                                        101,
+                                                                        1),
+                                                                       {})]))
+
+
     def test_cancel_order(self):
         order_bid = self.create_order(2, 100, -1)
         self.engine.place_order(order_bid)
