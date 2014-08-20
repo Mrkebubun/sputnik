@@ -174,10 +174,18 @@ def get_contract(session, ticker):
 def position_calculated(position, session):
     start = position.position_cp_timestamp or timestamp_to_dt(0)
     checkpoint = position.position_checkpoint or 0
-    postings = session.query(models.Posting).filter_by(username=position.username).filter_by(contract_id=position.contract_id).filter(models.Posting.timestamp>start).all()
+    rows = session.query(models.Posting.quantity, models.Journal.timestamp).filter_by(username=position.username).filter_by(
+        contract_id=position.contract_id).filter(
+        models.Journal.id==models.Posting.journal_id).filter(
+        models.Journal.timestamp>start).order_by(models.Journal.timestamp.desc())
     # TODO: we can actually sum this in SQL itself
-    calculated = sum([posting.quantity for posting in postings])
-    return checkpoint + calculated
+    calculated = sum([row.quantity for row in rows])
+    if rows.first() is not None:
+        last_posting_timestamp = rows.first().timestamp
+    else:
+        last_posting_timestamp = start
+
+    return checkpoint + calculated, last_posting_timestamp
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,

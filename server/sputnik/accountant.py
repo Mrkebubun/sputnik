@@ -928,8 +928,9 @@ class Accountant:
         else:
             # Get all positions for this user
             for position in user.positions:
-                position_calculated = position.position_calculated
-                position.position_cp_timestamp = datetime.utcnow()
+                position_calculated, last_posting_timestamp = util.position_calculated(position, self.session)
+                position.position_cp_timestamp = last_posting_timestamp
+
                 if position.position == position_calculated:
                     position.position_checkpoint = position_calculated
                     self.session.add(position)

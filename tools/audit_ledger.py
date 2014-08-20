@@ -22,15 +22,10 @@ import time
 
 session = database.make_session()
 positions = session.query(models.Position).all()
-adjustment_user = session.query(models.User).filter_by(username='adjustments').one()
 
-# which to adjust
-# adjust = False
-#adjust = 'positions'
-#adjust = 'ledger'
 adjust = True
 print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
-time.sleep(60)
+time.sleep(30)
 
 def get_adjustment_position(contract):
     try:
@@ -55,7 +50,8 @@ for journal in journals:
 # Go through positions
 for position in positions:
     contract = position.contract
-    difference = position.position - position.position_calculated
+    position_calculated, calculated_timestamp = util.position_calculated(position, session)
+    difference = position.position - position_calculated
     if difference != 0:
         # Mention problem
         print "Audit failure for %s" % position
@@ -66,9 +62,9 @@ for position in positions:
 
         # Run an adjustment
         if adjust:
-            position.position = position.position_calculated
+            position.position = position_calculated
             position.position_checkpoint = position.position
-            position.position_cp_timestamp = datetime.utcnow()
+            position.position_cp_timestamp = calculated_timestamp
 
             session.add(position)
             session.commit()

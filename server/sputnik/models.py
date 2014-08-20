@@ -567,23 +567,6 @@ class Position(db.Base, QuantityUI):
         self.user, self.contract = user, contract
         self.position = position
 
-    @property
-    def position_calculated(self):
-        """Make sure that the sum of all postings for this position sum to the position
-        """
-        if self.position_cp_timestamp is None:
-            calculated = sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id])
-        else:
-            calculated = self.position_checkpoint + \
-                         sum([x.quantity for x in self.user.postings if x.contract_id == self.contract_id
-                                and x.journal.timestamp >= self.position_cp_timestamp])
-        return calculated
-
-    @property
-    def position_calculated_fmt(self):
-        position_calculated_ui = util.quantity_from_wire(self.contract, self.position_calculated)
-        return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=position_calculated_ui)
-
     def __repr__(self):
         return "<Position('%s', '%s', %d/%d)>" \
                % (self.contract, self.user,
