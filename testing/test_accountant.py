@@ -769,8 +769,12 @@ class TestWebserverExport(TestAccountant):
         btc_contract = self.session.query(models.Contract).filter_by(ticker='BTC').one()
         btc_position = self.session.query(models.Position).filter_by(username='test', contract=btc_contract).one()
         btc_position.position = 10000000
+        btc_position.pending_postings = 1
         self.session.add(btc_position)
         self.session.commit()
+
+        # Clear the user
+        del self.accountant.checked_users['test']
 
         self.set_permissions_group("test", 'Trade')
         # Place a sell order, we have enough cash

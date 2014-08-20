@@ -174,6 +174,9 @@ class Accountant:
             update_counters(increment=False)
             return result
 
+        for posting in postings:
+            self.audit(posting['username'])
+
         update_counters(increment=True)
         d = self.ledger.post(*postings)
         d.addCallback(decrement_counters_success).addCallback(on_success).addCallback(publish_transactions)
@@ -949,15 +952,17 @@ class Accountant:
         else:
             # Get all positions for this user
             for position in user.positions:
-                position_calculated, last_posting_timestamp = util.position_calculated(position, self.session)
-                position.position_cp_timestamp = last_posting_timestamp
+                if position.pending_postings > 0:
+                    position_calculated, last_posting_timestamp = util.position_calculated(position, self.session)
+                    position.position_cp_timestamp = last_posting_timestamp
 
-                if position.position == position_calculated:
-                    position.position_checkpoint = position_calculated
-                    self.session.add(position)
-                else:
-                    log.err("Audit failure for %s" % position)
-                    return False
+                    if position.position == position_calculated:
+                        position.position_checkpoint = position_calculated
+                        position.pending_postings = 0
+                        self.session.add(position)
+                    else:
+                        log.err("Audit failure for %s" % position)
+                        return False
 
         self.session.commit()
         self.checked_users[user.username] = True
