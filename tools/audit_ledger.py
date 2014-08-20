@@ -15,8 +15,10 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
 
 from sputnik import config
-from sputnik import database, models
+from sputnik import database, models, util
+from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
+import time
 
 session = database.make_session()
 positions = session.query(models.Position).all()
@@ -27,6 +29,8 @@ adjustment_user = session.query(models.User).filter_by(username='adjustments').o
 #adjust = 'positions'
 #adjust = 'ledger'
 adjust = True
+print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
+time.sleep(60)
 
 def get_adjustment_position(contract):
     try:
@@ -55,27 +59,20 @@ for position in positions:
     if difference != 0:
         # Mention problem
         print "Audit failure for %s" % position
+        timestamp = position.position_cp_timestamp or util.timestamp_to_dt(0)
         for posting in position.user.postings:
-            print "\t%s" % posting
+            if posting.contract_id == contract.id and posting.journal.timestamp > timestamp:
+                print "\t%s" % posting
 
         # Run an adjustment
         if adjust:
-            choice = raw_input("Adjust P)osition or J)ournal:")
-            if choice == 'P':
-                position.position = position.position_calculated
-                session.add(position)
-                session.commit()
-                print "Updated Position: %s" % position
-            elif choice == 'J':
-                credit = models.Posting(position.user, contract, difference, 'credit')
-                adjustment_position = get_adjustment_position(position.contract)
-                debit = models.Posting(adjustment_user, contract, difference, 'debit', update_position=True,
-                                       position=adjustment_position)
-                session.add_all([position, adjustment_position, credit, debit])
-                journal = models.Journal('Adjustment', [credit, debit])
-                session.add(journal)
-                session.commit()
-                print journal
+            position.position = position.position_calculated
+            position.position_checkpoint = position.position
+            position.position_cp_timestamp = datetime.utcnow()
+
+            session.add(position)
+            session.commit()
+            print "Updated Position: %s" % position
 
 
 
