@@ -172,9 +172,9 @@ def get_contract(session, ticker):
         raise Exception("Could not resolve contract '%s'." % ticker)
 
 def position_calculated(position, session):
-    start = position.position_cp_timestamp or 0
+    start = position.position_cp_timestamp or timestamp_to_dt(0)
     checkpoint = position.position_checkpoint or 0
-    postings = session.query(models.Posting).filter_by(username=position.username).filter_by(contract_id=position.contract_id).filter_by(timestamp>start)
+    postings = session.query(models.Posting).filter_by(username=position.username).filter_by(contract_id=position.contract_id).filter(models.Posting.timestamp>start).all()
     # TODO: we can actually sum this in SQL itself
     calculated = sum([posting.quantity for posting in postings])
     return checkpoint + calculated
