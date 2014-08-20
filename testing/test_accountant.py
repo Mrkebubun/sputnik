@@ -498,6 +498,8 @@ class TestEngineExport(TestAccountant):
                 # This is based on all BTC fees being zero
                 self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000)
                 self.assertEqual(passive_user_btc_position.position, 3000000 - 1500000)
+                self.assertEqual(aggressive_user_btc_position.pending_postings, 0)
+                self.assertEqual(passive_user_btc_position.pending_postings, 0)
 
                 # There is no fee for prediction contracts on trade
                 self.assertEqual(aggressive_user_nets2014_position.position, -3)

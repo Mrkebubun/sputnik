@@ -101,6 +101,18 @@ class Accountant:
         self.checked_users = {}
 
     def post_or_fail(self, *postings):
+        def update_counters(increment=False):
+            if increment:
+                change = 1
+            else:
+                change = -1
+
+            for posting in postings:
+                position = self.get_position(posting['username'], posting['contract'])
+                position.pending_postings += change
+                self.session.add(position)
+            self.session.commit()
+
         def on_success(result):
             log.msg("Post success: %s" % result)
             try:
@@ -154,10 +166,18 @@ class Accountant:
                 }
                 self.webserver.transaction(posting['username'], transaction)
 
+        def decrement_counters_err(failure):
+            update_counters(increment=False)
+            failure.raiseException()
+
+        def decrement_counters_success(result):
+            update_counters(increment=False)
+            return result
+
+        update_counters(increment=True)
         d = self.ledger.post(*postings)
-        d.addCallback(on_success).addCallback(publish_transactions)
-        d.addErrback(on_fail_ledger)
-        d.addErrback(on_fail_rpc)
+        d.addCallback(decrement_counters_success).addCallback(on_success).addCallback(publish_transactions)
+        d.addErrback(decrement_counters_err).addErrback(on_fail_ledger).addErrback(on_fail_rpc)
         return d
 
     # This will go away once everything starts using post_or_fail

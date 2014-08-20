@@ -544,6 +544,7 @@ class Position(db.Base, QuantityUI):
     position_checkpoint = Column(BigInteger, server_default="0")
     position_cp_timestamp = Column(DateTime)
     reference_price = Column(BigInteger, nullable=False, server_default="0")
+    pending_postings = Column(BigInteger)
 
     @property
     def quantity(self):
@@ -566,6 +567,7 @@ class Position(db.Base, QuantityUI):
         """
         self.user, self.contract = user, contract
         self.position = position
+        self.pending_postings = 0
 
     def __repr__(self):
         return "<Position('%s', '%s', %d/%d)>" \
