@@ -15,8 +15,8 @@ ln -sf $profile_root/tools/audit_ledger.py${profile_pycompiled} $profile_root/to
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
 
-# copy over keys
-cp $profile_git_root/dist/keys/* $profile_keys
+# do _not_ copy over keys
+# cp $profile_git_root/dist/keys/* $profile_keys
 
 # change permissions
 chown -R root:root $profile_root
