@@ -171,9 +171,12 @@ def get_contract(session, ticker):
     except NoResultFound:
         raise Exception("Could not resolve contract '%s'." % ticker)
 
-def position_calculated(position, session):
-    start = position.position_cp_timestamp or timestamp_to_dt(0)
-    checkpoint = position.position_checkpoint or 0
+def position_calculated(position, session, checkpoint=None, start=None):
+    if start is None:
+        start = position.position_cp_timestamp or timestamp_to_dt(0)
+    if checkpoint is None:
+        checkpoint = position.position_checkpoint or 0
+
     rows = session.query(models.Posting.quantity, models.Journal.timestamp).filter_by(username=position.username).filter_by(
         contract_id=position.contract_id).filter(
         models.Journal.id==models.Posting.journal_id).filter(

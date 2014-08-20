@@ -52,7 +52,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from autobahn.wamp1.protocol import WampCraProtocol
 from rpc_schema import schema
-
+import pickle
 class AdministratorException(Exception): pass
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
@@ -108,6 +108,7 @@ class Administrator:
         self.sendmail = sendmail
         self.user_limit = user_limit
 
+        self.load_bs_cache()
         # Initialize the balance sheet cache
         if bs_cache_update_period is not None:
             self.bs_updater = LoopingCall(self.update_bs_cache)
@@ -568,6 +569,20 @@ class Administrator:
         """
         return self.bs_cache
 
+    def load_bs_cache(self):
+        try:
+            with open('/tmp/balance_sheet_cache.pickle', 'r') as f:
+                self.bs_cache = pickle.load(f)
+                log.msg("Loaded balance sheet")
+        except IOError:
+            self.bs_cache = {}
+
+    def dump_bs_cache(self):
+        with open('/tmp/balance_sheet_cache.pickle', 'w') as f:
+            pickle.dump(self.bs_cache, f)
+            log.msg("Saved balance sheet")
+
+    @util.timed
     def update_bs_cache(self):
         now = util.dt_to_timestamp(datetime.utcnow())
 
@@ -580,23 +595,43 @@ class Administrator:
             if position.position is not None:
                 if position.user.type == 'Asset':
                     side = balance_sheet['assets']
+                    if 'assets' in self.bs_cache:
+                        bs_cache = self.bs_cache['assets']
+                    else:
+                        bs_cache = {}
                 else:
                     side = balance_sheet['liabilities']
+                    if 'liabilities' in self.bs_cache:
+                        bs_cache = self.bs_cache['liabilities']
+                    else:
+                        bs_cache = {}
 
-                position_calculated, timestamp = util.position_calculated(position, self.session)
+                try:
+                    old_position_calculated = bs_cache[position.contract.ticker]['positions_by_user'][position.user.username]['position']
+                    old_position_timestamp = bs_cache[position.contract.ticker]['positions_by_user'][position.user.username]['timestamp']
+                except KeyError:
+                    old_position_calculated = None
+                    old_position_timestamp = None
+
+                position_calculated, timestamp = util.position_calculated(position, self.session, checkpoint=old_position_calculated,
+                                                                          start=old_position_timestamp)
+
                 position_calculated_ui = util.quantity_from_wire(position.contract, position_calculated)
                 position_calculated_fmt = ("{quantity:.%df}" % util.get_quantity_precision(position.contract)).format(quantity=position_calculated_ui)
                 position_details = { 'username': position.user.username,
                                                                     'hash': position.user.user_hash,
                                                                     'position': position_calculated,
-                                                                    'position_fmt': position_calculated_fmt
+                                                                    'position_fmt': position_calculated_fmt,
+                                                                    'timestamp': timestamp,
                 }
                 if position.contract.ticker in side:
                     side[position.contract.ticker]['total'] += position_calculated
                     side[position.contract.ticker]['positions_raw'].append(position_details)
+                    side[position.contract.ticker]['positions_by_user'][position.user.username] = position_details
                 else:
                     side[position.contract.ticker] = {'total': position_calculated,
                                                       'positions_raw': [position_details],
+                                                      'positions_by_user': {position.user.username: position_details},
                                                       'contract': position.contract.ticker}
 
                 side[position.contract.ticker]['total_fmt'] = \
@@ -605,6 +640,7 @@ class Administrator:
                 )
         balance_sheet['timestamp'] = now
         self.bs_cache = balance_sheet
+        self.dump_bs_cache()
 
     def get_audit(self):
         """Gets the audit, which is the balance sheet but scrubbed of usernames
