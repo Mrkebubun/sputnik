@@ -422,6 +422,95 @@ class TestAdministratorExport(TestAccountant):
 
 
 class TestEngineExport(TestAccountant):
+    def test_post_transaction_predictions(self):
+        from sputnik import util, models
+        import datetime
+
+        self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv',)
+        self.set_permissions_group("aggressive_user", 'Deposit')
+        self.set_permissions_group("passive_user", "Deposit")
+        self.cashier_export.deposit_cash('aggressive_user', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        self.cashier_export.deposit_cash('passive_user', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 3000000)
+
+        self.set_permissions_group("aggressive_user", 'Trade')
+        self.set_permissions_group("passive_user", "Trade")
+
+        passive_deferred = self.webserver_export.place_order('passive_user', {'username': 'passive_user',
+                                                                              'contract': 'NETS2014',
+                                                                              'price': 500,
+                                                                              'quantity': 3,
+                                                                              'side': 'BUY',
+                                                                              'timestamp': util.dt_to_timestamp(
+                                                                                  datetime.datetime.utcnow())})
+
+        aggressive_deferred = self.webserver_export.place_order('aggressive_user', {'username': 'aggressive_user',
+                                                                                    'contract': 'NETS2014',
+                                                                                    'price': 500,
+                                                                                    'quantity': 3,
+                                                                                    'side': 'SELL',
+                                                                                    'timestamp': util.dt_to_timestamp(
+                                                                                        datetime.datetime.utcnow())})
+
+        def onSuccessPlaceOrder(result):
+            (dummy, passive_order), (dummy, aggressive_order) = result
+            uid = util.get_uid()
+            timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+            aggressive = {'username': 'aggressive_user',
+                          'aggressive': True,
+                          'contract': 'NETS2014',
+                          'price': 500,
+                          'quantity': 3,
+                          'order': aggressive_order,
+                          'other_order': passive_order,
+                          'side': 'SELL',
+                          'uid': uid,
+                          'timestamp': timestamp}
+
+            passive = {'username': 'passive_user',
+                       'aggressive': False,
+                       'contract': 'NETS2014',
+                       'price': 500,
+                       'quantity': 3,
+                       'order': passive_order,
+                       'other_order': aggressive_order,
+                       'side': 'BUY',
+                       'uid': uid,
+                       'timestamp': timestamp}
+
+            d1 = self.engine_export.post_transaction('aggressive_user', aggressive)
+            d2 = self.engine_export.post_transaction('passive_user', passive)
+
+            def onSuccess(result):
+                # Inspect the positions
+                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                NETS2014 = self.session.query(models.Contract).filter_by(ticker='NETS2014').one()
+
+                aggressive_user_btc_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                             contract=BTC).one()
+                passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                          contract=BTC).one()
+                aggressive_user_nets2014_position = self.session.query(models.Position).filter_by(username='aggressive_user',
+                                                                                             contract=NETS2014).one()
+                passive_user_nets2014_position = self.session.query(models.Position).filter_by(username='passive_user',
+                                                                                          contract=NETS2014).one()
+
+                # This is based on all BTC fees being zero
+                self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000)
+                self.assertEqual(passive_user_btc_position.position, 3000000 - 1500000)
+
+                # There is no fee for prediction contracts on trade
+                self.assertEqual(aggressive_user_nets2014_position.position, -3)
+                self.assertEqual(passive_user_nets2014_position.position, 3)
+
+            dl = defer.DeferredList([d1, d2])
+            dl.addCallback(onSuccess)
+            return dl
+
+        dl = defer.DeferredList([aggressive_deferred, passive_deferred])
+        dl.addCallback(onSuccessPlaceOrder)
+        return dl
+
     def test_post_transaction(self):
         from sputnik import util, models
         import datetime
