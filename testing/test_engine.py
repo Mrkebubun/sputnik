@@ -323,6 +323,29 @@ class TestWebserverNotifier(TestNotifier):
                                                                    {}),
         ]))
 
+    def test_on_trade_success_aggressive_smaller(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_ask = self.create_order(2, 100, 1)
+        self.webserver_notifier.on_queue_success(order_bid)
+        self.webserver_notifier.on_trade_success(order_ask, order_bid, 100, 1)
+        order_ask.quantity_left = 1
+        self.webserver_notifier.on_queue_success(order_ask)
+        self.assertTrue(self.webserver.component.check_for_calls([('book',
+                                                                   ('FOO',
+                                                                    {'asks': [],
+                                                                     'bids': [{'price': 100, 'quantity': 1}],
+                                                                     'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO', {'asks': [], 'bids': [], 'contract': 'FOO'}),
+                                                                   {}),
+                                                                  ('book',
+                                                                   ('FOO',
+                                                                    {'asks': [{'price': 100, 'quantity': 1}],
+                                                                     'bids': [], 'contract': 'FOO'}),
+                                                                   {})]
+        ))
+
 
 class TestSafePriceNotifier(TestNotifier):
     pass

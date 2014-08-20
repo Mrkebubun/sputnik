@@ -372,12 +372,7 @@ class WebserverNotifier(EngineListener):
                           OrderSide.SELL: "asks"}
 
     def on_init(self):
-        for bids in self.engine.orderbook[OrderSide.BUY]:
-            self.aggregated_book["bids"][bids.price] += bids.quantity
-        for asks in self.engine.orderbook[OrderSide.SELL]:
-            self.aggregated_book["asks"][asks.price] += asks.quantity
-
-        self.publish_book()
+        pass
 
     def on_trade_success(self, order, passive_order, price, quantity):
         side = self.side_map[passive_order.side]
@@ -497,14 +492,14 @@ if __name__ == "__main__":
     engine.add_listener(webserver_notifier)
     #engine.add_listener(safe_price_notifier)
 
-    # Add all orders that have been dispatched but not cancelled to the engine
-    # TODO: Change this to cancel all dispatched orders (send a cancel_order to the accountant)
+    # Cancel all orders with some quantity_left that have been dispatched but not cancelled
     for order in session.query(models.Order).filter_by(
             is_cancelled=False).filter_by(
             dispatched=True).filter_by(
             contract_id=contract.id).filter(
                     models.Order.quantity_left > 0):
-        accountant_export.place_order(order.to_matching_engine_order())
+        log.msg("Cancelling order %d" % order.id)
+        accountant.cancel_order(order.username, order.id)
 
     engine.notify_init()
 
