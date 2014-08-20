@@ -21,7 +21,7 @@ conn.keypoolrefill()
 quantity = 100
 
 for i in range(quantity):
-    addr = conn.getnewaddress()
+    addr = conn.getnewaddress()["result"]
     BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
     new_address = models.Addresses(None, BTC, addr)
     db_session.add(new_address)
