@@ -603,6 +603,26 @@ class Accountant:
         d.addErrback(self.raiseException)
         return d
 
+    def cancel_order_engine(self, username, id):
+        log.msg("Received msg from engine to cancel order id %d" % id)
+
+        try:
+            order = self.session.query(models.Order).filter_by(id=id).one()
+        except NoResultFound:
+            raise AccountantException(0, "No order %d found" % id)
+
+        if username is not None and order.username != username:
+            raise AccountantException(0, "User %s does not own the order" % username)
+
+        if order.is_cancelled:
+            raise AccountantException(0, "Order %d is already cancelled" % id)
+
+        order.is_cancelled = True
+        self.session.add(order)
+        self.session.commit()
+
+        self.webserver.order(username, order.to_webserver())
+
 
     def place_order(self, username, order):
         """Place an order
@@ -964,6 +984,11 @@ class EngineExport(ComponentExport):
     @schema("rpc/accountant.engine.json#post_transaction")
     def post_transaction(self, username, transaction):
         return self.accountant.post_transaction(username, transaction)
+
+    @export
+    @schema("rpc/accountant.engine.json#cancel_order")
+    def cancel_order(self, username, id):
+        return self.accountant.cancel_order_engine(username, id)
 
 
 class CashierExport(ComponentExport):
