@@ -499,8 +499,8 @@ class Accountant:
         log.msg("post_transaction: part 3: %.3f ms." % elapsed)
 
         # Submit to ledger
-        # (user denominated, user payout, remainder) x 2 = 6
-        count = 6 + 2 * len(user_fees) + 2 * len(vendor_fees)
+        # (user denominated, user payout) x 2 = 4
+        count = 4 + 2 * len(remainder_fees) + 2 * len(user_fees) + 2 * len(vendor_fees)
         postings = [user_denominated, user_payout]
         postings.extend(user_fees)
         #postings.extend(vendor_fees)
@@ -515,7 +515,8 @@ class Accountant:
         for fee in vendor_fees:
             self.accountant_proxy.remote_post(fee["username"], fee)
 
-        self.accountant_proxy.remote_post("remainder", *remainder_fees)
+        if len(remainder_fees):
+            self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
         d = self.post_or_fail(*postings)
 
