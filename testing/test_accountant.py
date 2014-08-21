@@ -1,7 +1,7 @@
 import sys
 import os
 from test_sputnik import TestSputnik, FakeComponent
-from twisted.internet import defer
+from twisted.internet import defer, reactor, task
 from pprint import pprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -14,7 +14,6 @@ permissions add Deposit deposit login
 permissions add Trade trade login
 permissions add Withdraw withdraw login
 """
-
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -37,12 +36,15 @@ class FakeLedger(FakeComponent):
         self._log_call('post', *postings)
         return defer.succeed(None)
 
+from sputnik import accountant
+class FakeAccountantProxy(accountant.AccountantExport):
+    def get_accountant_for_user(self, username):
+        return 0
 
-class TestAccountant(TestSputnik):
+
+class TestAccountantBase(TestSputnik):
     def setUp(self):
-        TestSputnik.setUp(self)
         self.run_leo(accountant_init)
-
         from sputnik import accountant
         from sputnik import ledger
         from sputnik import cashier
@@ -63,11 +65,100 @@ class TestAccountant(TestSputnik):
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False)
-        self.accountant.accountant_proxy = accountant.AccountantExport(self.accountant)
+        self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
         self.webserver_export = accountant.WebserverExport(self.accountant)
         self.engine_export = accountant.EngineExport(self.accountant)
+
+class TestAccountantAudit(TestAccountantBase):
+    def setUp(self):
+        TestSputnik.setUp(self)
+
+        # Mess up some users before we start the test
+        self.create_account("messed_up_trader_a", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+        from sputnik import models
+        BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+        BTCMXN = self.session.query(models.Contract).filter_by(ticker='BTC/MXN').one()
+        messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
+
+        btc_position = models.Position(messed_up_trader_a, BTC)
+        btc_position.pending_postings = 1
+        btc_position.position = 50
+        self.session.add(btc_position)
+
+        btc_order = models.Order(messed_up_trader_a, BTCMXN, 1, 100, 'BUY')
+        self.session.add(btc_order)
+
+        self.session.commit()
+        self.order_id = btc_order.id
+
+        # set the twisted timeout
+        self.timeout = 500
+
+        TestAccountantBase.setUp(self)
+
+    def test_messed_up_a(self):
+        def do_the_first_test(result):
+            # Make sure pending_postings is set to 0 and all orders are cancelled
+            from sputnik import models
+            messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
+            positions = messed_up_trader_a.positions
+            for position in positions:
+                if position.contract.ticker == 'BTC':
+                    self.assertEqual(position.pending_postings, 0)
+                    self.assertEqual(position.position, 50)
+            self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('cancel_order', (self.order_id,), {})]))
+            order = self.session.query(models.Order).filter_by(id=self.order_id).one()
+            self.assertTrue(order.is_cancelled)
+
+            from sputnik import accountant
+            from sputnik import util
+            import datetime
+
+            with self.assertRaisesRegexp(accountant.AccountantException, 'Account disabled'):
+                self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
+                                                           'contract': 'BTC/MXN',
+                                                           'price': 1000000,
+                                                           'quantity': 3000000,
+                                                           'side': 'SELL',
+                                                           'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+
+
+            def do_the_second_test(result):
+                # Make sure that the position is reconciled, and that we get past the disabled trade check
+                from sputnik import models
+                messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
+                positions = messed_up_trader_a.positions
+                for position in positions:
+                    if position.contract.ticker == 'BTC':
+                        self.assertEqual(position.position, 0)
+
+                with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
+                    self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
+                                                               'contract': 'BTC/MXN',
+                                                               'price': 1000000,
+                                                               'quantity': 3000000,
+                                                               'side': 'SELL',
+                                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+
+                return result
+
+            d = task.deferLater(reactor, 400, lambda: result)
+            d.addCallback(do_the_second_test)
+
+            return d
+
+        d = task.deferLater(reactor, 5, lambda: True)
+        d.addCallback(do_the_first_test)
+
+        return d
+
+class TestAccountant(TestAccountantBase):
+    def setUp(self):
+        TestSputnik.setUp(self)
+        TestAccountantBase.setUp(self)
 
 
     def set_permissions_group(self, username, groupname):
@@ -757,38 +848,6 @@ class TestWebserverExport(TestAccountant):
         d.addCallbacks(onSuccess, onFail)
         return d
 
-    def test_place_order_bad_audit(self):
-        self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
-        self.set_permissions_group("test", 'Deposit')
-        self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-
-        # Mess with a position
-        from sputnik import models
-        btc_contract = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-        btc_position = self.session.query(models.Position).filter_by(username='test', contract=btc_contract).one()
-        btc_position.position = 10000000
-        btc_position.pending_postings = 1
-        self.session.add(btc_position)
-        self.session.commit()
-
-        # Clear the user
-        del self.accountant.checked_users['test']
-
-        self.set_permissions_group("test", 'Trade')
-        # Place a sell order, we have enough cash
-        from sputnik import accountant
-        from sputnik import util
-        import datetime
-
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Audit failure'):
-            self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'BTC/MXN',
-                                                       'price': 1000000,
-                                                       'quantity': 3000000,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
     def test_place_order_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')

@@ -54,14 +54,14 @@ INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
 TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
-FAILED_AUDIT = AccountantException(4, "Audit failure. Please try again later.")
+DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
 
 class Accountant:
     """The Accountant primary class
 
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
-                 alerts_proxy, debug, trial_period=False):
+                 alerts_proxy, accountant_number=0, debug=False, trial_period=False):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -98,7 +98,9 @@ class Accountant:
                 self.safe_prices[contract.ticker] = 42
 
         self.webserver = webserver
-        self.checked_users = {}
+        self.disabled_users = {}
+        self.accountant_number = accountant_number
+        reactor.callWhenRunning(self.repair_user_positions)
 
     def post_or_fail(self, *postings):
         def update_counters(increment=False):
@@ -170,9 +172,6 @@ class Accountant:
             update_counters(increment=False)
             return result
 
-        for posting in postings:
-            self.audit(posting['username'])
-
         update_counters(increment=True)
 
         d = self.ledger.post(*postings)
@@ -183,7 +182,7 @@ class Accountant:
 
         return d
 
-    # This will go away once everything starts using post_or_fail
+    # TODO: This will go away once everything starts using post_or_fail
     def publish_journal(self, journal):
         """Takes a models.Journal and sends all its postings to the webserver
 
@@ -299,6 +298,14 @@ class Accountant:
         log.msg("Trying to accept order %s." % order)
 
         user = order.user
+
+        # Audit the user
+        if not self.is_user_enabled(user):
+            log.msg("%s user is disabled" % user.username)
+            self.session.delete(order)
+            self.session.commit()
+            raise DISABLED_USER
+
         if not user.permissions.trade:
             log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
             self.session.delete(order)
@@ -309,12 +316,6 @@ class Accountant:
         # cash_pairs don't have positions
         if order.contract.contract_type != "cash_pair":
             self.get_position(order.username, order.contract)
-
-        # Audit the user
-        if not self.audit(user):
-            log.err("%s failed audit" % user.username)
-            self.alerts_proxy.send_alert("%s failed audit" % user.username)
-            raise FAILED_AUDIT
 
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id,
@@ -766,10 +767,9 @@ class Accountant:
             debit_posting['count'] = 2
 
             # Audit the user
-            if not self.audit(username):
-                log.err("%s failed audit" % username)
-                self.alerts_proxy.send_alert("%s failed audit" % username)
-                raise FAILED_AUDIT
+            if not self.is_user_enabled(user):
+                log.err("%s user is disabled" % user.username)
+                raise DISABLED_USER
 
             # Check margin now
             low_margin, high_margin = margin.calculate_margin(username,
@@ -946,13 +946,58 @@ class Accountant:
             self.session.rollback()
    
     def disable_user(self, user):
-        pass
+        user = self.get_user(user)
+        log.msg("Disabling user: %s" % user.username)
+        self.cancel_user_orders(user)
+        self.disabled_users[user.username] = True
 
     def enable_user(self, user):
-        pass
+        user = self.get_user(user)
+        log.msg("Enabling user: %s" % user.username)
+        if user.username in self.disabled_users:
+            del self.disabled_users[user.username]
+
+    def is_user_enabled(self, user):
+        user = self.get_user(user)
+        if user.username in self.disabled_users:
+            return False
+        else:
+            return True
+
+    def cancel_user_orders(self, user):
+        user = self.get_user(user)
+        orders = self.session.query(models.Order).filter_by(
+            username=user.username).filter(
+            models.Order.quantity_left>0).filter_by(
+            is_cancelled=False
+        )
+        for order in orders:
+            log.msg("Cancelling user %s order %d" % (user.username, order.id))
+            self.cancel_order(user.username, order.id)
+
+    def get_my_users(self):
+        users = self.session.query(models.User)
+        my_users = []
+        for user in users:
+            if self.accountant_number == self.accountant_proxy.get_accountant_for_user(user.username):
+                my_users.append(user)
+
+        return my_users
+
+    def repair_user_positions(self):
+        my_users = self.get_my_users()
+        for user in my_users:
+            log.msg("Checking user %s" % user.username)
+            for position in user.positions:
+                if position.pending_postings > 0:
+                    self.repair_user_position(user)
+                    return
+
+        log.msg("All users checked")
 
     def repair_user_position(self, user):
         user = self.get_user(user)
+        log.msg("Repairing position for %s" % user.username)
         self.disable_user(user)
         try:
             for position in user.positions:
@@ -968,20 +1013,24 @@ class Accountant:
         reactor.callLater(300, self.check_user, user)
 
     def check_user(self, user):
+        user = self.get_user(user)
         clean = True
         try:
             for position in user.positions:
-                if position.pending_posting == 0:
+                if position.pending_postings == 0:
                     # position has settled, sync with ledger
-                    position.position = position.position_calculated
+                    position.position, position.cp_timestamp = util.position_calculated(position, self.session)
+                    position.position_checkpoint = position.position
                     self.session.add(position)
                 else:
                     clean = False
             if clean:
+                log.msg("Correcting positions for user %s: %s" % (user.username, user.positions))
                 self.session.commit()
-                self.enable_user(position.user)
+                self.enable_user(user)
             else:
-                # don't both commiting, we are not ready yet anyway
+                # don't both committing, we are not ready yet anyway
+                log.msg("User %s still not clean" % user.username)
                 self.session.rollback()
                 reactor.callLater(300, self.check_user, user)
         except:
@@ -989,31 +1038,6 @@ class Accountant:
             self.alerts_proxy.send_alert("User %s in trouble. Cannot correct position!" % user.username)
             # Admin intervention required. ABORT!
             return
-
-    def audit(self, user):
-        user = self.get_user(user)
-        if user.username in self.checked_users:
-            return True
-        else:
-            # Get all positions for this user
-            for position in user.positions:
-                if position.pending_postings > 0:
-                    position_calculated, last_posting_timestamp = util.position_calculated(position, self.session)
-                    position.position_cp_timestamp = last_posting_timestamp
-
-                    if position.position == position_calculated:
-                        position.position_checkpoint = position_calculated
-                        position.pending_postings = 0
-                        self.session.add(position)
-                    else:
-                        log.err("Audit failure for %s" % position)
-                        return False
-
-        self.session.commit()
-        self.checked_users[user.username] = True
-        return True
-
-
 
 
 class WebserverExport(ComponentExport):
@@ -1144,12 +1168,15 @@ class AccountantProxy:
                 raise Exception("Unsupported proxy mode: %s." % mode)
             self.proxies.append(proxy)
 
+    def get_accountant_for_user(self, username):
+        return ord(username[0]) % self.num_procs
+
     def __getattr__(self, key):
         if key.startswith("__") and key.endswith("__"):
             raise AttributeError
 
         def routed_method(username, *args, **kwargs):
-            proxy = self.proxies[ord(username[0]) % self.num_procs]
+            proxy = self.proxies[self.get_accountant_for_user(username)]
             return getattr(proxy, key)(username, *args, **kwargs)
 
         return routed_method
@@ -1177,6 +1204,7 @@ if __name__ == "__main__":
     trial_period = config.getboolean("accountant", "trial_period")
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
+                            accountant_number=accountant_number,
                             debug=debug,
                             trial_period=trial_period)
 
