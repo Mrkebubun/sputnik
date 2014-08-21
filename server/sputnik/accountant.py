@@ -143,7 +143,7 @@ class Accountant:
             log.err("Ledger exception:")
             log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
-            failure.raiseException()
+            return failure
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
@@ -153,7 +153,7 @@ class Accountant:
             else:
                 log.err("Improper ledger RPC invocation:")
                 log.err(failure)
-            failure.raiseException()
+            return failure
 
         def publish_transactions(result):
             for posting in postings:
@@ -166,11 +166,7 @@ class Accountant:
                 }
                 self.webserver.transaction(posting['username'], transaction)
 
-        def decrement_counters_err(failure):
-            update_counters(increment=False)
-            failure.raiseException()
-
-        def decrement_counters_success(result):
+        def decrement_counters(result):
             update_counters(increment=False)
             return result
 
@@ -178,9 +174,13 @@ class Accountant:
             self.audit(posting['username'])
 
         update_counters(increment=True)
+
         d = self.ledger.post(*postings)
-        d.addCallback(decrement_counters_success).addCallback(on_success).addCallback(publish_transactions)
-        d.addErrback(decrement_counters_err).addErrback(on_fail_ledger).addErrback(on_fail_rpc)
+
+        d.addBoth(decrement_counters)
+        d.addCallback(on_success).addCallback(publish_transactions)
+        d.addErrback(on_fail_ledger).addErrback(on_fail_rpc)
+
         return d
 
     # This will go away once everything starts using post_or_fail
