@@ -944,6 +944,51 @@ class Accountant:
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+   
+    def disable_user(self, user):
+        pass
+
+    def enable_user(self, user):
+        pass
+
+    def repair_user_position(self, user):
+        user = self.get_user(user)
+        self.disable_user(user)
+        try:
+            for position in user.positions:
+                position.pending_postings = 0
+                self.session.add(position)
+            self.session.commit()
+        except:
+            self.session.rollback()
+            self.alerts_proxy.send_alert("User %s in trouble. Cannot correct position!" % user.username)
+            # Admin intervention required. ABORT!
+            return
+
+        reactor.callLater(300, self.check_user, user)
+
+    def check_user(self, user):
+        clean = True
+        try:
+            for position in user.positions:
+                if position.pending_posting == 0:
+                    # position has settled, sync with ledger
+                    position.position = position.position_calculated
+                    self.session.add(position)
+                else:
+                    clean = False
+            if clean:
+                self.session.commit()
+                self.enable_user(position.user)
+            else:
+                # don't both commiting, we are not ready yet anyway
+                self.session.rollback()
+                reactor.callLater(300, self.check_user, user)
+        except:
+            self.session.rollback()
+            self.alerts_proxy.send_alert("User %s in trouble. Cannot correct position!" % user.username)
+            # Admin intervention required. ABORT!
+            return
 
     def audit(self, user):
         user = self.get_user(user)
