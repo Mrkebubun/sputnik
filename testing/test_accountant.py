@@ -94,66 +94,35 @@ class TestAccountantAudit(TestAccountantBase):
         self.session.commit()
         self.order_id = btc_order.id
 
-        # set the twisted timeout
-        self.timeout = 500
+        self.clock =  task.Clock()
+        reactor.callLater = self.clock.callLater
 
         TestAccountantBase.setUp(self)
 
     def test_messed_up_a(self):
-        def do_the_first_test(result):
-            # Make sure pending_postings is set to 0 and all orders are cancelled
-            from sputnik import models
-            messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
-            positions = messed_up_trader_a.positions
-            for position in positions:
-                if position.contract.ticker == 'BTC':
-                    self.assertEqual(position.pending_postings, 0)
-                    self.assertEqual(position.position, 50)
-            self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('cancel_order', (self.order_id,), {})]))
-            order = self.session.query(models.Order).filter_by(id=self.order_id).one()
-            self.assertTrue(order.is_cancelled)
-
-            from sputnik import accountant
-            from sputnik import util
-            import datetime
-
-            with self.assertRaisesRegexp(accountant.AccountantException, 'Account disabled'):
-                self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
-                                                           'contract': 'BTC/MXN',
-                                                           'price': 1000000,
-                                                           'quantity': 3000000,
-                                                           'side': 'SELL',
-                                                           'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
-
-
-            def do_the_second_test(result):
-                # Make sure that the position is reconciled, and that we get past the disabled trade check
-                from sputnik import models
-                messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
-                positions = messed_up_trader_a.positions
-                for position in positions:
-                    if position.contract.ticker == 'BTC':
-                        self.assertEqual(position.position, 0)
-
-                with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
-                    self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
-                                                               'contract': 'BTC/MXN',
-                                                               'price': 1000000,
-                                                               'quantity': 3000000,
-                                                               'side': 'SELL',
-                                                               'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
-
-                return result
-
-            d = task.deferLater(reactor, 400, lambda: result)
-            d.addCallback(do_the_second_test)
-
-            return d
-
-        d = task.deferLater(reactor, 5, lambda: True)
-        d.addCallback(do_the_first_test)
-
-        return d
+        self.accountant.repair_user_positions()
+        from sputnik import models, util
+        import datetime
+        BTC = self.session.query(models.Contract).filter_by(ticker="BTC").one()
+        position = self.session.query(models.Position).filter_by(username="messed_up_trader_a").filter_by(contract_id=BTC.id).one()
+        self.assertEqual(position.pending_postings, 0)
+        self.assertEqual(position.position, 50)
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Account disabled'):
+            self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+        self.clock.advance(300)
+        self.assertEqual(position.position, 0)
+        with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
+            self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
+                                                       'contract': 'BTC/MXN',
+                                                       'price': 1000000,
+                                                       'quantity': 3000000,
+                                                       'side': 'SELL',
+                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 class TestAccountant(TestAccountantBase):
     def setUp(self):
