@@ -100,7 +100,6 @@ class Accountant:
         self.webserver = webserver
         self.disabled_users = {}
         self.accountant_number = accountant_number
-        reactor.callWhenRunning(self.repair_user_positions)
 
     def post_or_fail(self, *postings):
         def update_counters(increment=False):
@@ -1217,5 +1216,6 @@ if __name__ == "__main__":
                        config.get("accountant", "accountant_export") %
                        (config.getint("accountant", "accountant_export_base_port") + accountant_number))
 
+    reactor.callWhenRunning(accountant.repair_user_positions)
     reactor.run()
 
