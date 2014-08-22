@@ -182,22 +182,6 @@ class Accountant:
 
         return d
 
-    # TODO: This will go away once everything starts using post_or_fail
-    def publish_journal(self, journal):
-        """Takes a models.Journal and sends all its postings to the webserver
-
-        :param journal: The journal entry
-        :type journal: models.Journal
-
-        """
-        for posting in journal.postings:
-            transaction = {'contract': posting.contract.ticker,
-                      'timestamp': util.dt_to_timestamp(posting.journal.timestamp),
-                      'quantity': posting.quantity,
-                      'type': posting.journal.type
-            }
-            self.webserver.transaction(posting.username, transaction)
-
     def get_user(self, username):
         """Return the User object corresponding to the username.
 
