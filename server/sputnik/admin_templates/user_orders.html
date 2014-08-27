@@ -28,7 +28,10 @@
             </thead>
             {% for order in orders %}
             <tr>
-                <td><span class="caret btn-link" onclick="show_trades({{order.id}});"></span></td>
+                <td>{% if order.aggressive_trades|length > 0 or order.passive_trades|length > 0 %}
+                    <span class="caret btn-link" onclick="show_trades({{order.id}});"></span>
+                    {% endif %}
+                </td>
                 <td>{{order.contract.ticker}}</td>
                 <td>{{order.quantity_fmt}}</td>
                 <td>{{order.quantity_left_fmt}}</td>
