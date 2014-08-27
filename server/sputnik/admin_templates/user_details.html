@@ -18,6 +18,21 @@ $ ->
             success: (html) ->
                 $("#order_panel").html(html)
             })
+
+    window.update_postings_page = (ticker, page) ->
+        $.ajax({
+            url: 'user_postings'
+            data: {
+                page: page
+                username: "{{user.username}}",
+                ticker: ticker,
+            },
+            type: "GET"
+            dataType: "html"
+            success: (html) ->
+                $("#postings_div_#{ticker}").html(html)
+            })
+
     window.show_postings = (position) ->
         $("tr[name=postings_#{position}]").toggle()
 </script>
@@ -97,6 +112,7 @@ $ ->
                 </tbody>
             </table>
         </div>
+    </div>
 </div>
 
 
@@ -115,57 +131,46 @@ $ ->
     </thead>
     <tbody>
         {% for position in user.positions %}
-        <tr>
+        <tr id="{{position.contract.ticker}}">
             <td><span class="caret btn-link" onclick="show_postings({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
             <td>{{position.quantity_fmt}}</td>
             <td>{{position.reference_price}}</td>
         </tr>
-            <tr name="postings_{{position.id}}" style="display:none;">
-                <td></td>
-                <td colspan="2">
-                    Transfer:
-                    <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
-                        <input type="text" name="quantity" placeholder="Quantity">
-                        <input type="text" name="to_user" placeholder="To User">
-                        <input type="text" name="note" placeholder="Note">
-                        <input type="hidden" name="from_user" value="{{user.username}}">
-                        <input type="hidden" name="username" value="{{user.username}}">
-                        <input type="hidden" name="contract" value="{{position.contract.ticker}}">
-                        <button type="submit">Transfer</button>
-                    </form>
-                </td>
-                {% if debug %}
-                <td colspan="2">
-                    Adjust:
-                    <form action="/adjust_position" method="post">
-                        <input type="text" name="quantity" placeholder="Quantity">
-                        <input type="hidden" name="username" value="{{user.username}}">
-                        <input type="hidden" name="contract" value="{{position.contract.ticker}}">
-                    </form>
-                </td>
-                {% endif %}
-            </tr>
-            <tr name="postings_{{position.id}}" style="display:none;">
-                <th></th>
-                <th>Ledger</th>
-                <th>Quantity</th>
-                <th>Notes</th>
-                <th>Type</th>
-                <th></th>
-                <th>Timestamp</th>
-            </tr>
-            {% for posting in postings_by_ticker[position.contract.ticker] %}
-            <tr name="postings_{{position.id}}" style="display:none;">
-                <td></td>
-                <td><a href="/ledger?id={{posting.journal_id}}">{{posting.journal_id}}</a></td>
-                <td>{{posting.quantity_fmt}}</td>
-                <td>{{posting.journal.notes}}</td>
-                <td>{{posting.journal.type}}</td>
-                <td></td>
-                <td>{{posting.journal.timestamp}}</td>
-            </tr>
-            {% endfor %}
+        <tr name="postings_{{position.id}}" style="display:none;">
+            <td></td>
+            <td colspan="2">
+                Transfer:
+                <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
+                    <input type="text" name="quantity" placeholder="Quantity">
+                    <input type="text" name="to_user" placeholder="To User">
+                    <input type="text" name="note" placeholder="Note">
+                    <input type="hidden" name="from_user" value="{{user.username}}">
+                    <input type="hidden" name="username" value="{{user.username}}">
+                    <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                    <button type="submit">Transfer</button>
+                </form>
+            </td>
+            {% if debug %}
+            <td colspan="2">
+                Adjust:
+                <form action="/adjust_position" method="post">
+                    <input type="text" name="quantity" placeholder="Quantity">
+                    <input type="hidden" name="username" value="{{user.username}}">
+                    <input type="hidden" name="contract" value="{{position.contract.ticker}}">
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        <tr name="postings_{{position.id}}" style="display:none;">
+            <td></td>
+            <td colspan="100">
+                <div id="postings_div_{{position.contract.ticker}}">
+                {% include "user_postings.html" %}
+                </div>
+            </td>
+        </tr>
+
         {% endfor %}
     </tbody>
 </table>

@@ -334,20 +334,6 @@ class Administrator:
 
         return user
 
-    def get_postings_by_ticker(self, user):
-        """Get all the postings for a user organized by contract
-
-        :param user: The user (not the username)
-        :type user: models.User
-        :returns: dict -- ticker-indexed dict of arrays of models.Posting
-        """
-        # Group my user's postings by contract
-        postings_by_ticker = collections.defaultdict(list)
-        for posting in user.postings:
-            postings_by_ticker[posting.contract.ticker].append(posting)
-
-        return postings_by_ticker
-
     @session_aware
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket
@@ -505,6 +491,11 @@ class Administrator:
         """
         positions = self.session.query(models.Position).all()
         return positions
+
+    def get_position(self, user, ticker):
+        contract = self.get_contract(ticker)
+        position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
+        return position
 
     def get_journal(self, journal_id):
         """Get a journal given its id
@@ -673,6 +664,10 @@ class Administrator:
         contracts = self.session.query(models.Contract).all()
         return contracts
 
+    def get_contract(self, ticker):
+        contract = util.get_contract(self.session, ticker)
+        return contract
+
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
@@ -687,6 +682,15 @@ class Administrator:
         order_pages = int(order_count/self.page_size)+1
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
+
+    def get_postings(self, user, contract, page=0):
+        all_postings = self.session.query(models.Posting).filter_by(
+            user=user).filter_by(
+            contract=contract)
+        postings_count = all_postings.count()
+        postings_pages = int(postings_count/self.page_size)+1
+        postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
+        return postings, postings_pages
 
     def change_permission_group(self, username, id):
         """Change the permission group for a user
@@ -797,6 +801,7 @@ class AdminWebUI(Resource):
                      {'/': self.user_list,
                       '/user_details': self.user_details,
                       '/user_orders': self.user_orders,
+                      '/user_postings': self.user_postings,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
                       '/contracts': self.contracts
@@ -951,8 +956,22 @@ class AdminWebUI(Resource):
         page = int(request.args['page'][0])
         orders, order_pages = self.administrator.get_orders(user, page)
         t = self.jinja_env.get_template('user_orders.html')
-        rendered = t.render(user=user, orders=orders, order_pages=order_pages, page=page)
+        rendered = t.render(user=user, orders=orders, order_pages=order_pages, orders_page=page)
         return rendered.encode('utf-8')
+
+    def user_postings(self, request):
+        user = self.administrator.get_user(request.args['username'][0])
+        page = int(request.args['page'][0])
+        contract = self.administrator.get_contract(request.args['ticker'][0])
+        position = self.administrator.get_position(user, contract)
+        postings, posting_pages = self.administrator.get_postings(user, contract, page=page)
+        t = self.jinja_env.get_template('user_postings.html')
+        postings_by_ticker = {contract.ticker: { 'postings': postings,
+                                                  'posting_pages': posting_pages,
+                                                  'page': page}}
+        rendered = t.render(user=user, position=position, postings_by_ticker=postings_by_ticker)
+        return rendered.encode('utf-8')
+
 
     def user_details(self, request):
         """Show all the details for a particular user
@@ -963,22 +982,31 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
-        postings_by_ticker = self.administrator.get_postings_by_ticker(user)
+        postings_by_ticker = {}
+        for position in user.positions:
+            if 'positions_page_%s' % position.contract.ticker in request.args:
+                postings_page = int(request.args['postings_page_%s' % position.contract.ticker][0])
+            else:
+                postings_page = 0
+            postings, postings_pages = self.administrator.get_postings(user, position.contract, page=postings_page)
+            postings_by_ticker[position.contract.ticker] = {'postings': postings,
+                                                            'posting_pages': postings_pages,
+                                                            'page': postings_page }
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
-        if 'page' in request.args:
-            page = int(request.args['page'][0])
+        if 'orders_page' in request.args:
+            orders_page = int(request.args['orders_page'][0])
         else:
-            page = 0
+            orders_page = 0
 
-        orders, order_pages = self.administrator.get_orders(user, page)
+        orders, order_pages = self.administrator.get_orders(user, page=orders_page)
 
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
-                            orders=orders, order_pages=order_pages, page=page)
+                            orders=orders, order_pages=order_pages, orders_page=orders_page)
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):
