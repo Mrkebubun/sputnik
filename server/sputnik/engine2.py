@@ -384,7 +384,7 @@ class WebserverNotifier(EngineListener):
                           OrderSide.SELL: "asks"}
 
     def on_init(self):
-        pass
+        self.publish_book()
 
     def on_trade_success(self, order, passive_order, price, quantity):
         side = self.side_map[passive_order.side]
