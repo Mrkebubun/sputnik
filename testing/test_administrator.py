@@ -383,6 +383,17 @@ class TestAdministratorWebUI(TestAdministrator):
         d.addCallback(rendered)
         return d
 
+    def test_user_orders(self):
+        self.create_account('test')
+        request = StupidRequest([''], path='/user_orders',
+                                args={'username': ['test'], 'page': '0'})
+        d = self.render_test_helper(self.web_ui_factory(1), request)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), 'Orders for %s' % 'test')
+
+        d.addCallback(rendered)
+        return d
+
     def test_rescan_address(self):
         self.create_account('test', 'address_test')
         request = StupidRequest([''],
