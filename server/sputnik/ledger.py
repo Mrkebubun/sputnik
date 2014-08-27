@@ -97,9 +97,6 @@ class Ledger:
             if not all(count == counts[0] for count in counts):
                 raise COUNT_MISMATCH
 
-            # Remove 0 size postings
-            #postings = [posting for posting in postings if posting.quantity != 0]
-
             # balance check
             debitsum = defaultdict(int)
             creditsum = defaultdict(int)
