@@ -4,6 +4,7 @@ import sys
 import os
 import shutil
 import fnmatch
+import shlex
 import string
 import copy
 import subprocess
@@ -15,8 +16,109 @@ import compileall
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
 
+class Profile:
+    def __init__(self, profile, git_root=None):
+        self.cache = []
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.git_root = git_root or os.path.abspath(os.path.join(here, ".."))
+
+        self.profile = os.path.abspath(profile)
+        self.config = {}
+        self.deps = {"dpkg":[], "python":[], "node":[], "source":[]}
+        self.build_deps = {"dpkg":[], "python":[], "node":[], "source":[]}
+        self.pre_install = []
+        self.install = []
+        self.post_install = []
+
+        self.read_profile_dir(self.profile)
+        self.read_config_status()
+
+    def read_profile_dir(self, profile):
+        profile = os.path.abspath(profile)
+        if profile in self.cache:
+            raise Exception("Profile dependency is circular.")
+        self.cache.append(profile)
+
+        # while it would be nice, we cannot reuse the parser since we might
+        # read a reference to a profile that must be parsed first
+        parser = ConfigParser.SafeConfigParser()
+        parser.set("DEFAULT", "git_root", self.git_root)
+        parser.set("DEFAULT", "user", getpass.getuser())
+        # TODO: Do we need this?
+        # self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
+
+        # read profile.ini
+        profile_ini = os.path.join(profile, "profile.ini")
+        parsed = parser.read(profile_ini)
+        if len(parsed) != 1:
+            raise Exception("Cannot read profile.")
+
+        # parent profiles must be parsed first
+        if parser.has_option("meta", "inherits"):
+            inherits = parser.get("meta", "inherits")
+            for parent in shlex.split(inherits):
+                if "/" not in parent:
+                    parent = os.path.join(profile, "..", parent)
+                self.read_profile_dir(parent)
+
+        # store profile information
+        # for scripts, store the originating profile as well so we can run it
+        #  in the correct context (for example, if the script needs access to
+        #  resources from the original profile)
+
+        # read dependencies
+        for stage in ["deps", "build-deps"]:
+            deps = getattr(self, stage.replace("-", "_"))
+            for dep_type in ["dpkg", "python", "node"]:
+                try:
+                    with open(os.path.join(profile, stage, dep_type)) \
+                            as dep_list:
+                        for line in dep_list:
+                            package = line.strip()
+                            deps[dep_type].append(package)
+                except IOError:
+                    pass
+            try:
+                for line in sorted(os.listdir(os.path.join(
+                        profile, stage, "source"))):
+                    package = line.strip()
+                    package_name = package.lstrip("0123456789-")
+                    package_path = os.path.join(
+                            profile, stage, "source", package)
+                    deps["source"].append((profile, package_name, package_path))
+            except OSError:
+                pass
+
+        # read scripts
+        for stage in ["pre-install", "install", "post-install"]:
+            scripts = getattr(self, stage.replace("-", "_"))
+            try:
+                for line in sorted(os.listdir(os.path.join(profile, stage))):
+                    script = line.strip()
+                    script_name = script.lstrip("0123456789-")
+                    script_path = os.path.join(profile, stage, script)
+                    scripts.append((profile, script_name, script_path))
+            except OSError:
+                pass
+       
+        self.config.update(dict(parser.items("profile")))
+
+    def read_config_status(self):
+        config_status = os.path.join(self.git_root, "dist", "config.status")
+        parser = ConfigParser.SafeConfigParser()
+        parsed = parser.read(config_status)
+        
+        if len(parsed) == 1:
+            for key in dict(parser.items("git")):
+                # TODO: Is this necessary? What is wrong with update()?
+                if key not in self.config:
+                    self.config[key] = parser.get("git", key)
+            dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
+            self.config["dbname"] = dbname
+
 class Installer:
-    def __init__(self, profile=None):
+    def __init__(self, profile=None, git_root=None):
         if profile == None:
             raise Exception("No profile specified.")
 
