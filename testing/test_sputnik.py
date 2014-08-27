@@ -244,6 +244,9 @@ class TestSputnik(unittest.TestCase):
         self.leo.parse("accounts add %s" % username)
         if password is not None:
             self.leo.parse("accounts password %s %s" % (username, password))
+
+        # Initialize a position
+        self.leo.parse("accounts position %s %s" % (username, currency))
         self.session.commit()
 
         if address is not None:
