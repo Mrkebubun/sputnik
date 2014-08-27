@@ -1172,7 +1172,7 @@ if __name__ == "__main__":
 
     session = database.make_session()
     engines = {}
-    engine_base_port = config.getint("engine", "base_port")
+    engine_base_port = config.getint("engine", "accountant_base_port")
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))

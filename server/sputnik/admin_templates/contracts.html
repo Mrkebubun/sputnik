@@ -52,7 +52,7 @@
             {% for contract in contracts %}
             {% if contract.active %}
                 <tr>
-                    <td>{{contract.ticker}}</td>
+                    <td><a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a></td>
                     <td>{{contract.description}}</a></td>
                     <td>{{contract.full_description}}</td>
                     <td>{{contract.contract_type}}</td>

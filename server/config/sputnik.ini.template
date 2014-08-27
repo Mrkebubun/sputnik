@@ -12,7 +12,8 @@ cold_wallet_period = 3600
 minimum_confirmations = ${minimum_confirmations}
 
 [engine]
-base_port = 4200
+accountant_base_port = 4200
+administrator_base_port = 4250
 
 [webserver]
 engine_export = tcp://127.0.0.1:4720
