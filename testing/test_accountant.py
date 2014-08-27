@@ -83,7 +83,7 @@ class TestAccountantAudit(TestAccountantBase):
         BTCMXN = self.session.query(models.Contract).filter_by(ticker='BTC/MXN').one()
         messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
 
-        btc_position = models.Position(messed_up_trader_a, BTC)
+        btc_position = self.session.query(models.Position).filter_by(username='messed_up_trader_a', contract=BTC).one()
         btc_position.pending_postings = 1
         btc_position.position = 50
         self.session.add(btc_position)

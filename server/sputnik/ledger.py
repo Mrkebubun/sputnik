@@ -87,6 +87,8 @@ class Ledger:
             # sanity check
             if len(postings) == 0:
                 raise INTERNAL_ERROR
+
+
             types = [posting["type"] for posting in postings]
             counts = [posting["count"] for posting in postings]
 
@@ -94,6 +96,9 @@ class Ledger:
                 raise TYPE_MISMATCH
             if not all(count == counts[0] for count in counts):
                 raise COUNT_MISMATCH
+
+            # Remove 0 size postings
+            #postings = [posting for posting in postings if posting.quantity != 0]
 
             # balance check
             debitsum = defaultdict(int)
