@@ -502,6 +502,7 @@ class Administrator:
         d = self.engines[ticker].get_order_book()
         def reconcile_with_db(order_book):
             contract = self.get_contract(ticker)
+            self.session.expire_all()
             orders = self.session.query(models.Order).filter_by(
                 contract=contract, is_cancelled=False, dispatched=True).filter(models.Order.quantity_left>0)
             for order in orders:
