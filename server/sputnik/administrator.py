@@ -107,6 +107,7 @@ class Administrator:
         self.base_uri = base_uri
         self.sendmail = sendmail
         self.user_limit = user_limit
+        self.page_size = 10
 
         self.load_bs_cache()
         # Initialize the balance sheet cache
@@ -680,6 +681,13 @@ class Administrator:
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
+    def get_orders(self, user, page=0):
+        all_orders = self.session.query(models.Order).filter_by(user=user)
+        order_count = all_orders.count()
+        order_pages = int(order_count/self.page_size)+1
+        orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
+        return orders, order_pages
+
     def change_permission_group(self, username, id):
         """Change the permission group for a user
 
@@ -788,6 +796,7 @@ class AdminWebUI(Resource):
                     # Level 1
                      {'/': self.user_list,
                       '/user_details': self.user_details,
+                      '/user_orders': self.user_orders,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
                       '/contracts': self.contracts
@@ -937,6 +946,14 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('admin.html')
         return t.render(username=self.avatarId).encode('utf-8')
 
+    def user_orders(self, request):
+        user = self.administrator.get_user(request.args['username'][0])
+        page = int(request.args['page'][0])
+        orders, order_pages = self.administrator.get_orders(user, page)
+        t = self.jinja_env.get_template('user_orders.html')
+        rendered = t.render(user=user, orders=orders, order_pages=order_pages, page=page)
+        return rendered.encode('utf-8')
+
     def user_details(self, request):
         """Show all the details for a particular user
 
@@ -949,10 +966,19 @@ class AdminWebUI(Resource):
         postings_by_ticker = self.administrator.get_postings_by_ticker(user)
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
+
+        if 'page' in request.args:
+            page = int(request.args['page'][0])
+        else:
+            page = 0
+
+        orders, order_pages = self.administrator.get_orders(user, page)
+
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
                             zendesk_domain=zendesk_domain,
-                            debug=self.administrator.debug, permission_groups=permission_groups)
+                            debug=self.administrator.debug, permission_groups=permission_groups,
+                            orders=orders, order_pages=order_pages, page=page)
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):
