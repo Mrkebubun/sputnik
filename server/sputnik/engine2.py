@@ -56,6 +56,14 @@ class Order:
         else:
             self.timestamp = util.dt_to_timestamp(datetime.utcnow())
 
+    def to_administrator(self):
+        return {'id': self.id,
+                'quantity': self.quantity,
+                'quantity_left': self.quantity_left,
+                'price': self.price,
+                'username': self.username,
+                'timestamp': util.timestamp_to_dt(self.timestamp)}
+
     def matchable(self, other):
         if self.side == other.side:
             return False
@@ -273,7 +281,10 @@ class LoggingListener:
         self.ticker = self.contract.ticker
         log.msg("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
         log.msg(
-            "Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract.id))
+            "Listening for connections on port %d." % (config.getint("engine", "accountant_base_port") + self.contract.id))
+        log.msg(
+            "Listening for connections on port %d." % (config.getint("engine", "administrator_base_port") + self.contract.id))
+
 
     def on_shutdown(self):
         log.msg("Engine for contract %s stopped." % self.ticker)
@@ -469,7 +480,7 @@ class AdministratorExport(ComponentExport):
     @export
     @schema("rpc/engine.json#get_order_book")
     def get_order_book(self):
-        order_book = {OrderSide.name(side): {order.id: order.__dict__ for order in orders}
+        order_book = {OrderSide.name(side): {order.id: order.to_administrator() for order in orders}
                       for side, orders in self.engine.orderbook.iteritems()}
         return order_book
 
