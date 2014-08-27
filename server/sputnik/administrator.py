@@ -523,6 +523,9 @@ class Administrator:
         d.addCallback(reconcile_with_db)
         return d
 
+    def cancel_order(self, username, id):
+        self.accountant.cancel_order(username, id)
+
     def get_journal(self, journal_id):
         """Get a journal given its id
 
@@ -848,7 +851,8 @@ class AdminWebUI(Resource):
                       '/withdrawals': self.withdrawals,
                       '/deposits': self.deposits,
                       '/order_book': self.order_book,
-                      '/manual_deposit': self.manual_deposit},
+                      '/manual_deposit': self.manual_deposit,
+                      '/cancel_order': self.cancel_order},
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -938,6 +942,13 @@ class AdminWebUI(Resource):
 
         d.addCallback(got_order_book)
         return NOT_DONE_YET
+
+    def cancel_order(self, request):
+        id = int(request.args['id'][0])
+        username = request.args['username'][0]
+        self.administrator.cancel_order(username, id)
+
+        return self.order_book(request)
 
     def ledger(self, request):
         """Show use the details of a single jounral entry

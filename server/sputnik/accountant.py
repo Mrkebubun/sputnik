@@ -1138,6 +1138,11 @@ class AdministratorExport(ComponentExport):
     def deposit_cash(self, username, address, received, total=True):
         self.accountant.deposit_cash(username, address, received, total=total)
 
+    @export
+    @schema("rpc/accountant.administrator.json#cancel_order")
+    def cancel_order(self, username, id):
+        return self.accountant.cancel_order(username, id)
+
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):
         self.num_procs = config.getint("accountant", "num_procs")
