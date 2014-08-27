@@ -62,7 +62,8 @@ class Order:
                 'quantity_left': self.quantity_left,
                 'price': self.price,
                 'username': self.username,
-                'timestamp': util.timestamp_to_dt(self.timestamp)}
+                'timestamp': self.timestamp,
+                'errors': []}
 
     def matchable(self, other):
         if self.side == other.side:

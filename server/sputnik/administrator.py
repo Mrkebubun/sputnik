@@ -500,6 +500,27 @@ class Administrator:
 
     def get_order_book(self, ticker):
         d = self.engines[ticker].get_order_book()
+        def reconcile_with_db(order_book):
+            contract = self.get_contract(ticker)
+            orders = self.session.query(models.Order).filter_by(
+                contract=contract, is_cancelled=False, dispatched=True).filter(models.Order.quantity_left>0)
+            for order in orders:
+                id_str = str(order.id)
+                if id_str not in order_book[order.side]:
+                    order_book[order.side][id_str] = order.to_webserver()
+                    order_book[order.side][id_str]['errors'] = ['Not In Book']
+                else:
+                    if order.quantity_left != order_book[order.side][id_str]['quantity_left']:
+                        order_book[order.side][id_str]['errors'] = ['db quantity_left: %d' % order.quantity_left]
+
+            for side, orders in order_book.iteritems():
+                for id, order in orders.iteritems():
+                    order['timestamp'] = util.timestamp_to_dt(order['timestamp'])
+
+            return order_book
+
+
+        d.addCallback(reconcile_with_db)
         return d
 
     def get_journal(self, journal_id):
