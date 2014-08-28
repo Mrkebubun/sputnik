@@ -45,7 +45,7 @@ class Instance:
                 return
 
         # we found nothing, default to Oregon
-        region = region or "us-west-1"
+        region = region or "us-west-2"
 
         # Oddly, creating a connection does not raise an exception if the
         # region is invalid. It only returns None. We check here.
