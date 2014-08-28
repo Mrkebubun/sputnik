@@ -31,6 +31,7 @@ class Profile:
         self.pre_install = []
         self.install = []
         self.post_install = []
+        self.upgrade = []
 
         self.read_profile_dir(self.profile)
         self.read_config_status()
@@ -92,7 +93,7 @@ class Profile:
                 pass
 
         # read scripts
-        for stage in ["pre-install", "install", "post-install"]:
+        for stage in ["pre-install", "install", "post-install", "upgrade"]:
             scripts = getattr(self, stage.replace("-", "_"))
             try:
                 for line in sorted(os.listdir(os.path.join(profile, stage))):
@@ -163,7 +164,7 @@ class Installer():
         if value.lower() in ["1", "yes", "true", "on"]:
             return True
         if value.lower() in ["0", "no", "false", "off"]:
-            return True
+            return False
         raise ValueError("Not a boolean: %s" % value)
 
     def make_template(self, template_name, out):
@@ -200,7 +201,7 @@ class Installer():
             self.make_template("supervisord.conf", out)
         self.make_template("supervisor.conf", out)
         if not self.enabled("disable_bitcoin"):
-            self.make_template("bitcoind.conf")
+            self.make_template("bitcoind.conf", out)
         out.close()
         
         # make sputnik.ini
