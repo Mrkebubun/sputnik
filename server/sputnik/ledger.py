@@ -131,7 +131,9 @@ class Ledger:
                 else:
                     timestamp = None
 
-                db_postings.append(Posting(user, contract, quantity, direction, note=note, timestamp=timestamp))
+                posting = Posting(user, contract, quantity, direction, note=note, timestamp=timestamp)
+                db_postings.append(posting)
+                log.msg("done making posting %s at %f" % (posting, time.time() - start))
             log.msg("creating the journal at %f" % (time.time() - start))
             journal = Journal(types[0], db_postings)
 
