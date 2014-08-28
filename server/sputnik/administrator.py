@@ -512,16 +512,21 @@ class Administrator:
                 ordermap[id_str] = order
                 if id_str not in order_book[order.side]:
                     order_book[order.side][id_str] = order.to_webserver()
+                    order_book[order.side][id_str]['username'] = order.username
                     order_book[order.side][id_str]['errors'] = 'Not In Book'
                 else:
                     if order.quantity_left != order_book[order.side][id_str]['quantity_left']:
-                        order_book[order.side][id_str]['errors'] = 'db quantity_left: %d' % order.quantity_left
+                        order_book[order.side][id_str]['errors'] = 'DB quantity_left: %s' % util.quantity_fmt(contract,
+                                                                                                              order.quantity_left)
 
             for side, orders in order_book.iteritems():
                 for id, order in orders.iteritems():
                     order['timestamp'] = util.timestamp_to_dt(order['timestamp'])
                     if id not in ordermap:
                         order['errors'] = "Not in DB"
+                    order["quantity_fmt"] = util.quantity_fmt(contract, order['quantity'])
+                    order["quantity_left_fmt"] = util.quantity_fmt(contract, order['quantity_left'])
+                    order["price_fmt"] = util.price_fmt(contract, order['price'])
 
             return order_book
 
@@ -643,8 +648,7 @@ class Administrator:
                 position_calculated, timestamp = util.position_calculated(position, self.session, checkpoint=old_position_calculated,
                                                                           start=old_position_timestamp)
 
-                position_calculated_ui = util.quantity_from_wire(position.contract, position_calculated)
-                position_calculated_fmt = ("{quantity:.%df}" % util.get_quantity_precision(position.contract)).format(quantity=position_calculated_ui)
+                position_calculated_fmt = util.quantity_fmt(position.contract, position_calculated)
                 position_details = { 'username': position.user.username,
                                                                     'hash': position.user.user_hash,
                                                                     'position': position_calculated,
@@ -661,10 +665,9 @@ class Administrator:
                                                       'positions_by_user': {position.user.username: position_details},
                                                       'contract': position.contract.ticker}
 
-                side[position.contract.ticker]['total_fmt'] = \
-                    ("{total:.%df}" % util.get_quantity_precision(position.contract)).format(
-                        total=util.quantity_from_wire(position.contract, side[position.contract.ticker]['total'])
-                )
+                side[position.contract.ticker]['total_fmt'] = util.quantity_fmt(position.contract,
+                                                                                side[position.contract.ticker]['total'])
+
         balance_sheet['timestamp'] = now
         self.bs_cache = balance_sheet
         self.dump_bs_cache()

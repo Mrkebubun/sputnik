@@ -82,6 +82,13 @@ def get_quantity_precision(contract):
     else:
         return get_precision(contract.payout_contract.denominator, contract.lot_size)
 
+def price_fmt(contract, price):
+        return ("{price:.%df}" % get_price_precision(contract)).format(price=price_from_wire(contract, price))
+
+def quantity_fmt(contract, quantity):
+        return ("{quantity:.%df}" % get_quantity_precision(contract)).format(quantity=quantity_from_wire(contract,
+                                                                                                         quantity))
+
 def dt_to_timestamp(dt):
     """Turns a datetime into a Sputnik timestamp (microseconds since epoch)
 
