@@ -117,6 +117,10 @@ class Ledger:
             db_postings = []
             for posting in postings:
                 # TODO: change Posting constructor to take username
+                # I suspect that all these queries to get the contract and user are slow
+                # It may be better to ignore if the user is an asset or a liability and
+                # when the position is displayed invert the sign for asset accounts
+                log.msg("getting user %s and contract %s at %f" % (posting["username"], posting["contract"], time.time() - start))
                 user = self.session.query(User).filter_by(username=posting["username"]).one()
                 contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
                 quantity = posting["quantity"]
