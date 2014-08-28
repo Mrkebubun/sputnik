@@ -24,7 +24,7 @@ class Instance:
             raise Exception("No such region: %s" % region)
 
         self.ec2 = boto.ec2.connect_to_region(region)
-        self.cf = boto.cloudfront.connect_to_region(region)
+        self.cf = boto.cloudformation.connect_to_region(region)
 
         # default uninstalled state
         self.deployed = False
