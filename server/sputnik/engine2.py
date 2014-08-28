@@ -27,6 +27,7 @@ from zmq_util import export, router_share_async, push_proxy_async, ComponentExpo
 from rpc_schema import schema
 from collections import defaultdict
 from datetime import datetime
+from watchdog import watchdog
 
 
 class OrderSide:
@@ -469,10 +470,6 @@ class AccountantExport(ComponentExport):
     def cancel_order(self, id):
         return self.engine.cancel_order(id)
 
-    @export
-    def ping(self):
-        return "pong"
-
 class AdministratorExport(ComponentExport):
     def __init__(self, engine):
         self.engine = engine
@@ -514,6 +511,10 @@ if __name__ == "__main__":
     accountant_notifier = AccountantNotifier(engine, accountant, contract)
     webserver = push_proxy_async(config.get("webserver", "engine_export"))
     webserver_notifier = WebserverNotifier(engine, webserver, contract)
+
+
+    watchdog(config.get("watchdog", "engine") %
+             (config.getint("watchdog", "engine_base_port") + contract.id))
     #safe_price_notifier = SafePriceNotifier(engine)
     engine.add_listener(logger)
     engine.add_listener(accountant_notifier)

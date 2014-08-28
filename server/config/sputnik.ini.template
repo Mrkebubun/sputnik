@@ -98,3 +98,5 @@ cashier = tcp://127.0.0.1:4190
 webserver = tcp://127.0.0.1:4790
 administrator = tcp://127.0.0.1:4690
 ledger = tcp://127.0.0.1:4390
+engine = tcp://127.0.0.1:%d
+engine_base_port = 4290
