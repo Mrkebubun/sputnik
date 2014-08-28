@@ -452,7 +452,6 @@ class Posting(db.Base, QuantityUI):
     def __repr__(self):
         return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
 
-    @util.timed
     def __init__(self, user, contract, quantity, direction, note=None, timestamp=None):
         """
 
