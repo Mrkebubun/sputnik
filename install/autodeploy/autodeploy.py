@@ -31,6 +31,7 @@ class Instance:
         self.key_present = False
         self.stack_present = False
 
+        self.searched = False
         if not region:
             # search for the instance
             print "Searching... (use --region to specify a region)"
