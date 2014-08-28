@@ -7,11 +7,13 @@ from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
 from twisted.internet import defer
+from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
+
 
 class FakeAccountant(FakeComponent):
     name = "accountant"
@@ -21,20 +23,55 @@ class FakeAccountant(FakeComponent):
         return defer.succeed({})
 
 
+class FakeEngine(FakeComponent):
+    name = "engine"
+
+    def get_order_book(self):
+        self._log_call('get_order_book')
+        from sputnik import util
+
+        order_book = {'BUY': {'1': {'errors': "",
+                                    'id': 1,
+                                    'price': 100,
+                                    'quantity': 1,
+                                    'quantity_left': 1,
+                                    'timestamp': util.dt_to_timestamp(datetime.utcnow()),
+                                    'username': None},
+                              '3': {'errors': "",
+                                    'id': 1,
+                                    'price': 95,
+                                    'quantity': 2,
+                                    'quantity_left': 1,
+                                    'timestamp': util.dt_to_timestamp(datetime.utcnow()),
+                                    'username': None}},
+                      'SELL': {'2': {'errors': "",
+                                     'id': 2,
+                                     'price': 105,
+                                     'quantity': 1,
+                                     'quantity_left': 1,
+                                     'timestamp': util.dt_to_timestamp(datetime.utcnow()),
+                                     'username': None}}}
+        return defer.succeed(order_book)
+
+
 class TestAdministrator(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
 
-
         from sputnik import administrator
         from sputnik import accountant
         from sputnik import cashier
+        from sputnik import engine2
 
         accountant = accountant.AdministratorExport(FakeAccountant())
         cashier = cashier.AdministratorExport(FakeComponent())
+        engines = {"BTC/MXN": FakeEngine(),
+                   "NETS2014": FakeEngine()}
         zendesk_domain = 'testing'
 
-        self.administrator = administrator.Administrator(self.session, accountant, cashier, zendesk_domain,
+        self.administrator = administrator.Administrator(self.session, accountant, cashier,
+                                                         engines,
+                                                         zendesk_domain,
                                                          debug=True,
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
@@ -43,6 +80,63 @@ class TestAdministrator(TestSputnik):
                                                          bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
+
+    def test_get_order_book(self):
+        # Create one order that is in the order book and one that is not
+        from sputnik import models, util
+
+        user = None
+        contract = util.get_contract(self.session, 'BTC/MXN')
+
+        in_book_order_1 = models.Order(user, contract, 1, 100, 'BUY')
+        in_book_order_1.accepted = True
+        in_book_order_1.dispatched = True
+        in_book_order_2 = models.Order(user, contract, 1, 105, 'SELL')
+        in_book_order_2.is_cancelled = True
+        in_book_order_2.accepted = True
+        in_book_order_2.dispatched = True
+        in_book_order_3 = models.Order(user, contract, 2, 95, 'BUY')
+        in_book_order_3.accepted = True
+        in_book_order_3.dispatched = True
+        not_in_book_order = models.Order(user, contract, 1, 110, 'SELL')
+        not_in_book_order.accepted = True
+        not_in_book_order.dispatched = True
+        self.session.add_all([in_book_order_1, in_book_order_2, in_book_order_3, not_in_book_order])
+        self.session.commit()
+
+        d = self.administrator.get_order_book('BTC/MXN')
+
+        def success(order_book):
+            self.assertTrue(FakeComponent.check(
+                                {'BUY': {'1': {'errors': '',
+                                               'id': 1,
+                                               'price': 100,
+                                               'quantity': 1,
+                                               'quantity_left': 1,
+                                               'username': None},
+                                         '3': {'errors': 'db quantity_left: 2',
+                                               'id': 1,
+                                               'price': 95,
+                                               'quantity': 2,
+                                               'quantity_left': 1,
+                                               'username': None}},
+                                 'SELL': {'2': {'errors': 'Not in DB',
+                                                'id': 2,
+                                                'price': 105,
+                                                'quantity': 1,
+                                                'quantity_left': 1,
+                                                'username': None},
+                                          '4': {'contract': u'BTC/MXN',
+                                                'errors': 'Not In Book',
+                                                'id': 4,
+                                                'is_cancelled': False,
+                                                'price': 110,
+                                                'quantity': 1,
+                                                'quantity_left': 1,
+                                                'side': u'SELL', }}}, order_book))
+
+        d.addCallback(success)
+        return d
 
 
 class TestWebserverExport(TestAdministrator):
@@ -388,6 +482,7 @@ class TestAdministratorWebUI(TestAdministrator):
         request = StupidRequest([''], path='/user_orders',
                                 args={'username': ['test'], 'page': ['0']})
         d = self.render_test_helper(self.web_ui_factory(1), request)
+
         def rendered(ignored):
             self.assertRegexpMatches(''.join(request.written), 'Orders for %s' % 'test')
 
@@ -400,6 +495,7 @@ class TestAdministratorWebUI(TestAdministrator):
                                 args={'username': ['test'], 'page': ['0'],
                                       'ticker': ['BTC']})
         d = self.render_test_helper(self.web_ui_factory(1), request)
+
         def rendered(ignored):
             match = '<table class="table table-striped table-hover" id="postings_BTC">'
             self.assertRegexpMatches(''.join(request.written), match)
@@ -419,6 +515,19 @@ class TestAdministratorWebUI(TestAdministrator):
             self.assertTrue(
                 self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
 
+
+        d.addCallback(rendered)
+        return d
+
+    def test_order_book(self):
+        request = StupidRequest([''],
+                                path='/order_book',
+                                args={'ticker': ['BTC/MXN']})
+
+        d = self.render_test_helper(self.web_ui_factory(5), request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>BTC/MXN</title>')
 
         d.addCallback(rendered)
         return d

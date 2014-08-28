@@ -22,6 +22,8 @@ class TestEngine(TestSputnik):
         self.engine.add_listener(self.fake_listener)
         self.order_counter = 0
 
+        self.administrator_export = engine2.AdministratorExport(self.engine)
+
     def create_order(self, quantity=None, price=None, side=None):
         from sputnik.engine2 import Order
 
@@ -199,6 +201,30 @@ class TestEngineInternals(TestEngine):
              ('on_cancel_success',
               (order_bid,),
               {})]))
+
+
+class TestAdministratorExport(TestEngine):
+    def test_get_order_book(self):
+        order_bid = self.create_order(1, 100, -1)
+        order_ask = self.create_order(1, 105, 1)
+
+        self.engine.place_order(order_bid)
+        self.engine.place_order(order_ask)
+
+        order_book = self.administrator_export.get_order_book()
+        self.assertTrue(FakeComponent.check(
+            {'BUY': {1: {'errors': "",
+                         'id': 1,
+                         'price': 100,
+                         'quantity': 1,
+                         'quantity_left': 1,
+                         'username': None}},
+             'SELL': {2: {'errors': "",
+                          'id': 2,
+                          'price': 105,
+                          'quantity': 1,
+                          'quantity_left': 1,
+                          'username': None}}}, order_book))
 
 
 class TestNotifier(TestEngine):

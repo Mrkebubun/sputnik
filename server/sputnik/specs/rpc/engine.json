@@ -25,5 +25,10 @@
         },
         "required": ["id"],
         "additionalProperties": false
+    },
+    "get_order_book": {
+        "type":"object",
+        "description": "administrator -> engine get_order_book RPC call",
+        "additionalProperties": false
     }
 }

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ticker}}{% endblock %}
+{% block contracts_active %}class="active"{% endblock %}
+{% block coffeescript %}
+<script type="text/coffeescript">
+$ ->
+    window.show_all = (order) ->
+        $("tr[name=display_all]").toggle()
+        $("td[name=display_all]").toggle()
+        $("th[name=display_all]").toggle()
+</script>
+{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">{{ticker}}</div>
+    <div class="panel-body">
+    <a href="#" onclick="show_all();" id="toggle">Toggle Show All</a>
+    <table id="orderbook" class="table table-striped table-hover">
+        <thead>
+            <tr><th>ID</th><th>Quantity</th><th>Quantity Left</th><th>Price</th><th>User</th><th>Timestamp</th>
+                <th name="display_all" style="display: table-cell;">Errors</th><th>Cancel</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for side in ['BUY', 'SELL'] %}
+                <tr>
+                    <th colspan="5">{{side}}</th>
+                </tr>
+                {% for id, order in order_book[side].iteritems() %}
+                <tr {% if order.errors|length == 0 %}name="display_all" style="display:none;"{% endif %}>
+                    <td>{{order.id}}</td>
+                    <td>{{order.quantity}}</td>
+                    <td>{{order.quantity_left}}</td>
+                    <td>{{order.price}}</td>
+                    <td><a href="/user_details?username={{order.username}}">{{order.username}}</a></td>
+                    <td>{{order.timestamp}}</td>
+                    <td name="display_all" style="display: table-cell;">{% if order.errors|length != 0 %}{{order.errors}}{% endif %}</td>
+                    <td><a href="/cancel_order?username={{order.username}}&id={{order.id}}&ticker={{ticker}}">Cancel</a></td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+{% endblock %}
+

@@ -56,6 +56,15 @@ class Order:
         else:
             self.timestamp = util.dt_to_timestamp(datetime.utcnow())
 
+    def to_administrator(self):
+        return {'id': self.id,
+                'quantity': self.quantity,
+                'quantity_left': self.quantity_left,
+                'price': self.price,
+                'username': self.username,
+                'timestamp': self.timestamp,
+                'errors': ""}
+
     def matchable(self, other):
         if self.side == other.side:
             return False
@@ -273,7 +282,10 @@ class LoggingListener:
         self.ticker = self.contract.ticker
         log.msg("Engine for contract %s (%d) started." % (self.ticker, self.contract.id))
         log.msg(
-            "Listening for connections on port %d." % (config.getint("engine", "base_port") + self.contract.id))
+            "Listening for connections on port %d." % (config.getint("engine", "accountant_base_port") + self.contract.id))
+        log.msg(
+            "Listening for connections on port %d." % (config.getint("engine", "administrator_base_port") + self.contract.id))
+
 
     def on_shutdown(self):
         log.msg("Engine for contract %s stopped." % self.ticker)
@@ -372,7 +384,7 @@ class WebserverNotifier(EngineListener):
                           OrderSide.SELL: "asks"}
 
     def on_init(self):
-        pass
+        self.publish_book()
 
     def on_trade_success(self, order, passive_order, price, quantity):
         side = self.side_map[passive_order.side]
@@ -461,6 +473,18 @@ class AccountantExport(ComponentExport):
     def ping(self):
         return "pong"
 
+class AdministratorExport(ComponentExport):
+    def __init__(self, engine):
+        self.engine = engine
+        ComponentExport.__init__(self, engine)
+
+    @export
+    @schema("rpc/engine.json#get_order_book")
+    def get_order_book(self):
+        order_book = {OrderSide.name(side): {order.id: order.to_administrator() for order in orders}
+                      for side, orders in self.engine.orderbook.iteritems()}
+        return order_book
+
 
 if __name__ == "__main__":
     log.startLogging(sys.stdout)
@@ -476,8 +500,12 @@ if __name__ == "__main__":
 
     engine = Engine()
     accountant_export = AccountantExport(engine)
-    port = config.getint("engine", "base_port") + contract.id
-    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % port)
+    administrator_export = AdministratorExport(engine)
+    accountant_port = config.getint("engine", "accountant_base_port") + contract.id
+    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
+
+    administrator_port = config.getint("engine", "administrator_base_port") + contract.id
+    router_share_async(administrator_export, "tcp://127.0.0.1:%d" % administrator_port)
 
     logger = LoggingListener(engine, contract)
     accountant = accountant.AccountantProxy("push",

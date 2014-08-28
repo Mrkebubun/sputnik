@@ -24,6 +24,26 @@
         "required": ["username", "ticker", "quantity"],
         "additionalProperties": false
     },
+    "cancel_order":
+    {
+        "type":"object",
+        "description": "Cancel an open order.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "Order id of order to cancel."
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    },
     "transfer_position":
     {
         "type":"object",

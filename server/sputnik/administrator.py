@@ -81,7 +81,7 @@ class Administrator:
     The main administrator class. This makes changes to the database.
     """
 
-    def __init__(self, session, accountant, cashier,
+    def __init__(self, session, accountant, cashier, engines,
                  zendesk_domain,
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
@@ -100,6 +100,7 @@ class Administrator:
         self.session = session
         self.accountant = accountant
         self.cashier = cashier
+        self.engines = engines
         self.zendesk_domain = zendesk_domain
         self.debug = debug
         self.template_dir = template_dir
@@ -497,6 +498,40 @@ class Administrator:
         position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
         return position
 
+    def get_order_book(self, ticker):
+        d = self.engines[ticker].get_order_book()
+        def reconcile_with_db(order_book):
+            contract = self.get_contract(ticker)
+            self.session.expire_all()
+            orders = self.session.query(models.Order).filter_by(
+                contract=contract, is_cancelled=False, accepted=True,
+                dispatched=True).filter(models.Order.quantity_left>0)
+            ordermap = {}
+            for order in orders:
+                id_str = str(order.id)
+                ordermap[id_str] = order
+                if id_str not in order_book[order.side]:
+                    order_book[order.side][id_str] = order.to_webserver()
+                    order_book[order.side][id_str]['errors'] = 'Not In Book'
+                else:
+                    if order.quantity_left != order_book[order.side][id_str]['quantity_left']:
+                        order_book[order.side][id_str]['errors'] = 'db quantity_left: %d' % order.quantity_left
+
+            for side, orders in order_book.iteritems():
+                for id, order in orders.iteritems():
+                    order['timestamp'] = util.timestamp_to_dt(order['timestamp'])
+                    if id not in ordermap:
+                        order['errors'] = "Not in DB"
+
+            return order_book
+
+
+        d.addCallback(reconcile_with_db)
+        return d
+
+    def cancel_order(self, username, id):
+        self.accountant.cancel_order(username, id)
+
     def get_journal(self, journal_id):
         """Get a journal given its id
 
@@ -821,7 +856,9 @@ class AdminWebUI(Resource):
                       '/process_withdrawal': self.process_withdrawal,
                       '/withdrawals': self.withdrawals,
                       '/deposits': self.deposits,
-                      '/manual_deposit': self.manual_deposit},
+                      '/order_book': self.order_book,
+                      '/manual_deposit': self.manual_deposit,
+                      '/cancel_order': self.cancel_order},
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -899,6 +936,25 @@ class AdminWebUI(Resource):
         deposits = self.administrator.get_deposits()
         t = self.jinja_env.get_template('deposits.html')
         return t.render(deposits=deposits).encode('utf-8')
+
+    def order_book(self, request):
+        ticker = request.args['ticker'][0]
+        d = self.administrator.get_order_book(ticker)
+        def got_order_book(order_book):
+            t = self.jinja_env.get_template('order_book.html')
+            rendered = t.render(ticker=ticker, order_book=order_book)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
+
+        d.addCallback(got_order_book)
+        return NOT_DONE_YET
+
+    def cancel_order(self, request):
+        id = int(request.args['id'][0])
+        username = request.args['username'][0]
+        self.administrator.cancel_order(username, id)
+
+        return self.order_book(request)
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1224,7 +1280,13 @@ if __name__ == "__main__":
 
     user_limit = config.getint("administrator", "user_limit")
     bs_cache_update = config.getint("administrator", "bs_cache_update")
-    administrator = Administrator(session, accountant, cashier,
+    engine_base_port = config.getint("engine", "administrator_base_port")
+    engines = {}
+    for contract in session.query(models.Contract).filter_by(active=True).all():
+        engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
+                                                      (engine_base_port + int(contract.id)))
+
+    administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
