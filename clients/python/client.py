@@ -52,6 +52,7 @@ class TradingBot(WampCraClientProtocol):
         self.orders = {}
         self.last_internal_id = 0
         self.chats = []
+        self.username = None
 
     def action(self):
         '''
@@ -85,7 +86,9 @@ class TradingBot(WampCraClientProtocol):
         WampCraClientProtocol.subscribe(self, self.factory.url + "/feeds/%s" % topic, handler)
 
     def authenticate(self):
-        [self.username, self.password] = self.factory.username_password
+        if self.username is None:
+            [self.username, self.password] = self.factory.username_password
+
         d = WampCraClientProtocol.authenticate(self,
                                                authKey=self.username,
                                                authExtra=None,
@@ -457,6 +460,7 @@ class BasicBot(TradingBot):
         TradingBot.onMakeAccount(self, event)
         self.authenticate()
 
+
     def startAutomation(self):
         # Test the audit
         self.getAudit()
@@ -465,15 +469,16 @@ class BasicBot(TradingBot):
         self.getOHLCVHistory('BTC/HUF', 'day')
         self.getOHLCVHistory('BTC/HUF', 'minute')
 
-
         # Now make an account
-        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
         self.requestSupportNonce()
+
+        self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(WampClientFactory):
     def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10):

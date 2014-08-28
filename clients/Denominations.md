@@ -21,6 +21,14 @@ The exchange keeps track of user cash positions to a fixed precision. The exact 
 | EUR         | 1e2                 | euro                     | euro cent   |
 | MXN         | 1e2                 | peso                     | peso cent   |
 
+# Cash
+
+Cash contracts are basic currencies that a user can deposit/withdraw from the system. As noted above, the denominator defines the exact
+precision for which a cash contract is stored. The exchange may store internally a cash contract to more units of precision
+than the exchange may wish to allow deposits/withdrawals. For this difference we use the lot_size to define the minimum
+unit for which deposits/withdrawals are permitted.
+
+
 # Cash pairs
 
 When a user trades between two currencies, there is a third contract involved. It is a called a "cash pair" and it always has the format `to_currency/from_currency`. For example, if a user wishes to purchase bitcoins in exchange for pesos, they would place an order on the BTC/MXN contract.
