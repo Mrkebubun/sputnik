@@ -240,8 +240,8 @@ $ ->
         <tr id="{{position.contract.ticker}}">
             <td><span class="caret btn-link" onclick="show_postings({{position.id}});"></span></td>
             <td>{{position.contract.ticker}}</td>
-            <td>{{position.quantity_fmt}}</td>
-            <td>{{position.reference_price}}</td>
+            <td align="right">{{position.quantity_fmt}}</td>
+            <td align="right">{{position.reference_price}}</td>
         </tr>
         <tr name="postings_{{position.id}}" style="display:none;">
             <td></td>
