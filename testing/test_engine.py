@@ -213,13 +213,13 @@ class TestAdministratorExport(TestEngine):
 
         order_book = self.administrator_export.get_order_book()
         self.assertTrue(FakeComponent.check(
-            {'BUY': {1: {'errors': [],
+            {'BUY': {1: {'errors': "",
                          'id': 1,
                          'price': 100,
                          'quantity': 1,
                          'quantity_left': 1,
                          'username': None}},
-             'SELL': {2: {'errors': [],
+             'SELL': {2: {'errors': "",
                           'id': 2,
                           'price': 105,
                           'quantity': 1,

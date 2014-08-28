@@ -63,7 +63,7 @@ class Order:
                 'price': self.price,
                 'username': self.username,
                 'timestamp': self.timestamp,
-                'errors': []}
+                'errors': ""}
 
     def matchable(self, other):
         if self.side == other.side:

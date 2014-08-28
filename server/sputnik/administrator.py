@@ -504,19 +504,24 @@ class Administrator:
             contract = self.get_contract(ticker)
             self.session.expire_all()
             orders = self.session.query(models.Order).filter_by(
-                contract=contract, is_cancelled=False, dispatched=True).filter(models.Order.quantity_left>0)
+                contract=contract, is_cancelled=False, accepted=True,
+                dispatched=True).filter(models.Order.quantity_left>0)
+            ordermap = {}
             for order in orders:
                 id_str = str(order.id)
+                ordermap[id_str] = order
                 if id_str not in order_book[order.side]:
                     order_book[order.side][id_str] = order.to_webserver()
-                    order_book[order.side][id_str]['errors'] = ['Not In Book']
+                    order_book[order.side][id_str]['errors'] = 'Not In Book'
                 else:
                     if order.quantity_left != order_book[order.side][id_str]['quantity_left']:
-                        order_book[order.side][id_str]['errors'] = ['db quantity_left: %d' % order.quantity_left]
+                        order_book[order.side][id_str]['errors'] = 'db quantity_left: %d' % order.quantity_left
 
             for side, orders in order_book.iteritems():
                 for id, order in orders.iteritems():
                     order['timestamp'] = util.timestamp_to_dt(order['timestamp'])
+                    if id not in ordermap:
+                        order['errors'] = "Not in DB"
 
             return order_book
 
