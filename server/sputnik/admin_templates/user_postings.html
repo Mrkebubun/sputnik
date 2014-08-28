@@ -1,13 +1,13 @@
 {% if postings_by_ticker[position.contract.ticker].page != 0 %}
-<a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{postings_by_ticker[position.contract.ticker].page-1}});">&lt;</a>
+<a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{postings_by_ticker[position.contract.ticker].min_range}});">&lt;</a>
 {% endif %}
-{% for n in range(postings_by_ticker[position.contract.ticker].posting_pages) %}
+{% for n in range(postings_by_ticker[position.contract.ticker].min_range, postings_by_ticker[position.contract.ticker].max_range) %}
 <a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{n}});" {% if n==postings_by_ticker[position.contract.ticker].page %}style="color:red"{% endif %}>
     {{n+1}}
 </a>
 {% endfor %}
-{% if postings_by_ticker[position.contract.ticker].page != postings_by_ticker[position.contract.ticker].posting_pages - 1 %}
-<a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{postings_by_ticker[position.contract.ticker].page+1}});">&gt;</a>
+{% if postings_by_ticker[position.contract.ticker].page < postings_by_ticker[position.contract.ticker].posting_pages - 1 %}
+<a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{postings_by_ticker[position.contract.ticker].max_range-1}});">&gt;</a>
 {% endif %}
 <table class="table table-striped table-hover" id="postings_{{position.contract.ticker}}">
     <tr>
