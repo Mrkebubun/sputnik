@@ -34,6 +34,7 @@ tar: dist
 	cp -r tools/alembic* .tar/sputnik/tools
 	sed -i "s/\(dbname = sputnik\).*/\1/" .tar/sputnik/dist/config/sputnik.ini
 	cp install/install.py .tar/sputnik/install
+	cp -r install/profiles/minimal .tar/sputnik/install/profiles
 	cp -r ${PROFILE} .tar/sputnik/install/profiles
 	echo "export PROFILE=install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
 	cat Makefile >> .tar/sputnik/Makefile
