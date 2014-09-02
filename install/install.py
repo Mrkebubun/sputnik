@@ -32,6 +32,7 @@ class Profile:
         self.post_install = []
 
         self.read_profile_dir(self.profile)
+        self.read_config_status()
 
     def read_profile_dir(self, profile):
         profile = os.path.abspath(profile)
@@ -105,12 +106,14 @@ class Profile:
 
     def read_config_status(self):
         config_status = os.path.join(self.git_root, "dist", "config.status")
-        parsed = self.parser.read(config_status)
+        parser = ConfigParser.SafeConfigParser()
+        parsed = parser.read(config_status)
         
         if len(parsed) == 1:
-            for key in dict(self.parser.items("git")):
+            for key in dict(parser.items("git")):
+                # TODO: Is this necessary? What is wrong with update()?
                 if key not in self.config:
-                    self.config[key] = self.parser.get("git", key)
+                    self.config[key] = parser.get("git", key)
             dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
             self.config["dbname"] = dbname
 
