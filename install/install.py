@@ -44,6 +44,7 @@ class Profile:
         parser = ConfigParser.SafeConfigParser()
         parser.set("DEFAULT", "git_root", self.git_root)
         parser.set("DEFAULT", "user", getpass.getuser())
+        # TODO: Do we need this?
         # self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
 
         # read profile.ini
@@ -53,8 +54,8 @@ class Profile:
             raise Exception("Cannot read profile.")
 
         # parent profiles must be parsed first
-        if parser.has_option("profile", "inherits"):
-            inherits = parser.get("profile", "inherits")
+        if parser.has_option("meta", "inherits"):
+            inherits = parser.get("meta", "inherits")
             for parent in shlex.split(inherits):
                 if "/" not in parent:
                     parent = os.path.join(profile, "..", parent)
@@ -69,25 +70,36 @@ class Profile:
         for stage in ["deps", "build-deps"]:
             deps = getattr(self, stage.replace("-", "_"))
             for dep_type in ["dpkg", "python", "node"]:
-                with open(os.path.join(profile, stage, dep_type)) as dep_list:
-                    for line in dep_list:
-                        package = line.strip()
-                        deps[dep_type].append(package)
-            for line in sorted(os.listdir(os.path.join(
-                    profile, stage, "source"))):
-                package = line.strip()
-                package_name = package.lstrip("0123456789-")
-                package_path = os.path.join(profile, stage, "source", package)
-                deps["source"].append((profile, package_name, package_path))
+                try:
+                    with open(os.path.join(profile, stage, dep_type)) \
+                            as dep_list:
+                        for line in dep_list:
+                            package = line.strip()
+                            deps[dep_type].append(package)
+                except IOError:
+                    pass
+            try:
+                for line in sorted(os.listdir(os.path.join(
+                        profile, stage, "source"))):
+                    package = line.strip()
+                    package_name = package.lstrip("0123456789-")
+                    package_path = os.path.join(
+                            profile, stage, "source", package)
+                    deps["source"].append((profile, package_name, package_path))
+            except OSError:
+                pass
 
         # read scripts
         for stage in ["pre-install", "install", "post-install"]:
             scripts = getattr(self, stage.replace("-", "_"))
-            for line in sorted(os.listdir(os.path.join(profile, stage))):
-                script = line.strip()
-                script_name = script.lstrip("0123456789-")
-                script_path = os.path.join(profile, stage, script)
-                scripts.append((profile, script_name, script_path))
+            try:
+                for line in sorted(os.listdir(os.path.join(profile, stage))):
+                    script = line.strip()
+                    script_name = script.lstrip("0123456789-")
+                    script_path = os.path.join(profile, stage, script)
+                    scripts.append((profile, script_name, script_path))
+            except OSError:
+                pass
        
         self.config.update(dict(parser.items("profile")))
 
@@ -103,7 +115,7 @@ class Profile:
             self.config["dbname"] = dbname
 
 class Installer:
-    def __init__(self, profile=None):
+    def __init__(self, profile=None, git_root=None):
         if profile == None:
             raise Exception("No profile specified.")
 
