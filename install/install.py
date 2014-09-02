@@ -25,6 +25,11 @@ class Profile:
 
         self.profile = os.path.abspath(profile)
         self.config = {}
+        self.deps = {"dpkg":[], "python":[], "node":[], "source":[]}
+        self.build_deps = {"dpkg":[], "python":[], "node":[], "source":[]}
+        self.pre_install = []
+        self.install = []
+        self.post_install = []
 
         self.read_profile_dir(self.profile)
 
@@ -55,21 +60,34 @@ class Profile:
                     parent = os.path.join(profile, "..", parent)
                 self.read_profile_dir(parent)
 
+        # store profile information
+        # for scripts, store the originating profile as well so we can run it
+        #  in the correct context (for example, if the script needs access to
+        #  resources from the original profile)
+
         # read dependencies
-        with open(os.path.join(profile, "deps", "dpkg")) as deps:
-            for line in deps:
+        for stage in ["deps", "build-deps"]:
+            deps = getattr(self, stage.replace("-", "_"))
+            for dep_type in ["dpkg", "python", "node"]:
+                with open(os.path.join(profile, stage, dep_type)) as dep_list:
+                    for line in dep_list:
+                        package = line.strip()
+                        deps[dep_type].append(package)
+            for line in sorted(os.listdir(os.path.join(
+                    profile, stage, "source"))):
                 package = line.strip()
-                self.deps_dpkg.append(package)
-        with open(os.path.join(profile, "build-deps", "dpkg")) as deps:
-            for line in deps:
-                package = line.strip()
-                self.build_deps_dpkg.append(package)
+                package_name = package.lstrip("0123456789-")
+                package_path = os.path.join(profile, stage, "source", package)
+                deps["source"].append((profile, package_name, package_path))
 
         # read scripts
-        for line in sorted(os.listdir(os.path.join(
-                self.profile, "deps", "source"))):
-            package = line.strip()
-            self.deps_source.append()
+        for stage in ["pre-install", "install", "post-install"]:
+            scripts = getattr(self, stage.replace("-", "_"))
+            for line in sorted(os.listdir(os.path.join(profile, stage))):
+                script = line.strip()
+                script_name = script.lstrip("0123456789-")
+                script_path = os.path.join(profile, stage, script)
+                scripts.append((profile, script_name, script_path))
        
         self.config.update(dict(parser.items("profile")))
 
