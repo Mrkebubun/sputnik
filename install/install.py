@@ -4,6 +4,7 @@ import sys
 import os
 import shutil
 import fnmatch
+import shlex
 import string
 import copy
 import subprocess
@@ -14,6 +15,74 @@ import compileall
 
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
+
+class Profile:
+    def __init__(self, profile, git_root=None):
+        self.cache = []
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.git_root = git_root or os.path.abspath(os.path.join(here, ".."))
+
+        self.profile = os.path.abspath(profile)
+        self.config = {}
+
+        self.read_profile_dir(self.profile)
+
+    def read_profile_dir(self, profile):
+        profile = os.path.abspath(profile)
+        if profile in self.cache:
+            raise Exception("Profile dependency is circular.")
+        self.cache.append(profile)
+
+        # while it would be nice, we cannot reuse the parser since we might
+        # read a reference to a profile that must be parsed first
+        parser = ConfigParser.SafeConfigParser()
+        parser.set("DEFAULT", "git_root", self.git_root)
+        parser.set("DEFAULT", "user", getpass.getuser())
+        # self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
+
+        # read profile.ini
+        profile_ini = os.path.join(profile, "profile.ini")
+        parsed = parser.read(profile_ini)
+        if len(parsed) != 1:
+            raise Exception("Cannot read profile.")
+
+        # parent profiles must be parsed first
+        if parser.has_option("profile", "inherits"):
+            inherits = parser.get("profile", "inherits")
+            for parent in shlex.split(inherits):
+                if "/" not in parent:
+                    parent = os.path.join(profile, "..", parent)
+                self.read_profile_dir(parent)
+
+        # read dependencies
+        with open(os.path.join(profile, "deps", "dpkg")) as deps:
+            for line in deps:
+                package = line.strip()
+                self.deps_dpkg.append(package)
+        with open(os.path.join(profile, "build-deps", "dpkg")) as deps:
+            for line in deps:
+                package = line.strip()
+                self.build_deps_dpkg.append(package)
+
+        # read scripts
+        for line in sorted(os.listdir(os.path.join(
+                self.profile, "deps", "source"))):
+            package = line.strip()
+            self.deps_source.append()
+       
+        self.config.update(dict(parser.items("profile")))
+
+    def read_config_status(self):
+        config_status = os.path.join(self.git_root, "dist", "config.status")
+        parsed = self.parser.read(config_status)
+        
+        if len(parsed) == 1:
+            for key in dict(self.parser.items("git")):
+                if key not in self.config:
+                    self.config[key] = self.parser.get("git", key)
+            dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
+            self.config["dbname"] = dbname
 
 class Installer:
     def __init__(self, profile=None):
