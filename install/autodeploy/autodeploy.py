@@ -6,6 +6,7 @@ import threading
 import time
 import argparse
 import M2Crypto
+import warnings
 import base64
 import boto.ec2
 import boto.cloudformation
@@ -44,12 +45,15 @@ INSTANCE_NOT_FOUND = AutoDeployException("Instance not found.")
 
 class Instance:
     def __init__(self, client=None, region=None, profile=None, key=None,
-            verbose=False):
+            verbose=False, safety=False):
         self.client = client
         self.region = region
         self.profile = profile
         self.key = key
         self.verbose = verbose
+        self.safety = safety
+
+        self.default_region = "us-west-1"
 
         if not client:
             raise AutoDeployException("Client cannot be None.")
@@ -67,10 +71,15 @@ class Instance:
             # search for the instance
             sys.stdout.write("Searching... (use --region to specify a region) ")
             with Spinner():
-                for r in boto.ec2.regions():
-                    self._connect(r.name)
+                regions = map(lambda r: r.name, boto.ec2.regions())
+                if self.default_region in regions:
+                    # try to make searching faster
+                    regions.remove(self.default_region)
+                    regions.insert(0, self.default_region)
+                for r in regions:
+                    self._connect(r)
                     if self._search(client):
-                        self.region = r.name
+                        self.region = r
                         break
             print
             self.searched = True
@@ -79,7 +88,7 @@ class Instance:
                 return
 
         # we found nothing, default to Oregon
-        region = region or "us-west-2"
+        region = region or self.default_region
 
         # Oddly, creating a connection does not raise an exception if the
         # region is invalid. It only returns None. We check here.
@@ -97,6 +106,8 @@ class Instance:
         try:
             self.ec2.get_all_key_pairs(client)
             self.key_present = True
+        except KeyboardInterrupt:
+            raise
         except:
             pass
 
@@ -105,6 +116,8 @@ class Instance:
             self.stack_present = True
             if self.stack.stack_status != "CREATE_COMPLETE":
                 self.broken = True
+        except KeyboardInterrupt:
+            raise
         except:
             pass
 
@@ -130,26 +143,24 @@ class Instance:
             raise INSTANCE_EXISTS
         
         if self.searched:
-            raise AutoDeployException("Please explicitly specify a region.")
+            if self.safety:
+                raise AutoDeployException("Explicitly specify a region.")
 
         with open("autodeploy.template") as template_file:
             template = template_file.read()
 
-        print "Creating instance %s..." % self.client
+        print "Creating instance for %s..." % self.client
 
-        if os.path.isfile(self.key):
-            print "\tuploading key..."
-            rsa_key = M2Crypto.RSA.load_key(self.key)
-            ssh_key = 'ssh-rsa %s' % \
-                    (base64.b64encode('\0\0\0\7ssh-rsa%s%s' % rsa_key.pub()))
-            self.ec2.import_key_pair(self.client, ssh_key)
-        else:
-            print "\tcreating and downloading key..."
-            key = self.ec2.create_key_pair(self.client)
-            umask = os.umask(0177)
-            with open(self.key, "wb") as key_file:
-                key_file.write(key.material)
-            os.umask(umask)
+        key_filename = "%s.pem" % self.client
+        if os.path.isfile(key_filename):
+            raise AutoDeployException("Key file exists. Will not overwrite.")
+
+        print "\tcreating and downloading key..."
+        key = self.ec2.create_key_pair(self.client)
+        umask = os.umask(0177)
+        with open(key_filename, "w") as key_file:
+            key_file.write(key.material)
+        os.umask(umask)
        
         print "\tcreating stack..."
         self.cf.create_stack(self.client, template,
@@ -166,7 +177,39 @@ class Instance:
                 else:
                     raise INSTANCE_BROKEN
         print
-        print "Instance %s created." % self.client
+        print "Instance for %s created." % self.client
+        for output in self.stack.outputs:
+            if output.key == "InstanceId":
+                 instance_id = output.value
+                 break
+        else:
+            raise INSTANCE_BROKEN
+        sys.stdout.write("Waiting for instance to boot (this may take a few minutes)... ")
+        instance = self.ec2.get_all_instances(instance_id)[0].instances[0]
+        with Spinner():
+            while True:
+                instance.update()
+                if instance.state == "running":
+                    output = instance.get_console_output().output
+                    if output:
+                        break
+                    time.sleep(10)
+                elif instance.state == "pending":
+                    time.sleep(10)
+                else:
+                    raise INSTANCE_BROKEN
+        print
+        print "Instance %s booted." % instance_id
+        output = instance.get_console_output().output.split("\n")
+        for line in output:
+            if line.startswith("ecdsa-sha2-nistp256 "):
+                ssh_host_ecdsa_key = line.strip()
+                server_key_filename = "%s.pub" % self.client
+                with open(server_key_filename, "w") as key_file:
+                    key_file.write(ssh_host_ecdsa_key)
+                break
+        else:
+            raise INSTANCE_BROKEN
 
     def delete(self):
         if self.broken:
@@ -199,16 +242,42 @@ class Instance:
         # self.stack should have been prepopulated by constructor
         print "Instance: %s" % self.client
         print "Region: %s" % self.region
-        print "Status: %s" % self.stack.stack_status
+        print "Stack Status: %s" % self.stack.stack_status
         if self.verbose:
             for event in self.stack.describe_events():
                 status = event.resource_status
                 reason = event.resource_status_reason
                 if not reason:
                     reason = ""
-                print "{0:25} {1:}".format(status, reason[:50])
+                print "{0:25} {1:}".format("\t" + status, reason[:50])
                 for i in range(50, len(reason), 50):
                     print " "*26 + reason[i:i+50]
+
+        instance_id = None
+        for output in self.stack.outputs:
+            print "%s: %s" % (output.key, output.value)
+            if output.key == "InstanceId":
+                instance_id = output.value
+        if instance_id:
+            try:
+                reservation = self.ec2.get_all_instances(instance_id)[0]
+                instance = reservation.instances[0]
+                print "Instance State: %s" % instance.state
+                output = instance.get_console_output().output.split("\n")
+                if output:
+                    for line in output:
+                        # anything that small better be ECDSA
+                        # TODO: find a more reliable way to do this
+                        if line.startswith("ec2: 256 "):
+                            fingerprint = line.strip().split(" ")[2]
+                            print "ECDSA fingerprint: %s" % fingerprint
+                            break
+                else:
+                    print "Public key: <not yet available>"
+            except KeyboardInterrupt:
+                raise
+            except Exception, e:
+                raise e
 
     def install(self):
         if self.broken:
@@ -247,9 +316,6 @@ subparsers = parser.add_subparsers(description="Actions that can be performed.",
                                    metavar="command",
                                    dest="command")
 parser_deploy = subparsers.add_parser("deploy", help="Deploy instance.")
-parser_deploy.add_argument("--key", dest="key", action="store",
-                            required=True,
-                            help="Path to SSH key. If the key exists, it will be used. Otherwise, a new one will be generated.")
 parser_status = subparsers.add_parser("status",
                                       help="Get instance deployment status.")
 parser_delete = subparsers.add_parser("delete", help="Delete instance.")
