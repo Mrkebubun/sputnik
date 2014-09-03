@@ -1012,7 +1012,8 @@ class AdminWebUI(Resource):
         page = int(request.args['page'][0])
         orders, order_pages = self.administrator.get_orders(user, page)
         t = self.jinja_env.get_template('user_orders.html')
-        rendered = t.render(user=user, orders=orders, order_pages=order_pages, orders_page=page)
+        rendered = t.render(user=user, orders=orders, order_pages=order_pages, orders_page=page,
+                            min_range=max(page-10, 0), max_range=min(order_pages, page+10))
         return rendered.encode('utf-8')
 
     def user_postings(self, request):
@@ -1024,7 +1025,9 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('user_postings.html')
         postings_by_ticker = {contract.ticker: { 'postings': postings,
                                                   'posting_pages': posting_pages,
-                                                  'page': page}}
+                                                  'page': page,
+                                                  'min_range': max(page-10, 0),
+                                                  'max_range': min(posting_pages, page+10)}}
         rendered = t.render(user=user, position=position, postings_by_ticker=postings_by_ticker)
         return rendered.encode('utf-8')
 
@@ -1041,13 +1044,15 @@ class AdminWebUI(Resource):
         postings_by_ticker = {}
         for position in user.positions:
             if 'positions_page_%s' % position.contract.ticker in request.args:
-                postings_page = int(request.args['postings_page_%s' % position.contract.ticker][0])
+                page = int(request.args['postings_page_%s' % position.contract.ticker][0])
             else:
-                postings_page = 0
-            postings, postings_pages = self.administrator.get_postings(user, position.contract, page=postings_page)
+                page = 0
+            postings, posting_pages = self.administrator.get_postings(user, position.contract, page=page)
             postings_by_ticker[position.contract.ticker] = {'postings': postings,
-                                                            'posting_pages': postings_pages,
-                                                            'page': postings_page }
+                                                            'posting_pages': posting_pages,
+                                                            'page': page,
+                                                            'min_range': max(page-10, 0),
+                                                            'max_range': min(posting_pages, page+10)}
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
@@ -1062,7 +1067,8 @@ class AdminWebUI(Resource):
         rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
-                            orders=orders, order_pages=order_pages, orders_page=orders_page)
+                            orders=orders, order_pages=order_pages, orders_page=orders_page,
+                            min_range=max(orders_page-10, 0), max_range=min(order_pages, orders_page+10))
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):

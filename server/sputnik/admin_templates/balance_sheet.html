@@ -2,11 +2,10 @@
 {% block title %}Balance Sheet{% endblock %}
 {% block balance_sheet_active %}class="active"{% endblock %}
 {% block coffeescript %}
-<!-- TODO: Make the carets work -->
 <script type="text/coffeescript">
 $ ->
     window.show = (id) ->
-        $("tr['#{id}']").toggle()
+        $("tr[name=#{id}]").toggle()
 
 </script>
 {% endblock %}
@@ -24,20 +23,26 @@ $ ->
         <tbody>
             {% for ticker, details in balance_sheet[side].iteritems() %}
             <tr>
-                <td><span class="caret btn-link" onclick="show('{{label}}_{{ticker}}')"></span></td>
+                <td><span class="caret btn-link" onclick="show('{{side}}_{{ticker}}')"></span></td>
                 <th>{{ticker}}</th>
                 <th>{{details.total_fmt}}</th>
             </tr>
-            <tr name="{{label}}_{{ticker}}">
-                <th>User</th>
-                <th>Quantity</th>
+            <tr name="{{side}}_{{ticker}}" style="display:none;">
+                <td colspan="3">
+                    <table class="table table-striped table-hover">
+                        <tr>
+                            <th>User</th>
+                            <th>Quantity</th>
+                        </tr>
+                        {% for position in details.positions_raw %}
+                        <tr>
+                            <td>{{position.username}}</td>
+                            <td>{{position.position_fmt}}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </td>
             </tr>
-                {% for position in details.positions_raw %}
-                <tr name="{{label}}_{{ticker}}">
-                    <td>{{position.username}}</td>
-                    <td>{{position.position_fmt}}</td>
-                </tr>
-                {% endfor %}
             {% endfor %}
         </tbody>
     </table>
