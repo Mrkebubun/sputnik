@@ -1,11 +1,35 @@
 #!/usr/bin/python
 
 import os
+import sys
+import threading
+import time
 import argparse
 import M2Crypto
 import base64
 import boto.ec2
 import boto.cloudformation
+
+def spinner():
+    def _spinner(event):
+        states = ["|", "/", "-", "\\"]
+        current = 0
+        while True:
+            sys.stdout.write(states[current])
+            sys.stdout.flush()
+            event.wait(0.5)
+            sys.stdout.write("\b \b")
+            sys.stdout.flush()
+            current += 1
+            current %= len(states)
+            if event.isSet():
+                break
+
+    event = threading.Event()
+    thread = threading.Thread(target=_spinner, args=(event,))
+    thread.daemon = True
+    thread.start()
+    return event, thread
 
 class AutoDeployException(Exception): pass
 
@@ -32,14 +56,20 @@ class Instance:
         self.stack_present = False
 
         self.searched = False
+        self.found = False
+
         if not region:
             # search for the instance
-            print "Searching... (use --region to specify a region)"
+            sys.stdout.write("Searching... (use --region to specify a region) ")
+            event, thread = spinner()
             for r in boto.ec2.regions():
                 self._connect(r.name)
                 if self._search(client):
                     self.region = r.name
                     break
+            event.set()
+            thread.join()
+            print
             self.searched = True
             if self.region:
                 # we found what we wanted, and we are already connected
@@ -61,18 +91,19 @@ class Instance:
         self.cf = boto.cloudformation.connect_to_region(region)
 
     def _search(self, client):
-        found = True
         try:
             self.ec2.get_all_key_pairs(client)
             self.key_present = True
         except:
-            found = False
+            pass
 
         try:
             self.stack = self.cf.describe_stacks(client)[0]
             self.stack_present = True
+            if self.stack.stack_status != "CREATE_COMPLETE":
+                self.broken = True
         except:
-            found = False
+            pass
 
         if self.key_present and not self.stack_present:
             self.broken = True
@@ -80,10 +111,13 @@ class Instance:
         if self.stack_present and not self.key_present:
             self.broken = True
 
+        if self.key_present or self.stack_present:
+            self.found = True
+
         if self.key_present and self.stack_present:
             self.deployed = True
 
-        return found
+        return self.found
 
     def deploy(self):
         if self.broken:
@@ -118,7 +152,23 @@ class Instance:
         self.cf.create_stack(self.client, template,
                 parameters=[("KeyName", self.client)])
 
-        print "Instance %s created." % self.client
+        sys.stdout.write("Please wait (this may take a few minutes)... ")
+        event, thread = spinner()
+        while True:
+            self.stack = self.cf.describe_stacks(self.client)[0]
+            if self.stack.stack_status == "CREATE_COMPLETE":
+                event.set()
+                thread.join()
+                print
+                print "Instance %s created." % self.client
+                break
+            elif self.stack.stack_status == "CREATE_IN_PROGRESS":
+                time.sleep(10)
+            else:
+                event.set()
+                thread.join()
+                raise INSTANCE_BROKEN
+                break
 
     def delete(self):
         if self.broken:
@@ -145,10 +195,7 @@ class Instance:
         print "Instance %s removed." % self.client
 
     def status(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-        
-        if not self.deployed:
+        if not self.found:
             raise INSTANCE_NOT_FOUND
       
         # self.stack should have been prepopulated by constructor
