@@ -200,7 +200,7 @@ class Installer():
             self.make_template("supervisord.conf", out)
         self.make_template("supervisor.conf", out)
         if not self.enabled("disable_bitcoin"):
-            self.make_template("bitcoind.conf")
+            self.make_template("bitcoind.conf", out)
         out.close()
         
         # make sputnik.ini
