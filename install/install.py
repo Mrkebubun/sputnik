@@ -47,8 +47,6 @@ class Profile:
         parser = ConfigParser.SafeConfigParser()
         parser.set("DEFAULT", "git_root", self.git_root)
         parser.set("DEFAULT", "user", getpass.getuser())
-        # TODO: Do we need this?
-        # self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
 
         # read profile.ini
         profile_ini = os.path.join(profile, "profile.ini")
