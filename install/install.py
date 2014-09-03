@@ -12,6 +12,7 @@ import optparse
 import ConfigParser
 import getpass
 import compileall
+import cStringIO
 
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
@@ -118,7 +119,7 @@ class Profile:
             self.config["dbname"] = dbname
 
 class Installer():
-    def __init__(self, profile=None, git_root=None):
+    def __init__(self, profile=None, git_root=None, dry_run=False):
         if profile == None:
             raise Exception("No profile specified.")
 
@@ -138,7 +139,7 @@ class Installer():
         for key, value in self.config.iteritems():
             self.env["profile_%s" % key] = value
 
-        self.dry_run = True
+        self.dry_run = dry_run
 
     def log(self, line):
         self.logfile.write(line)
@@ -191,7 +192,10 @@ class Installer():
         os.mkdir("config")
 
         # make supervisor.conf
-        out = open(os.path.join("config", "supervisor.conf"), "w")
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open(os.path.join("config", "supervisor.conf"), "w")
         if self.enabled("bundle_supervisord"):
             self.make_template("supervisord.conf", out)
         self.make_template("supervisor.conf", out)
@@ -200,7 +204,10 @@ class Installer():
         out.close()
         
         # make sputnik.ini
-        out = open(os.path.join("config", "sputnik.ini"), "w")
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open(os.path.join("config", "sputnik.ini"), "w")
         self.make_template("sputnik.ini", out)
         if self.enabled("use_sqlite"):
             self.make_template("sqlite.ini", out)
@@ -210,12 +217,18 @@ class Installer():
 
         # make bitcoin.conf
         if not self.enabled("disable_bitcoin"):
-            out = open(os.path.join("config", "bitcoin.conf"), "w")
+            if self.dry_run:
+                out = cStringIO.StringIO()
+            else:
+                out = open(os.path.join("config", "bitcoin.conf"), "w")
             self.make_template("bitcoin.conf", out)
             out.close()
 
         # make config.status
-        out = open("config.status", "w")
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open("config.status", "w")
         status = ConfigParser.SafeConfigParser()
         status.add_section("git")
         status.set("git", "git_hash", version[0])
@@ -380,7 +393,7 @@ class Installer():
     def make_stage(self, stage):
         # do stage
         self.log("Running %s scripts...\n" % stage)
-        for script in getattr(self.profile, stage):
+        for script in getattr(self.profile, stage.replace("-", "_")):
             self.log("Running %s... " % script[0])
             self.env["base_profile"] = script[1]
             result = self.run([script[2]])
@@ -436,12 +449,18 @@ def main():
     usage = "usage: %prog [options] config|deps|build|install"
     opts = optparse.OptionParser(usage=usage)
     opts.add_option("-p", "--profile", dest="profile", help="Profile directory")
+    opts.add_option("-g", "--git-root", dest="git_root", help="Git root")
+    opts.add_option("-d", "--dry-run", dest="dry_run", help="Dry run",
+            action="store_true", default=False)
     (options, args) = opts.parse_args()
 
     profile = options.profile or os.environ.get("PROFILE")
     if profile:
         profile = os.path.abspath(profile)
         os.environ["PROFILE"] = profile
+
+    git_root = options.git_root
+    dry_run = options.dry_run
 
     if len(args) == 0:
         sys.stderr.write("Please specify a mode.\n")
@@ -459,7 +478,7 @@ def main():
             os.mkdir(dist)
         os.chdir(dist)
 
-        installer = Installer(profile)    
+        installer = Installer(profile, git_root, dry_run)
         
         if mode == "config":
             installer.make_config()
