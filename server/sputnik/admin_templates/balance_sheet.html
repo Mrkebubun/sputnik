@@ -25,19 +25,19 @@ $ ->
             <tr>
                 <td><span class="caret btn-link" onclick="show('{{side}}_{{ticker}}')"></span></td>
                 <th>{{ticker}}</th>
-                <th>{{details.total_fmt}}</th>
+                <th align=right>{{details.total_fmt}}</th>
             </tr>
             <tr name="{{side}}_{{ticker}}" style="display:none;">
                 <td colspan="3">
                     <table class="table table-striped table-hover">
                         <tr>
                             <th>User</th>
-                            <th>Quantity</th>
+                            <th align="right">Quantity</th>
                         </tr>
                         {% for position in details.positions_raw %}
                         <tr>
                             <td>{{position.username}}</td>
-                            <td>{{position.position_fmt}}</td>
+                            <td align="right">{{position.position_fmt}}</td>
                         </tr>
                         {% endfor %}
                     </table>
