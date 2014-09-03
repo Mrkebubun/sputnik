@@ -10,26 +10,31 @@ import base64
 import boto.ec2
 import boto.cloudformation
 
-def spinner():
-    def _spinner(event):
+class Spinner:
+    def __enter__(self):
+        self.event = threading.Event()
+        self.thread = threading.Thread(target=self.spin)
+        self.thread.daemon = True
+        self.thread.start()
+        return self.event, self.thread
+
+    def __exit__(self, type, value, traceback):
+        self.event.set()
+        self.thread.join()
+
+    def spin(self):
         states = ["|", "/", "-", "\\"]
         current = 0
         while True:
             sys.stdout.write(states[current])
             sys.stdout.flush()
-            event.wait(0.5)
+            self.event.wait(0.5)
             sys.stdout.write("\b \b")
             sys.stdout.flush()
             current += 1
             current %= len(states)
-            if event.isSet():
+            if self.event.isSet():
                 break
-
-    event = threading.Event()
-    thread = threading.Thread(target=_spinner, args=(event,))
-    thread.daemon = True
-    thread.start()
-    return event, thread
 
 class AutoDeployException(Exception): pass
 
@@ -61,14 +66,12 @@ class Instance:
         if not region:
             # search for the instance
             sys.stdout.write("Searching... (use --region to specify a region) ")
-            event, thread = spinner()
-            for r in boto.ec2.regions():
-                self._connect(r.name)
-                if self._search(client):
-                    self.region = r.name
-                    break
-            event.set()
-            thread.join()
+            with Spinner():
+                for r in boto.ec2.regions():
+                    self._connect(r.name)
+                    if self._search(client):
+                        self.region = r.name
+                        break
             print
             self.searched = True
             if self.region:
@@ -153,22 +156,17 @@ class Instance:
                 parameters=[("KeyName", self.client)])
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
-        event, thread = spinner()
-        while True:
-            self.stack = self.cf.describe_stacks(self.client)[0]
-            if self.stack.stack_status == "CREATE_COMPLETE":
-                event.set()
-                thread.join()
-                print
-                print "Instance %s created." % self.client
-                break
-            elif self.stack.stack_status == "CREATE_IN_PROGRESS":
-                time.sleep(10)
-            else:
-                event.set()
-                thread.join()
-                raise INSTANCE_BROKEN
-                break
+        with Spinner():
+            while True:
+                self.stack = self.cf.describe_stacks(self.client)[0]
+                if self.stack.stack_status == "CREATE_COMPLETE":
+                    break
+                elif self.stack.stack_status == "CREATE_IN_PROGRESS":
+                    time.sleep(10)
+                else:
+                    raise INSTANCE_BROKEN
+        print
+        print "Instance %s created." % self.client
 
     def delete(self):
         if self.broken:
