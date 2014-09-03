@@ -20,7 +20,7 @@ class QuantityUI(object):
 
     @property
     def quantity_fmt(self):
-        return ("{quantity:.%df}" % util.get_quantity_precision(self.contract)).format(quantity=self.quantity_ui)
+        return util.quantity_fmt(self.contract, self.quantity)
 
     @property
     def quantity_left_ui(self):
@@ -28,7 +28,7 @@ class QuantityUI(object):
 
     @property
     def quantity_left_fmt(self):
-        return ("{quantity_left:.%df}" % util.get_quantity_precision(self.contract)).format(quantity_left=self.quantity_left_ui)
+        return util.quantity_fmt(self.contract, self.quantity_left)
 
 class PriceUI(object):
     @property
@@ -37,7 +37,7 @@ class PriceUI(object):
 
     @property
     def price_fmt(self):
-        return ("{price:.%df}" % util.get_price_precision(self.contract)).format(price=self.price_ui)
+        return util.price_fmt(self.contract, self.price)
 
 class ResetToken(db.Base):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
