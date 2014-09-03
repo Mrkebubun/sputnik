@@ -86,7 +86,7 @@ class Profile:
                     package_name = package.lstrip("0123456789-")
                     package_path = os.path.join(
                             profile, stage, "source", package)
-                    deps["source"].append((profile, package_name, package_path))
+                    deps["source"].append((package_name, profile, package_path))
             except OSError:
                 pass
 
@@ -98,7 +98,7 @@ class Profile:
                     script = line.strip()
                     script_name = script.lstrip("0123456789-")
                     script_path = os.path.join(profile, stage, script)
-                    scripts.append((profile, script_name, script_path))
+                    scripts.append((script_name, profile, script_path))
             except OSError:
                 pass
        
@@ -117,42 +117,28 @@ class Profile:
             dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
             self.config["dbname"] = dbname
 
-class Installer:
+class Installer():
     def __init__(self, profile=None, git_root=None):
         if profile == None:
             raise Exception("No profile specified.")
 
-        self.profile = profile
-        self.logfile = open("install.log", "a")
-
         self.here = os.path.dirname(os.path.abspath(__file__))
-        self.git_root = os.path.abspath(os.path.join(self.here, ".."))
+        self.git_root = git_root or \
+                os.path.abspath(os.path.join(self.here, ".."))
         self.templates = os.path.abspath(os.path.join(
                             self.git_root, "server/config"))
 
-        self.parser = ConfigParser.SafeConfigParser()
-        self.parser.set("DEFAULT", "git_root", self.git_root)
-        self.parser.set("DEFAULT", "user", getpass.getuser())
-        self.parser.set("DEFAULT", "bitcoin_user", getpass.getuser())
-        profile_ini = os.path.join(profile, "profile.ini")
-        config_status = os.path.join(self.git_root, "dist", "config.status")
-        parsed = self.parser.read(profile_ini)
-        if len(parsed) != 1:
-            raise Exception("Cannot read profile.")
-        parsed = self.parser.read(config_status)
+        self.logfile = open("install.log", "a")
 
-        self.config = dict(self.parser.items("profile"))
-        if len(parsed) == 1:
-            for key in dict(self.parser.items("git")):
-                if key not in self.config:
-                    self.config[key] = self.parser.get("git", key)
-            dbname = "sputnik_" + self.config["git_branch"].replace("-", "_")
-            self.config["dbname"] = dbname
+        self.profile = Profile(profile, self.git_root)
+        self.config = self.profile.config
         
         self.env = copy.copy(os.environ)
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
         for key, value in self.config.iteritems():
             self.env["profile_%s" % key] = value
+
+        self.dry_run = True
 
     def log(self, line):
         self.logfile.write(line)
@@ -169,6 +155,28 @@ class Installer:
     def get_template(self, name):
         return os.path.join(self.templates, name + ".template")
 
+    def enabled(self, option):
+        if option not in self.config:
+            raise Exception("Missing required option: %s." % option)
+        value = self.config.get(option, False)
+        if value.lower() in ["1", "yes", "true", "on"]:
+            return True
+        if value.lower() in ["0", "no", "false", "off"]:
+            return True
+        raise ValueError("Not a boolean: %s" % value)
+
+    def make_template(self, template_name, out):
+        with open(self.get_template(template_name)) as template_file:
+            template = string.Template(template_file.read())
+            try:
+                out.write(template.substitute(self.config))
+            except KeyError, e:
+                self.error("Template '%s' missing required key: %s.\n" %
+                        (template_name, e.args[0]))
+                self.abort()
+        out.write("\n")
+
+
     def make_config(self):
         self.log("Creating config files.\n")
        
@@ -183,43 +191,27 @@ class Installer:
         os.mkdir("config")
 
         # make supervisor.conf
-        out = open("config/supervisor.conf", "w")
-        if self.parser.getboolean("profile", "bundle_supervisord"):
-            with open(self.get_template("supervisord.conf")) as template_file:
-                template = string.Template(template_file.read())
-                out.write(template.substitute(self.config))
-        with open(self.get_template("supervisor.conf")) as template_file:
-            template = string.Template(template_file.read())
-            out.write(template.substitute(self.config))
-        if not self.parser.getboolean("profile", "disable_bitcoin"):
-            out.write("\n")
-            with open(self.get_template("bitcoind.conf")) as template_file:
-                template = string.Template(template_file.read())
-                out.write(template.substitute(self.config))
+        out = open(os.path.join("config", "supervisor.conf"), "w")
+        if self.enabled("bundle_supervisord"):
+            self.make_template("supervisord.conf", out)
+        self.make_template("supervisor.conf", out)
+        if not self.enabled("disable_bitcoin"):
+            self.make_template("bitcoind.conf")
         out.close()
         
         # make sputnik.ini
-        out = open("config/sputnik.ini", "w")
-        with open(self.get_template("sputnik.ini")) as template_file:
-            template = string.Template(template_file.read())
-            out.write(template.substitute(self.config))
-        out.write("\n")
-        if self.parser.getboolean("profile", "use_sqlite"):
-            with open(self.get_template("sqlite.ini")) as template_file:
-                template = string.Template(template_file.read())
-                out.write(template.substitute(self.config))
+        out = open(os.path.join("config", "sputnik.ini"), "w")
+        self.make_template("sputnik.ini", out)
+        if self.enabled("use_sqlite"):
+            self.make_template("sqlite.ini", out)
         else:
-            with open(self.get_template("postgres.ini")) as template_file:
-                template = string.Template(template_file.read())
-                out.write(template.substitute(self.config))
+            self.make_template("postgres.ini", out)
         out.close()
 
         # make bitcoin.conf
-        if not self.parser.getboolean("profile", "disable_bitcoin"):
-            out = open("config/bitcoin.conf", "w")
-            with open(self.get_template("bitcoin.conf")) as template_file:
-                template = string.Template(template_file.read())
-                out.write(template.substitute(self.config))
+        if not self.enabled("disable_bitcoin"):
+            out = open(os.path.join("config", "bitcoin.conf"), "w")
+            self.make_template("bitcoin.conf", out)
             out.close()
 
         # make config.status
@@ -240,9 +232,11 @@ class Installer:
 
         return self.run(["/usr/bin/dpkg", "-s", name]) == 0
 
-    def check_source(self, name, stage="deps"):
-        return self.run([os.path.join(self.profile, stage, "source", name),
-            "check"]) == 0
+    def check_source(self, (name, profile, path)):
+        self.env["base_profile"] = profile
+        result = self.run([path, "check"])
+        del self.env["base_profile"]
+        return result == 0
 
     def check_python(self, name):
         # We can query packages using the pip module.
@@ -268,9 +262,11 @@ class Installer:
     def install_dpkg(self, name):
         return self.run(["/usr/bin/apt-get", "-y", "install", name])
 
-    def install_source(self, name):
-        return self.run([os.path.join(self.profile, "deps", "source", name),
-            "install"])
+    def install_source(self, (name, profile, path)):
+        self.env["base_profile"] = profile
+        result = self.run([path, "install"])
+        del self.env["base_profile"]
+        return result
 
     def install_python(self, name):
         return self.run(["/usr/bin/pip", "install", name])
@@ -279,98 +275,74 @@ class Installer:
         return self.run(["/usr/local/bin/npm", "install", "-g", name])
 
     def make_dep_stage(self, stage):
-        stage_name = stage + " "
-        if stage == "deps":
-            stage_name = ""
-        stage_dir = stage
+        prefix = ""
+        deps = self.profile.deps
         if stage == "build":
-            stage_dir = "build-deps"
-        self.log("Installing %sdependencies...\n" % stage_name)
+            prefix = "build "
+            deps = self.profile.build_deps
+
+        self.log("Installing %sdependencies...\n" % prefix)
 
         # make dpkg deps
-        self.log("Installing dpkg %sdependencies...\n" % stage_name)
-        try:
-            with open(os.path.join(self.profile, stage_dir, "dpkg")) as deps:
-                for line in deps:
-                    package = line.strip()
-                    if not self.check_dpkg(package):
-                        self.log("%s not installed. Installing... " % package)
-                        self.install_dpkg(package)
-                        if self.check_dpkg(package):
-                            self.log("done.\n")
-                        else:
-                            self.log("failed.\n")
-                            self.error("Error: unable to install %s.\n" %
-                                        package)
-                            self.abort()
-                    else:
-                        self.log("%s installed.\n" % package)
-        except IOError:
-            self.log("No dpkg %sdependencies found.\n" % stage_name)
+        self.log("Installing dpkg %sdependencies...\n" % prefix)
+        for package in deps["dpkg"]:
+            if not self.check_dpkg(package):
+                self.log("%s not installed. Installing... " % package)
+                self.install_dpkg(package)
+                if self.check_dpkg(package):
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Error: unable to install %s.\n" %
+                                package)
+                    self.abort()
+            else:
+                self.log("%s installed.\n" % package)
 
         # make source deps
-        self.log("Installing source %sdependencies...\n" % stage_name)
-        try: 
-            for line in sorted(os.listdir(
-                    os.path.join(self.profile, stage_dir, "source"))):
-                package = line.strip()
-                if not self.check_source(package, stage_dir):
-                    package_name = package.lstrip("0123456789-")
-                    self.log("%s not installed. Installing... " % package_name)
-                    self.install_source(package)
-                    if self.check_source(package, stage_dir):
-                        self.log("done.\n")
-                    else:
-                        self.log("failed.\n")
-                        self.error("Error: unable to install %s.\n" %
-                            package_name)
-                        self.abort()
+        self.log("Installing source %sdependencies...\n" % prefix)
+        for package in deps["source"]:
+            if not self.check_source(package):
+                self.log("%s not installed. Installing... " % package[0])
+                self.install_source(package)
+                if self.check_source(package):
+                    self.log("done.\n")
                 else:
-                    self.log("%s installed.\n" % package)
-        except OSError:
-            self.log("No source %sdependencies found.\n" % stage_name)
+                    self.log("failed.\n")
+                    self.error("Error: unable to install %s.\n" % package[0])
+                    self.abort()
+            else:
+                self.log("%s installed.\n" % package[0])
 
         # make python deps
-        self.log("Installing python %sdependencies...\n" % stage_name)
-        try:
-            with open(os.path.join(self.profile, stage_dir, "python")) as deps:
-                for line in deps:
-                    package = line.strip()
-                    if not self.check_python(package):
-                        self.log("%s not installed. Installing... " % package)
-                        self.install_python(package)
-                        if self.check_python(package):
-                            self.log("done.\n")
-                        else:
-                            self.log("failed.\n")
-                            self.error("Error: unable to install %s.\n" %
-                                        package)
-                            self.abort()
-                    else:
-                        self.log("%s installed.\n" % package)
-        except IOError:
-            self.log("No python %sdependencies found.\n" % stage_name)
+        self.log("Installing python %sdependencies...\n" % prefix)
+        for package in deps["python"]:
+            if not self.check_python(package):
+                self.log("%s not installed. Installing... " % package)
+                self.install_python(package)
+                if self.check_python(package):
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Error: unable to install %s.\n" % package)
+                    self.abort()
+            else:
+                self.log("%s installed.\n" % package)
 
         # make node deps
-        self.log("Installing node %sdependencies...\n" % stage_name)
-        try:
-            with open(os.path.join(self.profile, stage_dir, "node")) as deps:
-                for line in deps:
-                    package = line.strip()
-                    if not self.check_node(package):
-                        self.log("%s not installed. Installing... " % package)
-                        self.install_node(package)
-                        if self.check_node(package):
-                            self.log("done.\n")
-                        else:
-                            self.log("failed.\n")
-                            self.error("Error: unable to install %s.\n" %
-                                        package)
-                            self.abort()
-                    else:
-                        self.log("%s installed.\n" % package)
-        except IOError:
-            self.log("No node %sdependencies found.\n" % stage_name)
+        self.log("Installing node %sdependencies...\n" % prefix)
+        for package in deps["node"]:
+            if not self.check_node(package):
+                self.log("%s not installed. Installing... " % package)
+                self.install_node(package)
+                if self.check_node(package):
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Error: unable to install %s.\n" % package)
+                    self.abort()
+            else:
+                self.log("%s installed.\n" % package)
 
     def make_deps(self):
         self.make_dep_stage("deps")
@@ -408,21 +380,17 @@ class Installer:
     def make_stage(self, stage):
         # do stage
         self.log("Running %s scripts...\n" % stage)
-        try: 
-            for line in sorted(os.listdir(
-                    os.path.join(self.profile, stage))):
-                script = line.strip()
-                script_name = script.lstrip("0123456789-")
-                script_path = os.path.join(self.profile, stage, script)
-                self.log("Running %s... " % script_name)
-                if self.run([script_path]) == 0:
-                    self.log("done.\n")
-                else:
-                    self.log("failed.\n")
-                    self.error("Unable to run %s.\n" % script_name)
-                    self.abort()
-        except OSError:
-            self.log("No %s scripts found.\n" % stage)
+        for script in getattr(self.profile, stage):
+            self.log("Running %s... " % script[0])
+            self.env["base_profile"] = script[1]
+            result = self.run([script[2]])
+            del self.env["base_profile"]
+            if result == 0:
+                self.log("done.\n")
+            else:
+                self.log("failed.\n")
+                self.error("Unable to run %s.\n" % script[0])
+                self.abort()
        
     def make_dist(self):
         self.make_stage("pre-install")
@@ -453,6 +421,8 @@ class Installer:
         return [hash, date, tag, branch]
 
     def run(self, args):
+        if self.dry_run:
+            return 0
         p = subprocess.Popen(args, env=self.env, stdin=None,
                              stdout=self.logfile, stderr=self.logfile)
         p.communicate()
