@@ -163,7 +163,7 @@ class Installer():
         if value.lower() in ["1", "yes", "true", "on"]:
             return True
         if value.lower() in ["0", "no", "false", "off"]:
-            return True
+            return False
         raise ValueError("Not a boolean: %s" % value)
 
     def make_template(self, template_name, out):
