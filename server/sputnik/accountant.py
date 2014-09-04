@@ -55,6 +55,7 @@ TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
 DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
+CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
 
 class Accountant:
     """The Accountant primary class
@@ -294,6 +295,14 @@ class Accountant:
             self.session.delete(order)
             self.session.commit()
             raise TRADE_NOT_PERMITTED
+
+        # Make sure the contract hasn't expired
+        if order.contract.expiration is not None:
+            if order.contract.expiration < datetime.utcnow():
+                log.msg("order %s not accepted because contract is expired at %s" % (order.id, order.contract.expiration))
+                self.session.delete(order)
+                self.session.commit()
+                raise CONTRACT_EXPIRED
 
         # Make sure there is a position in the contract, if it is not a cash_pair
         # cash_pairs don't have positions
