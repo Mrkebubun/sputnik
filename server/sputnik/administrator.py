@@ -616,7 +616,7 @@ class Administrator:
 
     @util.timed
     def update_bs_cache(self):
-        now = util.dt_to_timestamp(datetime.utcnow())
+        now = datetime.utcnow()
 
         positions = self.session.query(models.Position).all()
         balance_sheet = {'assets': {},
@@ -646,7 +646,7 @@ class Administrator:
                     old_position_timestamp = None
 
                 position_calculated, timestamp = util.position_calculated(position, self.session, checkpoint=old_position_calculated,
-                                                                          start=old_position_timestamp)
+                                                                          start=old_position_timestamp, end=now)
 
                 position_calculated_fmt = util.quantity_fmt(position.contract, position_calculated)
                 position_details = { 'username': position.user.username,
@@ -668,7 +668,7 @@ class Administrator:
                 side[position.contract.ticker]['total_fmt'] = util.quantity_fmt(position.contract,
                                                                                 side[position.contract.ticker]['total'])
 
-        balance_sheet['timestamp'] = now
+        balance_sheet['timestamp'] = util.dt_to_timestamp(now)
         self.bs_cache = balance_sheet
         self.dump_bs_cache()
 

@@ -178,7 +178,7 @@ def get_contract(session, ticker):
     except NoResultFound:
         raise Exception("Could not resolve contract '%s'." % ticker)
 
-def position_calculated(position, session, checkpoint=None, start=None):
+def position_calculated(position, session, checkpoint=None, start=None, end=None):
     if start is None:
         start = position.position_cp_timestamp or timestamp_to_dt(0)
     if checkpoint is None:
@@ -187,7 +187,10 @@ def position_calculated(position, session, checkpoint=None, start=None):
     rows = session.query(models.Posting.quantity, models.Journal.timestamp).filter_by(username=position.username).filter_by(
         contract_id=position.contract_id).filter(
         models.Journal.id==models.Posting.journal_id).filter(
-        models.Journal.timestamp>start).order_by(models.Journal.timestamp.desc())
+        models.Journal.timestamp > start).order_by(models.Journal.timestamp.desc())
+    if end is not None:
+        rows = rows.filter(models.Journal.timestamp <= end)
+
     # TODO: we can actually sum this in SQL itself
     calculated = sum([row.quantity for row in rows])
     if rows.first() is not None:
