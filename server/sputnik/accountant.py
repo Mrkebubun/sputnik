@@ -463,6 +463,10 @@ class Accountant:
         uid = transaction["uid"]
 
         contract = self.get_contract(ticker)
+        if not contract.active:
+            raise CONTRACT_NOT_ACTIVE
+
+
         user = self.get_user(username)
 
         next = time.time()
