@@ -27,18 +27,6 @@ adjust = True
 print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
 time.sleep(30)
 
-def get_adjustment_position(contract):
-    try:
-        position = session.query(models.Position).filter_by(
-                user=adjustment_user, contract=contract).one()
-        return position
-    except NoResultFound:
-        print "Creating new position for %s on %s." % (adjustment_user.username, contract.ticker)
-        position = models.Position(adjustment_user, contract)
-        position.reference_price = 0
-        session.add(position)
-        return position
-
 # Go through journal entries
 journals = session.query(models.Journal).all()
 for journal in journals:
