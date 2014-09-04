@@ -28,7 +28,7 @@
 {% block contracts_active %}class="active"{% endblock %}
 {% block body %}
 <div class="container">
-<div class="panel panel-primary">
+<div class="panel panel-primary table-responsive" style="overflow-x: auto;">
     <div class="panel-heading">Contract List</div>
     <div class="panel-body">
     <form role="form" action="#">
@@ -74,7 +74,7 @@
                         {% if contract.expired %}
                         <form method="POST" action="/clear_contract">
                             <input type="hidden" name="ticker" value="{{contract.ticker}}">
-                            <input type="text" name="price" placeholder="Clearing Price">
+                            <input type="text" name="price" placeholder="Price">
                         </form>
                         {% endif %}
                     </td>
