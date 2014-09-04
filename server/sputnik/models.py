@@ -373,7 +373,7 @@ class Journal(db.Base):
 
     id = Column(Integer, primary_key=True)
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
-                        'Trade', 'Fee',
+                        'Trade', 'Fee', 'Clearing',
                         name='journal_types'), nullable=False)
     timestamp = Column(DateTime)
     postings = relationship('Posting', back_populates="journal")

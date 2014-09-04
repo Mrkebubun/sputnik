@@ -355,6 +355,39 @@ class TestCashierExport(TestAccountant):
 
 
 class TestAdministratorExport(TestAccountant):
+    def test_clear_contract(self):
+        self.create_account("from_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+        from sputnik import util
+        from sputnik import models
+
+        # Create a short and a long position
+        uid = util.get_uid()
+        d1 = self.administrator_export.transfer_position('from_account', 'NETS2014', 'debit', 5, 'note', uid)
+        d2 = self.administrator_export.transfer_position('to_account', 'NETS2014', 'credit', 5, None, uid)
+        d = defer.DeferredList([d1, d2])
+
+        def on_transfer(results):
+            uid = util.get_uid()
+            d = self.administrator_export.clear_contract(None, 'NETS2014', 1000, uid)
+            def on_clear(results):
+                NETS = self.session.query(models.Contract).filter_by(ticker='NETS2014').one()
+                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                from_positions = self.session.query(models.Position).filter_by(username='from_account')
+                to_positions = self.session.query(models.Position).filter_by(username='to_account')
+                self.assertEqual(from_positions.filter_by(contract=NETS).one().position, 0)
+                self.assertEqual(to_positions.filter_by(contract=NETS).one().position, 0)
+
+                self.assertEqual(from_positions.filter_by(contract=BTC).one().position, -5000000)
+                self.assertEqual(to_positions.filter_by(contract=BTC).one().position, 5000000)
+
+            d.addCallback(on_clear)
+            return d
+
+        d.addCallback(on_transfer)
+        return d
+
     def test_transfer_position(self):
         from sputnik import models
 

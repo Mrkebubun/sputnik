@@ -37,7 +37,7 @@ from ledger import create_posting
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
     dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import DataError
@@ -381,37 +381,7 @@ class Accountant:
 
         return user_postings, vendor_postings, remainder_postings
 
-
-
-    def post_transaction(self, username, transaction):
-        """Update the database to reflect that the given trade happened. Charge fees.
-
-        :param transaction: the transaction object
-        :type transaction: dict
-        """
-        log.msg("Processing transaction %s." % transaction)
-        last = time.time()
-        if username != transaction["username"]:
-            raise RemoteCallException("username does not match transaction")
-
-        aggressive = transaction["aggressive"]
-        ticker = transaction["contract"]
-        order = transaction["order"]
-        other_order = transaction["other_order"]
-        side = transaction["side"]
-        price = transaction["price"]
-        quantity = transaction["quantity"]
-        timestamp = transaction["timestamp"]
-        uid = transaction["uid"]
-
-        contract = self.get_contract(ticker)
-        user = self.get_user(username)
-
-        next = time.time()
-        elapsed = (next - last) * 1000
-        last = next
-        log.msg("post_transaction: part 1: %.3f ms." % elapsed)
-
+    def get_cash_spent(self, contract, price, quantity):
         if contract.contract_type == "futures":
             raise NotImplementedError
 
@@ -474,6 +444,39 @@ class Accountant:
                           contract.contract_type)
             raise NotImplementedError
 
+        return denominated_contract, payout_contract, cash_spent_int
+
+    def post_transaction(self, username, transaction):
+        """Update the database to reflect that the given trade happened. Charge fees.
+
+        :param transaction: the transaction object
+        :type transaction: dict
+        """
+        log.msg("Processing transaction %s." % transaction)
+        last = time.time()
+        if username != transaction["username"]:
+            raise RemoteCallException("username does not match transaction")
+
+        aggressive = transaction["aggressive"]
+        ticker = transaction["contract"]
+        order = transaction["order"]
+        other_order = transaction["other_order"]
+        side = transaction["side"]
+        price = transaction["price"]
+        quantity = transaction["quantity"]
+        timestamp = transaction["timestamp"]
+        uid = transaction["uid"]
+
+        contract = self.get_contract(ticker)
+        user = self.get_user(username)
+
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        log.msg("post_transaction: part 1: %.3f ms." % elapsed)
+
+        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
+
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
@@ -494,7 +497,7 @@ class Accountant:
         note = "{%s order: %s}" % (ap, order)
 
         user_denominated = create_posting("Trade", username,
-                denominated_contract.ticker, cash_spent_int, denominated_direction,
+                denominated_contract.ticker, cash_spent, denominated_direction,
                 note)
         user_payout = create_posting("Trade", username, payout_contract.ticker,
                 quantity, payout_direction, note)
@@ -503,7 +506,7 @@ class Accountant:
         # We aren't charging the liquidity provider
         fees = {}
         fees = util.get_fees(username, contract,
-                abs(cash_spent_int), trial_period=self.trial_period)
+                abs(cash_spent), trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
                 fees[fee] = 0
@@ -1031,6 +1034,53 @@ class Accountant:
             # Admin intervention required. ABORT!
             return
 
+    def clear_contract(self, username, ticker, price, uid):
+        my_users = [user.username for user in self.get_my_users()]
+        contract = self.get_contract(ticker)
+
+        # Cancel orders
+        orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
+            models.Order.quantity_left > 0).filter(
+            models.Order.username.in_(my_users))
+        results = [self.cancel_order(order.username, order.id) for order in orders]
+        d = defer.DeferredList(results)
+
+        def after_cancellations(results):
+            # Wait until all pending postings have gone through
+            pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
+                models.Position.username.in_(my_users))
+            if sum([row[0] for row in pending_postings]) > 0:
+                d = task.deferLater(reactor, 300, self.after_cancellations, results)
+            else:
+                all_positions = self.session.query(models.Position).filter_by(contract=contract)
+                position_count = all_positions.count()
+                my_positions = all_positions.filter(models.Position.username.in_(my_users))
+                results = [self.clear_position(position, price, position_count, uid) for position in my_positions]
+                d = defer.DeferredList(results)
+
+            return d
+
+        d.addCallback(after_cancellations)
+        return d
+
+    def clear_position(self, position, price, position_count, uid):
+        # We use position_calculated here to be sure we get the canonical position
+        position_calculated, timestamp = util.position_calculated(position, self.session)
+        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(position.contract,
+                                                                                price, position_calculated)
+
+        note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
+        credit = create_posting("Clearing", position.username,
+                denominated_contract.ticker, cash_spent, 'credit',
+                note)
+        debit = create_posting("Clearing", position.username, payout_contract.ticker,
+                position_calculated, 'debit', note)
+        for posting in credit, debit:
+            posting['count'] = position_count * 2
+            posting['uid'] = uid
+
+        d = self.post_or_fail(credit, debit)
+        return d
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
@@ -1151,6 +1201,11 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/accountant.administrator.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
+
+    @export
+    @schema("rpc/accountant.administrator.json#clear_contract")
+    def clear_contract(self, username, ticker, price, uid):
+        return self.accountant.clear_contract(username, ticker, price, uid)
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):
