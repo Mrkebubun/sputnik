@@ -1136,10 +1136,9 @@ class AdminWebUI(Resource):
         """
 
         balance_sheet = self.administrator.get_balance_sheet()
-        balance_sheet['timestamp'] = util.timestamp_to_dt(balance_sheet['timestamp'])
 
         t = self.jinja_env.get_template('balance_sheet.html')
-        rendered = t.render(balance_sheet=balance_sheet)
+        rendered = t.render(balance_sheet=balance_sheet, timestamp=util.timestamp_to_dt(balance_sheet['timestamp']))
         return rendered.encode('utf-8')
 
 class PasswordChecker(object):

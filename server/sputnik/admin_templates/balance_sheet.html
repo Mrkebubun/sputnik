@@ -12,7 +12,7 @@ $ ->
 {% block body %}
 <div class="container">
 <div class="panel panel-primary">
-    <div class="panel-heading">Balance Sheet: {{balance_sheet.timestamp}}</div>
+    <div class="panel-heading">Balance Sheet: {{timestamp}}</div>
     <div class="panel-body">
     {% for side in ['assets', 'liabilities'] %}
     <b>{{side.upper()}}</b>
