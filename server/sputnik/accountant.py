@@ -1173,8 +1173,11 @@ class AccountantProxy:
             raise AttributeError
 
         def routed_method(username, *args, **kwargs):
-            proxy = self.proxies[self.get_accountant_for_user(username)]
-            return getattr(proxy, key)(username, *args, **kwargs)
+            if username is None:
+                return [getattr(proxy, key)(None, *args, **kwargs) for proxy in self.proxies]
+            else:
+                proxy = self.proxies[self.get_accountant_for_user(username)]
+                return getattr(proxy, key)(username, *args, **kwargs)
 
         return routed_method
 
