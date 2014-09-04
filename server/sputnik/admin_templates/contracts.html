@@ -45,14 +45,20 @@
         <thead>
             <tr><th>Ticker</th><th>Description</th><th>Full Description</th><th>Contract Type</th><th>Tick Size</th>
                 <th>Lot Size</th><th>Denominator</th><th>Expiration</th>
-                <th>Denominated</th><th>Payout</th><th>Margin High</th><th>Margin Low</th>
+                <th>Denominated</th><th>Payout</th><th>Margin High</th><th>Margin Low</th><th>Clear</th>
             </tr>
         </thead>
         <tbody>
             {% for contract in contracts %}
             {% if contract.active %}
                 <tr>
-                    <td><a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a></td>
+                    <td>
+                        {% if contract.contract_type != "cash" %}
+                            <a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a>
+                        {% else %}
+                            {{contract.ticker}}
+                        {% endif %}
+                    </td>
                     <td>{{contract.description}}</a></td>
                     <td>{{contract.full_description}}</td>
                     <td>{{contract.contract_type}}</td>
@@ -64,6 +70,14 @@
                     <td>{{contract.payout_contract_ticker}}</td>
                     <td>{{contract.margin_high}}</td>
                     <td>{{contract.margin_low}}</td>
+                    <td>
+                        {% if contract.expired %}
+                        <form method="POST" action="/clear_contract">
+                            <input type="hidden" name="ticker" value="{{contract.ticker}}">
+                            <input type="text" name="price" placeholder="Clearing Price">
+                        </form>
+                        {% endif %}
+                    </td>
                 </tr>
             {% endif %}
             {% endfor %}

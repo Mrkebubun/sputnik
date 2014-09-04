@@ -584,6 +584,12 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
+    def clear_contract(self, ticker, price_ui):
+        contract = util.get_contract(self.session, ticker)
+        price = util.price_to_wire(contract, price_ui)
+        uid = util.get_uid()
+        self.accountant.clear_contract(None, ticker, price, uid)
+
     def manual_deposit(self, address, quantity_ui):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
@@ -699,7 +705,7 @@ class Administrator:
         return permission_groups
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True).all()
         return contracts
 
     def get_contract(self, ticker):
@@ -868,7 +874,8 @@ class AdminWebUI(Resource):
                       '/set_admin_level': self.set_admin_level,
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/transfer_position': self.transfer_position,
-                      '/adjust_position': self.adjust_position}]
+                      '/adjust_position': self.adjust_position,
+                      '/clear_contract': self.clear_contract}]
         
         resource_list = {}
         for level in range(0, self.avatarLevel+1):
@@ -929,6 +936,10 @@ class AdminWebUI(Resource):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
         return t.render(contracts=contracts).encode('utf-8')
+
+    def clear_contract(self, request):
+        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        return self.contracts(request)
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()

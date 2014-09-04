@@ -58,6 +58,7 @@ DISABLED_USER = AccountantException(4, "Account disabled. Please try again in fi
 CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
 CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
 NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
+CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
 
 class Accountant:
     """The Accountant primary class
@@ -297,14 +298,6 @@ class Accountant:
             self.session.delete(order)
             self.session.commit()
             raise TRADE_NOT_PERMITTED
-
-        # Make sure the contract hasn't expired
-        if order.contract.expiration is not None:
-            if order.contract.expiration < datetime.utcnow():
-                log.msg("order %s not accepted because contract is expired at %s" % (order.id, order.contract.expiration))
-                self.session.delete(order)
-                self.session.commit()
-                raise CONTRACT_EXPIRED
 
         # Make sure there is a position in the contract, if it is not a cash_pair
         # cash_pairs don't have positions
@@ -657,10 +650,10 @@ class Accountant:
         contract = self.get_contract(order["contract"])
 
         if not contract.active:
-            raise AccountantException(0, "Contract is not active.")
+            raise CONTRACT_NOT_ACTIVE
 
         if contract.expired:
-            raise AccountantException(0, "Contract expired")
+            raise CONTRACT_EXPIRED
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
@@ -1003,14 +996,24 @@ class Accountant:
             return
 
     def clear_contract(self, username, ticker, price, uid):
-        my_users = [user.username for user in self.get_my_users()]
         contract = self.get_contract(ticker)
+
 
         if contract.expiration is None:
             raise NON_CLEARING_CONTRACT
 
         if contract.expiration >= datetime.utcnow():
             raise CONTRACT_NOT_EXPIRED
+
+        if not contract.active:
+            raise CONTRACT_NOT_ACTIVE
+
+        contract.active = False
+        self.session.add(contract)
+        self.session.commit()
+
+        my_users = [user.username for user in self.get_my_users()]
+
 
         # Cancel orders
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
