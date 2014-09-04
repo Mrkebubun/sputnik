@@ -56,6 +56,8 @@ WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
 DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
 CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
+CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
+NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
 
 class Accountant:
     """The Accountant primary class
@@ -887,40 +889,6 @@ class Accountant:
             log.err(
                 "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
 
-    def clear_contract(self, ticker):
-        """Deletes a contract
-
-        :param ticker: the contract to delete
-        :type ticker: str, models.Contract
-        """
-        try:
-            contract = self.get_contract(ticker)
-            # disable new orders on contract
-            contract.active = False
-            # cancel all pending orders
-            orders = self.session.query(models.Order).filter_by(
-                contract=contract, is_cancelled=False).all()
-            for order in orders:
-                self.cancel_order(order.username, order.id)
-            # place orders on behalf of users
-            positions = self.session.query(models.Position).filter_by(
-                contract=contract).all()
-            for position in positions:
-                order = {}
-                order["username"] = position.username
-                order["contract_id"] = position.contract_id
-                if position.position > 0:
-                    order["quantity"] = position.position
-                    order["side"] = 0  # sell
-                elif position.position < 0:
-                    order["quantity"] = -position.position
-                    order["side"] = 1  # buy
-                #order["price"] = details["price"] #todo what's that missing details?
-                self.place_order(order["username"], order)
-            self.session.commit()
-        except:
-            self.session.rollback()
-
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
 
@@ -1037,6 +1005,12 @@ class Accountant:
     def clear_contract(self, username, ticker, price, uid):
         my_users = [user.username for user in self.get_my_users()]
         contract = self.get_contract(ticker)
+
+        if contract.expiration is None:
+            raise NON_CLEARING_CONTRACT
+
+        if contract.expiration >= datetime.utcnow():
+            raise CONTRACT_NOT_EXPIRED
 
         # Cancel orders
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(

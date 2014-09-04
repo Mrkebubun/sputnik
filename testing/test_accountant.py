@@ -356,36 +356,79 @@ class TestCashierExport(TestAccountant):
 
 class TestAdministratorExport(TestAccountant):
     def test_clear_contract(self):
-        self.create_account("from_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.create_account("to_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
         from sputnik import util
         from sputnik import models
+        import datetime
 
         # Create a short and a long position
         uid = util.get_uid()
-        d1 = self.administrator_export.transfer_position('from_account', 'NETS2014', 'debit', 5, 'note', uid)
-        d2 = self.administrator_export.transfer_position('to_account', 'NETS2014', 'credit', 5, None, uid)
-        d = defer.DeferredList([d1, d2])
+        d1 = self.administrator_export.transfer_position('short_account', 'NETS2015', 'debit', 5, 'note', uid)
+        d2 = self.administrator_export.transfer_position('long_account', 'NETS2015', 'credit', 5, None, uid)
 
-        def on_transfer(results):
+
+        # Deposit cash
+        self.set_permissions_group('short_account', 'Deposit')
+        self.set_permissions_group('long_account', 'Deposit')
+
+        self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5300000)
+        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 300000)
+
+
+        # Create some orders
+        self.set_permissions_group("short_account", 'Trade')
+        self.set_permissions_group("long_account", "Trade")
+
+        d3 = self.webserver_export.place_order('short_account', {'username': 'short_account',
+                                                                              'contract': 'NETS2015',
+                                                                              'price': 900,
+                                                                              'quantity': 3,
+                                                                              'side': 'SELL',
+                                                                              'timestamp': util.dt_to_timestamp(
+                                                                                  datetime.datetime.utcnow())})
+
+        d4 = self.webserver_export.place_order('long_account', {'username': 'long_account',
+                                                                                    'contract': 'NETS2015',
+                                                                                    'price': 100,
+                                                                                    'quantity': 3,
+                                                                                    'side': 'BUY',
+                                                                                    'timestamp': util.dt_to_timestamp(
+                                                                                        datetime.datetime.utcnow())})
+        d = defer.DeferredList([d1, d2, d3, d4])
+
+        def on_setup_done(results):
             uid = util.get_uid()
-            d = self.administrator_export.clear_contract(None, 'NETS2014', 1000, uid)
-            def on_clear(results):
-                NETS = self.session.query(models.Contract).filter_by(ticker='NETS2014').one()
-                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
-                from_positions = self.session.query(models.Position).filter_by(username='from_account')
-                to_positions = self.session.query(models.Position).filter_by(username='to_account')
-                self.assertEqual(from_positions.filter_by(contract=NETS).one().position, 0)
-                self.assertEqual(to_positions.filter_by(contract=NETS).one().position, 0)
 
-                self.assertEqual(from_positions.filter_by(contract=BTC).one().position, -5000000)
-                self.assertEqual(to_positions.filter_by(contract=BTC).one().position, 5000000)
+            # Set the contract to have already expired in the past
+            NETS = self.session.query(models.Contract).filter_by(ticker='NETS2015').one()
+            NETS.expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+            self.session.add(NETS)
+            self.session.commit()
+
+            d = self.administrator_export.clear_contract(None, 'NETS2015', 1000, uid)
+            def on_clear(results):
+                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                short_positions = self.session.query(models.Position).filter_by(username='short_account')
+                long_positions = self.session.query(models.Position).filter_by(username='long_account')
+                self.assertEqual(short_positions.filter_by(contract=NETS).one().position, 0)
+                self.assertEqual(long_positions.filter_by(contract=NETS).one().position, 0)
+
+                self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 5300000-5000000)
+                self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 300000+5000000)
+
+                short_orders = self.session.query(models.Order).filter_by(username='short_account').filter_by(
+                    is_cancelled=False).all()
+                long_orders = self.session.query(models.Order).filter_by(username='long_account').filter_by(
+                    is_cancelled=False).all()
+                self.assertEquals(long_orders, [])
+                self.assertEquals(short_orders, [])
 
             d.addCallback(on_clear)
             return d
 
-        d.addCallback(on_transfer)
+        d.addCallback(on_setup_done)
         return d
 
     def test_transfer_position(self):
