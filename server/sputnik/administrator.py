@@ -588,7 +588,21 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         price = util.price_to_wire(contract, price_ui)
         uid = util.get_uid()
-        self.accountant.clear_contract(None, ticker, price, uid)
+
+        # Don't try to clear if thm contract is not actmve
+        if not contract.active:
+            return
+
+        # Mark contract inactive
+        try:
+            contract.active = False
+            self.session.add(contract)
+            self.session.commit()
+        except Exception as e:
+            log.err("Unable to mark contract inactive %s" % e)
+        else:
+            self.accountant.clear_contract(None, ticker, price, uid)
+
 
     def manual_deposit(self, address, quantity_ui):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()

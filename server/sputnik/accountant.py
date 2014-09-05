@@ -1002,22 +1002,22 @@ class Accountant:
     def clear_contract(self, username, ticker, price, uid):
         contract = self.get_contract(ticker)
 
-
         if contract.expiration is None:
             raise NON_CLEARING_CONTRACT
 
         if contract.expiration >= datetime.utcnow():
             raise CONTRACT_NOT_EXPIRED
 
-        if not contract.active:
-            raise CONTRACT_NOT_ACTIVE
-
-        contract.active = False
-        self.session.add(contract)
-        self.session.commit()
+        if contract.active:
+            # Mark contract inactive
+            try:
+                contract.active = False
+                self.session.add(contract)
+                self.session.commit()
+            except Exception as e:
+                log.err("Unable to mark contract inactive %s" % e)
 
         my_users = [user.username for user in self.get_my_users()]
-
 
         # Cancel orders
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
