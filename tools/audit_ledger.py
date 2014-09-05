@@ -28,11 +28,6 @@ if adjust:
     print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
     time.sleep(30)
 
-# pre-fetch users and postings
-print "pre-fetching"
-users = session.query(models.User).all()
-postings = session.query(models.Posting).all()
-
 # Go through journal entries
 journals = session.query(models.Journal)
 total = journals.count()
