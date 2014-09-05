@@ -21,22 +21,33 @@ from sqlalchemy.orm.exc import NoResultFound
 import time
 
 session = database.make_session()
-positions = session.query(models.Position).all()
 
-adjust = True
-print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
+
+adjust = False
+if adjust:
+    print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
 time.sleep(30)
 
 # Go through journal entries
-journals = session.query(models.Journal).all()
+journals = session.query(models.Journal)
+total = journals.count()
+print "%d journals to cover" % total
+count = 0
 for journal in journals:
+    print "%d/%d" % (count, total)
     if not journal.audit:
         print "Error in Journal:\n%s" % journal
         # Make sure we don't do any adjustments if there is a basic problem like this
         adjust = False
+    count += 1
 
 # Go through positions
+positions = session.query(models.Position)
+total = positions.count()
+print "%d positions to cover" % total
+count = 0
 for position in positions:
+    print "%d/%d" % (count, total)
     contract = position.contract
     position_calculated, calculated_timestamp = util.position_calculated(position, session)
     difference = position.position - position_calculated
@@ -58,6 +69,6 @@ for position in positions:
             session.commit()
             print "Updated Position: %s" % position
 
-
+    count += 1
 
 
