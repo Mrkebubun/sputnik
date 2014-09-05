@@ -3,13 +3,8 @@ __author__ = 'sameer'
 
 import os
 import sys
-import getpass
+import argparse
 
-import string
-import shlex
-import textwrap
-import autobahn.wamp1.protocol
-import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
@@ -20,13 +15,23 @@ from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 import time
 
+parser = argparse.ArgumentParser(description="Audit the ledger")
+parser.add_argument("-a", "--adjust", dest="adjust", action="store_true",
+                    help="should we adjust positions", default=False)
+
+kwargs = vars(parser.parse_args())
 session = database.make_session()
 
+adjust = kwargs['adjust']
 
-adjust = False
 if adjust:
     print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
     time.sleep(30)
+
+# pre-fetch users and postings
+print "pre-fetching"
+users = session.query(models.User).all()
+postings = session.query(models.Posting).all()
 
 # Go through journal entries
 journals = session.query(models.Journal)
