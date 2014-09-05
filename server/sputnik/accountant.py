@@ -478,11 +478,11 @@ class Accountant:
             payout_direction = "debit"
 
         if aggressive:
-            ap = "aggressive"
+            ap = "Aggressive"
         else:
-            ap = "passive"
+            ap = "Passive"
 
-        note = "{%s order: %s}" % (ap, order)
+        note = "%s order: %s" % (ap, order)
 
         user_denominated = create_posting("Trade", username,
                 denominated_contract.ticker, cash_spent_int, denominated_direction,
