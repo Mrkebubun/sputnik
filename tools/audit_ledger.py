@@ -26,7 +26,7 @@ session = database.make_session()
 adjust = False
 if adjust:
     print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
-time.sleep(30)
+    time.sleep(30)
 
 # Go through journal entries
 journals = session.query(models.Journal)
