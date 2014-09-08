@@ -8,6 +8,7 @@ import math
 import time
 import uuid
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func
 from twisted.python import log
 
 def timed(f):
@@ -184,19 +185,21 @@ def position_calculated(position, session, checkpoint=None, start=None, end=None
     if checkpoint is None:
         checkpoint = position.position_checkpoint or 0
 
-    rows = session.query(models.Posting.quantity, models.Journal.timestamp).filter_by(username=position.username).filter_by(
+    rows = session.query(func.sum(models.Posting.quantity).label('quantity_sum'), func.max(models.Journal.timestamp).label('last_timestamp')).filter_by(username=position.username).filter_by(
         contract_id=position.contract_id).filter(
         models.Journal.id==models.Posting.journal_id).filter(
-        models.Journal.timestamp > start).order_by(models.Journal.timestamp.desc())
+        models.Journal.timestamp > start)
     if end is not None:
         rows = rows.filter(models.Journal.timestamp <= end)
 
-    # TODO: we can actually sum this in SQL itself
-    calculated = sum([row.quantity for row in rows])
-    if rows.first() is not None:
-        last_posting_timestamp = rows.first().timestamp
-    else:
-        last_posting_timestamp = start
+    try:
+        grouped = rows.group_by(models.Posting.username).one()
+        calculated = grouped.quantity_sum
+        last_posting_timestamp = grouped.last_timestamp
+    except NoResultFound:
+        calculated = 0
+        last_posting_timestamp = None
+
 
     return checkpoint + calculated, last_posting_timestamp
 
