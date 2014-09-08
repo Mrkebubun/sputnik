@@ -44,7 +44,7 @@ class BlockScore():
 if __name__ == "__main__":
   date_of_birth = '1980-08-23'
   identification = {
-    'ssn': '0000'
+    'passport': '0000'
   }
   name = {
     'first': 'John',
