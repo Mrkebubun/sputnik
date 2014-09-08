@@ -185,7 +185,9 @@ def position_calculated(position, session, checkpoint=None, start=None, end=None
     if checkpoint is None:
         checkpoint = position.position_checkpoint or 0
 
-    rows = session.query(func.sum(models.Posting.quantity).label('quantity_sum'), func.max(models.Journal.timestamp).label('last_timestamp')).filter_by(username=position.username).filter_by(
+    rows = session.query(func.sum(models.Posting.quantity).label('quantity_sum'),
+                         func.max(models.Journal.timestamp).label('last_timestamp')).filter_by(
+        username=position.username).filter_by(
         contract_id=position.contract_id).filter(
         models.Journal.id==models.Posting.journal_id).filter(
         models.Journal.timestamp > start)
