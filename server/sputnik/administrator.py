@@ -721,7 +721,7 @@ class Administrator:
         """
 
         balance_sheet = self.get_balance_sheet()
-        for side in ["assets", "liabilities"]:
+        for side in ["Asset", "Liability"]:
             for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
