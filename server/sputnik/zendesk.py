@@ -2,8 +2,6 @@ __author__ = 'sameer'
 
 import treq
 import json
-import random
-import string
 from twisted.internet import defer
 from twisted.python import log
 
