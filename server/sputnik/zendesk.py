@@ -136,19 +136,12 @@ if __name__ == "__main__":
         nickname = 'blah'
         email = 'testemail@m2.io'
 
-    user = { 'nickname': 'blah',
-             'email': 'testemail@m2.io'
-    }
-    zd = Zendesk("mimetic", "5bZYIMtkHWTuaJijvkKuXVeaoXumETWdyCa2wTpN", 'sameer@m2.io')
+    user = User()
+    zd = Zendesk("mexbt", "zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy", 'sameer@m2.io')
     d1 = zd.create_ticket(user, "Test Ticket", "Comment", [])
     d1.addCallback(pprint)
 
-    d2 = zd.create_ticket(user, "Test with Files", "Comment yay", [{'filename': 'file1',
-                                                                    'type': 'text/html',
-                                                                    'data': 'blahlblah'},
-        {'filename': 'file2',
-         'type': 'text/html',
-         'data': 'blahblah'}])
+    d2 = zd.create_ticket(user, "Test with Files", "Comment yay", ["content a", "content b"])
     d2.addCallback(pprint)
 
     reactor.run()
