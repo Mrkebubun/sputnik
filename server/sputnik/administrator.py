@@ -45,6 +45,7 @@ import json
 import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
+import copy
 
 
 
@@ -600,7 +601,7 @@ class Administrator:
 
         :returns: dict -- the balance sheet
         """
-        return self.bs_cache
+        return copy.deepcopy(self.bs_cache)
 
     def load_bs_cache(self):
         try:
@@ -625,9 +626,13 @@ class Administrator:
             models.Posting.username,
             models.Posting.contract_id)
 
-        balance_sheet = collections.defaultdict(lambda: collections.defaultdict(lambda: { 'positions_by_user': {},
+        balance_sheet = {'Asset': collections.defaultdict(lambda: { 'positions_by_user': {},
                                                           'total': 0,
-                                                          'positions_raw': []}))
+                                                          'positions_raw': []}),
+                         'Liability': collections.defaultdict(lambda: { 'positions_by_user': {},
+                                                          'total': 0,
+                                                          'positions_raw': []})}
+
 
         for row in bs_query:
             user = self.get_user(row.username)
@@ -727,7 +732,7 @@ class Administrator:
                 for position in details['positions_raw']:
                     details['positions'].append((position['hash'], position['position']))
                 del details['positions_raw']
-
+                del details['positions_by_user']
 
         return balance_sheet
 

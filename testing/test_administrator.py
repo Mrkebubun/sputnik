@@ -145,7 +145,7 @@ class TestInternal(TestAdministrator):
 class TestWebserverExport(TestAdministrator):
     def test_get_audit(self):
         audit = self.webserver_export.get_audit()
-        for side in ['assets', 'liabilities']:
+        for side in ['Asset', 'Liability']:
             for currency in audit[side].keys():
                 total = sum([x[1] for x in audit[side][currency]['positions']])
                 self.assertEqual(audit[side][currency]['total'], total)
