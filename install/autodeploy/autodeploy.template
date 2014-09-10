@@ -98,10 +98,6 @@
     "PublicIP" : {
       "Description" : "Public IP address of the newly created EC2 instance",
       "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicIp" ] }
-    },
-    "RDSDNS": {
-        "Description": "DNSName of the database server",
-        "Value": { "Fn::GetAtt" : [ "DBInstance", "PublicDnsName" ] }
     }
   }
 }
