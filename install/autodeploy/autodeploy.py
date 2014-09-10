@@ -7,7 +7,21 @@ import time
 import argparse
 import boto.ec2
 import boto.cloudformation
-import random, string
+import random
+import string
+
+import fabric.api
+fabric.api.env.reject_unknown_hosts = True
+fabric.api.env.disable_known_hosts = True
+# Do not abort on failures. We will do this manually.
+fabric.api.env.warn_only = True
+# Hack to make paramiko try ecdsa first.
+# Otherwise, it fails when an rsa key is not found.
+from paramiko.transport import Transport
+Transport._preferred_keys = ('ecdsa-sha2-nistp256', 'ssh-rsa', 'ssh-dss')
+
+import ConfigParser
+import cStringIO
 
 class Spinner:
     def __enter__(self):
@@ -40,6 +54,7 @@ class AutoDeployException(Exception): pass
 INSTANCE_BROKEN = AutoDeployException("Instance is broken. Please check.")
 INSTANCE_EXISTS = AutoDeployException("Instance already exists.")
 INSTANCE_NOT_FOUND = AutoDeployException("Instance not found.")
+INSTANCE_NOT_READY = AutoDeployException("Instance not ready.")
 
 class Instance:
     def __init__(self, client=None, region=None, profile=None, key=None,
@@ -55,12 +70,17 @@ class Instance:
 
         if not client:
             raise AutoDeployException("Client cannot be None.")
-        
+       
+        self.key_filename = "%s/ssh_login_key.pem" % self.client
+        self.db_pass_filename = "%s/dbpassword.txt" % self.client
+        self.server_key_filename = "%s/ssh_server_key.pub" % self.client
+
         # default uninstalled state
         self.deployed = False
         self.broken = False
         self.key_present = False
         self.stack_present = False
+        self.ready = False # ssh accessible
 
         self.searched = False
         self.found = False
@@ -83,7 +103,7 @@ class Instance:
             self.searched = True
             if self.region:
                 # we found what we wanted, and we are already connected
-                return
+                return self._ready()
 
         # we found nothing, default to Oregon
         region = region or self.default_region
@@ -95,6 +115,7 @@ class Instance:
             
         self._connect(region)
         self._search(client)
+        self._ready()
 
     def _connect(self, region):
         self.ec2 = boto.ec2.connect_to_region(region)
@@ -133,6 +154,34 @@ class Instance:
 
         return self.found
 
+    def _ready(self):
+        if not self.deployed:
+            return
+        
+        for output in self.stack.outputs:
+            if output.key == "InstanceId":
+                 instance_id = output.value
+                 break
+        else:
+            raise INSTANCE_BROKEN
+
+        try:
+            self.instance = self.ec2.get_all_instances( \
+                    instance_id)[0].instances[0]
+        except:
+            raise INSTANCE_BROKEN
+
+        if not os.path.isfile(self.key_filename):
+            raise INSTANCE_BROKEN
+
+        self.ip = self.instance.ip_address
+        fabric.api.env.user = "ubuntu"
+        fabric.api.env.host_string = self.ip
+        fabric.api.env.system_known_hosts = self.server_key_filename
+        fabric.api.env.key_filename = self.key_filename
+
+        self.ready = True
+
     def deploy(self):
         if self.broken:
             raise INSTANCE_BROKEN
@@ -150,25 +199,28 @@ class Instance:
         print "Creating instance for %s..." % self.client
         os.mkdir(self.client)
 
-        key_filename = "%s/ssh_login_key.pem" % self.client
-        if os.path.isfile(key_filename):
+        if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
 
         print "\tcreating and downloading key..."
         key = self.ec2.create_key_pair(self.client)
         umask = os.umask(0177)
-        with open(key_filename, "w") as key_file:
+        with open(self.key_filename, "w") as key_file:
             key_file.write(key.material)
+        os.umask(umask)
+        
+        print "\tgenerating database password..."
+        self.db_password = ''.join(random.choice(
+                string.ascii_uppercase + string.digits) for _ in range(8))
+        umask = os.umask(0177)
+        with open(self.db_pass_filename, "w") as db_file:
+            db_file.write(self.db_password)
         os.umask(umask)
        
         print "\tcreating stack..."
-        self.db_password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.cf.create_stack(self.client, template,
                 parameters=[("KeyName", self.client),
                     ("DBPassword", self.db_password)])
-        db_pass_filename = "%s/dbpassword.txt" % self.client
-        with open(db_pass_filename, "w") as db_file:
-            db_file.write(self.db_password)
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
@@ -208,9 +260,9 @@ class Instance:
         for line in output:
             if line.startswith("ecdsa-sha2-nistp256 "):
                 ssh_host_ecdsa_key = line.strip()
-                server_key_filename = "%s/ssh_server_key.pub" % self.client
-                with open(server_key_filename, "w") as key_file:
-                    key_file.write(ssh_host_ecdsa_key)
+                with open(self.server_key_filename, "w") as key_file:
+                    key_file.write("%s %s" % \
+                            (instance.ip_address, ssh_host_ecdsa_key))
                 break
         else:
             raise INSTANCE_BROKEN
@@ -307,8 +359,24 @@ class Instance:
         
         if not self.deployed:
             raise INSTANCE_NOT_FOUND
-        
-        raise NotImplemented
+       
+        if not self.ready:
+            raise INSTANCE_NOT_READY
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            result = fabric.api.run(
+                "cat /srv/sputnik/server/config/sputnik.ini")
+            if result.failed:
+                raise INSTANCE_BROKEN
+
+        parser = ConfigParser.SafeConfigParser()
+        parser.readfp(cStringIO.StringIO(result))
+        print parser.get("version", "git_hash")
+
 
 parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
 client = argparse.ArgumentParser(add_help=False)
@@ -330,18 +398,12 @@ parser_install = subparsers.add_parser("install", parents=[client],
                                        help="Install instance.")
 parser_install.add_argument("--profile", dest="profile", action="store",
                             required=True, help="Path to profile.")
-parser_install.add_argument("--key", dest="key", action="store",
-                            required=True, help="Path to SSH key.")
 parser_upgrade = subparsers.add_parser("upgrade", parents=[client],
                                        help="Upgrade instance.")
 parser_upgrade.add_argument("--profile", dest="profile", action="store",
                             required=True, help="Path to profile.")
-parser_upgrade.add_argument("--key", dest="key", action="store",
-                            required=True, help="Path to SSH key.")
 parser_query = subparsers.add_parser("query", parents=[client],
                                      help="Query running instance for version.")
-parser_query.add_argument("--key", dest="key", action="store",
-                          required=True, help="Path to SSH key.")
 
 kwargs = vars(parser.parse_args())
 command = kwargs["command"]
