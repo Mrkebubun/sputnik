@@ -63,7 +63,7 @@
         "Type": "AWS::RDS::DBSecurityGroup",
         "Properties": {
             "DBSecurityGroupIngress": { "EC2SecurityGroupName": { "Ref": "SputnikSecurityGroup" } },
-            "Group Description": "Sputnik Access"
+            "GroupDescription": "Sputnik Access"
         }
     },
 
