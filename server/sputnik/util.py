@@ -139,11 +139,12 @@ def get_fees(username, contract, transaction_size, trial_period=False):
     if contract.contract_type == "cash_pair":
         denominated_contract = contract.denominated_contract
         fees = int(round(transaction_size * 0.004))
-        return { denominated_contract.ticker: fees
-            }
+        return { denominated_contract.ticker: fees }
     elif contract.contract_type == "prediction":
-        # Predictions charge fees on settlement, not trading
-        return {}
+        # Predictions charge 50bps
+        denominated_contract = contract.denominated_contract
+        fees = int(round(transaction_size * 0.005))
+        return { denominated_contract.ticker: fees }
     else:
         # Only cash_pair & prediction is implemented now
         raise NotImplementedError
