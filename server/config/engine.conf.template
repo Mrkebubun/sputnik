@@ -1,0 +1,9 @@
+[program:${clean_ticker}]
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini ${raw_ticker}
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+directory = ${root}/server/sputnik/
+user=${user}
