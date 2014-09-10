@@ -61,7 +61,8 @@ class Accountant:
 
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
-                 alerts_proxy, accountant_number=0, debug=False, trial_period=False):
+                 alerts_proxy, accountant_number=0, debug=False, trial_period=False,
+                 mimetic_share=0.5):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -75,8 +76,8 @@ class Accountant:
         self.debug = debug
         self.deposit_limits = {}
         # TODO: Make this configurable
-        self.vendor_share_config = { 'm2': 0.5,
-                                     'customer': 0.5
+        self.vendor_share_config = { 'm2': mimetic_share,
+                                     'customer': 1.0-mimetic_share
         }
         self.safe_prices = {}
         self.engines = engines
@@ -1190,11 +1191,13 @@ if __name__ == "__main__":
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
+    mimetic_share = config.getfloat("accountant", "mimetic_share")
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             accountant_number=accountant_number,
                             debug=debug,
-                            trial_period=trial_period)
+                            trial_period=trial_period,
+                            mimetic_share=mimetic_share)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)

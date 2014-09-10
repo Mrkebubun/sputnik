@@ -50,6 +50,7 @@ accountant_export_base_port = 4440
 num_procs = ${accountant_count}
 debug = ${debug}
 trial_period = ${trial_period}
+mimetic_share = ${mimetic_share}
 
 [administrator]
 webserver_export = tcp://127.0.0.1:4670
