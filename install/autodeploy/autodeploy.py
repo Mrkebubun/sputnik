@@ -5,11 +5,9 @@ import sys
 import threading
 import time
 import argparse
-import M2Crypto
-import warnings
-import base64
 import boto.ec2
 import boto.cloudformation
+import random, string
 
 class Spinner:
     def __enter__(self):
@@ -163,8 +161,10 @@ class Instance:
         os.umask(umask)
        
         print "\tcreating stack..."
+        self.db_password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.cf.create_stack(self.client, template,
-                parameters=[("KeyName", self.client)])
+                parameters=[("KeyName", self.client),
+                    ("DBPassword", self.db_password)])
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
