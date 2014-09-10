@@ -1,111 +1,173 @@
 {
-  "AWSTemplateFormatVersion" : "2010-09-09",
+    "AWSTemplateFormatVersion": "2010-09-09",
 
-  "Description" : "Sputnik autodeploy template.",
+    "Description": "Sputnik autodeploy template.",
 
-  "Parameters" : {
-    "KeyName": {
-      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
-      "Type": "String",
-      "MinLength": "1",
-      "MaxLength": "255",
-      "AllowedPattern" : "[\\x20-\\x7E]*",
-      "ConstraintDescription" : "can contain only ASCII characters."
-    },
-    "DBPassword": {
-        "Description" : "Master password for the database",
-        "Type": "String",
-        "MinLength": 8,
-        "MaxLength": 32,
-        "AllowedPattern": "[\\x20-\\x7E]*",
-        "ConstraintDescription": "can contain only ASCII characters."
-    }
-  },
-
-  "Mappings" : {
-    "RegionMap" : {
-      "us-west-1"      : { "AMI" : "ami-ad202fe8" },
-      "us-west-2"      : { "AMI" : "ami-25581f15" }
-    }
-  },
-
-  "Resources" : {
-    "Ec2Instance" : {
-      "Type" : "AWS::EC2::Instance",
-      "Properties" : {
-        "SecurityGroups" : [ { "Ref": "SputnikSecurityGroup" } ],
-        "KeyName" : { "Ref" : "KeyName" },
-        "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI" ]},
-        "InstanceType" : "t2.micro"
-      }
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "255",
+            "AllowedPattern": "[\\x20-\\x7E]*",
+            "ConstraintDescription": "can contain only ASCII characters."
+        },
+        "DBPassword": {
+            "Description": "Master password for the database",
+            "Type": "String",
+            "MinLength": 8,
+            "MaxLength": 32,
+            "AllowedPattern": "[\\x20-\\x7E]*",
+            "ConstraintDescription": "can contain only ASCII characters."
+        }
     },
 
-    "DBInstance" : {
-        "Type": "AWS::RDS::DBInstance",
-        "Properties": {
-            "DBName": "sputnik",
-            "DBSecurityGroups": [
-                {
-                    "Ref": "DBSecurityGroup"
-                }
-            ],
-            "AllocatedStorage": "5",
-            "DBInstanceClass": "db.t1.micro",
-            "Engine": "postgres",
-            "MasterUsername": "postgres",
-            "MasterUserPassword": {
-                "Ref": "DBPassword"
+    "Mappings": {
+        "RegionMap": {
+            "us-west-1": {
+                "AMI": "ami-ad202fe8"
+            },
+            "us-west-2": {
+                "AMI": "ami-25581f15"
             }
         }
     },
 
-    "DBSecurityGroup": {
-        "Type": "AWS::RDS::DBSecurityGroup",
-        "Properties": {
-            "DBSecurityGroupIngress": { "EC2SecurityGroupName": { "Ref": "SputnikSecurityGroup" } },
-            "GroupDescription": "Sputnik Access"
+    "Resources": {
+        "Ec2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "SecurityGroups": [
+                    {
+                        "Ref": "SputnikSecurityGroup"
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [ "RegionMap", {
+                        "Ref": "AWS::Region"
+                    }, "AMI" ]
+                },
+                "InstanceType": "t2.micro"
+            }
+        },
+
+        "ElasticIP": {
+            "Type": "AWS::EC2::EIP",
+            "Properties": {
+                "InstanceId": { "Ref": "Ec2Instance" }
+            }
+        },
+
+        "DBInstance": {
+            "Type": "AWS::RDS::DBInstance",
+            "Properties": {
+                "DBName": "sputnik",
+                "DBSecurityGroups": [
+                    {
+                        "Ref": "DBSecurityGroup"
+                    }
+                ],
+                "AllocatedStorage": "5",
+                "DBInstanceClass": "db.t1.micro",
+                "Engine": "postgres",
+                "MasterUsername": "postgres",
+                "MasterUserPassword": {
+                    "Ref": "DBPassword"
+                }
+            }
+        },
+
+        "DBSecurityGroup": {
+            "Type": "AWS::RDS::DBSecurityGroup",
+            "Properties": {
+                "DBSecurityGroupIngress": {
+                    "EC2SecurityGroupName": {
+                        "Ref": "SputnikSecurityGroup"
+                    }
+                },
+                "GroupDescription": "Sputnik Access"
+            }
+        },
+
+        "SputnikSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable HTTP, HTTPS, administrator, websockets, and SSH",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "443",
+                        "ToPort": "443",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8080",
+                        "ToPort": "8080",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8888",
+                        "ToPort": "8888",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
         }
     },
 
-    "SputnikSecurityGroup": {
-        "Type": "AWS::EC2::SecurityGroup",
-        "Properties": {
-            "GroupDescription": "Enable HTTP, HTTPS, administrator, websockets, and SSH",
-            "SecurityGroupIngress" : [
-                {"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" },
-                {"IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": "0.0.0.0/0" },
-                {"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0" },
-                {"IpProtocol": "tcp", "FromPort": "8080", "ToPort": "8080", "CidrIp": "0.0.0.0/0" },
-                {"IpProtocol": "tcp", "FromPort": "8888", "ToPort": "8888", "CidrIp": "0.0.0.0/0" }
-        ]
+    "Outputs": {
+        "InstanceId": {
+            "Description": "InstanceId of the newly created EC2 instance",
+            "Value": {
+                "Ref": "Ec2Instance"
+            }
+        },
+        "AZ": {
+            "Description": "Availability Zone of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "AvailabilityZone" ]
+            }
+        },
+        "PublicDNS": {
+            "Description": "Public DNSName of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "PublicDnsName" ]
+            }
+        },
+        "PublicIP": {
+            "Description": "Public IP address of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "PublicIp" ]
+            }
+        },
+        "DbAddress": {
+            "Description": "Endpoint for the database",
+            "Value": {
+                "Fn::GetAtt": [ "DBInstance", "Endpoint.Address" ]
+            }
+        },
+        "DbPort": {
+            "Description": "Port for the database",
+            "Value": {
+                "Fn::GetAtt": [ "DBInstance", "Endpoint.Port" ]
+            }
         }
     }
-  },
-
-  "Outputs" : {
-    "InstanceId" : {
-      "Description" : "InstanceId of the newly created EC2 instance",
-      "Value" : { "Ref" : "Ec2Instance" }
-    },
-    "AZ" : {
-      "Description" : "Availability Zone of the newly created EC2 instance",
-      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "AvailabilityZone" ] }
-    },
-    "PublicDNS" : {
-      "Description" : "Public DNSName of the newly created EC2 instance",
-      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicDnsName" ] }
-    },
-    "PublicIP" : {
-      "Description" : "Public IP address of the newly created EC2 instance",
-      "Value" : { "Fn::GetAtt" : [ "Ec2Instance", "PublicIp" ] }
-    },
-    "DbAddress": {
-        "Description": "Endpoint for the database",
-        "Value": { "Fn::GetAtt": [ "DBInstance", "Endpoint.Address" ]}
-    },
-    "DbPort": {
-        "Description": "Port for the database",
-        "Value": { "Fn:GetAtt" : [ "DBInstance", "Endpoint.Port" ]}
-    }
-  }
 }
