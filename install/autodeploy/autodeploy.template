@@ -22,18 +22,17 @@
             "NoEcho": "true"
         }
     },
-
     "Mappings": {
         "RegionMap": {
             "us-west-1": {
-                "AMI": "ami-ad202fe8"
+                "AMI": "ami-ad202fe8",
+                "DataVolume": "snap-429e5083"
             },
             "us-west-2": {
                 "AMI": "ami-25581f15"
             }
         }
     },
-
     "Resources": {
         "Ec2Instance": {
             "Type": "AWS::EC2::Instance",
@@ -54,14 +53,12 @@
                 "InstanceType": "t2.micro"
             }
         },
-
         "ElasticIP": {
             "Type": "AWS::EC2::EIP",
             "Properties": {
                 "InstanceId": { "Ref": "Ec2Instance" }
             }
         },
-
         "DBInstance": {
             "Type": "AWS::RDS::DBInstance",
             "Properties": {
@@ -81,7 +78,6 @@
             },
             "DeletionPolicy" : "Snapshot"
         },
-
         "DBSecurityGroup": {
             "Type": "AWS::RDS::DBSecurityGroup",
             "Properties": {
@@ -93,7 +89,21 @@
                 "GroupDescription": "Sputnik Access"
             }
         },
-
+        "DataVolume" : {
+           "Type" : "AWS::EC2::Volume",
+           "Properties" : {
+              "SnapshotId": { "Fn::FindInMap": [ "RegionMap", { "Ref": "AWS::Region" }, "DataVolume" ] },
+              "AvailabilityZone" : { "Fn::GetAtt" : [ "Ec2Instance", "AvailabilityZone" ] }
+           }
+        },
+        "DataVolumeMountPoint" : {
+           "Type" : "AWS::EC2::VolumeAttachment",
+           "Properties" : {
+              "InstanceId" : { "Ref" : "Ec2Instance" },
+              "VolumeId"  : { "Ref" : "DataVolume" },
+              "Device" : "/dev/sdf"
+           }
+        },
         "SputnikSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
@@ -133,7 +143,6 @@
             }
         }
     },
-
     "Outputs": {
         "InstanceId": {
             "Description": "InstanceId of the newly created EC2 instance",
