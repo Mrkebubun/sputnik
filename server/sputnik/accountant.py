@@ -23,8 +23,6 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
-import collections
-
 import database
 import models
 import margin
@@ -34,18 +32,15 @@ from alerts import AlertsProxy
 
 from ledger import create_posting
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
-    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, \
+    push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import DataError
-from datetime import datetime, date
 from watchdog import watchdog
 
 import time
-import uuid
 
 class AccountantException(Exception):
     pass
