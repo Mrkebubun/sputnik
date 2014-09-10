@@ -18,7 +18,8 @@
             "MinLength": 8,
             "MaxLength": 32,
             "AllowedPattern": "[\\x20-\\x7E]*",
-            "ConstraintDescription": "can contain only ASCII characters."
+            "ConstraintDescription": "can contain only ASCII characters.",
+            "NoEcho": "true"
         }
     },
 
