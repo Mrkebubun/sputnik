@@ -38,6 +38,16 @@ stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
+[program:engine_NETS2015]
+command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini NETS2015
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+directory = ${root}/server/sputnik/
+user=${user}
+
 [program:accountant]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini %(process_num)d
 process_name = %(program_name)s_%(process_num)d
