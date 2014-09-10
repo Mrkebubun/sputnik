@@ -1,2 +1,3 @@
-*.pub
-*.pem
+*/ssh_server_key.pub
+*/ssh_login_key.pem
+*/dbpassword.txt

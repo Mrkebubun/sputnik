@@ -148,8 +148,9 @@ class Instance:
             template = template_file.read()
 
         print "Creating instance for %s..." % self.client
+        os.mkdir(self.client)
 
-        key_filename = "%s.pem" % self.client
+        key_filename = "%s/ssh_login_key.pem" % self.client
         if os.path.isfile(key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
 
@@ -165,7 +166,9 @@ class Instance:
         self.cf.create_stack(self.client, template,
                 parameters=[("KeyName", self.client),
                     ("DBPassword", self.db_password)])
-        sys.stdout.write("DB Password: %s\n" % self.db_password)
+        db_pass_filename = "%s/dbpassword.txt" % self.client
+        with open(db_pass_filename, "w") as db_file:
+            db_file.write(self.db_password)
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
@@ -205,7 +208,7 @@ class Instance:
         for line in output:
             if line.startswith("ecdsa-sha2-nistp256 "):
                 ssh_host_ecdsa_key = line.strip()
-                server_key_filename = "%s.pub" % self.client
+                server_key_filename = "%s/ssh_server_key.pub" % self.client
                 with open(server_key_filename, "w") as key_file:
                     key_file.write(ssh_host_ecdsa_key)
                 break
