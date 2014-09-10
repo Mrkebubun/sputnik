@@ -165,6 +165,7 @@ class Instance:
         self.cf.create_stack(self.client, template,
                 parameters=[("KeyName", self.client),
                     ("DBPassword", self.db_password)])
+        sys.stdout.write("DB Password: %s\n" % self.db_password)
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
