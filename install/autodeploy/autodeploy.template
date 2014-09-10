@@ -51,7 +51,7 @@
             ],
             "AllocatedStorage": "5",
             "DBInstanceClass": "db.t2.micro",
-            "Engine": "PostgreSQL",
+            "Engine": "postgres",
             "MasterUsername": "postgres",
             "MasterUserPassword": {
                 "Ref": "DBPassword"
