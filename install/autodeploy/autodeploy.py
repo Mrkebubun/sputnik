@@ -307,7 +307,8 @@ class Instance:
         raise NotImplemented
 
 parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
-parser.add_argument("client", action="store",
+client = argparse.ArgumentParser(add_help=False)
+client.add_argument("client", action="store",
                     help="Short identifier for client.")
 parser.add_argument("--region", dest="region", action="store",
                     help="Region where to deploy. Default: us-west-1.")
@@ -315,21 +316,25 @@ parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
 subparsers = parser.add_subparsers(description="Actions that can be performed.",
                                    metavar="command",
                                    dest="command")
-parser_deploy = subparsers.add_parser("deploy", help="Deploy instance.")
-parser_status = subparsers.add_parser("status",
+parser_deploy = subparsers.add_parser("deploy", parents=[client],
+                                      help="Deploy instance.")
+parser_status = subparsers.add_parser("status", parents=[client],
                                       help="Get instance deployment status.")
-parser_delete = subparsers.add_parser("delete", help="Delete instance.")
-parser_install = subparsers.add_parser("install", help="Install instance.")
+parser_delete = subparsers.add_parser("delete", parents=[client],
+                                      help="Delete instance.")
+parser_install = subparsers.add_parser("install", parents=[client],
+                                       help="Install instance.")
 parser_install.add_argument("--profile", dest="profile", action="store",
                             required=True, help="Path to profile.")
 parser_install.add_argument("--key", dest="key", action="store",
                             required=True, help="Path to SSH key.")
-parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade instance.")
+parser_upgrade = subparsers.add_parser("upgrade", parents=[client],
+                                       help="Upgrade instance.")
 parser_upgrade.add_argument("--profile", dest="profile", action="store",
                             required=True, help="Path to profile.")
 parser_upgrade.add_argument("--key", dest="key", action="store",
                             required=True, help="Path to SSH key.")
-parser_query = subparsers.add_parser("query",
+parser_query = subparsers.add_parser("query", parents=[client],
                                      help="Query running instance for version.")
 parser_query.add_argument("--key", dest="key", action="store",
                           required=True, help="Path to SSH key.")
