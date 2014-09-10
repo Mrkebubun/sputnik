@@ -78,7 +78,8 @@
                 "MasterUserPassword": {
                     "Ref": "DBPassword"
                 }
-            }
+            },
+            "DeletionPolicy" : "Snapshot"
         },
 
         "DBSecurityGroup": {
