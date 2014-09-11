@@ -90,6 +90,9 @@ class Instance:
         self.searched = False
         self.found = False
 
+        self.stack = None
+        self.instance = None
+
         if not region:
             # search for the instance
             sys.stdout.write("Searching... (use --region to specify a region) ")
@@ -171,7 +174,7 @@ class Instance:
             raise INSTANCE_BROKEN
 
         try:
-            self.instance = self.ec2.get_all_instances( \
+            self.instance = self.ec2.get_all_instances(
                     instance_id)[0].instances[0]
         except:
             raise INSTANCE_BROKEN
@@ -309,6 +312,9 @@ class Instance:
         # self.stack should have been prepopulated by constructor
         print "Instance: %s" % self.client
         print "Region: %s" % self.region
+        if not self.stack:
+            print "Stack not found."
+            return
         print "Stack Status: %s" % self.stack.stack_status
         if self.verbose:
             for event in self.stack.describe_events():
@@ -437,14 +443,7 @@ class Instance:
         if not self.ready:
             raise INSTANCE_NOT_READY
 
-        # Get DNS
-
-        self.status()
-        for output in self.stack.outputs:
-            if output.key == "PublicDNS":
-                dns_name = output.value
-
-        pty.spawn(["/usr/bin/ssh", "-i", self.key_filename, "ubuntu@%s" % dns_name])
+        fabric.api.open_shell()
 
     @staticmethod
     def list(region=None):
