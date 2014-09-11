@@ -165,11 +165,13 @@ class Installer():
             return False
         raise ValueError("Not a boolean: %s" % value)
 
-    def make_template(self, template_name, out):
+    def make_template(self, template_name, out, **kwargs):
         with open(self.get_template(template_name)) as template_file:
             template = string.Template(template_file.read())
+            config = copy.copy(self.config)
+            config.update(kwargs)
             try:
-                out.write(template.substitute(self.config))
+                out.write(template.substitute(config))
             except KeyError, e:
                 self.error("Template '%s' missing required key: %s.\n" %
                         (template_name, e.args[0]))
@@ -197,9 +199,14 @@ class Installer():
             out = open(os.path.join("config", "supervisor.conf"), "w")
         if self.enabled("bundle_supervisord"):
             self.make_template("supervisord.conf", out)
-        self.make_template("supervisor.conf", out)
+
+        self.make_template("supervisor.conf", out, engines_clean=self.config["engines"].replace('/', '_'))
         if not self.enabled("disable_bitcoin"):
             self.make_template("bitcoind.conf", out)
+        for ticker in [x.strip() for x in self.config["engines"].split(',')]:
+            self.make_template("engine.conf", out, raw_ticker=ticker,
+                               clean_ticker=ticker.replace('/', '_'))
+
         out.close()
         
         # make sputnik.ini

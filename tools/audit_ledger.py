@@ -3,13 +3,8 @@ __author__ = 'sameer'
 
 import os
 import sys
-import getpass
+import argparse
 
-import string
-import shlex
-import textwrap
-import autobahn.wamp1.protocol
-import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
     "../server"))
@@ -20,35 +15,39 @@ from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 import time
 
+parser = argparse.ArgumentParser(description="Audit the ledger")
+parser.add_argument("-a", "--adjust", dest="adjust", action="store_true",
+                    help="should we adjust positions", default=False)
+
+kwargs = vars(parser.parse_args())
 session = database.make_session()
-positions = session.query(models.Position).all()
 
-adjust = True
-print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
-time.sleep(30)
+adjust = kwargs['adjust']
 
-def get_adjustment_position(contract):
-    try:
-        position = session.query(models.Position).filter_by(
-                user=adjustment_user, contract=contract).one()
-        return position
-    except NoResultFound:
-        print "Creating new position for %s on %s." % (adjustment_user.username, contract.ticker)
-        position = models.Position(adjustment_user, contract)
-        position.reference_price = 0
-        session.add(position)
-        return position
+if adjust:
+    print "BE SURE EVERYTHING IS SHUT BEFORE RUNNING THIS PROGRAM"
+    time.sleep(30)
 
 # Go through journal entries
-journals = session.query(models.Journal).all()
+journals = session.query(models.Journal)
+total = journals.count()
+print "%d journals to cover" % total
+count = 0
 for journal in journals:
+    print "%d/%d" % (count, total)
     if not journal.audit:
         print "Error in Journal:\n%s" % journal
         # Make sure we don't do any adjustments if there is a basic problem like this
         adjust = False
+    count += 1
 
 # Go through positions
+positions = session.query(models.Position)
+total = positions.count()
+print "%d positions to cover" % total
+count = 0
 for position in positions:
+    print "%d/%d" % (count, total)
     contract = position.contract
     position_calculated, calculated_timestamp = util.position_calculated(position, session)
     difference = position.position - position_calculated
@@ -70,6 +69,6 @@ for position in positions:
             session.commit()
             print "Updated Position: %s" % position
 
-
+    count += 1
 
 

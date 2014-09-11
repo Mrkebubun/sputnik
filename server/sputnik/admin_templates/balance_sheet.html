@@ -12,9 +12,9 @@ $ ->
 {% block body %}
 <div class="container">
 <div class="panel panel-primary">
-    <div class="panel-heading">Balance Sheet</div>
+    <div class="panel-heading">Balance Sheet: {{timestamp}}</div>
     <div class="panel-body">
-    {% for side in ['assets', 'liabilities'] %}
+    {% for side in ['Asset', 'Liability'] %}
     <b>{{side.upper()}}</b>
     <table id="{{side}}" class="table table-striped table-hover">
         <thead>
@@ -36,7 +36,7 @@ $ ->
                         </tr>
                         {% for position in details.positions_raw %}
                         <tr>
-                            <td>{{position.username}}</td>
+                            <td><a href="/user_details?username={{position.username}}">{{position.username}}</a></td>
                             <td align="right">{{position.position_fmt}}</td>
                         </tr>
                         {% endfor %}

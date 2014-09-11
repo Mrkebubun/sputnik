@@ -120,7 +120,7 @@ def dumpArgs(func):
         if args: params.append(('args', args))
         if func_kwargs: params.append(('kwargs', func_kwargs))
         ret_val = func(*func_args, **func_kwargs)
-        #print func.func_name + ' (' + ', '.join('%s = %r' % p for p in params) + ' )=' + str(ret_val)
+        print func.func_name + ' (' + ', '.join('%s = %r' % p for p in params) + ' )=' + str(ret_val)
         return ret_val
 
     return wrapper

@@ -81,6 +81,7 @@ class TestAdministrator(TestSputnik):
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
+class TestInternal(TestAdministrator):
     def test_get_order_book(self):
         # Create one order that is in the order book and one that is not
         from sputnik import models, util
@@ -114,7 +115,7 @@ class TestAdministrator(TestSputnik):
                                                'quantity': 1,
                                                'quantity_left': 1,
                                                'username': None},
-                                         '3': {'errors': 'db quantity_left: 2',
+                                         '3': {'errors': 'DB quantity_left: 0.00',
                                                'id': 1,
                                                'price': 95,
                                                'quantity': 2,
@@ -133,7 +134,9 @@ class TestAdministrator(TestSputnik):
                                                 'price': 110,
                                                 'quantity': 1,
                                                 'quantity_left': 1,
-                                                'side': u'SELL', }}}, order_book))
+                                                'side': u'SELL',
+                                                'username': None
+                                          }}}, order_book))
 
         d.addCallback(success)
         return d
@@ -142,7 +145,7 @@ class TestAdministrator(TestSputnik):
 class TestWebserverExport(TestAdministrator):
     def test_get_audit(self):
         audit = self.webserver_export.get_audit()
-        for side in ['assets', 'liabilities']:
+        for side in ['Asset', 'Liability']:
             for currency in audit[side].keys():
                 total = sum([x[1] for x in audit[side][currency]['positions']])
                 self.assertEqual(audit[side][currency]['total'], total)

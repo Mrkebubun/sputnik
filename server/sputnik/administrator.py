@@ -44,8 +44,8 @@ import json
 
 import Crypto.Random.random
 import sqlalchemy.orm.exc
-
-
+from sqlalchemy import func
+import copy
 
 import string, Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
@@ -53,7 +53,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from autobahn.wamp1.protocol import WampCraProtocol
 from rpc_schema import schema
 import pickle
+
+
 class AdministratorException(Exception): pass
+
 
 USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
 NO_SUCH_USER = AdministratorException(2, "No such user.")
@@ -67,6 +70,7 @@ INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
 SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
 INVALID_CURRENCY_QUANTITY = AdministratorException(12, "Invalid currency quantity")
 
+
 def session_aware(func):
     def new_func(self, *args, **kwargs):
         try:
@@ -74,7 +78,9 @@ def session_aware(func):
         except Exception, e:
             self.session.rollback()
             raise e
+
     return new_func
+
 
 class Administrator:
     """
@@ -223,7 +229,7 @@ class Administrator:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt":salt, "keylen":32, "iterations":1000}
+        extra = {"salt": salt, "keylen": 32, "iterations": 1000}
         password = WampCraProtocol.deriveKey(new_password, extra)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
@@ -298,7 +304,7 @@ class Administrator:
         # Now email the token
         log.msg("Sending mail: %s" % content)
         s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email, user.nickname),
-                          subject='Reset password link enclosed')
+                                    subject='Reset password link enclosed')
 
         return True
 
@@ -500,12 +506,13 @@ class Administrator:
 
     def get_order_book(self, ticker):
         d = self.engines[ticker].get_order_book()
+
         def reconcile_with_db(order_book):
             contract = self.get_contract(ticker)
             self.session.expire_all()
             orders = self.session.query(models.Order).filter_by(
                 contract=contract, is_cancelled=False, accepted=True,
-                dispatched=True).filter(models.Order.quantity_left>0)
+                dispatched=True).filter(models.Order.quantity_left > 0)
             ordermap = {}
             for order in orders:
                 id_str = str(order.id)
@@ -577,7 +584,7 @@ class Administrator:
         """
         contract = util.get_contract(self.session, ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
-        
+
         log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
@@ -619,7 +626,7 @@ class Administrator:
 
         :returns: dict -- the balance sheet
         """
-        return self.bs_cache
+        return copy.deepcopy(self.bs_cache)
 
     def load_bs_cache(self):
         try:
@@ -636,60 +643,74 @@ class Administrator:
 
     @util.timed
     def update_bs_cache(self):
-        now = util.dt_to_timestamp(datetime.utcnow())
+        now = datetime.utcnow()
 
-        positions = self.session.query(models.Position).all()
-        balance_sheet = {'assets': {},
-                         'liabilities': {}
-        }
 
-        for position in positions:
-            if position.position is not None:
-                if position.user.type == 'Asset':
-                    side = balance_sheet['assets']
-                    if 'assets' in self.bs_cache:
-                        bs_cache = self.bs_cache['assets']
-                    else:
-                        bs_cache = {}
-                else:
-                    side = balance_sheet['liabilities']
-                    if 'liabilities' in self.bs_cache:
-                        bs_cache = self.bs_cache['liabilities']
-                    else:
-                        bs_cache = {}
+        balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
+                                                                   'total': 0,
+                                                                   'positions_raw': []}),
+                         'Liability': collections.defaultdict(lambda: {'positions_by_user': {},
+                                                                       'total': 0,
+                                                                       'positions_raw': []})}
 
-                try:
-                    old_position_calculated = bs_cache[position.contract.ticker]['positions_by_user'][position.user.username]['position']
-                    old_position_timestamp = bs_cache[position.contract.ticker]['positions_by_user'][position.user.username]['timestamp']
-                except KeyError:
-                    old_position_calculated = None
-                    old_position_timestamp = None
+        # Build the balance sheet from scratch with a single query
+        if 'timestamp' in self.bs_cache:
+            bs_query = self.session.query(models.Posting.username,
+                                          models.Posting.contract_id,
+                                          func.sum(models.Posting.quantity).label('position'),
+                                          func.max(models.Journal.timestamp).label('last_timestamp')).filter(
+                models.Journal.id == models.Posting.journal_id).filter(
+                models.Journal.timestamp > util.timestamp_to_dt(self.bs_cache['timestamp'])).group_by(
+                models.Posting.username,
+                models.Posting.contract_id)
 
-                position_calculated, timestamp = util.position_calculated(position, self.session, checkpoint=old_position_calculated,
-                                                                          start=old_position_timestamp)
+            # Copy the cached balance sheet over, without losing any defaultdict-ness
+            for side in ["Asset", "Liability"]:
+                if side in self.bs_cache:
+                    for contract in self.bs_cache[side]:
+                        for user, position_details in self.bs_cache[side][contract]['positions_by_user'].iteritems():
+                            balance_sheet[side][contract]['positions_by_user'][user] = position_details
+        else:
+            bs_query = self.session.query(models.Posting.username,
+                                          models.Posting.contract_id,
+                                          func.sum(models.Posting.quantity).label('position')).group_by(
+                models.Posting.username,
+                models.Posting.contract_id)
 
-                position_calculated_fmt = util.quantity_fmt(position.contract, position_calculated)
-                position_details = { 'username': position.user.username,
-                                                                    'hash': position.user.user_hash,
-                                                                    'position': position_calculated,
-                                                                    'position_fmt': position_calculated_fmt,
-                                                                    'timestamp': timestamp,
-                }
-                if position.contract.ticker in side:
-                    side[position.contract.ticker]['total'] += position_calculated
-                    side[position.contract.ticker]['positions_raw'].append(position_details)
-                    side[position.contract.ticker]['positions_by_user'][position.user.username] = position_details
-                else:
-                    side[position.contract.ticker] = {'total': position_calculated,
-                                                      'positions_raw': [position_details],
-                                                      'positions_by_user': {position.user.username: position_details},
-                                                      'contract': position.contract.ticker}
+        for row in bs_query:
+            user = self.get_user(row.username)
+            contract = self.get_contract(row.contract_id)
+            if row.username in balance_sheet[user.type][contract.ticker]['positions_by_user']:
+                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username]['position'] + row.position
+            else:
+                position = row.position
 
-                side[position.contract.ticker]['total_fmt'] = util.quantity_fmt(position.contract,
-                                                                                side[position.contract.ticker]['total'])
+            position_details = {'username': row.username,
+                                'hash': user.user_hash,
+                                'position': position,
+                                'position_fmt': util.quantity_fmt(contract, position),
+                                'timestamp': util.dt_to_timestamp(now)}
 
-        balance_sheet['timestamp'] = now
-        self.bs_cache = balance_sheet
+            balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
+
+
+        for side, sheet in balance_sheet.iteritems():
+            for ticker, details in sheet.iteritems():
+                contract = self.get_contract(ticker)
+
+                details['total'] = sum([r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
+                details['positions_raw'] = balance_sheet[side][ticker]['positions_by_user'].values()
+                details['contract'] = contract.ticker
+                details['total_fmt'] = util.quantity_fmt(contract, details['total'])
+
+        balance_sheet['timestamp'] = util.dt_to_timestamp(now)
+        self.bs_cache = {}
+        for side, sheet in balance_sheet.iteritems():
+            if isinstance(sheet, collections.defaultdict):
+                self.bs_cache[side] = dict(sheet)
+            else:
+                self.bs_cache[side] = sheet
+
         self.dump_bs_cache()
 
     def get_audit(self):
@@ -699,13 +720,13 @@ class Administrator:
         """
 
         balance_sheet = self.get_balance_sheet()
-        for side in ["assets", "liabilities"]:
+        for side in ["Asset", "Liability"]:
             for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
                     details['positions'].append((position['hash'], position['position']))
                 del details['positions_raw']
-
+                del details['positions_by_user']
 
         return balance_sheet
 
@@ -737,7 +758,7 @@ class Administrator:
     def get_orders(self, user, page=0):
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
-        order_pages = int(order_count/self.page_size)+1
+        order_pages = int(order_count / self.page_size) + 1
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
@@ -746,8 +767,9 @@ class Administrator:
             user=user).filter_by(
             contract=contract)
         postings_count = all_postings.count()
-        postings_pages = int(postings_count/self.page_size)+1
-        postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
+        postings_pages = int(postings_count / self.page_size) + 1
+        postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
+            self.page_size * page).limit(self.page_size)
         return postings, postings_pages
 
     def change_permission_group(self, username, id):
@@ -780,8 +802,10 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel)
 
+
 class AdminWebUI(Resource):
     isLeaf = True
+
     def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
         """The web Resource that front-ends the administrator
 
@@ -832,18 +856,18 @@ class AdminWebUI(Resource):
         """
         line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
         log.msg(
-                     self.avatarId,
-                     request.getClientIP(),
-                     request.getUser(),
-                     request.method,
-                     request.uri,
-                     request.clientproto,
-                     request.code,
-                     request.sentLength or "-",
-                     request.getHeader("referer") or "-",
-                     request.getHeader("user-agent") or "-",
-                     request.getHeader("authorization") or "-",
-                     json.dumps(request.args))
+            self.avatarId,
+            request.getClientIP(),
+            request.getUser(),
+            request.method,
+            request.uri,
+            request.clientproto,
+            request.code,
+            request.sentLength or "-",
+            request.getHeader("referer") or "-",
+            request.getHeader("user-agent") or "-",
+            request.getHeader("authorization") or "-",
+            json.dumps(request.args))
 
     def render(self, request):
         """Render the request
@@ -892,7 +916,7 @@ class AdminWebUI(Resource):
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
-        for level in range(0, self.avatarLevel+1):
+        for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
         try:
             resource = resource_list[request.path]
@@ -968,6 +992,7 @@ class AdminWebUI(Resource):
     def order_book(self, request):
         ticker = request.args['ticker'][0]
         d = self.administrator.get_order_book(ticker)
+
         def got_order_book(order_book):
             t = self.jinja_env.get_template('order_book.html')
             rendered = t.render(ticker=ticker, order_book=order_book)
@@ -1024,7 +1049,8 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
-                                                                                      username=request.args['username'][0]))
+                                                                                           username=
+                                                                                           request.args['username'][0]))
 
         return self.admin_list(request)
 
@@ -1041,7 +1067,7 @@ class AdminWebUI(Resource):
         orders, order_pages = self.administrator.get_orders(user, page)
         t = self.jinja_env.get_template('user_orders.html')
         rendered = t.render(user=user, orders=orders, order_pages=order_pages, orders_page=page,
-                            min_range=max(page-10, 0), max_range=min(order_pages, page+10))
+                            min_range=max(page - 10, 0), max_range=min(order_pages, page + 10))
         return rendered.encode('utf-8')
 
     def user_postings(self, request):
@@ -1051,11 +1077,11 @@ class AdminWebUI(Resource):
         position = self.administrator.get_position(user, contract)
         postings, posting_pages = self.administrator.get_postings(user, contract, page=page)
         t = self.jinja_env.get_template('user_postings.html')
-        postings_by_ticker = {contract.ticker: { 'postings': postings,
-                                                  'posting_pages': posting_pages,
-                                                  'page': page,
-                                                  'min_range': max(page-10, 0),
-                                                  'max_range': min(posting_pages, page+10)}}
+        postings_by_ticker = {contract.ticker: {'postings': postings,
+                                                'posting_pages': posting_pages,
+                                                'page': page,
+                                                'min_range': max(page - 10, 0),
+                                                'max_range': min(posting_pages, page + 10)}}
         rendered = t.render(user=user, position=position, postings_by_ticker=postings_by_ticker)
         return rendered.encode('utf-8')
 
@@ -1079,8 +1105,8 @@ class AdminWebUI(Resource):
             postings_by_ticker[position.contract.ticker] = {'postings': postings,
                                                             'posting_pages': posting_pages,
                                                             'page': page,
-                                                            'min_range': max(page-10, 0),
-                                                            'max_range': min(posting_pages, page+10)}
+                                                            'min_range': max(page - 10, 0),
+                                                            'max_range': min(posting_pages, page + 10)}
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
@@ -1096,7 +1122,7 @@ class AdminWebUI(Resource):
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
-                            min_range=max(orders_page-10, 0), max_range=min(order_pages, orders_page+10))
+                            min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):
@@ -1144,7 +1170,8 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.new_admin_user(request.args['username'][0], self.calc_ha1(request.args['password'][0],
-                                                                                     username=request.args['username'][0]),
+                                                                                     username=request.args['username'][
+                                                                                         0]),
                                           int(request.args['level'][0]))
         return self.admin_list(request)
 
@@ -1163,8 +1190,9 @@ class AdminWebUI(Resource):
         balance_sheet = self.administrator.get_balance_sheet()
 
         t = self.jinja_env.get_template('balance_sheet.html')
-        rendered = t.render(balance_sheet=balance_sheet)
+        rendered = t.render(balance_sheet=balance_sheet, timestamp=util.timestamp_to_dt(balance_sheet['timestamp']))
         return rendered.encode('utf-8')
+
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
@@ -1201,6 +1229,7 @@ class PasswordChecker(object):
         else:
             return defer.fail(credError.UnauthorizedLogin("Bad password"))
 
+
 class SimpleRealm(object):
     implements(IRealm)
 
@@ -1224,6 +1253,7 @@ class SimpleRealm(object):
             return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
         else:
             raise NotImplementedError
+
 
 class WebserverExport(ComponentExport):
     """
@@ -1270,10 +1300,12 @@ class WebserverExport(ComponentExport):
     def get_audit(self):
         return self.administrator.get_audit()
 
+
 class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer
 
     """
+
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
@@ -1288,6 +1320,7 @@ class TicketServerExport(ComponentExport):
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
+
 if __name__ == "__main__":
     log.startLogging(sys.stdout)
 
@@ -1295,8 +1328,8 @@ if __name__ == "__main__":
 
     debug = config.getboolean("administrator", "debug")
     accountant = AccountantProxy("dealer",
-            config.get("accountant", "administrator_export"),
-            config.getint("accountant", "administrator_export_base_port"))
+                                 config.get("accountant", "administrator_export"),
+                                 config.getint("accountant", "administrator_export_base_port"))
 
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
@@ -1307,8 +1340,8 @@ if __name__ == "__main__":
         protocol = 'http'
 
     base_uri = "%s://%s:%d" % (protocol,
-                                    config.get("webserver", "www_address"),
-                                    config.getint("webserver", "www_port"))
+                               config.get("webserver", "www_address"),
+                               config.getint("webserver", "www_port"))
     from_email = config.get("administrator", "email")
     zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
@@ -1331,15 +1364,15 @@ if __name__ == "__main__":
     ticketserver_export = TicketServerExport(administrator)
 
     router_share_async(webserver_export,
-        config.get("administrator", "webserver_export"))
+                       config.get("administrator", "webserver_export"))
     router_share_async(ticketserver_export,
                        config.get("administrator", "ticketserver_export"))
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
     wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
-                                 checkers),
-            [digest_factory])
+                                            checkers),
+                                     [digest_factory])
 
     # SSL
     if config.getboolean("webserver", "ssl"):

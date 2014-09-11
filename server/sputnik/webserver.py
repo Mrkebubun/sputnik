@@ -35,6 +35,7 @@ from zmq_util import export, pull_share_async, dealer_proxy_async
 from accountant import AccountantProxy
 from zendesk import Zendesk
 from watchdog import watchdog
+from blockscore import BlockScore
 
 from jsonschema import validate
 from twisted.python import log
@@ -1521,9 +1522,10 @@ class PepsiColaServerFactory(WampServerFactory):
 
 class TicketServer(Resource):
     isLeaf = True
-    def __init__(self, administrator, zendesk):
+    def __init__(self, administrator, zendesk, blockscore=None):
         self.administrator = administrator
         self.zendesk = zendesk
+        self.blockscore = blockscore
 
         Resource.__init__(self)
 
@@ -1566,52 +1568,76 @@ class TicketServer(Resource):
                               'CONTENT_TYPE': headers['content-type'] }
                     )
 
-        username = fields['username'].value
-        nonce = fields['nonce'].value
+        def onBlockScore(blockscore_result):
+            def onFail(failure):
+                """
 
-        def onFail(failure):
-            """
+                :param failure:
+                """
+                log.err("unable to create support ticket: %s" % str(failure.value.args))
+                request.write("Failure: %s" % str(failure.value.args))
+                request.finish()
 
-            :param failure:
-            """
-            log.err("unable to create support ticket: %s" % str(failure.value.args))
-            request.write("Failure: %s" % str(failure.value.args))
-            request.finish()
+            def onCheckSuccess(user):
+                attachments = []
+                file_fields = fields['file']
+                if not isinstance(file_fields, list):
+                    file_fields = [file_fields]
 
-        def onCheckSuccess(user):
-            attachments = []
-            file_fields = fields['file']
-            if not isinstance(file_fields, list):
-                file_fields = [file_fields]
+                for field in file_fields:
+                    attachments.append({"filename": field.filename,
+                                        "data": field.value,
+                                        "type": field.type})
 
-            for field in file_fields:
-                attachments.append({"filename": field.filename,
-                                    "data": field.value,
-                                    "type": field.type})
+                try:
+                    data = {'blockscore_result': blockscore_result,
+                           'input_data': json.loads(fields['data'].value)}
+                except ValueError:
+                    data = {'error': "Invalid json data: %s" % fields['data'].value }
 
-            try:
-                data = json.loads(fields['data'].value)
-            except ValueError:
-                data = {'error': "Invalid json data: %s" % fields['data'].value }
+                def onCreateTicketSuccess(ticket_number):
+                    def onRegisterTicketSuccess(result):
+                        log.msg("Ticket registered successfully")
+                        request.write("OK")
+                        request.finish()
 
-            def onCreateTicketSuccess(ticket_number):
-                def onRegisterTicketSuccess(result):
-                    log.msg("Ticket registered successfully")
-                    request.write("OK")
-                    request.finish()
-
-                log.msg("Ticket created: %s" % ticket_number)
-                d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
-                d3.addCallbacks(onRegisterTicketSuccess, onFail)
+                    log.msg("Ticket created: %s" % ticket_number)
+                    d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
+                    d3.addCallbacks(onRegisterTicketSuccess, onFail)
 
 
-            d2 = self.zendesk.create_ticket(user, "New compliance document submission",
-                                            json.dumps(data, indent=4,
-                                                       separators=(',', ': ')), attachments)
-            d2.addCallbacks(onCreateTicketSuccess, onFail)
+                d2 = self.zendesk.create_ticket(user, "New compliance document submission",
+                                                json.dumps(data, indent=4,
+                                                           separators=(',', ': ')), attachments)
+                d2.addCallbacks(onCreateTicketSuccess, onFail)
 
-        d = self.administrator.check_support_nonce(username, nonce, 'Compliance')
-        d.addCallbacks(onCheckSuccess, onFail)
+            username = fields['username'].value
+            nonce = fields['nonce'].value
+            d = self.administrator.check_support_nonce(username, nonce, 'Compliance')
+            d.addCallbacks(onCheckSuccess, onFail)
+            return d
+
+
+        if self.blockscore is not None:
+            input_data = json.loads(fields['data'].value)
+
+            input_values = {'date_of_birth': input_data['date_of_birth'],
+                            'identification': {'passport': input_data['passport_number']},
+                            'name': {'first': input_data['first_name'],
+                                     'middle': input_data['middle_name'],
+                                     'last': input_data['last_name']},
+                            'address': {'street1': input_data['address1'],
+                                        'street2': input_data['address2'],
+                                        'city': input_data['city'],
+                                        'state': input_data['state'],
+                                        'postal_code': input_data['postal_code'],
+                                        'country_code': input_data['country_code']}
+            }
+            d = self.blockscore.verify(input_values)
+            d.addBoth(onBlockScore)
+        else:
+            d = onBlockScore({})
+
         return NOT_DONE_YET
 
     def render(self, request):
@@ -1695,7 +1721,13 @@ if __name__ == '__main__':
     zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
                       config.get("ticketserver", "zendesk_token"),
                       config.get("ticketserver", "zendesk_email"))
-    ticket_server =  TicketServer(administrator, zendesk)
+
+    if config.getboolean("ticketserver", "enable_blockscore"):
+        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
+    else:
+        blockscore = None
+
+    ticket_server =  TicketServer(administrator, zendesk, blockscore=blockscore)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))

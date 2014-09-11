@@ -105,10 +105,17 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
                 max_cash_spent[denominated_contract.ticker] += transaction_size_int
             if order.side == 'SELL':
                 max_cash_spent[payout_contract.ticker] += order.quantity_left
+        elif order.contract.contract_type == 'prediction':
+            transaction_size_float = order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+            transaction_size_int = int(transaction_size_float)
+            if transaction_size_int != transaction_size_float:
+                log.err("Position change is not an integer")
+        else:
+            raise NotImplementedError
 
-            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
-            for ticker, fee in fees.iteritems():
-                max_cash_spent[ticker] += fee
+        fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
+        for ticker, fee in fees.iteritems():
+            max_cash_spent[ticker] += fee
 
 
 
