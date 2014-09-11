@@ -208,7 +208,7 @@ class Instance:
 
         print "\tcreating and downloading key..."
         key = self.ec2.create_key_pair(self.client)
-        umask = os.umask(0117)
+        umask = os.umask(0177)
         with open(self.key_filename, "w") as key_file:
             key_file.write(key.material)
         os.umask(umask)
@@ -216,7 +216,7 @@ class Instance:
         print "\tgenerating database password..."
         self.db_password = ''.join(random.choice(
                 string.ascii_uppercase + string.digits) for _ in range(8))
-        umask = os.umask(0117)
+        umask = os.umask(0177)
         with open(self.db_pass_filename, "w") as db_file:
             db_file.write(self.db_password)
         os.umask(umask)
@@ -426,43 +426,73 @@ class Instance:
         parser.readfp(cStringIO.StringIO(result))
         print parser.get("version", "git_hash")
 
+    @staticmethod
+    def list(region=None):
+        if region==None:
+            regions = map(lambda r: r.name, boto.ec2.regions())
+            for region in regions:
+                Instance.list(region)
+            return
 
-parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
-client = argparse.ArgumentParser(add_help=False)
-client.add_argument("client", action="store",
-                    help="Short identifier for client.")
-parser.add_argument("--region", dest="region", action="store",
-                    help="Region where to deploy. Default: us-west-1.")
-parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-subparsers = parser.add_subparsers(description="Actions that can be performed.",
-                                   metavar="command",
-                                   dest="command")
-parser_deploy = subparsers.add_parser("deploy", parents=[client],
-                                      help="Deploy instance.")
-parser_status = subparsers.add_parser("status", parents=[client],
-                                      help="Get instance deployment status.")
-parser_delete = subparsers.add_parser("delete", parents=[client],
-                                      help="Delete instance.")
-parser_install = subparsers.add_parser("install", parents=[client],
-                                       help="Install instance.")
-parser_install.add_argument("--profile", dest="profile", action="store",
-                            required=True, help="Path to profile.")
-parser_upgrade = subparsers.add_parser("upgrade", parents=[client],
-                                       help="Upgrade instance.")
-parser_upgrade.add_argument("--profile", dest="profile", action="store",
-                            required=True, help="Path to profile.")
-parser_query = subparsers.add_parser("query", parents=[client],
-                                     help="Query running instance for version.")
+        try:
+            ec2 = boto.ec2.connect_to_region(region)
+            cf = boto.cloudformation.connect_to_region(region)
+            keys = map(lambda key: key.name, ec2.get_all_key_pairs())
+            stacks = map(lambda stack: stack.stack_name, cf.describe_stacks())
+            instances = set()
+            instances.update(keys)
+            instances.update(stacks)
 
-kwargs = vars(parser.parse_args())
-command = kwargs["command"]
-del kwargs["command"]
+            print "Region: %s" % region
+            for instance in instances:
+                print "\t%s" % instance
+        except:
+            print "Could not connect to %s" % region
 
-instance = Instance(**kwargs)
-method = getattr(instance, command)
+def main():
+    parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
+    client = argparse.ArgumentParser(add_help=False)
+    client.add_argument("client", action="store",
+            help="Short identifier for client.")
+    parser.add_argument("--region", dest="region", action="store",
+            help="Region where to deploy. Default: us-west-1.")
+    parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
+    subparsers = parser.add_subparsers(
+            description="Actions that can be performed.", metavar="command",
+            dest="command")
+    parser_deploy = subparsers.add_parser("deploy", parents=[client],
+            help="Deploy instance.")
+    parser_status = subparsers.add_parser("status", parents=[client],
+            help="Get instance deployment status.")
+    parser_delete = subparsers.add_parser("delete", parents=[client],
+            help="Delete instance.")
+    parser_install = subparsers.add_parser("install", parents=[client],
+            help="Install instance.")
+    parser_install.add_argument("--profile", dest="profile", action="store",
+            required=True, help="Path to profile.")
+    parser_upgrade = subparsers.add_parser("upgrade", parents=[client],
+            help="Upgrade instance.")
+    parser_upgrade.add_argument("--profile", dest="profile", action="store",
+            required=True, help="Path to profile.")
+    parser_query = subparsers.add_parser("query", parents=[client],
+            help="Query running instance for version.")
+    parser_list = subparsers.add_parser("list", help="List existing instances.")
 
-try:
-    method()
-except AutoDeployException, e:
-    print e
+    kwargs = vars(parser.parse_args())
+    command = kwargs["command"]
+    del kwargs["command"]
+
+    if command == "list":
+        return Instance.list(kwargs.get("region", None))
+
+    instance = Instance(**kwargs)
+    method = getattr(instance, command)
+
+    try:
+        method()
+    except AutoDeployException, e:
+        print e
+
+if __name__ == "__main__":
+    main()
 
