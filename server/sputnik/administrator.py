@@ -596,7 +596,7 @@ class Administrator:
         price = util.price_to_wire(contract, price_ui)
         uid = util.get_uid()
 
-        # Don't try to clear if thm contract is not actmve
+        # Don't try to clear if the contract is not active
         if not contract.active:
             return
 
@@ -608,7 +608,13 @@ class Administrator:
         except Exception as e:
             log.err("Unable to mark contract inactive %s" % e)
         else:
-            self.accountant.clear_contract(None, ticker, price, uid)
+            d = self.accountant.clear_contract(None, ticker, price, uid)
+            # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
+            # We need to make sure that the timeout here is long, because clear_contract
+            # won't return for a while
+            #
+            # How do we ensure that the accountants know that it is reactivated?
+            # send a ZMQ message to them all?
 
 
     def manual_deposit(self, address, quantity_ui):

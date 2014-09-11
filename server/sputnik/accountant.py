@@ -1002,6 +1002,7 @@ class Accountant:
         if contract.expiration is None:
             raise NON_CLEARING_CONTRACT
 
+        # TODO: If it's an early clearing, don't check for contract expiration
         if contract.expiration >= datetime.utcnow():
             raise CONTRACT_NOT_EXPIRED
 
