@@ -342,7 +342,7 @@ class Instance:
             except Exception, e:
                 raise e
 
-    def install(self):
+    def install(self, upgrade=False):
         if self.broken:
             raise INSTANCE_BROKEN
         
@@ -376,18 +376,15 @@ class Instance:
             if result.failed:
                 raise COMMAND_FAILED
             with fabric.api.cd("sputnik"):
-                result = fabric.api.run("make && make install")
+                action = "install"
+                if upgrade:
+                    action = "upgrade"
+                result = fabric.api.run("make && make %s" % action)
                 if result.failed:
                     raise COMMAND_FAILED
 
     def upgrade(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        raise NotImplemented
+        self.install(True)
     
     def query(self):
         if self.broken:
