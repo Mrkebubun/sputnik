@@ -370,8 +370,14 @@ class Instance:
                 result = fabric.api.put("sputnik.tar", "sputnik.tar")
                 if result.failed:
                     raise COMMAND_FAILED
-            
-            print "Installing..."
+           
+            if upgrade:
+                print "Upgrading..."
+                result = fabric.api.run("rm -rf sputnik")
+                if result.failed:
+                    raise COMMAND_FAILED
+            else:
+                print "Installing..."
             result = fabric.api.run("tar xf sputnik.tar")
             if result.failed:
                 raise COMMAND_FAILED
