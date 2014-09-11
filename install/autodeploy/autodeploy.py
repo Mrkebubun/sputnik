@@ -386,14 +386,16 @@ class Instance:
                     raise COMMAND_FAILED
             else:
                 print "Installing..."
+
             result = fabric.api.run("tar xf sputnik.tar")
+
             if result.failed:
                 raise COMMAND_FAILED
             with fabric.api.cd("sputnik"):
                 action = "install"
                 if upgrade:
                     action = "upgrade"
-                result = fabric.api.run("make %s" % action)
+                result = fabric.api.sudo("make deps %s" % action)
                 if result.failed:
                     raise COMMAND_FAILED
 
