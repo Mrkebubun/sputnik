@@ -496,9 +496,9 @@ def main():
             required=True, help="Path to profile.")
     parser_query = subparsers.add_parser("query", parents=[client],
             help="Query running instance for version.")
-    parser_list = subparsers.add_parser("list", help="List existing instances.")
     parser_login = subparsers.add_parser("login", parents=[client],
             help="Login via ssh.")
+    parser_list = subparsers.add_parser("list", help="List existing instances.")
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
