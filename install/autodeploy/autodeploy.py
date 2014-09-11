@@ -379,7 +379,7 @@ class Instance:
                 action = "install"
                 if upgrade:
                     action = "upgrade"
-                result = fabric.api.run("make && make %s" % action)
+                result = fabric.api.run("make %s" % action)
                 if result.failed:
                     raise COMMAND_FAILED
 
