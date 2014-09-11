@@ -72,9 +72,12 @@ class Instance:
         if not client:
             raise AutoDeployException("Client cannot be None.")
        
-        self.key_filename = "%s/ssh_login_key.pem" % self.client
-        self.db_pass_filename = "%s/dbpassword.txt" % self.client
-        self.server_key_filename = "%s/ssh_server_key.pub" % self.client
+        self.key_filename = "/srv/autodeploy/%s/ssh_login_key.pem" % \
+                self.client
+        self.db_pass_filename = "/srv/autodeploy/%s/dbpassword.txt" % \
+                self.client
+        self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
+                self.client
 
         # default uninstalled state
         self.deployed = False
@@ -198,7 +201,7 @@ class Instance:
             template = template_file.read()
 
         print "Creating instance for %s..." % self.client
-        os.mkdir(self.client)
+        os.mkdir("/srv/autodeploy/%s" % self.client)
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
