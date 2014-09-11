@@ -9,6 +9,7 @@ import boto.ec2
 import boto.cloudformation
 import random
 import string
+import pty
 
 import fabric.api
 fabric.api.env.reject_unknown_hosts = True
@@ -335,8 +336,8 @@ class Instance:
                         # anything that small better be ECDSA
                         # TODO: find a more reliable way to do this
                         if line.startswith("ec2: 256 "):
-                            fingerprint = line.strip().split(" ")[2]
-                            print "ECDSA fingerprint: %s" % fingerprint
+                            self.fingerprint = line.strip().split(" ")[2]
+                            print "ECDSA fingerprint: %s" % self.fingerprint
                             break
                 else:
                     print "Public key: <not yet available>"
@@ -405,10 +406,10 @@ class Instance:
     def query(self):
         if self.broken:
             raise INSTANCE_BROKEN
-        
+
         if not self.deployed:
             raise INSTANCE_NOT_FOUND
-       
+
         if not self.ready:
             raise INSTANCE_NOT_READY
 
@@ -425,6 +426,25 @@ class Instance:
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
         print parser.get("version", "git_hash")
+
+    def login(self):
+        if self.broken:
+            raise INSTANCE_BROKEN
+
+        if not self.deployed:
+            raise INSTANCE_NOT_FOUND
+
+        if not self.ready:
+            raise INSTANCE_NOT_READY
+
+        # Get DNS
+
+        self.status()
+        for output in self.stack.outputs:
+            if output.key == "PublicDNS":
+                dns_name = output.value
+
+        pty.spawn(["/usr/bin/ssh", "-i", self.key_filename, "ubuntu@%s" % dns_name])
 
     @staticmethod
     def list(region=None):
@@ -477,6 +497,8 @@ def main():
     parser_query = subparsers.add_parser("query", parents=[client],
             help="Query running instance for version.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
+    parser_login = subparsers.add_parser("login", parents=[client],
+            help="Login via ssh.")
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
