@@ -360,6 +360,11 @@ class Instance:
             here = os.path.dirname(os.path.abspath(__file__))
             git_root = os.path.abspath(os.path.join(here, "..", ".."))
             with fabric.api.lcd(git_root):
+                print "Cleaning..."
+                result = fabric.api.local("make clean")
+                if result.failed:
+                    raise COMMAND_FAILED
+
                 print "Generating tarball..."
                 result = fabric.api.local("PROFILE=%s make tar" % \
                         self.profile)
