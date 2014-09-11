@@ -25,11 +25,8 @@
     "Mappings": {
         "RegionMap": {
             "us-west-1": {
-                "AMI": "ami-ad202fe8",
-                "DataVolume": "snap-429e5083"
-            },
-            "us-west-2": {
-                "AMI": "ami-25581f15"
+                "AMI": "ami-c34a4386",
+                "DataVolume": "snap-6ed21caf"
             }
         }
     },
