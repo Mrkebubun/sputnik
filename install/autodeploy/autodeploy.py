@@ -209,7 +209,7 @@ class Instance:
 
         print "\tcreating and downloading key..."
         key = self.ec2.create_key_pair(self.client)
-        umask = os.umask(0117)
+        umask = os.umask(0177)
         with open(self.key_filename, "w") as key_file:
             key_file.write(key.material)
         os.umask(umask)
@@ -217,7 +217,7 @@ class Instance:
         print "\tgenerating database password..."
         self.db_password = ''.join(random.choice(
                 string.ascii_uppercase + string.digits) for _ in range(8))
-        umask = os.umask(0117)
+        umask = os.umask(0177)
         with open(self.db_pass_filename, "w") as db_file:
             db_file.write(self.db_password)
         os.umask(umask)
