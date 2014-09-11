@@ -2,8 +2,6 @@ __author__ = 'sameer'
 
 import treq
 import json
-import random
-import string
 from twisted.internet import defer
 from twisted.python import log
 
@@ -46,10 +44,12 @@ class Zendesk(object):
             :returns: Deferred
             :raises: Exception
             """
+
             ticket = {"ticket": {"requester": {"name": user['nickname'],
                                                "email": user['email'] },
                                  "subject": subject,
                                  "comment": {"body": comment, "uploads": [str(t[1]) for t in tokens] }}}
+
             def handle_response(response):
                 """
 

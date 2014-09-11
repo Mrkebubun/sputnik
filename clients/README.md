@@ -166,8 +166,8 @@ assets vs total liabilities.
 ```json
 {
     timestamp: "2342342"
-    assets: {}
-    liabilities: {}
+    Asset: {}
+    Liability: {}
 }
 ```
 

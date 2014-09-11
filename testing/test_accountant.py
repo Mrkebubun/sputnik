@@ -556,7 +556,7 @@ class TestEngineExport(TestAccountant):
                                                                                           contract=NETS2014).one()
 
                 # This is based on all BTC fees being zero
-                self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000)
+                self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000 - 1500000 * 0.005)
                 self.assertEqual(passive_user_btc_position.position, 3000000 - 1500000)
                 self.assertEqual(aggressive_user_btc_position.pending_postings, 0)
                 self.assertEqual(passive_user_btc_position.pending_postings, 0)
@@ -758,8 +758,8 @@ class TestWebserverExport(TestAccountant):
             from sputnik import margin
 
             [low_margin, high_margin] = margin.calculate_margin('test', self.session)
-            self.assertEqual(low_margin, 1500000)
-            self.assertEqual(high_margin, 1500000)
+            self.assertEqual(low_margin, 1500000 + 7500)
+            self.assertEqual(high_margin, 1500000 + 7500)
 
         def onFail(failure):
             self.assertFalse(True)
@@ -808,8 +808,8 @@ class TestWebserverExport(TestAccountant):
             from sputnik import margin
 
             [low_margin, high_margin] = margin.calculate_margin('test', self.session)
-            self.assertEqual(low_margin, 2700000)
-            self.assertEqual(high_margin, 2700000)
+            self.assertEqual(low_margin, 2700000 + 1500)
+            self.assertEqual(high_margin, 2700000 + 1500)
 
         def onFail(failure):
             self.assertFalse(True)

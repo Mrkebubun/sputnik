@@ -23,8 +23,6 @@ parser.add_option("-c", "--config", dest="filename",
 if options.filename:
     config.reconfigure(options.filename)
 
-import collections
-
 import database
 import models
 import margin
@@ -34,18 +32,15 @@ from alerts import AlertsProxy
 
 from ledger import create_posting
 
-from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, push_proxy_sync, \
-    dealer_proxy_sync, push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
+from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, \
+    push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import DataError
-from datetime import datetime, date
 from watchdog import watchdog
 
 import time
-import uuid
 
 class AccountantException(Exception):
     pass
@@ -61,7 +56,8 @@ class Accountant:
 
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
-                 alerts_proxy, accountant_number=0, debug=False, trial_period=False):
+                 alerts_proxy, accountant_number=0, debug=False, trial_period=False,
+                 mimetic_share=0.5):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -75,8 +71,8 @@ class Accountant:
         self.debug = debug
         self.deposit_limits = {}
         # TODO: Make this configurable
-        self.vendor_share_config = { 'm2': 0.5,
-                                     'customer': 0.5
+        self.vendor_share_config = { 'm2': mimetic_share,
+                                     'customer': 1.0-mimetic_share
         }
         self.safe_prices = {}
         self.engines = engines
@@ -1190,11 +1186,13 @@ if __name__ == "__main__":
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
+    mimetic_share = config.getfloat("accountant", "mimetic_share")
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             accountant_number=accountant_number,
                             debug=debug,
-                            trial_period=trial_period)
+                            trial_period=trial_period,
+                            mimetic_share=mimetic_share)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
