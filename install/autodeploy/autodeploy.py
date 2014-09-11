@@ -55,6 +55,7 @@ INSTANCE_BROKEN = AutoDeployException("Instance is broken. Please check.")
 INSTANCE_EXISTS = AutoDeployException("Instance already exists.")
 INSTANCE_NOT_FOUND = AutoDeployException("Instance not found.")
 INSTANCE_NOT_READY = AutoDeployException("Instance not ready.")
+COMMAND_FAILED = AutoDeployException("Command failed.")
 
 class Instance:
     def __init__(self, client=None, region=None, profile=None, key=None,
@@ -246,16 +247,22 @@ class Instance:
             while True:
                 instance.update()
                 if instance.state == "running":
-                    output = instance.get_console_output().output
-                    if output:
-                        break
-                    time.sleep(10)
+                    break
                 elif instance.state == "pending":
                     time.sleep(10)
                 else:
                     raise INSTANCE_BROKEN
         print
         print "Instance %s booted." % instance_id
+        sys.stdout.write("Waiting for console output (this may take a few minutes)... ")
+        with Spinner():
+            while True:
+                output = instance.get_console_output().output
+                if output:
+                    break
+                time.sleep(10)
+        print
+        print "Instance %s ready." % instance_id
         output = instance.get_console_output().output.split("\n")
         for line in output:
             if line.startswith("ecdsa-sha2-nistp256 "):
@@ -338,11 +345,40 @@ class Instance:
     def install(self):
         if self.broken:
             raise INSTANCE_BROKEN
-
+        
         if not self.deployed:
             raise INSTANCE_NOT_FOUND
+       
+        if not self.ready:
+            raise INSTANCE_NOT_READY
 
-        raise NotImplemented
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            here = os.path.dirname(os.path.abspath(__file__))
+            git_root = os.path.abspath(os.path.join(here, "..", ".."))
+            with fabric.api.lcd(git_root):
+                print "Generating tarball..."
+                result = fabric.api.local("PROFILE=%s make tar" % \
+                        self.profile)
+                if result.failed:
+                    raise COMMAND_FAILED
+
+                print "Uploading distribution..."
+                result = fabric.api.put("sputnik.tar", "sputnik.tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+            
+            print "Installing..."
+            result = fabric.api.run("tar xf sputnik.tar")
+            if result.failed:
+                raise COMMAND_FAILED
+            with fabric.api.cd("sputnik"):
+                result = fabric.api.run("make && make install")
+                if result.failed:
+                    raise COMMAND_FAILED
 
     def upgrade(self):
         if self.broken:
@@ -371,7 +407,7 @@ class Instance:
             result = fabric.api.run(
                 "cat /srv/sputnik/server/config/sputnik.ini")
             if result.failed:
-                raise INSTANCE_BROKEN
+                raise COMMAND_FAILED
 
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
