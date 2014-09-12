@@ -165,13 +165,8 @@ class Instance:
     def _ready(self):
         if not self.deployed:
             return
-        
-        for output in self.stack.outputs:
-            if output.key == "InstanceId":
-                 instance_id = output.value
-                 break
-        else:
-            raise INSTANCE_BROKEN
+
+        instance_id = self.get_output("InstanceId")
 
         try:
             self.instance = self.ec2.get_all_instances(
@@ -243,12 +238,8 @@ class Instance:
                     raise INSTANCE_BROKEN
         print
         print "Instance for %s created." % self.customer
-        for output in self.stack.outputs:
-            if output.key == "InstanceId":
-                 instance_id = output.value
-                 break
-        else:
-            raise INSTANCE_BROKEN
+        instance_id = self.get_output("InstanceId")
+
         sys.stdout.write("Waiting for instance to boot (this may take a few minutes)... ")
         instance = self.ec2.get_all_instances(instance_id)[0].instances[0]
         with Spinner():
@@ -305,6 +296,19 @@ class Instance:
             self.ec2.delete_key_pair(self.customer)
         
         print "Instance %s removed." % self.customer
+
+    def get_output(self, key):
+        for output in self.stack.outputs:
+            if output.key == key:
+                return output.value
+
+        raise INSTANCE_BROKEN
+
+    def get_db_pass(self):
+        with open(self.db_pass_filename, "r") as f:
+            db_pass = f.readline()
+
+        return db_pass
 
     def status(self):
         if not self.found:
@@ -403,7 +407,12 @@ class Instance:
                 action = "install"
                 if upgrade:
                     action = "upgrade"
-                result = fabric.api.sudo("make deps %s" % action)
+
+                dbhost = self.get_output("DbAddress")
+                dbport = self.get_output("DbPort")
+                dbmasterpw = self.get_db_pass()
+                result = fabric.api.sudo("DBHOST=%s DBPORT=%d DBMASTERPW=%s make deps %s" %
+                                         (dbhost, dbmasterpw, action))
                 if result.failed:
                     raise COMMAND_FAILED
 

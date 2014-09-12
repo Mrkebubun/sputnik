@@ -68,6 +68,15 @@ class Profile:
         if "user" not in self.config:
             parser.set("DEFAULT", "user", getpass.getuser())
 
+        if "dbmasterpw" not in self.config:
+            parser.set("DEFAULT", "dbmasterpw", os.getenv("DBMASTERPW", ''))
+
+        if "dbhost" not in self.config:
+            parser.set("DEFAULT", "dbhost", os.getenv("DBHOST", ''))
+
+        if "dbport" not in self.config:
+            parser.set("DEFAULT", "dbport", os.getenv("DBPORT", ''))
+
         # store profile information
         # for scripts, store the originating profile as well so we can run it
         #  in the correct context (for example, if the script needs access to
