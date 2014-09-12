@@ -35,6 +35,16 @@ class Profile:
 
         self.read_profile_dir(self.profile)
         self.read_config_status()
+        self.read_aux_config()
+
+    def read_aux_config(self):
+        parser = ConfigParser.SafeConfigParser()
+        parsed = parser.read([os.path.join(self.git_root, "aux.ini"),
+                                os.path.join(self.git_root, "dist/aux.ini")])
+        if len(parsed) != 1:
+            return
+
+        self.config.update(parser.items("aux"))
 
     def read_profile_dir(self, profile):
         profile = os.path.abspath(profile)
@@ -69,15 +79,6 @@ class Profile:
         else:
             # If user has been set, set it so that the parser can use it
             parser.set("DEFAULT", "user", self.config['user'])
-
-        if "dbmasterpw" not in self.config:
-            parser.set("DEFAULT", "dbmasterpw", os.getenv("DBMASTERPW", ''))
-
-        if "dbhost" not in self.config:
-            parser.set("DEFAULT", "dbhost", os.getenv("DBHOST", ''))
-
-        if "dbport" not in self.config:
-            parser.set("DEFAULT", "dbport", os.getenv("DBPORT", ''))
 
         # store profile information
         # for scripts, store the originating profile as well so we can run it

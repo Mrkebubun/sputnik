@@ -79,6 +79,7 @@ class Instance:
                 self.customer
         self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
                 self.customer
+        self.server_ssl_key_dir = "/srv/autodeploy/%s/ssl_keys" % self.customer
 
         # default uninstalled state
         self.deployed = False
@@ -380,6 +381,24 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
+                parser = ConfigParser.SafeConfigParser()
+                parser.add_section("aux")
+                parser.set("aux", "dbhost", self.get_output("DbAddress"))
+                parser.set("aux", "dbport", self.get_output("DbPort"))
+                parser.set("aux", "dbmasterpw", self.get_db_pass())
+
+                # If there are no keys, turn off SSL and use the AWS DNS
+                if not (os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.key"))
+                    and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
+                    and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
+                    parser.set("aux", "use_ssl", "no")
+                    parser.set("aux", "webserver_address", self.get_output("PublicDNS"))
+                    parser.set("aux", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
+                    parser.set("aux", "webserver_port", "80")
+
+                with open(os.path.join(git_root, "aux.ini"), "w") as f:
+                    parser.write(f)
+
                 print "Generating tarball..."
                 result = fabric.api.local("PROFILE=%s make tar" % \
                         self.profile)
@@ -403,17 +422,15 @@ class Instance:
 
             if result.failed:
                 raise COMMAND_FAILED
+
             with fabric.api.cd("sputnik"):
                 action = "install"
                 if upgrade:
                     action = "upgrade"
 
-                dbhost = self.get_output("DbAddress")
-                dbport = self.get_output("DbPort")
-                dbmasterpw = self.get_db_pass()
-                result = fabric.api.sudo("DBHOST=%s DBPORT=%s DBMASTERPW=%s make deps %s" %
-                                         (dbhost, dbport, dbmasterpw, action))
+                result = fabric.api.sudo("make deps %s" % action)
                 if result.failed:
+                    fabric.api.get("dist/install.log", "./install.log")
                     raise COMMAND_FAILED
 
     def upgrade(self):

@@ -7,7 +7,7 @@ endif
 all: dist
 
 clean:
-	rm -r dist
+	rm -rf dist aux.ini
 
 build-deps:
 	install/install.py build-deps
@@ -23,6 +23,7 @@ build:
 
 dist: config build
 	install/install.py dist
+	cp aux.ini dist
 
 test:
 	cd testing && make no_ui
