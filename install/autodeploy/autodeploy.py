@@ -59,9 +59,9 @@ INSTANCE_NOT_READY = AutoDeployException("Instance not ready.")
 COMMAND_FAILED = AutoDeployException("Command failed.")
 
 class Instance:
-    def __init__(self, client=None, region=None, profile=None, key=None,
+    def __init__(self, customer=None, region=None, profile=None, key=None,
             verbose=False, safety=False):
-        self.client = client
+        self.customer = customer
         self.region = region
         self.profile = profile
         self.key = key
@@ -70,15 +70,15 @@ class Instance:
 
         self.default_region = "us-west-1"
 
-        if not client:
-            raise AutoDeployException("Client cannot be None.")
+        if not customer:
+            raise AutoDeployException("Customer cannot be None.")
        
         self.key_filename = "/srv/autodeploy/%s/ssh_login_key.pem" % \
-                self.client
+                self.customer
         self.db_pass_filename = "/srv/autodeploy/%s/dbpassword.txt" % \
-                self.client
+                self.customer
         self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
-                self.client
+                self.customer
 
         # default uninstalled state
         self.deployed = False
@@ -104,7 +104,7 @@ class Instance:
                     regions.insert(0, self.default_region)
                 for r in regions:
                     self._connect(r)
-                    if self._search(client):
+                    if self._search(customer):
                         self.region = r
                         break
             print
@@ -122,16 +122,16 @@ class Instance:
             raise Exception("No such region: %s" % region)
             
         self._connect(region)
-        self._search(client)
+        self._search(customer)
         self._ready()
 
     def _connect(self, region):
         self.ec2 = boto.ec2.connect_to_region(region)
         self.cf = boto.cloudformation.connect_to_region(region)
 
-    def _search(self, client):
+    def _search(self, customer):
         try:
-            self.ec2.get_all_key_pairs(client)
+            self.ec2.get_all_key_pairs(customer)
             self.key_present = True
         except KeyboardInterrupt:
             raise
@@ -139,7 +139,7 @@ class Instance:
             pass
 
         try:
-            self.stack = self.cf.describe_stacks(client)[0]
+            self.stack = self.cf.describe_stacks(customer)[0]
             self.stack_present = True
             if self.stack.stack_status != "CREATE_COMPLETE":
                 self.broken = True
@@ -204,14 +204,14 @@ class Instance:
         with open("autodeploy.template") as template_file:
             template = template_file.read()
 
-        print "Creating instance for %s..." % self.client
-        os.mkdir("/srv/autodeploy/%s" % self.client)
+        print "Creating instance for %s..." % self.customer
+        os.mkdir("/srv/autodeploy/%s" % self.customer)
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
 
         print "\tcreating and downloading key..."
-        key = self.ec2.create_key_pair(self.client)
+        key = self.ec2.create_key_pair(self.customer)
         umask = os.umask(0177)
         with open(self.key_filename, "w") as key_file:
             key_file.write(key.material)
@@ -226,15 +226,15 @@ class Instance:
         os.umask(umask)
        
         print "\tcreating stack..."
-        self.cf.create_stack(self.client, template,
-                parameters=[("KeyName", self.client),
+        self.cf.create_stack(self.customer, template,
+                parameters=[("KeyName", self.customer),
                     ("DBPassword", self.db_password),
-                    ("CustomerName", self.client)])
+                    ("CustomerName", self.customer)])
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
             while True:
-                self.stack = self.cf.describe_stacks(self.client)[0]
+                self.stack = self.cf.describe_stacks(self.customer)[0]
                 if self.stack.stack_status == "CREATE_COMPLETE":
                     break
                 elif self.stack.stack_status == "CREATE_IN_PROGRESS":
@@ -242,7 +242,7 @@ class Instance:
                 else:
                     raise INSTANCE_BROKEN
         print
-        print "Instance for %s created." % self.client
+        print "Instance for %s created." % self.customer
         for output in self.stack.outputs:
             if output.key == "InstanceId":
                  instance_id = output.value
@@ -284,34 +284,34 @@ class Instance:
 
     def delete(self):
         if self.broken:
-            response = raw_input("Delete broken instance %s? " % self.client)
+            response = raw_input("Delete broken instance %s? " % self.customer)
             if response != "yes":
                 print "Aborting."
                 return
         else:
-            response = raw_input("Delete instance %s? " % self.client)
+            response = raw_input("Delete instance %s? " % self.customer)
             if response != "yes":
                 print "Aborting."
                 return
 
-        print "Deleting instance %s..." % self.client
+        print "Deleting instance %s..." % self.customer
 
         if self.stack_present:
             print "\tremoving stack..."
-            self.cf.delete_stack(self.client)
+            self.cf.delete_stack(self.customer)
         
         if self.key_present:
             print "\tremoving key..."
-            self.ec2.delete_key_pair(self.client)
+            self.ec2.delete_key_pair(self.customer)
         
-        print "Instance %s removed." % self.client
+        print "Instance %s removed." % self.customer
 
     def status(self):
         if not self.found:
             raise INSTANCE_NOT_FOUND
       
         # self.stack should have been prepopulated by constructor
-        print "Instance: %s" % self.client
+        print "Instance: %s" % self.customer
         print "Region: %s" % self.region
         if not self.stack:
             print "Stack not found."
@@ -471,32 +471,32 @@ class Instance:
 
 def main():
     parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
-    client = argparse.ArgumentParser(add_help=False)
-    client.add_argument("client", action="store",
-            help="Short identifier for client.")
+    customer = argparse.ArgumentParser(add_help=False)
+    customer.add_argument("customer", action="store",
+            help="Short identifier for customer.")
     parser.add_argument("--region", dest="region", action="store",
             help="Region where to deploy. Default: us-west-1.")
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
     subparsers = parser.add_subparsers(
             description="Actions that can be performed.", metavar="command",
             dest="command")
-    parser_deploy = subparsers.add_parser("deploy", parents=[client],
+    parser_deploy = subparsers.add_parser("deploy", parents=[customer],
             help="Deploy instance.")
-    parser_status = subparsers.add_parser("status", parents=[client],
+    parser_status = subparsers.add_parser("status", parents=[customer],
             help="Get instance deployment status.")
-    parser_delete = subparsers.add_parser("delete", parents=[client],
+    parser_delete = subparsers.add_parser("delete", parents=[customer],
             help="Delete instance.")
-    parser_install = subparsers.add_parser("install", parents=[client],
+    parser_install = subparsers.add_parser("install", parents=[customer],
             help="Install instance.")
     parser_install.add_argument("--profile", dest="profile", action="store",
             required=True, help="Path to profile.")
-    parser_upgrade = subparsers.add_parser("upgrade", parents=[client],
+    parser_upgrade = subparsers.add_parser("upgrade", parents=[customer],
             help="Upgrade instance.")
     parser_upgrade.add_argument("--profile", dest="profile", action="store",
             required=True, help="Path to profile.")
-    parser_query = subparsers.add_parser("query", parents=[client],
+    parser_query = subparsers.add_parser("query", parents=[customer],
             help="Query running instance for version.")
-    parser_login = subparsers.add_parser("login", parents=[client],
+    parser_login = subparsers.add_parser("login", parents=[customer],
             help="Login via ssh.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
 
