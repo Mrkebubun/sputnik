@@ -15,5 +15,3 @@ libssl-dev
 openssl
 alembic
 python-dateutil
-
-
