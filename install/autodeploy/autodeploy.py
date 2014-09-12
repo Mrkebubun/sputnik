@@ -228,7 +228,8 @@ class Instance:
         print "\tcreating stack..."
         self.cf.create_stack(self.client, template,
                 parameters=[("KeyName", self.client),
-                    ("DBPassword", self.db_password)])
+                    ("DBPassword", self.db_password),
+                    ("CustomerName", self.client)])
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
