@@ -43,7 +43,12 @@ class Profile:
         self.cache.append(profile)
 
 
+        # while it would be nice, we cannot reuse the parser since we might
+        # read a reference to a profile that must be parsed first
         parser = ConfigParser.SafeConfigParser()
+        if "git_root" not in self.config:
+            parser.set("DEFAULT", "git_root", self.git_root)
+
         # read profile.ini
         profile_ini = os.path.join(profile, "profile.ini")
         parsed = parser.read(profile_ini)
@@ -58,15 +63,12 @@ class Profile:
                     parent = os.path.join(profile, "..", parent)
                 self.read_profile_dir(parent)
 
-        # while it would be nice, we cannot reuse the parser since we might
-        # read a reference to a profile that must be parsed first
-
         # If these haven't been set anywhere upstream, default them
-        if "git_root" not in self.config:
-            parser.set("DEFAULT", "git_root", self.git_root)
-
         if "user" not in self.config:
             parser.set("DEFAULT", "user", getpass.getuser())
+        else:
+            # If user has been set, set it so that the parser can use it
+            parser.set("DEFAULT", "user", self.config['user'])
 
         if "dbmasterpw" not in self.config:
             parser.set("DEFAULT", "dbmasterpw", os.getenv("DBMASTERPW", ''))
