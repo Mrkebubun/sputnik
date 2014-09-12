@@ -13,7 +13,6 @@ from twisted.internet.task import LoopingCall
 from twisted.python import log
 
 import config
-import bitcoinrpc
 from txbitcoinrpc import BitcoinRpc
 from compropago import Compropago
 from watchdog import watchdog
