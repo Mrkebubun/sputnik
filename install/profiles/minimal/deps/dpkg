@@ -4,7 +4,6 @@ python-pip
 python-psycopg2
 sudo
 supervisor
-postgresql
 curl
 tcl-dev
 libboost-filesystem-dev
