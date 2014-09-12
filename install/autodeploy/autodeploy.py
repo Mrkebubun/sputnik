@@ -411,7 +411,7 @@ class Instance:
                 dbhost = self.get_output("DbAddress")
                 dbport = self.get_output("DbPort")
                 dbmasterpw = self.get_db_pass()
-                result = fabric.api.sudo("DBHOST=%s DBPORT=%d DBMASTERPW=%s make deps %s" %
+                result = fabric.api.sudo("DBHOST=%s DBPORT=%s DBMASTERPW=%s make deps %s" %
                                          (dbhost, dbmasterpw, action))
                 if result.failed:
                     raise COMMAND_FAILED
