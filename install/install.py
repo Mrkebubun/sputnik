@@ -42,12 +42,8 @@ class Profile:
             raise Exception("Profile dependency is circular.")
         self.cache.append(profile)
 
-        # while it would be nice, we cannot reuse the parser since we might
-        # read a reference to a profile that must be parsed first
-        parser = ConfigParser.SafeConfigParser()
-        parser.set("DEFAULT", "git_root", self.git_root)
-        parser.set("DEFAULT", "user", getpass.getuser())
 
+        parser = ConfigParser.SafeConfigParser()
         # read profile.ini
         profile_ini = os.path.join(profile, "profile.ini")
         parsed = parser.read(profile_ini)
@@ -61,6 +57,16 @@ class Profile:
                 if "/" not in parent:
                     parent = os.path.join(profile, "..", parent)
                 self.read_profile_dir(parent)
+
+        # while it would be nice, we cannot reuse the parser since we might
+        # read a reference to a profile that must be parsed first
+
+        # If these haven't been set anywhere upstream, default them
+        if "git_root" not in self.config:
+            parser.set("DEFAULT", "git_root", self.git_root)
+
+        if "user" not in self.config:
+            parser.set("DEFAULT", "user", getpass.getuser())
 
         # store profile information
         # for scripts, store the originating profile as well so we can run it
