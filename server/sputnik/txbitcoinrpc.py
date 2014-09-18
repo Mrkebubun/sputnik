@@ -6,7 +6,7 @@ class BitcoinRpc(object):
         with open(config_file) as f:
             content = f.read().splitlines()
 
-        config = {split[0]: split[1] for split in [row.split('=', 1) for row in content]}
+        config = {split[0]: split[1] for split in [row.split('=', 1) for row in content if len(row)]}
         if 'testnet' in config:
             port = 18332
         else:
