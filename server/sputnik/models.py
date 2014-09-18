@@ -297,7 +297,7 @@ class AdminUser(db.Base):
         self.level = level
 
     def __repr__(self):
-        return "<AdminUser('%s', %d)>" % (self.user, self.level)
+        return "<AdminUser('%s', %d)>" % (self.username, self.level)
 
 class User(db.Base):
     __tablename__ = 'users'
