@@ -28,6 +28,12 @@ dist: config build
 test:
 	cd testing && make no_ui
 
+clients_tar:
+	mkdir -p .tar/clients
+	cp -r clients/python/* .tar/clients
+	cd .tar && tar -cf ../clients.tar clients
+	rm -r .tar
+    
 tar: dist
 	mkdir -p .tar/sputnik/install/profiles
 	cp -r dist .tar/sputnik

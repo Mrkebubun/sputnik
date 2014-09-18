@@ -66,7 +66,7 @@ COMMAND_FAILED = AutoDeployException("Command failed.")
 
 class Instance:
     def __init__(self, customer=None, region=None, profile=None, key=None,
-                 verbose=False, safety=False, template=None):
+                 verbose=False, safety=False, template=None, remote_command=None):
         self.customer = customer
         self.region = region
         self.profile = profile
@@ -74,6 +74,7 @@ class Instance:
         self.key = key
         self.verbose = verbose
         self.safety = safety
+        self.remote_command = remote_command
 
         self.default_region = "us-west-1"
 
@@ -365,7 +366,7 @@ class Instance:
             except Exception, e:
                 raise e
 
-    def install(self, upgrade=False):
+    def check(self):
         if self.broken:
             raise INSTANCE_BROKEN
 
@@ -374,6 +375,44 @@ class Instance:
 
         if not self.ready:
             raise INSTANCE_NOT_READY
+
+    def install_clients(self):
+        self.check()
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            here = os.path.dirname(os.path.abspath(__file__))
+            git_root = os.path.abspath(os.path.join(here, "..", ".."))
+            with fabric.api.lcd(git_root):
+                result = fabric.api.local("make clients_tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+                result = fabric.api.put("clients.tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+                result = fabric.api.run("tar xf clients.tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+    def run(self):
+        self.check()
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            result = fabric.api.run(self.remote_command)
+            if result.failed:
+                raise COMMAND_FAILED
+
+
+    def install(self, upgrade=False):
+        self.check()
 
         context = fabric.api.hide("everything")
         if self.verbose:
@@ -446,14 +485,7 @@ class Instance:
         self.install(True)
 
     def query(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
+        self.check()
 
         context = fabric.api.hide("everything")
         if self.verbose:
@@ -538,6 +570,12 @@ def main():
     parser_login = subparsers.add_parser("login", parents=[customer],
                                          help="Login via ssh.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
+    parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
+                                                   help="Install python clients")
+    parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
+    parser_run = parser_run.add_argument("remote_command",
+                                         help="what is the remote command to run")
+
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]

@@ -60,11 +60,6 @@ class RandomLoadTester(LoadTester, RandomBot):
     pass
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
-
-
-    log.startLogging(sys.stdout)
-
     parser = argparse.ArgumentParser(description='Test a Sputnik exchange under load')
     parser.add_argument('uri', help="the websockets URI for the exchange")
     parser.add_argument('-r', '--rate', type=float, help="pause in s between orders", default=1)
@@ -73,6 +68,9 @@ if __name__ == '__main__':
     group.add_argument('--market', help="RUn the marketmaker bot", action="store_true")
 
     args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    log.startLogging(sys.stdout)
 
     factory = BotFactory(args.uri, debugWamp=False, rate=args.rate)
     if args.random:
