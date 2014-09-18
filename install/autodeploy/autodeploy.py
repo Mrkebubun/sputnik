@@ -394,7 +394,9 @@ class Instance:
                     parser.set("aux", "use_ssl", "no")
                     parser.set("aux", "webserver_address", self.get_output("PublicDNS"))
                     parser.set("aux", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
-                    parser.set("aux", "webserver_port", "80")
+                    parser.set("aux", "webserver_port", "8888")
+                    parser.set("aux", "use_www", "yes")
+                    print "http://%s:8888" % self.get_output("PublicDNS")
 
                 with open(os.path.join(git_root, "aux.ini"), "w") as f:
                     parser.write(f)
