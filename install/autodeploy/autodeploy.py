@@ -62,7 +62,6 @@ class Instance:
     def __init__(self, customer=None, region=None, profile=None, key=None,
             verbose=False, safety=False):
         self.customer = customer
-        self.region = region
         self.profile = profile
         self.key = key
         self.verbose = verbose
@@ -114,15 +113,15 @@ class Instance:
                 # we found what we wanted, and we are already connected
                 return self._ready()
 
-        # we found nothing, default to Oregon
-        region = region or self.default_region
+        # we found nothing, default to Oregon or use given region
+        self.region = region or self.default_region
 
         # Oddly, creating a connection does not raise an exception if the
         # region is invalid. It only returns None. We check here.
         if not boto.ec2.get_region(region):
             raise Exception("No such region: %s" % region)
             
-        self._connect(region)
+        self._connect(self.region)
         self._search(customer)
         self._ready()
 
@@ -458,7 +457,7 @@ class Instance:
 
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
-        print "Git hash: %" %parser.get("version", "git_hash")
+        print "Git hash: %s" % parser.get("version", "git_hash")
 
     def login(self):
         if self.broken:
