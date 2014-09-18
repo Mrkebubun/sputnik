@@ -30,9 +30,10 @@ if __name__ == "__main__":
     market_maker.deploy()
 
     # Reinit
-    market_maker = Instance(customer=mm_c, region=market_maker.region)
+    market_maker = Instance(customer=mm_c, region=market_maker.region,
+                            remote_command="nohup clients/load_tester.py --market ws://%s:8000 >&/dev/null </dev/null &" % public_dns)
     market_maker.install_clients()
-    market_maker.run("nohup clients/load_tester.py --market ws://%s:8000 >&/dev/null </dev/null &" % public_dns)
+    market_maker.run()
 
     qty = 100
     # Now create some clients
@@ -47,9 +48,10 @@ if __name__ == "__main__":
         random_client.deploy()
 
         # Reinit
-        random_client = Instance(customer=random_c, region=random_client.region)
+        random_client = Instance(customer=random_c, region=random_client.region,
+                                 remote_command="nohup clients/load_tester.py --random ws://%s:8000 >&/dev/null </dev/null &" % public_dns)
         random_client.install_clients()
-        random_client.run("nohup clients/load_tester.py --random ws://%s:8000 >&/dev/null </dev/null &" % public_dns)
+        random_client.run()
 
     print "Sputnik: %s" % customer
     print "Market Maker: %s" % mm_c
