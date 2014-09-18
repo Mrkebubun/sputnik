@@ -63,6 +63,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Test a Sputnik exchange under load')
     parser.add_argument('uri', help="the websockets URI for the exchange")
     parser.add_argument('-r', '--rate', type=float, help="pause in s between orders", default=1)
+    parser.add_argument('-q', '--quantity', type=int, help="how many are we running", default=1)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--random', help="Run the random bot", action="store_true")
     group.add_argument('--market', help="Run the marketmaker bot", action="store_true")
@@ -72,17 +73,19 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
     log.startLogging(sys.stdout)
 
-    factory = BotFactory(args.uri, debugWamp=False, rate=args.rate)
-    if args.random:
-        factory.protocol = RandomLoadTester
-    elif args.market:
-        factory.protocol = MarketLoadTester
+    for i in range(args.quantity):
+        factory = BotFactory(args.uri, debugWamp=False, rate=args.rate)
+        if args.random:
+            factory.protocol = RandomLoadTester
+        elif args.market:
+            factory.protocol = MarketLoadTester
 
-    # null -> ....
-    if factory.isSecure:
-        contextFactory = ssl.ClientContextFactory()
-    else:
-        contextFactory = None
+        # null -> ....
+        if factory.isSecure:
+            contextFactory = ssl.ClientContextFactory()
+        else:
+            contextFactory = None
 
-    connectWS(factory, contextFactory)
+        connectWS(factory, contextFactory)
+
     reactor.run()
