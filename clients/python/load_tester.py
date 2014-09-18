@@ -65,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--rate', type=float, help="pause in s between orders", default=1)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--random', help="Run the random bot", action="store_true")
-    group.add_argument('--market', help="RUn the marketmaker bot", action="store_true")
+    group.add_argument('--market', help="Run the marketmaker bot", action="store_true")
 
     args = parser.parse_args()
 
