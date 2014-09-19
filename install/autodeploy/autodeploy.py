@@ -62,6 +62,7 @@ INSTANCE_EXISTS = AutoDeployException("Instance already exists.")
 INSTANCE_NOT_FOUND = AutoDeployException("Instance not found.")
 INSTANCE_NOT_READY = AutoDeployException("Instance not ready.")
 COMMAND_FAILED = AutoDeployException("Command failed.")
+PROFILE_NOT_SET = AutoDeployException("Profile not set.")
 
 
 class Instance:
@@ -87,7 +88,8 @@ class Instance:
                                 self.customer
         self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
                                    self.customer
-        self.server_ssl_key_dir = "/srv/autodeploy/%s/ssl_keys" % self.customer
+        self.profile_dir = "/srv/autodeploy/%s/profile" % self.customer
+        self.server_ssl_key_dir = "%s/keys" % self.profile_dir
 
         # default uninstalled state
         self.deployed = False
@@ -447,8 +449,24 @@ class Instance:
                 with open(os.path.join(git_root, "aux.ini"), "w") as f:
                     parser.write(f)
 
+                if self.profile is None:
+                    if os.path.isdir(self.profile_dir):
+                        self.profile = self.customer
+
+                        print "Copying profile"
+                        result = fabric.api.local("rm -rf install/profiles/%s" % self.profile)
+                        if result.failed:
+                            raise COMMAND_FAILED
+
+                        result = fabric.api.local("cp -r %s install/profiles/%s" % (self.profile_dir, self.profile))
+                        if result.failed:
+                            raise COMMAND_FAILED
+                    else:
+                        raise PROFILE_NOT_SET
+
+
                 print "Generating tarball..."
-                result = fabric.api.local("PROFILE=%s make tar" % \
+                result = fabric.api.local("PROFILE=install/profiles/%s make tar" % \
                                           self.profile)
                 if result.failed:
                     raise COMMAND_FAILED
@@ -458,23 +476,21 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
-            if upgrade:
-                print "Upgrading..."
-                result = fabric.api.run("rm -rf sputnik")
-                if result.failed:
-                    raise COMMAND_FAILED
-            else:
-                print "Installing..."
+            result = fabric.api.run("rm -rf sputnik")
+            if result.failed:
+                raise COMMAND_FAILED
 
             result = fabric.api.run("tar xf sputnik.tar")
-
             if result.failed:
                 raise COMMAND_FAILED
 
             with fabric.api.cd("sputnik"):
-                action = "install"
                 if upgrade:
+                    print "Upgrading..."
                     action = "upgrade"
+                else:
+                    print "Installing..."
+                    action = "install"
 
                 result = fabric.api.sudo("make deps %s" % action)
                 if result.failed:
@@ -560,7 +576,7 @@ def main():
     parser_install = subparsers.add_parser("install", parents=[customer],
                                            help="Install instance.")
     parser_install.add_argument("--profile", dest="profile", action="store",
-                                required=True, help="Path to profile.")
+                                required=False, help="Path to profile.")
     parser_upgrade = subparsers.add_parser("upgrade", parents=[customer],
                                            help="Upgrade instance.")
     parser_upgrade.add_argument("--profile", dest="profile", action="store",
