@@ -211,7 +211,10 @@ class Instance:
             template = template_file.read()
 
         print "Creating instance for %s..." % self.customer
-        os.mkdir("/srv/autodeploy/%s" % self.customer)
+        try:
+            os.mkdir("/srv/autodeploy/%s" % self.customer)
+        except OSError:
+            print "Warning: /srv/autodeploy/%s already exists" % self.customer
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
