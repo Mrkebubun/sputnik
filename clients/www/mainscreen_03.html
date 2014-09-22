@@ -22,6 +22,13 @@
     <!-- CoffeeScript -->
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
 
+    <!-- Sputnik API Code -->
+    <script src="sputnik.coffee" type="text/coffeescript"></script>
+
+    <!-- UI code -->
+    <script src="ui.coffee" type="text/coffeescript"></script>
+
+
     <script type="text/coffeescript">
         $ ->
             # Show a page
@@ -38,7 +45,13 @@
     </script>
 </head>
 <body>
-<div class="container-fluid">
+<div class="alert alert-warning" id="not_connected">
+    Connecting to server. Hit reload if this message doesn't go away.
+    (Can we force a reload if this is visible for more than 5 seconds?)
+    (Spinner)
+    Also let's center this (l/r/top/bottom) and make it nice and rounded or something
+</div>
+<div class="container-fluid" id="main_page">
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar">
