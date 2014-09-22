@@ -13,6 +13,7 @@ $ ->
     window.contract = ''
     window.contract_type = 'cash_pair'
     window.markets = {}
+    window.margin = [0, 0]
 
     sputnik = new window.Sputnik uri
     window.sputnik = sputnik
@@ -32,6 +33,7 @@ $ ->
         $('#account-btn').hide()
         $('#contract-balances,#buy-sell-orders').hide()
         $('#logged_in').hide()
+        $('#contract').hide()
 
         # Attempt a cookie login
         cookie = document.cookie
@@ -288,19 +290,21 @@ $ ->
         dropdown += "</select>"
         $('#contracts').html(buttons + dropdown)
 
-        clicked_contract_fn = (ticker_to_use) ->
+        select_contract_fn = (ticker_to_use) ->
             (event) ->
                 window.contract = ticker_to_use
+                $("#contract").show()
                 sputnik.openMarket(ticker_to_use)
                 plotChart ticker_to_use
+                updateBalances()
 
         for ticker, details of window.markets
             clean_ticker = ticker.replace('/', '_')
             if details.contract_type == window.contract_type
-                $("#contract-#{clean_ticker}").click clicked_contract_fn(ticker)
+                $("#contract-#{clean_ticker}").click select_contract_fn(ticker)
 
         $("#contract-select").change () ->
-            clicked_contract_fn($("#contract-select").value)
+            select_contract_fn($("#contract-select").value)
 
     changeContractType = (new_type) ->
         if new_type != window.contract_type
@@ -309,7 +313,8 @@ $ ->
             $("#tab-#{new_type}").addClass("tab-active")
             $("#tab-#{new_type}").removeClass("tab-inactive")
             window.contract_type = new_type
-
+            window.contract = ''
+            $("#contract").hide()
             updateContracts()
 
     $('#cash_pair-btn').click ->
@@ -392,6 +397,7 @@ $ ->
             window.markets[ticker] = details
             window.markets[ticker].best_ask = {price: Infinity, quantity: 0}
             window.markets[ticker].best_bid = {price: 0, quantity: 0}
+            window.markets[ticker].position = 0
 
         updateContracts()
 
@@ -439,8 +445,40 @@ $ ->
     sputnik.on "positions", (positions) ->
         for ticker, position of positions
             if @markets[ticker].contract_type != "cash_pair"
-                $("##{ticker}pos").text position.position.toFixed(sputnik.getQuantityPrecision(ticker))
-                $("##{ticker}pos").attr('data-original-title', position.position).tooltip('fixTitle')
+                window.markets[ticker].position = position.position
+
+        updateBalances()
+
+    updateBalances = () ->
+        if window.contract_type != "cash_pair"
+            $("#btc_balance").text window.markets['BTC'].position.toFixed(sputnik.getQuantityPrecision('BTC'))
+            $("#btc_balance").attr('data-original-title', window.markets['BTC'].position).tooltip('fixTitle')
+            $("#contract_balance").text window.markets[window.contract].position.toFixed(sputnik.getQuantityPrecision(window.contract))
+            $("#contract_balance").attr('data-original-title', window.markets[window.contract].position).tooltip('fixTitle')
+            $("#contract_ticker").text window.contract
+            $("#low_margin").text window.margin[0].toFixed(sputnik.getQuantityPrecision('BTC'))
+            $("#high_margin").text window.margin[1].toFixed(sputnik.getQuantityPrecision('BTC'))
+            $("#low_margin").attr('data-original-title', window.margin[0]).tooltip('fixTitle')
+            $("#high_margin").attr('data-original-title', window.margin[1]).tooltip('fixTitle')
+            $("#margin-balance").show()
+            $("#cash_pair-balance").hide()
+        else
+            denominated_contract = window.markets[window.contract].denominated_contract_ticker
+            denominated_position = window.markets[denominated_contract].position
+
+            payout_contract = window.markets[window.contract].payout_contract_ticker
+            payout_position = window.markets[payout_contract].position
+
+            $("#payout_balance").text payout_position.toFixed(sputnik.getQuantityPrecision(payout_contract))
+            $("#payout_ticker").text payout_contract
+            $("#payout_balance").attr('data-original-title', payout_position).tooltip('fixTitle')
+
+            $("#denominated_ticker").text denominated_contract
+            $("#denominated_balance").text denominated_position.toFixed(sputnik.getQuantityPrecision(denominated_contract))
+            $("#denominated_balance").attr('data-original-title', denominated_position).tooltip('fixTitle')
+
+            $("#margin-balance").hide()
+            $("#cash_pair-balance").show()
 
     sputnik.on "chat_history", (chat_messages) ->
         $('#chatArea').html(chat_messages.join("\n"))
@@ -571,9 +609,8 @@ $ ->
         $('#transaction_history tbody').html(html.join())
 
     sputnik.on "margin", (margin) ->
-        $('#low_margin').text margin[0].toFixed(sputnik.getQuantityPrecision('BTC'))
-        $('#high_margin').text margin[1].toFixed(sputnik.getQuantityPrecision('BTC'))
-
+        window.margin = margin
+        updateBalances()
 
     sputnik.on "fill", (fill) ->
         quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))

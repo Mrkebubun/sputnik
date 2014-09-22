@@ -149,164 +149,178 @@
                                 <option value="Contract 4">Contract 4</option>
                             </select>
                         </div>
-                        <div class="contract-overview">
-                            <div class="row">
-                                <div class="col-sm-6 contract-overview-info">
-                                    <p class="grey-header">CONTRACT OVERVIEW</p>
+                            <div id="contract">
+                            <div class="contract-overview">
+                                <div class="row">
+                                    <div class="col-sm-6 contract-overview-info">
+                                        <p class="grey-header">CONTRACT OVERVIEW</p>
 
-                                    <p class="first-line"><select class="mainselect-dropdown">
-                                        <option value="yesterday">Yesterday</option>
-                                    </select>
-                                        &nbsp; Low: 1928.23 &nbsp; &nbsp; High: 2939.32 &nbsp; &nbsp; VWAP: 1823.23
-                                    </p>
-                                    <p>Last: 1928.23 &nbsp; &nbsp; Bid: 1933.32 &nbsp; &nbsp; Ask: 1987.34</p>
-                                </div>
-                                <div id="contract-balances">
-                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                        <p class="grey-header">BALANCE</p>
-
-                                        <p class="first-line2">B23,020.89</p>
+                                        <p class="first-line"><select class="mainselect-dropdown">
+                                            <option value="yesterday">Yesterday</option>
+                                        </select>
+                                            &nbsp; Low: 1928.23 &nbsp; &nbsp; High: 2939.32 &nbsp; &nbsp; VWAP: 1823.23
+                                        </p>
+                                        <p>Last: 1928.23 &nbsp; &nbsp; Bid: 1933.32 &nbsp; &nbsp; Ask: 1987.34</p>
                                     </div>
-                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                        <p class="grey-header">LOW MARGIN</p>
-
-                                        <p class="first-line2">B23,020.89</p>
-                                    </div>
-                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                        <p class="grey-header">HIGH MARGIN</p>
-
-                                        <p class="first-line2">B23,020.89</p>
+                                    <div id="contract-balances">
+                                        <div id="cash_pair-balance">
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header" id="denominated_ticker">DENOM</p>
+                                                <p class="first-line2" id="denominated_balance" title="23020.5924234">23,020.89</p>
+                                            </div>
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header" id="payout_ticker">PAYOUT</p>
+                                                <p class="first-line2" id="payout_balance" title="23020.3923423">23,020.89</p>
+                                            </div>
+                                        </div>
+                                        <div id="margin-balance">
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header" id="btc_ticker">BTC</p>
+                                                <p class="first-line2" id="btc_balance" title="23020.230942">23,020.89</p>
+                                            </div>
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header" id="contract_ticker">CONTRACT</p>
+                                                <p class="first-line2" id="contract_balance" title="23020.8293423">23,020.89</p>
+                                            </div>
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header">LOW MARGIN</p>
+                                                <p class="first-line2" id="low_margin" title="23020.8293423">23,020.89</p>
+                                            </div>
+                                            <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                                <p class="grey-header">HIGH MARGIN</p>
+                                                <p class="first-line2" id="high_margin" title="23020.8293423">23,020.89</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                        </div>
-                        <div class="buy-sell-orders" id="buy-sell-orders">
-                            <div class="row">
-                                <div class="col-sm-3 buy-box">
-                                    <div class="row">
-                                        <div class="col-sm-12 header-box">
-                                            <h6 class="buy">Buy</h6>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-sm-12 buy-box2">
-                                            <div class="row">
-                                                <div class="col-sm-6">
-                                                    <p>Price</p>
-
-                                                    <form>
-                                                        <input type="text" name="price" class="form-control">
-                                                    </form>
-                                                </div>
-                                                <div class="col-sm-6 quantity">
-                                                    <p>Quantity</p>
-
-                                                    <form>
-                                                        <input type="text" name="quantity" class="form-control field">
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-3 sell-box">
-                                    <div class="row">
-                                        <div class="col-sm-12 header-box-sell">
-                                            <h6 class="buy">Sell</h6>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-sm-12 buy-box2">
-                                            <div class="row">
-                                                <div class="col-sm-6">
-                                                    <p>Price</p>
-
-                                                    <form>
-                                                        <input type="text" name="price" class="form-control">
-                                                    </form>
-                                                </div>
-                                                <div class="col-sm-6 quantity">
-                                                    <p>Quantity</p>
-
-                                                    <form>
-                                                        <input type="text" name="quantity" class="form-control field">
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6">
-                                    <div class="row">
-                                        <div class="col-sm-12 header-box-myorders">
-                                            <h6 class="buy">My Orders</h6>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-sm-12 buy-box3">
-                                            <div class="row">
-                                                <div class="col-sm-3 col-xs-3">
-                                                    <p>Price</p>
-                                                </div>
-                                                <div class="col-sm-3 col-xs-3">
-                                                    <p>Quantity</p>
-                                                </div>
-                                                <div class="col-sm-3 col-xs-3">
-                                                    <p>Buy / Sell</p>
-                                                </div>
-                                                <div class="col-sm-3 col-xs-3">
-                                                    <p>Cancel</p>
-                                                </div>
+                            <div class="buy-sell-orders" id="buy-sell-orders">
+                                <div class="row">
+                                    <div class="col-sm-3 buy-box">
+                                        <div class="row">
+                                            <div class="col-sm-12 header-box">
+                                                <h6 class="buy">Buy</h6>
                                             </div>
                                         </div>
                                         <div class="row">
-                                            <div class="col-sm-12 buy-box4">
+                                            <div class="col-sm-12 buy-box2">
                                                 <div class="row">
-                                                    <div class="col-sm-3 col-xs-3">
-                                                        <p>136,021</p>
+                                                    <div class="col-sm-6">
+                                                        <p>Price</p>
 
-                                                        <p>136,021</p>
-
-                                                        <p>136,021</p>
-
-                                                        <p>136,021</p>
-
-                                                        <p>136,021</p>
+                                                        <form>
+                                                            <input type="text" name="price" class="form-control">
+                                                        </form>
                                                     </div>
-                                                    <div class="col-sm-3 col-xs-3">
-                                                        <p>34</p>
+                                                    <div class="col-sm-6 quantity">
+                                                        <p>Quantity</p>
 
-                                                        <p>34</p>
-
-                                                        <p>34</p>
-
-                                                        <p>34</p>
-
-                                                        <p>34</p>
-                                                    </div>
-                                                    <div class="col-sm-3 col-xs-3">
-                                                        <p>Buy</p>
-
-                                                        <p>Buy</p>
-
-                                                        <p>Sell</p>
-
-                                                        <p>Buy</p>
-
-                                                        <p>Buy</p>
-                                                    </div>
-                                                    <div class="col-sm-3 col-xs-3">
-                                                        <ul class="cancels">
-                                                            <li><img src="images/cancel.png"/></li>
-                                                            <li><img src="images/cancel.png"/></li>
-                                                            <li><img src="images/cancel.png"/></li>
-                                                            <li><img src="images/cancel.png"/></li>
-                                                            <li><img src="images/cancel.png"/></li>
-                                                        </ul>
+                                                        <form>
+                                                            <input type="text" name="quantity" class="form-control field">
+                                                        </form>
                                                     </div>
                                                 </div>
-                                                <!-- row -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-3 sell-box">
+                                        <div class="row">
+                                            <div class="col-sm-12 header-box-sell">
+                                                <h6 class="buy">Sell</h6>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-sm-12 buy-box2">
+                                                <div class="row">
+                                                    <div class="col-sm-6">
+                                                        <p>Price</p>
+
+                                                        <form>
+                                                            <input type="text" name="price" class="form-control">
+                                                        </form>
+                                                    </div>
+                                                    <div class="col-sm-6 quantity">
+                                                        <p>Quantity</p>
+
+                                                        <form>
+                                                            <input type="text" name="quantity" class="form-control field">
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <div class="row">
+                                            <div class="col-sm-12 header-box-myorders">
+                                                <h6 class="buy">My Orders</h6>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-sm-12 buy-box3">
+                                                <div class="row">
+                                                    <div class="col-sm-3 col-xs-3">
+                                                        <p>Price</p>
+                                                    </div>
+                                                    <div class="col-sm-3 col-xs-3">
+                                                        <p>Quantity</p>
+                                                    </div>
+                                                    <div class="col-sm-3 col-xs-3">
+                                                        <p>Buy / Sell</p>
+                                                    </div>
+                                                    <div class="col-sm-3 col-xs-3">
+                                                        <p>Cancel</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-12 buy-box4">
+                                                    <div class="row">
+                                                        <div class="col-sm-3 col-xs-3">
+                                                            <p>136,021</p>
+
+                                                            <p>136,021</p>
+
+                                                            <p>136,021</p>
+
+                                                            <p>136,021</p>
+
+                                                            <p>136,021</p>
+                                                        </div>
+                                                        <div class="col-sm-3 col-xs-3">
+                                                            <p>34</p>
+
+                                                            <p>34</p>
+
+                                                            <p>34</p>
+
+                                                            <p>34</p>
+
+                                                            <p>34</p>
+                                                        </div>
+                                                        <div class="col-sm-3 col-xs-3">
+                                                            <p>Buy</p>
+
+                                                            <p>Buy</p>
+
+                                                            <p>Sell</p>
+
+                                                            <p>Buy</p>
+
+                                                            <p>Buy</p>
+                                                        </div>
+                                                        <div class="col-sm-3 col-xs-3">
+                                                            <ul class="cancels">
+                                                                <li><img src="images/cancel.png"/></li>
+                                                                <li><img src="images/cancel.png"/></li>
+                                                                <li><img src="images/cancel.png"/></li>
+                                                                <li><img src="images/cancel.png"/></li>
+                                                                <li><img src="images/cancel.png"/></li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                    <!-- row -->
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
