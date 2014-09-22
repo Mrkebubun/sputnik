@@ -22,6 +22,9 @@
     <!-- Required JS -->
     <script src="js/EventEmitter.min.js"></script>
     <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/spin.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ladda-bootstrap/0.1.0/ladda.min.js"></script>
 
     <!-- CoffeeScript -->
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
@@ -56,6 +59,35 @@
     Also let's center this (l/r/top/bottom) and make it nice and rounded or something
 </div>
 <div class="container-fluid" id="main_page">
+    <div class="modal fade" id="login_modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Login</h4>
+                </div>
+                <div class="modal-body">
+                    <form class="form-signin" role="form">
+                        <input type="text" class="form-control" id="login_username" placeholder="Username" required
+                               autofocus><br>
+                        <input type="password" class="form-control" id="login_password" placeholder="Password"
+                        required><br>
+                        <a href="#" id="get_reset_token">Reset password</a>
+                    </form>
+                    <div class="alert alert-warning" style="display:none" id="login_error">
+                        Incorrect username or password.
+                    </div>
+                    <div id="reset_token_sent" class="alert alert-info">
+                        Check your email. Contact customer support for further assistance...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                            id="login_button"><span class="ladda-label">Login</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar">
@@ -70,10 +102,11 @@
                             </ul>
                         </div>
 
-                        <div class="col-sm-2 mainselect">
-                            <select class="form-control mainselect-dropdown">
-                                <option value="userinfo">Sameer Brenn</option>
-                            </select>
+                        <div class="col-sm-2 mainselect" id="login-div">
+                            <a href="#" id="login">Login</a>
+                        </div>
+                        <div class="col-sm-2 mainselect" id="logged_in">
+                            <span id="login_name">Sameer Brenn</span> <a href="#" id="logout">Logout</a>
                         </div>
                     </div>
                 </div>

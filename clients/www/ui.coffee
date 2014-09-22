@@ -23,24 +23,44 @@ $ ->
     sputnik.on "warn", (args...) -> ab.log args...
     sputnik.on "error", (args...) -> ab.log args...
 
+    sputnik.on "open", () ->
+        sputnik.log "open"
+        $('#main_page').show()
+        $('#not_connected').hide()
+
+        # Hide not-logged in stuff
+        $('#account-btn').hide()
+        $('#contract-balances,#buy-sell-orders').hide()
+        $('#logged_in').hide()
+
+        # Attempt a cookie login
+        cookie = document.cookie
+        sputnik.log "cookie: #{cookie}"
+        if cookie
+            parts = cookie.split("=", 2)[1].split(":", 2)
+            name = parts[0]
+            uid = parts[1]
+            if !uid
+                document.cookie = ''
+            else
+                sputnik.restoreSession uid
+
     sputnik.on "auth_success", (username) ->
         ladda = Ladda.create $("#login_button")[0]
         ladda.stop()
         $("#login_modal").modal "hide"
-        ladda = Ladda.create $("#register_button")[0]
-        ladda.stop()
-        $("#register_modal").modal "hide"
+        #ladda = Ladda.create $("#register_button")[0]
+        #ladda.stop()
+        #$("#register_modal").modal "hide"
 
-        $("#login").toggle()
-        $("#register").toggle()
-        $("#cash_positions").toggle()
+        $("#login-div").hide()
+        #$("#register").toggle()
         $("#login_name").text username
-        $("#acct_management_username").val username
+        #$("#acct_management_username").val username
+        $("#logged_in").show()
 
-        # TODO: Add display:none to account-btn
         $('#account-btn').show()
 
-        # TODO: Add display:none to these guys too
         $("#contract-balances,#buy-sell-orders").fadeIn()
         sputnik.getCookie()
 
@@ -382,22 +402,6 @@ $ ->
         else
             $('#last').text 'N/A'
 
-    sputnik.on "open", () ->
-        sputnik.log "open"
-        $('#main_page').show()
-        $('#not_connected').hide()
-
-        # Attempt a cookie login
-        cookie = document.cookie
-        sputnik.log "cookie: #{cookie}"
-        if cookie
-            parts = cookie.split("=", 2)[1].split(":", 2)
-            name = parts[0]
-            uid = parts[1]
-            if !uid
-                document.cookie = ''
-            else
-                sputnik.restoreSession uid
 
     sputnik.on "session_expired", ->
         console.log "Session is stale."
