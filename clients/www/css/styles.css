@@ -37,6 +37,11 @@ ul#navlinks li {
 
 }
 
+a.main-nav-link {
+	font: 300 18px "Lato", Helvetica, sans-serif;
+	color: #4b4b4b;
+}
+
 .mainselect {
 	text-align: right;
 }
@@ -58,11 +63,12 @@ ul#navlinks li {
   	background: -o-linear-gradient(#f8f8f8, #cfcfcf); /* For Opera 11.1 to 12.0 */
   	background: -moz-linear-gradient(#f8f8f8, #cfcfcf); /* For Firefox 3.6 to 15 */
   	background: linear-gradient(#f8f8f8, #cfcfcf); /* Standard syntax */
-  	z-index:-1;
+  	z-index:1;
 }
 
 .tab-active {
 	float:left;
+	position: relative;
 	padding: 6px 16px;
 	margin: 18px 5px 0 5px;
 	border-top: solid 1px #c1c1c1;
@@ -70,7 +76,7 @@ ul#navlinks li {
 	border-right: solid 1px #c1c1c1;
 	border-bottom: solid 1px #fff;
 	background-color: #fff;
-	z-index:10;
+	z-index:1000;
 }
 
 .tab-heading {
@@ -81,7 +87,7 @@ ul#navlinks li {
 	background-color: #fff;
 	border: solid 1px #c1c1c1;
 	margin-top: -1px;
-	z-index: -1;
+	z-index: 1;
 }
 
 .contracts {
@@ -91,8 +97,8 @@ ul#navlinks li {
 }
 
 .active-link-box {
-  -webkit-border-radius: 4;
-  -moz-border-radius: 4;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
   border-radius: 4px;
   font-family: Arial;
   color: #ffffff;
@@ -105,6 +111,7 @@ ul#navlinks li {
 .active-link-box:hover {
   background: #4ce67f;
   text-decoration: none;
+  color: #ffffff;
 }
 
 .inactive-link-box {
@@ -112,9 +119,98 @@ ul#navlinks li {
 	padding: 8px 27px 8px 27px;
 }
 
+.inactive-link-box:hover {
+	font: 300 15px "Lato", Helvetica, sans-serif;
+	padding: 8px 27px 8px 27px;
+	color: #33cc66;
+}
+
+.active-link-box-sml {
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  font-family: Arial;
+  color: #ffffff;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #33cc66;
+  padding: 8px 14px 8px 14px;
+  text-decoration: none;
+}
+
+.active-link-box-sml:hover {
+  background: #4ce67f;
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.inactive-link-box-sml {
+	font: 300 15px "Lato", Helvetica, sans-serif;
+	padding: 8px 17px 8px 17px;
+}
+
+.inactive-link-box-sml:hover {
+	font: 300 15px "Lato", Helvetica, sans-serif;
+	padding: 8px 17px 8px 17px;
+	color: #33cc66;
+}
+
+.active-link-box-zoom {
+  font-family: Arial;
+  color: #ffffff;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #33cc66;
+  padding: 8px 17px 8px 17px;
+  text-decoration: none;
+  float: left;
+  border-left: 1px solid #b5b5b5;
+  margin-top: -7px;
+  box-shadow: 0px 6px 0px #2da354;
+}
+
+.inactive-link-box-zoom {
+  font-family: Arial;
+  color: #4b4b4b;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #e6e6e6;
+  padding: 8px 14px 8px 14px;
+  margin-top: -7px;
+  text-decoration: none;
+  float: left;
+  border-left: 1px solid #b5b5b5;
+  border-right: 1px solid #b5b5b5;
+  box-shadow: 0px 6px 0px #c9c8c8;
+}
+
+.inactive-link-box-zoom2 {
+  font-family: Arial;
+  color: #4b4b4b;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #e6e6e6;
+  padding: 8px 14px 8px 14px;
+  margin-top: -7px;
+  text-decoration: none;
+  border-left: 1px solid #b5b5b5;
+  float: left;	
+  box-shadow: 0px 6px 0px #c9c8c8;
+}
+
+.inactive-link-box-zoom3 {
+  font-family: Arial;
+  color: #4b4b4b;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #e6e6e6;
+  padding: 8px 17px 8px 17px;
+  text-decoration: none;
+  float: left;
+}
+
 a {
 	color: #33cc66;
 	font: 300 15px "Lato", Helvetica, sans-serif;
+	text-decoration: none;
+}
+
+a:hover {
 	text-decoration: none;
 }
 
@@ -156,6 +252,10 @@ h6.sell {
 }
 
 .contract-select {
+	display: none;
+}
+
+.trades-select {
 	display: none;
 }
 
@@ -208,9 +308,96 @@ h6.sell {
 	line-height: 27px;
 }
 
+.recent-trades-box {
+	padding: 30px 0 30px 35px;
+	border-right: 1px solid #e6e6e6;
+}
+
+.recent-trades-header {
+	border-bottom: 1px solid #e6e6e6;
+	padding-bottom: 5px;
+	margin: 25px 0 15px -35px;
+}
+
+.recent-price {
+	margin: 0 0px 0 18px;
+}
+
+.recent-quantity {
+	margin: 0 -5px 0 0px;
+}
+
+.display-box {
+	padding: 25px 15px 15px 25px;
+}
+
+.zoom-box {
+	padding: 25px 15px 15px 25px;
+}
+
+.field-display {
+	margin-top: 10px;
+}
+
+.button-hour {
+	position: relative;
+	z-index: 1;
+	-webkit-border-radius: 4px;
+  	-moz-border-radius: 4px;
+  	border-radius: 4px;
+  	background-color: #2da354;
+  	border-right: solid 1px #b5b5b5;
+  	float: left;
+  	padding-bottom: 14px;
+}
+
+.button-24-hours {
+	position: absolute;
+	z-index: 10;
+  	background-color: #c9c8c8;
+  	border-left: solid 1px #b5b5b5;
+  	border-right: solid 1px #b5b5b5;
+  	float: left;
+  	padding-bottom: 14px;
+  	left: 100px;
+}
+
+.button-10-days {
+  	position: relative;
+  	background-color: #c9c8c8;
+  	border-right: solid 1px #b5b5b5;
+  	float: left;
+  	z-index: 10;
+  	padding-bottom: 14px;
+}
+
+.button-month {
+	position: relative;
+	-webkit-border-radius: 4px;
+  	-moz-border-radius: 4px;
+  	border-radius: 4px;
+  	background-color: #c9c8c8;
+  	border-left: solid 1px #b5b5b5;
+  	z-index:1;
+  	float: left;
+  	padding-bottom: 14px;
+}
+
+.zoombar {
+	margin-top: 25px;
+}
+
+.graph-box {
+	padding: 25px;
+}
+
+.graph {
+	background-color: #cccccc;
+}
+
 /*-- Media Queries --*/
 
-@media screen and (max-width: 768px) and (min-width: 220px) {
+@media screen and (max-width: 768px) and (min-width: 120px) {
 	.contract-overview-info2 {
 		margin-top: 25px;
 	}
@@ -226,7 +413,7 @@ h6.sell {
 	}
 
 	.field {
-		width: 100%;
+		width: 95%;
 	}
 
 	.quantity {
@@ -236,4 +423,22 @@ h6.sell {
 	.buy-box2 {
 	padding: 14px 0 30px 33px;
 }
+}
+
+
+@media screen and (max-width: 1200px) and (min-width: 120px) {
+
+	.trades-select {
+		display:block;
+		width: 94%;
+	}
+
+	.active-link-box-sml {
+		display: none;
+	}
+
+	.inactive-link-box-sml {
+		display: none;
+	}
+
 }
