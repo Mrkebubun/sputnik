@@ -19,6 +19,10 @@
     <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
 
+    <!-- Required JS -->
+    <script src="js/EventEmitter.min.js"></script>
+    <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
+
     <!-- CoffeeScript -->
     <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
 
@@ -85,20 +89,20 @@
             <div class="container">
                 <div class="row">
                     <div class="col-sm-12">
-                        <div class="tab-inactive">
-                            <h4 class="tab-heading">Cash</h4>
+                        <div class="tab-active" id="tab-cash_pair">
+                            <h4 class="tab-heading"><a href="#" id="cash_pair-btn">Cash</a></h4>
                         </div>
-                        <div class="tab-active">
-                            <h4 class="tab-heading">Futures</h4>
+                        <div class="tab-inactive" id="tab-futures">
+                            <h4 class="tab-heading"><a href="#" id="futures-btn">Futures</a></h4>
                         </div>
-                        <div class="tab-inactive">
-                            <h4 class="tab-heading">Predictions</h4>
+                        <div class="tab-inactive" id="tab-prediction">
+                            <h4 class="tab-heading"><a href="#" id="prediction-btn">Predictions</a></h4>
                         </div>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-sm-12 content">
-                        <div class="contracts">
+                        <div class="contracts" id="contracts">
                             <a href="#" class="active-link-box">Contract 1</a>
                             <a href="#" class="inactive-link-box">Contract 2</a>
                             <a href="#" class="inactive-link-box">Contract 3</a>
@@ -124,25 +128,27 @@
                                     </p>
                                     <p>Last: 1928.23 &nbsp; &nbsp; Bid: 1933.32 &nbsp; &nbsp; Ask: 1987.34</p>
                                 </div>
-                                <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                    <p class="grey-header">BALANCE</p>
+                                <div id="contract-balances">
+                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                        <p class="grey-header">BALANCE</p>
 
-                                    <p class="first-line2">B23,020.89</p>
-                                </div>
-                                <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                    <p class="grey-header">LOW MARGIN</p>
+                                        <p class="first-line2">B23,020.89</p>
+                                    </div>
+                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                        <p class="grey-header">LOW MARGIN</p>
 
-                                    <p class="first-line2">B23,020.89</p>
-                                </div>
-                                <div class="col-sm-2 col-xs-4 contract-overview-info2">
-                                    <p class="grey-header">HIGH MARGIN</p>
+                                        <p class="first-line2">B23,020.89</p>
+                                    </div>
+                                    <div class="col-sm-2 col-xs-4 contract-overview-info2">
+                                        <p class="grey-header">HIGH MARGIN</p>
 
-                                    <p class="first-line2">B23,020.89</p>
+                                        <p class="first-line2">B23,020.89</p>
+                                    </div>
                                 </div>
                             </div>
 
                         </div>
-                        <div class="buy-sell-orders">
+                        <div class="buy-sell-orders" id="buy-sell-orders">
                             <div class="row">
                                 <div class="col-sm-3 buy-box">
                                     <div class="row">

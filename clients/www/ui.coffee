@@ -8,10 +8,10 @@ else
 
 uri = ws_protocol + "//" + hostname + ":8000"
 
-window.best_ask = {price: Infinity, quantity: 0}
-window.best_bid = {price: 0, quantity: 0}
 window.my_audit_hash = ''
-window.contract = 'BTC/HUF'
+window.contract = ''
+window.contract_type = 'Cash'
+window.markets = {}
 
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
@@ -33,7 +33,12 @@ sputnik.on "auth_success", (username) ->
     $("#cash_positions").toggle()
     $("#login_name").text username
     $("#acct_management_username").val username
-    $("#mxn_balance,#btc_balance,#account_menu,#buy_panel,#sell_panel,#orders_panel").fadeIn()
+
+    # TODO: Add display:none to account-btn
+    $('#account-btn').show()
+
+    # TODO: Add display:none to these guys too
+    $("#contract-balances,#buy-sell-orders").fadeIn()
     sputnik.getCookie()
 
 sputnik.on "cookie", (uid) ->
@@ -248,8 +253,39 @@ updateOrders = (orders) ->
 
     $("#orders").html rows.join("")
 
+updateContracts = () ->
+    buttons = ""
+    dropdown = "<select class='form-control contract-select'><option value='Select Contract' selected='selected'>Select Contract</option>"
+    for ticker, details of window.markets
+        if details.contract_type == window.contract_type
+            buttons += "<a href='#' class='active-link-box' id='contract_#{ticker}'>#{ticker}</a>\n"
+            dropdown += "<option value='#{ticker}'>#{ticker}</option>\n"
+
+    dropdown += "</select>"
+    $('#contracts').html(buttons + dropdown)
+
 $ ->
     sputnik.connect()
+
+    changeContractType = (new_type) ->
+        if new_type != window.contract_type
+            $("#tab-#{window.contract_type}").removeClass("tab-active")
+            $("#tab-#{window.contract_type}").addClass("tab-inactive")
+            $("#tab-#{new_type}").addClass("tab-active")
+            $("#tab-#{new_type}").removeClass("tab-inactive")
+            window.contract_type = new_type
+
+            updateContracts()
+
+    $('#cash_pair-btn').click ->
+        changeContractType('cash_pair')
+
+    $('#futures-btn').click ->
+        changeContractType('futures')
+
+    $('#prediction-btn').click ->
+        changeContractType('prediction')
+
     $('#account_modal').change (e) ->
         $(e.target).parents('.tab-pane').data('dirty', yes)
 
@@ -323,6 +359,10 @@ $ ->
         modals_output = []
 
         for ticker, details of markets
+            window.markets[ticker] = details
+            window.markets[ticker].best_ask = {price: Infinity, quantity: 0}
+            window.markets[ticker].best_bid = {price: 0, quantity: 0}
+
             if details.contract_type != "cash"
                 if ticker == window.contract
                     contracts_output.push '<option selected value="' + ticker + '">' + ticker + '</option>'

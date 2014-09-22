@@ -2,22 +2,19 @@
   <library name="Generated files" type="javaScript">
     <properties>
       <sourceFilesUrls>
-        <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
-        <item url="file://$PROJECT_DIR$/dist/clients/www/raw_ui.js" />
         <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
-        <item url="file://$PROJECT_DIR$/dist/clients/www/sputnik.js" />
-        <item url="file://$PROJECT_DIR$/dist/clients/www/ui.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
       <root url="file://$PROJECT_DIR$/clients/www/test.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
-      <root url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
       <root url="file://$PROJECT_DIR$/dist/clients/www/raw_ui.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       <root url="file://$PROJECT_DIR$/dist/clients/www/sputnik.js" />
       <root url="file://$PROJECT_DIR$/dist/clients/www/ui.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
+      <root url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
     </CLASSES>
     <SOURCES />
   </library>
