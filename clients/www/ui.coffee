@@ -14,6 +14,7 @@ $ ->
     window.contract_type = 'cash_pair'
     window.markets = {}
     window.margin = [0, 0]
+    window.ohlcv_period = "day"
 
     sputnik = new window.Sputnik uri
     window.sputnik = sputnik
@@ -171,7 +172,7 @@ $ ->
         if buy_quantity == 0 or buy_price == 0
             return true
 
-        if not withinAnOrderOfMagnitude(buy_price, best_ask.price)
+        if not withinAnOrderOfMagnitude(buy_price, window.markets[window.contract].best_ask.price)
             return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
         sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
@@ -183,7 +184,7 @@ $ ->
         if sell_quantity == 0 or sell_price == 0
             return true
 
-        if not withinAnOrderOfMagnitude(sell_price, window.best_bid.price)
+        if not withinAnOrderOfMagnitude(sell_price, window.markets[window.contract].best_bid.price)
             return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
 
         sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
@@ -246,12 +247,12 @@ $ ->
     updateBuys = (data) ->
         updateTable "buys", data
         if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-            $("#sell_price").val window.best_bid.price
+            $("#sell_price").val window.markets[window.contract].best_bid.price
 
     updateSells = (data) ->
         updateTable "sells", data
         if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-            $("#buy_price").val window.best_ask.price
+            $("#buy_price").val window.markets[window.contract].best_ask.price
 
 
     updateTrades = (data) ->
@@ -419,18 +420,18 @@ $ ->
             return
 
         if book.asks.length
-            window.best_ask = book.asks[0]
+            window.markets[book.contract].best_ask = book.asks[0]
         else
-            window.best_ask = {price: Infinity, quantity: 0}
+            window.markets[book.contract].best_ask = {price: Infinity, quantity: 0}
 
-        $('#best_ask').text window.best_ask.price.toFixed(sputnik.getPricePrecision(window.contract))
+        $('#best_ask').text window.markets[book.contract].best_ask.price.toFixed(sputnik.getPricePrecision(book.contract))
 
         if book.bids.length
-            window.best_bid = book.bids[0]
+            window.markets[book.contract].best_bid = book.bids[0]
         else
-            window.best_bid = {price: 0, quantity: 0}
+            window.markets[book.contract].best_bid = {price: 0, quantity: 0}
 
-        $('#best_bid').text window.best_bid.price.toFixed(sputnik.getPricePrecision(window.contract))
+        $('#best_bid').text window.markets[book.contract].best_bid.price.toFixed(sputnik.getPricePrecision(window.contract))
 
         updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
         updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
@@ -512,6 +513,12 @@ $ ->
         instructions = event[1]
         $("##{ticker}_deposit_instructions").text instructions
 
+    $("#ohlcv_period").change () ->
+        window.ohlcv_period = $("#ohlcv_period").value
+        $('#low').text 'N/A'
+        $('#high').text 'N/A'
+        $('#vwap').text 'N/A'
+
     sputnik.on "ohlcv", (ohlcv) ->
         sputnik.log ["ohlcv received", ohlcv]
         if ohlcv.contract == window.contract
@@ -524,7 +531,7 @@ $ ->
                     volume: ohlcv.volume,
                     date: ohlcv.wire_open_timestamp/1000
                 }
-            else if ohlcv.period == "day"
+            else if ohlcv.period == window.ohlcv_period
                 $('#low').text ohlcv.low.toFixed(precision)
                 $('#high').text ohlcv.high.toFixed(precision)
                 $('#vwap').text ohlcv.vwap.toFixed(precision)
@@ -536,7 +543,7 @@ $ ->
             last_key = keys[keys.length-1]
             last_entry = ohlcv_history[last_key]
             precision = sputnik.getPricePrecision(window.contract)
-            if last_entry.period == 'day'
+            if last_entry.period == window.ohlcv_period
                 if last_entry.contract == window.contract
                     $('#low').text last_entry.low.toFixed(precision)
                     $('#high').text last_entry.high.toFixed(precision)

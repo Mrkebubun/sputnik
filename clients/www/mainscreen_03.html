@@ -156,12 +156,20 @@
                                         <p class="grey-header" id="contract-description">CONTRACT DESCRIPTION</p>
                                         <p class="grey-header" id="contract-expiration">June 5, 2015 00:00:00</p>
 
-                                        <p class="first-line"><select class="mainselect-dropdown">
-                                            <option value="yesterday">Yesterday</option>
+                                        <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown">
+                                            <option value="day">Yesterday</option>
+                                            <option value="hour">Last Hour</option>
+                                            <option value="minute">Last Minute</option>
                                         </select>
-                                            &nbsp; Low: 1928.23 &nbsp; &nbsp; High: 2939.32 &nbsp; &nbsp; VWAP: 1823.23
+                                            &nbsp;
+                                            Low: <span id="low">596.36</span> &nbsp; &nbsp;
+                                            High: <span id="high">2939.32</span> &nbsp; &nbsp;
+                                            VWAP: <span id="vwap">1823.23</span>
                                         </p>
-                                        <p>Last: 1928.23 &nbsp; &nbsp; Bid: 1933.32 &nbsp; &nbsp; Ask: 1987.34</p>
+                                        <p>Last: <span id="last">1928.23</span> &nbsp; &nbsp;
+                                            Bid: <span id="best_bid">1933.32</span> &nbsp; &nbsp;
+                                            Ask: <span id="best_ask">1987.34</span>
+                                        </p>
                                     </div>
                                     <div id="contract-balances">
                                         <div id="cash_pair-balance">
