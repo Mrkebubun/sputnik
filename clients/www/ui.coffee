@@ -296,6 +296,7 @@ $ ->
                 $("#contract").show()
                 sputnik.openMarket(ticker_to_use)
                 plotChart ticker_to_use
+                updateContract()
                 updateBalances()
 
         for ticker, details of window.markets
@@ -448,6 +449,15 @@ $ ->
                 window.markets[ticker].position = position.position
 
         updateBalances()
+
+    updateContract = () ->
+        if window.contract_type != "cash_pair"
+            $("#contract-expiration").text sputnik.dateTimeFormat(window.markets[window.contract].expiration)
+            $("#contract-expiration").show()
+        else
+            $("#contract-expiration").hide()
+
+        $("#contract-description").text window.markets[window.contract].description
 
     updateBalances = () ->
         if window.contract_type != "cash_pair"
