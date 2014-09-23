@@ -183,10 +183,12 @@ class Instance:
             self.instance = self.ec2.get_all_instances(
                 instance_id)[0].instances[0]
         except:
-            raise INSTANCE_BROKEN
+            self.broken = True
+            return
 
         if not os.path.isfile(self.key_filename):
-            raise INSTANCE_BROKEN
+            self.broken = True
+            return
 
         self.ip = self.instance.ip_address
         fabric.api.env.user = "ubuntu"
