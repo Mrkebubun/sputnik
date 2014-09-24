@@ -720,16 +720,20 @@ $ ->
                     percentHeight: 70,
                     valueAxes: [
                         {
-                            dashLength: 5
+                            dashLength: 5,
+                            position: "left"
                         }
                     ],
                     categoryAxis: {
-                        dashLength: 5
+                        dashLength: 5,
+                        parseDates: true
                     },
                     stockGraphs: [
                         {
-                            type: "candlestick",
+                            type: "ohlc",
                             id: "g1",
+                            balloonText: "Open:<b>[[open]]</b><br>Low:<b>[[low]]</b><br>High:<b>[[high]]</b><br>Close:<b>[[close]]</b><br>",
+                            proCandlesticks: true,
                             openField: "open",
                             closeField: "close",
                             highField: "high",
