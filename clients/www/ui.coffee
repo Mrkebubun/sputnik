@@ -174,9 +174,11 @@ $ ->
             return true
 
         if not withinAnOrderOfMagnitude(buy_price, window.markets[window.contract].best_ask.price)
-            return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
-
-        sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
+            bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                if result
+                    sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
+        else
+            sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
 
     $("#sellButton").click ->
         sell_quantity = Number($('#sell_quantity').val())
@@ -186,9 +188,11 @@ $ ->
             return true
 
         if not withinAnOrderOfMagnitude(sell_price, window.markets[window.contract].best_bid.price)
-            return if not confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?'
-
-        sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
+            bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                if result
+                    sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
+        else
+            sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
 
     $("#logout").click (event) ->
         document.cookie = ''
