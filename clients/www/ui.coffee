@@ -520,12 +520,13 @@ $ ->
             $("#margin-balance").hide()
             $("#cash_pair-balance").show()
 
-    sputnik.on "chat_history", (chat_messages) ->
-        $('#chatArea').html(chat_messages.join("\n"))
-        $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight)
-
-    sputnik.on "chat", (chat) ->
-        $.growl({title: "Chat", message: chat})
+#    We are disabling chat for now in the UI because we didn't make space for it
+#    sputnik.on "chat_history", (chat_messages) ->
+#        $('#chatArea').html(chat_messages.join("\n"))
+#        $('#chatArea').scrollTop($('#chatArea')[0].scrollHeight)
+#
+#    sputnik.on "chat", (chat) ->
+#        $.growl({title: "Chat", message: chat})
 
     sputnik.on "address", (info) ->
         ticker = info[0]
