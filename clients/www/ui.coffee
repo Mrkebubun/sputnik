@@ -678,7 +678,7 @@ $ ->
         chartOptions = {
             type: "stock",
             "theme": "light",
-            pathToImages: "/js/amcharts/images/",
+            pathToImages: "js/amcharts/images/",
             categoryAxesSettings: {
                 minPeriod: "mm",
                 inside: true
