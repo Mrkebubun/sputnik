@@ -17,6 +17,7 @@ $ ->
     window.markets = {}
     window.margin = [0, 0]
     window.ohlcv_period = "day"
+    window.orders = []
 
     sputnik = new window.Sputnik uri
     window.sputnik = sputnik
@@ -289,16 +290,16 @@ $ ->
 
 
     updateTrades = (data) ->
-        if data.length
+        if data? and data.length
             trades_reversed = data.reverse()
             rows = for trade in trades_reversed[0..20]
                 "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
             $("#trades-tbody").html rows.join("")
 
 
-    updateOrders = (orders) ->
+    updateOrders = () ->
         rows = []
-        for id, order of orders
+        for id, order of window.orders
             if order.contract == window.contract
                 icon = "Sell"
                 if order.side is "BUY"
@@ -307,7 +308,7 @@ $ ->
                 price = "<td>#{order.price}</td>"
                 quantity = "<td>#{order.quantity_left}</td>"
                 contract = "<td>#{order.contract}</td>"
-                button = "<td><a href='#' onclick='sputnik.cancelOrder(#{id})'>"
+                button = "<td><button onclick='sputnik.cancelOrder(#{id})'>"
                 button += "<img src='images/cancel.png'/>"
                 button += "</a></td>"
                 rows.push "<tr>" + price + quantity + icon + button + "</tr>"
@@ -473,7 +474,8 @@ $ ->
         updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
 
     sputnik.on "orders", (orders) ->
-        updateOrders orders
+        window.orders = orders
+        updateOrders
 
     sputnik.on "trade", (trade) ->
         if trade.contract == window.contract
