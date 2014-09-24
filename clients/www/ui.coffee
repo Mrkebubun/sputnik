@@ -278,12 +278,12 @@ $ ->
         $('#' + "#{id}").html rows.join("")
 
     updateBuys = (data) ->
-        updateTable "buys", data
+        updateTable "bids", data
         if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
             $("#sell_price").val window.markets[window.contract].best_bid.price
 
     updateSells = (data) ->
-        updateTable "sells", data
+        updateTable "asks", data
         if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
             $("#buy_price").val window.markets[window.contract].best_ask.price
 
@@ -298,17 +298,18 @@ $ ->
     updateOrders = (orders) ->
         rows = []
         for id, order of orders
-            icon = "<span class='label label-warning'>Sell</span>"
-            if order.side is "BUY"
-                icon = "<span class='label label-primary'>Buy</span>"
-            icon = "<td>#{icon}</td>"
-            price = "<td>#{order.price}</td>"
-            quantity = "<td>#{order.quantity_left}</td>"
-            contract = "<td>#{order.contract}</td>"
-            button = "<td><button type='button' class='btn btn-danger' onclick='sputnik.cancelOrder(#{id})'>"
-            button += "<span class='glyphicon glyphicon-trash'></span>"
-            button += "</button></td>"
-            rows.push "<tr>" + contract + icon + price + quantity + button + "</tr>"
+            if order.contract == window.contract
+                icon = "Sell"
+                if order.side is "BUY"
+                    icon = "Buy"
+                icon = "<td>#{icon}</td>"
+                price = "<td>#{order.price}</td>"
+                quantity = "<td>#{order.quantity_left}</td>"
+                contract = "<td>#{order.contract}</td>"
+                button = "<td><a href='#' onclick='sputnik.cancelOrder(#{id})'>"
+                button += "<img src='images/cancel.png'/>"
+                button += "</a></td>"
+                rows.push "<tr>" + price + quantity + icon + button + "</tr>"
 
         $("#orders").html rows.join("")
 

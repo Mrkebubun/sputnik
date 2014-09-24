@@ -321,7 +321,7 @@
                                             </div>
                                         </div>
                                         <div class="row">
-                                            <table id="my_orders">
+                                            <table>
                                                 <thead>
                                                     <tr>
                                                         <th>Price</th>
@@ -330,7 +330,7 @@
                                                         <th>Cancel</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
+                                                <tbody id="orders">
                                                 <tr>
                                                     <td>136.021</td>
                                                     <td>34</td>
@@ -384,7 +384,7 @@
                                                 <th>Time</th>
                                             </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody id="trades-tbody">
                                                 <tr>
                                                     <td>1230.34</td>
                                                     <td>134</td>
@@ -410,14 +410,14 @@
                                     </div>
                                     <div id="book" style="display:none;">
                                         Bids
-                                        <table id="bids">
+                                        <table>
                                             <thead>
                                             <tr>
                                                 <th>Price</th>
                                                 <th>Quantity</th>
                                             </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody id="bids">
                                                 <tr class='alert-success'>
                                                     <td>53</td>
                                                     <td>3</td>
@@ -433,14 +433,14 @@
                                             </tbody>
                                         </table>
                                         Asks
-                                        <table id="asks">
+                                        <table>
                                             <thead>
                                             <tr>
                                                 <th>Price</th>
                                                 <th>Quantity</th>
                                             </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody id="asks">
                                                 <tr class='alert-success'>
                                                     <td>55</td>
                                                     <td>3</td>
