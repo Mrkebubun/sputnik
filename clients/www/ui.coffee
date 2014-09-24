@@ -196,6 +196,33 @@ $ ->
         sputnik.logout()
         location.reload()
 
+    showTrades = (e) ->
+        $('#trades').show()
+        $('#trades-btn').addClass('active-link-box-sml')
+        $('#trades-btn').removeClass('inactive-link-box-sml')
+
+        $('#book').hide()
+        $('#book-btn').addClass('inactive-link-box-sml')
+        $('#book-btn').removeClass('active-link-box-sml')
+
+    showBook = (e) ->
+        $('#book').show()
+        $('#book-btn').addClass('active-link-box-sml')
+        $('#book-btn').removeClass('inactive-link-box-sml')
+
+        $('#trades').hide()
+        $('#trades-btn').addClass('inactive-link-box-sml')
+        $('#trades-btn').removeClass('active-link-box-sml')
+
+
+    $('#trades-btn').click showTrades
+    $('#book-btn').click showBook
+
+    $('#trades-book-select').change (e) ->
+        if $('#trades-book-select').val() == 'trades'
+            showTrades(e)
+        else
+            showBook(e)
 
     $("#save_changes_button").click (event) ->
         if $('#change_password_tab').data('dirty')
@@ -307,8 +334,8 @@ $ ->
             if details.contract_type == window.contract_type
                 $("#contract-#{clean_ticker}").click select_contract_fn(ticker)
 
-        $("#contract-select").change () ->
-            select_contract_fn($("#contract-select").value)
+        $("#contract-select").change (e) ->
+            select_contract_fn($("#contract-select").val())(e)
 
     changeContractType = (new_type) ->
         if new_type != window.contract_type
