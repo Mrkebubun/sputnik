@@ -200,6 +200,7 @@ $ ->
         location.reload()
 
     showTrades = (e) ->
+        e.preventDefault()
         $('#trades').show()
         $('#trades-btn').addClass('active-link-box-sml')
         $('#trades-btn').removeClass('inactive-link-box-sml')
@@ -209,6 +210,7 @@ $ ->
         $('#book-btn').removeClass('active-link-box-sml')
 
     showBook = (e) ->
+        e.preventDefault()
         $('#book').show()
         $('#book-btn').addClass('active-link-box-sml')
         $('#book-btn').removeClass('inactive-link-box-sml')
@@ -216,7 +218,6 @@ $ ->
         $('#trades').hide()
         $('#trades-btn').addClass('inactive-link-box-sml')
         $('#trades-btn').removeClass('active-link-box-sml')
-
 
     $('#trades-btn').click showTrades
     $('#book-btn').click showBook
