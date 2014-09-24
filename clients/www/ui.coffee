@@ -226,7 +226,7 @@ $ ->
     $("#save_changes_button").click (event) ->
         if $('#change_password_tab').data('dirty')
             if $('#new_password').val() is $('#new_password_confirm').val()
-                alert "Passwords do not match"
+                bootbox.alert "Passwords do not match"
             else
                 sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
@@ -258,7 +258,7 @@ $ ->
     $('#chatButton').click ->
         chat_return = sputnik.chat chatBox.value
         if not chat_return[0]
-            alert chat_return[1]
+            bootbox.alert chat_return[1]
 
         $('#chatBox').val('')
 
@@ -535,7 +535,7 @@ $ ->
         $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
 
     sputnik.on "address_fail", (error) ->
-        alert "Deposit address error: #{error[1]}"
+        bootbox.alert "Deposit address error: #{error[1]}"
 
     sputnik.on "deposit_instructions", (event) ->
         ticker = event[0]
@@ -583,19 +583,19 @@ $ ->
             $('#vwap').text 'N/A'
 
     sputnik.on "password_change_success", (info) ->
-        alert "Password successfully changed"
+        bootbox.alert "Password successfully changed"
 
     sputnik.on "password_change_fail", (error) ->
-        alert "Password change fail: #{error}"
+        bootbox.alert "Password change fail: #{error}"
 
     sputnik.on "request_withdrawal_success", (info) ->
-        alert "Withdrawal request placed"
+        bootbox.alert "Withdrawal request placed"
 
     sputnik.on "request_withdrawal_fail", (error) ->
-        alert "Withdrawal request failed: #{error[1]}"
+        bootbox.alert "Withdrawal request failed: #{error[1]}"
 
     sputnik.on "place_order_fail", (error) ->
-        alert "order placement failed: #{error[1]}"
+        bootbox.alert "order placement failed: #{error[1]}"
 
     sputnik.on "profile", (profile) ->
         $('#new_nickname').val profile.nickname
@@ -876,7 +876,7 @@ $ ->
             contentType: false,
             type: 'POST',
             success: (data) ->
-                alert("Successfully saved:" + data)
+                bootbox.alert("Successfully saved:" + data)
             error: (err) ->
-                alert("Error while saving:" + err)
+                bootbox.alert("Error while saving:" + err)
                 sputnik.log ["Error:", err]
