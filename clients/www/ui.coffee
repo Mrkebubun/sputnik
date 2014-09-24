@@ -291,7 +291,7 @@ $ ->
         trades_reversed = data.reverse()
         rows = for trade in trades_reversed[0..20]
             "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
-        $("#trades").html rows.join("")
+        $("#trades-tbody").html rows.join("")
 
 
     updateOrders = (orders) ->
