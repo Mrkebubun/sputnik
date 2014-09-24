@@ -653,7 +653,7 @@ class @Sputnik extends EventEmitter
         now = new Date()
         an_hour_ago = new Date()
         an_hour_ago.setHours(now.getHours() - 1)
-        while @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
+        while @markets[ticker].trades.length and @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
             @markets[ticker].trades.shift()
 
     emitTradeHistory: (ticker) =>
@@ -701,6 +701,7 @@ class @Sputnik extends EventEmitter
         @emit "ohlcv_history", ohlcv
 
     onTrade: (trade) =>
+        @log ["Trade", trade]
         ticker = trade.contract
         @markets[ticker].trades.push trade
         @emit "trade", @tradeFromWire(trade)
