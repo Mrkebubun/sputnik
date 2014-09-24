@@ -54,12 +54,11 @@ $ ->
         ladda = Ladda.create $("#login_button")[0]
         ladda.stop()
         $("#login_modal").modal "hide"
-        #ladda = Ladda.create $("#register_button")[0]
-        #ladda.stop()
-        #$("#register_modal").modal "hide"
+        ladda = Ladda.create $("#register_button")[0]
+        ladda.stop()
+        $("#register_modal").modal "hide"
 
         $("#login-div").hide()
-        #$("#register").toggle()
         $("#login_name").text username
         #$("#acct_management_username").val username
         $("#logged_in").show()
