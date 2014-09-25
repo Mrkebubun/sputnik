@@ -115,6 +115,10 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
+            # The journal is created seperately from the postings but this is ok because
+            # all the postings are created at once. If the posting commit fails then we'll
+            # just end up with an empty journal which won't break anything
+            # TODO: Create the journal and postings together
             log.msg("creating the journal at %f" % (time.time() - start))
             ins = Journal.__table__.insert()
             result = self.conn.execute(ins, type=types[0], timestamp=datetime.datetime.utcnow())
@@ -124,14 +128,14 @@ class Ledger:
             db_postings = []
             for posting in postings:
                 contract_table = Contract.__table__
-                s = select([contract_table.c.contract_id], contract_table.c.ticker==posting["contract"])
+                s = select([contract_table.c.id], contract_table.c.ticker==posting["contract"])
                 result = self.conn.execute(s)
-                contract_id = result[0][0]
+                contract_id = result.first()[0]
 
                 user_table = User.__table__
                 s = select([user_table.c.type], user_table.c.username==posting["username"])
                 result = self.conn.execute(s)
-                user_type = result[0][0]
+                user_type = result.first()[0]
 
                 username = posting["username"]
                 quantity = posting["quantity"]
@@ -162,11 +166,14 @@ class Ledger:
                            'journal_id': journal_id
                 }
                 db_postings.append(posting)
-                log.msg("done making posting %s at %f" % (posting, time.time() - start))
+                log.msg("done making posting at %f: %s" % (time.time() - start, posting))
 
 
             ins = Posting.__table__.insert()
             result = self.conn.execute(ins, db_postings)
+            log.msg("Inserted %d rows of %d postings" % (result.rowcount, len(db_postings)))
+            log.msg("Done committing postings at %f" % (time.time() - start))
+
 
             return True
 
