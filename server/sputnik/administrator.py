@@ -331,6 +331,7 @@ class Administrator:
         admin_users = self.session.query(models.AdminUser).all()
         return admin_users
 
+    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -711,7 +712,7 @@ class Administrator:
 
         return balance_sheet
 
-
+    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
@@ -728,14 +729,17 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         return contract
 
+    @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
 
+    @util.timed
     def get_deposits(self):
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
+    @util.timed
     def get_orders(self, user, page=0):
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
@@ -743,6 +747,7 @@ class Administrator:
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
+    @util.timed
     def get_postings(self, user, contract, page=0):
         all_postings = self.session.query(models.Posting).filter_by(
             user=user).filter_by(
@@ -1038,6 +1043,7 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('admin.html')
         return t.render(username=self.avatarId).encode('utf-8')
 
+    @util.timed
     def user_orders(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1047,6 +1053,7 @@ class AdminWebUI(Resource):
                             min_range=max(page - 10, 0), max_range=min(order_pages, page + 10))
         return rendered.encode('utf-8')
 
+    @util.timed
     def user_postings(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1063,6 +1070,7 @@ class AdminWebUI(Resource):
         return rendered.encode('utf-8')
 
 
+    @util.timed
     def user_details(self, request):
         """Show all the details for a particular user
 
