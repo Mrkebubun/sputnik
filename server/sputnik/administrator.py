@@ -749,13 +749,30 @@ class Administrator:
 
     @util.timed
     def get_postings(self, user, contract, page=0):
+        import time
+        last = time.time()
+
         all_postings = self.session.query(models.Posting).filter_by(
-            user=user).filter_by(
-            contract=contract)
+            username=user.username).filter_by(
+            contract_id=contract.id)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_count = all_postings.count()
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_pages = int(postings_count / self.page_size) + 1
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+
         return postings, postings_pages
 
     def change_permission_group(self, username, id):
