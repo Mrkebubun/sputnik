@@ -741,9 +741,10 @@ class Administrator:
 
     @util.timed
     def get_orders(self, user, page=0):
-        all_orders = self.session.query(models.Order).filter_by(user=user)
-        order_count = all_orders.count()
+        order_count = self.session.query(func.count(models.Order.id)).filter_by(user=user).one()[0]
         order_pages = int(order_count / self.page_size) + 1
+
+        all_orders = self.session.query(models.Order).filter_by(user=user)
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
@@ -752,21 +753,18 @@ class Administrator:
         import time
         last = time.time()
 
-        all_postings = self.session.query(models.Posting).filter_by(
+        postings_count = self.session.query(func.count(models.Posting.id)).filter_by(
             username=user.username).filter_by(
-            contract_id=contract.id)
-
-        now = time.time()
-        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
-        last = now
-
-        postings_count = all_postings.count()
+            contract_id=contract.id).one()[0]
 
         now = time.time()
         log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
         last = now
 
         postings_pages = int(postings_count / self.page_size) + 1
+        all_postings = self.session.query(models.Posting).filter_by(
+            username=user.username).filter_by(
+            contract_id=contract.id)
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
 
