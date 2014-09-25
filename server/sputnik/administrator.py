@@ -752,15 +752,19 @@ class Administrator:
         import time
         last = time.time()
 
+
         all_postings = self.session.query(models.Posting).filter_by(
             username=user.username).filter_by(
             contract_id=contract.id)
 
-        now = time.time()
-        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
-        last = now
-
-        postings_count = all_postings.count()
+        # This is way too slow, just assume that there are a ton of postings
+        #
+        # now = time.time()
+        # log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        # last = now
+        #
+        # postings_count = all_postings.count()
+        postings_count = sys.maxint
 
         now = time.time()
         log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
