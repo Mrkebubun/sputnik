@@ -304,7 +304,7 @@ class AdminUser(db.Base):
         self.level = level
 
     def __repr__(self):
-        return "<AdminUser('%s', %d)>" % (self.user, self.level)
+        return "<AdminUser('%s', %d)>" % (self.username, self.level)
 
 class User(db.Base):
     __tablename__ = 'users'
@@ -643,6 +643,8 @@ class Trade(db.Base, QuantityUI, PriceUI):
     aggressive_order = relationship('Order', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_order = relationship('Order', primaryjoin="Order.id==Trade.passive_order_id")
 
+    posted = Column(Boolean, server_default=sql.false())
+
     def __init__(self, aggressive_order, passive_order, price, quantity):
         """
 
@@ -661,6 +663,7 @@ class Trade(db.Base, QuantityUI, PriceUI):
         self.timestamp = max(aggressive_order.timestamp, passive_order.timestamp)
         self.price = price
         self.quantity = quantity
+        self.posted = False
 
     def __repr__(self):
         return '<Trade(%s:%d@%d)>' % (self.contract.ticker, self.price, self.quantity)

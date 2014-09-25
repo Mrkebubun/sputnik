@@ -383,9 +383,13 @@ class StupidRequest(DummyRequest):
         DummyRequest.__init__(self, postpath, session=session)
         self.path = path
         self.args = args
+        self.redirect_url = None
 
     def getUser(self):
         return 'admin'
+
+    def redirect(self, url):
+        self.redirect_url = url
 
 
 class TestAdministratorWebUI(TestAdministrator):
@@ -428,7 +432,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d = self.render_test_helper(admin_ui, request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+            self.assertRegexpMatches(request.redirect_url, 'admin')
             from sputnik import models
 
             admin_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
@@ -455,7 +459,7 @@ class TestAdministratorWebUI(TestAdministrator):
             d = self.render_test_helper(self.web_ui_factory(0), request)
 
             def rendered(ignored):
-                self.assertRegexpMatches(''.join(request.written), '<title>Admin Tasks</title>')
+                self.assertRegexpMatches(request.redirect_url, 'admin')
                 from sputnik import models
 
                 admin_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
@@ -570,7 +574,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d = self.render_test_helper(self.web_ui_factory(2), request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
             from sputnik import models
 
             user = self.session.query(models.User).filter_by(username='test').one()
@@ -614,7 +618,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d = self.render_test_helper(self.web_ui_factory(2), request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
             self.assertTrue(
                 self.administrator.accountant.component.check_for_calls(
                     [('change_permission_group', ('test', new_id), {})]))
@@ -634,7 +638,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d = self.render_test_helper(self.web_ui_factory(4), request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>Permissions</title>')
+            self.assertRegexpMatches(request.redirect_url, 'permission_groups')
 
             from sputnik import models
 
@@ -658,7 +662,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d = self.render_test_helper(self.web_ui_factory(4), request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>%s</title>' % 'test')
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
             self.assertTrue(self.administrator.cashier.component.check_for_calls(
                 [('process_withdrawal', (5,), {'cancel': False, 'online': True})]))
 
@@ -683,7 +687,7 @@ class TestAdministratorWebUI(TestAdministrator):
     def test_set_admin_level(self):
         pass
 
-    def test_force_reset_admin_password(self):
+    def test_admin_password(self):
         pass
 
     def test_transfer_position(self):

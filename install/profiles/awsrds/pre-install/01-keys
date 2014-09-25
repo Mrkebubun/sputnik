@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ -n "$UPGRADE" ]; then
+    exit 0
+fi
+
+# If we have keys, copy them over from the actual profile, not this higher-level profile
+if [ -d $PROFILE/keys ]; then
+    mkdir -p $profile_git_root/dist/keys
+    cd $PROFILE/keys
+    cp server.key server.crt server.chain $profile_git_root/dist/keys
+fi

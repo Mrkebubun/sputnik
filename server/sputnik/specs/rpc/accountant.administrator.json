@@ -19,9 +19,14 @@
             {
                 "type": "integer",
                 "description": "Credit amount."
+            },
+            "admin_username":
+            {
+                "type": "string",
+                "description": "the username of the administrator requesting this adjustment"
             }
         },
-        "required": ["username", "ticker", "quantity"],
+        "required": ["username", "ticker", "quantity", "admin_username"],
         "additionalProperties": false
     },
     "cancel_order":
@@ -129,6 +134,11 @@
             {
                 "type": "boolean",
                 "description": "Whether received is address total or delta."
+            },
+            "admin_username":
+            {
+                "type": "string",
+                "description": "the username of the administrator requesting this adjustment"
             }
         },
         "required": ["username", "address", "received", "total"],

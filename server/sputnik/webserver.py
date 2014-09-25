@@ -159,6 +159,9 @@ class PublicInterface:
                     result[r[0]]['margin_high'] = r[7]
                     result[r[0]]['margin_low'] = r[8]
 
+                if result[r[0]]['contract_type'] in ['futures', 'prediction']:
+                    result[r[0]]['expiration'] = dt_to_timestamp(r[11])
+
             self.factory.markets = result
             # Update the cache with the last 60 days of trades
             to_dt = datetime.datetime.utcnow()
@@ -186,12 +189,12 @@ class PublicInterface:
 
                 dbpool.runQuery(
                     "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s",
+                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE",
                     (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
                                "tick_size, lot_size, margin_high, margin_low,"
-                               "denominated_contract_ticker, payout_contract_ticker FROM contracts").addCallback(_cb)
+                               "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts").addCallback(_cb)
 
     @exportRpc("get_markets")
     def get_markets(self):

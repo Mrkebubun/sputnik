@@ -1,0 +1,49 @@
+#!/bin/bash
+
+cat << EOF | sudo -u $profile_user $profile_root/tools/leo
+database init
+contracts add BTC
+contracts add HUF
+
+contracts add BTC/HUF
+
+contracts set BTC contract_type cash
+contracts set BTC denominator 100000000
+contracts set BTC hot_wallet_limit 1000000000
+contracts set BTC cold_wallet_address XXX
+
+contracts set HUF contract_type cash
+contracts set HUF denominator 100
+
+contracts set BTC/HUF contract_type cash_pair
+contracts set BTC/HUF tick_size 100
+contracts set BTC/HUF lot_size 1000000
+contracts set BTC/HUF denominator 1
+contracts set BTC/HUF denominated_contract_ticker HUF
+contracts set BTC/HUF payout_contract_ticker BTC
+
+permissions add Default trade withdraw deposit login
+EOF
+
+cat << EOF | sudo -u $profile_user $profile_root/tools/leo
+accounts add customer
+accounts add m2
+accounts add remainder
+
+accounts add onlinecash
+accounts set onlinecash type Asset
+
+accounts add offlinecash
+accounts set offlinecash type Asset
+
+accounts add depositoverflow
+accounts set depositoverflow type Liability
+
+accounts add pendingwithdrawal
+accounts set pendingwithdrawal type Liability
+
+accounts add adjustments
+accounts set adjustments type Asset
+
+admin add admin
+EOF

@@ -158,6 +158,8 @@ def chomsky(times=1, line_length=72):
     return textwrap.fill(' '.join(output), line_length).split('\n')
 
 class RandomBot(TradingBot):
+    place_all_random = False
+
     def startAutomationAfterAuth(self):
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1 * self.factory.rate)
@@ -199,6 +201,11 @@ class RandomBot(TradingBot):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price
             if contract['contract_type'] == "prediction":
                 price = float(random.randint(0,1000))/1000
+            elif self.place_all_random:
+                if contract['contract_type'] == "cash_pair":
+                    price = self.price_from_wire(ticker, random.randint(0,1000) * contract['tick_size'])
+                else:
+                    return
             else:
                 return
 
