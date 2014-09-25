@@ -229,7 +229,6 @@ class TestSputnik(unittest.TestCase):
         from sputnik import database, models
 
         self.session = database.make_session()
-        self.engine = database.make_engine()
 
         import leo
 

@@ -19,7 +19,7 @@ from sputnik import util
 class TestLedger(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
-        self.ledger = ledger.Ledger(self.session)
+        self.ledger = ledger.Ledger(self.session.bind.engine)
         self.export = ledger.AccountantExport(self.ledger)
         self.clock = task.Clock()
 
@@ -64,9 +64,9 @@ class TestLedger(TestSputnik):
         d = self.export.post(post1, post2)
 
         def dbtest(arg):
-            postings = self.ledger.session.query(models.Posting).all()
+            postings = self.session.query(models.Posting).all()
             self.assertEqual(len(postings), 2)
-            journals = self.ledger.session.query(models.Journal).all()
+            journals = self.session.query(models.Journal).all()
             self.assertEqual(len(journals), 1)
             p1 = postings[0]
             p2 = postings[1]
