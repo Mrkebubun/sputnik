@@ -28,6 +28,7 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
 
 from zope.interface import implements
@@ -918,7 +919,7 @@ class AdminWebUI(Resource):
 
         self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
                                               admin_username=self.avatarId)
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def permission_groups(self, request):
         """Get the permission groups page
@@ -938,7 +939,7 @@ class AdminWebUI(Resource):
         else:
             permissions = []
         self.administrator.new_permission_group(request.args['name'][0], permissions)
-        return self.permission_groups(request)
+        return redirectTo('/permission_groups', request)
 
 
     def change_permission_group(self, request):
@@ -948,7 +949,7 @@ class AdminWebUI(Resource):
         username = request.args['username'][0]
         id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
@@ -983,7 +984,7 @@ class AdminWebUI(Resource):
         username = request.args['username'][0]
         self.administrator.cancel_order(username, id)
 
-        return self.order_book(request)
+        return redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request)
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1010,7 +1011,7 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def reset_admin_password(self, request):
         """Reset an administrator password if we know the old password
@@ -1018,7 +1019,7 @@ class AdminWebUI(Resource):
         """
         self.administrator.reset_admin_password(self.avatarId, self.calc_ha1(request.args['old_password'][0]),
                                                 self.calc_ha1(request.args['new_password'][0]))
-        return self.admin(request)
+        return redirectTo('/admin', request)
 
     def force_reset_admin_password(self, request):
         """Reset an administrator password even if we don't know the old password
@@ -1028,7 +1029,7 @@ class AdminWebUI(Resource):
                                                                                            username=
                                                                                            request.args['username'][0]))
 
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def admin(self, request):
         """Give me the page where I can edit my admin password
@@ -1107,7 +1108,7 @@ class AdminWebUI(Resource):
         """
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
                                            float(request.args['quantity'][0]), self.avatarId)
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def transfer_position(self, request):
         """Transfer a position from a user and go back to his details page
@@ -1117,21 +1118,21 @@ class AdminWebUI(Resource):
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address
 
         """
         self.administrator.cashier.rescan_address(request.args['address'][0])
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def manual_deposit(self, request):
         """Tell the cashier that an address received a certain amount of money
 
         """
         self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def admin_list(self, request):
         """List all the admin users
@@ -1149,14 +1150,14 @@ class AdminWebUI(Resource):
                                                                                      username=request.args['username'][
                                                                                          0]),
                                           int(request.args['level'][0]))
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def set_admin_level(self, request):
         """Set the level of a certain admin user, and then return the list of admin users
 
         """
         self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def balance_sheet(self, request):
         """Display the full balance sheet of the system
