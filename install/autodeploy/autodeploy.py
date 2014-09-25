@@ -12,6 +12,7 @@ import string
 import pty
 
 import fabric.api
+
 fabric.api.env.reject_unknown_hosts = True
 fabric.api.env.disable_known_hosts = True
 # Do not abort on failures. We will do this manually.
@@ -19,10 +20,12 @@ fabric.api.env.warn_only = True
 # Hack to make paramiko try ecdsa first.
 # Otherwise, it fails when an rsa key is not found.
 from paramiko.transport import Transport
+
 Transport._preferred_keys = ('ecdsa-sha2-nistp256', 'ssh-rsa', 'ssh-dss')
 
 import ConfigParser
 import cStringIO
+
 
 class Spinner:
     def __enter__(self):
@@ -50,42 +53,50 @@ class Spinner:
             if self.event.isSet():
                 break
 
+
 class AutoDeployException(Exception): pass
+
 
 INSTANCE_BROKEN = AutoDeployException("Instance is broken. Please check.")
 INSTANCE_EXISTS = AutoDeployException("Instance already exists.")
 INSTANCE_NOT_FOUND = AutoDeployException("Instance not found.")
 INSTANCE_NOT_READY = AutoDeployException("Instance not ready.")
 COMMAND_FAILED = AutoDeployException("Command failed.")
+PROFILE_NOT_SET = AutoDeployException("Profile not set.")
+
 
 class Instance:
     def __init__(self, customer=None, region=None, profile=None, key=None,
-            verbose=False, safety=False):
+                 verbose=False, safety=False, template=None, remote_command=None):
         self.customer = customer
+        self.region = region
         self.profile = profile
+        self.template = template
         self.key = key
         self.verbose = verbose
         self.safety = safety
+        self.remote_command = remote_command
 
         self.default_region = "us-west-1"
 
         if not customer:
             raise AutoDeployException("Customer cannot be None.")
-       
+
         self.key_filename = "/srv/autodeploy/%s/ssh_login_key.pem" % \
-                self.customer
+                            self.customer
         self.db_pass_filename = "/srv/autodeploy/%s/dbpassword.txt" % \
-                self.customer
+                                self.customer
         self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
-                self.customer
-        self.server_ssl_key_dir = "/srv/autodeploy/%s/ssl_keys" % self.customer
+                                   self.customer
+        self.profile_dir = "/srv/autodeploy/%s/profile" % self.customer
+        self.server_ssl_key_dir = "%s/keys" % self.profile_dir
 
         # default uninstalled state
         self.deployed = False
         self.broken = False
         self.key_present = False
         self.stack_present = False
-        self.ready = False # ssh accessible
+        self.ready = False  # ssh accessible
 
         self.searched = False
         self.found = False
@@ -113,15 +124,15 @@ class Instance:
                 # we found what we wanted, and we are already connected
                 return self._ready()
 
-        # we found nothing, default to Oregon or use given region
-        self.region = region or self.default_region
+        # we found nothing, default to Oregon
+        region = region or self.default_region
 
         # Oddly, creating a connection does not raise an exception if the
         # region is invalid. It only returns None. We check here.
         if not boto.ec2.get_region(region):
             raise Exception("No such region: %s" % region)
-            
-        self._connect(self.region)
+
+        self._connect(region)
         self._search(customer)
         self._ready()
 
@@ -170,12 +181,14 @@ class Instance:
 
         try:
             self.instance = self.ec2.get_all_instances(
-                    instance_id)[0].instances[0]
+                instance_id)[0].instances[0]
         except:
-            raise INSTANCE_BROKEN
+            self.broken = True
+            return
 
         if not os.path.isfile(self.key_filename):
-            raise INSTANCE_BROKEN
+            self.broken = True
+            return
 
         self.ip = self.instance.ip_address
         fabric.api.env.user = "ubuntu"
@@ -191,16 +204,19 @@ class Instance:
 
         if self.deployed:
             raise INSTANCE_EXISTS
-        
+
         if self.searched:
             if self.safety:
                 raise AutoDeployException("Explicitly specify a region.")
 
-        with open("autodeploy.template") as template_file:
+        with open("%s.template" % self.template) as template_file:
             template = template_file.read()
 
         print "Creating instance for %s..." % self.customer
-        os.mkdir("/srv/autodeploy/%s" % self.customer)
+        try:
+            os.mkdir("/srv/autodeploy/%s" % self.customer)
+        except OSError:
+            print "Warning: /srv/autodeploy/%s already exists" % self.customer
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
@@ -211,20 +227,20 @@ class Instance:
         with open(self.key_filename, "w") as key_file:
             key_file.write(key.material)
         os.umask(umask)
-        
+
         print "\tgenerating database password..."
         self.db_password = ''.join(random.choice(
-                string.ascii_uppercase + string.digits) for _ in range(8))
+            string.ascii_uppercase + string.digits) for _ in range(8))
         umask = os.umask(0177)
         with open(self.db_pass_filename, "w") as db_file:
             db_file.write(self.db_password)
         os.umask(umask)
-       
+
         print "\tcreating stack..."
         self.cf.create_stack(self.customer, template,
-                parameters=[("KeyName", self.customer),
-                    ("DBPassword", self.db_password),
-                    ("CustomerName", self.customer)])
+                             parameters=[("KeyName", self.customer),
+                                         ("DBPassword", self.db_password),
+                                         ("CustomerName", self.customer)])
 
         sys.stdout.write("Please wait (this may take a few minutes)... ")
         with Spinner():
@@ -268,7 +284,7 @@ class Instance:
                 ssh_host_ecdsa_key = line.strip()
                 with open(self.server_key_filename, "w") as key_file:
                     key_file.write("%s %s" % \
-                            (instance.ip_address, ssh_host_ecdsa_key))
+                                   (instance.ip_address, ssh_host_ecdsa_key))
                 break
         else:
             raise INSTANCE_BROKEN
@@ -290,11 +306,11 @@ class Instance:
         if self.stack_present:
             print "\tremoving stack..."
             self.cf.delete_stack(self.customer)
-        
+
         if self.key_present:
             print "\tremoving key..."
             self.ec2.delete_key_pair(self.customer)
-        
+
         print "Instance %s removed." % self.customer
 
     def get_output(self, key):
@@ -313,7 +329,7 @@ class Instance:
     def status(self):
         if not self.found:
             raise INSTANCE_NOT_FOUND
-      
+
         # self.stack should have been prepopulated by constructor
         print "Instance: %s" % self.customer
         print "Region: %s" % self.region
@@ -329,7 +345,7 @@ class Instance:
                     reason = ""
                 print "{0:25} {1:}".format("\t" + status, reason[:50])
                 for i in range(50, len(reason), 50):
-                    print " "*26 + reason[i:i+50]
+                    print " " * 26 + reason[i:i + 50]
 
         instance_id = None
         for output in self.stack.outputs:
@@ -357,15 +373,53 @@ class Instance:
             except Exception, e:
                 raise e
 
-    def install(self, upgrade=False):
+    def check(self):
         if self.broken:
             raise INSTANCE_BROKEN
-        
+
         if not self.deployed:
             raise INSTANCE_NOT_FOUND
-       
+
         if not self.ready:
             raise INSTANCE_NOT_READY
+
+    def install_clients(self):
+        self.check()
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            here = os.path.dirname(os.path.abspath(__file__))
+            git_root = os.path.abspath(os.path.join(here, "..", ".."))
+            with fabric.api.lcd(git_root):
+                result = fabric.api.local("make clients_tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+                result = fabric.api.put("clients.tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+                result = fabric.api.run("tar xf clients.tar")
+                if result.failed:
+                    raise COMMAND_FAILED
+
+    def run(self):
+        self.check()
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            result = fabric.api.run(self.remote_command)
+            if result.failed:
+                raise COMMAND_FAILED
+
+
+    def install(self, upgrade=False):
+        self.check()
 
         context = fabric.api.hide("everything")
         if self.verbose:
@@ -388,19 +442,37 @@ class Instance:
 
                 # If there are no keys, turn off SSL and use the AWS DNS
                 if not (os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.key"))
-                    and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
-                    and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
+                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
+                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
                     parser.set("aux", "use_ssl", "no")
                     parser.set("aux", "webserver_address", self.get_output("PublicDNS"))
                     parser.set("aux", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
-                    parser.set("aux", "webserver_port", "80")
+                    parser.set("aux", "webserver_port", "8888")
+                    parser.set("aux", "use_www", "yes")
+                    print "http://%s:8888" % self.get_output("PublicDNS")
 
                 with open(os.path.join(git_root, "aux.ini"), "w") as f:
                     parser.write(f)
 
+                if self.profile is None:
+                    if os.path.isdir(self.profile_dir):
+                        self.profile = self.customer
+
+                        print "Copying profile"
+                        result = fabric.api.local("rm -rf install/profiles/%s" % self.profile)
+                        if result.failed:
+                            raise COMMAND_FAILED
+
+                        result = fabric.api.local("cp -r %s install/profiles/%s" % (self.profile_dir, self.profile))
+                        if result.failed:
+                            raise COMMAND_FAILED
+                    else:
+                        raise PROFILE_NOT_SET
+
+
                 print "Generating tarball..."
-                result = fabric.api.local("PROFILE=%s make tar" % \
-                        self.profile)
+                result = fabric.api.local("PROFILE=install/profiles/%s make tar" % \
+                                          self.profile)
                 if result.failed:
                     raise COMMAND_FAILED
 
@@ -408,24 +480,22 @@ class Instance:
                 result = fabric.api.put("sputnik.tar", "sputnik.tar")
                 if result.failed:
                     raise COMMAND_FAILED
-           
-            if upgrade:
-                print "Upgrading..."
-                result = fabric.api.run("rm -rf sputnik")
-                if result.failed:
-                    raise COMMAND_FAILED
-            else:
-                print "Installing..."
+
+            result = fabric.api.run("rm -rf sputnik")
+            if result.failed:
+                raise COMMAND_FAILED
 
             result = fabric.api.run("tar xf sputnik.tar")
-
             if result.failed:
                 raise COMMAND_FAILED
 
             with fabric.api.cd("sputnik"):
-                action = "install"
                 if upgrade:
+                    print "Upgrading..."
                     action = "upgrade"
+                else:
+                    print "Installing..."
+                    action = "install"
 
                 result = fabric.api.sudo("make deps %s" % action)
                 if result.failed:
@@ -434,16 +504,9 @@ class Instance:
 
     def upgrade(self):
         self.install(True)
-    
+
     def query(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
+        self.check()
 
         context = fabric.api.hide("everything")
         if self.verbose:
@@ -473,7 +536,7 @@ class Instance:
 
     @staticmethod
     def list(region=None):
-        if region==None:
+        if region == None:
             regions = map(lambda r: r.name, boto.ec2.regions())
             for region in regions:
                 Instance.list(region)
@@ -494,36 +557,46 @@ class Instance:
         except:
             print "Could not connect to %s" % region
 
+
 def main():
     parser = argparse.ArgumentParser(description="Deploy sputnik to AWS.")
     customer = argparse.ArgumentParser(add_help=False)
     customer.add_argument("customer", action="store",
-            help="Short identifier for customer.")
+                          help="Short identifier for customer.")
     parser.add_argument("--region", dest="region", action="store",
-            help="Region where to deploy. Default: us-west-1.")
+                        help="Region where to deploy. Default: us-west-1.")
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
     subparsers = parser.add_subparsers(
-            description="Actions that can be performed.", metavar="command",
-            dest="command")
+        description="Actions that can be performed.", metavar="command",
+        dest="command")
     parser_deploy = subparsers.add_parser("deploy", parents=[customer],
-            help="Deploy instance.")
+                                          help="Deploy instance.")
+    parser_deploy.add_argument("--template", dest="template", action="store",
+                               default="sputnik", required=False,
+                               help="Which AWS template to use")
     parser_status = subparsers.add_parser("status", parents=[customer],
-            help="Get instance deployment status.")
+                                          help="Get instance deployment status.")
     parser_delete = subparsers.add_parser("delete", parents=[customer],
-            help="Delete instance.")
+                                          help="Delete instance.")
     parser_install = subparsers.add_parser("install", parents=[customer],
-            help="Install instance.")
+                                           help="Install instance.")
     parser_install.add_argument("--profile", dest="profile", action="store",
-            required=True, help="Path to profile.")
+                                required=False, help="Path to profile.")
     parser_upgrade = subparsers.add_parser("upgrade", parents=[customer],
-            help="Upgrade instance.")
+                                           help="Upgrade instance.")
     parser_upgrade.add_argument("--profile", dest="profile", action="store",
-            required=True, help="Path to profile.")
+                                required=True, help="Path to profile.")
     parser_query = subparsers.add_parser("query", parents=[customer],
-            help="Query running instance for version.")
+                                         help="Query running instance for version.")
     parser_login = subparsers.add_parser("login", parents=[customer],
-            help="Login via ssh.")
+                                         help="Login via ssh.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
+    parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
+                                                   help="Install python clients")
+    parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
+    parser_run = parser_run.add_argument("remote_command",
+                                         help="what is the remote command to run")
+
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
@@ -539,6 +612,7 @@ def main():
         method()
     except AutoDeployException, e:
         print e
+
 
 if __name__ == "__main__":
     main()

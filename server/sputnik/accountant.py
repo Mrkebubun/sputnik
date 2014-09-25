@@ -620,9 +620,11 @@ class Accountant:
             order.is_cancelled = True
             self.session.add(order)
             self.session.commit()
+            return result
 
         def publish_order(result):
             self.webserver.order(username, order.to_webserver())
+            return result
 
         d.addCallback(update_order)
         d.addCallback(publish_order)
