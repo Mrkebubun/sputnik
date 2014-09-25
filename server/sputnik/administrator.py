@@ -554,7 +554,7 @@ class Administrator:
         journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
         return journal
 
-    def adjust_position(self, username, ticker, quantity_ui):
+    def adjust_position(self, username, ticker, quantity_ui, admin_username):
         """Adjust the position for a user
 
         :param username: the user we are adjusting
@@ -568,7 +568,7 @@ class Administrator:
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
         log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
-        self.accountant.adjust_position(username, ticker, quantity)
+        self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -591,7 +591,7 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
-    def manual_deposit(self, address, quantity_ui):
+    def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
         if quantity % address_db.contract.lot_size != 0:
@@ -599,7 +599,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         log.msg("Manual deposit of %d to %s" % (quantity, address))
-        self.accountant.deposit_cash(address_db.username, address, quantity, total=False)
+        self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
@@ -779,8 +779,8 @@ class Administrator:
             log.err("Error: %s" % e)
             self.session.rollback()
 
-    def process_withdrawal(self, id, online=False, cancel=False):
-        self.cashier.process_withdrawal(id, online=online, cancel=cancel)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
+        self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
 class AdminWebUI(Resource):
@@ -916,7 +916,8 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel)
+        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
+                                              admin_username=self.avatarId)
         return self.user_details(request)
 
     def permission_groups(self, request):
@@ -1105,7 +1106,7 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           float(request.args['quantity'][0]))
+                                           float(request.args['quantity'][0]), self.avatarId)
         return self.user_details(request)
 
     def transfer_position(self, request):
@@ -1115,7 +1116,7 @@ class AdminWebUI(Resource):
 
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
-                                             request.args['note'][0])
+                                             "%s (%s)" % (request.args['note'][0], self.avatarId))
         return self.user_details(request)
 
     def rescan_address(self, request):
@@ -1129,7 +1130,7 @@ class AdminWebUI(Resource):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]))
+        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
         return self.user_details(request)
 
     def admin_list(self, request):

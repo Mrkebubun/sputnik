@@ -433,7 +433,7 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
-        d = self.administrator_export.adjust_position('test', 'BTC', 10)
+        d = self.administrator_export.adjust_position('test', 'BTC', 10, admin_username='test_admin')
 
         def onSuccess(result):
             position = self.session.query(models.Position).filter_by(

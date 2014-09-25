@@ -205,7 +205,7 @@ class Accountant:
         """
         return util.get_contract(self.session, ticker)
 
-    def adjust_position(self, username, ticker, quantity):
+    def adjust_position(self, username, ticker, quantity, admin_username):
         """Adjust a user's position, offsetting with the 'adjustment' account
 
         :param username: The user
@@ -221,9 +221,9 @@ class Accountant:
 
         uid = util.get_uid()
         credit = create_posting("Transfer", username, ticker, quantity,
-                "credit", "Adjustment")
+                "credit", "Adjustment (%s)" % admin_username)
         debit = create_posting("Transfer", "adjustments", ticker, quantity,
-                "debit", "Adjustment")
+                "debit", "Adjustment (%s)" % admin_username)
         credit["count"] = 2
         debit["count"] = 2
         credit["uid"] = uid
@@ -796,7 +796,7 @@ class Accountant:
             log.err("Exception received while attempting withdrawal: %s" % e)
             raise e
 
-    def deposit_cash(self, username, address, received, total=True):
+    def deposit_cash(self, username, address, received, total=True, admin_username=None):
         """Deposits cash
         :param username: The username for this address
         :type username: str
@@ -834,18 +834,23 @@ class Accountant:
             #prepare cash deposit
             my_postings = []
             remote_postings = []
+            if admin_username is not None:
+                note = "%s (%s)" % (address, admin_username)
+            else:
+                note = address
+
             debit_posting = create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
-                                                  note=address)
+                                                  note=note)
             remote_postings.append(debit_posting)
 
             credit_posting = create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
                                                    'credit',
-                                                   note=address)
+                                                   note=note)
             my_postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
@@ -867,14 +872,18 @@ class Accountant:
                 excess_deposit = potential_new_position - deposit_limit
 
             if excess_deposit > 0:
+                if admin_username is not None:
+                    note = "Excess Deposit: %s (%s)" % (address, admin_username)
+                else:
+                    note = "Excess Deposit: %s" % address
                 # There was an excess deposit, transfer that amount into overflow cash
                 excess_debit_posting = create_posting("Deposit",
                         user.username, contract.ticker, excess_deposit,
-                        'debit', note="Excess Deposit: %s" % address)
+                        'debit', note=note)
 
                 excess_credit_posting = create_posting("Deposit",
                         'depositoverflow', contract.ticker, excess_deposit,
-                        'credit', note="Excess Deposit: %s" % address)
+                        'credit', note=note)
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
@@ -1140,8 +1149,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.administrator.json#adjust_position")
-    def adjust_position(self, username, ticker, quantity):
-        return self.accountant.adjust_position(username, ticker, quantity)
+    def adjust_position(self, username, ticker, quantity, admin_username):
+        return self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     @export
     @schema("rpc/accountant.administrator.json#transfer_position")
@@ -1155,8 +1164,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.administrator.json#deposit_cash")
-    def deposit_cash(self, username, address, received, total=True):
-        self.accountant.deposit_cash(username, address, received, total=total)
+    def deposit_cash(self, username, address, received, total=True, admin_username=None):
+        self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
 
     @export
     @schema("rpc/accountant.administrator.json#cancel_order")
