@@ -185,6 +185,6 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    connectWS(factory, contextFactory)
+    factory.connect(contextFactory)
     reactor.run()
 
