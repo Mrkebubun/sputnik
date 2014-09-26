@@ -147,7 +147,7 @@ class Order(db.Base, QuantityUI, PriceUI):
     is_cancelled = Column(Boolean, nullable=False)
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
     dispatched = Column(Boolean, nullable=False, server_default=sql.false())
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
@@ -375,7 +375,7 @@ class Journal(db.Base):
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
                         'Trade', 'Fee',
                         name='journal_types'), nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
     postings = relationship('Posting', back_populates="journal")
 
     def __init__(self, type, postings, timestamp=None):
@@ -447,7 +447,7 @@ class Posting(db.Base, QuantityUI):
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
     note = Column(String)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
@@ -626,7 +626,7 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     quantity = Column(BigInteger)
     price = Column(BigInteger, nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
