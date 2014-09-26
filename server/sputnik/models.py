@@ -136,9 +136,9 @@ class Order(db.Base, QuantityUI, PriceUI):
     ORDER_REJECTED = -1
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User')
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
     quantity = Column(BigInteger)
     quantity_left = Column(BigInteger)
@@ -439,11 +439,11 @@ class Posting(db.Base, QuantityUI):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
-    journal_id = Column(Integer, ForeignKey('journal.id'))
+    journal_id = Column(Integer, ForeignKey('journal.id'), index=True)
     journal = relationship('Journal')
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
     note = Column(String)
@@ -628,11 +628,11 @@ class Trade(db.Base, QuantityUI, PriceUI):
     price = Column(BigInteger, nullable=False)
     timestamp = Column(DateTime)
 
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
 
-    aggressive_order_id = Column(Integer, ForeignKey('orders.id'))
-    passive_order_id = Column(Integer, ForeignKey('orders.id'))
+    aggressive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
+    passive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
     aggressive_order = relationship('Order', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_order = relationship('Order', primaryjoin="Order.id==Trade.passive_order_id")
 
