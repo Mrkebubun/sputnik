@@ -1101,18 +1101,6 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
-        postings_by_ticker = {}
-        for position in user.positions:
-            if 'positions_page_%s' % position.contract.ticker in request.args:
-                page = int(request.args['postings_page_%s' % position.contract.ticker][0])
-            else:
-                page = 0
-            postings, posting_pages = self.administrator.get_postings(user, position.contract, page=page)
-            postings_by_ticker[position.contract.ticker] = {'postings': postings,
-                                                            'posting_pages': posting_pages,
-                                                            'page': page,
-                                                            'min_range': max(page - 10, 0),
-                                                            'max_range': min(posting_pages, page + 10)}
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
@@ -1124,7 +1112,7 @@ class AdminWebUI(Resource):
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
 
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
+        rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
