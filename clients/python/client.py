@@ -485,6 +485,20 @@ class BotFactory(WampClientFactory):
         WampClientFactory.__init__(self, url, debugWamp=debugWamp)
         self.username_password = username_password
         self.rate = rate
+        self.conn = None
+
+    def connect(self, context_factory, failure=None):
+        self.conn = connectWS(self, context_factory)
+        def check_status():
+            if self.conn.state != "connected":
+                if failure is None:
+                    print "Unable to connect to %s" % self.url
+                    reactor.stop()
+                else:
+                    failure()
+
+        reactor.callLater(self.conn.timeout, check_status)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -514,5 +528,5 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    conn = connectWS(factory, contextFactory)
+    factory.connect(contextFactory)
     reactor.run()
