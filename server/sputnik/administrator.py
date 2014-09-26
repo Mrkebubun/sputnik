@@ -771,7 +771,7 @@ class Administrator:
         last = now
 
         postings_pages = int(postings_count / self.page_size) + 1
-        postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
+        postings = all_postings.order_by(models.Posting.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
 
         now = time.time()
