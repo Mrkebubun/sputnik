@@ -15,17 +15,19 @@
         <th>Ledger</th>
         <th>Quantity</th>
         <th>Notes</th>
+        <th>Type</th>
         <th></th>
         <th>Timestamp</th>
     </tr>
     {% for posting in postings_by_ticker[position.contract.ticker].postings %}
     <tr>
         <td></td>
-        <td><a href="/ledger?id={{posting.journal_id}}">{{posting.journal_id}}</a></td>
+        <td><a href="/ledger?id={{posting.journal.id}}">{{posting.journal.id}}</a></td>
         <td align="right">{{posting.quantity_fmt}}</td>
         <td>{{posting.note}}</td>
+        <td>{{posting.journal.type}}</td>
         <td></td>
-        <td>{{posting.timestamp}}</td>
+        <td>{{posting.journal.timestamp}}</td>
     </tr>
     {% endfor %}
 </table>
