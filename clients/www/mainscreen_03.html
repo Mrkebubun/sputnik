@@ -47,6 +47,10 @@
     <!-- Sputnik API Code -->
     <script src="sputnik.coffee" type="text/coffeescript"></script>
 
+    <!-- Trading View -->
+    <script type="text/javascript" src="charting_library/charting_library.min.js"></script>
+    <script src="tradingview.coffee" type="text/coffeescript"></script>
+
     <!-- UI code -->
     <script src="ui.coffee" type="text/coffeescript"></script>
 
@@ -480,24 +484,7 @@
                                         </table>
                                     </div>
                                 </div>
-                                <div class="col-sm-9">
-                                    <!-- TradingView Widget BEGIN -->
-                                    <script type="text/javascript" src="https://d33t3vvu2t2yu5.cloudfront.net/tv.js"></script>
-                                    <script type="text/javascript">
-                                    new TradingView.widget({
-                                      "autosize": true,
-                                      "symbol": "FX:SPX500",
-                                      "interval": "15",
-                                      "timezone": "exchange",
-                                      "theme": "Green",
-                                      "style": "1",
-                                      "toolbar_bg": "#f1f3f6",
-                                      "withdateranges": true,
-                                      "save_image": false,
-                                      "hideideas": true
-                                    });
-                                    </script>
-                                    <!-- TradingView Widget END -->
+                                <div class="col-sm-9" id="tv_chart_container">
                                 </div>
                             </div>
                         </div>
