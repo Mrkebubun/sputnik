@@ -12,6 +12,7 @@ from twisted.protocols.policies import TimeoutMixin
 from twisted.python import log
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import select
 
 import config
 import util
@@ -74,8 +75,9 @@ class PostingGroup(TimeoutMixin):
         self.fail(GROUP_TIMEOUT)
 
 class Ledger:
-    def __init__(self, session, timeout=None):
-        self.session = session
+    def __init__(self, engine, timeout=None):
+        self.engine = engine
+        self.conn = engine.connect()
         self.pending = defaultdict(lambda: PostingGroup(timeout))
 
     @timed
@@ -113,16 +115,29 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
+            # The journal is created seperately from the postings but this is ok because
+            # all the postings are created at once. If the posting commit fails then we'll
+            # just end up with an empty journal which won't break anything
+            # TODO: Create the journal and postings together
+            log.msg("creating the journal at %f" % (time.time() - start))
+            ins = Journal.__table__.insert()
+            result = self.conn.execute(ins, type=types[0], timestamp=datetime.datetime.utcnow())
+            journal_id = result.inserted_primary_key[0]
+
             log.msg("creating the db postings at %f" % (time.time() - start))
             db_postings = []
             for posting in postings:
-                # TODO: change Posting constructor to take username
-                # I suspect that all these queries to get the contract and user are slow
-                # It may be better to ignore if the user is an asset or a liability and
-                # when the position is displayed invert the sign for asset accounts
-                log.msg("getting user %s and contract %s at %f" % (posting["username"], posting["contract"], time.time() - start))
-                user = self.session.query(User).filter_by(username=posting["username"]).one()
-                contract = self.session.query(Contract).filter_by(ticker=posting["contract"]).one()
+                contract_table = Contract.__table__
+                s = select([contract_table.c.id], contract_table.c.ticker==posting["contract"])
+                result = self.conn.execute(s)
+                contract_id = result.first()[0]
+
+                user_table = User.__table__
+                s = select([user_table.c.type], user_table.c.username==posting["username"])
+                result = self.conn.execute(s)
+                user_type = result.first()[0]
+
+                username = posting["username"]
                 quantity = posting["quantity"]
                 direction = posting["direction"]
                 note = posting["note"]
@@ -131,18 +146,35 @@ class Ledger:
                 else:
                     timestamp = None
 
-                posting = Posting(user, contract, quantity, direction, note=note, timestamp=timestamp)
-                db_postings.append(posting)
-                log.msg("done making posting %s at %f" % (posting, time.time() - start))
-            log.msg("creating the journal at %f" % (time.time() - start))
-            journal = Journal(types[0], db_postings)
+                if direction == 'debit':
+                    if user_type == 'Asset':
+                        sign = 1
+                    else:
+                        sign = -1
+                else:
+                    if user_type == 'Asset':
+                        sign = -1
+                    else:
+                        sign = 1
 
-            # add all
-            log.msg("committing at %f" % (time.time() - start))
-            self.session.add_all(db_postings)
-            self.session.add(journal)
-            self.session.commit()
-            log.msg("Journal: %s" % journal)
+                posting = {'username': username,
+                           'contract_id': contract_id,
+                           'quantity': sign * quantity,
+                           'direction': direction,
+                           'note': note,
+                           'timestamp': timestamp,
+                           'journal_id': journal_id
+                }
+                db_postings.append(posting)
+                log.msg("done making posting at %f: %s" % (time.time() - start, posting))
+
+
+            ins = Posting.__table__.insert()
+            result = self.conn.execute(ins, db_postings)
+            log.msg("Inserted %d rows of %d postings" % (result.rowcount, len(db_postings)))
+            log.msg("Done committing postings at %f" % (time.time() - start))
+
+
             return True
 
         except Exception, e:
@@ -162,7 +194,7 @@ class Ledger:
             # guaranteed to happen.
             # 
             # This is safe to run after a commit.
-            self.session.rollback()
+            pass
 
     def post_one(self, posting):
         uid = posting["uid"]
@@ -222,9 +254,9 @@ def create_posting(type, username, contract, quantity, direction, note=None, tim
 if __name__ == "__main__":
     fo = log.startLogging(sys.stdout)
     fo.formatTime = lambda x: datetime.datetime.fromtimestamp(x).strftime("%Y-%m-%d %H:%M:%S.%f")
-    session = database.make_session()
+    engine = database.make_engine()
     timeout = config.getint("ledger", "timeout")
-    ledger = Ledger(session, timeout)
+    ledger = Ledger(engine, timeout)
     accountant_export = AccountantExport(ledger)
     watchdog(config.get("watchdog", "ledger"))
     router_share_async(accountant_export,

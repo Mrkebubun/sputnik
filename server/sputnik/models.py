@@ -136,9 +136,9 @@ class Order(db.Base, QuantityUI, PriceUI):
     ORDER_REJECTED = -1
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User')
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
     quantity = Column(BigInteger)
     quantity_left = Column(BigInteger)
@@ -147,7 +147,7 @@ class Order(db.Base, QuantityUI, PriceUI):
     is_cancelled = Column(Boolean, nullable=False)
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
     dispatched = Column(Boolean, nullable=False, server_default=sql.false())
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
@@ -297,7 +297,7 @@ class AdminUser(db.Base):
         self.level = level
 
     def __repr__(self):
-        return "<AdminUser('%s', %d)>" % (self.user, self.level)
+        return "<AdminUser('%s', %d)>" % (self.username, self.level)
 
 class User(db.Base):
     __tablename__ = 'users'
@@ -375,7 +375,7 @@ class Journal(db.Base):
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
                         'Trade', 'Fee',
                         name='journal_types'), nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
     postings = relationship('Posting', back_populates="journal")
 
     def __init__(self, type, postings, timestamp=None):
@@ -439,15 +439,15 @@ class Posting(db.Base, QuantityUI):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
-    journal_id = Column(Integer, ForeignKey('journal.id'))
+    journal_id = Column(Integer, ForeignKey('journal.id'), index=True)
     journal = relationship('Journal')
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
     note = Column(String)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
@@ -626,15 +626,17 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     quantity = Column(BigInteger)
     price = Column(BigInteger, nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
 
-    aggressive_order_id = Column(Integer, ForeignKey('orders.id'))
-    passive_order_id = Column(Integer, ForeignKey('orders.id'))
+    aggressive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
+    passive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
     aggressive_order = relationship('Order', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_order = relationship('Order', primaryjoin="Order.id==Trade.passive_order_id")
+
+    posted = Column(Boolean, server_default=sql.false())
 
     def __init__(self, aggressive_order, passive_order, price, quantity):
         """
@@ -654,6 +656,7 @@ class Trade(db.Base, QuantityUI, PriceUI):
         self.timestamp = max(aggressive_order.timestamp, passive_order.timestamp)
         self.price = price
         self.quantity = quantity
+        self.posted = False
 
     def __repr__(self):
         return '<Trade(%s:%d@%d)>' % (self.contract.ticker, self.price, self.quantity)

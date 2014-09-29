@@ -40,7 +40,6 @@ class @Sputnik extends EventEmitter
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
-        @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
@@ -393,6 +392,17 @@ class @Sputnik extends EventEmitter
             return Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0)
         else
             return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
+
+    getMinMove: (ticker) =>
+        [contract, source, target] = @cstFromTicker(ticker)
+        return contract.tick_size
+
+    getPriceScale: (ticker) =>
+        [contract, source, target] = @cstFromTicker(ticker)
+        if contract.contract_type is "prediction"
+            return contract.denominator
+        else
+            return source.denominator * contract.denominator
 
     # order manipulation
     canPlaceOrder: (quantity, price, ticker, side) =>

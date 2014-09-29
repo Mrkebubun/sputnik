@@ -54,7 +54,7 @@ class TestAccountantBase(TestSputnik):
                         "NETS2014": engine2.AccountantExport(FakeEngine())}
         self.webserver = FakeComponent("webserver")
         self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
-        self.ledger = ledger.AccountantExport(ledger.Ledger(self.session, 5000))
+        self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
         self.alerts_proxy = FakeComponent("alerts")
         #self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
         self.accountant = accountant.Accountant(self.session, self.engines,
@@ -433,7 +433,7 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 10)
 
-        d = self.administrator_export.adjust_position('test', 'BTC', 10)
+        d = self.administrator_export.adjust_position('test', 'BTC', 10, admin_username='test_admin')
 
         def onSuccess(result):
             position = self.session.query(models.Position).filter_by(

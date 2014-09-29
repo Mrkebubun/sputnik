@@ -23,7 +23,10 @@ $ ->
     window.sputnik = sputnik
 
     sputnik.connect()
-
+    
+    tv = new window.TVFeed sputnik
+    window.tv = tv
+    
     sputnik.on "log", (args...) -> ab.log args...
     sputnik.on "warn", (args...) -> ab.log args...
     sputnik.on "error", (args...) -> ab.log args...
@@ -332,7 +335,7 @@ $ ->
                 window.contract = ticker_to_use
                 $("#contract").show()
                 sputnik.openMarket(ticker_to_use)
-                plotChart ticker_to_use
+                showChart ticker_to_use
                 updateContract()
                 updateBalances()
                 updateOrders()
@@ -344,7 +347,24 @@ $ ->
 
         $("#contract-select").change (e) ->
             select_contract_fn($("#contract-select").val())(e)
-
+            
+    showChart = (contract) ->
+        widget = new TradingView.widget {
+            fullscreen: false
+            symbol: contract
+            interval: 1
+            toolbar_bg: '#f4f7f9'
+            allow_symbol_change: false
+            container_id: "tv_chart_container"
+            datafeed: window.tv
+            library_path: "charting_library/"
+            locale: "en"
+            # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
+            disabled_drawings: ["Regression Trend"]
+        }
+    
+        widget.onChartReady () ->
+            
     changeContractType = (new_type) ->
         if new_type != window.contract_type
             $("#tab-#{window.contract_type}").removeClass("tab-active")
@@ -406,7 +426,6 @@ $ ->
             sputnik.unfollow window.contract
             window.contract = $('#contract_list').val()
             sputnik.openMarket window.contract
-            plotChart window.contract
 
     sputnik.on "change_password_token", (args) ->
         $('#change_password_token_modal').modal "show"
@@ -676,188 +695,6 @@ $ ->
     sputnik.on "close", (message) ->
         $('#main_page').hide()
         $('#not_connected').show()
-
-    window.chart = 'none'
-    window.chart_interval = 'none'
-    doPlot = (chartData) ->
-        chartOptions = {
-            type: "stock",
-            "theme": "light",
-            pathToImages: "js/amcharts/images/",
-            categoryAxesSettings: {
-                minPeriod: "mm",
-                inside: true
-            },
-            dataSets: [
-                {
-                    fieldMappings: [
-                        {
-                            fromField: "open",
-                            toField: "open"
-                        }, {
-                            fromField: "close",
-                            toField: "close"
-                        }, {
-                            fromField: "high",
-                            toField: "high"
-                        }, {
-                            fromField: "low",
-                            toField: "low"
-                        }, {
-                            fromField: "volume",
-                            toField: "volume"
-                        },
-                        {
-                            fromField: "price",
-                            toField: "value"
-                        }
-                    ],
-                    color: "#7f8da9",
-                    dataProvider: chartData,
-                    title: window.contract,
-                    categoryField: "date"
-                }
-            ],
-            panels: [
-                {
-                    title: "Price",
-                    showCategoryAxis: false,
-                    percentHeight: 70,
-                    valueAxes: [
-                        {
-                            dashLength: 5,
-                            position: "left"
-                        }
-                    ],
-                    categoryAxis: {
-                        dashLength: 5,
-                        parseDates: true
-                    },
-                    stockGraphs: [
-                        {
-                            type: "ohlc",
-                            id: "g1",
-                            balloonText: "Open:<b>[[open]]</b><br>Low:<b>[[low]]</b><br>High:<b>[[high]]</b><br>Close:<b>[[close]]</b><br>",
-                            proCandlesticks: true,
-                            openField: "open",
-                            closeField: "close",
-                            highField: "high",
-                            lowField: "low",
-                            valueField: "close",
-                            lineColor: "#7f8da9",
-                            fillColors: "#7f8da9",
-                            negativeLineColor: "#db4c3c",
-                            negativeFillColors: "#db4c3c",
-                            fillAlphas: 1,
-                            comparable: true,
-                            compareField: "value",
-                            useDataSetColors: false,
-                            showBalloon: false
-                        }
-                    ],
-                    stockLegend: {
-                        valueTextRegular: undefined,
-                        periodValueTextComparing: "[[percents.value.close]]%"
-                    }
-                },
-                {
-                    title: "Volume",
-                    percentHeight: 30,
-                    marginTop: 1,
-                    showCategoryAxis: true,
-                    valueAxes: [
-                        {
-
-                            dashLength: 5
-                        }
-                    ],
-
-                    categoryAxis: {
-                        dashLength: 5
-                    },
-
-                    stockGraphs: [
-                        {
-                            valueField: "volume",
-                            type: "column",
-                            showBalloon: false,
-                            fillAlphas: 1
-                        }
-                    ],
-
-                    stockLegend: {
-                        markerType: "none",
-                        markerSize: 0,
-                        labelText: "",
-                        periodValueTextRegular: "[[value.close]]"
-                    }
-                }
-            ],
-            chartScrollbarSettings: {
-                graph: "g1",
-                graphType: "line",
-                usePeriod: "DD",
-                position: "top"
-            },
-
-            periodSelector: {
-                position: "top",
-                dateFormat: "YYYY-MM-DD JJ:NN",
-                inputFieldWidth: 150,
-                periods: [
-                    {
-                        period: "mm",
-                        count: 60,
-                        label: "1 hour"
-                    }
-                    {
-                        period: "hh",
-                        count: 24,
-                        label: "24 hours"
-                    }
-                    {
-                        period: "DD",
-                        count: 10,
-                        label: "10 days"
-                    }
-                    {
-                        period: "MM",
-                        selected: true,
-                        count: 1,
-                        label: "1 month"
-                    }
-                ]
-            }
-        }
-        sputnik.log ["Making chart", chartOptions]
-        window.chart = AmCharts.makeChart("chartdiv", chartOptions)
-        window.chart.validateData()
-        if window.chart_interval != 'none'
-            clearInterval(window.chart_interval)
-
-        window.chart_interval = setInterval () ->
-            sputnik.log ["Validate Data", window.chart.dataSets[0].dataProvider]
-            window.chart.validateData()
-        , 60000
-
-    plotChart = (ticker) ->
-        chartData = []
-        sputnik.call("get_ohlcv_history", ticker).then \
-            (ohlcv_history) =>
-                sputnik.log ["got ohlcv for chart", ohlcv_history]
-                for timestamp, ohlcv of ohlcv_history
-                    data =
-                        open: sputnik.priceFromWire(ticker, ohlcv.open)
-                        close: sputnik.priceFromWire(ticker, ohlcv.close)
-                        high: sputnik.priceFromWire(ticker, ohlcv.high)
-                        low: sputnik.priceFromWire(ticker, ohlcv.low)
-                        date: ohlcv.open_timestamp / 1000
-                        volume: sputnik.quantityFromWire(ticker, ohlcv.volume)
-                    chartData.push data
-
-                chartData.sort (a, b) -> a.date - b.date
-
-                doPlot(chartData)
 
     jQuery.fn.serializeObject = ->
         arrayData = @serializeArray()

@@ -24,8 +24,8 @@ $ ->
             url: 'user_postings'
             data: {
                 page: page
-                username: "{{user.username}}",
-                ticker: ticker,
+                username: "{{user.username}}"
+                ticker: ticker
             },
             type: "GET"
             dataType: "html"
@@ -33,8 +33,13 @@ $ ->
                 $("#postings_div_#{ticker}").html(html)
             })
 
-    window.show_postings = (position) ->
-        $("tr[name=postings_#{position}]").toggle()
+    window.show_transfer = (position_id) ->
+        $("tr[name=transfer_#{position_id}]").toggle()
+
+    window.show_postings = (position_id, ticker) ->
+        $("tr[name=postings_#{position_id}]").toggle()
+        if $("tr[name=postings_#{position_id}]").is(":visible")
+            window.update_postings_page(ticker, 0)
 
     $('#loading').hide()
     $( document ).ajaxStart () ->
@@ -230,21 +235,24 @@ $ ->
     <thead>
         <tr>
             <th></th>
+            <th></th>
             <th>Contract</th>
-            <th>Position</th>
-            <th>Reference Price</th>
+            <th align="right">Position</th>
+            <th align="right">Reference Price</th>
         </tr>
     </thead>
     <tbody>
         {% for position in user.positions %}
         <tr id="{{position.contract.ticker}}">
-            <td><span class="caret btn-link" onclick="show_postings({{position.id}});"></span></td>
+            <td><span class="caret btn-link" onclick="show_transfer({{position.id}});"></span></td>
+            <td></td>
             <td>{{position.contract.ticker}}</td>
             <td align="right">{{position.quantity_fmt}}</td>
             <td align="right">{{position.reference_price}}</td>
         </tr>
-        <tr name="postings_{{position.id}}" style="display:none;">
+        <tr name="transfer_{{position.id}}" style="display:none;">
             <td></td>
+            <td><span class="caret btn-link" onclick="show_postings({{position.id}}, '{{position.contract.ticker}}');"></span></td>
             <td colspan="2">
                 Transfer:
                 <form action="/transfer_position" method="post" name="transfer_{{position.id}}">
@@ -272,7 +280,6 @@ $ ->
             <td></td>
             <td colspan="100">
                 <div id="postings_div_{{position.contract.ticker}}">
-                {% include "user_postings.html" %}
                 </div>
             </td>
         </tr>

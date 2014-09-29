@@ -189,7 +189,7 @@ class PublicInterface:
 
                 dbpool.runQuery(
                     "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s",
+                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE",
                     (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"

@@ -1,0 +1,117 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+
+    "Description": "Loadtester autodeploy template.",
+
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "String",
+            "MinLength": "1",
+            "MaxLength": "255",
+            "AllowedPattern": "[\\x20-\\x7E]*",
+            "ConstraintDescription": "can contain only ASCII characters."
+        },
+        "DBPassword": {
+            "Description": "UNUSED",
+            "Type": "String",
+            "MinLength": 8,
+            "MaxLength": 32,
+            "AllowedPattern": "[\\x20-\\x7E]*",
+            "ConstraintDescription": "can contain only ASCII characters.",
+            "NoEcho": "true"
+        },
+        "CustomerName": {
+            "Description": "UNUSED",
+            "Type": "String",
+            "MinLength": 1,
+            "MaxLength": 16,
+            "AllowedPattern": "[A-Z0-9a-z]*",
+            "ConstraintDescription": "Must be alphanumeric"
+        }
+    },
+    "Mappings": {
+        "RegionMap": {
+            "us-west-1": {
+                "AMI": "ami-3d4d4478",
+                "DataVolume": "snap-6ed21caf"
+            }
+        }
+    },
+    "Resources": {
+        "Ec2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "SecurityGroups": [
+                    {
+                        "Ref": "SSHOnlySecurityGroup"
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "ImageId": {
+                    "Fn::FindInMap": [ "RegionMap", {
+                        "Ref": "AWS::Region"
+                    }, "AMI" ]
+                },
+                "InstanceType": "t2.micro"
+            }
+        },
+        "DataVolume" : {
+           "Type" : "AWS::EC2::Volume",
+           "Properties" : {
+              "SnapshotId": { "Fn::FindInMap": [ "RegionMap", { "Ref": "AWS::Region" }, "DataVolume" ] },
+              "AvailabilityZone" : { "Fn::GetAtt" : [ "Ec2Instance", "AvailabilityZone" ] }
+           }
+        },
+        "DataVolumeMountPoint" : {
+           "Type" : "AWS::EC2::VolumeAttachment",
+           "Properties" : {
+              "InstanceId" : { "Ref" : "Ec2Instance" },
+              "VolumeId"  : { "Ref" : "DataVolume" },
+              "Device" : "/dev/sdf"
+           }
+        },
+        "SSHOnlySecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable HTTP, HTTPS, administrator, websockets, and SSH",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "InstanceId": {
+            "Description": "InstanceId of the newly created EC2 instance",
+            "Value": {
+                "Ref": "Ec2Instance"
+            }
+        },
+        "AZ": {
+            "Description": "Availability Zone of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "AvailabilityZone" ]
+            }
+        },
+        "PublicDNS": {
+            "Description": "Public DNSName of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "PublicDnsName" ]
+            }
+        },
+        "PublicIP": {
+            "Description": "Public IP address of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [ "Ec2Instance", "PublicIp" ]
+            }
+        }
+    }
+}

@@ -260,7 +260,7 @@ class TestAdministratorExport(TestCashier):
 
             from sputnik import models
 
-            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
+            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
             def onSuccess(txid):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
@@ -269,14 +269,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'BTC',
                                                                    'debit',
                                                                    1000000,
-                                                                   u'WITHDRAWAL_ADDRESS: TXSUCCESS'),
+                                                                   u'WITHDRAWAL_ADDRESS: TXSUCCESS (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   ('onlinecash',
                                                                    u'BTC',
                                                                    'credit',
                                                                    1000000,
-                                                                   'WITHDRAWAL_ADDRESS: TXSUCCESS'),
+                                                                   'WITHDRAWAL_ADDRESS: TXSUCCESS (test_admin)'),
                                                                   {})]))
                 self.assertFalse(withdrawal.pending)
 
@@ -299,7 +299,7 @@ class TestAdministratorExport(TestCashier):
         def onSuccess(withdrawal_id):
             self.cashier.bitcoinrpc['BTC'].set_balance(0.0)
 
-            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
+            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
             def onSuccess(result):
                 self.assertTrue(False)
@@ -331,7 +331,7 @@ class TestAdministratorExport(TestCashier):
             from sputnik import cashier
 
             with self.assertRaisesRegexp(cashier.CashierException, "No automatic withdrawals"):
-                d = self.administrator_export.process_withdrawal(withdrawal_id, online=True)
+                d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
                 def onFail(failure):
                     self.assertEqual(failure.value.args[1], "No automatic withdrawals")
@@ -360,7 +360,7 @@ class TestAdministratorExport(TestCashier):
         d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
 
         def onSuccess(withdrawal_id):
-            d = self.administrator_export.process_withdrawal(withdrawal_id, online=False)
+            d = self.administrator_export.process_withdrawal(withdrawal_id, online=False, admin_username='test_admin')
 
             def onSuccess(txid):
                 from sputnik import models
@@ -371,14 +371,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: offline'),
+                                                                   u'WITHDRAWAL_ADDRESS: offline (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   ('offlinecash',
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   'WITHDRAWAL_ADDRESS: offline'),
+                                                                   'WITHDRAWAL_ADDRESS: offline (test_admin)'),
                                                                   {})]))
 
                 self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
@@ -402,7 +402,7 @@ class TestAdministratorExport(TestCashier):
         d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
 
         def onSuccess(withdrawal_id):
-            d = self.administrator_export.process_withdrawal(withdrawal_id, cancel=True)
+            d = self.administrator_export.process_withdrawal(withdrawal_id, cancel=True, admin_username='test_admin')
 
             def onSuccess(txid):
                 from sputnik import models
@@ -413,14 +413,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: cancel'),
+                                                                   u'WITHDRAWAL_ADDRESS: cancel (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   (u'test',
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   'WITHDRAWAL_ADDRESS: cancel'),
+                                                                   'WITHDRAWAL_ADDRESS: cancel (test_admin)'),
                                                                   {})]
                 ))
 

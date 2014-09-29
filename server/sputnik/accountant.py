@@ -205,7 +205,7 @@ class Accountant:
         """
         return util.get_contract(self.session, ticker)
 
-    def adjust_position(self, username, ticker, quantity):
+    def adjust_position(self, username, ticker, quantity, admin_username):
         """Adjust a user's position, offsetting with the 'adjustment' account
 
         :param username: The user
@@ -221,9 +221,9 @@ class Accountant:
 
         uid = util.get_uid()
         credit = create_posting("Transfer", username, ticker, quantity,
-                "credit", "Adjustment")
+                "credit", "Adjustment (%s)" % admin_username)
         debit = create_posting("Transfer", "adjustments", ticker, quantity,
-                "debit", "Adjustment")
+                "debit", "Adjustment (%s)" % admin_username)
         credit["count"] = 2
         debit["count"] = 2
         credit["uid"] = uid
@@ -521,13 +521,32 @@ class Accountant:
         if len(remainder_fees):
             self.accountant_proxy.remote_post("remainder", *remainder_fees)
 
+        if aggressive:
+            try:
+                aggressive_order = self.session.query(models.Order).filter_by(id=order).one()
+                passive_order = self.session.query(models.Order).filter_by(id=other_order).one()
+
+                trade = models.Trade(aggressive_order, passive_order, price, quantity)
+                self.session.add(trade)
+                self.session.commit()
+                log.msg("Trade saved to db with posted=false: %s" % trade)
+            except Exception as e:
+                self.session.rollback()
+                log.err("Exception while creating trade: %s" % e)
+
         d = self.post_or_fail(*postings)
 
         def update_order(result):
-            db_order = self.session.query(models.Order).filter_by(id=order).one()
-            db_order.quantity_left -= quantity
-            self.session.add(db_order)
-            self.session.commit()
+            try:
+                db_order = self.session.query(models.Order).filter_by(id=order).one()
+                db_order.quantity_left -= quantity
+                self.session.add(db_order)
+                self.session.commit()
+                log.msg("Updated order: %s" % db_order)
+            except Exception as e:
+                self.session.rollback()
+                log.err("Unable to update order: %s" % e)
+
             self.webserver.order(username, db_order.to_webserver())
             log.msg("to ws: " + str({"order": [username, db_order.to_webserver()]}))
             return result
@@ -548,15 +567,18 @@ class Accountant:
 
             next = time.time()
             elapsed = (next - last) * 1000
-            log.msg("post_transaction: part 6: %.3f ms." % elapsed)
+            log.msg("post_transaction: notify_fill: %.3f ms." % elapsed)
 
         def publish_trade(result):
-            aggressive_order = self.session.query(models.Order).filter_by(id=order).one()
-            passive_order = self.session.query(models.Order).filter_by(id=other_order).one()
+            try:
+                trade.posted = True
+                self.session.add(trade)
+                self.session.commit()
+                log.msg("Trade marked as posted: %s" % trade)
+            except Exception as e:
+                self.session.rollback()
+                log.err("Exception when marking trade as posted %s" % e)
 
-            trade = models.Trade(aggressive_order, passive_order, price, quantity)
-            self.session.add(trade)
-            self.session.commit()
             self.webserver.trade(ticker, trade.to_webserver())
             log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
@@ -598,9 +620,11 @@ class Accountant:
             order.is_cancelled = True
             self.session.add(order)
             self.session.commit()
+            return result
 
         def publish_order(result):
             self.webserver.order(username, order.to_webserver())
+            return result
 
         d.addCallback(update_order)
         d.addCallback(publish_order)
@@ -655,7 +679,7 @@ class Accountant:
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                raise Accountant(0, "invalid price or quantity")
+                raise AccountantException(0, "invalid price or quantity")
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:
@@ -772,7 +796,7 @@ class Accountant:
             log.err("Exception received while attempting withdrawal: %s" % e)
             raise e
 
-    def deposit_cash(self, username, address, received, total=True):
+    def deposit_cash(self, username, address, received, total=True, admin_username=None):
         """Deposits cash
         :param username: The username for this address
         :type username: str
@@ -810,18 +834,23 @@ class Accountant:
             #prepare cash deposit
             my_postings = []
             remote_postings = []
+            if admin_username is not None:
+                note = "%s (%s)" % (address, admin_username)
+            else:
+                note = address
+
             debit_posting = create_posting("Deposit", 'onlinecash',
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
-                                                  note=address)
+                                                  note=note)
             remote_postings.append(debit_posting)
 
             credit_posting = create_posting("Deposit", user.username,
                                                    contract.ticker,
                                                    deposit,
                                                    'credit',
-                                                   note=address)
+                                                   note=note)
             my_postings.append(credit_posting)
 
             if total_deposited_at_address.contract.ticker in self.deposit_limits:
@@ -843,14 +872,18 @@ class Accountant:
                 excess_deposit = potential_new_position - deposit_limit
 
             if excess_deposit > 0:
+                if admin_username is not None:
+                    note = "Excess Deposit: %s (%s)" % (address, admin_username)
+                else:
+                    note = "Excess Deposit: %s" % address
                 # There was an excess deposit, transfer that amount into overflow cash
                 excess_debit_posting = create_posting("Deposit",
                         user.username, contract.ticker, excess_deposit,
-                        'debit', note="Excess Deposit: %s" % address)
+                        'debit', note=note)
 
                 excess_credit_posting = create_posting("Deposit",
                         'depositoverflow', contract.ticker, excess_deposit,
-                        'credit', note="Excess Deposit: %s" % address)
+                        'credit', note=note)
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
@@ -1116,8 +1149,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.administrator.json#adjust_position")
-    def adjust_position(self, username, ticker, quantity):
-        return self.accountant.adjust_position(username, ticker, quantity)
+    def adjust_position(self, username, ticker, quantity, admin_username):
+        return self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     @export
     @schema("rpc/accountant.administrator.json#transfer_position")
@@ -1131,8 +1164,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/accountant.administrator.json#deposit_cash")
-    def deposit_cash(self, username, address, received, total=True):
-        self.accountant.deposit_cash(username, address, received, total=total)
+    def deposit_cash(self, username, address, received, total=True, admin_username=None):
+        self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
 
     @export
     @schema("rpc/accountant.administrator.json#cancel_order")

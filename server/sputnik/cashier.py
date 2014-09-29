@@ -13,7 +13,6 @@ from twisted.internet.task import LoopingCall
 from twisted.python import log
 
 import config
-import bitcoinrpc
 from txbitcoinrpc import BitcoinRpc
 from compropago import Compropago
 from watchdog import watchdog
@@ -278,7 +277,7 @@ class Cashier():
 
         d.addCallbacks(gotBalance, error)
 
-    def process_withdrawal(self, withdrawal_id, online=False, cancel=False):
+    def process_withdrawal(self, withdrawal_id, online=False, cancel=False, admin_username=None):
         # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
         # and tell the accountant that the withdrawal has happened
         # If cancel=True, then return the money to the user
@@ -298,7 +297,11 @@ class Cashier():
             try:
 
                 uid = util.get_uid()
-                note = "%s: %s" % (withdrawal.address, txid)
+                if admin_username is not None:
+                    note = "%s: %s (%s)" % (withdrawal.address, txid, admin_username)
+                else:
+                    note = "%s: %s" % (withdrawal.address, txid)
+
                 self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
                                                   withdrawal.amount,
                                                   note, uid)
@@ -600,8 +603,8 @@ class AdministratorExport(ComponentExport):
 
     @export
     @schema("rpc/cashier.json#process_withdrawal")
-    def process_withdrawal(self, id, online=False, cancel=False):
-        return self.cashier.process_withdrawal(id, online=online, cancel=cancel)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 class AccountantExport(ComponentExport):
     def __init__(self, cashier):

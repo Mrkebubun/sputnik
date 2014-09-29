@@ -20,6 +20,14 @@
             "AllowedPattern": "[\\x20-\\x7E]*",
             "ConstraintDescription": "can contain only ASCII characters.",
             "NoEcho": "true"
+        },
+        "CustomerName": {
+            "Description": "One word identifier for the customer",
+            "Type": "String",
+            "MinLength": 1,
+            "MaxLength": 16,
+            "AllowedPattern": "[A-Z0-9a-z]*",
+            "ConstraintDescription": "Must be alphanumeric"
         }
     },
     "Mappings": {
@@ -71,6 +79,9 @@
                 "MasterUsername": "postgres",
                 "MasterUserPassword": {
                     "Ref": "DBPassword"
+                },
+                "DBInstanceIdentifier": {
+                    "Ref": "CustomerName"
                 }
             },
             "DeletionPolicy" : "Snapshot"
@@ -128,6 +139,12 @@
                         "IpProtocol": "tcp",
                         "FromPort": "8080",
                         "ToPort": "8080",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8000",
+                        "ToPort": "8000",
                         "CidrIp": "0.0.0.0/0"
                     },
                     {

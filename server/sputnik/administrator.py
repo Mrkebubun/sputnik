@@ -28,6 +28,7 @@ from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
 
 from zope.interface import implements
@@ -330,6 +331,7 @@ class Administrator:
         admin_users = self.session.query(models.AdminUser).all()
         return admin_users
 
+    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -554,7 +556,7 @@ class Administrator:
         journal = self.session.query(models.Journal).filter_by(id=journal_id).one()
         return journal
 
-    def adjust_position(self, username, ticker, quantity_ui):
+    def adjust_position(self, username, ticker, quantity_ui, admin_username):
         """Adjust the position for a user
 
         :param username: the user we are adjusting
@@ -568,7 +570,7 @@ class Administrator:
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
         log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
-        self.accountant.adjust_position(username, ticker, quantity)
+        self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -591,7 +593,7 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
-    def manual_deposit(self, address, quantity_ui):
+    def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
         if quantity % address_db.contract.lot_size != 0:
@@ -599,7 +601,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         log.msg("Manual deposit of %d to %s" % (quantity, address))
-        self.accountant.deposit_cash(address_db.username, address, quantity, total=False)
+        self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
@@ -710,7 +712,7 @@ class Administrator:
 
         return balance_sheet
 
-
+    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
@@ -727,14 +729,17 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         return contract
 
+    @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
 
+    @util.timed
     def get_deposits(self):
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
+    @util.timed
     def get_orders(self, user, page=0):
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
@@ -742,14 +747,32 @@ class Administrator:
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
+    @util.timed
     def get_postings(self, user, contract, page=0):
+        import time
+        last = time.time()
+
         all_postings = self.session.query(models.Posting).filter_by(
-            user=user).filter_by(
-            contract=contract)
+            username=user.username).filter_by(
+            contract_id=contract.id)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_count = all_postings.count()
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_pages = int(postings_count / self.page_size) + 1
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+
         return postings, postings_pages
 
     def change_permission_group(self, username, id):
@@ -779,8 +802,8 @@ class Administrator:
             log.err("Error: %s" % e)
             self.session.rollback()
 
-    def process_withdrawal(self, id, online=False, cancel=False):
-        self.cashier.process_withdrawal(id, online=online, cancel=cancel)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
+        self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
 class AdminWebUI(Resource):
@@ -916,8 +939,9 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel)
-        return self.user_details(request)
+        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
+                                              admin_username=self.avatarId)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def permission_groups(self, request):
         """Get the permission groups page
@@ -937,7 +961,7 @@ class AdminWebUI(Resource):
         else:
             permissions = []
         self.administrator.new_permission_group(request.args['name'][0], permissions)
-        return self.permission_groups(request)
+        return redirectTo('/permission_groups', request)
 
 
     def change_permission_group(self, request):
@@ -947,7 +971,7 @@ class AdminWebUI(Resource):
         username = request.args['username'][0]
         id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
@@ -982,7 +1006,7 @@ class AdminWebUI(Resource):
         username = request.args['username'][0]
         self.administrator.cancel_order(username, id)
 
-        return self.order_book(request)
+        return redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request)
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1009,7 +1033,7 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.reset_password_plaintext(request.args['username'][0], request.args['new_password'][0])
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def reset_admin_password(self, request):
         """Reset an administrator password if we know the old password
@@ -1017,7 +1041,7 @@ class AdminWebUI(Resource):
         """
         self.administrator.reset_admin_password(self.avatarId, self.calc_ha1(request.args['old_password'][0]),
                                                 self.calc_ha1(request.args['new_password'][0]))
-        return self.admin(request)
+        return redirectTo('/admin', request)
 
     def force_reset_admin_password(self, request):
         """Reset an administrator password even if we don't know the old password
@@ -1027,7 +1051,7 @@ class AdminWebUI(Resource):
                                                                                            username=
                                                                                            request.args['username'][0]))
 
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def admin(self, request):
         """Give me the page where I can edit my admin password
@@ -1036,6 +1060,7 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('admin.html')
         return t.render(username=self.avatarId).encode('utf-8')
 
+    @util.timed
     def user_orders(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1045,6 +1070,7 @@ class AdminWebUI(Resource):
                             min_range=max(page - 10, 0), max_range=min(order_pages, page + 10))
         return rendered.encode('utf-8')
 
+    @util.timed
     def user_postings(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1061,6 +1087,7 @@ class AdminWebUI(Resource):
         return rendered.encode('utf-8')
 
 
+    @util.timed
     def user_details(self, request):
         """Show all the details for a particular user
 
@@ -1070,18 +1097,6 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
-        postings_by_ticker = {}
-        for position in user.positions:
-            if 'positions_page_%s' % position.contract.ticker in request.args:
-                page = int(request.args['postings_page_%s' % position.contract.ticker][0])
-            else:
-                page = 0
-            postings, posting_pages = self.administrator.get_postings(user, position.contract, page=page)
-            postings_by_ticker[position.contract.ticker] = {'postings': postings,
-                                                            'posting_pages': posting_pages,
-                                                            'page': page,
-                                                            'min_range': max(page - 10, 0),
-                                                            'max_range': min(posting_pages, page + 10)}
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
@@ -1093,7 +1108,7 @@ class AdminWebUI(Resource):
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
 
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
+        rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
@@ -1105,8 +1120,8 @@ class AdminWebUI(Resource):
 
         """
         self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           float(request.args['quantity'][0]))
-        return self.user_details(request)
+                                           float(request.args['quantity'][0]), self.avatarId)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def transfer_position(self, request):
         """Transfer a position from a user and go back to his details page
@@ -1115,22 +1130,22 @@ class AdminWebUI(Resource):
 
         self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
-                                             request.args['note'][0])
-        return self.user_details(request)
+                                             "%s (%s)" % (request.args['note'][0], self.avatarId))
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address
 
         """
         self.administrator.cashier.rescan_address(request.args['address'][0])
-        return self.user_details(request)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def manual_deposit(self, request):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]))
-        return self.user_details(request)
+        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def admin_list(self, request):
         """List all the admin users
@@ -1148,14 +1163,14 @@ class AdminWebUI(Resource):
                                                                                      username=request.args['username'][
                                                                                          0]),
                                           int(request.args['level'][0]))
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def set_admin_level(self, request):
         """Set the level of a certain admin user, and then return the list of admin users
 
         """
         self.administrator.set_admin_level(request.args['username'][0], int(request.args['level'][0]))
-        return self.admin_list(request)
+        return redirectTo('/admin_list', request)
 
     def balance_sheet(self, request):
         """Display the full balance sheet of the system
