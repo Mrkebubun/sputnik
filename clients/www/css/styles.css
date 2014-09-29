@@ -393,6 +393,47 @@ h6.sell {
 	background-color: #cccccc;
 }
 
+.dropdown-style {
+	border: 0px;
+	background-color: #fff;
+	margin-top: 16px;
+}
+
+.toplinks {
+	padding-top: 23px;
+	margin: -83px -170px 0 165px;
+	text-align: right;
+}
+
+.tablink {
+	color: #4b4b4b;
+}
+
+.tier-one-links {
+	margin-top: -74px;
+	border: 0px;
+}
+
+.navbar-default {
+	border: 0px;
+	margin-top:-2px;
+}
+
+.toggle-button {
+	border: 0px;
+	margin: 20px 0 0 20px;
+}
+
+.cancel-button {
+	background: transparent;
+	color: transparent;
+	border: 0px;
+}
+
+.alert-warning {
+	margin: 27px 37px 0 16px;
+}
+
 /*-- Media Queries --*/
 
 @media screen and (max-width: 768px) and (min-width: 120px) {
@@ -439,4 +480,30 @@ h6.sell {
 		display: none;
 	}
 
+}
+
+@media screen and (max-width: 992px) and (min-width: 768px) {
+
+	.toplinks {
+	padding: 23px 0px 0px 0px;
+	margin: -85px 0px 0 0px;
+	text-align: right;
+}
+
+}
+
+@media screen and (max-width: 1200px) and (min-width: 992px) {
+	.toplinks {
+	padding: 23px 0px 0px 0px;
+	margin: -85px 0px 0 150px;
+	text-align: right;
+	}
+}
+
+@media screen and (max-width: 6000px) and (min-width: 1200px) {
+	.toplinks {
+	padding: 23px 0px 0px 0px;
+	margin: -85px 0px 0 335px;
+	text-align: right;
+	}
 }
