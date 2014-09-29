@@ -16,27 +16,8 @@ window.contract = 'BTC/HUF'
 sputnik = new window.Sputnik uri
 window.sputnik = sputnik
 
-# TODO: Do this once we are connected
-tv_datafeed = new window.TradingView sputnik
-window.tv = tv_datafeed
-
-TradingView.onready () ->
-    widget = new TradingView.widget {
-        fullscreen: false
-        symbol: window.contract
-        interval: 1
-        toolbar_bg: '#f4f7f9'
-        allow_symbol_change: false
-        container_id: "tv_chart_container"
-        datafeed: window.tv
-        library_path: "charting_library/"
-        locale: "en"
-        # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
-        disabled_drawings: ["Regression Trend"]
-    }
-
-    widget.onChartReady () ->
-
+tv = new window.TVFeed sputnik
+window.tv = tv
 
 sputnik.on "log", (args...) -> ab.log args...
 sputnik.on "warn", (args...) -> ab.log args...
@@ -313,7 +294,6 @@ $ ->
             sputnik.unfollow window.contract
             window.contract = $('#contract_list').val()
             sputnik.openMarket window.contract
-            plotChart window.contract
 
     sputnik.on "change_password_token", (args) ->
         $('#change_password_token_modal').modal "show"
@@ -481,7 +461,7 @@ $ ->
                 $("#withdraw_#{ticker}_button").click withdraw_button_fn(ticker)
 
         sputnik.openMarket(window.contract)
-        plotChart window.contract
+        showChart window.contract
 
 sputnik.on "trade_history", (trade_history) ->
     updateTrades(trade_history[window.contract])
@@ -489,6 +469,23 @@ sputnik.on "trade_history", (trade_history) ->
         $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
     else
         $('#last').text 'N/A'
+
+showChart = (contract) ->
+    widget = new TradingView.widget {
+        fullscreen: false
+        symbol: contract
+        interval: 1
+        toolbar_bg: '#f4f7f9'
+        allow_symbol_change: false
+        container_id: "tv_chart_container"
+        datafeed: window.tv
+        library_path: "charting_library/"
+        locale: "en"
+        # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
+        disabled_drawings: ["Regression Trend"]
+    }
+
+    widget.onChartReady () ->
 
 sputnik.on "open", () ->
     sputnik.log "open"
