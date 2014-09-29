@@ -373,6 +373,8 @@ $ ->
         }
     
         widget.onChartReady () ->
+            sputnik.log("onChartReady")
+            $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
             
     changeContractType = (new_type) ->
         if new_type != window.contract_type
