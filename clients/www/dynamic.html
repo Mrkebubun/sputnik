@@ -4,34 +4,65 @@
 <body>
 <div id="container"></div>
 <script id="template" type="text/ractive">
-{{#markets}}
-{{ticker}}<br>
+<select value='{{ticker}}'>
+{{#markets:key}}
+    <option value='{{key}}'>{{key}}</option>
 {{/markets}}
+</select>
+<p>
+Selected market: {{ticker}} <br>
+Book:<br>
+bids: <br>
+{{#markets[ticker].bids}}
+{{price}}: {{quantity}}<br>
+{{/}}
+asks: <br>
+{{#markets[ticker].asks}}
+{{price}}: {{quantity}}<br>
+{{/}}
+</p>
 </script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/ractive.js/0.3.7/ractive.min.js"></script>
+<script src="js/ractive.js"></script>
 <script src="js/EventEmitter.min.js"></script>
 <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
 <script src="sputnik.coffee" type="text/coffeescript"></script>
 <script type="text/coffeescript">
 # this is ui.coffee... essentially
 $ ->
-    ractive = new Ractive
-        el: "container"
-        template: "template"
-        data:
-            markets: {}
-    
+
     sputnik = new window.Sputnik "wss://demo.m2.io:8000"
     window.sputnik = sputnik
     
+    ractive = new Ractive
+        el: "container"
+        template: "#template"
+        data: {}
+
+    window.ractive = ractive
+
     sputnik.connect()
    
-    sputnik.on "open", -> sputnik.log "connected"
     sputnik.on "markets", (markets) ->
-        sputnik.log "Got markets"
-        ractive.set("markets", markets)
+        console.log markets
+        ractive.set "markets", sputnik.markets
+        ractive.set "ticker", "BTC/MXN"
+        sputnik.follow "BTC/MXN"
+        sputnik.getOrderBook "BTC/MXN"
+
+    sputnik.on "book", (book) ->
+        console.log "got book for #{book.contract}"
+        ractive.set "markets", sputnik.markets
+
+    observer = ractive.observe "ticker", (new_ticker, old_ticker, path) ->
+        console.log "#{old_ticker} -> #{new_ticker}"
+        if old_ticker?
+            sputnik.unfollow old_ticker
+        if new_ticker?
+            sputnik.follow new_ticker
+            sputnik.getOrderBook new_ticker
+
 </script>
 </body>
 </html>
