@@ -352,13 +352,22 @@ $ ->
         widget = new TradingView.widget {
             fullscreen: false
             symbol: contract
-            interval: 1
+            interval: "D"
             toolbar_bg: '#f4f7f9'
             allow_symbol_change: false
             container_id: "tv_chart_container"
             datafeed: window.tv
             library_path: "charting_library/"
             locale: "en"
+            autosize: true
+            theme: "White"
+            style: "2"
+            hideideas: true
+            hide_top_toolbar: true
+            withdateranges: true
+            details: false
+            save_image: false
+            show_popup_button: false
             # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
             disabled_drawings: ["Regression Trend"]
         }
