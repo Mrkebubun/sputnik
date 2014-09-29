@@ -3,14 +3,16 @@
 </head>
 <body>
 <div id="container"></div>
-<script id="template">
+<script id="template" type="text/ractive">
 {{#markets}}
 {{ticker}}<br>
 {{/markets}}
 </script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
-<script src="//cdn.ractivejs.org/latest/ractive.min.js"></script>
+<script src="http://cdn.ractivejs.org/latest/ractive.min.js"></script>
+<script src="js/EventEmitter.min.js"></script>
+<script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
 <script src="sputnik.coffee" type="text/coffeescript"></script>
 <script type="text/coffeescript">
 # this is ui.coffee... essentially
@@ -25,8 +27,10 @@ $ ->
     window.sputnik = sputnik
     
     sputnik.connect()
-    
+   
+    sputnik.on "open", -> sputnik.log "connected"
     sputnik.on "markets", (markets) ->
+        sputnik.log "Got markets"
         ractive.set("markets", markets)
 </script>
 </body>
