@@ -472,7 +472,7 @@ $ ->
 
     sputnik.on "trade_history", (trade_history) ->
         updateTrades(trade_history[window.contract])
-        if trade_history[window.contract].length
+        if window.contract of trade_history and trade_history[window.contract].length
             $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
         else
             $('#last').text 'N/A'
