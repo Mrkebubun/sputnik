@@ -397,6 +397,7 @@ class @Sputnik extends EventEmitter
         [contract, source, target] = @cstFromTicker(ticker)
         return contract.tick_size
 
+
     getPriceScale: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"

@@ -352,18 +352,29 @@ $ ->
         widget = new TradingView.widget {
             fullscreen: false
             symbol: contract
-            interval: 1
+            interval: "D"
             toolbar_bg: '#f4f7f9'
             allow_symbol_change: false
             container_id: "tv_chart_container"
             datafeed: window.tv
             library_path: "charting_library/"
             locale: "en"
+            autosize: true
+            theme: "White"
+            style: "2"
+            hideideas: true
+            hide_top_toolbar: true
+            withdateranges: true
+            details: false
+            save_image: false
+            show_popup_button: false
             # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
             disabled_drawings: ["Regression Trend"]
         }
     
         widget.onChartReady () ->
+            sputnik.log("onChartReady")
+            $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
             
     changeContractType = (new_type) ->
         if new_type != window.contract_type
@@ -461,7 +472,7 @@ $ ->
 
     sputnik.on "trade_history", (trade_history) ->
         updateTrades(trade_history[window.contract])
-        if trade_history[window.contract].length
+        if window.contract of trade_history and trade_history[window.contract].length
             $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
         else
             $('#last').text 'N/A'

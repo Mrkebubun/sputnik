@@ -49,8 +49,8 @@ class @TVFeed
                     "exchange-traded": 'sputnik'
                     "exchange-listed": 'sputnik'
                     timezone: 'Europe/London',
-                    pricescale: @sputnik.getPriceScale(symbolName)
-                    minmove: @sputnik.getMinMove(symbolName)
+                    pricescale: @sputnik.getPriceScale(symbolName)/@sputnik.getMinMove(symbolName)
+                    minmove: 1
                     has_intraday: true
                     intraday_multipliers: [1]
                     has_daily: true
@@ -58,7 +58,7 @@ class @TVFeed
                     has_empty_bars: true
                     force_session_rebuild: false
                     has_no_volume: false
-                    #volume_precision: @sputnik.getQuantityPrecision(symbolName)
+                    volume_precision: @sputnik.getQuantityPrecision(symbolName)
                     has_fractional_volume: true
                     ticker: symbolName
                     description: markets[symbolName].description
