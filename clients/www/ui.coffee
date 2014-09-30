@@ -166,17 +166,17 @@ $ ->
         orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
         orderOfMag(x) == orderOfMag(y)
 
-    $("#buy_price,buy_quantity").keyup ->
+    $("#buy_price,#buy_quantity").keyup ->
         if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), window.contract, 'BUY')
-            $("#buy_panel alert:visible").slideUp()
+            $("#buy_alert").show()
         else
-            $("#buy_panel alert").slideDown()
+            $("#buy_alert").hide()
 
     $("#sell_price,#sell_quantity").keyup ->
         if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), window.contract, 'SELL')
-            $("#sell_panel alert:visible").slideUp()
+            $("#sell_alert").show()
         else
-            $("#sell_panel alert").slideDown()
+            $("#sell_alert").hide()
 
     $("#buyButton").click ->
         buy_quantity = Number($('#buy_quantity').val())

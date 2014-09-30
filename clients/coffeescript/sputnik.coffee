@@ -415,7 +415,7 @@ class @Sputnik extends EventEmitter
           side: side
       [low_margin, high_margin] = @calculateMargin @orderToWire new_order
       cash_position = @positions["BTC"].position
-      return high_margin <= cash_position.position
+      return high_margin <= cash_position
 
     placeOrder: (quantity, price, ticker, side) =>
         order =
