@@ -102,8 +102,8 @@
                     <div class="alert alert-warning" style="display:none" id="login_error">
                         Incorrect username or password.
                     </div>
-                    <div id="reset_token_sent" class="alert alert-info">
-                        Check your email. Contact customer support for further assistance...
+                    <div id="reset_token_sent" class="alert alert-info" style="display:none">
+                        Check your email. Contact customer support for further assistance.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -128,7 +128,7 @@
                         <input type="password" class="form-control" id="register_password" placeholder="Password"
                                required><br>
                         <input type="text" class="form-control" id="register_nickname"
-                               placeholder="Nickname (for chat)"><br>
+                               placeholder="Nickname"><br>
                         <div class="form-group">
                             <div class="col-xs-9">
                                 <label> <input type="checkbox" id="register_eula" value="1">
@@ -175,7 +175,6 @@
                             <a href="#" id="register">Register</a>
                         </div>
                         <div class="col-sm-2 mainselect" id="logged_in" style="display:none;">
-                            
                             <div class="dropdown">
                                 <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="dropdownMenu1" data-toggle="dropdown">
                                 <span id="login_name">Sameer Brenn</span>
@@ -183,7 +182,6 @@
                                 </button>
                                 <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
                                     <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="logout">Logout</a></li>
-
                                 </ul>
                             </div>
                         </div>
