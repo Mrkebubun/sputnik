@@ -4,20 +4,20 @@
 <body>
 <div id="container"></div>
 <script id="template" type="text/ractive">
-<select value='{{sputnik.ticker}}'>
+<select value='{{ticker}}'>
 {{#sputnik.markets:key}}
     <option value='{{key}}'>{{key}}</option>
 {{/sputnik.markets}}
 </select>
 <p>
-Selected market: {{sputnik.ticker}} <br>
+Selected market: {{ticker}} <br>
 Book:<br>
 bids: <br>
-{{#sputnik.markets[sputnik.ticker].bids}}
+{{#sputnik.markets[ticker].bids}}
 {{price}}: {{quantity}}<br>
 {{/}}
 asks: <br>
-{{#sputnik.markets[sputnik.ticker].asks}}
+{{#sputnik.markets[ticker].asks}}
 {{price}}: {{quantity}}<br>
 {{/}}
 </p>
@@ -39,10 +39,19 @@ $ ->
     ractive = new Ractive
         el: "container"
         template: "#template"
-        data: {sputnik:sputnik}
+        data:
+            sputnik:sputnik
+            ticker: null
         adapt: [Ractive.adaptors.Sputnik]
 
     window.ractive = ractive
+
+    ractive.observe "ticker", (new_ticker, old_ticker, path) ->
+        if old_ticker?
+            sputnik.unfollow old_ticker
+        if new_ticker?
+            sputnik.follow new_ticker
+            sputnik.getOrderBook new_ticker
 
     sputnik.connect()
 </script>

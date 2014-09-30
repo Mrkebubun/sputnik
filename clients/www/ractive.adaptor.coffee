@@ -1,15 +1,21 @@
 class RactiveSputnikWrapper
     constructor: (@ractive, @sputnik, @keypath, @prefix) ->
         @markets = {}
-        @ticker = null
+        @types = {}
+
         @sputnik.on "markets", (markets) =>
+            @markets = {}
+            @types = {}
             for ticker, market of markets
                 if market.contract_type isnt "cash"
                     @markets[ticker] = market
                     @markets[ticker].best_ask = {price: Infinity, quantity: 0}
                     @markets[ticker].best_bid = {price: 0, quantity: 0}
+                    type = market.contract_type
+                    (@types[type] or (@types[type] = [])).push ticker
             @notify "markets"
-            @ractive.set @prefix "ticker", Object.keys(@markets)[0]
+            @notify "types"
+
         @sputnik.on "book", (book) =>
             ticker = book.contract
 
@@ -32,7 +38,7 @@ class RactiveSputnikWrapper
 
     get: () ->
         markets: @markets
-        ticker: @ticker
+        types: @types
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
@@ -41,14 +47,6 @@ class RactiveSputnikWrapper
 
         if @setting
             return
-
-        if property == "ticker"
-            if @ticker?
-                @sputnik.unfollow @ticker
-            @ticker = value
-            if @ticker?
-                @sputnik.follow @ticker
-                @sputnik.getOrderBook @ticker
 
     reset: (data) =>
         return false
