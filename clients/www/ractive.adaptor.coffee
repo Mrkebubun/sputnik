@@ -4,14 +4,25 @@ class RactiveSputnikWrapper
         @ticker = null
         @sputnik.on "markets", (markets) =>
             for ticker, market of markets
-                if market.contract_type is "cash_pair"
+                if market.contract_type isnt "cash"
                     @markets[ticker] = market
+                    @markets[ticker].best_ask = {price: Infinity, quantity: 0}
+                    @markets[ticker].best_bid = {price: 0, quantity: 0}
             @notify "markets"
             @ractive.set @prefix "ticker", Object.keys(@markets)[0]
         @sputnik.on "book", (book) =>
             ticker = book.contract
+
             @markets[ticker].bids = book.bids
             @markets[ticker].asks = book.asks
+
+            @markets[ticker].best_ask = {price: Infinity, quantity: 0}
+            @markets[ticker].best_bid = {price: 0, quantity: 0}
+            if book.asks.length
+                @markets[ticker].best_ask = book.asks[0]
+            if book.bids.length
+                @markets[ticker].best_bid = book.bids[0]
+
             @notify "markets"
 
     notify: (property) =>

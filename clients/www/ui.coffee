@@ -22,6 +22,14 @@ $ ->
     sputnik = new window.Sputnik uri
     window.sputnik = sputnik
 
+    ractive = new Ractive
+        el: "target"
+        template: "#template"
+        data: {sputnik:window.sputnik}
+        adapt: [Ractive.adaptors.Sputnik]
+    
+    window.ractive = ractive
+
     sputnik.connect()
     
     tv = new window.TVFeed sputnik
