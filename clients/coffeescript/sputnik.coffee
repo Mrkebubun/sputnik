@@ -19,6 +19,7 @@ class @Sputnik extends EventEmitter
         audit_secret: null
         audit_hash: null
     chat_messages: []
+    connected: false
 
     constructor: (@uri) ->
 
@@ -29,6 +30,10 @@ class @Sputnik extends EventEmitter
 
     connect: () =>
         ab.connect @uri, @onOpen, @onClose
+        setTimeout () =>
+            if not @connected
+                @connect()
+        , 30000
 
     close: () =>
         @session?.close()
@@ -608,6 +613,7 @@ class @Sputnik extends EventEmitter
 
     # connection events
     onOpen: (@session) =>
+        @connected = true
         @log "Connected to #{@uri}."
         @processHash()
 
@@ -626,6 +632,7 @@ class @Sputnik extends EventEmitter
 
     onClose: (code, reason, details) =>
         @log "Connection lost."
+        @connected = false
         @emit "close", [code, reason, details]
 
     # authentication internals
