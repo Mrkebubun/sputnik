@@ -27,7 +27,7 @@ $ ->
         template: "#template"
         data: {sputnik:window.sputnik}
         adapt: [Ractive.adaptors.Sputnik]
-    
+
     window.ractive = ractive
 
     sputnik.connect()
