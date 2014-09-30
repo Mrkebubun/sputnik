@@ -232,6 +232,9 @@ class @Sputnik extends EventEmitter
     # data conversion
 
     cstFromTicker: (ticker) =>
+        if not ticker of @markets
+            # Spit out some debugging, this should not happen
+            @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
