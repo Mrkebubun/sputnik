@@ -4,20 +4,20 @@
 <body>
 <div id="container"></div>
 <script id="template" type="text/ractive">
-<select value='{{ticker}}'>
-{{#markets:key}}
+<select value='{{sputnik.ticker}}'>
+{{#sputnik.markets:key}}
     <option value='{{key}}'>{{key}}</option>
-{{/markets}}
+{{/sputnik.markets}}
 </select>
 <p>
-Selected market: {{ticker}} <br>
+Selected market: {{sputnik.ticker}} <br>
 Book:<br>
 bids: <br>
-{{#markets[ticker].bids}}
+{{#sputnik.markets[sputnik.ticker].bids}}
 {{price}}: {{quantity}}<br>
 {{/}}
 asks: <br>
-{{#markets[ticker].asks}}
+{{#sputnik.markets[sputnik.ticker].asks}}
 {{price}}: {{quantity}}<br>
 {{/}}
 </p>
@@ -28,6 +28,7 @@ asks: <br>
 <script src="js/EventEmitter.min.js"></script>
 <script src="//autobahn.s3.amazonaws.com/js/autobahn.min.js"></script>
 <script src="sputnik.coffee" type="text/coffeescript"></script>
+<script src="dynamic.coffee" type="text/coffeescript"></script>
 <script type="text/coffeescript">
 # this is ui.coffee... essentially
 $ ->
@@ -38,31 +39,12 @@ $ ->
     ractive = new Ractive
         el: "container"
         template: "#template"
-        data: {}
+        data: {sputnik:sputnik}
+        adapt: [Ractive.adaptors.Sputnik]
 
     window.ractive = ractive
 
     sputnik.connect()
-   
-    sputnik.on "markets", (markets) ->
-        console.log markets
-        ractive.set "markets", sputnik.markets
-        ractive.set "ticker", "BTC/MXN"
-        sputnik.follow "BTC/MXN"
-        sputnik.getOrderBook "BTC/MXN"
-
-    sputnik.on "book", (book) ->
-        console.log "got book for #{book.contract}"
-        ractive.set "markets", sputnik.markets
-
-    observer = ractive.observe "ticker", (new_ticker, old_ticker, path) ->
-        console.log "#{old_ticker} -> #{new_ticker}"
-        if old_ticker?
-            sputnik.unfollow old_ticker
-        if new_ticker?
-            sputnik.follow new_ticker
-            sputnik.getOrderBook new_ticker
-
 </script>
 </body>
 </html>
