@@ -513,7 +513,7 @@ $ ->
 
     sputnik.on "orders", (orders) ->
         window.orders = orders
-        updateOrders
+        updateOrders()
 
     sputnik.on "trade", (trade) ->
         if trade.contract == window.contract
