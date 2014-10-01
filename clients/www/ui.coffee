@@ -56,6 +56,7 @@ $ ->
             if old_ticker?
                 sputnik.unfollow old_ticker
             if new_ticker?
+                window.contract = new_ticker
                 sputnik.follow new_ticker
                 sputnik.getOrderBook new_ticker
 

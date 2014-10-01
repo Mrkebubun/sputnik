@@ -241,6 +241,8 @@ class @Sputnik extends EventEmitter
             # Spit out some debugging, this should not happen
             @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
+        if not contract?
+            @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[contract.payout_contract_ticker]
