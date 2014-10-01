@@ -173,11 +173,11 @@
                                         <div id="cash_pair-balance">
                                             <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
-                                                    <p class="first-line2" id="denominated_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}</p>
+                                                    <p class="first-line2" id="denominated_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
                                             </div>
                                             <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
-                                                    <p class="first-line2" id="payout_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position}}</p>
+                                                    <p class="first-line2" id="payout_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position_fmt}}</p>
                                             </div>
                                         </div>
                                         {{else}}
@@ -185,11 +185,11 @@
                                             <div class="row">
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header" id="btc_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
-                                                    <p class="first-line2" id="btc_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}</p>
+                                                    <p class="first-line2" id="btc_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
                                                 </div>
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header" id="contract_ticker">{{current_ticker}}</p>
-                                                    <p class="first-line2" id="contract_balance" title="{{sputnik.positions[current_ticker].position}}">{{sputnik.positions[current_ticker].position}}</p>
+                                                    <p class="first-line2" id="contract_balance" title="{{sputnik.positions[current_ticker].position}}">{{sputnik.positions[current_ticker].position_fmt}}</p>
                                                 </div>
                                             </div>
                                             <div class="row">

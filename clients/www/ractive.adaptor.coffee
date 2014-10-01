@@ -76,13 +76,15 @@ class RactiveSputnikWrapper
             for ticker, position of positions
                 if @markets[ticker]?.contract_type isnt "cash_pair"
                     @positions[ticker] = position
-            
+                    @positions[ticker].position_fmt = position.position.toFixed(@sputnik.getQuantityPrecision(ticker))
+
+            @sputnik.log ["positions2", @positions]
             @notify "positions"
         
         sputnik.on "margin", (margin) =>
             @sputnik.log ["margin", margin]
             @margin = margin
-            
+
             @notify "margin"
 
         sputnik.on "orders", (orders) =>
