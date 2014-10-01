@@ -88,14 +88,11 @@
                             </ul>
                         </div>
                         </nav>
-                        <div class="col-sm-2 toplinks" id="login-div">
-                            <a href="#" id="login">Login</a>&nbsp; &nbsp; &nbsp;
-                            <a href="#" id="register">Register</a>
-                        </div>
-                        <div class="col-sm-2 mainselect" id="logged_in" style="display:none;">
+                        {{#if sputnik.logged_in}}
+                        <div class="col-sm-2 toplinks mainselect" id="logged_in">
                             <div class="dropdown">
                                 <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="dropdownMenu1" data-toggle="dropdown">
-                                <span id="login_name">Sameer Brenn</span>
+                                <span id="login_name">{{sputnik.username}}</span>
                                 <span class="caret"></span>
                                 </button>
                                 <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
@@ -103,6 +100,12 @@
                                 </ul>
                             </div>
                         </div>
+                        {{else}}
+                        <div class="col-sm-2 toplinks" id="login-div">
+                            <a href="#" id="login">Login</a>&nbsp; &nbsp; &nbsp;
+                            <a href="#" id="register">Register</a>
+                        </div>
+                        {{/if}}
                     </div>
                 </div>
             </div>

@@ -58,7 +58,6 @@ a.main-nav-link {
 }
 
 .mainselect-dropdown {
-	margin-top:16px;
 	border: none;
 	background-color: #fff;
 	 -webkit-box-shadow: none;
@@ -409,7 +408,6 @@ h6.sell {
 .dropdown-style {
 	border: 0px;
 	background-color: #fff;
-	margin-top: 16px;
 }
 
 .toplinks {
