@@ -82,6 +82,10 @@ $ ->
             $('#logged_in').hide()
             #$('#contract').hide()
 
+            # Hide stuff by default
+            for page in ['trade', 'account']
+                $("#page-#{page}").hide()
+
             # Attempt a cookie login
             cookie = document.cookie
             sputnik.log "cookie: #{cookie}"
