@@ -1,5 +1,7 @@
 class RactiveSputnikWrapper
     constructor: (@ractive, @sputnik, @keypath, @prefix) ->
+        @logged_in = false
+        @username = null
         @markets = {}
         @types = {}
         @books = {}
@@ -8,6 +10,13 @@ class RactiveSputnikWrapper
         @trade_history = {}
         @orders = []
         @ohlcv = {}
+
+        @sputnik.on "auth_success", (username) =>
+            @logged_in = true
+            @username = username
+            console.log "logged in as #{username}"
+
+            @notify "logged_in"
 
         @sputnik.on "markets", (markets) =>
             @sputnik.log ["markets", markets]
@@ -120,6 +129,8 @@ class RactiveSputnikWrapper
         @setting = false
 
     get: () ->
+        logged_in: @logged_in
+        username: @username
         markets: @markets
         types: @types
         books: @books

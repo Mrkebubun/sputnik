@@ -108,10 +108,10 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
 
-            $("#login-div").hide()
-            $("#login_name").text username
+            #$("#login-div").hide()
+            #$("#login_name").text username
             #$("#acct_management_username").val username
-            $("#logged_in").show()
+            #$("#logged_in").show()
 
             $('#account-btn').show()
 
