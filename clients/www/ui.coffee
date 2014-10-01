@@ -223,7 +223,7 @@ $ ->
             if buy_quantity == 0 or buy_price == 0
                 return true
 
-            if not withinAnOrderOfMagnitude(buy_price, window.markets[window.contract].best_ask.price)
+            if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
                 bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
                     if result
                         sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
@@ -237,7 +237,7 @@ $ ->
             if sell_quantity == 0 or sell_price == 0
                 return true
 
-            if not withinAnOrderOfMagnitude(sell_price, window.markets[window.contract].best_bid.price)
+            if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
                 bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
                     if result
                         sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
