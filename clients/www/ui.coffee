@@ -49,11 +49,8 @@ $ ->
             switch_type: (event, type) ->
                 ractive.set "current_type", type
 
-            click_contract: (event) ->
+            switch_contract: (event) ->
                 ractive.set "current_ticker", event.context
-
-            change_contract: (event) ->
-                ractive.set "current_ticker", event.node.value
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
