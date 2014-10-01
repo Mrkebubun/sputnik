@@ -72,6 +72,10 @@ class RactiveSputnikWrapper
 
         sputnik.on "orders", (orders) =>
             @orders = orders
+            for id, order of @orders
+                order.price = order.price.toFixed(@sputnik.getPricePrecision(order.contract))
+                order.quantity = order.quantity.toFixed(@sputnik.getQuantityPrecision(order.contract))
+                order.quantity_left = order.quantity_left.toFixed(@sputnik.getQuantityPrecision(order.contract))
 
             @notify "orders"
 
