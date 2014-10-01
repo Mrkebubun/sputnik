@@ -60,9 +60,7 @@ $ ->
                 window.contract = new_ticker
                 sputnik.openMarket new_ticker
                 #showChart new_ticker
-                #updateContract()
                 #updateBalances()
-                #updateOrders()
 
         window.ractive = ractive
 
@@ -449,13 +447,6 @@ $ ->
 
             updateBalances()
 
-        updateContract = () ->
-            if window.contract_type != "cash_pair"
-                $("#contract-expiration").show()
-            else
-                $("#contract-expiration").hide()
-
-            $("#contract-description").text window.markets[window.contract].description
 
         updateBalances = () ->
             return
@@ -511,46 +502,6 @@ $ ->
             ticker = event[0]
             instructions = event[1]
             $("##{ticker}_deposit_instructions").text instructions
-
-        $("#ohlcv_period").change () ->
-            window.ohlcv_period = $("#ohlcv_period").value
-            $('#low').text 'N/A'
-            $('#high').text 'N/A'
-            $('#vwap').text 'N/A'
-
-        sputnik.on "ohlcv", (ohlcv) ->
-            sputnik.log ["ohlcv received", ohlcv]
-            if ohlcv.contract == window.contract
-                if ohlcv.period == "minute"
-                    window.chart.dataSets[0].dataProvider.push {
-                        open: ohlcv.open,
-                        close: ohlcv.close,
-                        high: ohlcv.high,
-                        low: ohlcv.low,
-                        volume: ohlcv.volume,
-                        date: ohlcv.wire_open_timestamp/1000
-                    }
-                else if ohlcv.period == window.ohlcv_period
-                    $('#low').text ohlcv.low.toFixed(precision)
-                    $('#high').text ohlcv.high.toFixed(precision)
-                    $('#vwap').text ohlcv.vwap.toFixed(precision)
-
-        sputnik.on "ohlcv_history", (ohlcv_history) ->
-            sputnik.log ["ohlcv_history", ohlcv_history]
-            keys = Object.keys(ohlcv_history)
-            if keys.length
-                last_key = keys[keys.length-1]
-                last_entry = ohlcv_history[last_key]
-                precision = sputnik.getPricePrecision(window.contract)
-                if last_entry.period == window.ohlcv_period
-                    if last_entry.contract == window.contract
-                        $('#low').text last_entry.low.toFixed(precision)
-                        $('#high').text last_entry.high.toFixed(precision)
-                        $('#vwap').text last_entry.vwap.toFixed(precision)
-            else
-                $('#low').text 'N/A'
-                $('#high').text 'N/A'
-                $('#vwap').text 'N/A'
 
         sputnik.on "password_change_success", (info) ->
             bootbox.alert "Password successfully changed"

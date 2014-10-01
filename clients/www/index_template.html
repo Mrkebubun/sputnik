@@ -147,19 +147,22 @@
                                         <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
                                         <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
 
-                                        <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown">
+                                        <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
                                             <option value="day">Yesterday</option>
                                             <option value="hour">Last Hour</option>
                                             <option value="minute">Last Minute</option>
                                         </select>
                                             &nbsp;
-                                            Low: <span id="low">596.36</span> &nbsp; &nbsp;
-                                            High: <span id="high">2939.32</span> &nbsp; &nbsp;
-                                            VWAP: <span id="vwap">1823.23</span>
+                                            Open: {{sputnik.ohlcv[current_ticker][ohlcv_period].open}}
+                                            High: {{sputnik.ohlcv[current_ticker][ohlcv_period].high}}
+                                            Low: {{sputnik.ohlcv[current_ticker][ohlcv_period].low}}
+                                            Close: {{sputnik.ohlcv[current_ticker][ohlcv_period].close}}
+                                            VWAP: {{sputnik.ohlcv[current_ticker][ohlcv_period].vwap}}
+                                            Volume: {{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}
                                         </p>
-                                        <p>Last: <span id="last">{{sputnik.trade_history[current_ticker][0].price}}</span> &nbsp; &nbsp;
-                                            Bid: <span id="best_bid">{{sputnik.books[current_ticker].best_bid.price}}</span> &nbsp; &nbsp;
-                                            Ask: <span id="best_ask">{{sputnik.books[current_ticker].best_ask.price}}</span>
+                                        <p>Last: {{sputnik.trade_history[current_ticker][0].price}}
+                                            Bid: {{sputnik.books[current_ticker].best_bid.price}}
+                                            Ask: {{sputnik.books[current_ticker].best_ask.price}}
                                         </p>
                                     </div>
                                     <div id="contract-balances" class="col-sm-6">

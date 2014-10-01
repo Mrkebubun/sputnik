@@ -9,6 +9,7 @@ class RactiveSputnikWrapper
         @margin = [0, 0]
         @trade_history = {}
         @orders = []
+        @ohlcv = {}
 
         @sputnik.on "auth_success", (username) =>
             @logged_in = true
@@ -18,6 +19,7 @@ class RactiveSputnikWrapper
             @notify "logged_in"
 
         @sputnik.on "markets", (markets) =>
+            @sputnik.log ["markets", markets]
             @markets = {}
             @types = {}
 
@@ -31,6 +33,7 @@ class RactiveSputnikWrapper
             @notify "types"
 
         @sputnik.on "book", (book) =>
+            @sputnik.log ["book", book]
             ticker = book.contract
 
             @books[ticker] =
@@ -59,6 +62,7 @@ class RactiveSputnikWrapper
             @notify "books"
 
         @sputnik.on "trade_history", (trade_history) =>
+            @sputnik.log ["trade_history", trade_history]
             for ticker, history of trade_history
                 @trade_history[ticker] = history.reverse()
                 for trade in @trade_history[ticker]
@@ -68,6 +72,7 @@ class RactiveSputnikWrapper
             @notify "trade_history"
 
         sputnik.on "positions", (positions) =>
+            @sputnik.log ["positions", positions]
             for ticker, position of positions
                 if @markets[ticker]?.contract_type isnt "cash_pair"
                     @positions[ticker] = position
@@ -75,11 +80,13 @@ class RactiveSputnikWrapper
             @notify "positions"
         
         sputnik.on "margin", (margin) =>
+            @sputnik.log ["margin", margin]
             @margin = margin
             
             @notify "margin"
 
         sputnik.on "orders", (orders) =>
+            @sputnik.log ["orders", orders]
             @orders = orders
             for id, order of @orders
                 order.price = order.price.toFixed(@sputnik.getPricePrecision(order.contract))
@@ -87,6 +94,34 @@ class RactiveSputnikWrapper
                 order.quantity_left = order.quantity_left.toFixed(@sputnik.getQuantityPrecision(order.contract))
 
             @notify "orders"
+
+        sputnik.on "ohlcv_history", (ohlcv_history) =>
+            @sputnik.log ["ohlcv_history", ohlcv_history]
+            keys = Object.keys(ohlcv_history)
+            if keys.length
+                last_key = keys[keys.length-1]
+                ohlcv = ohlcv_history[last_key]
+                update_ohlcv(ohlcv)
+
+        update_ohlcv = (ohlcv) =>
+            ohlcv.close = ohlcv.close.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
+            ohlcv.high = ohlcv.high.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
+            ohlcv.low = ohlcv.low.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
+            ohlcv.open = ohlcv.open.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
+            ohlcv.vwap = ohlcv.vwap.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
+            ohlcv.volume = ohlcv.volume.toFixed(@sputnik.getQuantityPrecision(ohlcv.contract))
+
+            if ohlcv.contract of @ohlcv
+                @ohlcv[ohlcv.contract][ohlcv.period] = ohlcv
+            else
+                @ohlcv[ohlcv.contract] = {}
+                @ohlcv[ohlcv.contract][ohlcv.period] = ohlcv
+
+            @notify "ohlcv"
+
+        sputnik.on "ohlcv", (ohlcv) =>
+            @sputnik.log ["ohlcv", ohlcv]
+            update_ohlcv(ohlcv)
 
     notify: (property) =>
         @setting = true
@@ -103,6 +138,7 @@ class RactiveSputnikWrapper
         margin: @margin
         trade_history: @trade_history
         orders: @orders
+        ohlcv: @ohlcv
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
