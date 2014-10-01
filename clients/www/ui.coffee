@@ -319,34 +319,6 @@ $ ->
 
             $('#chatBox').val('')
 
-        updateTable = (id, data) ->
-            first = true
-            rows = for [price, quantity] in data
-                if first
-                    first = false
-                    "<tr class='alert-success'><td>#{price}</td><td>#{quantity}</td></tr>"
-                else
-                    "<tr><td>#{price}</td><td>#{quantity}</td></tr>"
-            $('#' + "#{id}").html rows.join("")
-
-        updateBuys = (data) ->
-            updateTable "bids", data
-            if not $("#sell_price").is(":focus") and not $("#sell_quantity").is(":focus")
-                $("#sell_price").val window.markets[window.contract].best_bid.price
-
-        updateSells = (data) ->
-            updateTable "asks", data
-            if not $("#buy_price").is(":focus") and not $("#buy_quantity").is(":focus")
-                $("#buy_price").val window.markets[window.contract].best_ask.price
-
-
-        updateTrades = (data) ->
-            if data? and data.length
-                trades_reversed = data.reverse()
-                rows = for trade in trades_reversed[0..20]
-                    "<tr><td>#{trade.price}</td><td>#{trade.quantity}</td><td>#{trade.timestamp}</td></tr>"
-                $("#trades-tbody").html rows.join("")
-
 
         updateOrders = () ->
             rows = []
@@ -485,14 +457,6 @@ $ ->
                 window.markets[ticker].best_bid = {price: 0, quantity: 0}
                 window.markets[ticker].position = 0
 
-        sputnik.on "trade_history", (trade_history) ->
-            updateTrades(trade_history[window.contract])
-            if window.contract of trade_history and trade_history[window.contract].length
-                $('#last').text trade_history[window.contract][trade_history[window.contract].length - 1].price.toFixed(sputnik.getPricePrecision(window.contract))
-            else
-                $('#last').text 'N/A'
-
-
         sputnik.on "session_expired", ->
             console.log "Session is stale."
             document.cookie = ''
@@ -500,11 +464,6 @@ $ ->
         sputnik.on "orders", (orders) ->
             window.orders = orders
             updateOrders()
-
-        sputnik.on "trade", (trade) ->
-            if trade.contract == window.contract
-                $('#last').text trade.price.toFixed(sputnik.getPricePrecision(window.contract))
-
 
         sputnik.on "positions", (positions) ->
             for ticker, position of positions

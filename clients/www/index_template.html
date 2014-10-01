@@ -154,7 +154,7 @@
                                             High: <span id="high">2939.32</span> &nbsp; &nbsp;
                                             VWAP: <span id="vwap">1823.23</span>
                                         </p>
-                                        <p>Last: <span id="last">1928.23</span> &nbsp; &nbsp;
+                                        <p>Last: <span id="last">{{sputnik.trade_history[current_ticker][0].price}}</span> &nbsp; &nbsp;
                                             Bid: <span id="best_bid">{{sputnik.books[current_ticker].best_bid.price}}</span> &nbsp; &nbsp;
                                             Ask: <span id="best_ask">{{sputnik.books[current_ticker].best_ask.price}}</span>
                                         </p>
@@ -327,26 +327,13 @@
                                             </tr>
                                             </thead>
                                             <tbody id="trades-tbody">
+                                                {{#sputnik.trade_history[current_ticker]}}
                                                 <tr>
-                                                    <td>1230.34</td>
-                                                    <td>134</td>
-                                                    <td>12:54.12 pm</td>
+                                                    <td>{{price}}</td>
+                                                    <td>{{quantity}}</td>
+                                                    <td>{{timestamp}}</td>
                                                 </tr>
-                                                <tr>
-                                                    <td>1230.34</td>
-                                                    <td>134</td>
-                                                    <td>12:54.12 pm</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>1230.34</td>
-                                                    <td>134</td>
-                                                    <td>12:54.12 pm</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>1230.34</td>
-                                                    <td>134</td>
-                                                    <td>12:54.12 pm</td>
-                                                </tr>
+                                                {{/}}
                                             </tbody>
                                         </table>
                                     </div>

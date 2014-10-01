@@ -5,6 +5,7 @@ class RactiveSputnikWrapper
         @books = {}
         @positions = {}
         @margin = [0, 0]
+        @trade_history = {}
 
         @sputnik.on "markets", (markets) =>
             @markets = {}
@@ -39,6 +40,12 @@ class RactiveSputnikWrapper
 
             @notify "books"
 
+        @sputnik.on "trade_history", (trade_history) =>
+            for ticker, history of trade_history
+                @trade_history[ticker] = history.reverse()
+
+            @notify "trade_history"
+
         sputnik.on "positions", (positions) =>
             for ticker, position of positions
                 if @markets[ticker]?.contract_type isnt "cash_pair"
@@ -62,6 +69,7 @@ class RactiveSputnikWrapper
         books: @books
         positions: @positions
         margin: @margin
+        trade_history: @trade_history
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
