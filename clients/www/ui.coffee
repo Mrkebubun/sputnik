@@ -211,31 +211,55 @@ $ ->
 
         $("#buyButton").click ->
             buy_quantity = Number($('#buy_quantity').val())
-            buy_price = Number($("#buy_price").val())
+            buy_price_str = $("#buy_price").val()
 
-            if buy_quantity == 0 or buy_price == 0
+            if buy_quantity <= 0
+                bootbox.alert "Invalid quantity"
                 return true
 
-            if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
-                bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+            if buy_price_str == ''
+                buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+                bootbox.confirm "Placing order with price: #{buy_price}.\n\nAre you sure?", (result) =>
                     if result
                         sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
             else
-                sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                buy_price = Number(buy_price_str)
+                if buy_price <= 0
+                    bootbox.alert "Invalid price"
+                    return true
+
+                if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
+                    bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                        if result
+                            sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                else
+                    sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
 
         $("#sellButton").click ->
             sell_quantity = Number($('#sell_quantity').val())
-            sell_price = Number($("#sell_price").val())
+            sell_price_str = $("#sell_price").val()
 
-            if sell_quantity == 0 or sell_price == 0
+
+            if sell_quantity <= 0
+                bootbox.alert "Invalid quantity"
                 return true
 
-            if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
-                bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+            if sell_price_str == ''
+                sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+                bootbox.confirm "Placing order with price: #{sell_price}.\n\nAre you sure?", (result) =>
                     if result
                         sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
             else
-                sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                sell_price = Number(sell_price_str)
+                if sell_price <= 0
+                    bootbox.alert "Invalid price"
+
+                if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
+                    bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                        if result
+                            sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                else
+                    sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
         $("#logout").click (event) ->
             document.cookie = ''
