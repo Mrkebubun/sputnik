@@ -12,12 +12,6 @@ $ ->
     uri = "wss://demo.m2.io:8000"
 
     window.my_audit_hash = ''
-    window.contract = ''
-    window.contract_type = 'cash_pair'
-    window.markets = {}
-    window.margin = [0, 0]
-    window.ohlcv_period = "day"
-    window.orders = []
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
@@ -57,7 +51,6 @@ $ ->
             if old_ticker?
                 sputnik.unfollow old_ticker
             if new_ticker?
-                window.contract = new_ticker
                 sputnik.openMarket new_ticker
                 showChart new_ticker
                 #updateBalances()
@@ -205,13 +198,13 @@ $ ->
             orderOfMag(x) == orderOfMag(y)
 
         $("#buy_price,#buy_quantity").keyup ->
-            if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), window.contract, 'BUY')
+            if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), ractive.get("current_ticker"), 'BUY')
                 $("#buy_alert").show()
             else
                 $("#buy_alert").hide()
 
         $("#sell_price,#sell_quantity").keyup ->
-            if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), window.contract, 'SELL')
+            if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), ractive.get("current_ticker"), 'SELL')
                 $("#sell_alert").show()
             else
                 $("#sell_alert").hide()
@@ -226,9 +219,9 @@ $ ->
             if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
                 bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
                     if result
-                        sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
+                        sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
             else
-                sputnik.placeOrder(buy_quantity, buy_price, window.contract, 'BUY')
+                sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
 
         $("#sellButton").click ->
             sell_quantity = Number($('#sell_quantity').val())
@@ -240,9 +233,9 @@ $ ->
             if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
                 bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
                     if result
-                        sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
+                        sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
             else
-                sputnik.placeOrder(sell_quantity, sell_price, window.contract, 'SELL')
+                sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
         $("#logout").click (event) ->
             document.cookie = ''
@@ -345,25 +338,6 @@ $ ->
                 sputnik.log("onChartReady")
                 $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
 
-        changeContractType = (new_type) ->
-            if new_type != window.contract_type
-                $("#tab-#{window.contract_type}").removeClass("tab-active")
-                $("#tab-#{window.contract_type}").addClass("tab-inactive")
-                $("#tab-#{new_type}").addClass("tab-active")
-                $("#tab-#{new_type}").removeClass("tab-inactive")
-                window.contract_type = new_type
-                window.contract = ''
-                ractive.set "current_type", new_type
-
-        $('#cash_pair-btn').click ->
-            changeContractType('cash_pair')
-
-        $('#futures-btn').click ->
-            changeContractType('futures')
-
-        $('#prediction-btn').click ->
-            changeContractType('prediction')
-
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
 
@@ -400,12 +374,6 @@ $ ->
             $("#audit_modal").modal()
             sputnik.getAudit()
 
-        $('#contract_list').change ->
-            if $('#contract_list').val() != window.contract
-                sputnik.unfollow window.contract
-                window.contract = $('#contract_list').val()
-                sputnik.openMarket window.contract
-
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
 
@@ -429,24 +397,9 @@ $ ->
             ,
                 5000)
 
-        sputnik.on "markets", (markets) ->
-            for ticker, details of markets
-                window.markets[ticker] = details
-                window.markets[ticker].best_ask = {price: Infinity, quantity: 0}
-                window.markets[ticker].best_bid = {price: 0, quantity: 0}
-                window.markets[ticker].position = 0
-
         sputnik.on "session_expired", ->
             console.log "Session is stale."
             document.cookie = ''
-
-        sputnik.on "positions", (positions) ->
-            for ticker, position of positions
-                if @markets[ticker].contract_type != "cash_pair"
-                    window.markets[ticker].position = position.position
-
-            updateBalances()
-
 
         updateBalances = () ->
             return
@@ -574,10 +527,6 @@ $ ->
                      <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
                 html.push(trHTML)
             $('#transaction_history tbody').html(html.join())
-
-        sputnik.on "margin", (margin) ->
-            window.margin = margin
-            updateBalances()
 
         sputnik.on "fill", (fill) ->
             quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
