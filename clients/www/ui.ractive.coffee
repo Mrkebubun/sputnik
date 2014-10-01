@@ -33,6 +33,9 @@ $ ->
                 "cash_pair": "Cash"
                 "prediction": "Predictions"
                 "futures": "Futures"
+            format_time: (datetime) ->
+                if datetime?
+                    new Date(datetime).toLocaleString()
         adapt: [Ractive.adaptors.Sputnik]
 
     ractive.on

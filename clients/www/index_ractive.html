@@ -218,8 +218,8 @@
                             <div class="contract-overview">
                                 <div class="row">
                                     <div class="col-sm-6 contract-overview-info">
-                                        <p class="grey-header" id="contract-description">CONTRACT DESCRIPTION</p>
-                                        <p class="grey-header" id="contract-expiration">June 5, 2015 00:00:00</p>
+                                        <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                        <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
 
                                         <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown">
                                             <option value="day">Yesterday</option>
