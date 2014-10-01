@@ -3,15 +3,19 @@ class RactiveSputnikWrapper
         @markets = {}
         @types = {}
         @books = {}
+        @positions = {}
+        @margin = [0, 0]
 
         @sputnik.on "markets", (markets) =>
             @markets = {}
             @types = {}
+
             for ticker, market of markets
                 if market.contract_type isnt "cash"
                     @markets[ticker] = market
                     type = market.contract_type
                     (@types[type] or (@types[type] = [])).push ticker
+
             @notify "markets"
             @notify "types"
 
@@ -22,7 +26,7 @@ class RactiveSputnikWrapper
                 bids: book.bids
                 asks: book.asks
                 best_ask:
-                    price: Infinity,
+                    price: Infinity
                     quantity: 0
                 best_bid:
                     price: 0
@@ -35,6 +39,18 @@ class RactiveSputnikWrapper
 
             @notify "books"
 
+        sputnik.on "positions", (positions) =>
+            for ticker, position of positions
+                if @markets[ticker]?.contract_type isnt "cash_pair"
+                    @positions[ticker] = position
+            
+            @notify "positions"
+        
+        sputnik.on "margin", (margin) =>
+            @margin = margin
+            
+            @notify "margin"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -44,6 +60,8 @@ class RactiveSputnikWrapper
         markets: @markets
         types: @types
         books: @books
+        positions: @positions
+        margin: @margin
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
