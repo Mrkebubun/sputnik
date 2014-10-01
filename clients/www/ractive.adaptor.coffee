@@ -22,7 +22,7 @@ class RactiveSputnikWrapper
                 bids: book.bids
                 asks: book.asks
                 best_ask:
-                    price: Infinity,
+                    price: Infinity
                     quantity: 0
                 best_bid:
                     price: 0
