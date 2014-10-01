@@ -45,11 +45,13 @@ class @Sputnik extends EventEmitter
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
+        @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
         @unsubscribe "safe_prices##{market}"
+        @unsubscribe "ohlcv##{market}", @onOHLCV
 
     # authentication and account management
 
@@ -532,13 +534,10 @@ class @Sputnik extends EventEmitter
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
 
-        @emitBook ticker
         @getOrderBook ticker
-
-        @emitTradeHistory ticker
         @getTradeHistory ticker
-
-        @emitOHLCVHistory ticker, "day"
+        @getOHLCVHistory ticker, "minute"
+        @getOHLCVHistory ticker, "hour"
         @getOHLCVHistory ticker, "day"
 
         @follow ticker
