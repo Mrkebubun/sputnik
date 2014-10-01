@@ -49,8 +49,11 @@ $ ->
             switch_type: (event, type) ->
                 ractive.set "current_type", type
 
-            switch_contract: (event) ->
+            click_contract: (event) ->
                 ractive.set "current_ticker", event.context
+
+            change_contract: (event) ->
+                ractive.set "current_ticker", event.node.value
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
@@ -62,7 +65,6 @@ $ ->
                 updateContract()
                 updateBalances()
                 updateOrders()
-
 
         window.ractive = ractive
 
@@ -536,7 +538,6 @@ $ ->
 
         updateContract = () ->
             if window.contract_type != "cash_pair"
-                $("#contract-expiration").text sputnik.dateTimeFormat(window.markets[window.contract].expiration)
                 $("#contract-expiration").show()
             else
                 $("#contract-expiration").hide()

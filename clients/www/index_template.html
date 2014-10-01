@@ -128,10 +128,10 @@
                     <div class="col-sm-12 content">
                         <div class="contracts" id="contracts">
                             {{#sputnik.types[current_type]}}
-                            <a href="#" class={{current_ticker == this ? "active-link-box" : "inactive-link-box"}} on-click="switch_contract">{{this}}</a>
+                            <a href="#" class={{current_ticker == this ? "active-link-box" : "inactive-link-box"}} on-click="click_contract">{{this}}</a>
                             {{/}}
 
-                            <select value="{{current_ticker}}" class="form-control contract-select">
+                            <select value="{{current_ticker}}" class="form-control contract-select" on-change="change_contract">
                             {{#sputnik.types[current_type]}}
                                 <option value="{{this}}">{{this}}</option>
                             {{/}}
