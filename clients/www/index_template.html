@@ -155,8 +155,8 @@
                                             VWAP: <span id="vwap">1823.23</span>
                                         </p>
                                         <p>Last: <span id="last">1928.23</span> &nbsp; &nbsp;
-                                            Bid: <span id="best_bid">1933.32</span> &nbsp; &nbsp;
-                                            Ask: <span id="best_ask">1987.34</span>
+                                            Bid: <span id="best_bid">{{sputnik.books[current_ticker].best_bid.price}}</span> &nbsp; &nbsp;
+                                            Ask: <span id="best_ask">{{sputnik.books[current_ticker].best_ask.price}}</span>
                                         </p>
                                     </div>
                                     <div id="contract-balances" class="col-sm-6">
@@ -361,17 +361,15 @@
                                             </thead>
                                             <tbody id="bids">
                                                 <tr class='alert-success'>
-                                                    <td>53</td>
-                                                    <td>3</td>
+                                                    <td>{{sputnik.books[current_ticker].best_bid.price}}</td>
+                                                    <td>{{sputnik.books[current_ticker].best_bid.quantity}}/td>
                                                 </tr>
+                                                {{#sputnik.books[current_ticker].bids}}
                                                 <tr>
-                                                    <td>51</td>
-                                                    <td>3</td>
+                                                    <td>{{price}}</td>
+                                                    <td>{{quantity}}/td>
                                                 </tr>
-                                                <tr>
-                                                    <td>50</td>
-                                                    <td>3</td>
-                                                </tr>
+                                                {{/}}
                                             </tbody>
                                         </table>
                                         Asks
@@ -384,17 +382,15 @@
                                             </thead>
                                             <tbody id="asks">
                                                 <tr class='alert-success'>
-                                                    <td>55</td>
-                                                    <td>3</td>
+                                                    <td>{{sputnik.books[current_ticker].best_ask.price}}</td>
+                                                    <td>{{sputnik.books[current_ticker].best_ask.quantity}}/td>
                                                 </tr>
+                                                {{#sputnik.books[current_ticker].asks}}
                                                 <tr>
-                                                    <td>57</td>
-                                                    <td>3</td>
+                                                    <td>{{price}}</td>
+                                                    <td>{{quantity}}/td>
                                                 </tr>
-                                                <tr>
-                                                    <td>60</td>
-                                                    <td>3</td>
-                                                </tr>
+                                                {{/}}
                                             </tbody>
                                         </table>
                                     </div>

@@ -2,6 +2,7 @@ class RactiveSputnikWrapper
     constructor: (@ractive, @sputnik, @keypath, @prefix) ->
         @markets = {}
         @types = {}
+        @books = {}
 
         @sputnik.on "markets", (markets) =>
             @markets = {}
@@ -9,8 +10,6 @@ class RactiveSputnikWrapper
             for ticker, market of markets
                 if market.contract_type isnt "cash"
                     @markets[ticker] = market
-                    @markets[ticker].best_ask = {price: Infinity, quantity: 0}
-                    @markets[ticker].best_bid = {price: 0, quantity: 0}
                     type = market.contract_type
                     (@types[type] or (@types[type] = [])).push ticker
             @notify "markets"
@@ -19,17 +18,22 @@ class RactiveSputnikWrapper
         @sputnik.on "book", (book) =>
             ticker = book.contract
 
-            @markets[ticker].bids = book.bids
-            @markets[ticker].asks = book.asks
+            @books[ticker] =
+                bids: book.bids
+                asks: book.asks
+                best_ask:
+                    price: Infinity,
+                    quantity: 0
+                best_bid:
+                    price: 0
+                    quantity: 0
 
-            @markets[ticker].best_ask = {price: Infinity, quantity: 0}
-            @markets[ticker].best_bid = {price: 0, quantity: 0}
             if book.asks.length
-                @markets[ticker].best_ask = book.asks[0]
+                @books[ticker].best_ask = book.asks[0]
             if book.bids.length
-                @markets[ticker].best_bid = book.bids[0]
+                @books[ticker].best_bid = book.bids[0]
 
-            @notify "markets"
+            @notify "books"
 
     notify: (property) =>
         @setting = true
@@ -39,6 +43,7 @@ class RactiveSputnikWrapper
     get: () ->
         markets: @markets
         types: @types
+        books: @books
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

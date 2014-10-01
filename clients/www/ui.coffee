@@ -44,6 +44,7 @@ $ ->
                     if datetime?
                         new Date(datetime/1000).toLocaleString()
             adapt: [Ractive.adaptors.Sputnik]
+            debug: true
 
         ractive.on
             switch_type: (event, type) ->
