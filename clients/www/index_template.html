@@ -360,12 +360,8 @@
                                             </tr>
                                             </thead>
                                             <tbody id="bids">
-                                                <tr class='alert-success'>
-                                                    <td>{{sputnik.books[current_ticker].best_bid.price}}</td>
-                                                    <td>{{sputnik.books[current_ticker].best_bid.quantity}}</td>
-                                                </tr>
-                                                {{#sputnik.books[current_ticker].bids}}
-                                                <tr>
+                                                {{#sputnik.books[current_ticker].bids:i}}
+                                                <tr class={{i == 0 ? 'alert-success' : '' }}>
                                                     <td>{{price}}</td>
                                                     <td>{{quantity}}</td>
                                                 </tr>
@@ -381,12 +377,8 @@
                                             </tr>
                                             </thead>
                                             <tbody id="asks">
-                                                <tr class='alert-success'>
-                                                    <td>{{sputnik.books[current_ticker].best_ask.price}}</td>
-                                                    <td>{{sputnik.books[current_ticker].best_ask.quantity}}</td>
-                                                </tr>
-                                                {{#sputnik.books[current_ticker].asks}}
-                                                <tr>
+                                                {{#sputnik.books[current_ticker].asks:i}}
+                                                <tr class={{i == 0 ? 'alert-success' : '' }}>
                                                     <td>{{price}}</td>
                                                     <td>{{quantity}}</td>
                                                 </tr>
