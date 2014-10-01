@@ -319,25 +319,6 @@ $ ->
 
             $('#chatBox').val('')
 
-
-        updateOrders = () ->
-            rows = []
-            for id, order of window.orders
-                if order.contract == window.contract
-                    icon = "Sell"
-                    if order.side is "BUY"
-                        icon = "Buy"
-                    icon = "<td>#{icon}</td>"
-                    price = "<td>#{order.price}</td>"
-                    quantity = "<td>#{order.quantity_left}</td>"
-                    contract = "<td>#{order.contract}</td>"
-                    button = "<td><button onclick='sputnik.cancelOrder(#{id})'>"
-                    button += "<img src='images/cancel.png'/>"
-                    button += "</a></td>"
-                    rows.push "<tr>" + price + quantity + icon + button + "</tr>"
-
-            $("#orders").html rows.join("")
-
         showChart = (contract) ->
             widget = new TradingView.widget {
                 fullscreen: false
@@ -460,10 +441,6 @@ $ ->
         sputnik.on "session_expired", ->
             console.log "Session is stale."
             document.cookie = ''
-
-        sputnik.on "orders", (orders) ->
-            window.orders = orders
-            updateOrders()
 
         sputnik.on "positions", (positions) ->
             for ticker, position of positions

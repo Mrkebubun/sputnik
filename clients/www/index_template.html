@@ -273,36 +273,16 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="orders">
+                                                {{#sputnik.orders:id}}
+                                                {{#if contract == current_ticker}}
                                                 <tr>
-                                                    <td>136.021</td>
-                                                    <td>34</td>
-                                                    <td>Buy</td>
-                                                    <td><button class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                                    <td>{{price}}</td>
+                                                    <td>{{quantity}}</td>
+                                                    <td>{{side}}</td>
+                                                    <td><button onclick='sputnik.cancelOrder({{id}})' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                                 </tr>
-                                                <tr>
-                                                    <td>136.021</td>
-                                                    <td>34</td>
-                                                    <td>Buy</td>
-                                                    <td><button class="cancel-button"><img src="images/cancel.png"/></button></td>
-                                                </tr>
-                                                <tr>
-                                                    <td>136.021</td>
-                                                    <td>34</td>
-                                                    <td>Buy</td>
-                                                    <td><button class="cancel-button"><img src="images/cancel.png"/></button></td>
-                                                </tr>
-                                                <tr>
-                                                    <td>136.021</td>
-                                                    <td>34</td>
-                                                    <td>Buy</td>
-                                                    <td><button class="cancel-button"><img src="images/cancel.png"/></button></td>
-                                                </tr>
-                                                <tr>
-                                                    <td>136.021</td>
-                                                    <td>34</td>
-                                                    <td>Buy</td>
-                                                    <td><button class="cancel-button"><img src="images/cancel.png"/></button></td>
-                                                </tr>
+                                                {{/if}}
+                                                {{/}}
                                                 </tbody>
                                             </table>
                                         </div>

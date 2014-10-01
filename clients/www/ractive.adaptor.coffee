@@ -6,6 +6,7 @@ class RactiveSputnikWrapper
         @positions = {}
         @margin = [0, 0]
         @trade_history = {}
+        @orders = []
 
         @sputnik.on "markets", (markets) =>
             @markets = {}
@@ -69,6 +70,11 @@ class RactiveSputnikWrapper
             
             @notify "margin"
 
+        sputnik.on "orders", (orders) =>
+            @orders = orders
+
+            @notify "orders"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -81,6 +87,7 @@ class RactiveSputnikWrapper
         positions: @positions
         margin: @margin
         trade_history: @trade_history
+        orders: @orders
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
