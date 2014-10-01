@@ -59,7 +59,7 @@ $ ->
             if new_ticker?
                 window.contract = new_ticker
                 sputnik.openMarket new_ticker
-                #showChart new_ticker
+                showChart new_ticker
                 #updateBalances()
 
         window.ractive = ractive
