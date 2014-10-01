@@ -33,6 +33,14 @@ class RactiveSputnikWrapper
                     price: 0
                     quantity: 0
 
+            for entry in @books[ticker].bids
+                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
+                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
+
+            for entry in @books[ticker].asks
+                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
+                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
+
             if book.asks.length
                 @books[ticker].best_ask = book.asks[0]
             if book.bids.length
@@ -43,6 +51,9 @@ class RactiveSputnikWrapper
         @sputnik.on "trade_history", (trade_history) =>
             for ticker, history of trade_history
                 @trade_history[ticker] = history.reverse()
+                for trade in @trade_history[ticker]
+                    trade.price = trade.price.toFixed(@sputnik.getPricePrecision(ticker))
+                    trade.quantity = trade.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
 
             @notify "trade_history"
 
