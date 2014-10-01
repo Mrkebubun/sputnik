@@ -57,8 +57,12 @@ $ ->
                 sputnik.unfollow old_ticker
             if new_ticker?
                 window.contract = new_ticker
-                sputnik.follow new_ticker
-                sputnik.getOrderBook new_ticker
+                sputnik.openMarket new_ticker
+                showChart new_ticker
+                updateContract()
+                updateBalances()
+                updateOrders()
+
 
         window.ractive = ractive
 
@@ -362,37 +366,6 @@ $ ->
 
             $("#orders").html rows.join("")
 
-        updateContracts = () ->
-            return
-            buttons = ""
-            dropdown = "<select id='contract-select' class='form-control contract-select'><option value='Select Contract' selected='selected'>Select Contract</option>"
-            for ticker, details of window.markets
-                clean_ticker = ticker.replace('/', '_')
-                if details.contract_type == window.contract_type
-                    buttons += "<a href='#' class='active-link-box' id='contract-#{clean_ticker}'>#{ticker}</a>\n"
-                    dropdown += "<option value='#{ticker}'>#{ticker}</option>\n"
-
-            dropdown += "</select>"
-            $('#contracts').html(buttons + dropdown)
-
-            select_contract_fn = (ticker_to_use) ->
-                (event) ->
-                    window.contract = ticker_to_use
-                    $("#contract").show()
-                    sputnik.openMarket(ticker_to_use)
-                    showChart ticker_to_use
-                    updateContract()
-                    updateBalances()
-                    updateOrders()
-
-            for ticker, details of window.markets
-                clean_ticker = ticker.replace('/', '_')
-                if details.contract_type == window.contract_type
-                    $("#contract-#{clean_ticker}").click select_contract_fn(ticker)
-
-            $("#contract-select").change (e) ->
-                select_contract_fn($("#contract-select").val())(e)
-
         showChart = (contract) ->
             widget = new TradingView.widget {
                 fullscreen: false
@@ -430,8 +403,6 @@ $ ->
                 window.contract_type = new_type
                 window.contract = ''
                 ractive.set "current_type", new_type
-                #$("#contract").hide()
-                #updateContracts()
 
         $('#cash_pair-btn').click ->
             changeContractType('cash_pair')
@@ -513,8 +484,6 @@ $ ->
                 window.markets[ticker].best_ask = {price: Infinity, quantity: 0}
                 window.markets[ticker].best_bid = {price: 0, quantity: 0}
                 window.markets[ticker].position = 0
-
-            updateContracts()
 
         sputnik.on "trade_history", (trade_history) ->
             updateTrades(trade_history[window.contract])
