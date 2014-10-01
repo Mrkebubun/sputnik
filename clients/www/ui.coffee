@@ -497,27 +497,6 @@ $ ->
             console.log "Session is stale."
             document.cookie = ''
 
-        sputnik.on "book", (book) ->
-            if book.contract is not window.contract
-                return
-
-            if book.asks.length
-                window.markets[book.contract].best_ask = book.asks[0]
-            else
-                window.markets[book.contract].best_ask = {price: Infinity, quantity: 0}
-
-            $('#best_ask').text window.markets[book.contract].best_ask.price.toFixed(sputnik.getPricePrecision(book.contract))
-
-            if book.bids.length
-                window.markets[book.contract].best_bid = book.bids[0]
-            else
-                window.markets[book.contract].best_bid = {price: 0, quantity: 0}
-
-            $('#best_bid').text window.markets[book.contract].best_bid.price.toFixed(sputnik.getPricePrecision(window.contract))
-
-            updateBuys ([book_row.price, book_row.quantity] for book_row in book.bids)
-            updateSells ([book_row.price, book_row.quantity] for book_row in book.asks)
-
         sputnik.on "orders", (orders) ->
             window.orders = orders
             updateOrders()
