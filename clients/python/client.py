@@ -380,6 +380,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.my_call("get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
+    def getExchangeName(self):
+        d = self.my_call("get_exchange_name")
+        d.addCallbacks(pprint, self.onError)
+
     """
     Private RPC Calls
     """
@@ -464,6 +468,7 @@ class BasicBot(TradingBot):
     def startAutomation(self):
         # Test the audit
         self.getAudit()
+        self.getExchangeName()
 
         # Test some OHLCV history fns
         self.getOHLCVHistory('BTC/HUF', 'day')
