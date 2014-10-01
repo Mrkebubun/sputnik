@@ -458,6 +458,7 @@ $ ->
             $("#contract-description").text window.markets[window.contract].description
 
         updateBalances = () ->
+            return
             if window.contract_type != "cash_pair"
                 $("#btc_balance").text window.markets['BTC'].position.toFixed(sputnik.getQuantityPrecision('BTC'))
                 $("#btc_balance").attr('data-original-title', window.markets['BTC'].position).tooltip('fixTitle')

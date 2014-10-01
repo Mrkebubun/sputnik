@@ -163,38 +163,41 @@
                                         </p>
                                     </div>
                                     <div id="contract-balances" class="col-sm-6">
+                                        {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
                                         <div id="cash_pair-balance">
                                             <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                <p class="grey-header" id="denominated_ticker">DENOM</p>
-                                                <p class="first-line2" id="denominated_balance" title="23020.5924234">23,020.89</p>
+                                                    <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                    <p class="first-line2" id="denominated_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}</p>
                                             </div>
                                             <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                <p class="grey-header" id="payout_ticker">PAYOUT</p>
-                                                <p class="first-line2" id="payout_balance" title="23020.3923423">23,020.89</p>
+                                                    <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
+                                                    <p class="first-line2" id="payout_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position}}</p>
                                             </div>
                                         </div>
+                                        {{else}}
                                         <div id="margin-balance">
                                             <div class="row">
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                    <p class="grey-header" id="btc_ticker">BTC</p>
-                                                    <p class="first-line2" id="btc_balance" title="23020.230942">23,020.89</p>
+                                                    <p class="grey-header" id="btc_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                    <p class="first-line2" id="btc_balance" title="{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position}}</p>
                                                 </div>
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                    <p class="grey-header" id="contract_ticker">CONTRACT</p>
-                                                    <p class="first-line2" id="contract_balance" title="23020.8293423">23,020.89</p>
+                                                    <p class="grey-header" id="contract_ticker">current_ticker}}</p>
+                                                    <p class="first-line2" id="contract_balance" title="{{sputnik.positions[current_ticker].position}}">{{sputnik.positions[current_ticker].position}}</p>
                                                 </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header">LOW MARGIN</p>
-                                                    <p class="first-line2" id="low_margin" title="23020.8293423">23,020.89</p>
+                                                    <p class="first-line2" id="low_margin" title="{{sputnik.margin[0]}}">{{sputnik.margin[0]}}</p>
                                                 </div>
                                                 <div class="col-sm-4 col-xs-4 contract-overview-info2">
                                                     <p class="grey-header">HIGH MARGIN</p>
-                                                    <p class="first-line2" id="high_margin" title="23020.8293423">23,020.89</p>
+                                                    <p class="first-line2" id="high_margin" title="{{sputnik.margin[1]}}">{{sputnik.margin[1]}}</p>
                                                 </div>
                                             </div>
                                         </div>
+                                        {{/if}}
                                     </div>
                                 </div>
                             </div>
