@@ -7,6 +7,8 @@ class RactiveSputnikWrapper
         @books = {}
         @positions = {}
         @margin = [0, 0]
+        @trade_history = {}
+        @orders = []
 
         @sputnik.on "auth_success", (username) =>
             @logged_in = true
@@ -41,12 +43,29 @@ class RactiveSputnikWrapper
                     price: 0
                     quantity: 0
 
+            for entry in @books[ticker].bids
+                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
+                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
+
+            for entry in @books[ticker].asks
+                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
+                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
+
             if book.asks.length
                 @books[ticker].best_ask = book.asks[0]
             if book.bids.length
                 @books[ticker].best_bid = book.bids[0]
 
             @notify "books"
+
+        @sputnik.on "trade_history", (trade_history) =>
+            for ticker, history of trade_history
+                @trade_history[ticker] = history.reverse()
+                for trade in @trade_history[ticker]
+                    trade.price = trade.price.toFixed(@sputnik.getPricePrecision(ticker))
+                    trade.quantity = trade.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
+
+            @notify "trade_history"
 
         sputnik.on "positions", (positions) =>
             for ticker, position of positions
@@ -59,6 +78,15 @@ class RactiveSputnikWrapper
             @margin = margin
             
             @notify "margin"
+
+        sputnik.on "orders", (orders) =>
+            @orders = orders
+            for id, order of @orders
+                order.price = order.price.toFixed(@sputnik.getPricePrecision(order.contract))
+                order.quantity = order.quantity.toFixed(@sputnik.getQuantityPrecision(order.contract))
+                order.quantity_left = order.quantity_left.toFixed(@sputnik.getQuantityPrecision(order.contract))
+
+            @notify "orders"
 
     notify: (property) =>
         @setting = true
@@ -73,6 +101,8 @@ class RactiveSputnikWrapper
         books: @books
         positions: @positions
         margin: @margin
+        trade_history: @trade_history
+        orders: @orders
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
