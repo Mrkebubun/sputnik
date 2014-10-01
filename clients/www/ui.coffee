@@ -42,7 +42,7 @@ $ ->
                     "futures": "Futures"
                 format_time: (datetime) ->
                     if datetime?
-                        new Date(datetime).toLocaleString()
+                        new Date(datetime/1000).toLocaleString()
             adapt: [Ractive.adaptors.Sputnik]
 
         ractive.on
