@@ -19,16 +19,40 @@ $ ->
     window.ohlcv_period = "day"
     window.orders = []
 
-    sputnik = new window.Sputnik uri
+    sputnik = new Sputnik uri
     window.sputnik = sputnik
 
-#    ractive = new Ractive
-#        el: "target"
-#        template: "#template"
-#        data: {sputnik:window.sputnik}
-#        adapt: [Ractive.adaptors.Sputnik]
-#
-#    window.ractive = ractive
+    ractive = new Ractive
+        el: "target"
+        template: "#template"
+        data:
+            sputnik: sputnik
+            current_ticker: null
+            current_type: "cash_pair"
+            type_alias:
+                "cash_pair": "Cash"
+                "prediction": "Predictions"
+                "futures": "Futures"
+            format_time: (datetime) ->
+                if datetime?
+                    new Date(datetime).toLocaleString()
+        adapt: [Ractive.adaptors.Sputnik]
+
+    ractive.on
+        switch_type: (event, type) ->
+            ractive.set "current_type", type
+
+        switch_contract: (event) ->
+            ractive.set "current_ticker", event.context
+
+    ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
+        if old_ticker?
+            sputnik.unfollow old_ticker
+        if new_ticker?
+            sputnik.follow new_ticker
+            sputnik.getOrderBook new_ticker
+
+    window.ractive = ractive
 
     sputnik.connect()
     
@@ -48,7 +72,7 @@ $ ->
         $('#account-btn').hide()
         $('#contract-balances,#buy-sell-orders').hide()
         $('#logged_in').hide()
-        $('#contract').hide()
+        #$('#contract').hide()
 
         # Attempt a cookie login
         cookie = document.cookie
@@ -327,6 +351,7 @@ $ ->
         $("#orders").html rows.join("")
 
     updateContracts = () ->
+        return
         buttons = ""
         dropdown = "<select id='contract-select' class='form-control contract-select'><option value='Select Contract' selected='selected'>Select Contract</option>"
         for ticker, details of window.markets
@@ -392,8 +417,9 @@ $ ->
             $("#tab-#{new_type}").removeClass("tab-inactive")
             window.contract_type = new_type
             window.contract = ''
-            $("#contract").hide()
-            updateContracts()
+            ractive.set "current_type", new_type
+            #$("#contract").hide()
+            #updateContracts()
 
     $('#cash_pair-btn').click ->
         changeContractType('cash_pair')
@@ -750,3 +776,4 @@ $ ->
             error: (err) ->
                 bootbox.alert("Error while saving:" + err)
                 sputnik.log ["Error:", err]
+

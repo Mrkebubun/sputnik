@@ -47,10 +47,8 @@
     <script src="sputnik.coffee" type="text/coffeescript"></script>
 
     <!-- Ractive.js -->
-    <!--
-        <script src="js/ractive.js"></script>
-        <script src="ractive.adaptor.coffee" type="text/coffeescript"></script>
-    -->
+    <script src="js/ractive.js"></script>
+    <script src="ractive.adaptor.coffee" type="text/coffeescript"></script>
 
     <!-- Trading View -->
     <script type="text/javascript" src="charting_library/charting_library.min.js"></script>
@@ -76,7 +74,7 @@
     </script>
 </head>
 <body>
-<!-- <script type="text/ractive" id="template"> -->
+<script type="text/ractive" id="template">
 <div class="alert alert-warning" id="not_connected">
     Connecting to server.
 </div>
@@ -196,39 +194,32 @@
             <div class="container">
                 <div class="row">
                     <div class="col-sm-12">
-                        <div class="tab-active" id="tab-cash_pair">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="cash_pair-btn">Cash</a></h4>
+                        {{#sputnik.types:type}}
+                        <div class={{current_type == type ? "tab-active" : "tab-inactive"}}>
+                            <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{type_alias[type]}}</a></h4>
                         </div>
-                        <div class="tab-inactive" id="tab-futures">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Futures</a></h4>
-                        </div>
-                        <div class="tab-inactive" id="tab-prediction">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="prediction-btn">Predictions</a></h4>
-                        </div>
+                        {{/}}
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-sm-12 content">
                         <div class="contracts" id="contracts">
-                            <a href="#" class="active-link-box">Contract 1</a>
-                            <a href="#" class="inactive-link-box">Contract 2</a>
-                            <a href="#" class="inactive-link-box">Contract 3</a>
-                            <a href="#" class="inactive-link-box">Contract 4</a>
+                            {{#sputnik.types[current_type]}}
+                            <a href="#" class={{current_ticker == this ? "active-link-box" : "inactive-link-box"}} on-click="switch_contract">{{this}}</a>
+                            {{/}}
 
-                            <select class="form-control contract-select">
-                                <option value="Select Contract" selected="selected">Select Contract</option>
-                                <option value="Contract 1">Contract 1</option>
-                                <option value="Contract 2">Contract 2</option>
-                                <option value="Contract 3">Contract 3</option>
-                                <option value="Contract 4">Contract 4</option>
+                            <select value="{{current_ticker}}" class="form-control contract-select">
+                            {{#sputnik.types[current_type]}}
+                                <option value="{{this}}">{{this}}</option>
+                            {{/}}
                             </select>
                         </div>
                             <div id="contract">
                             <div class="contract-overview">
                                 <div class="row">
                                     <div class="col-sm-6 contract-overview-info">
-                                        <p class="grey-header" id="contract-description">CONTRACT DESCRIPTION</p>
-                                        <p class="grey-header" id="contract-expiration">June 5, 2015 00:00:00</p>
+                                        <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                        <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
 
                                         <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown">
                                             <option value="day">Yesterday</option>
@@ -499,7 +490,7 @@
     Account
 </div>
 </div>
-<!-- </script> -->
-<!-- <div id="target"></div> -->
+</script>
+<div id="target"></div>
 </body>
 </html>
