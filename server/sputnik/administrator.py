@@ -946,7 +946,6 @@ class AdminWebUI(Resource):
             request.sentLength or "-",
             request.getHeader("referer") or "-",
             request.getHeader("user-agent") or "-",
-            request.getHeader("authorization") or "-",
             json.dumps(request.args))
 
     def render(self, request):
