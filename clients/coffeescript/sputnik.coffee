@@ -775,7 +775,13 @@ class @Sputnik extends EventEmitter
         else
             sign = -1
 
-        @positions[transaction.contract].position += sign * transaction.quantity
+        if transaction.contract of @positions
+            @positions[transaction.contract].position += sign * transaction.quantity
+        else
+            @positions[transaction.contract] =
+                position: sign * transaction.quantity
+                contract: transaction.contract
+
         @emit "transaction", @transactionFromWire(transaction)
 
         positions = {}
