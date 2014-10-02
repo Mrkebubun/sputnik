@@ -839,7 +839,8 @@ class AdminAPI(Resource):
             resources = { '/api/withdrawals': self.withdrawals,
                           '/api/deposits': self.deposits,
                           '/api/process_withdrawal': self.process_withdrawal,
-                          '/api/manual_deposit': self.manual_deposit
+                          '/api/manual_deposit': self.manual_deposit,
+                          '/api/rescan_address': self.rescan_address,
             }
             if request.path in resources:
                 return resources[request.path](request, data)
@@ -850,11 +851,15 @@ class AdminAPI(Resource):
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
-        return [w.dict for w in withdrawals]
+        return [w.dict for w in withdrawals if w.pending]
 
     def deposits(self, request, data):
         deposits = self.administrator.get_deposits()
         return [d.dict for d in deposits]
+
+    def rescan_address(self, request, data):
+        self.administrator.cashier.rescan_address(data['address'])
+        return {'result': True}
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
