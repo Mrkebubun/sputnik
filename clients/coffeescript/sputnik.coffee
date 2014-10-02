@@ -392,18 +392,18 @@ class @Sputnik extends EventEmitter
         [contract, source, target] = @cstFromTicker(ticker)
 
         if contract.contract_type is "prediction"
-            return Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0))
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
             return 0
         else if contract.contract_type is "cash"
-            return Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0))
 
     getMinMove: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
