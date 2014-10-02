@@ -4,11 +4,22 @@ body {
 	color: #4b4b4b;
 }
 
-.navbar {
+.navbar2 {
 	height: 67px;
 	background-color: #fff;
 	border-bottom: solid 1px #c1c1c1;
 	text-align: left;
+}
+
+
+
+.navbar {
+	z-index: 100;
+}
+
+.navbar-header {
+	z-index:100;
+
 }
 
 h1.logotext {
@@ -35,8 +46,17 @@ h1.logotext {
 ul#navlinks {
 	display: inline;
 	text-align: right;
-	margin-top: 22px;
+	margin-top: -52px;
 	float:left;
+	z-index: 2000;
+}
+
+.navlinks-right1 {
+	margin: 30px 5px 0 170px !important;
+}
+
+.navlinks-right2 {
+	margin: 30px 5px 0 5px !important;
 }
 
 ul#navlinks li {
@@ -87,7 +107,7 @@ a.main-nav-link {
 	border-right: solid 1px #c1c1c1;
 	border-bottom: solid 1px #fff;
 	background-color: #fff;
-	z-index:1000;
+	z-index:50;
 }
 
 .tab-heading {
@@ -430,6 +450,15 @@ h6.sell {
 .navbar-default {
 	border: 0px;
 	margin-top:-2px;
+	z-index:100;
+	border: 0px;
+	background-color: #fff;
+}
+
+.navbar-toggle {
+	background-color: #fff;
+	border: 0px;
+	margin-top: 20px;
 }
 
 .toggle-button {
@@ -454,6 +483,23 @@ h6.sell {
 		margin-top: 25px;
 	}
 
+	ul#navlinks {
+	display: inline;
+	text-align: left;
+	margin-top: 0px;
+	float:left;
+	z-index: 2000;
+}
+
+.navlinks-right1 {
+	font-size: 18px !important;
+}
+
+.navlinks-right2 {
+	font-size: 18px !important;
+}
+
+
 	.active-link-box {
 		display: none;
 	}
@@ -475,6 +521,8 @@ h6.sell {
 	.buy-box2 {
 	padding: 14px 0 30px 33px;
 }
+
+
 }
 
 
@@ -495,12 +543,24 @@ h6.sell {
 
 }
 
-@media screen and (max-width: 992px) and (min-width: 768px) {
+@media screen and (max-width: 992px) and (min-width: 767px) {
 
 	.toplinks {
 	padding: 23px 0px 0px 0px;
 	margin: -85px 0px 0 0px;
 	text-align: right;
+}
+
+.nav {
+	margin-bottom: -250px;
+}
+
+.navlinks-right1 {
+	margin: 30px 5px 0 0px !important;
+}
+
+.navlinks-right2 {
+	margin: 30px -65px 0 5px !important;
 }
 
 }
@@ -511,6 +571,10 @@ h6.sell {
 	margin: -85px 0px 0 150px;
 	text-align: right;
 	}
+
+	.nav {
+	margin-bottom: -250px;
+}
 }
 
 @media screen and (max-width: 6000px) and (min-width: 1200px) {
@@ -519,4 +583,16 @@ h6.sell {
 	margin: -85px 0px 0 335px;
 	text-align: right;
 	}
+
+	.navlinks-right1 {
+	margin: 30px 5px 0 380px !important;
+}
+
+.navlinks-right2 {
+	margin: 30px -5px 0 5px !important;
+}
+
+	.nav {
+	margin-bottom: -250px;
+}
 }
