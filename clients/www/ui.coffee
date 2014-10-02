@@ -350,7 +350,7 @@ $ ->
                 style: "2"
                 hideideas: true
                 hide_top_toolbar: true
-                withdateranges: true
+                withdateranges: false
                 details: false
                 save_image: false
                 show_popup_button: false
@@ -361,6 +361,11 @@ $ ->
             widget.onChartReady () ->
                 sputnik.log("onChartReady")
                 $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
+                $("#tv_chart_container iframe").contents().find(".compare").hide()
+                $("#tv_chart_container iframe").contents().find(".properties").hide()
+                $("#tv_chart_container iframe").contents().find(".indicators").hide()
+                $("#tv_chart_container iframe").contents().find(".getimage").hide()
+                $("#tv_chart_container iframe").contents().find(".chart-status-picture").hide()
 
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
