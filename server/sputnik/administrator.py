@@ -805,9 +805,89 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
+class AdminAPI(Resource):
+    isLeaf = True
+
+    def __init__(self, administrator, avatarId, avatarLevel):
+        self.administrator = administrator
+        self.avatarId = avatarId
+        self.avatarLevel = avatarLevel
+
+    def log(self, request, data):
+        """Log the request
+
+        """
+        log.msg(
+            self.avatarId,
+            request.getClientIP(),
+            request.getUser(),
+            request.method,
+            request.uri,
+            request.clientproto,
+            request.code,
+            request.sentLength or "-",
+            request.getHeader("referer") or "-",
+            request.getHeader("user-agent") or "-",
+            request.getHeader("authorization") or "-",
+            json.dumps(request.args),
+            data)
+
+    def process_request(self, request, data):
+        try:
+            if self.avatarLevel < 4:
+                raise Exception("Insufficient privileges to run Admin API")
+
+            resources = { '/api/withdrawals': self.withdrawals,
+                          '/api/deposits': self.deposits,
+                          '/api/process_withdrawal': self.process_withdrawal,
+                          '/api/manual_deposit': self.manual_deposit
+            }
+            if request.path in resources:
+                return resources[request.path](request, data)
+            else:
+                raise Exception("Invalid request")
+        except Exception as e:
+            return {"error": str(e)}
+
+    def withdrawals(self, request, data):
+        withdrawals = self.administrator.get_withdrawals()
+        return [w.dict for w in withdrawals]
+
+    def deposits(self, request, data):
+        deposits = self.administrator.get_deposits()
+        return [d.dict for d in deposits]
+
+    def process_withdrawal(self, request, data):
+        if 'cancel' in data:
+            cancel = data['cancel']
+            if cancel is True:
+                online = False
+        else:
+            cancel = False
+            if 'online' in data:
+                online = data['online']
+            else:
+                online = False
+
+        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+                                              admin_username=self.avatarId)
+        return {'result': True}
+
+    def manual_deposit(self, request, data):
+        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
+        return {'result': True}
+
+    def render(self, request):
+        data = request.content.read()
+        self.log(request, data)
+        parsed_data = json.loads(data)
+        request.setHeader('content-type', 'application/json')
+        result = self.process_request(request, parsed_data)
+        return json.dumps(result)
+
 
 class AdminWebUI(Resource):
-    isLeaf = True
+    isLeaf = False
 
     def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
         """The web Resource that front-ends the administrator
@@ -847,17 +927,15 @@ class AdminWebUI(Resource):
         return calcHA1('md5', username, realm, password, None, None)
 
     def getChild(self, path, request):
-        """Log a request and return myself
+        """return myself
 
         """
-        self.log(request)
         return self
 
     def log(self, request):
         """Log the request
 
         """
-        line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
         log.msg(
             self.avatarId,
             request.getClientIP(),
@@ -924,9 +1002,11 @@ class AdminWebUI(Resource):
             resource = resource_list[request.path]
             return resource(request)
         except KeyError:
-            # Take me to /
-            request.path = '/'
-            return self.render(request)
+            return self.invalid_request(request)
+
+    def invalid_request(self, request):
+        t = self.jinja_env.get_template("invalid_request.html")
+        return t.render().encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1240,7 +1320,11 @@ class SimpleRealm(object):
             except Exception as e:
                 print "Exception: %s" % e
 
-            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
+            ui_resource.putChild('api', api_resource)
+
+            return IResource, ui_resource, lambda: None
         else:
             raise NotImplementedError
 

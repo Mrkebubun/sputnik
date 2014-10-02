@@ -513,6 +513,16 @@ class Addresses(db.Base, QuantityUI):
         """
         return self.accounted_for
 
+    @property
+    def dict(self):
+        return { 'id': self.id,
+                 'username': self.username,
+                 'contract': self.contract.ticker,
+                 'address': self.address,
+                 'active': self.active,
+                 'accounted_for': self.quantity_fmt
+                 }
+
     def __init__(self, user, contract, address):
         """
 
@@ -589,6 +599,15 @@ class Withdrawal(db.Base, QuantityUI):
     pending = Column(Boolean, nullable=False, server_default=sql.true())
     entered = Column(DateTime, nullable=False)
     completed = Column(DateTime)
+
+    @property
+    def dict(self):
+        return {'id': self.id,
+                'username': self.username,
+                'address': self.address,
+                'contract': self.contract.ticker,
+                'amount': self.quantity_fmt,
+                'entered': util.dt_to_timestamp(self.entered)}
 
     @property
     def quantity(self):
