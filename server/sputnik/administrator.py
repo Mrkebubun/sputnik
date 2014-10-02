@@ -627,7 +627,6 @@ class Administrator:
     def update_bs_cache(self):
         now = datetime.utcnow()
 
-
         balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
                                                                    'total': 0,
                                                                    'positions_raw': []}),
@@ -663,7 +662,8 @@ class Administrator:
             user = self.get_user(row.username)
             contract = self.get_contract(row.contract_id)
             if row.username in balance_sheet[user.type][contract.ticker]['positions_by_user']:
-                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username]['position'] + row.position
+                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username][
+                               'position'] + row.position
             else:
                 position = row.position
 
@@ -675,12 +675,12 @@ class Administrator:
 
             balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
 
-
         for side, sheet in balance_sheet.iteritems():
             for ticker, details in sheet.iteritems():
                 contract = self.get_contract(ticker)
 
-                details['total'] = sum([r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
+                details['total'] = sum(
+                    [r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
                 details['positions_raw'] = balance_sheet[side][ticker]['positions_by_user'].values()
                 details['contract'] = contract.ticker
                 details['total_fmt'] = util.quantity_fmt(contract, details['total'])
@@ -750,6 +750,7 @@ class Administrator:
     @util.timed
     def get_postings(self, user, contract, page=0):
         import time
+
         last = time.time()
 
         all_postings = self.session.query(models.Posting).filter_by(
@@ -805,6 +806,7 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
+
 class AdminAPI(Resource):
     isLeaf = True
 
@@ -831,23 +833,21 @@ class AdminAPI(Resource):
             json.dumps(request.args),
             data)
 
-    def process_request(self, request, data):
-        try:
-            if self.avatarLevel < 4:
-                raise Exception("Insufficient privileges to run Admin API")
+    def process_request(self, request, data=None):
+        if self.avatarLevel < 4:
+            raise Exception("Insufficient privileges to run Admin API")
 
-            resources = { '/api/withdrawals': self.withdrawals,
-                          '/api/deposits': self.deposits,
-                          '/api/process_withdrawal': self.process_withdrawal,
-                          '/api/manual_deposit': self.manual_deposit,
-                          '/api/rescan_address': self.rescan_address,
-            }
-            if request.path in resources:
-                return resources[request.path](request, data)
-            else:
-                raise Exception("Invalid request")
-        except Exception as e:
-            return {"error": str(e)}
+        resources = {'/api/withdrawals': self.withdrawals,
+                     '/api/deposits': self.deposits,
+                     '/api/process_withdrawal': self.process_withdrawal,
+                     '/api/manual_deposit': self.manual_deposit,
+                     '/api/rescan_address': self.rescan_address,
+        }
+        if request.path in resources:
+            return resources[request.path](request, data)
+        else:
+            raise Exception("Invalid request")
+
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
@@ -884,10 +884,18 @@ class AdminAPI(Resource):
     def render(self, request):
         data = request.content.read()
         self.log(request, data)
-        parsed_data = json.loads(data)
         request.setHeader('content-type', 'application/json')
-        result = self.process_request(request, parsed_data)
-        return json.dumps(result)
+        try:
+            if request.method == "GET":
+                result = self.process_request(request)
+            else:
+                parsed_data = json.loads(data)
+                result = self.process_request(request, data=parsed_data)
+        except Exception as e:
+            result = {"error": str(e)}
+
+        return json.dumps(result, sort_keys=True,
+                          indent=4, separators=(',', ': '))
 
 
 class AdminWebUI(Resource):
