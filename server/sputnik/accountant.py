@@ -1069,6 +1069,7 @@ class Accountant:
                 self.session.add(contract)
                 self.session.commit()
             except Exception as e:
+                self.session.rollback()
                 log.err("Unable to mark contract inactive %s" % e)
 
         my_users = [user.username for user in self.get_my_users()]
