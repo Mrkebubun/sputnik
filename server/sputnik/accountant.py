@@ -630,9 +630,15 @@ class Accountant:
         d = self.engines[order.contract.ticker].cancel_order(order_id)
 
         def update_order(result):
-            order.is_cancelled = True
-            self.session.add(order)
-            self.session.commit()
+            try:
+                order.is_cancelled = True
+                self.session.add(order)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                log.err("Unable to commit order cancellation")
+                raise e
+
             return result
 
         def publish_order(result):
@@ -962,9 +968,25 @@ class Accountant:
             models.Order.quantity_left>0).filter_by(
             is_cancelled=False
         )
+        return self.cancel_many_orders(orders)
+
+    def cancel_many_orders(self, orders):
+        deferreds = []
         for order in orders:
-            log.msg("Cancelling user %s order %d" % (user.username, order.id))
-            self.cancel_order(user.username, order.id)
+            log.msg("Cancelling user %s order %d" % (order.username, order.id))
+            d = self.cancel_order(order.username, order.id)
+
+            def cancel_failure(failure):
+                log.err(failure)
+                # Try again?
+                log.msg("Trying again-- Cancelling user %s order %d" % (order.username, order.id))
+                d = self.cancel_order(order.usernamer, order.id)
+                d.addErrback(cancel_failure)
+                return d
+
+            d.addErrback(cancel_failure)
+
+        return defer.DeferredList(deferreds)
 
     def get_my_users(self):
         users = self.session.query(models.User)
@@ -1055,8 +1077,7 @@ class Accountant:
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
             models.Order.quantity_left > 0).filter(
             models.Order.username.in_(my_users))
-        results = [self.cancel_order(order.username, order.id) for order in orders]
-        d = defer.DeferredList(results)
+        d = self.cancel_many_orders(orders)
 
         def after_cancellations(results):
             # Wait until all pending postings have gone through

@@ -373,8 +373,8 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group('short_account', 'Deposit')
         self.set_permissions_group('long_account', 'Deposit')
 
-        self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5300000)
-        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 300000)
+        self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 53000000)
+        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 3000000)
 
 
         # Create some orders
@@ -415,8 +415,8 @@ class TestAdministratorExport(TestAccountant):
                 self.assertEqual(short_positions.filter_by(contract=NETS).one().position, 0)
                 self.assertEqual(long_positions.filter_by(contract=NETS).one().position, 0)
 
-                self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 5300000-5000000)
-                self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 300000+5000000)
+                self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 53000000-5000000)
+                self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 3000000+5000000)
 
                 short_orders = self.session.query(models.Order).filter_by(username='short_account').filter_by(
                     is_cancelled=False).all()
