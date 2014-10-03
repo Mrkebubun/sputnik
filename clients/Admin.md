@@ -1,7 +1,7 @@
 # Administrator interface API
 
 The administrator interface runs over HTTP. Some administrator interface
-actions are available via a RESTful API, which is documented here:
+actions are available via a JSON API, which is documented here:
  
 ## Authentication
 
