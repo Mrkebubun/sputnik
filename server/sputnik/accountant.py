@@ -985,6 +985,7 @@ class Accountant:
                 return d
 
             d.addErrback(cancel_failure)
+            deferreds.append(d)
 
         return defer.DeferredList(deferreds)
 
