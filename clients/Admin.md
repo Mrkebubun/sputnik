@@ -103,4 +103,54 @@ On success:
     result: true
 }
 ```
+
+## Examples
+
+```
+curl --digest -u username:password -H "Content-Type: application/json" \
+    https://demo.m2.io:8080/api/deposits
+```    
+    
+> [
+>    {
+>        "accounted_for": "0.0000",
+>        "active": true,
+>        "address": "0WkKCca341k=",
+>        "contract": "PLN",
+>        "id": 102,
+>        "username": "marketmaker"
+>    }
+> ]    
+
+```
+curl --digest -u username:password -H "Content-Type: application/json" \
+    -d '{ "address": "0WkKCca341k=", "quantity": 324.43 }' \
+    https://demo.m2.io:8080/api/manual_deposit
+```
+    
+> { "result": true }
+
+```
+curl --digest -u username:password -H "Content-Type: application/json" \
+    https://demo.m2.io:8080/api/withdrawals
+```    
+
+> [
+>     {
+>         "address": "23",
+>         "amount": "23.00000000",
+>         "contract": "BTC",
+>         "entered": 1412298366466533,
+>         "id": 3,
+>         "username": "marketmaker"
+>     }
+> ]
+
+```    
+curl --digest -u username:password -H "Content-Type: application/json" \
+    -d '{ "id": 3 }' \
+    https://demo.m2.io:8080/api/process_withdrawal
+```
+
+> { "result": true }
     
