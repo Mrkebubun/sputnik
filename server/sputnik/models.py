@@ -500,7 +500,7 @@ class Addresses(db.Base, QuantityUI):
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
 
-    address = Column(String, nullable=False)
+    address = Column(String, nullable=False, index=True)
     active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
