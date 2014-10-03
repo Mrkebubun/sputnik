@@ -143,9 +143,9 @@ class Order(db.Base, QuantityUI, PriceUI):
     ORDER_REJECTED = -1
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User')
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
     quantity = Column(BigInteger)
     quantity_left = Column(BigInteger)
@@ -154,7 +154,7 @@ class Order(db.Base, QuantityUI, PriceUI):
     is_cancelled = Column(Boolean, nullable=False)
     accepted = Column(Boolean, nullable=False, server_default=sql.false())
     dispatched = Column(Boolean, nullable=False, server_default=sql.false())
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     aggressive_trades = relationship('Trade', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_trades = relationship('Trade', primaryjoin="Order.id==Trade.passive_order_id")
@@ -382,7 +382,7 @@ class Journal(db.Base):
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
                         'Trade', 'Fee', 'Clearing',
                         name='journal_types'), nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
     postings = relationship('Posting', back_populates="journal")
 
     def __init__(self, type, postings, timestamp=None):
@@ -446,15 +446,15 @@ class Posting(db.Base, QuantityUI):
     __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
-    journal_id = Column(Integer, ForeignKey('journal.id'))
+    journal_id = Column(Integer, ForeignKey('journal.id'), index=True)
     journal = relationship('Journal')
-    username = Column(String, ForeignKey('users.username'))
+    username = Column(String, ForeignKey('users.username'), index=True)
     user = relationship('User', back_populates="postings")
     quantity = Column(BigInteger)
     note = Column(String)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<Posting('%s', '%s', %d, '%s')>" % (self.contract, self.user, self.quantity, self.note)
@@ -507,7 +507,7 @@ class Addresses(db.Base, QuantityUI):
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
 
-    address = Column(String, nullable=False)
+    address = Column(String, nullable=False, index=True)
     active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
@@ -519,6 +519,16 @@ class Addresses(db.Base, QuantityUI):
         :returns: int
         """
         return self.accounted_for
+
+    @property
+    def dict(self):
+        return { 'id': self.id,
+                 'username': self.username,
+                 'contract': self.contract.ticker,
+                 'address': self.address,
+                 'active': self.active,
+                 'accounted_for': self.quantity_fmt
+                 }
 
     def __init__(self, user, contract, address):
         """
@@ -598,6 +608,15 @@ class Withdrawal(db.Base, QuantityUI):
     completed = Column(DateTime)
 
     @property
+    def dict(self):
+        return {'id': self.id,
+                'username': self.username,
+                'address': self.address,
+                'contract': self.contract.ticker,
+                'amount': self.quantity_fmt,
+                'entered': util.dt_to_timestamp(self.entered)}
+
+    @property
     def quantity(self):
         """Alias for the purpose of the UI functions
 
@@ -633,13 +652,13 @@ class Trade(db.Base, QuantityUI, PriceUI):
 
     quantity = Column(BigInteger)
     price = Column(BigInteger, nullable=False)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
 
-    contract_id = Column(Integer, ForeignKey('contracts.id'))
+    contract_id = Column(Integer, ForeignKey('contracts.id'), index=True)
     contract = relationship('Contract')
 
-    aggressive_order_id = Column(Integer, ForeignKey('orders.id'))
-    passive_order_id = Column(Integer, ForeignKey('orders.id'))
+    aggressive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
+    passive_order_id = Column(Integer, ForeignKey('orders.id'), index=True)
     aggressive_order = relationship('Order', primaryjoin="Order.id==Trade.aggressive_order_id")
     passive_order = relationship('Order', primaryjoin="Order.id==Trade.passive_order_id")
 

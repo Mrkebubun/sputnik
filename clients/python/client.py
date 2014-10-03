@@ -380,6 +380,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.my_call("get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
+    def getExchangeInfo(self):
+        d = self.my_call("get_exchange_info")
+        d.addCallbacks(pprint, self.onError)
+
     """
     Private RPC Calls
     """
@@ -463,16 +467,19 @@ class BasicBot(TradingBot):
 
     def startAutomation(self):
         # Test the audit
-        self.getAudit()
+        #self.getAudit()
+
+        # Test exchange info
+        self.getExchangeInfo()
 
         # Test some OHLCV history fns
-        self.getOHLCVHistory('BTC/HUF', 'day')
-        self.getOHLCVHistory('BTC/HUF', 'minute')
+        #self.getOHLCVHistory('BTC/HUF', 'day')
+        #self.getOHLCVHistory('BTC/HUF', 'minute')
 
         # Now make an account
-        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
@@ -485,6 +492,20 @@ class BotFactory(WampClientFactory):
         WampClientFactory.__init__(self, url, debugWamp=debugWamp)
         self.username_password = username_password
         self.rate = rate
+        self.conn = None
+
+    def connect(self, context_factory, failure=None):
+        self.conn = connectWS(self, context_factory)
+        def check_status():
+            if self.conn.state != "connected":
+                if failure is None:
+                    print "Unable to connect to %s" % self.url
+                    reactor.stop()
+                else:
+                    failure()
+
+        reactor.callLater(self.conn.timeout, check_status)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -514,5 +535,5 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    conn = connectWS(factory, contextFactory)
+    factory.connect(contextFactory)
     reactor.run()

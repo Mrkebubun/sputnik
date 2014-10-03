@@ -698,7 +698,7 @@ class Accountant:
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                raise Accountant(0, "invalid price or quantity")
+                raise AccountantException(0, "invalid price or quantity")
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:

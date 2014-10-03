@@ -136,6 +136,9 @@ corresponding server objects. Each is encoded in JSON.
 ### get_markets()
 Take no arguments. Returns a ticker-indexed dictionary of contracts corresponding to currently active markets.
 
+### get_exchange_info()
+Takes no arguments. Gets information about the exchange running here.
+
 ### get_trade_history(ticker, start_timestamp, end_timestamp)
 
 ticker must be a string. It must be one of the active markets. Returns a time sorted array of trades.

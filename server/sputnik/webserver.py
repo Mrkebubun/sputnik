@@ -196,6 +196,10 @@ class PublicInterface:
                                "tick_size, lot_size, margin_high, margin_low,"
                                "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts").addCallback(_cb)
 
+    @exportRpc("get_exchange_info")
+    def get_exchange_info(self):
+        return [True, self.factory.exchange_info]
+
     @exportRpc("get_markets")
     def get_markets(self):
         """
@@ -1446,7 +1450,7 @@ class PepsiColaServerFactory(WampServerFactory):
 
     # noinspection PyPep8Naming
     def __init__(self, url, base_uri, accountant, administrator, cashier, compropago,
-                 recaptcha, debugWamp=False, debugCodePaths=False):
+                 recaptcha, debugWamp=False, debugCodePaths=False, exchange_info={}):
         """
 
         :param url:
@@ -1479,6 +1483,7 @@ class PepsiColaServerFactory(WampServerFactory):
 
         self.compropago = compropago
         self.recaptcha = recaptcha
+        self.exchange_info = exchange_info
 
 
     def update_ohlcv(self, trade, period="day", update_feed=False):
@@ -1700,8 +1705,10 @@ if __name__ == '__main__':
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
+    exchange_info = { 'name': config.get("webserver", "exchange_name") }
+
     factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
-                                     debugWamp=debug, debugCodePaths=debug)
+                                     debugWamp=debug, debugCodePaths=debug, exchange_info=exchange_info)
     factory.protocol = PepsiColaServerProtocol
 
     engine_export = EngineExport(factory)

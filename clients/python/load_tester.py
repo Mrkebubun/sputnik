@@ -86,6 +86,9 @@ if __name__ == '__main__':
         else:
             contextFactory = None
 
-        connectWS(factory, contextFactory)
+        def failure():
+            print "Unable to connect: %d" % i
+
+        factory.connect(contextFactory, failure=failure)
 
     reactor.run()

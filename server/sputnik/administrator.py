@@ -331,6 +331,7 @@ class Administrator:
         admin_users = self.session.query(models.AdminUser).all()
         return admin_users
 
+    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -652,7 +653,6 @@ class Administrator:
     def update_bs_cache(self):
         now = datetime.utcnow()
 
-
         balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
                                                                    'total': 0,
                                                                    'positions_raw': []}),
@@ -688,7 +688,8 @@ class Administrator:
             user = self.get_user(row.username)
             contract = self.get_contract(row.contract_id)
             if row.username in balance_sheet[user.type][contract.ticker]['positions_by_user']:
-                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username]['position'] + row.position
+                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username][
+                               'position'] + row.position
             else:
                 position = row.position
 
@@ -700,12 +701,12 @@ class Administrator:
 
             balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
 
-
         for side, sheet in balance_sheet.iteritems():
             for ticker, details in sheet.iteritems():
                 contract = self.get_contract(ticker)
 
-                details['total'] = sum([r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
+                details['total'] = sum(
+                    [r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
                 details['positions_raw'] = balance_sheet[side][ticker]['positions_by_user'].values()
                 details['contract'] = contract.ticker
                 details['total_fmt'] = util.quantity_fmt(contract, details['total'])
@@ -737,7 +738,7 @@ class Administrator:
 
         return balance_sheet
 
-
+    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
@@ -754,14 +755,17 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         return contract
 
+    @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
 
+    @util.timed
     def get_deposits(self):
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
 
+    @util.timed
     def get_orders(self, user, page=0):
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
@@ -769,14 +773,33 @@ class Administrator:
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
+    @util.timed
     def get_postings(self, user, contract, page=0):
+        import time
+
+        last = time.time()
+
         all_postings = self.session.query(models.Posting).filter_by(
-            user=user).filter_by(
-            contract=contract)
+            username=user.username).filter_by(
+            contract_id=contract.id)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_count = all_postings.count()
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+        last = now
+
         postings_pages = int(postings_count / self.page_size) + 1
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
+
+        now = time.time()
+        log.msg("Elapsed: %0.2fms" % ((now - last) * 1000))
+
         return postings, postings_pages
 
     def change_permission_group(self, username, id):
@@ -810,8 +833,99 @@ class Administrator:
         self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
-class AdminWebUI(Resource):
+class AdminAPI(Resource):
     isLeaf = True
+
+    def __init__(self, administrator, avatarId, avatarLevel):
+        self.administrator = administrator
+        self.avatarId = avatarId
+        self.avatarLevel = avatarLevel
+
+    def log(self, request, data):
+        """Log the request
+
+        """
+        log.msg(
+            self.avatarId,
+            request.getClientIP(),
+            request.getUser(),
+            request.method,
+            request.uri,
+            request.clientproto,
+            request.code,
+            request.sentLength or "-",
+            request.getHeader("referer") or "-",
+            request.getHeader("user-agent") or "-",
+            json.dumps(request.args),
+            data)
+
+    def process_request(self, request, data=None):
+        if self.avatarLevel < 4:
+            raise Exception("Insufficient privileges to run Admin API")
+
+        resources = {'/api/withdrawals': self.withdrawals,
+                     '/api/deposits': self.deposits,
+                     '/api/process_withdrawal': self.process_withdrawal,
+                     '/api/manual_deposit': self.manual_deposit,
+                     '/api/rescan_address': self.rescan_address,
+        }
+        if request.path in resources:
+            return resources[request.path](request, data)
+        else:
+            raise Exception("Invalid request")
+
+
+    def withdrawals(self, request, data):
+        withdrawals = self.administrator.get_withdrawals()
+        return [w.dict for w in withdrawals if w.pending]
+
+    def deposits(self, request, data):
+        deposits = self.administrator.get_deposits()
+        return [d.dict for d in deposits]
+
+    def rescan_address(self, request, data):
+        self.administrator.cashier.rescan_address(data['address'])
+        return {'result': True}
+
+    def process_withdrawal(self, request, data):
+        if 'cancel' in data:
+            cancel = data['cancel']
+            if cancel is True:
+                online = False
+        else:
+            cancel = False
+            if 'online' in data:
+                online = data['online']
+            else:
+                online = False
+
+        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+                                              admin_username=self.avatarId)
+        return {'result': True}
+
+    def manual_deposit(self, request, data):
+        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
+        return {'result': True}
+
+    def render(self, request):
+        data = request.content.read()
+        self.log(request, data)
+        request.setHeader('content-type', 'application/json')
+        try:
+            if request.method == "GET":
+                result = self.process_request(request)
+            else:
+                parsed_data = json.loads(data)
+                result = self.process_request(request, data=parsed_data)
+        except Exception as e:
+            result = {"error": str(e)}
+
+        return json.dumps(result, sort_keys=True,
+                          indent=4, separators=(',', ': '))
+
+
+class AdminWebUI(Resource):
+    isLeaf = False
 
     def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
         """The web Resource that front-ends the administrator
@@ -851,17 +965,15 @@ class AdminWebUI(Resource):
         return calcHA1('md5', username, realm, password, None, None)
 
     def getChild(self, path, request):
-        """Log a request and return myself
+        """return myself
 
         """
-        self.log(request)
         return self
 
     def log(self, request):
         """Log the request
 
         """
-        line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
         log.msg(
             self.avatarId,
             request.getClientIP(),
@@ -873,7 +985,6 @@ class AdminWebUI(Resource):
             request.sentLength or "-",
             request.getHeader("referer") or "-",
             request.getHeader("user-agent") or "-",
-            request.getHeader("authorization") or "-",
             json.dumps(request.args))
 
     def render(self, request):
@@ -929,9 +1040,11 @@ class AdminWebUI(Resource):
             resource = resource_list[request.path]
             return resource(request)
         except KeyError:
-            # Take me to /
-            request.path = '/'
-            return self.render(request)
+            return self.invalid_request(request)
+
+    def invalid_request(self, request):
+        t = self.jinja_env.get_template("invalid_request.html")
+        return t.render().encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1069,6 +1182,7 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template('admin.html')
         return t.render(username=self.avatarId).encode('utf-8')
 
+    @util.timed
     def user_orders(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1078,6 +1192,7 @@ class AdminWebUI(Resource):
                             min_range=max(page - 10, 0), max_range=min(order_pages, page + 10))
         return rendered.encode('utf-8')
 
+    @util.timed
     def user_postings(self, request):
         user = self.administrator.get_user(request.args['username'][0])
         page = int(request.args['page'][0])
@@ -1094,6 +1209,7 @@ class AdminWebUI(Resource):
         return rendered.encode('utf-8')
 
 
+    @util.timed
     def user_details(self, request):
         """Show all the details for a particular user
 
@@ -1103,18 +1219,6 @@ class AdminWebUI(Resource):
         self.administrator.expire_all()
 
         user = self.administrator.get_user(request.args['username'][0])
-        postings_by_ticker = {}
-        for position in user.positions:
-            if 'positions_page_%s' % position.contract.ticker in request.args:
-                page = int(request.args['postings_page_%s' % position.contract.ticker][0])
-            else:
-                page = 0
-            postings, posting_pages = self.administrator.get_postings(user, position.contract, page=page)
-            postings_by_ticker[position.contract.ticker] = {'postings': postings,
-                                                            'posting_pages': posting_pages,
-                                                            'page': page,
-                                                            'min_range': max(page - 10, 0),
-                                                            'max_range': min(posting_pages, page + 10)}
         permission_groups = self.administrator.get_permission_groups()
         zendesk_domain = self.administrator.zendesk_domain
 
@@ -1126,7 +1230,7 @@ class AdminWebUI(Resource):
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
 
         t = self.jinja_env.get_template('user_details.html')
-        rendered = t.render(user=user, postings_by_ticker=postings_by_ticker,
+        rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
@@ -1258,7 +1362,11 @@ class SimpleRealm(object):
             except Exception as e:
                 print "Exception: %s" % e
 
-            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
+            ui_resource.putChild('api', api_resource)
+
+            return IResource, ui_resource, lambda: None
         else:
             raise NotImplementedError
 
