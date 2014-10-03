@@ -980,7 +980,7 @@ class Accountant:
                 log.err(failure)
                 # Try again?
                 log.msg("Trying again-- Cancelling user %s order %d" % (order.username, order.id))
-                d = self.cancel_order(order.usernamer, order.id)
+                d = self.cancel_order(order.username, order.id)
                 d.addErrback(cancel_failure)
                 return d
 
