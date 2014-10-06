@@ -116,7 +116,7 @@
                     <div class="row">
                         <div class="col-sm-12">
                             {{#sputnik.types:type}}
-                            <div class={{current_type == type ? "tab-active" : "tab-inactive"}}>
+                            <div class="{{current_type == type ? 'tab-active' : 'tab-inactive'}}">
                                 <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{type_alias[type]}}</a></h4>
                             </div>
                             {{/}}
@@ -126,7 +126,7 @@
                         <div class="col-sm-12 content">
                             <div class="contracts" id="contracts">
                                 {{#sputnik.types[current_type]}}
-                                <a href="#" class={{current_ticker == this ? "active-link-box" : "inactive-link-box"}} on-click="switch_contract">{{this}}</a>
+                                <a href="#" class="{{current_ticker == this ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_contract">{{this}}</a>
                                 {{/}}
 
                                 <select value="{{current_ticker}}" class="form-control contract-select">
@@ -338,7 +338,7 @@
                                                 </thead>
                                                 <tbody id="bids">
                                                     {{#sputnik.books[current_ticker].bids:i}}
-                                                    <tr class={{i == 0 ? 'alert-success' : '' }}>
+                                                    <tr class="{{i == 0 ? 'alert-success' : '' }}">
                                                         <td>{{price}}</td>
                                                         <td>{{quantity}}</td>
                                                     </tr>
@@ -355,7 +355,7 @@
                                                 </thead>
                                                 <tbody id="asks">
                                                     {{#sputnik.books[current_ticker].asks:i}}
-                                                    <tr class={{i == 0 ? 'alert-success' : '' }}>
+                                                    <tr class="{{i == 0 ? 'alert-success' : '' }}">
                                                         <td>{{price}}</td>
                                                         <td>{{quantity}}</td>
                                                     </tr>
