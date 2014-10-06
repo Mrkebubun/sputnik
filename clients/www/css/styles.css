@@ -1,14 +1,26 @@
 body {
 	background-color: #f1f1f1;
-	font: 13px "Lato", Helvetica, sans-serif;
+	font: 300 14px "Lato", Helvetica, sans-serif;
 	color: #4b4b4b;
 }
 
-.navbar {
+.navbar2 {
 	height: 67px;
 	background-color: #fff;
 	border-bottom: solid 1px #c1c1c1;
 	text-align: left;
+}
+
+
+
+.navbar {
+	z-index: 100;
+
+}
+
+.navbar-header {
+	z-index:100;
+
 }
 
 h1.logotext {
@@ -35,8 +47,17 @@ h1.logotext {
 ul#navlinks {
 	display: inline;
 	text-align: right;
-	margin-top: 22px;
+	margin-top: -52px;
 	float:left;
+	z-index: 2000;
+}
+
+.navlinks-right1 {
+	margin: 30px 5px 0 170px !important;
+}
+
+.navlinks-right2 {
+	margin: 30px 5px 0 5px !important;
 }
 
 ul#navlinks li {
@@ -86,11 +107,42 @@ a.main-nav-link {
 	border-right: solid 1px #c1c1c1;
 	border-bottom: solid 1px #fff;
 	background-color: #fff;
-	z-index:1000;
+	z-index:50;
 }
 
 .tab-heading {
 	font: 300 16px "Lato", Helvetica, sans-serif;
+}
+
+h2.dashboard-heading {
+	font-size: 26px;
+	margin-left: 21px;
+	margin-top: 45px;
+}
+
+.subheading {
+	margin-top: 35px;
+	font-size: 21px;
+}
+
+.dashboard-graph {
+	height: 50px;
+	background-color: #444444;
+	margin: 25px 80px 30px 20px;
+}
+
+.dashboard-row {
+	margin-left: 5px;
+	margin-right: 15px;
+}
+
+.dashboard-zoom {
+	float: left;
+	margin-right:10px;
+}
+
+.dashboard-zoombar {
+	text-align: right;
 }
 
 .content {
@@ -106,6 +158,11 @@ a.main-nav-link {
 	margin: 0 -15px 0  -15px;
 }
 
+.contracts2 {
+	padding: 38px 35px;
+	margin: 0 -15px 0  -15px;
+}
+
 .active-link-box {
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
@@ -116,6 +173,37 @@ a.main-nav-link {
   background: #33cc66;
   padding: 8px 17px 8px 17px;
   text-decoration: none;
+}
+
+.button-link-box {
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  font-family: Arial;
+  color: #ffffff;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #33cc66;
+  padding: 8px 17px 8px 17px;
+  text-decoration: none;
+  box-shadow: 0px 5px 0px #2da354;
+  margin-bottom: 40px;
+  margin-left: 21px;
+  margin-top: 35px;
+}
+
+.button-link-box2 {
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  font-family: Arial;
+  color: #ffffff;
+  font: 300 15px "Lato", Helvetica, sans-serif;
+  background: #33cc66;
+  padding: 8px 17px 8px 17px;
+  text-decoration: none;
+  box-shadow: 0px 5px 0px #2da354;
+  margin-bottom: 40px;
+  margin-top: 35px;
 }
 
 .active-link-box:hover {
@@ -188,7 +276,7 @@ a.main-nav-link {
   float: left;
   border-left: 1px solid #b5b5b5;
   border-right: 1px solid #b5b5b5;
-  box-shadow: 0px 6px 0px #c9c8c8;
+  box-shadow: 0px 5px 0px #c9c8c8;
 }
 
 .inactive-link-box-zoom2 {
@@ -201,7 +289,7 @@ a.main-nav-link {
   text-decoration: none;
   border-left: 1px solid #b5b5b5;
   float: left;	
-  box-shadow: 0px 6px 0px #c9c8c8;
+  box-shadow: 0px 5px 0px #c9c8c8;
 }
 
 .inactive-link-box-zoom3 {
@@ -226,6 +314,12 @@ a:hover {
 
 p {
 	font: 300 14px "Lato", Helvetica, sans-serif;
+}
+
+span.dates {
+	font: 300 14px "Lato", Helvetica, sans-serif;
+	margin-top: 52px;
+	display: block;
 }
 
 .contract-overview {
@@ -428,6 +522,15 @@ h6.sell {
 .navbar-default {
 	border: 0px;
 	margin-top:-2px;
+	z-index:100;
+	border: 0px;
+	background-color: #fff;
+}
+
+.navbar-toggle {
+	background-color: #fff;
+	border: 0px;
+	margin-top: 20px;
 }
 
 .toggle-button {
@@ -445,12 +548,264 @@ h6.sell {
 	margin: 27px 37px 0 16px;
 }
 
+/*-- Account - Transaction History --*/
+
+.dropdown-left {
+	margin-left: 25px;
+	margin-top: 18px;
+	border: 0px;
+}
+
+.dropdown-menu-left {
+	margin-left: 35px;
+}
+
+.table-full {
+	width: 95%;
+	margin: 30px 20px 40px 25px;
+}
+
+.table-date {
+	width: 20%;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+	padding-bottom: 10px;
+}
+
+.table-type {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-debit {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-credit {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-balance {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-note {
+	width: 20%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-bottom: solid 1px #ccc;
+}
+
+.cell-type {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-debit {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-credit {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-balance {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-note {
+	padding: 10px 0 10px 10px;
+}
+
+.cell-date {
+	padding: 10px 0 10px 0;
+	border-right: 1px solid #ccc;
+}
+
+
+/*-- Dashboard - All Orders --*/
+
+.table-contract {
+	width: 25%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-type2 {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-price {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-quantity {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-cancel {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-bottom: solid 1px #ccc;
+}
+
+.cell-contract {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-type2 {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-price {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-quantity {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-cancel {
+	padding: 10px 0 10px 0;
+
+}
+
+/*-- Audit --*/
+
+.asset-select {
+	margin: 0 0 -10px 21px;
+}
+
+.table-id {
+	width: 75%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-right: solid 1px #ccc;
+	border-bottom: solid 1px #ccc;
+}
+
+.table-amount {
+	width: 15%;
+	padding-left: 10px;
+	padding-bottom: 10px;
+	border-bottom: solid 1px #ccc;
+}
+
+.cell-id {
+	padding: 10px 0 10px 10px;
+	border-right: 1px solid #ccc;
+}
+
+.cell-amount {
+	padding: 10px 0 10px 10px;
+
+}
+
+
+
+/*-- Account - Funding - Deposit --*/
+
+.text-balance {
+	margin: 25px 0 0px 21px;
+
+}
+
+.deposit-content {
+	margin: 10px 0 35px 21px;
+}
+
+.deposit-heading {
+	margin: 35px 0 0 21px;
+}
+
+.content-push {
+	margin-bottom: 100px;
+}
+
+
+/*-- Account - Funding - Withdraw --*/
+
+.deposit-content2 {
+	margin: 10px 35px 35px 21px;
+}
+
+.form-label {
+	padding-top: 6px;
+}
+
+.form-label2 {
+	padding-top: 6px;
+	margin-bottom: 35px;
+}
+
+.form-row {
+	margin-bottom: 20px;
+}
+
+.header-sub2 {
+	margin-bottom: 20px;
+}
+
 /*-- Media Queries --*/
 
 @media screen and (max-width: 768px) and (min-width: 120px) {
 	.contract-overview-info2 {
 		margin-top: 25px;
 	}
+
+	ul#navlinks {
+	display: inline;
+	text-align: left;
+	margin-top: 0px;
+	float:left;
+	z-index: 2000;
+}
+
+.navlinks-right1 {
+	font-size: 18px !important;
+}
+
+.navlinks-right2 {
+	font-size: 18px !important;
+}
+
 
 	.active-link-box {
 		display: none;
@@ -473,6 +828,19 @@ h6.sell {
 	.buy-box2 {
 	padding: 14px 0 30px 33px;
 }
+
+.field-date {
+	float: right;
+	width: 83%;
+	margin-top: -23px;
+	margin-right: 25px;
+}
+
+span.dates {
+	margin-left: 25px;
+}
+
+
 }
 
 
@@ -493,12 +861,28 @@ h6.sell {
 
 }
 
-@media screen and (max-width: 992px) and (min-width: 768px) {
+@media screen and (max-width: 992px) and (min-width: 767px) {
 
 	.toplinks {
 	padding: 23px 0px 0px 0px;
 	margin: -85px 0px 0 0px;
 	text-align: right;
+}
+
+
+
+.navlinks-right1 {
+	margin: 30px 5px 0 0px !important;
+}
+
+.navlinks-right2 {
+	margin: 30px -65px 0 5px !important;
+}
+
+.field-date {
+	float: right;
+	width: 60%;
+	margin-top: -23px;
 }
 
 }
@@ -509,6 +893,13 @@ h6.sell {
 	margin: -85px 0px 0 150px;
 	text-align: right;
 	}
+
+.field-date {
+	float: right;
+	width: 70%;
+	margin-top: -23px;
+}
+
 }
 
 @media screen and (max-width: 6000px) and (min-width: 1200px) {
@@ -517,4 +908,25 @@ h6.sell {
 	margin: -85px 0px 0 335px;
 	text-align: right;
 	}
+
+
+	.navlinks-right1 {
+	margin: 30px 5px 0 350px !important;
 }
+
+.navlinks-right2 {
+	margin: 30px -5px 0 5px !important;
+}
+
+.navlinks-right3 {
+	margin: 30px -5px 0 5px !important;
+}
+
+.field-date {
+	float: right;
+	width: 74%;
+	margin-top: -23px;
+}
+
+}
+
