@@ -71,12 +71,6 @@ $ ->
             $('#main_page').show()
             $('#not_connected').hide()
 
-            # Hide not-logged in stuff
-            $('#account-btn').hide()
-            $('#contract-balances,#buy-sell-orders').hide()
-            $('#logged_in').hide()
-            #$('#contract').hide()
-
             # Hide stuff by default
             for page in ['trade', 'account']
                 $("#page-#{page}").hide()
@@ -101,14 +95,6 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
 
-            #$("#login-div").hide()
-            #$("#login_name").text username
-            #$("#acct_management_username").val username
-            #$("#logged_in").show()
-
-            $('#account-btn').show()
-
-            $("#contract-balances,#buy-sell-orders").fadeIn()
             sputnik.getCookie()
 
         sputnik.on "cookie", (uid) ->

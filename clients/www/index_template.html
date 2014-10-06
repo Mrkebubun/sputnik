@@ -85,20 +85,20 @@
                                     <ul id="navlinks" class="nav navbar-nav">
                                         <li><a href="#" id="dashboard-btn" onclick="show_page('dashboard');" class="main-nav-link">Dashboard</a></li>
                                         <li><a href="#" id="trade-btn" onclick="show_page('trade');" class="main-nav-link">Trade</a></li>
-                                        <li><a href="#" id="account-btn" onclick="show_page('account');" class="main-nav-link">Account</a></li>
                                         {{#if sputnik.logged_in}}
-                                            <li class="navlinks-right3">
-                                                <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="logout-menu" data-toggle="dropdown">
-                                                    <span id="login_name">{{sputnik.username}}</span>
-                                                    <span class="caret"></span>
-                                                    <ul class="dropdown-menu" role="menu" aria-labelledby="logout-menu">
-                                                        <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="logout">Logout</a></li>
-                                                    </ul>
-                                                </button>
-                                            </li>
+                                        <li><a href="#" id="account-btn" onclick="show_page('account');" class="main-nav-link">Account</a></li>
+                                        <li class="navlinks-right3">
+                                            <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="logout-menu" data-toggle="dropdown">
+                                                <span id="login_name">{{sputnik.username}}</span>
+                                                <span class="caret"></span>
+                                                <ul class="dropdown-menu" role="menu" aria-labelledby="logout-menu">
+                                                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="logout">Logout</a></li>
+                                                </ul>
+                                            </button>
+                                        </li>
                                         {{else}}
-                                            <li class="navlinks-right1"><a href="#" id="login">Login</a></li>
-                                            <li class="navlinks-right2"><a href="#" id="register">Register</a></li>
+                                        <li class="navlinks-right1"><a href="#" id="login">Login</a></li>
+                                        <li class="navlinks-right2"><a href="#" id="register">Register</a></li>
                                         {{/if}}
                                     </ul>
                                 </div><!-- /.navbar-collapse -->
@@ -160,6 +160,7 @@
                                                 Ask: {{sputnik.books[current_ticker].best_ask.price}}
                                             </p>
                                         </div>
+                                        {{#if sputnik.logged_in}}
                                         <div id="contract-balances" class="col-sm-6">
                                             {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
                                             <div id="cash_pair-balance">
@@ -197,8 +198,10 @@
                                             </div>
                                             {{/if}}
                                         </div>
+                                        {{/if}}
                                     </div>
                                 </div>
+                                {{#if sputnik.logged_in}}
                                 <div class="buy-sell-orders" id="buy-sell-orders">
                                     <div class="row">
                                         <div class="col-sm-3 buy-box">
@@ -295,6 +298,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                {{/if}}
                                 <div class="row">
                                     <div class="col-sm-3 recent-trades-box">
                                         <a href="#" class="active-link-box-sml" id="trades-btn">Recent Trades</a>
