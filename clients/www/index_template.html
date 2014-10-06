@@ -375,14 +375,12 @@
                 <div class="container">
                     <div class="row">
                         <div class="col-sm-12">
-                            <div class="tab-active" id="tab-active-contracts">
+                            <div class="tab-active" id="tab-cash_pair">
                                 <h4 class="tab-heading"><a href="#" class="tablink">Most Active Contracts</a></h4>
                             </div>
-                            {{#if sputnik.logged_in}}
-                            <div class="tab-inactive" id="tab-all-orders">
+                            <div class="tab-inactive" id="tab-futures">
                                 <h4 class="tab-heading"><a href="#" class="tablink">All Orders</a></h4>
                             </div>
-                            {{/if}}
                         </div>
                     </div>
                     <div id="most-active">
@@ -400,7 +398,6 @@
                             </div>
                         </div>
                     </div>
-                    {{#if sputnik.logged_in}}
                     <div id="allorders">
                         <div class="row">
                             <div class="col-sm-12">
@@ -420,22 +417,20 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {{#sputnik.orders:id}}
                                             <tr class="cells">
-                                                <td class="cell-contract">{{contract}}</td>
-                                                <td class="cell-type2">{{side}}</td>
-                                                <td class="cell-price">{{price}}</td>
-                                                <td class="cell-quantity">{{quantity_left}}</td>
+                                                <td class="cell-contract">BTC</td>
+                                                <td class="cell-type2">Type</td>
+                                                <td class="cell-price">$4,300.00</td>
+                                                <td class="cell-quantity">25</td>
                                                 <td class="cell-cancel">&nbsp;&nbsp;<button onclick='sputnik.cancelOrder({{id}})' class="cancel-button"><img src="images/cancel.png"/></button></td></td>
+
                                             </tr>
-                                            {{/}}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    {{/if}}
                 </div>
             </div>
         </div>
