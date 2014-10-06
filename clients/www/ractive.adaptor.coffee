@@ -10,6 +10,7 @@ class RactiveSputnikWrapper
         @trade_history = {}
         @orders = []
         @ohlcv = {}
+        @currencies = {}
 
         @sputnik.on "auth_success", (username) =>
             @logged_in = true
@@ -28,9 +29,12 @@ class RactiveSputnikWrapper
                     @markets[ticker] = market
                     type = market.contract_type
                     (@types[type] or (@types[type] = [])).push ticker
+                else
+                    @currencies[ticker] = market
 
             @notify "markets"
             @notify "types"
+            @notify "currencies"
 
         @sputnik.on "book", (book) =>
             @sputnik.log ["book", book]
@@ -141,6 +145,7 @@ class RactiveSputnikWrapper
         trade_history: @trade_history
         orders: @orders
         ohlcv: @ohlcv
+        currencies: @currencies
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

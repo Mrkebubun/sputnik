@@ -30,6 +30,7 @@ $ ->
                 sputnik: sputnik
                 current_ticker: null
                 current_type: "cash_pair"
+                current_currency: null
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -46,6 +47,9 @@ $ ->
 
             switch_contract: (event) ->
                 ractive.set "current_ticker", event.context
+
+            switch_currency: (event, currency) ->
+                ractive.set "current_currency", currency
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?

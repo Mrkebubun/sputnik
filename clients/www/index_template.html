@@ -497,13 +497,13 @@
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
-                                                US Dollars
                                                 <span class="caret"></span>
+                                                {{sputnik.currencies[current_currency].description}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Bitcoin</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
                                             </ul>
 
                                         </div>
@@ -544,19 +544,19 @@
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
-                                                US Dollars
                                                 <span class="caret"></span>
+                                                {{sputnik.currencies[current_currency].description}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-2">
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Bitcoin</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
                                             </ul>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <p class="text-balance">USD Balance: <strong>$34,302.02</strong></p>
+                                            <p class="text-balance">{{current_currency}} Balance: <strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -587,23 +587,24 @@
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
-                                                US Dollars
                                                 <span class="caret"></span>
+                                                {{sputnik.currencies[current_currency].description}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-3">
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Bitcoin</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
                                             </ul>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-3">
-                                            <p class="text-balance">USD Balance:</p>
-                                            <p class="text-balance"> <strong>$34,302.02</strong></p>
+                                            <p class="text-balance">{{current_currency}} Balance:</p>
+                                            <p class="text-balance"> <strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                         <div class="col-sm-4">
-                                            <p class="text-balance">USD Balance Available for Withdrawal:</p> <p class="text-balance"><strong>$34,302.02</strong></p>
+                                            <!-- TODO: Update balance available for withdrawal -->
+                                            <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                     </div>
                                     <div class="row">
