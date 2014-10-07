@@ -36,7 +36,7 @@ $ ->
                 account_tab: "user-information"
                 fh_tab: "deposit"
                 tb_tab: "trades"
-                audit_tab: "liability"
+                audit_tab: "Liability"
                 audit_contract: "BTC"
                 type_alias:
                     "cash_pair": "Cash"
@@ -88,6 +88,10 @@ $ ->
             switch_audit_tab: (event, tab) ->
                 event.original.preventDefault()
                 ractive.set "audit_tab", tab
+
+            switch_audit_contract: (event, ticker) ->
+                event.original.preventDefault()
+                ractive.set "audit_contract", ticker
 
             withdraw: (event, type) ->
                 event.original.preventDefault()
@@ -509,48 +513,48 @@ $ ->
             $('#new_nickname').val profile.nickname
             $('#new_email').val profile.email
 
-        sputnik.on "audit_details", (audit) ->
-            $('#audit_timestamp').text audit.timestamp
-            for account_type in ['assets', 'liabilities']
-                $output = []
-                $output.push '<ul class="nav nav-tabs">'
-                for own currency_code, currency of audit[account_type]
-                    $output.push '<li><a href="#' + account_type + '_' + currency_code + '" data-toggle="tab">' + currency_code + '</a></li>'
-
-                $output.push '</ul>'
-
-                $output.push '<div class="tab-content">'
-                for own currency_code, currency of audit[account_type]
-                    $output.push '<div class="tab-pane" id="' + account_type + '_' + currency_code + '">'
-
-                    $output.push('<table id="audit_' + account_type + '_' + currency_code +
-                        '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th><th class="text-right">Amount</th></tr></thead><tbody>')
-                    #Positions
-                    for position in currency.positions
-                        audit_hash = position[0]
-
-                        audit_amount = position[1].toFixed(sputnik.getQuantityPrecision(currency_code))
-
-                        row_class = ''
-                        if audit_hash is my_audit_hash
-                            row_class = "class='alert-success'"
-
-                        $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
-                            "<td class='text-right'>#{audit_amount}</td></tr>")
-                    #Total
-                    currency_total = currency.total.toFixed(sputnik.getQuantityPrecision(currency_code))
-
-                    $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
-                    $output.push "</div>"
-
-                $output.push '</div>'
-                html = $output.join('')
-                console.log "[ui:426 - html]", html
-                $("#audit_#{account_type}").html(html)
-
-        sputnik.on "audit_hash", (audit_hash) ->
-            window.my_audit_hash = audit_hash
-            $('#audit_hash').text audit_hash
+#        sputnik.on "audit_details", (audit) ->
+#            $('#audit_timestamp').text audit.timestamp
+#            for account_type in ['assets', 'liabilities']
+#                $output = []
+#                $output.push '<ul class="nav nav-tabs">'
+#                for own currency_code, currency of audit[account_type]
+#                    $output.push '<li><a href="#' + account_type + '_' + currency_code + '" data-toggle="tab">' + currency_code + '</a></li>'
+#
+#                $output.push '</ul>'
+#
+#                $output.push '<div class="tab-content">'
+#                for own currency_code, currency of audit[account_type]
+#                    $output.push '<div class="tab-pane" id="' + account_type + '_' + currency_code + '">'
+#
+#                    $output.push('<table id="audit_' + account_type + '_' + currency_code +
+#                        '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th><th class="text-right">Amount</th></tr></thead><tbody>')
+#                    #Positions
+#                    for position in currency.positions
+#                        audit_hash = position[0]
+#
+#                        audit_amount = position[1].toFixed(sputnik.getQuantityPrecision(currency_code))
+#
+#                        row_class = ''
+#                        if audit_hash is my_audit_hash
+#                            row_class = "class='alert-success'"
+#
+#                        $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
+#                            "<td class='text-right'>#{audit_amount}</td></tr>")
+#                    #Total
+#                    currency_total = currency.total.toFixed(sputnik.getQuantityPrecision(currency_code))
+#
+#                    $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
+#                    $output.push "</div>"
+#
+#                $output.push '</div>'
+#                html = $output.join('')
+#                console.log "[ui:426 - html]", html
+#                $("#audit_#{account_type}").html(html)
+#
+#        sputnik.on "audit_hash", (audit_hash) ->
+#            window.my_audit_hash = audit_hash
+#            $('#audit_hash').text audit_hash
 
 #        sputnik.on "transaction_history", (transaction_histories) ->
 #            html = []

@@ -871,15 +871,16 @@
                                         <h2 class="dashboard-heading">Audit</h2>
                                     </div>
                                 </div>
-                                {{sputnik.audit.timestamp}}
+                                <p>Timestamp: {{sputnik.audit.timestamp}}</p>
+                                <p>My Hash: {{sputnik.audit_hash}}</p>
                                 <div class="row">
                                     <div class="col-sm-12">
                                         <div class="contracts2">
-                                            <a href="#" on-click="switch_audit_tab:asset" class="{{audit_tab == 'asset' ? 'active-link-box' : 'inactive-link-box'}}">Assets</a>
-                                            <a href="#" on-click="switch_audit_tab:liability" class="{{audit_tab == 'liability' ? 'active-link-box' : 'inactive-link-box'}}">Liabilities</a>
+                                            <a href="#" on-click="switch_audit_tab:Asset" class="{{audit_tab == 'Asset' ? 'active-link-box' : 'inactive-link-box'}}">Assets</a>
+                                            <a href="#" on-click="switch_audit_tab:Liability" class="{{audit_tab == 'Liability' ? 'active-link-box' : 'inactive-link-box'}}">Liabilities</a>
                                             <select class="form-control contract-select" value="{{audit_tab}}">
-                                                <option value="asset">Assets</option>
-                                                <option value="liability">Liabilities</option>
+                                                <option value="Asset">Assets</option>
+                                                <option value="Liability">Liabilities</option>
                                             </select>
                                         </div>
                                     </div>
@@ -908,10 +909,14 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="#">
-                                                {{#sputnik.audit[audit_tab][audit_contract].positions}}
                                                 <tr class="cells">
-                                                    <td class="cell-id">{{positions[0]}}</td>
-                                                    <td class="cell-amount">{{positions[1]}}</td>
+                                                    <th class="cell-id">TOTAL</th>
+                                                    <th class="cell-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].total_fmt}}</th>
+                                                </tr>
+                                                {{#sputnik.audit[audit_tab][audit_contract].positions:i}}
+                                                <tr class="{{sputnik.audit[audit_tab][audit_contract].positions[i][0] == sputnik.audit_hash ? 'cells highlight' : 'cells'}}">
+                                                    <td class="cell-id">{{sputnik.audit[audit_tab][audit_contract].positions[i][0]}}</td>
+                                                    <td class="cell-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].positions[i][1]}}</td>
                                                 </tr>
                                                 {{/}}
                                             </tbody>

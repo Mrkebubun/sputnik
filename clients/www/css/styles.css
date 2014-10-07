@@ -744,7 +744,10 @@ h6.sell {
 
 .cell-amount {
     padding: 10px 0 10px 10px;
+}
 
+.highlight {
+    color: #70be95;
 }
 
 /*-- Account - Funding - Deposit --*/
