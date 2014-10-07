@@ -19,7 +19,7 @@
     <![endif]-->
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="js/bootstrap.min.js"></script>
 
@@ -55,7 +55,7 @@
     <script src="tradingview.coffee" type="text/coffeescript"></script>
 
     <!-- UI code -->
-    <script src="ui.coffee" type="text/coffeescript"></script>
+    <script src="ui.ractive.coffee" type="text/coffeescript"></script>
 
 
     <script type="text/coffeescript">
@@ -68,15 +68,17 @@
                         $("#page-#{hide_page}").hide()
                 $("#page-#{page}").show()
 
+            # Hide stuff by default
+            for page in ['trade', 'account']
+                $("#page-#{page}").hide()
     </script>
 </head>
 <body>
-
-<!-- <script type="text/ractive" id="template"> -->
+<script type="text/ractive" id="template">
 <div class="alert alert-warning" id="not_connected">
     Connecting to server.
 </div>
-<div class="container-fluid" id="main_page" style="">
+<div class="container-fluid" id="main_page" style="display:none">
     <div class="modal fade" id="login_modal">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -144,45 +146,28 @@
 
     <div id="nav-bar">
         <div class="row">
-            <div class="col-xs-12 navbar2">
+            <div class="col-xs-12 navbar">
                 <div class="container">
                     <div class="row">
-                        
                         <nav class="navbar navbar-default" role="navigation">
-                          <div class="container-fluid">
-                            <!-- Brand and toggle get grouped for better mobile display -->
-                            <div class="navbar-header">
-                              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-                                <span class="sr-only">Toggle navigation</span>
-                                <span class="icon-bar"></span>
-                                <span class="icon-bar"></span>
-                                <span class="icon-bar"></span>
-                              </button>
-                              <h1 class="logotext" onclick="show_page('dashboard');">Mimetic Markets</h1>
-                            </div>
-
-                            <!-- Collect the nav links, forms, and other content for toggling -->
-                            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-                              <ul id="navlinks" class="nav navbar-nav">
+                            <h1 class="logotext" onclick="show_page('dashboard');">Mimetic Markets</h1>
+                            <button type="button" class="navbar-toggle collapsed toggle-button" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                            <span class="sr-only">Toggle navigation</span>
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                            </button>
+                        <div class="col-sm-10 collapse navbar-collapse tier-one-links">       
+                            <ul id="navlinks" class="nav navbar-nav">
                                 <li><a href="#" id="dashboard-btn" onclick="show_page('dashboard');" class="main-nav-link">Dashboard</a></li>
                                 <li><a href="#" id="trade-btn" onclick="show_page('trade');" class="main-nav-link">Trade</a></li>
                                 <li><a href="#" id="account-btn" onclick="show_page('account');" class="main-nav-link">Account</a></li>
-                                <li class="navlinks-right1"><a href="#" id="login">Login</a></li>
-                            <li class="navlinks-right2"><a href="#" id="register">Register</a></li>
-                                </ul>
-                              
-                             
-                                
-                            </div><!-- /.navbar-collapse -->
-                          </div><!-- /.container-fluid -->
-                          </nav>
-                        </div><!--row-->
-
-                        <div class="row pull-right">
-                        <div class="col-sm-9">
+                            </ul>
                         </div>
-                        <div class="col-sm-3 toplinks pull-right" id="login-div">
-                            
+                        </nav>
+                        <div class="col-sm-2 toplinks" id="login-div">
+                            <a href="#" id="login">Login</a>&nbsp; &nbsp; &nbsp;
+                            <a href="#" id="register">Register</a>
                         </div>
                         <div class="col-sm-2 mainselect" id="logged_in" style="display:none;">
                             <div class="dropdown">
@@ -194,11 +179,7 @@
                                     <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="logout">Logout</a></li>
                                 </ul>
                             </div>
-                        </div> 
                         </div>
-                        
-                        
-                        
                     </div>
                 </div>
             </div>
@@ -213,39 +194,32 @@
             <div class="container">
                 <div class="row">
                     <div class="col-sm-12">
-                        <div class="tab-active" id="tab-cash_pair">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="cash_pair-btn">Cash</a></h4>
+                        {{#sputnik.types:type}}
+                        <div class={{current_type == type ? "tab-active" : "tab-inactive"}}>
+                            <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{type_alias[type]}}</a></h4>
                         </div>
-                        <div class="tab-inactive" id="tab-futures">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Futures</a></h4>
-                        </div>
-                        <div class="tab-inactive" id="tab-prediction">
-                            <h4 class="tab-heading"><a href="#" class="tablink" id="prediction-btn">Predictions</a></h4>
-                        </div>
+                        {{/}}
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-sm-12 content">
                         <div class="contracts" id="contracts">
-                            <a href="#" class="active-link-box">Contract 1</a>
-                            <a href="#" class="inactive-link-box">Contract 2</a>
-                            <a href="#" class="inactive-link-box">Contract 3</a>
-                            <a href="#" class="inactive-link-box">Contract 4</a>
+                            {{#sputnik.types[current_type]}}
+                            <a href="#" class={{current_ticker == this ? "active-link-box" : "inactive-link-box"}} on-click="switch_contract">{{this}}</a>
+                            {{/}}
 
-                            <select class="form-control contract-select">
-                                <option value="Select Contract" selected="selected">Select Contract</option>
-                                <option value="Contract 1">Contract 1</option>
-                                <option value="Contract 2">Contract 2</option>
-                                <option value="Contract 3">Contract 3</option>
-                                <option value="Contract 4">Contract 4</option>
+                            <select value="{{current_ticker}}" class="form-control contract-select">
+                            {{#sputnik.types[current_type]}}
+                                <option value="{{this}}">{{this}}</option>
+                            {{/}}
                             </select>
                         </div>
                             <div id="contract">
                             <div class="contract-overview">
                                 <div class="row">
                                     <div class="col-sm-6 contract-overview-info">
-                                        <p class="grey-header" id="contract-description">CONTRACT DESCRIPTION</p>
-                                        <p class="grey-header" id="contract-expiration">June 5, 2015 00:00:00</p>
+                                        <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                        <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
 
                                         <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown">
                                             <option value="day">Yesterday</option>
@@ -516,8 +490,7 @@
     Account
 </div>
 </div>
-
-    <div id="target"></div>
-
+</script>
+<div id="target"></div>
 </body>
 </html>

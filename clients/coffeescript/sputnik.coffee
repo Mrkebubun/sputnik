@@ -45,13 +45,11 @@ class @Sputnik extends EventEmitter
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
-        @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
         @unsubscribe "safe_prices##{market}"
-        @unsubscribe "ohlcv##{market}", @onOHLCV
 
     # authentication and account management
 
@@ -243,8 +241,6 @@ class @Sputnik extends EventEmitter
             # Spit out some debugging, this should not happen
             @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
-        if not contract?
-            @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[contract.payout_contract_ticker]
@@ -534,10 +530,13 @@ class @Sputnik extends EventEmitter
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
 
+        @emitBook ticker
         @getOrderBook ticker
+
+        @emitTradeHistory ticker
         @getTradeHistory ticker
-        @getOHLCVHistory ticker, "minute"
-        @getOHLCVHistory ticker, "hour"
+
+        @emitOHLCVHistory ticker, "day"
         @getOHLCVHistory ticker, "day"
 
         @follow ticker
