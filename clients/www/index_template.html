@@ -828,36 +828,159 @@
                                         <h2 class="dashboard-heading">Compliance</h2>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-sm-12">
-                                        <h4 class="heading-sub">Documents</h4>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-sm-5 deposit-content2">
-                                        <div class="row form-row">
-                                            <div class="col-sm-5 form-label">
-                                                <p>ID / Passport</p>
-                                            </div>
-                                            <div class="col-sm-7">
-                                                <input class="form-control" type="file" name="passport">
-                                            </div>
-                                        </div>
-                                        <div class="row form-row">
-                                            <div class="col-sm-5 form-label">
-                                                <p>Proof of Residency</p>
-                                            </div>
-                                            <div class="col-sm-7">
-                                                <input class="form-control" type="file" name="residency">
-                                            </div>
+                                <form>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">Identify</h4>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-sm-12">
-                                        <h4 class="heading-sub2">Questionnaire</h4>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>First Name</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="first_name" type="text" class="form-control" id="first_name"
+                                                           placeholder="First Name"
+                                                           required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Middle Name</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="middle_name" type="text" class="form-control" id="middle_name"
+                                                            placeholder="Middle Name">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Last Name</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="last_name" type="text" class="form-control" id="last_name"
+                                                           placeholder="Last Name"
+                                                           required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Date of Birth</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="date_of_birth" type="text" class="form-control" id="date_of_birth"
+                                                           placeholder="YYYY-MM-DD" required>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">Address</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Address (Line 1)</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="address1" type="text" class="form-control" id="address1"
+                                                           placeholder="Address (Line 1)" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Address (Line 2)</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="address2" type="text" class="form-control" id="address2"
+                                                           placeholder="Address (Line 1)" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>City</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="city" type="text" class="form-control" id="city"
+                                                           placeholder="City" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>State/Province</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="state" type="text" class="form-control" id="state"
+                                                           placeholder="State" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Postal Code</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="postal_code" type="text" class="form-control" id="postal_code"
+                                                           placeholder="Postal Code" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Country Code</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="country_code" type="text" class="form-control" id="country_code"
+                                                           placeholder="Country Code" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">Documents</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Passport</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="file" name="passport" required
+                                                           id="id_passport">
+                                                    <input name="passport_number" type="text" class="form-control" id="passport_number"
+                                                           placeholder="Passport Number" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Proof of Residency</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="file" name="residency" required
+                                                           id="proof_of_residency">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub2">Questionnaire</h4>
+                                        </div>
+                                    </div>
+                                    -->
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <a href="#" class="button-link-box" on-click="submit_compliance">Submit</a>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>

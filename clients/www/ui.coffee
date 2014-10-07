@@ -196,6 +196,11 @@ $ ->
                 end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
                 sputnik.getTransactionHistory(start_timestamp, end_timestamp)
 
+            submit_compliance: (event) ->
+                event.original.preventDefault()
+                compliance_client_handler($('#compliance form').eq(0))
+
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
@@ -592,22 +597,34 @@ $ ->
             return objectData
 
         @compliance_client_handler = (form) ->
+            fd = new FormData()
+            fd.append('username', $("#login_name").text())
+            passports = form.find('input[name=passport]')[0].files
+            residencies = form.find('input[name=residency]')[0].files
+
+            if not passports.length
+              bootbox.alert "Must submit a scanned passport"
+              return
+            if not residencies.length
+              bootbox.alert "Must submit a proof of residency"
+              return
+
+            fd.append('file', passports[0])
+            fd.append('file', residencies[0])
+            fd.append('data', JSON.stringify(form.serializeObject()))
+
             sputnik.getRequestSupportNonce 'Compliance', (nonce) ->
-              fd = new FormData()
-              fd.append('username', $("#login_name").text())
-              fd.append('nonce', nonce)
-              fd.append('file', form.find('input[name=file]')[0].files[0])
-              fd.append('file', form.find('input[name=file]')[1].files[0])
-              fd.append('data', JSON.stringify(form.serializeObject()))
-              $.ajax
-                url: "#{location.origin}/ticket_server/create_kyc_ticket",
-                data: fd,
-                processData: false,
-                contentType: false,
-                type: 'POST',
-                success: (data) ->
-                    bootbox.alert("Successfully saved:" + data)
-                error: (err) ->
-                    bootbox.alert("Error while saving:" + err)
-                    sputnik.log ["Error:", err]
+                fd.append('nonce', nonce)
+
+                $.ajax
+                    url: "#{location.origin}/ticket_server/create_kyc_ticket",
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                    type: 'POST',
+                    success: (data) ->
+                        bootbox.alert("Successfully saved:" + data)
+                    error: (err) ->
+                        bootbox.alert("Error while saving:" + err)
+                        sputnik.log ["Error:", err]
 
