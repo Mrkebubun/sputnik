@@ -35,6 +35,7 @@ $ ->
                 dashboard_tab: "active-contracts"
                 account_tab: "user-information"
                 fh_tab: "deposit"
+                tb_tab: "trades"
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -47,29 +48,41 @@ $ ->
 
         ractive.on
             switch_type: (event, type) ->
+                event.original.preventDefault()
                 ractive.set "current_type", type
 
             switch_contract: (event) ->
+                event.original.preventDefault()
                 ractive.set "current_ticker", event.context
 
             switch_currency: (event, currency) ->
+                event.original.preventDefault()
                 ractive.set "current_currency", currency
                 sputnik.getAddress(currency)
                 sputnik.getDepositInstructions(currency)
 
             switch_page: (event, page) ->
+                event.original.preventDefault()
                 ractive.set "current_page", page
 
             switch_dashboard_tab: (event, tab) ->
+                event.original.preventDefault()
                 ractive.set "dashboard_tab", tab
 
             switch_account_tab: (event, tab) ->
+                event.original.preventDefault()
                 ractive.set "account_tab", tab
 
             switch_fh_tab: (event, tab) ->
+                event.original.preventDefault()
                 ractive.set "fh_tab", tab
 
+            switch_tb_tab: (event, tab) ->
+                event.original.preventDefault()
+                ractive.set "tb_tab", tab
+
             withdraw: (event, type) ->
+                event.original.preventDefault()
                 ticker = ractive.get("current_currency")
                 amount = Number($('#withdraw-amount').val())
                 if type == "crypto"
@@ -98,6 +111,72 @@ $ ->
                     address = JSON.stringify(address_obj)
 
                 sputnik.requestWithdrawal(ticker, amount, address)
+
+            buykey: (event) ->
+                if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), ractive.get("current_ticker"), 'BUY')
+                    $("#buy_alert").show()
+                else
+                    $("#buy_alert").hide()
+
+            sellkey: (event) ->
+                if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), ractive.get("current_ticker"), 'SELL')
+                    $("#sell_alert").show()
+                else
+                    $("#sell_alert").hide()
+
+            buy: (event) ->
+                event.original.preventDefault()
+                buy_quantity = Number($('#buy_quantity').val())
+                buy_price_str = $("#buy_price").val()
+
+                if buy_quantity <= 0
+                    bootbox.alert "Invalid quantity"
+                    return true
+
+                if buy_price_str == ''
+                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+                    bootbox.confirm "Placing order with price: #{buy_price}.\n\nAre you sure?", (result) =>
+                        if result
+                            sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                else
+                    buy_price = Number(buy_price_str)
+                    if buy_price <= 0
+                        bootbox.alert "Invalid price"
+                        return true
+
+                    if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
+                        bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                            if result
+                                sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                    else
+                        sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+
+            sell: (event) ->
+                event.original.preventDefault()
+                sell_quantity = Number($('#sell_quantity').val())
+                sell_price_str = $("#sell_price").val()
+
+
+                if sell_quantity <= 0
+                    bootbox.alert "Invalid quantity"
+                    return true
+
+                if sell_price_str == ''
+                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+                    bootbox.confirm "Placing order with price: #{sell_price}.\n\nAre you sure?", (result) =>
+                        if result
+                            sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                else
+                    sell_price = Number(sell_price_str)
+                    if sell_price <= 0
+                        bootbox.alert "Invalid price"
+
+                    if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
+                        bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                            if result
+                                sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                    else
+                        sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
@@ -235,103 +314,11 @@ $ ->
             orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
             orderOfMag(x) == orderOfMag(y)
 
-        $("#buy_price,#buy_quantity").keyup ->
-            if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), ractive.get("current_ticker"), 'BUY')
-                $("#buy_alert").show()
-            else
-                $("#buy_alert").hide()
-
-        $("#sell_price,#sell_quantity").keyup ->
-            if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), ractive.get("current_ticker"), 'SELL')
-                $("#sell_alert").show()
-            else
-                $("#sell_alert").hide()
-
-        $("#buyButton").click ->
-            buy_quantity = Number($('#buy_quantity').val())
-            buy_price_str = $("#buy_price").val()
-
-            if buy_quantity <= 0
-                bootbox.alert "Invalid quantity"
-                return true
-
-            if buy_price_str == ''
-                buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                bootbox.confirm "Placing order with price: #{buy_price}.\n\nAre you sure?", (result) =>
-                    if result
-                        sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-            else
-                buy_price = Number(buy_price_str)
-                if buy_price <= 0
-                    bootbox.alert "Invalid price"
-                    return true
-
-                if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
-                    bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
-                        if result
-                            sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                else
-                    sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-
-        $("#sellButton").click ->
-            sell_quantity = Number($('#sell_quantity').val())
-            sell_price_str = $("#sell_price").val()
-
-
-            if sell_quantity <= 0
-                bootbox.alert "Invalid quantity"
-                return true
-
-            if sell_price_str == ''
-                sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                bootbox.confirm "Placing order with price: #{sell_price}.\n\nAre you sure?", (result) =>
-                    if result
-                        sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-            else
-                sell_price = Number(sell_price_str)
-                if sell_price <= 0
-                    bootbox.alert "Invalid price"
-
-                if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
-                    bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
-                        if result
-                            sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                else
-                    sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
         $("#logout").click (event) ->
             document.cookie = ''
             sputnik.logout()
             location.reload()
-
-        showTrades = (e) ->
-            e.preventDefault()
-            $('#trades').show()
-            $('#trades-btn').addClass('active-link-box-sml')
-            $('#trades-btn').removeClass('inactive-link-box-sml')
-
-            $('#book').hide()
-            $('#book-btn').addClass('inactive-link-box-sml')
-            $('#book-btn').removeClass('active-link-box-sml')
-
-        showBook = (e) ->
-            e.preventDefault()
-            $('#book').show()
-            $('#book-btn').addClass('active-link-box-sml')
-            $('#book-btn').removeClass('inactive-link-box-sml')
-
-            $('#trades').hide()
-            $('#trades-btn').addClass('inactive-link-box-sml')
-            $('#trades-btn').removeClass('active-link-box-sml')
-
-        $('#trades-btn').click showTrades
-        $('#book-btn').click showBook
-
-        $('#trades-book-select').change (e) ->
-            if $('#trades-book-select').val() == 'trades'
-                showTrades(e)
-            else
-                showBook(e)
 
         $("#save_changes_button").click (event) ->
             if $('#change_password_tab').data('dirty')

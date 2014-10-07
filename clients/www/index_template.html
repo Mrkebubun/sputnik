@@ -220,19 +220,19 @@
                                                             <p>Price</p>
                                                             <form>
                                                                 <input type="text" id="buy_price" name="price" class="form-control"
-                                                                       placeholder="{{sputnik.books[current_ticker].best_ask.price}}">
+                                                                       placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
                                                             <form>
-                                                                <input type="text" id="buy_quantity" name="quantity" class="form-control field">
+                                                                <input type="text" id="buy_quantity" name="quantity" class="form-control field" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                     </div>
                                                     <div class="row">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert">Your balance is too low for this order.</div>
-                                                        <button type="button" id="buyButton">Buy</button>
+                                                        <button type="button" id="buyButton" on-click="buy">Buy</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -250,20 +250,20 @@
                                                             <p>Price</p>
                                                             <form>
                                                                 <input type="text" id="sell_price" name="price" class="form-control"
-                                                                        placeholder="{{sputnik.books[current_ticker].best_bid.price}}">
+                                                                        placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
 
                                                             <form>
-                                                                <input type="text" id="sell_quantity" name="quantity" class="form-control field">
+                                                                <input type="text" id="sell_quantity" name="quantity" class="form-control field" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                     </div>
                                                     <div class="row">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert">Your balance is too low for this order.</div>
-                                                        <button type="button" id="sellButton">Sell</button>
+                                                        <button type="button" id="sellButton" on-click="sell">Sell</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -304,12 +304,13 @@
                                 {{/if}}
                                 <div class="row">
                                     <div class="col-sm-3 recent-trades-box">
-                                        <a href="#" class="active-link-box-sml" id="trades-btn">Recent Trades</a>
-                                        <a href="#" class="inactive-link-box-sml" id="book-btn">Order Book</a>
-                                        <select class="form-control trades-select" id="trades-book-select">
+                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">Recent Trades</a>
+                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">Order Book</a>
+                                        <select class="form-control trades-select" value="{{tb_tab}}">
                                             <option value="trades" selected="selected">Recent Trades</option>
                                             <option value="book">Order Book</option>
                                         </select>
+                                        {{#if tb_tab == 'trades'}}
                                         <div id="trades">
                                             <table id="trades-table">
                                                 <thead>
@@ -330,7 +331,9 @@
                                                 </tbody>
                                             </table>
                                         </div>
-                                        <div id="book" style="display:none;">
+                                        {{/if}}
+                                        {{#if tb_tab == 'book'}}
+                                        <div id="book">
                                             Bids
                                             <table>
                                                 <thead>
@@ -366,6 +369,7 @@
                                                 </tbody>
                                             </table>
                                         </div>
+                                        {{/if}}
                                     </div>
                                     <div class="col-sm-9" id="tv_chart_container"></div>
                                 </div>
