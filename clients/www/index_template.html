@@ -512,7 +512,11 @@
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
                                                 <span class="caret"></span>
-                                                {{sputnik.currencies[current_currency].description}}
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                Select Currency
+                                                {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
                                                 {{#sputnik.currencies:ticker}}
@@ -561,7 +565,11 @@
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
                                                 <span class="caret"></span>
-                                                {{sputnik.currencies[current_currency].description}}
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                Select Currency
+                                                {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-2">
                                                 {{#sputnik.currencies:ticker}}
@@ -606,7 +614,11 @@
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
                                                 <span class="caret"></span>
-                                                {{sputnik.currencies[current_currency].description}}
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                Select Currency
+                                                {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-3">
                                                 {{#sputnik.currencies:ticker}}
