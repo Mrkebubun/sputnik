@@ -871,15 +871,15 @@
                                         <h2 class="dashboard-heading">Audit</h2>
                                     </div>
                                 </div>
+                                {{sputnik.audit.timestamp}}
                                 <div class="row">
                                     <div class="col-sm-12">
                                         <div class="contracts2">
-                                            <a href="#" class="active-link-box">Assets</a>
-                                            <a href="#" class="inactive-link-box">Liabilities</a>
-                                            <select class="form-control contract-select">
-                                                <option value="Select" selected="selected">Select</option>
-                                                <option value="Contract 1">Assets</option>
-                                                <option value="Contract 2">Liabilities</option>
+                                            <a href="#" on-click="switch_audit_tab:asset" class="{{audit_tab == 'asset' ? 'active-link-box' : 'inactive-link-box'}}">Assets</a>
+                                            <a href="#" on-click="switch_audit_tab:liability" class="{{audit_tab == 'liability' ? 'active-link-box' : 'inactive-link-box'}}">Liabilities</a>
+                                            <select class="form-control contract-select" value="{{audit_tab}}">
+                                                <option value="asset">Assets</option>
+                                                <option value="liability">Liabilities</option>
                                             </select>
                                         </div>
                                     </div>
@@ -888,13 +888,13 @@
                                     <div class="col-sm-12">
                                         <p class="asset-select">Select an asset class:</p>
                                          <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="dropdownMenu1" data-toggle="dropdown">
-                                            US Dollars
+                                            {{audit_contract}}
                                             <span class="caret"></span>
                                          </button>
                                          <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="dropdownMenu1">
-                                             <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Bitcoin</a></li>
-                                             <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
-                                             <li role="presentation"><a role="menuitem" tabindex="-1" href="#">Another currency</a></li>
+                                             {{#sputnik.audit[audit_tab]:ticker}}
+                                             <li role="presentation"><a role="menuitem" on-click="switch_audit_contract:{{ticker}}" tabindex="-1" href="#">{{ticker}}</a></li>
+                                             {{/}}
                                          </ul>
                                     </div>
                                 </div>
@@ -908,10 +908,12 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="#">
+                                                {{#sputnik.audit[audit_tab][audit_contract].positions}}
                                                 <tr class="cells">
-                                                    <td class="cell-id">293487reiasfj89392d89838du8u483h=====</td>
-                                                    <td class="cell-amount">$34,594.00</td>
+                                                    <td class="cell-id">{{positions[0]}}</td>
+                                                    <td class="cell-amount">{{positions[1]}}</td>
                                                 </tr>
+                                                {{/}}
                                             </tbody>
                                         </table>
                                     </div>

@@ -80,6 +80,7 @@ class @Sputnik extends EventEmitter
 
     getAudit: () =>
         @call("get_audit").then (wire_audit_details) =>
+            @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
             audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]

@@ -12,6 +12,11 @@ class RactiveSputnikWrapper
         @ohlcv = {}
         @currencies = {}
         @transaction_history = {}
+        @audit = {}
+
+        @sputnik.on "audit_details", (audit_details) =>
+            @audit = audit_details
+            @notify "audit"
 
         @sputnik.on "transaction_history", (history) =>
             @transaction_history = {}
@@ -166,6 +171,7 @@ class RactiveSputnikWrapper
         ohlcv: @ohlcv
         currencies: @currencies
         transaction_history: @transaction_history
+        audit: @audit
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

@@ -36,6 +36,8 @@ $ ->
                 account_tab: "user-information"
                 fh_tab: "deposit"
                 tb_tab: "trades"
+                audit_tab: "liability"
+                audit_contract: "BTC"
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -72,6 +74,8 @@ $ ->
             switch_account_tab: (event, tab) ->
                 event.original.preventDefault()
                 ractive.set "account_tab", tab
+                if tab == "audit"
+                    sputnik.getAudit()
 
             switch_fh_tab: (event, tab) ->
                 event.original.preventDefault()
@@ -80,6 +84,10 @@ $ ->
             switch_tb_tab: (event, tab) ->
                 event.original.preventDefault()
                 ractive.set "tb_tab", tab
+
+            switch_audit_tab: (event, tab) ->
+                event.original.preventDefault()
+                ractive.set "audit_tab", tab
 
             withdraw: (event, type) ->
                 event.original.preventDefault()
@@ -419,12 +427,12 @@ $ ->
             ,
             5000)
 
-        $("#account").click ->
-            $("#account_modal").modal()
-
-        $("#audit").click ->
-            $("#audit_modal").modal()
-            sputnik.getAudit()
+#        $("#account").click ->
+#            $("#account_modal").modal()
+#
+#        $("#audit").click ->
+#            $("#audit_modal").modal()
+#            sputnik.getAudit()
 
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
