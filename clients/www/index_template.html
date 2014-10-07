@@ -66,7 +66,6 @@
             </div>
         </div>
     </div>
-
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar navbar2">
@@ -578,6 +577,7 @@
                                             </ul>
                                         </div>
                                     </div>
+                                    {{#current_currency}}
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <p class="text-balance">{{current_currency}} Balance: <strong>{{sputnik.positions[current_currency].position}}</strong></p>
@@ -590,17 +590,21 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-8 deposit-content">
-                                            <p>Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Aenean tristique vehicula velit at maximus. Nunc ac tempor nibh, non vulputate odio. Integer at libero nisl. Vivamus maximus ligula sed tortor efficitur, eu suscipit lacus pharetra. Morbi id dapibus mauris. In id ante eu felis ullamcorper ullamcorper a id ipsum. Integer augue sem, convallis in elementum eu, elementum id justo. Ut libero nibh, tempus in tempor et, tincidunt a tellus. Phasellus pulvinar volutpat urna nec tempus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Fusce varius justo malesuada tempus luctus.</p>
-                                        </div>
-                                        <div class="col-sm-3">
-                                            <img src="images/cancel.png"/>
+                                            <p>{{sputnik.currencies[current_currency].instructions}}</p>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12 content-push">
-                                            <a href="#" class="button-link-box">Get New Address</a>
+                                            <div id="qr_code"></div>
+                                            {{#if current_currency == "BTC"}}
+                                            <p><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
+                                            {{else}}
+                                            <p>{{sputnik.currencies[current_currency].address}}</p>
+                                            {{/if}}
+                                            <a href="#" class="button-link-box" onclick="sputnik.newAddress('{{current_currency}}');">Get New Address</a>
                                         </div>
                                     </div>
+                                    {{/current_currency}}
                                 </div>
                                 {{/if}}
                                 {{#if fh_tab == "withdraw"}}

@@ -54,6 +54,8 @@ $ ->
 
             switch_currency: (event, currency) ->
                 ractive.set "current_currency", currency
+                sputnik.getAddress(currency)
+                sputnik.getDepositInstructions(currency)
 
             switch_page: (event, page) ->
                 ractive.set "current_page", page
@@ -443,21 +445,27 @@ $ ->
     #
     #    sputnik.on "chat", (chat) ->
     #        $.growl({title: "Chat", message: chat})
-
-        sputnik.on "address", (info) ->
-            ticker = info[0]
-            address = info[1]
-            $("##{ticker}_deposit_address").attr('href', 'bitcoin:' + address).text(address)
-            $("##{ticker}_deposit_qrcode").empty()
-            $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
+#
+#        sputnik.on "address", (info) ->
+#            sputnik.log "test"
+#            ticker = info[0]
+#            address = info[1]
+#            $("##{ticker}_deposit_address").attr('href', 'bitcoin:' + address).text(address)
+#            $("##{ticker}_deposit_qrcode").empty()
+#            $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
 
         sputnik.on "address_fail", (error) ->
             bootbox.alert "Deposit address error: #{error[1]}"
 
-        sputnik.on "deposit_instructions", (event) ->
-            ticker = event[0]
-            instructions = event[1]
-            $("##{ticker}_deposit_instructions").text instructions
+#        sputnik.on "deposit_instructions", (event) ->
+#            ticker = event[0]
+#            instructions = event[1]
+#            $("##{ticker}_deposit_instructions").text instructions
+
+        sputnik.on "address", (address) =>
+            $('#qr_code').empty()
+            if address[0] == "BTC"
+                $('#qr_code').qrcode("bitcoin:" + address[1])
 
         sputnik.on "password_change_success", (info) ->
             bootbox.alert "Password successfully changed"

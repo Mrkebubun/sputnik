@@ -36,6 +36,14 @@ class RactiveSputnikWrapper
             @notify "types"
             @notify "currencies"
 
+        @sputnik.on "address", (address) =>
+            @currencies[address[0]].address = address[1]
+            @notify "currencies"
+
+        @sputnik.on "deposit_instructions", (instructions) =>
+            @currencies[instructions[0]].instructions = instructions[1]
+            @notify "currencies"
+
         @sputnik.on "book", (book) =>
             @sputnik.log ["book", book]
             ticker = book.contract
