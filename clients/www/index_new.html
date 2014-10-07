@@ -57,19 +57,6 @@
 
     <!-- UI code -->
     <script src="ui.coffee" type="text/coffeescript"></script>
-
-
-    <script type="text/coffeescript">
-        $ ->
-            # Show a page
-            window.show_page = (page) ->
-                # Hide all other pages, then show the one we want
-                for hide_page in ['dashboard', 'trade', 'account']
-                    if page != hide_page
-                        $("#page-#{hide_page}").hide()
-                $("#page-#{page}").show()
-
-    </script>
 </head>
 <body>
     <div id="target"></div>

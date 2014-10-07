@@ -80,13 +80,13 @@
                                     <span class="icon-bar"></span>
                                     <span class="icon-bar"></span>
                                 </button>
-                                <h1 class="logotext" onclick="show_page('dashboard');">Mimetic Markets</h1>
+                                <h1 class="logotext" on-click="switch_page:dashboard">Mimetic Markets</h1>
                                 <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                                     <ul id="navlinks" class="nav navbar-nav">
-                                        <li><a href="#" id="dashboard-btn" onclick="show_page('dashboard');" class="main-nav-link">Dashboard</a></li>
-                                        <li><a href="#" id="trade-btn" onclick="show_page('trade');" class="main-nav-link">Trade</a></li>
+                                        <li><a href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
+                                        <li><a href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
                                         {{#if sputnik.logged_in}}
-                                        <li><a href="#" id="account-btn" onclick="show_page('account');" class="main-nav-link">Account</a></li>
+                                        <li><a href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
                                         <li class="navlinks-right3">
                                             <div class="login-box">
                                             <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="logout-menu" data-toggle="dropdown">
@@ -112,6 +112,7 @@
             </div>
         </div>
     </div>
+    {{#if current_page == "trade"}}
     <div id="page-trade">
         <div class="row">
             <div class="col-xs-12">
@@ -376,22 +377,25 @@
             </div>
         </div>
     </div>
+    {{/if}}
+    {{#if current_page == "dashboard"}}
     <div id="page-dashboard">
         <div class="row">
             <div class="col-xs-12">
                 <div class="container">
                     <div class="row">
                         <div class="col-sm-12">
-                            <div class="tab-active" id="tab-active-contracts">
-                                <h4 class="tab-heading"><a href="#" class="tablink">Most Active Contracts</a></h4>
+                            <div class="{{dashboard_tab == 'active-contracts' ? 'tab-active' : 'tab-inactive' }}" id="tab-active-contracts">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">Most Active Contracts</a></h4>
                             </div>
                             {{#if sputnik.logged_in}}
-                            <div class="tab-inactive" id="tab-all-orders">
-                                <h4 class="tab-heading"><a href="#" class="tablink">All Orders</a></h4>
+                            <div class="{{dashboard_tab == 'orders' ? 'tab-active' : 'tab-inactive' }}" id="tab-all-orders">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:orders">All Orders</a></h4>
                             </div>
                             {{/if}}
                         </div>
                     </div>
+                    {{#if dashboard_tab == "active-contracts"}}
                     <div id="most-active">
                         <div class="row">
                             <div class="col-sm-12 content">
@@ -407,7 +411,9 @@
                             </div>
                         </div>
                     </div>
+                    {{/if}}
                     {{#if sputnik.logged_in}}
+                    {{#if dashboard_tab == "orders"}}
                     <div id="allorders">
                         <div class="row">
                             <div class="col-sm-12">
@@ -443,44 +449,49 @@
                         </div>
                     </div>
                     {{/if}}
+                    {{/if}}
                 </div>
             </div>
         </div>
     </div>
+    {{/if}}
+    {{#if current_page == "account"}}
     <div id="page-account">
         <div class="row">
             <div class="col-xs-12">
                 <div class="container">
                     <div class="row">
                         <div class="col-sm-12">
-                            <div class="tab-inactive" id="tab-user_information">
-                                <h4 class="tab-heading"><a href="#" class="tablink">User Information</a></h4>
+                            <div class="{{account_tab == 'user-information' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:user-information">User Information</a></h4>
                             </div>
-                            <div class="tab-active" id="tab-funding_and_history">
-                                <h4 class="tab-heading"><a href="#" class="tablink">Funding and History</a></h4>
+                            <div class="{{account_tab == 'funding-history' ? 'tab-active' : 'tab-inactive' }}" id="tab-funding_and_history">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:funding-history">Funding and History</a></h4>
                             </div>
-                            <div class="tab-inactive" id="tab-audit">
-                                <h4 class="tab-heading"><a href="#" class="tablink">Audit</a></h4>
+                            <div class="{{account_tab == 'audit' ? 'tab-active' : 'tab-inactive' }}" id="tab-audit">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:audit">Audit</a></h4>
                             </div>
-                            <div class="tab-inactive" id="tab-compliance">
-                                <h4 class="tab-heading"><a href="#" class="tablink">Compliance</a></h4>
+                            <div class="{{account_tab == 'compliance' ? 'tab-active' : 'tab-inactive' }}" id="tab-compliance">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:compliance">Compliance</a></h4>
                             </div>
                         </div>
                     </div>
+                    {{#if account_tab == "funding-history"}}
                     <div id="funding-history">
                         <div class="row">
                             <div class="col-sm-12 content">
                                 <div class="contracts">
-                                    <a href="#" class="inactive-link-box">Deposit</a>
-                                    <a href="#" class="inactive-link-box">Withdraw</a>
-                                    <a href="#" class="active-link-box">Transaction History</a>
-                                    <select class="form-control contract-select">
+                                    <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">Deposit</a>
+                                    <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">Withdraw</a>
+                                    <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">Transaction History</a>
+                                    <select class="form-control contract-select" value="{{fh_tab}}">
                                         <option value="Select" selected="selected">Select</option>
-                                        <option value="Contract 1">Deposit</option>
-                                        <option value="Contract 2">Withdraw</option>
-                                        <option value="Contract 3">Transaction History</option>
+                                        <option value="deposit">Deposit</option>
+                                        <option value="withdraw">Withdraw</option>
+                                        <option value="history">Transaction History</option>
                                     </select>
                                 </div>
+                                {{#if fh_tab == "history"}}
                                 <div id="transaction-history">
                                     <div class="row">
                                         <div class="col-sm-6">
@@ -538,6 +549,8 @@
                                         </div>
                                     </div>
                                 </div>
+                                {{/if}}
+                                {{#if fh_tab == "deposit"}}
                                 <div id="deposit">
                                     <div class="row">
                                         <div class="col-sm-12">
@@ -581,6 +594,8 @@
                                         </div>
                                     </div>
                                 </div>
+                                {{/if}}
+                                {{#if fh_tab == "withdraw"}}
                                 <div id="withdraw">
                                     <div class="row">
                                         <div class="col-sm-12">
@@ -699,9 +714,12 @@
                                         </div>
                                     </div>
                                 </div>
+                                {{/if}}
                             </div>
                         </div>
                     </div>
+                    {{/if}}
+                    {{#if account_tab == "compliance"}}
                     <div id="compliance">
                         <div class="row">
                             <div class="col-sm-12 content">
@@ -743,6 +761,8 @@
                             </div>
                         </div>
                     </div>
+                    {{/if}}
+                    {{#if account_tab == "audit"}}
                     <div id="audit">
                         <div class="row">
                             <div class="col-sm-12 content">
@@ -799,9 +819,11 @@
                             </div>
                         </div>
                     </div>
+                    {{/if}}
                 </div>
             </div>
         </div>
     </div>
+    {{/if}}
 </div>
 

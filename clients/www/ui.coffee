@@ -31,6 +31,10 @@ $ ->
                 current_ticker: null
                 current_type: "cash_pair"
                 current_currency: null
+                current_page: "dashboard"
+                dashboard_tab: "active-contracts"
+                account_tab: "user-information"
+                fh_tab: "deposit"
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -50,6 +54,18 @@ $ ->
 
             switch_currency: (event, currency) ->
                 ractive.set "current_currency", currency
+
+            switch_page: (event, page) ->
+                ractive.set "current_page", page
+
+            switch_dashboard_tab: (event, tab) ->
+                ractive.set "dashboard_tab", tab
+
+            switch_account_tab: (event, tab) ->
+                ractive.set "account_tab", tab
+
+            switch_fh_tab: (event, tab) ->
+                ractive.set "fh_tab", tab
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
