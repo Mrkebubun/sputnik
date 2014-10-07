@@ -30,6 +30,7 @@ $ ->
                 sputnik: sputnik
                 current_ticker: null
                 current_type: "cash_pair"
+                current_currency: null
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -46,6 +47,9 @@ $ ->
 
             switch_contract: (event) ->
                 ractive.set "current_ticker", event.context
+
+            switch_currency: (event, currency) ->
+                ractive.set "current_currency", currency
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
@@ -71,12 +75,6 @@ $ ->
             $('#main_page').show()
             $('#not_connected').hide()
 
-            # Hide not-logged in stuff
-            $('#account-btn').hide()
-            $('#contract-balances,#buy-sell-orders').hide()
-            $('#logged_in').hide()
-            #$('#contract').hide()
-
             # Hide stuff by default
             for page in ['trade', 'account']
                 $("#page-#{page}").hide()
@@ -101,14 +99,6 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
 
-            #$("#login-div").hide()
-            #$("#login_name").text username
-            #$("#acct_management_username").val username
-            #$("#logged_in").show()
-
-            $('#account-btn').show()
-
-            $("#contract-balances,#buy-sell-orders").fadeIn()
             sputnik.getCookie()
 
         sputnik.on "cookie", (uid) ->
@@ -350,7 +340,7 @@ $ ->
                 style: "2"
                 hideideas: true
                 hide_top_toolbar: true
-                withdateranges: true
+                withdateranges: false
                 details: false
                 save_image: false
                 show_popup_button: false
@@ -361,6 +351,11 @@ $ ->
             widget.onChartReady () ->
                 sputnik.log("onChartReady")
                 $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
+                $("#tv_chart_container iframe").contents().find(".compare").hide()
+                $("#tv_chart_container iframe").contents().find(".properties").hide()
+                $("#tv_chart_container iframe").contents().find(".indicators").hide()
+                $("#tv_chart_container iframe").contents().find(".getimage").hide()
+                $("#tv_chart_container iframe").contents().find(".chart-status-picture").hide()
 
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
