@@ -2,10 +2,10 @@
 # This only works for demo, we have autodeploy
 # for everything else now
 # TODO: Move demo into autodeploy and get rid of this script
+git pull -u origin
 cp -r /srv/autodeploy/demo/profile install/profiles/demo
 PROFILE_NAME=demo
 HOSTNAME=demo.m2.io
-git pull -u origin
 make clean
 echo "[aux]" > aux.ini
 PROFILE=install/profiles/${PROFILE_NAME} make tar
