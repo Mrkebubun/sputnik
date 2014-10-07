@@ -631,6 +631,7 @@
                                             </ul>
                                         </div>
                                     </div>
+                                    {{#current_currency}}
                                     <div class="row">
                                         <div class="col-sm-3">
                                             <p class="text-balance">{{current_currency}} Balance:</p>
@@ -641,9 +642,44 @@
                                             <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                     </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label2">
+                                            <p>Withdrawal Amount</p>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <input class="form-control" type="text" id="withdraw-amount">
+                                        </div>
+                                    </div>
+                                    {{#if current_currency == "BTC"}}
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Address</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="crypto_address">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Confirm Address</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="crypto_confirm_address">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-12">
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:crypto">Withdraw</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{else}}
                                     <div class="row">
                                         <div class="col-sm-5 deposit-heading">
-                                            <h4 class="header-sub">Send to this bank account:</h4>
+                                            <h4 class="header-sub">Wire to this bank account:</h4>
                                         </div>
                                         <div class="col-sm-5 deposit-heading">
                                             <h4 class="header-sub2">Mail a check to me:</h4>
@@ -653,39 +689,47 @@
                                         <div class="col-sm-5 deposit-content">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Wire Transfer Info 1</p>
+                                                    <p>Bank Name</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-bank-name">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Wire Transfer Info 2</p>
+                                                    <p>Bank Address</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-bank-address">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Wire Transfer Info 3</p>
+                                                    <p>Bank ABA/Swift</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-aba-swift">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
-                                                <div class="col-sm-5 form-label2">
-                                                    <p>Withdrawal Amount</p>
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Account Name</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-account-name">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Account Number</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" name="withdraw-account-number">
                                                 </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-sm-12">
-                                                    <a href="#" class="button-link-box2">Withdraw</a>
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:wire">Withdraw</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -695,15 +739,23 @@
                                                     <p>Name</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-name">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address</p>
+                                                    <p>Address 1</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-address1">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Address 2</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-address2">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
@@ -711,24 +763,42 @@
                                                     <p>City</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-city">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
-                                                <div class="col-sm-5 form-label2">
-                                                    <p>Withdrawal Amount</p>
+                                                <div class="col-sm-5 form-label">
+                                                    <p>State/Province</p>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control" type="text" name="wire1">
+                                                    <input class="form-control" type="text" id="withdraw-state">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Postal Code</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-postalcode">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Country</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-country">
                                                 </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-sm-12">
-                                                    <a href="#" class="button-link-box2">Withdraw</a>
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:mail">Withdraw</a>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+                                    {{/if}}
+                                    {{/current_currency}}
                                 </div>
                                 {{/if}}
                             </div>

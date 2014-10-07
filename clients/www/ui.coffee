@@ -69,6 +69,36 @@ $ ->
             switch_fh_tab: (event, tab) ->
                 ractive.set "fh_tab", tab
 
+            withdraw: (event, type) ->
+                ticker = ractive.get("current_currency")
+                amount = Number($('#withdraw-amount').val())
+                if type == "crypto"
+                    address = $('#crypto_address').val()
+                    confirm_address = $('#crypto_confirm_address').val()
+                    if address != confirm_address
+                        bootbox.alert "Addresses do not match"
+                        return
+                else if type == "wire"
+                    address_obj =
+                        bank_name: $('#withdraw-bank-name').val()
+                        bank_address: $('#withdraw-bank-address').val()
+                        aba_swift: $('#withdraw-aba-swift').val()
+                        account_name: $('#withdraw-account-name').val()
+                        account_number: $('#withdraw-account-number').val()
+                    address = JSON.stringify(address_obj)
+                else
+                    address_obj =
+                        name: $('#withdraw-name').val()
+                        address1: $('#withdraw-address1').val()
+                        address2: $('#withdraw-address2').val()
+                        city: $('#withdraw-city').val()
+                        state_province: $('#withdraw-state').val()
+                        postalcode: $('#withdraw-postalcode').val()
+                        country: $('#withdraw-country').val()
+                    address = JSON.stringify(address_obj)
+
+                sputnik.requestWithdrawal(ticker, amount, address)
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
