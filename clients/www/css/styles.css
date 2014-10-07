@@ -777,6 +777,14 @@ h6.sell {
     margin-bottom: 20px;
 }
 
+.heading-sub {
+    margin: 35px 0 20px 21px;
+}
+
+.heading-sub2 {
+    margin: 0px 0 20px 21px;
+}
+
 /*-- Media Queries --*/
 
 @media screen and (max-width: 768px) and (min-width: 120px) {
