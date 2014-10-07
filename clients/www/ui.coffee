@@ -191,6 +191,7 @@ $ ->
                         sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
             transactions: (event) ->
+                event.original.preventDefault()
                 sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
                 start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
                 end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
@@ -207,7 +208,6 @@ $ ->
             if new_ticker?
                 sputnik.openMarket new_ticker
                 showChart new_ticker
-                #updateBalances()
 
         window.ractive = ractive
 

@@ -402,7 +402,7 @@
                     <div id="most-active">
                         <div class="row">
                             <div class="col-sm-12 content">
-                                <h2 class="dashboard-heading">Your Dashboard of Most Active Contracts</h2>
+                                <h2 class="dashboard-heading">Most Active Contracts</h2>
                                 <div class="row dashboard-row">
                                     <div class="col-sm-6">
                                         <h4 class="subheading">Most Active Contract 1</h4>
@@ -497,16 +497,18 @@
                                 {{#if fh_tab == "history"}}
                                 <div id="transaction-history">
                                     <div class="row">
-                                        <div class="col-sm-6">
+                                        <div class="col-sm-3">
                                             <h2 class="dashboard-heading">Transaction History</h2>
+                                        </div>
+                                        <div class="col-sm-3">
+                                            <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
                                         </div>
                                         <div class="col-sm-3">
                                             <form>
                                             <span class="dates">Start date</span> <input class="form-control field-date"
                                                                                          data-provide="datepicker"
                                                                                          data-date-format="MM d, yyyy"
-                                                                                         on-keyup="transactions"
-                                                                                         type="text" name="startdate">
+                                                                                         type="text" id="transactions_start_date">
                                             </form>
                                         </div>
                                         <div class="col-sm-3">
@@ -514,8 +516,7 @@
                                             <span class="dates">End date</span> <input class="field-date form-control"
                                                                                        data-provide="datepicker"
                                                                                        data-date-format="MM d, yyyy"
-                                                                                       on-keyup="transactions"
-                                                                                       type="text" name="enddate">
+                                                                                       type="text" id="transactions_end_date">
                                             </form>
                                         </div>
                                     </div>
@@ -555,8 +556,8 @@
                                                     <tr class="cells">
                                                         <td class="cell-date">{{timestamp}}</td>
                                                         <td class="cell-type">{{type}}</td>
-                                                        <td class="cell-debit">{{direction == "debit" ? quantity : ''}}</td>
-                                                        <td class="cell-credit">{{direction == "credit" ? quantity : ''}}</td>
+                                                        <td class="cell-debit" align="right">{{direction == "debit" ? quantity : ''}}</td>
+                                                        <td class="cell-credit" align="right">{{direction == "credit" ? quantity : ''}}</td>
                                                         <td class="cell-balance">X</td>
                                                         <td class="cell-note">{{note}}</td>
                                                     </tr>
