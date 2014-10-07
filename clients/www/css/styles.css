@@ -1,522 +1,922 @@
 body {
-	background-color: #f1f1f1;
-	font: 13px "Lato", Helvetica, sans-serif;
-	color: #4b4b4b;
+    background-color: #f1f1f1;
+    font: 300 14px "Lato", Helvetica, sans-serif;
+    color: #4b4b4b;
+}
+
+.navbar2 {
+    height: 67px;
+    background-color: #fff;
+    border-bottom: solid 1px #c1c1c1;
+    text-align: left;
 }
 
 .navbar {
-	height: 67px;
-	background-color: #fff;
-	border-bottom: solid 1px #c1c1c1;
-	text-align: left;
+    z-index: 100;
+
+}
+
+.navbar-header {
+    z-index: 100;
+
 }
 
 h1.logotext {
-	display: inline;
-	font: 300 24px "Lato", Helvetica, sans-serif;
-	padding: 0px;
-	margin: 17px 0;
-	float:left;
+    display: inline;
+    font: 300 24px "Lato", Helvetica, sans-serif;
+    padding: 0px;
+    margin: 17px 0;
+    float: left;
 }
 
 #not_connected {
-    width:300px;
+    width: 300px;
     border-radius: 5px;
-    padding:10px;
-    height:40px;
-    position:absolute;
-    margin-top:-20px;
-    margin-left:-150px;
-    top:50%;
-    left:50%;
+    padding: 10px;
+    height: 40px;
+    position: absolute;
+    margin-top: -20px;
+    margin-left: -150px;
+    top: 50%;
+    left: 50%;
     text-align: center;
 }
 
 ul#navlinks {
-	display: inline;
-	text-align: right;
-	margin-top: 22px;
-	float:left;
+    display: inline;
+    text-align: right;
+    margin-top: -52px;
+    float: left;
+    z-index: 2000;
+}
+
+.navlinks-right1 {
+    margin: 30px 5px 0 170px !important;
+}
+
+.navlinks-right2 {
+    margin: 30px 5px 0 5px !important;
 }
 
 ul#navlinks li {
-	display: inline;
-	list-style-type: none;
-	font: 300 18px "Lato", Helvetica, sans-serif;
-	margin: 30px 22px 0 22px;
-	padding: 30px 0;
+    display: inline;
+    list-style-type: none;
+    font: 300 18px "Lato", Helvetica, sans-serif;
+    margin: 30px 22px 0 22px;
+    padding: 30px 0;
 
 }
 
 a.main-nav-link {
-	font: 300 18px "Lato", Helvetica, sans-serif;
-	color: #4b4b4b;
+    font: 300 18px "Lato", Helvetica, sans-serif;
+    color: #4b4b4b;
 }
 
 .mainselect {
-	text-align: right;
+    text-align: right;
 }
 
 .mainselect-dropdown {
-	margin-top:16px;
-	border: none;
-	background-color: #fff;
-	 -webkit-box-shadow: none;
+    border: none;
+    background-color: #fff;
+    -webkit-box-shadow: none;
     box-shadow: none;
 }
 
 .tab-inactive {
-	float:left;
-	padding: 6px 16px;
-	margin: 18px 5px 0 5px;
-	border: solid 1px #c1c1c1;
-  	background: -webkit-linear-gradient(#f8f8f8, #cfcfcf); /* For Safari 5.1 to 6.0 */
-  	background: -o-linear-gradient(#f8f8f8, #cfcfcf); /* For Opera 11.1 to 12.0 */
-  	background: -moz-linear-gradient(#f8f8f8, #cfcfcf); /* For Firefox 3.6 to 15 */
-  	background: linear-gradient(#f8f8f8, #cfcfcf); /* Standard syntax */
-  	z-index:1;
+    float: left;
+    padding: 6px 16px;
+    margin: 18px 5px 0 5px;
+    border: solid 1px #c1c1c1;
+    background: -webkit-linear-gradient(#f8f8f8, #cfcfcf); /* For Safari 5.1 to 6.0 */
+    background: -o-linear-gradient(#f8f8f8, #cfcfcf); /* For Opera 11.1 to 12.0 */
+    background: -moz-linear-gradient(#f8f8f8, #cfcfcf); /* For Firefox 3.6 to 15 */
+    background: linear-gradient(#f8f8f8, #cfcfcf); /* Standard syntax */
+    z-index: 1;
 }
 
 .tab-active {
-	float:left;
-	position: relative;
-	padding: 6px 16px;
-	margin: 18px 5px 0 5px;
-	border-top: solid 1px #c1c1c1;
-	border-left: solid 1px #c1c1c1;
-	border-right: solid 1px #c1c1c1;
-	border-bottom: solid 1px #fff;
-	background-color: #fff;
-	z-index:1000;
+    float: left;
+    position: relative;
+    padding: 6px 16px;
+    margin: 18px 5px 0 5px;
+    border-top: solid 1px #c1c1c1;
+    border-left: solid 1px #c1c1c1;
+    border-right: solid 1px #c1c1c1;
+    border-bottom: solid 1px #fff;
+    background-color: #fff;
+    z-index: 50;
 }
 
 .tab-heading {
-	font: 300 16px "Lato", Helvetica, sans-serif;
+    font: 300 16px "Lato", Helvetica, sans-serif;
+}
+
+h2.dashboard-heading {
+    font-size: 26px;
+    margin-left: 21px;
+    margin-top: 45px;
+}
+
+.subheading {
+    margin-top: 35px;
+    font-size: 21px;
+}
+
+.dashboard-graph {
+    height: 50px;
+    background-color: #444444;
+    margin: 25px 80px 30px 20px;
+}
+
+.dashboard-row {
+    margin-left: 5px;
+    margin-right: 15px;
+}
+
+.dashboard-zoom {
+    float: left;
+    margin-right: 10px;
+}
+
+.dashboard-zoombar {
+    text-align: right;
 }
 
 .content {
-	background-color: #fff;
-	border: solid 1px #c1c1c1;
-	margin-top: -1px;
-	z-index: 1;
+    background-color: #fff;
+    border: solid 1px #c1c1c1;
+    margin-top: -1px;
+    z-index: 1;
 }
 
 .contracts {
-	border-bottom: 1px solid #e6e6e6;
-	padding: 38px 35px;
-	margin: 0 -15px 0  -15px;
+    border-bottom: 1px solid #e6e6e6;
+    padding: 38px 35px;
+    margin: 0 -15px 0 -15px;
+}
+
+.contracts2 {
+    padding: 38px 35px;
+    margin: 0 -15px 0 -15px;
 }
 
 .active-link-box {
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-  font-family: Arial;
-  color: #ffffff;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #33cc66;
-  padding: 8px 17px 8px 17px;
-  text-decoration: none;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+}
+
+.button-link-box {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-left: 21px;
+    margin-top: 35px;
+}
+
+.button-link-box2 {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 35px;
 }
 
 .active-link-box:hover {
-  background: #4ce67f;
-  text-decoration: none;
-  color: #ffffff;
+    background: #4ce67f;
+    text-decoration: none;
+    color: #ffffff;
 }
 
 .inactive-link-box {
-	font: 300 15px "Lato", Helvetica, sans-serif;
-	padding: 8px 27px 8px 27px;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    padding: 8px 27px 8px 27px;
 }
 
 .inactive-link-box:hover {
-	font: 300 15px "Lato", Helvetica, sans-serif;
-	padding: 8px 27px 8px 27px;
-	color: #33cc66;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    padding: 8px 27px 8px 27px;
+    color: #33cc66;
 }
 
 .active-link-box-sml {
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-  font-family: Arial;
-  color: #ffffff;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #33cc66;
-  padding: 8px 14px 8px 14px;
-  text-decoration: none;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 14px 8px 14px;
+    text-decoration: none;
 }
 
 .active-link-box-sml:hover {
-  background: #4ce67f;
-  text-decoration: none;
-  color: #ffffff;
+    background: #4ce67f;
+    text-decoration: none;
+    color: #ffffff;
 }
 
 .inactive-link-box-sml {
-	font: 300 15px "Lato", Helvetica, sans-serif;
-	padding: 8px 17px 8px 17px;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    padding: 8px 17px 8px 17px;
 }
 
 .inactive-link-box-sml:hover {
-	font: 300 15px "Lato", Helvetica, sans-serif;
-	padding: 8px 17px 8px 17px;
-	color: #33cc66;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    padding: 8px 17px 8px 17px;
+    color: #33cc66;
 }
 
 .active-link-box-zoom {
-  font-family: Arial;
-  color: #ffffff;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #33cc66;
-  padding: 8px 17px 8px 17px;
-  text-decoration: none;
-  float: left;
-  border-left: 1px solid #b5b5b5;
-  margin-top: -7px;
-  box-shadow: 0px 6px 0px #2da354;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    float: left;
+    border-left: 1px solid #b5b5b5;
+    margin-top: -7px;
+    box-shadow: 0px 6px 0px #2da354;
 }
 
 .inactive-link-box-zoom {
-  font-family: Arial;
-  color: #4b4b4b;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #e6e6e6;
-  padding: 8px 14px 8px 14px;
-  margin-top: -7px;
-  text-decoration: none;
-  float: left;
-  border-left: 1px solid #b5b5b5;
-  border-right: 1px solid #b5b5b5;
-  box-shadow: 0px 6px 0px #c9c8c8;
+    font-family: Arial;
+    color: #4b4b4b;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #e6e6e6;
+    padding: 8px 14px 8px 14px;
+    margin-top: -7px;
+    text-decoration: none;
+    float: left;
+    border-left: 1px solid #b5b5b5;
+    border-right: 1px solid #b5b5b5;
+    box-shadow: 0px 5px 0px #c9c8c8;
 }
 
 .inactive-link-box-zoom2 {
-  font-family: Arial;
-  color: #4b4b4b;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #e6e6e6;
-  padding: 8px 14px 8px 14px;
-  margin-top: -7px;
-  text-decoration: none;
-  border-left: 1px solid #b5b5b5;
-  float: left;	
-  box-shadow: 0px 6px 0px #c9c8c8;
+    font-family: Arial;
+    color: #4b4b4b;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #e6e6e6;
+    padding: 8px 14px 8px 14px;
+    margin-top: -7px;
+    text-decoration: none;
+    border-left: 1px solid #b5b5b5;
+    float: left;
+    box-shadow: 0px 5px 0px #c9c8c8;
 }
 
 .inactive-link-box-zoom3 {
-  font-family: Arial;
-  color: #4b4b4b;
-  font: 300 15px "Lato", Helvetica, sans-serif;
-  background: #e6e6e6;
-  padding: 8px 17px 8px 17px;
-  text-decoration: none;
-  float: left;
+    font-family: Arial;
+    color: #4b4b4b;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #e6e6e6;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    float: left;
 }
 
 a {
-	color: #33cc66;
-	font: 300 15px "Lato", Helvetica, sans-serif;
-	text-decoration: none;
+    color: #33cc66;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    text-decoration: none;
 }
 
 a:hover {
-	text-decoration: none;
+    text-decoration: none;
 }
 
 p {
-	font: 300 14px "Lato", Helvetica, sans-serif;
+    font: 300 14px "Lato", Helvetica, sans-serif;
+}
+
+span.dates {
+    font: 300 14px "Lato", Helvetica, sans-serif;
+    margin-top: 52px;
+    display: block;
 }
 
 .contract-overview {
-	border-bottom: 1px solid #e6e6e6;
-	margin: 0 -15px 0  -15px;
-	padding: 32px 35px;
+    border-bottom: 1px solid #e6e6e6;
+    margin: 0 -15px 0 -15px;
+    padding: 32px 35px;
 }
 
 .grey-header {
-	font: 700 13px "Lato", Helvetica, sans-serif;
-	color: #b7b7b7;
+    font: 700 13px "Lato", Helvetica, sans-serif;
+    color: #b7b7b7;
 }
 
 p.first-line {
-	margin-top: -13px;
+    margin-top: -13px;
 }
 
 p.first-line2 {
-	margin-top: 18px;
+    margin-top: 18px;
 }
 
 h6.buy {
-	font-size: 15px;
-	font-weight: 700;
-	color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
 
 }
 
 h6.sell {
-	font-size: 15px;
-	font-weight: 700;
-	color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
 
 }
 
 .contract-select {
-	display: none;
+    display: none;
 }
 
 .trades-select {
-	display: none;
+    display: none;
 }
 
 .header-box {
-  	background-color: #57c1ff; 
-  	padding: 4px 0 4px 33px;
+    background-color: #57c1ff;
+    padding: 4px 0 4px 33px;
 }
 
 .header-box-sell {
-	background-color: #33cc66;
-	padding: 4px 0 4px 33px;
+    background-color: #33cc66;
+    padding: 4px 0 4px 33px;
 }
 
 .header-box-myorders {
-	background-color: #c1c1c1;
-	padding: 4px 0 4px 33px;
+    background-color: #c1c1c1;
+    padding: 4px 0 4px 33px;
 }
 
 .buy-box {
-	border-right: solid 1px #e6e6e6;
+    border-right: solid 1px #e6e6e6;
 
 }
 
 .buy-box2 {
-	padding: 14px 0 142px 33px;
-	border-bottom: 1px solid #e6e6e6;
+    padding: 14px 0 142px 33px;
+    border-bottom: 1px solid #e6e6e6;
 }
 
 .buy-box3 {
-	padding: 14px 0 6px 33px;
-	border-bottom: 1px solid #e6e6e6;
+    padding: 14px 0 6px 33px;
+    border-bottom: 1px solid #e6e6e6;
 }
 
 .buy-box4 {
-	padding: 14px 0 20px 46px;
-	border-bottom: 1px solid #e6e6e6;
+    padding: 14px 0 20px 46px;
+    border-bottom: 1px solid #e6e6e6;
 }
 
 .sell-box {
-	border-right: solid 1px #e6e6e6;
+    border-right: solid 1px #e6e6e6;
 }
 
 .field {
-	width: 80%;
+    width: 80%;
 }
 
 .cancels {
-	list-style-type: none;
-	margin: -4px 0 0 -37px;
-	line-height: 27px;
+    list-style-type: none;
+    margin: -4px 0 0 -37px;
+    line-height: 27px;
 }
 
 .recent-trades-box {
-	padding: 30px 0 30px 35px;
-	border-right: 1px solid #e6e6e6;
+    padding: 30px 0 30px 35px;
+    border-right: 1px solid #e6e6e6;
 }
 
 .recent-trades-header {
-	border-bottom: 1px solid #e6e6e6;
-	padding-bottom: 5px;
-	margin: 25px 0 15px -35px;
+    border-bottom: 1px solid #e6e6e6;
+    padding-bottom: 5px;
+    margin: 25px 0 15px -35px;
 }
 
 .recent-price {
-	margin: 0 0px 0 18px;
+    margin: 0 0px 0 18px;
 }
 
 .recent-quantity {
-	margin: 0 -5px 0 0px;
+    margin: 0 -5px 0 0px;
 }
 
 .display-box {
-	padding: 25px 15px 15px 25px;
+    padding: 25px 15px 15px 25px;
 }
 
 .zoom-box {
-	padding: 25px 15px 15px 25px;
+    padding: 25px 15px 15px 25px;
 }
 
 .field-display {
-	margin-top: 10px;
+    margin-top: 10px;
 }
 
 .button-hour {
-	position: relative;
-	z-index: 1;
-	-webkit-border-radius: 4px;
-  	-moz-border-radius: 4px;
-  	border-radius: 4px;
-  	background-color: #2da354;
-  	border-right: solid 1px #b5b5b5;
-  	float: left;
-  	padding-bottom: 14px;
+    position: relative;
+    z-index: 1;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    background-color: #2da354;
+    border-right: solid 1px #b5b5b5;
+    float: left;
+    padding-bottom: 14px;
 }
 
 .button-24-hours {
-	position: absolute;
-	z-index: 10;
-  	background-color: #c9c8c8;
-  	border-left: solid 1px #b5b5b5;
-  	border-right: solid 1px #b5b5b5;
-  	float: left;
-  	padding-bottom: 14px;
-  	left: 100px;
+    position: absolute;
+    z-index: 10;
+    background-color: #c9c8c8;
+    border-left: solid 1px #b5b5b5;
+    border-right: solid 1px #b5b5b5;
+    float: left;
+    padding-bottom: 14px;
+    left: 100px;
 }
 
 .button-10-days {
-  	position: relative;
-  	background-color: #c9c8c8;
-  	border-right: solid 1px #b5b5b5;
-  	float: left;
-  	z-index: 10;
-  	padding-bottom: 14px;
+    position: relative;
+    background-color: #c9c8c8;
+    border-right: solid 1px #b5b5b5;
+    float: left;
+    z-index: 10;
+    padding-bottom: 14px;
 }
 
 .button-month {
-	position: relative;
-	-webkit-border-radius: 4px;
-  	-moz-border-radius: 4px;
-  	border-radius: 4px;
-  	background-color: #c9c8c8;
-  	border-left: solid 1px #b5b5b5;
-  	z-index:1;
-  	float: left;
-  	padding-bottom: 14px;
+    position: relative;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    background-color: #c9c8c8;
+    border-left: solid 1px #b5b5b5;
+    z-index: 1;
+    float: left;
+    padding-bottom: 14px;
 }
 
 .zoombar {
-	margin-top: 25px;
+    margin-top: 25px;
 }
 
 .graph-box {
-	padding: 25px;
+    padding: 25px;
 }
 
 .graph {
-	background-color: #cccccc;
+    background-color: #cccccc;
 }
 
 .dropdown-style {
-	border: 0px;
-	background-color: #fff;
-	margin-top: 16px;
+    border: 0px;
+    background-color: #fff;
 }
 
 .toplinks {
-	padding-top: 23px;
-	margin: -83px -170px 0 165px;
-	text-align: right;
+    padding-top: 23px;
+    margin: -83px -170px 0 165px;
+    text-align: right;
 }
 
 .tablink {
-	color: #4b4b4b;
+    color: #4b4b4b;
 }
 
 .tier-one-links {
-	margin-top: -74px;
-	border: 0px;
+    margin-top: -74px;
+    border: 0px;
 }
 
 .navbar-default {
-	border: 0px;
-	margin-top:-2px;
+    border: 0px;
+    margin-top: -2px;
+    z-index: 100;
+    border: 0px;
+    background-color: #fff;
+}
+
+.navbar-toggle {
+    background-color: #fff;
+    border: 0px;
+    margin-top: 20px;
 }
 
 .toggle-button {
-	border: 0px;
-	margin: 20px 0 0 20px;
+    border: 0px;
+    margin: 20px 0 0 20px;
 }
 
 .cancel-button {
-	background: transparent;
-	color: transparent;
-	border: 0px;
+    background: transparent;
+    color: transparent;
+    border: 0px;
 }
 
 .alert-warning {
-	margin: 27px 37px 0 16px;
+    margin: 27px 37px 0 16px;
+}
+
+/*-- Account - Transaction History --*/
+
+.dropdown-left {
+    margin-left: 25px;
+    margin-top: 18px;
+    border: 0px;
+}
+
+.dropdown-menu-left {
+    margin-left: 35px;
+}
+
+.table-full {
+    width: 95%;
+    margin: 30px 20px 40px 25px;
+}
+
+.table-date {
+    width: 20%;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+    padding-bottom: 10px;
+}
+
+.table-type {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-debit {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-credit {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-balance {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-note {
+    width: 20%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-bottom: solid 1px #ccc;
+}
+
+.cell-type {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-debit {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-credit {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-balance {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-note {
+    padding: 10px 0 10px 10px;
+}
+
+.cell-date {
+    padding: 10px 0 10px 0;
+    border-right: 1px solid #ccc;
+}
+
+/*-- Dashboard - All Orders --*/
+
+.table-contract {
+    width: 25%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-type2 {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-price {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-quantity {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-cancel {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-bottom: solid 1px #ccc;
+}
+
+.cell-contract {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-type2 {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-price {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-quantity {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-cancel {
+    padding: 10px 0 10px 0;
+
+}
+
+/*-- Audit --*/
+
+.asset-select {
+    margin: 0 0 -10px 21px;
+}
+
+.table-id {
+    width: 75%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-right: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+}
+
+.table-amount {
+    width: 15%;
+    padding-left: 10px;
+    padding-bottom: 10px;
+    border-bottom: solid 1px #ccc;
+}
+
+.cell-id {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
+.cell-amount {
+    padding: 10px 0 10px 10px;
+
+}
+
+/*-- Account - Funding - Deposit --*/
+
+.text-balance {
+    margin: 25px 0 0px 21px;
+
+}
+
+.deposit-content {
+    margin: 10px 0 35px 21px;
+}
+
+.deposit-heading {
+    margin: 35px 0 0 21px;
+}
+
+.content-push {
+    margin-bottom: 100px;
+}
+
+/*-- Account - Funding - Withdraw --*/
+
+.deposit-content2 {
+    margin: 10px 35px 35px 21px;
+}
+
+.form-label {
+    padding-top: 6px;
+}
+
+.form-label2 {
+    padding-top: 6px;
+    margin-bottom: 35px;
+}
+
+.form-row {
+    margin-bottom: 20px;
+}
+
+.header-sub2 {
+    margin-bottom: 20px;
 }
 
 /*-- Media Queries --*/
 
 @media screen and (max-width: 768px) and (min-width: 120px) {
-	.contract-overview-info2 {
-		margin-top: 25px;
-	}
+    .contract-overview-info2 {
+        margin-top: 25px;
+    }
 
-	.active-link-box {
-		display: none;
-	}
-	.inactive-link-box {
-		display: none;
-	}
-	.contract-select {
-		display:block;
-	}
+    ul#navlinks {
+        display: inline;
+        text-align: left;
+        margin-top: 0px;
+        float: left;
+        z-index: 2000;
+    }
 
-	.field {
-		width: 95%;
-	}
+    .navlinks-right1 {
+        font-size: 18px !important;
+    }
 
-	.quantity {
-		margin-top: 15px;
-	}
+    .navlinks-right2 {
+        font-size: 18px !important;
+    }
 
-	.buy-box2 {
-	padding: 14px 0 30px 33px;
+    .active-link-box {
+        display: none;
+    }
+
+    .inactive-link-box {
+        display: none;
+    }
+
+    .contract-select {
+        display: block;
+    }
+
+    .field {
+        width: 95%;
+    }
+
+    .quantity {
+        margin-top: 15px;
+    }
+
+    .buy-box2 {
+        padding: 14px 0 30px 33px;
+    }
+
+    .field-date {
+        float: right;
+        width: 83%;
+        margin-top: -23px;
+        margin-right: 25px;
+    }
+
+    span.dates {
+        margin-left: 25px;
+    }
+
 }
-}
-
 
 @media screen and (max-width: 1200px) and (min-width: 120px) {
 
-	.trades-select {
-		display:block;
-		width: 94%;
-	}
+    .trades-select {
+        display: block;
+        width: 94%;
+    }
 
-	.active-link-box-sml {
-		display: none;
-	}
+    .active-link-box-sml {
+        display: none;
+    }
 
-	.inactive-link-box-sml {
-		display: none;
-	}
+    .inactive-link-box-sml {
+        display: none;
+    }
 
 }
 
-@media screen and (max-width: 992px) and (min-width: 768px) {
+@media screen and (max-width: 992px) and (min-width: 767px) {
 
-	.toplinks {
-	padding: 23px 0px 0px 0px;
-	margin: -85px 0px 0 0px;
-	text-align: right;
-}
+    .toplinks {
+        padding: 23px 0px 0px 0px;
+        margin: -85px 0px 0 0px;
+        text-align: right;
+    }
+
+    .navlinks-right1 {
+        margin: 30px 5px 0 0px !important;
+    }
+
+    .navlinks-right2 {
+        margin: 30px -65px 0 5px !important;
+    }
+
+    .field-date {
+        float: right;
+        width: 60%;
+        margin-top: -23px;
+    }
 
 }
 
 @media screen and (max-width: 1200px) and (min-width: 992px) {
-	.toplinks {
-	padding: 23px 0px 0px 0px;
-	margin: -85px 0px 0 150px;
-	text-align: right;
-	}
+    .toplinks {
+        padding: 23px 0px 0px 0px;
+        margin: -85px 0px 0 150px;
+        text-align: right;
+    }
+
+    .field-date {
+        float: right;
+        width: 70%;
+        margin-top: -23px;
+    }
+
 }
 
 @media screen and (max-width: 6000px) and (min-width: 1200px) {
-	.toplinks {
-	padding: 23px 0px 0px 0px;
-	margin: -85px 0px 0 335px;
-	text-align: right;
-	}
+    .toplinks {
+        padding: 23px 0px 0px 0px;
+        margin: -85px 0px 0 335px;
+        text-align: right;
+    }
+
+    .navlinks-right1 {
+        margin: 30px 5px 0 350px !important;
+    }
+
+    .navlinks-right2 {
+        margin: 30px -5px 0 5px !important;
+    }
+
+    .navlinks-right3 {
+        margin: 30px -5px 0 5px !important;
+    }
+
+    .field-date {
+        float: right;
+        width: 74%;
+        margin-top: -23px;
+    }
+
 }
+

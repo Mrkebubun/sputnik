@@ -45,11 +45,13 @@ class @Sputnik extends EventEmitter
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
         @subscribe "safe_prices##{market}", @onSafePrice
+        @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
         @unsubscribe "safe_prices##{market}"
+        @unsubscribe "ohlcv##{market}", @onOHLCV
 
     # authentication and account management
 
@@ -241,6 +243,8 @@ class @Sputnik extends EventEmitter
             # Spit out some debugging, this should not happen
             @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
+        if not contract?
+            @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[contract.payout_contract_ticker]
@@ -388,18 +392,18 @@ class @Sputnik extends EventEmitter
         [contract, source, target] = @cstFromTicker(ticker)
 
         if contract.contract_type is "prediction"
-            return Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0))
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
             return 0
         else if contract.contract_type is "cash"
-            return Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0))
 
     getMinMove: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -530,13 +534,10 @@ class @Sputnik extends EventEmitter
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
 
-        @emitBook ticker
         @getOrderBook ticker
-
-        @emitTradeHistory ticker
         @getTradeHistory ticker
-
-        @emitOHLCVHistory ticker, "day"
+        @getOHLCVHistory ticker, "minute"
+        @getOHLCVHistory ticker, "hour"
         @getOHLCVHistory ticker, "day"
 
         @follow ticker
@@ -774,7 +775,13 @@ class @Sputnik extends EventEmitter
         else
             sign = -1
 
-        @positions[transaction.contract].position += sign * transaction.quantity
+        if transaction.contract of @positions
+            @positions[transaction.contract].position += sign * transaction.quantity
+        else
+            @positions[transaction.contract] =
+                position: sign * transaction.quantity
+                contract: transaction.contract
+
         @emit "transaction", @transactionFromWire(transaction)
 
         positions = {}
