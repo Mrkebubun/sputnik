@@ -4,6 +4,14 @@ body {
     color: #4b4b4b;
 }
 
+.navbar {
+    height: inherit;
+}
+
+.temp {
+    height: 60px;
+}
+
 .navbar2 {
     height: 67px;
     background-color: #fff;
@@ -14,6 +22,10 @@ body {
 .navbar {
     z-index: 100;
 
+}
+
+.navbar-nav {
+    overflow: hidden;
 }
 
 .navbar-header {
@@ -793,11 +805,16 @@ h6.sell {
     }
 
     ul#navlinks {
-        display: inline;
         text-align: left;
-        margin-top: 0px;
+        margin: 0px 0 0 0px;
         float: left;
-        z-index: 2000;
+        clear: both;
+        z-index: 9000;
+    }
+
+    .navbar-collapse {
+        width: 100%;
+        border-top: 0px;
     }
 
     .navlinks-right1 {
@@ -806,6 +823,20 @@ h6.sell {
 
     .navlinks-right2 {
         font-size: 18px !important;
+    }
+
+    .navlinks-right3 {
+        display: block;
+        margin: 30px 0px 40px -15px !important;
+        
+    }
+
+    #login-name {
+        font: 300 15px "Lato", Helvetica;
+    }
+
+    .login-box {
+        margin: 0px 0px 0px 2px;
     }
 
     .active-link-box {
@@ -871,11 +902,19 @@ h6.sell {
     }
 
     .navlinks-right1 {
-        margin: 30px 5px 0 0px !important;
+        margin: 30px 5px 0 85px !important;
     }
 
     .navlinks-right2 {
         margin: 30px -65px 0 5px !important;
+    }
+
+    .navlinks-right3 {
+        margin: 15px -10px 0 0px !important;
+    }
+
+    .login-box {
+        padding: 26px 0px 0px 20px;
     }
 
     .field-date {
@@ -883,6 +922,18 @@ h6.sell {
         width: 60%;
         margin-top: -23px;
     }
+
+    .navbar-nav {
+        width: 530px;
+        
+    }
+
+    .nav {
+        width: 530px;
+        
+    }
+
+
 
 }
 
@@ -899,6 +950,18 @@ h6.sell {
         margin-top: -23px;
     }
 
+    .navlinks-right1 {
+        margin: 30px 5px 0 300px !important;
+    }
+
+    .navlinks-right3 {
+        margin: 25px 0px 0 245px !important;
+    }
+
+    .login-box {
+        padding: 16px 0px 0px 20px;
+    }
+
 }
 
 @media screen and (max-width: 6000px) and (min-width: 1200px) {
@@ -909,7 +972,7 @@ h6.sell {
     }
 
     .navlinks-right1 {
-        margin: 30px 5px 0 350px !important;
+        margin: 30px 5px 0 515px !important;
     }
 
     .navlinks-right2 {
@@ -917,7 +980,11 @@ h6.sell {
     }
 
     .navlinks-right3 {
-        margin: 30px -5px 0 5px !important;
+        margin: 15px 0px 0px 440px !important;
+    }
+
+    .login-box {
+        padding: 26px 0px 0px 20px;
     }
 
     .field-date {
