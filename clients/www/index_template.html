@@ -1036,10 +1036,10 @@
                                                     <th class="cell-id">TOTAL</th>
                                                     <th class="cell-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].total_fmt}}</th>
                                                 </tr>
-                                                {{#sputnik.audit[audit_tab][audit_contract].positions:i}}
-                                                <tr class="{{sputnik.audit[audit_tab][audit_contract].positions[i][0] == sputnik.audit_hash ? 'cells highlight' : 'cells'}}">
-                                                    <td class="cell-id">{{sputnik.audit[audit_tab][audit_contract].positions[i][0]}}</td>
-                                                    <td class="cell-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].positions[i][1]}}</td>
+                                                {{#sputnik.audit[audit_tab][audit_contract].positions}}
+                                                <tr class="{{this[0] == sputnik.audit_hash ? 'cells highlight' : 'cells'}}">
+                                                    <td class="cell-id">{{this[0]}}</td>
+                                                    <td class="cell-amount" align="right">{{this[1]}}</td>
                                                 </tr>
                                                 {{/}}
                                             </tbody>
