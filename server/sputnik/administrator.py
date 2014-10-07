@@ -706,9 +706,10 @@ class Administrator:
             for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
-                    details['positions'].append((position['hash'], position['position']))
+                    details['positions'].append((position['hash'], position['position_fmt']))
                 del details['positions_raw']
                 del details['positions_by_user']
+                del details['total']
 
         return balance_sheet
 
