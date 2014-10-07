@@ -502,12 +502,20 @@
                                         </div>
                                         <div class="col-sm-3">
                                             <form>
-                                            <span class="dates">Start date</span> <input class="form-control field-date" type="text" name="startdate">
+                                            <span class="dates">Start date</span> <input class="form-control field-date"
+                                                                                         data-provide="datepicker"
+                                                                                         data-date-format="MM d, yyyy"
+                                                                                         on-keyup="transactions"
+                                                                                         type="text" name="startdate">
                                             </form>
                                         </div>
                                         <div class="col-sm-3">
                                             <form>
-                                            <span class="dates">End date</span> <input class="field-date form-control" type="text" name="enddate" >
+                                            <span class="dates">End date</span> <input class="field-date form-control"
+                                                                                       data-provide="datepicker"
+                                                                                       data-date-format="MM d, yyyy"
+                                                                                       on-keyup="transactions"
+                                                                                       type="text" name="enddate">
                                             </form>
                                         </div>
                                     </div>
@@ -543,14 +551,16 @@
                                                 </tr>
                                                 </thead>
                                                 <tbody>
+                                                    {{#sputnik.transaction_history[current_currency]}}
                                                     <tr class="cells">
-                                                        <td class="cell-date">2014/10/12 8:45 am</td>
-                                                        <td class="cell-type">Deposit</td>
-                                                        <td class="cell-debit">$4,300.00</td>
-                                                        <td class="cell-credit"></td>
-                                                        <td class="cell-balance">$4,300,212.00</td>
-                                                        <td class="cell-note">This is a simple note.</td>
+                                                        <td class="cell-date">{{timestamp}}</td>
+                                                        <td class="cell-type">{{type}}</td>
+                                                        <td class="cell-debit">{{direction == "debit" ? quantity : ''}}</td>
+                                                        <td class="cell-credit">{{direction == "credit" ? quantity : ''}}</td>
+                                                        <td class="cell-balance">X</td>
+                                                        <td class="cell-note">{{note}}</td>
                                                     </tr>
+                                                    {{/}}
                                                 </tbody>
                                             </table>
                                         </div>

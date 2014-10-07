@@ -11,6 +11,17 @@ class RactiveSputnikWrapper
         @orders = []
         @ohlcv = {}
         @currencies = {}
+        @transaction_history = {}
+
+        @sputnik.on "transaction_history", (history) =>
+            @transaction_history = {}
+            for item in history
+                if item.contract of @transaction_history
+                    @transaction_history[item.contract].push item
+                else
+                    @transaction_history[item.contract] = [item]
+
+            @notify "transaction_history"
 
         @sputnik.on "auth_success", (username) =>
             @logged_in = true
@@ -154,6 +165,7 @@ class RactiveSputnikWrapper
         orders: @orders
         ohlcv: @ohlcv
         currencies: @currencies
+        transaction_history: @transaction_history
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

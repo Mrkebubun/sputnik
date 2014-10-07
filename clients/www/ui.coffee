@@ -178,6 +178,12 @@ $ ->
                     else
                         sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
 
+            transactions: (event) ->
+                sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
+                start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
+                end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
+                sputnik.getTransactionHistory(start_timestamp, end_timestamp)
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
@@ -416,14 +422,6 @@ $ ->
         $("#account").click ->
             $("#account_modal").modal()
 
-        $("#transactions").click ->
-            $("#transactions_modal").modal()
-            $("#transactions_button").click ->
-                sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
-                start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
-                end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
-                sputnik.getTransactionHistory(start_timestamp, end_timestamp)
-
         $("#audit").click ->
             $("#audit_modal").modal()
             sputnik.getAudit()
@@ -546,15 +544,15 @@ $ ->
             window.my_audit_hash = audit_hash
             $('#audit_hash').text audit_hash
 
-        sputnik.on "transaction_history", (transaction_histories) ->
-            html = []
-            for his in transaction_histories
-                trHTML = "<tr><td>#{his['timestamp']}</td>
-                     <td>#{his['type'] ? ''}</td>
-                     <td>#{his['contract'] ? ''}</td>
-                     <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
-                html.push(trHTML)
-            $('#transaction_history tbody').html(html.join())
+#        sputnik.on "transaction_history", (transaction_histories) ->
+#            html = []
+#            for his in transaction_histories
+#                trHTML = "<tr><td>#{his['timestamp']}</td>
+#                     <td>#{his['type'] ? ''}</td>
+#                     <td>#{his['contract'] ? ''}</td>
+#                     <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
+#                html.push(trHTML)
+#            $('#transaction_history tbody').html(html.join())
 
         sputnik.on "fill", (fill) ->
             quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
