@@ -15,6 +15,7 @@ class RactiveSputnikWrapper
         @audit = {}
         @audit_hash = ''
         @exchange_info = {}
+        @active_contracts = []
 
         @sputnik.on "audit_details", (audit_details) =>
             @audit = audit_details
@@ -55,12 +56,16 @@ class RactiveSputnikWrapper
                     @markets[ticker] = market
                     type = market.contract_type
                     (@types[type] or (@types[type] = [])).push ticker
+                    # Later we'll come up with a better rule for what is an active contract
+                    @active_contracts.push ticker
                 else
                     @currencies[ticker] = market
+
 
             @notify "markets"
             @notify "types"
             @notify "currencies"
+            @notify "active_contracts"
 
         @sputnik.on "address", (address) =>
             @currencies[address[0]].address = address[1]
@@ -115,8 +120,19 @@ class RactiveSputnikWrapper
                 if @markets[ticker]?.contract_type isnt "cash_pair"
                     @positions[ticker] = position
                     @positions[ticker].position_fmt = position.position.toFixed(@sputnik.getQuantityPrecision(ticker))
+            # Set active contracts based on what we have positions in
+            @active_contracts = []
+            for ticker, market of @markets
+                if market.contract_type is "cash_pair"
+                    if ticker not in @active_contracts
+                        if @positions[market.denominated_contract_ticker].position != 0 or @positions[market.payout_contract_ticker].position != 0
+                            @active_contracts.push ticker
+                else if market.contract_type isnt "cash"
+                    if ticker not in @active_contracts
+                        if @positions[ticker].position != 0
+                            @active_contracts.push ticker
 
-            @sputnik.log ["positions2", @positions]
+            @notify "active_contracts"
             @notify "positions"
         
         sputnik.on "margin", (margin) =>
@@ -184,6 +200,7 @@ class RactiveSputnikWrapper
         audit: @audit
         audit_hash: @audit_hash
         exchange_info: @exchange_info
+        active_contracts: @active_contracts
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
