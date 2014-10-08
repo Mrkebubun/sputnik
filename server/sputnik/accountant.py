@@ -130,6 +130,7 @@ class Accountant:
                     position = self.get_position(
                             posting['username'], posting['contract'])
                     position.pending_postings += change
+                    # make sure the position exists
                     self.session.add(position)
                 self.session.commit()
             except SQLAlchemyError, e:
@@ -153,7 +154,7 @@ class Accountant:
                     log.msg("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
                     log.msg("New position: %s" % position)
-                    self.session.merge(position)
+                    #self.session.merge(position)
                 self.session.commit()
             finally:
                 self.session.rollback()
@@ -352,7 +353,7 @@ class Accountant:
             log.msg("Order accepted.")
             order.accepted = True
             try:
-                self.session.merge(order)
+                # self.session.merge(order)
                 self.session.commit()
             except:
                 self.alerts_proxy.send_alert("Could not merge order: %s" % order)
@@ -605,7 +606,7 @@ class Accountant:
             try:
                 db_order = self.session.query(models.Order).filter_by(id=order).one()
                 db_order.quantity_left -= quantity
-                self.session.add(db_order)
+                # self.session.add(db_order)
                 self.session.commit()
                 log.msg("Updated order: %s" % db_order)
             except Exception as e:
@@ -637,7 +638,7 @@ class Accountant:
         def publish_trade(result):
             try:
                 trade.posted = True
-                self.session.add(trade)
+                # self.session.add(trade)
                 self.session.commit()
                 log.msg("Trade marked as posted: %s" % trade)
             except Exception as e:
@@ -684,7 +685,7 @@ class Accountant:
         def update_order(result):
             try:
                 order.is_cancelled = True
-                self.session.add(order)
+                # self.session.add(order)
                 self.session.commit()
             except Exception as e:
                 self.session.rollback()
@@ -718,7 +719,7 @@ class Accountant:
 
         order.is_cancelled = True
         try:
-            self.session.add(order)
+            # self.session.add(order)
             self.session.commit()
         except:
             self.alerts_proxy.send_alert("Could not merge cancelled order: %s" % order)
@@ -777,7 +778,7 @@ class Accountant:
         def mark_order_dispatched(result):
             o.dispatched = True
             try:
-                self.session.add(o)
+                # self.session.add(o)
                 self.session.commit()
             except:
                 self.alerts_proxy.send_alert("Could not mark order as dispatched: %s" % o)
@@ -908,7 +909,7 @@ class Accountant:
                 total_deposited_at_address.accounted_for += deposit
 
             # update address
-            self.session.add(total_deposited_at_address)
+            # self.session.add(total_deposited_at_address)
             self.session.commit()
 
             #prepare cash deposit
@@ -997,7 +998,7 @@ class Accountant:
             log.msg("Changing permission group for %s to %d" % (username, id))
             user = self.get_user(username)
             user.permission_group_id = id
-            self.session.add(user)
+            # self.session.add(user)
             self.session.commit()
         except Exception as e:
             log.err("Error: %s" % e)
@@ -1077,7 +1078,7 @@ class Accountant:
         try:
             for position in user.positions:
                 position.pending_postings = 0
-                self.session.add(position)
+                # self.session.add(position)
             self.session.commit()
         except:
             self.session.rollback()
@@ -1096,7 +1097,7 @@ class Accountant:
                     # position has settled, sync with ledger
                     position.position, position.cp_timestamp = util.position_calculated(position, self.session)
                     position.position_checkpoint = position.position
-                    self.session.add(position)
+                    # self.session.add(position)
                 else:
                     clean = False
             if clean:
@@ -1128,7 +1129,7 @@ class Accountant:
             # Mark contract inactive
             try:
                 contract.active = False
-                self.session.add(contract)
+                # self.session.add(contract)
                 self.session.commit()
             except Exception as e:
                 self.session.rollback()
