@@ -39,6 +39,7 @@ from twisted.internet import reactor
 from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import SQLAlchemyError
 from watchdog import watchdog
 
 import time
@@ -105,16 +106,21 @@ class Accountant:
 
     def post_or_fail(self, *postings):
         def update_counters(increment=False):
-            if increment:
-                change = 1
-            else:
-                change = -1
+            change = 1 if increment else -1
 
-            for posting in postings:
-                position = self.get_position(posting['username'], posting['contract'])
-                position.pending_postings += change
-                self.session.add(position)
-            self.session.commit()
+            try:
+                for posting in postings:
+                    position = self.get_position(
+                            posting['username'], posting['contract'])
+                    position.pending_postings += change
+                    self.session.add(position)
+                self.session.commit()
+            except SQLAlchemyError, e:
+                log.err("Could not update counters: %s" % e)
+                self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+                self.session.rollback()
+            finally:
+                self.session.rollback()
 
         def on_success(result):
             log.msg("Post success: %s" % result)
