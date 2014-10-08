@@ -266,7 +266,7 @@ class Accountant:
         debit["count"] = 2
         credit["uid"] = uid
         debit["uid"] = uid
-        return self.post_or_fail(credit, debit)
+        return self.post_or_fail(credit, debit).addErrback(log.err)
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -291,7 +291,7 @@ class Accountant:
                           (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
-            self.session.add(position)
+            # self.session.add(position)
             return position
 
     def check_margin(self, username, low_margin, high_margin):
@@ -319,14 +319,24 @@ class Accountant:
         # Audit the user
         if not self.is_user_enabled(user):
             log.msg("%s user is disabled" % user.username)
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise DISABLED_USER
 
         if not user.permissions.trade:
             log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise TRADE_NOT_PERMITTED
 
         # Make sure there is a position in the contract, if it is not a cash_pair
@@ -341,12 +351,22 @@ class Accountant:
         if self.check_margin(order.username, low_margin, high_margin):
             log.msg("Order accepted.")
             order.accepted = True
-            self.session.merge(order)
-            self.session.commit()
+            try:
+                self.session.merge(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
+            finally:
+                self.session.rollback()
         else:
             log.msg("Order rejected due to margin.")
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise INSUFFICIENT_MARGIN
 
 
@@ -634,7 +654,7 @@ class Accountant:
         if aggressive:
             d.addCallback(publish_trade)
 
-        return d
+        return d.addErrback(log.err)
 
     def raiseException(self, failure):
         raise failure.value
@@ -697,8 +717,13 @@ class Accountant:
             raise AccountantException(0, "Order %d is already cancelled" % id)
 
         order.is_cancelled = True
-        self.session.add(order)
-        self.session.commit()
+        try:
+            self.session.add(order)
+            self.session.commit()
+        except:
+            self.alerts_proxy.send_alert("Could not merge cancelled order: %s" % order)
+        finally:
+            self.session.rollback()
 
         self.webserver.order(username, order.to_webserver())
 
@@ -751,8 +776,13 @@ class Accountant:
 
         def mark_order_dispatched(result):
             o.dispatched = True
-            self.session.add(o)
-            self.session.commit()
+            try:
+                self.session.add(o)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not mark order as dispatched: %s" % o)
+            finally:
+                self.session.rollback()
             return result
 
         def publish_order(result):
@@ -780,8 +810,7 @@ class Accountant:
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
-        d = self.post_or_fail(posting)
-        return d
+        return self.post_or_fail(posting).addErrback(log.err)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -841,7 +870,7 @@ class Accountant:
                     return True
 
                 d.addCallback(onSuccess)
-                return d
+                return d.addErrback(log.err)
         except Exception as e:
             self.session.rollback()
             log.err("Exception received while attempting withdrawal: %s" % e)
@@ -949,7 +978,7 @@ class Accountant:
             for posting in remote_postings:
                 self.accountant_proxy.remote_post(posting['username'], posting)
 
-            return d
+            return d.addErrback(log.err)
         except Exception as e:
             self.session.rollback()
             log.err(
@@ -1147,8 +1176,7 @@ class Accountant:
             posting['count'] = position_count * 2
             posting['uid'] = uid
 
-        d = self.post_or_fail(credit, debit)
-        return d
+        return self.post_or_fail(credit, debit).addErrback(log.err)
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
@@ -1232,7 +1260,7 @@ class AccountantExport(ComponentExport):
     @export
     @schema("rpc/accountant.accountant.json#remote_post")
     def remote_post(self, username, *postings):
-        self.accountant.post_or_fail(*postings)
+        self.accountant.post_or_fail(*postings).addErrback(log.err)
         # we do not want or need this to propogate back to the caller
         return None
 
