@@ -105,6 +105,23 @@ class Accountant:
         self.accountant_number = accountant_number
 
     def post_or_fail(self, *postings):
+        # This is the core ledger communication method.
+        # Posting happens as follows:
+        # 1. All affected positions have a counter incremented to keep track of
+        #    pending postings.
+        # 2. The ledger's RPC post() is invoked.
+        # 3. When the call returns, the position counters are decremented. This
+        #    happens whether or not there was an error.
+        # 4a. If there was no error, positions are updated and the webserver is
+        #     notified.
+        # 4b. If there was an error, an effort is made to determine what caused
+        #     it. If the error was severe, send_alert() is called to let us
+        #     know. In all cases, the error is propogated downstream to let
+        #     whoever called post_or_fail know that the post was not successful.
+        # Note: It is *important* that all invocations of post_or_fail attach
+        #       an errback (even if it is just log.err) to catch the
+        #       propogating error.
+
         def update_counters(increment=False):
             change = 1 if increment else -1
 
@@ -146,6 +163,7 @@ class Accountant:
             log.err("Ledger exception:")
             log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+            # propogate error downstream
             return failure
 
         def on_fail_rpc(failure):
@@ -156,6 +174,13 @@ class Accountant:
             else:
                 log.err("Improper ledger RPC invocation:")
                 log.err(failure)
+            # propogate error downstream
+            return failure
+
+        def on_fail_other(failure):
+            log.err("Error in processing posting result. This should be handled downstream.")
+            log.err(failure)
+            # propogate error downstream
             return failure
 
         def publish_transactions(result):
@@ -180,6 +205,10 @@ class Accountant:
         d.addBoth(decrement_counters)
         d.addCallback(on_success).addCallback(publish_transactions)
         d.addErrback(on_fail_ledger).addErrback(on_fail_rpc)
+
+        # Just in case there are no error handlers downstream, log any leftover
+        # errors here.
+        d.addErrback(on_fail_other)
 
         return d
 
