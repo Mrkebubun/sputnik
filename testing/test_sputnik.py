@@ -212,19 +212,21 @@ class FakeSendmail(FakeComponent):
         self.from_address = from_address
         FakeComponent.__init__(self, "sendmail")
 
+def fix_config():
+    spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
+    test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \
+            spec_dir
+    from sputnik import config
+
+    config.reset()
+    config.readfp(StringIO.StringIO(test_config))
 
 class TestSputnik(unittest.TestCase):
     def setUp(self):
         logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                             level=logging.DEBUG)
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
-        test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \
-                spec_dir
-        from sputnik import config
-
-        config.reset()
-        config.readfp(StringIO.StringIO(test_config))
+        fix_config()
 
         from sputnik import database, models
 

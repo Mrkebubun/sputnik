@@ -1,6 +1,6 @@
 import sys
 import os
-from test_sputnik import TestSputnik, FakeComponent
+from test_sputnik import fix_config, TestSputnik, FakeComponent
 from twisted.internet import defer, reactor, task
 from pprint import pprint
 
@@ -8,6 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
+
+fix_config()
 
 accountant_init = """
 permissions add Deposit deposit login
