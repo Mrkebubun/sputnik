@@ -652,6 +652,7 @@ class Administrator:
     @util.timed
     def update_bs_cache(self):
         now = datetime.utcnow()
+        timestamp = util.dt_to_timestamp(now)
 
         balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
                                                                    'total': 0,
@@ -694,10 +695,10 @@ class Administrator:
                 position = row.position
 
             position_details = {'username': row.username,
-                                'hash': user.user_hash,
+                                'hash': user.user_hash(timestamp),
                                 'position': position,
                                 'position_fmt': util.quantity_fmt(contract, position),
-                                'timestamp': util.dt_to_timestamp(now)}
+                                'timestamp': timestamp}
 
             balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
 
@@ -711,7 +712,7 @@ class Administrator:
                 details['contract'] = contract.ticker
                 details['total_fmt'] = util.quantity_fmt(contract, details['total'])
 
-        balance_sheet['timestamp'] = util.dt_to_timestamp(now)
+        balance_sheet['timestamp'] = timestamp
         self.bs_cache = {}
         for side, sheet in balance_sheet.iteritems():
             if isinstance(sheet, collections.defaultdict):

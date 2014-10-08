@@ -329,16 +329,14 @@ class User(db.Base):
     permissions = relationship("PermissionGroup")
     postings = relationship("Posting", back_populates="user")
 
-    @property
-    def user_hash(self):
+    def user_hash(self, timestamp):
         """
 
 
         :returns: str
         """
         combined_string = "%s:%s:%s:%s:%d" % (self.audit_secret, self.username, self.nickname, self.email,
-                                           util.dt_to_timestamp(datetime.combine(date.today(),
-                                                                                 datetime.min.time())))
+                                              timestamp)
 
         user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
         return user_hash
