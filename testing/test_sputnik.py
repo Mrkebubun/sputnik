@@ -27,6 +27,14 @@ contracts add BTC/MXN
 contracts add BTC/PLN
 contracts add BTC/HUF
 
+contracts add NETS2014
+contracts set NETS2014 contract_type prediction
+contracts set NETS2014 denominator 1000
+contracts set NETS2014 lot_size 1000000
+contracts set NETS2014 tick_size 1
+contracts set NETS2014 expiration 2014-06-28
+contracts set NETS2014 denominated_contract_ticker BTC
+
 contracts add NETS2015
 contracts set NETS2015 contract_type prediction
 contracts set NETS2015 denominator 1000
