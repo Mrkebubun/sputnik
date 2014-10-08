@@ -146,6 +146,7 @@ class Accountant:
             log.err("Ledger exception:")
             log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+            return failure
 
         def on_fail_rpc(failure):
             e = failure.trap(RemoteCallException)
@@ -155,6 +156,7 @@ class Accountant:
             else:
                 log.err("Improper ledger RPC invocation:")
                 log.err(failure)
+            return failure
 
         def publish_transactions(result):
             for posting in postings:
