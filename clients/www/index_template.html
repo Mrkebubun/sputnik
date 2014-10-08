@@ -408,8 +408,10 @@
                                         {{#sputnik.active_contracts}}
                                         <div class="col-sm-6">
                                             <h4 class="subheading">{{sputnik.markets[this].description}}</h4>
+                                            {{show_chart(this)}}
                                             <div class="row">
-                                                <div class="col-xs-11 dashboard-graph">{{dashboard_graphs[ticker]}}</div>
+                                                <div class="col-xs-11 dashboard-graph" id="dashboard_{{clean_ticker(this)}}">
+                                                </div>
                                             </div>
                                         </div>
                                         {{/}}

@@ -61,7 +61,6 @@ class RactiveSputnikWrapper
                 else
                     @currencies[ticker] = market
 
-
             @notify "markets"
             @notify "types"
             @notify "currencies"

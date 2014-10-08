@@ -45,6 +45,12 @@ $ ->
                 format_time: (datetime) ->
                     if datetime?
                         new Date(datetime/1000).toLocaleString()
+                clean_ticker: (ticker) ->
+                    ticker.replace('/', '_')
+                show_chart: (ticker) ->
+                    clean_ticker = ticker.replace('/', '_')
+                    showChart(ticker, "dashboard_#{clean_ticker}")
+
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
 
@@ -66,7 +72,6 @@ $ ->
             switch_page: (event, page) ->
                 event.original.preventDefault()
                 ractive.set "current_page", page
-                ractive.set "feedwind", getFeedwind()
 
             switch_dashboard_tab: (event, tab) ->
                 event.original.preventDefault()
@@ -383,14 +388,15 @@ $ ->
 
             $('#chatBox').val('')
 
-        showChart = (contract) ->
-            widget = new TradingView.widget {
+        showChart = (contract, target="tv_chart_container") ->
+            sputnik.log ["Show chart", contract, target]
+            options =
                 fullscreen: false
                 symbol: contract
                 interval: "D"
                 toolbar_bg: '#f4f7f9'
                 allow_symbol_change: false
-                container_id: "tv_chart_container"
+                container_id: target
                 datafeed: window.tv
                 library_path: "charting_library/"
                 locale: "en"
@@ -405,16 +411,24 @@ $ ->
                 show_popup_button: false
                 # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
                 disabled_drawings: ["Regression Trend"]
-            }
+
+            if target isnt "tv_chart_container"
+                options.width = 368
+                options.autosize = false
+
+            widget = new TradingView.widget options
 
             widget.onChartReady () ->
                 sputnik.log("onChartReady")
-                $("#tv_chart_container iframe").contents().find(".tv-side-toolbar").hide()
-                $("#tv_chart_container iframe").contents().find(".compare").hide()
-                $("#tv_chart_container iframe").contents().find(".properties").hide()
-                $("#tv_chart_container iframe").contents().find(".indicators").hide()
-                $("#tv_chart_container iframe").contents().find(".getimage").hide()
-                $("#tv_chart_container iframe").contents().find(".chart-status-picture").hide()
+                $("##{target} iframe").contents().find(".tv-side-toolbar").hide()
+                $("##{target} iframe").contents().find(".compare").hide()
+                $("##{target} iframe").contents().find(".properties").hide()
+                $("##{target} iframe").contents().find(".indicators").hide()
+                $("##{target} iframe").contents().find(".getimage").hide()
+                $("##{target} iframe").contents().find(".chart-status-picture").hide()
+
+                if target isnt "tv_chart_container"
+                    $("##{target} iframe").contents().find(".header-chart-panel").hide()
 
         getFeedwind = () ->
             href = window.location.href
