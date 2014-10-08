@@ -14,10 +14,15 @@ class RactiveSputnikWrapper
         @transaction_history = {}
         @audit = {}
         @audit_hash = ''
+        @exchange_info = {}
 
         @sputnik.on "audit_details", (audit_details) =>
             @audit = audit_details
             @notify "audit"
+
+        @sputnik.on "exchange_info", (exchange_info) =>
+            @exchange_info = exchange_info
+            @notify "exchange_info"
 
         @sputnik.on "audit_hash", (audit_hash) =>
             @audit_hash = audit_hash
@@ -178,6 +183,7 @@ class RactiveSputnikWrapper
         transaction_history: @transaction_history
         audit: @audit
         audit_hash: @audit_hash
+        exchange_info: @exchange_info
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

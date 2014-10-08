@@ -620,6 +620,7 @@ class @Sputnik extends EventEmitter
         @processHash()
 
         @call("get_markets").then @onMarkets, @wtf
+        @call("get_exchange_info").then @onExchangeInfo, @wtf
         @subscribe "chat", @onChat
         # TODO: Are chats private? Do we want them for authenticated users only?
         @call("get_chat_history").then \
@@ -650,6 +651,10 @@ class @Sputnik extends EventEmitter
 
         @log ["Markets", @markets]
         @emit "markets", @markets
+
+    onExchangeInfo: (@exchange_info) =>
+        @log ["Exchange Info", @exchange_info]
+        @emit "exchange_info", @exchange_info
 
     # feeds
     onBook: (book) =>
