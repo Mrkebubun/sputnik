@@ -66,6 +66,7 @@ $ ->
             switch_page: (event, page) ->
                 event.original.preventDefault()
                 ractive.set "current_page", page
+                ractive.set "feedwind", getFeedwind()
 
             switch_dashboard_tab: (event, tab) ->
                 event.original.preventDefault()
@@ -415,6 +416,56 @@ $ ->
                 $("#tv_chart_container iframe").contents().find(".getimage").hide()
                 $("#tv_chart_container iframe").contents().find(".chart-status-picture").hide()
 
+        getFeedwind = () ->
+            href = window.location.href
+            css = href.substring(0, href.lastIndexOf('/')+1) + "css/feed.css"
+            params =
+                rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.rss_feed")
+                rssmikle_frame_width: "284"
+                rssmikle_frame_height: "400"
+                rssmikle_target: "_blank"
+                rssmikle_font: "Arial, Helvetica, sans-serif"
+                rssmikle_font_size: "12"
+                rssmikle_border: "off"
+                responsive: "off"
+                rssmikle_css_url: css
+                text_align: "left"
+                text_align2: "left"
+                corner: "off"
+                scrollbar: "on"
+                autoscroll: "off"
+                scrolldirection: "up"
+                scrollstep: "3"
+                mcspeed: "20"
+                sort: "New"
+                rssmikle_title: "on"
+                rssmikle_title_sentence: "News"
+                rssmikle_title_link: ""
+                rssmikle_title_bgcolor: "#33CC66"
+                rssmikle_title_color: "#FFFFFF"
+                rssmikle_title_bgimage: ""
+                rssmikle_item_bgcolor: "#FFFFFF"
+                rssmikle_item_bgimage: ""
+                rssmikle_item_title_length: "55"
+                rssmikle_item_title_color: "#000000"
+                rssmikle_item_border_bottom: "on"
+                rssmikle_item_description: "title_only"
+                item_link: "on"
+                rssmikle_item_description_length: "150"
+                rssmikle_item_description_color: "#666666"
+                rssmikle_item_date: "gl1"
+                rssmikle_timezone: ""
+                datetime_format: "%b %e, %Y %l:%M:%S %p"
+                item_description_style: "html"
+                item_thumbnail: "full"
+                article_num: "15"
+                rssmikle_item_podcast: "off"
+                keyword_inc: ""
+                keyword_exc: ""
+
+            return feedwind_show_widget_iframe(params, true)
+
+
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
 
@@ -628,3 +679,4 @@ $ ->
                         bootbox.alert("Error while saving:" + err)
                         sputnik.log ["Error:", err]
 
+        ractive.set "feedwind", getFeedwind()
