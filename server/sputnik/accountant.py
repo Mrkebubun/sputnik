@@ -129,15 +129,9 @@ class Accountant:
                     position = self.get_position(posting['username'], posting['contract'])
                     user = self.get_user(posting['username'])
                     if posting['direction'] == 'debit':
-                        if user.type == 'Asset':
-                            sign = 1
-                        else:
-                            sign = -1
+                        sign = 1 if user.type == 'Asset' else -1
                     else:
-                        if user.type == 'Asset':
-                            sign = -1
-                        else:
-                            sign = 1
+                        sign = -1 if user.type == 'Asset' else 1
 
                     log.msg("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
