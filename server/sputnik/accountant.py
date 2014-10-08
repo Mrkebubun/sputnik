@@ -209,7 +209,10 @@ class Accountant:
         :returns: models.Contract -- the Contract object matching the ticker
         :raises: AccountantException
         """
-        return util.get_contract(self.session, ticker)
+        try:
+            return util.get_contract(self.session, ticker)
+        except:
+            raise AccountantException("No such contract: '%s'." % ticker)
 
     def adjust_position(self, username, ticker, quantity, admin_username):
         """Adjust a user's position, offsetting with the 'adjustment' account
