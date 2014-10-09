@@ -180,6 +180,9 @@ class ContractManager:
         elif contract.contract_type == "prediction":
             print "\tPrediction details:"
             print "\t\texpiration:\t%s" % contract.expiration
+        elif contract.contract_type == "cash":
+            print "\t\tdeposit_instructions:\t%s" % contract.deposit_instructions
+            print "\t\tcold_wallet_Address:\t%s" % contract.cold_wallet_address
 
     def add(self, ticker):
         try:
@@ -318,7 +321,8 @@ class LowEarthOrbit:
         }
 
     def parse(self, line):
-        tokens = shlex.split(line)
+        tokens = [t.decode('string_escape') for t in shlex.split(line)]
+
         if len(tokens) == 0:
             return
         if len(tokens) < 2:

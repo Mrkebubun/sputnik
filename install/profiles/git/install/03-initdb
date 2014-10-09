@@ -31,15 +31,20 @@ contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC hot_wallet_limit 1000000000
 contracts set BTC cold_wallet_address XXX
+contracts set BTC deposit_instructions "Please deposit your crypto-currency to the below address"
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000
+contracts set MXN deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
 
 contracts set PLN contract_type cash
 contracts set PLN denominator 10000
+contracts set PLN deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
+
 
 contracts set HUF contract_type cash
 contracts set HUF denominator 100
+contracts set HUF deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
 
 contracts set BTC/MXN contract_type cash_pair
 contracts set BTC/MXN tick_size 100
