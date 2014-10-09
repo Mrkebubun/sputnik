@@ -936,9 +936,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addErrback(error)
         return d
 
-
-        #return dbpool.runQuery("SELECT denominator FROM contracts WHERE ticker='MXN' LIMIT 1").addCallback(_cb)
-
     @exportRpc("get_transaction_history")
     def get_transaction_history(self, from_timestamp=None, to_timestamp=None):
 
@@ -951,37 +948,55 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         if from_timestamp is None:
             from_timestamp = dt_to_timestamp(datetime.datetime.utcnow() -
-                                                             datetime.timedelta(hours=4))
+                                                             datetime.timedelta(days=30))
 
         if to_timestamp is None:
             to_timestamp = dt_to_timestamp(datetime.datetime.utcnow())
 
-        def _cb(result):
-            """
-
-            :param result:
-            :type result: list
-            :returns: list - [True, list of transactions]
-            """
-            transactions = []
+        def _gotBalances(result):
+            balances = collections.defaultdict(int)
             for row in result:
-                quantity = abs(row[2])
-
-                # Here we assume that the user is a Liability user
-                if row[2] < 0:
-                    direction = 'debit'
-                else:
-                    direction = 'credit'
-
-                transactions.append({'contract': row[0],
-                                 'timestamp': dt_to_timestamp(row[1]),
-                                 'quantity': quantity,
-                                 'type': row[3],
-                                 'direction': direction,
-                                 'note': row[4]})
+                balances[row[0]] = int(row[1])
 
 
-            return [True, transactions]
+            def _gotTransactions(result):
+                """
+
+                :param result:
+                :type result: list
+                :returns: list - [True, list of transactions]
+                """
+                transactions = []
+                for row in result:
+                    balances[row[0]] += row[2]
+                    quantity = abs(row[2])
+
+                    # Here we assume that the user is a Liability user
+                    if row[2] < 0:
+                        direction = 'debit'
+                    else:
+                        direction = 'credit'
+
+                    transactions.append({'contract': row[0],
+                                     'timestamp': dt_to_timestamp(row[1]),
+                                     'quantity': quantity,
+                                     'type': row[3],
+                                     'direction': direction,
+                                     'balance': balances[row[0]],
+                                     'note': row[4]})
+
+
+                return [True, transactions]
+
+
+            d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
+                                "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
+                                "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
+                                "AND posting.contract_id=contracts.id",
+                (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
+            d.addCallback(_gotTransactions)
+            d.addErrback(_cb_error)
+            return d
 
         def _cb_error(failure):
             """
@@ -991,13 +1006,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             """
             return [False, failure.value.args]
 
-        d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
-                            "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
-                            "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
-                            "AND posting.contract_id=contracts.id",
-            (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
 
-        d.addCallback(_cb)
+        d = dbpool.runQuery("SELECT contracts.ticker, SUM(posting.quantity) FROM posting, journal, contracts "
+                            "WHERE posting.journal_id=journal.id AND posting.username=%s AND journal.timestamp<%s "
+                            "AND posting.contract_id=contracts.id GROUP BY contracts.ticker",
+            (self.username, timestamp_to_dt(from_timestamp)))
+
+
+        d.addCallback(_gotBalances)
         d.addErrback(_cb_error)
         return d
 
