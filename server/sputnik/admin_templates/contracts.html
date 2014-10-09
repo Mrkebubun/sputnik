@@ -46,9 +46,23 @@
     </form>
     <table id="contracts" class="table table-striped table-hover">
         <thead>
-            <tr><th></th><th>Ticker</th><th>Clear</th><th>Description</th><th>Full Description</th><th>Contract Type</th><th>Tick Size</th>
-                <th>Lot Size</th><th>Denominator</th><th>Expiration</th>
-                <th>Denominated</th><th>Payout</th><th>Margin High</th><th>Margin Low</th>
+            <tr><th></th>
+                <th>Ticker</th>
+                <th>Clear</th>
+                <th>Description</th>
+                <th><span class="caret btn-link" onclick="$('tr[name=full_description]').toggle()"></span>Full Description</th>
+                <th>Contract Type</th>
+                <th>Tick Size</th>
+                <th>Lot Size</th>
+                <th>Denominator</th>
+                <th>Expiration</th>
+                <th>Cold Wallet Address</th>
+                <th>Hot Wallet Limit</th>
+                <th><span class="caret btn-link" onclick="$('tr[name=deposit_instruction]').toggle()"></span>Deposit Instructions</th>
+                <th>Denominated</th>
+                <th>Payout</th>
+                <th>Margin High</th>
+                <th>Margin Low</th>
             </tr>
         </thead>
         <tbody>
@@ -72,12 +86,19 @@
                         {% endif %}
                     </td>
                     <td>{{contract.description}}</a></td>
-                    <td>{{contract.full_description}}</td>
+                    <td style="display:none;" name="full_description"><pre>{{contract.full_description}}</pre></td>
                     <td>{{contract.contract_type}}</td>
                     <td>{{contract.tick_size}}</td>
                     <td>{{contract.lot_size}}</td>
                     <td>{{contract.denominator}}</td>
                     <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.expiration}}{% endif %}</td>
+                    {% if contract.contract_type == "cash" %}
+                    <td>{% if contract.ticker == "BTC" %}{{contract.cold_wallet_address}}{% endif %}</td>
+                    <td>{% if contract.ticker == "BTC" %}{{contract.hot_wallet_limit}}{% endif %}</td>
+                    <td style="display:none;" name="deposit_instruction">{% if contract.ticker != "BTC" %}<pre>{{contract.deposit_instructions}}</pre>{% endif %}</td>
+                    {% else %}
+                    <td></td><td></td><td></td>
+                    {% endif %}
                     <td>{% if contract.contract_type != "cash" %}{{contract.denominated_contract_ticker}}{% endif %}</td>
                     <td>{% if contract.contract_type != "cash" %}{{contract.payout_contract_ticker}}{% endif %}</td>
                     <td>{% if contract.contract_type == "futures" %}{{contract.margin_high}}{% endif %}</td>
@@ -102,6 +123,10 @@
                                 <tr>
                                     <td>Cold Wallet Address</td>
                                     <td><input type="text" name="cold_wallet_address" value="{{contract.cold_wallet_address}}"></td>
+                                </tr>
+                                <tr>
+                                    <td>Hot Wallet Limit</td>
+                                    <td><input type="text" name="hot_wallet_limit" value="{{contract.hot_wallet_limit}}"></td>
                                 </tr>
                                 {% else %}
                                 <tr>
