@@ -6,20 +6,23 @@ if module?
 class @TVFeed
     subscribed: {}
     quotes: {}
+    info: {}
+    markets: {}
 
     constructor: (@sputnik) ->
         # Trading View API
 
     setup: (reserved, callback) =>
         @sputnik.log "setup called"
-        config_data = {
-            exchanges: [ 'sputnik' ]
-            symbolsTypes: [ 'cash_pair', 'futures', 'prediction' ]
-            supportedResolutions: ["1", "60", 'D']
-            supports_marks: false
-        }
-        @sputnik.log ["callback", config_data]
-        callback(config_data)
+        @sputnik.call("get_exchange_info").then (@info) =>
+            config_data = {
+                exchanges: [ @info.name ]
+                symbols_types: [ 'cash_pair', 'futures', 'prediction' ]
+                supported_resolutions: ["1", "60", 'D']
+                supports_marks: false
+            }
+            @sputnik.log ["callback", config_data]
+            callback(config_data)
 
     searchSymbolsByName: (userInput, exchange, symbolType, onResultReadyCallback) =>
         @sputnik.log ["searchSymbolsByName", userInput, exchange, symbolType]
@@ -32,7 +35,7 @@ class @TVFeed
                             return_array.push {
                                     symbol: ticker,
                                     full_name: details.description,
-                                    exchange: 'sputnik',
+                                    exchange: @info.name,
                                     ticker: ticker,
                                     type: details.contract_type
                             }
@@ -46,8 +49,8 @@ class @TVFeed
             if symbolName of markets
                 info = {
                     name: symbolName
-                    "exchange-traded": 'sputnik'
-                    "exchange-listed": 'sputnik'
+                    "exchange-traded": @info.name
+                    "exchange-listed": @info.name
                     timezone: 'Europe/London',
                     pricescale: @sputnik.getPriceScale(symbolName)/@sputnik.getMinMove(symbolName)
                     minmove: 1

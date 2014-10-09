@@ -50,6 +50,7 @@ $ ->
                 show_chart: (ticker) ->
                     clean_ticker = ticker.replace('/', '_')
                     showChart(ticker, "dashboard_#{clean_ticker}")
+                    return ''
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -400,7 +401,6 @@ $ ->
                 datafeed: window.tv
                 library_path: "charting_library/"
                 locale: "en"
-                autosize: true
                 theme: "White"
                 style: "2"
                 hideideas: true
@@ -409,26 +409,28 @@ $ ->
                 details: false
                 save_image: false
                 show_popup_button: false
-                # Regression Trend-related functionality is not implemented yet, so it's hidden for a while
-                disabled_drawings: ["Regression Trend"]
+                disabled_features: ["header_symbol_search", "header_settings", "header_indicators", "header_compare", "header_undo_redo", "header_screenshot", "header_properties", "left_toolbar"]
+                enabled_features: ["narrow_chart_enabled"]
 
-            if target isnt "tv_chart_container"
-                options.width = 368
+            if target is "tv_chart_container"
+                options.width = 640
+                options.height = 480
                 options.autosize = false
+            else
+                options.width = 320
+                options.height = 240
+                options.autosize = false
+                options.disabled_features.push "header_widget"
+                options.disabled_features.push "control_bar"
 
             widget = new TradingView.widget options
 
             widget.onChartReady () ->
                 sputnik.log("onChartReady")
-                $("##{target} iframe").contents().find(".tv-side-toolbar").hide()
-                $("##{target} iframe").contents().find(".compare").hide()
-                $("##{target} iframe").contents().find(".properties").hide()
-                $("##{target} iframe").contents().find(".indicators").hide()
-                $("##{target} iframe").contents().find(".getimage").hide()
                 $("##{target} iframe").contents().find(".chart-status-picture").hide()
-
                 if target isnt "tv_chart_container"
-                    $("##{target} iframe").contents().find(".header-chart-panel").hide()
+                    $("##{target} iframe").contents().find(".onchart-tv-logo").hide()
+                    $("##{target} iframe").contents().find(".pane-legend").hide()
 
         getFeedwind = () ->
             href = window.location.href

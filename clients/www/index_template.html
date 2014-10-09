@@ -404,13 +404,25 @@
                             <div class="col-sm-12 content">
                                 <div class="col-sm-9">
                                     <h2 class="dashboard-heading">{{sputnik.logged_in ? "My" : "Active"}} Contracts</h2>
+                                    <div class="row">
+                                        <div class="tv-logo">
+                                            <div class="tv-wrapper">
+                                                <a class="tv-inner" href="https://www.tradingview.com/"
+                                                                        target="_blank"><img class="tv-solid"
+                                                                                             src="charting_library/static/images/logo-widget-copyright.png"
+                                                                                             alt="TradingView Logo"><span class="tv-text">charts&nbsp;by&nbsp;<span
+                                                        class="tv-highlighted">TradingView</span></span></a>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="row dashboard-row">
                                         {{#sputnik.active_contracts}}
                                         <div class="col-sm-6">
                                             <h4 class="subheading">{{sputnik.markets[this].description}}</h4>
                                             {{show_chart(this)}}
                                             <div class="row">
-                                                <div class="col-xs-11 dashboard-graph" id="dashboard_{{clean_ticker(this)}}">
+                                                <div class="col-xs-11">
+                                                    <div class="dashboard-graph" id="dashboard_{{clean_ticker(this)}}"></div>
                                                 </div>
                                             </div>
                                         </div>

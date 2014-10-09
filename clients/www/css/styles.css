@@ -136,7 +136,6 @@ h2.dashboard-heading {
 }
 
 .dashboard-graph {
-    height: 250px;
     background-color: #FFFFFF;
     margin: 25px 80px 30px 20px;
 }
@@ -998,3 +997,8 @@ h6.sell {
 
 }
 
+.tv-logo {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    color: rgb(0, 153, 212);
+}
