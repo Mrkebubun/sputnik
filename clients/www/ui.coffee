@@ -29,7 +29,7 @@ $ ->
             data:
                 sputnik: sputnik
                 current_ticker: null
-                current_type: "cash_pair"
+                current_type: null
                 current_currency: null
                 current_page: "dashboard"
                 dashboard_tab: "active-contracts"
@@ -47,10 +47,9 @@ $ ->
                         new Date(datetime/1000).toLocaleString()
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
-                show_chart: (ticker) ->
-                    clean_ticker = ticker.replace('/', '_')
-                    showChart(ticker, "dashboard_#{clean_ticker}")
-                    return ''
+            transitions:
+                show_chart: (t, ticker) ->
+                    showChart(ticker, t.node.id)
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -73,6 +72,12 @@ $ ->
             switch_page: (event, page) ->
                 event.original.preventDefault()
                 ractive.set "current_page", page
+                if page is "trade" and ractive.get("current_ticker") is null
+                    markets = ractive.get("sputnik.markets")
+                    tickers = Object.keys(markets)
+                    if tickers.length
+                        ractive.set("current_ticker", tickers[0])
+                        ractive.set("current_type", markets[tickers[0]].contract_type)
 
             switch_dashboard_tab: (event, tab) ->
                 event.original.preventDefault()

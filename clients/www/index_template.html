@@ -371,7 +371,7 @@
                                         </div>
                                         {{/if}}
                                     </div>
-                                    <div class="col-sm-9" id="tv_chart_container"></div>
+                                    <div intro="show_chart:{{current_ticker}}" class="col-sm-9" id="tv_chart_container"></div>
                                 </div>
                             </div>
                         </div>
@@ -419,10 +419,9 @@
                                         {{#sputnik.active_contracts}}
                                         <div class="col-sm-6">
                                             <h4 class="subheading">{{sputnik.markets[this].description}}</h4>
-                                            {{show_chart(this)}}
                                             <div class="row">
                                                 <div class="col-xs-11">
-                                                    <div class="dashboard-graph" id="dashboard_{{clean_ticker(this)}}"></div>
+                                                    <div class="dashboard-graph" intro="show_chart:{{this}}" id="dashboard_{{clean_ticker(this)}}"></div>
                                                 </div>
                                             </div>
                                         </div>
