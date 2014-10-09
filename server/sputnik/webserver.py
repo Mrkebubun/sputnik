@@ -54,6 +54,7 @@ from autobahn.wamp1.protocol import exportRpc, \
 from autobahn.wamp1.protocol import CallHandler
 
 from txzmq import ZmqFactory
+import markdown
 
 zf = ZmqFactory()
 
@@ -149,7 +150,10 @@ class PublicInterface:
                                 "description": r[1],
                                 "denominator": r[2],
                                 "contract_type": r[3],
-                                "full_description": r[4],
+                                "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
+                                                                                        "markdown.extensions.sane_lists",
+                                                                                        "markdown.extensions.nl2br"
+                                ]),
                                 "tick_size": r[5],
                                 "lot_size": r[6],
                                 "denominated_contract_ticker": r[9],
