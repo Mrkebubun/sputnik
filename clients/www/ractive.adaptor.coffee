@@ -45,6 +45,7 @@ class RactiveSputnikWrapper
             @username = username
             console.log "logged in as #{username}"
 
+            @notify "username"
             @notify "logged_in"
 
         @sputnik.on "profile", (profile) =>
