@@ -348,40 +348,48 @@
                                         {{/if}}
                                         {{#if tb_tab == 'book'}}
                                         <div id="book">
-                                            <h4 class="bid">Bids</h4>
-                                            <table class="table-header">
-                                                <thead>
-                                                <tr>
-                                                    <th class="recent-price">Price</th>
-                                                    <th class="recent-quantity">Quantity</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody id="bids">
-                                                    {{#sputnik.books[current_ticker].bids:i}}
-                                                    <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                        <td class="recent-price-content">{{price}}</td>
-                                                        <td class="recent-quantity-content">{{quantity}}</td>
-                                                    </tr>
-                                                    {{/}}
-                                                </tbody>
-                                            </table>
-                                            <h4 class="bid">Asks</h4>
-                                            <table class="table-header">
-                                                <thead>
-                                                <tr>
-                                                    <th class="recent-price">Price</th>
-                                                    <th class="recent-quantity">Quantity</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody id="asks">
-                                                    {{#sputnik.books[current_ticker].asks:i}}
-                                                    <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                        <td class="recent-price-content">{{price}}</td>
-                                                        <td class="recent-quantity-content">{{quantity}}</td>
-                                                    </tr>
-                                                    {{/}}
-                                                </tbody>
-                                            </table>
+                                            <ul class="nav nav-tabs">
+                                                <li class="bid active"><a href="#bids_tab" data-toggle="tab">Bids</a></li>
+                                                <li class="bid"><a href="#asks_tab" data-toggle="tab">Asks</a></li>
+                                            </ul>
+                                            <div class="tab-content">
+                                                <div class="tab-pane active" id="bids_tab">
+                                                    <table class="table-header">
+                                                        <thead>
+                                                        <tr>
+                                                            <th class="recent-price">Price</th>
+                                                            <th class="recent-quantity">Quantity</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody id="bids">
+                                                            {{#sputnik.books[current_ticker].bids:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content">{{price}}</td>
+                                                                <td class="recent-quantity-content">{{quantity}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="tab-pane" id="asks_tab">
+                                                    <table class="table-header">
+                                                        <thead>
+                                                        <tr>
+                                                            <th class="recent-price">Price</th>
+                                                            <th class="recent-quantity">Quantity</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody id="asks">
+                                                            {{#sputnik.books[current_ticker].asks:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content">{{price}}</td>
+                                                                <td class="recent-quantity-content">{{quantity}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         </div>
                                         {{/if}}
                                     </div>
