@@ -11,8 +11,6 @@ $ ->
     # REMOVE THIS IF NOT TESTING VS DEMO
     uri = "wss://demo.m2.io:8000"
 
-    window.my_audit_hash = ''
-
     sputnik = new Sputnik uri
     window.sputnik = sputnik
 
@@ -530,13 +528,6 @@ $ ->
             ,
             5000)
 
-#        $("#account").click ->
-#            $("#account_modal").modal()
-#
-#        $("#audit").click ->
-#            $("#audit_modal").modal()
-#            sputnik.getAudit()
-
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
 
@@ -560,22 +551,9 @@ $ ->
     #
     #    sputnik.on "chat", (chat) ->
     #        $.growl({title: "Chat", message: chat})
-#
-#        sputnik.on "address", (info) ->
-#            sputnik.log "test"
-#            ticker = info[0]
-#            address = info[1]
-#            $("##{ticker}_deposit_address").attr('href', 'bitcoin:' + address).text(address)
-#            $("##{ticker}_deposit_qrcode").empty()
-#            $("##{ticker}_deposit_qrcode").qrcode("bitcoin:" + address)
 
         sputnik.on "address_fail", (error) ->
             bootbox.alert "Deposit address error: #{error[1]}"
-
-#        sputnik.on "deposit_instructions", (event) ->
-#            ticker = event[0]
-#            instructions = event[1]
-#            $("##{ticker}_deposit_instructions").text instructions
 
         sputnik.on "address", (address) =>
             $('#qr_code').empty()
@@ -596,59 +574,6 @@ $ ->
 
         sputnik.on "place_order_fail", (error) ->
             bootbox.alert "order placement failed: #{error[1]}"
-
-#        sputnik.on "audit_details", (audit) ->
-#            $('#audit_timestamp').text audit.timestamp
-#            for account_type in ['assets', 'liabilities']
-#                $output = []
-#                $output.push '<ul class="nav nav-tabs">'
-#                for own currency_code, currency of audit[account_type]
-#                    $output.push '<li><a href="#' + account_type + '_' + currency_code + '" data-toggle="tab">' + currency_code + '</a></li>'
-#
-#                $output.push '</ul>'
-#
-#                $output.push '<div class="tab-content">'
-#                for own currency_code, currency of audit[account_type]
-#                    $output.push '<div class="tab-pane" id="' + account_type + '_' + currency_code + '">'
-#
-#                    $output.push('<table id="audit_' + account_type + '_' + currency_code +
-#                        '" class="table table-hover table-bordered table-condensed"><thead><tr><th>ID</th><th class="text-right">Amount</th></tr></thead><tbody>')
-#                    #Positions
-#                    for position in currency.positions
-#                        audit_hash = position[0]
-#
-#                        audit_amount = position[1].toFixed(sputnik.getQuantityPrecision(currency_code))
-#
-#                        row_class = ''
-#                        if audit_hash is my_audit_hash
-#                            row_class = "class='alert-success'"
-#
-#                        $output.push("<tr #{row_class}><td>#{audit_hash}</td>" +
-#                            "<td class='text-right'>#{audit_amount}</td></tr>")
-#                    #Total
-#                    currency_total = currency.total.toFixed(sputnik.getQuantityPrecision(currency_code))
-#
-#                    $output.push "</tbody><tfoot><tr class=\"alert-info\"><td><strong>Total</strong></td><td class='text-right'><strong>#{currency_total}</strong></td></tr></tfoot></table>"
-#                    $output.push "</div>"
-#
-#                $output.push '</div>'
-#                html = $output.join('')
-#                console.log "[ui:426 - html]", html
-#                $("#audit_#{account_type}").html(html)
-#
-#        sputnik.on "audit_hash", (audit_hash) ->
-#            window.my_audit_hash = audit_hash
-#            $('#audit_hash').text audit_hash
-
-#        sputnik.on "transaction_history", (transaction_histories) ->
-#            html = []
-#            for his in transaction_histories
-#                trHTML = "<tr><td>#{his['timestamp']}</td>
-#                     <td>#{his['type'] ? ''}</td>
-#                     <td>#{his['contract'] ? ''}</td>
-#                     <td class='text-right'>#{his['quantity'] ? 'X'}</td></tr>"
-#                html.push(trHTML)
-#            $('#transaction_history tbody').html(html.join())
 
         sputnik.on "fill", (fill) ->
             quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
