@@ -458,7 +458,7 @@ $ ->
                 rssmikle_font: "Arial, Helvetica, sans-serif"
                 rssmikle_font_size: "12"
                 rssmikle_border: "off"
-                responsive: "off"
+                responsive: "on"
                 rssmikle_css_url: css
                 text_align: "left"
                 text_align2: "left"
