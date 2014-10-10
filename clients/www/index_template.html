@@ -156,26 +156,52 @@
                                 <div class="contract-overview">
                                     <div class="row">
                                         <div class="col-sm-6 contract-overview-info">
-                                            <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
-                                            <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
-
-                                            <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
-                                                <option value="day">Yesterday</option>
-                                                <option value="hour">Last Hour</option>
-                                                <option value="minute">Last Minute</option>
-                                            </select>
-                                                &nbsp;
-                                                Open: {{sputnik.ohlcv[current_ticker][ohlcv_period].open}}
-                                                High: {{sputnik.ohlcv[current_ticker][ohlcv_period].high}}
-                                                Low: {{sputnik.ohlcv[current_ticker][ohlcv_period].low}}
-                                                Close: {{sputnik.ohlcv[current_ticker][ohlcv_period].close}}
-                                                VWAP: {{sputnik.ohlcv[current_ticker][ohlcv_period].vwap}}
-                                                Volume: {{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}
-                                            </p>
-                                            <p>Last: {{sputnik.trade_history[current_ticker][0].price}}
-                                                &nbsp;&nbsp;&nbsp;Bid: {{sputnik.books[current_ticker].best_bid.price}}
-                                                &nbsp;&nbsp;&nbsp;Ask: {{sputnik.books[current_ticker].best_ask.price}}
-                                            </p>
+                                            <div class="row">
+                                                <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                                <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
+                                                        <option value="day">Yesterday</option>
+                                                        <option value="hour">Last Hour</option>
+                                                        <option value="minute">Last Minute</option>
+                                                    </select>
+                                                    <table>
+                                                        <tr>
+                                                            <td>Open</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].open}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>High</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].high}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Low</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].low}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Close</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].close}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>VWAP</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].vwap}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Volume</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <table>
+                                                        <tr>
+                                                            <td>Last</td><td>{{sputnik.trade_history[current_ticker][0].price}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Bid</td><td>{{sputnik.books[current_ticker].best_bid.price}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>Ask</td><td>{{sputnik.books[current_ticker].best_ask.price}}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         </div>
                                         {{#if sputnik.logged_in}}
                                         <div id="contract-balances" class="col-sm-6">
