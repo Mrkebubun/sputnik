@@ -289,28 +289,30 @@
                                                 </div>
                                             </div>
                                             <div class="row">
-                                                <table>
-                                                    <thead>
+                                                <div class="buy-box2 scroll-box">
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Price</th>
+                                                                <th>Quantity</th>
+                                                                <th>Buy/Sell</th>
+                                                                <th>Cancel</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="orders">
+                                                        {{#sputnik.orders:id}}
+                                                        {{#if contract == current_ticker}}
                                                         <tr>
-                                                            <th>Price</th>
-                                                            <th>Quantity</th>
-                                                            <th>Buy/Sell</th>
-                                                            <th>Cancel</th>
+                                                            <td>{{price}}</td>
+                                                            <td>{{quantity_left}}</td>
+                                                            <td>{{side}}</td>
+                                                            <td><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody id="orders">
-                                                    {{#sputnik.orders:id}}
-                                                    {{#if contract == current_ticker}}
-                                                    <tr>
-                                                        <td>{{price}}</td>
-                                                        <td>{{quantity_left}}</td>
-                                                        <td>{{side}}</td>
-                                                        <td><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
-                                                    </tr>
-                                                    {{/if}}
-                                                    {{/}}
-                                                    </tbody>
-                                                </table>
+                                                        {{/if}}
+                                                        {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -325,7 +327,7 @@
                                             <option value="book">Order Book</option>
                                         </select>
                                         {{#if tb_tab == 'trades'}}
-                                        <div id="trades">
+                                        <div id="trades" class="trades-box scroll-box">
                                             <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
@@ -352,7 +354,7 @@
                                                 <li class="bid active"><a href="#bids_tab" data-toggle="tab">Bids</a></li>
                                                 <li class="bid"><a href="#asks_tab" data-toggle="tab">Asks</a></li>
                                             </ul>
-                                            <div class="tab-content">
+                                            <div class="tab-content order-book-box scroll-box">
                                                 <div class="tab-pane active" id="bids_tab">
                                                     <table class="table-header">
                                                         <thead>

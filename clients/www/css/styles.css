@@ -386,6 +386,14 @@ h6.sell {
     display: none;
 }
 
+.trades-box {
+    height: 100%;
+}
+
+.order-book-box {
+    height: 100%;
+}
+
 .header-box {
     background-color: #57c1ff;
     padding: 4px 0 4px 33px;
@@ -403,12 +411,12 @@ h6.sell {
 
 .buy-box {
     border-right: solid 1px #e6e6e6;
-
 }
 
 .buy-box2 {
     padding: 14px 0 142px 33px;
     border-bottom: 1px solid #e6e6e6;
+    height: 200px;
 }
 
 .buy-box3 {
@@ -438,6 +446,7 @@ h6.sell {
 .recent-trades-box {
     padding: 30px 0 30px 35px;
     border-right: 1px solid #e6e6e6;
+    height: 480px;
 }
 
 .recent-trades-header {
@@ -569,6 +578,10 @@ h6.sell {
 
 .alert-warning {
     margin: 27px 37px 0 16px;
+}
+
+.scroll-box {
+    overflow-y: scroll;
 }
 
 /*-- Account - Transaction History --*/
