@@ -7,61 +7,77 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">Login</h4>
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a href="#login_tab" data-toggle="tab">Login</a></li>
+                        <li><a href="#register_tab" data-toggle="tab">Register</a></li>
+                    </ul>
                 </div>
-                <div class="modal-body">
-                    <form class="form-signin" role="form">
-                        <input type="text" class="form-control" id="login_username" placeholder="Username" required
-                               autofocus><br>
-                        <input type="password" class="form-control" id="login_password" placeholder="Password"
-                        required><br>
-                        <a href="#" id="get_reset_token">Reset password</a>
-                    </form>
-                    <div class="alert alert-warning" style="display:none" id="login_error">
-                        Incorrect username or password.
-                    </div>
-                    <div id="reset_token_sent" class="alert alert-info" style="display:none">
-                        Check your email. Contact customer support for further assistance.
+                <div class="modal-body form-horizontal">
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="login_tab">
+                            <form class="form-signin" role="form">
+                                <input type="text" class="form-control" id="login_username" placeholder="Username" required
+                                       autofocus><br>
+                                <input type="password" class="form-control" id="login_password" placeholder="Password"
+                                required><br>
+                                <a href="#" id="get_reset_token">Reset password</a>
+                            </form>
+                            <div class="alert alert-warning" style="display:none" id="login_error">
+                                Incorrect username or password.
+                            </div>
+                            <div id="reset_token_sent" class="alert alert-info" style="display:none">
+                                Check your email. Contact customer support for further assistance.
+                            </div>
+                            <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                                    id="login_button"><span class="ladda-label">Login</span></button>
+                        </div>
+                        <div class="tab-pane" id="register_tab">
+                            <form class="form-signin form-horizontal" role="form">
+                                <input type="text" class="form-control" id="register_username" placeholder="Username" required
+                                       autofocus><br>
+                                <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
+                                <input type="password" class="form-control" id="register_password" placeholder="Password"
+                                       required><br>
+                                <input type="text" class="form-control" id="register_nickname"
+                                       placeholder="Nickname"><br>
+                                <div class="form-group">
+                                    <div class="col-xs-9">
+                                        <label> <input type="checkbox" id="register_eula" value="1">
+                                            I agree
+                                            to the <a href="terms.html" target="_blank">terms and conditions</a> <br>
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="alert alert-warning" style="display:none" id="register_error">
+                            </div>
+                            <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
+                                    id="register_button"><span class="ladda-label">Register</span></button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                            id="login_button"><span class="ladda-label">Login</span></button>
                 </div>
             </div>
         </div>
     </div>
-    <div class="modal fade" id="register_modal">
+    <div class="modal fade" id="change_password_token_modal">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">Register</h4>
+                    <h4 class="modal-title">Reset Password</h4>
                 </div>
                 <div class="modal-body">
-                    <form class="form-signin form-horizontal" role="form">
-                        <input type="text" class="form-control" id="register_username" placeholder="Username" required
-                               autofocus><br>
-                        <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
-                        <input type="password" class="form-control" id="register_password" placeholder="Password"
-                               required><br>
-                        <input type="text" class="form-control" id="register_nickname"
-                               placeholder="Nickname"><br>
-                        <div class="form-group">
-                            <div class="col-xs-9">
-                                <label> <input type="checkbox" id="register_eula" value="1">
-                                    I agree
-                                    to the <a href="terms.html" target="_blank">terms and conditions</a> <br>
-                                </label>
-                            </div>
-                        </div>
+                    <form class="form-signin" role="form">
+                        <input type="password" class="form-control" id="new_password_token" placeholder="New Password" required>
+                        <input type="password" class="form-control" id="new_password_token_confirm" placeholder="Confirm New Password" required>
                     </form>
-                    <div class="alert alert-warning" style="display:none" id="register_error">
-                    </div>
+                    <div class="alert alert-info">Great! Now just enter your new password and we'll be all set.</div>
                 </div>
                 <div class="modal-footer">
                     <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                            id="register_button"><span class="ladda-label">Register</span></button>
+                            on-click="change_password_token"><span class="ladda-label">Change Password</span></button>
                 </div>
             </div>
         </div>
@@ -84,8 +100,8 @@
                                     <ul id="navlinks" class="nav navbar-nav">
                                         <li><a href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
                                         <li><a href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
-                                        {{#if sputnik.logged_in}}
                                         <li><a href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
+                                        {{#if sputnik.logged_in}}
                                         <li class="navlinks-right3">
                                             <div class="login-box">
                                             <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="logout-menu" data-toggle="dropdown">
@@ -96,11 +112,9 @@
                                                 </ul>
                                             </button>
                                             </div>
-
                                         </li>
                                         {{else}}
-                                        <li class="navlinks-right1"><a href="#" id="login">Login</a></li>
-                                        <li class="navlinks-right2"><a href="#" id="register">Register</a></li>
+                                        <li class="navlinks-right2"><a href="#" on-click="show_login_register">Login/Register</a></li>
                                         {{/if}}
                                     </ul>
                                 </div><!-- /.navbar-collapse -->

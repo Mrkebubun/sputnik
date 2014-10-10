@@ -78,6 +78,8 @@ $ ->
                     if tickers.length
                         ractive.set("current_ticker", tickers[0])
                         ractive.set("current_type", markets[tickers[0]].contract_type)
+                if page is "account" and ractive.get("sputnik.logged_in") is false
+                    $('#login_modal').modal()
 
             switch_dashboard_tab: (event, tab) ->
                 event.original.preventDefault()
@@ -224,6 +226,27 @@ $ ->
                 else
                     sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
+            change_password_token: (event) ->
+                event.original.preventDefault()
+                if $('#new_password_token').val() == $('#new_password_token_confirm').val()
+                    sputnik.changePasswordToken($('#new_password_token').val())
+                else
+                    $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text "Passwords do not match"
+
+            show_login_register: (event) ->
+                event.original.preventDefault()
+                $('#login_modal').modal()
+                $("#login_modal").on 'hidden.bs.modal', ->
+                    $('#register_error').hide()
+                    $('#login_error').hide()
+                    $('#reset_token_sent').hide()
+
+            logout: (event) ->
+                event.original.preventDefault()
+                document.cookie = ''
+                sputnik.logout()
+                location.reload()
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
@@ -316,9 +339,6 @@ $ ->
           $('#compropago_error').text(reason)
           $('#compropago_error').show()
 
-        $("#login").click () ->
-            $("#login_modal").modal()
-
         $("#login_modal").keypress (e) -> $("#login_button").click() if e.which is 13
 
         $("#login_button").click (event) ->
@@ -332,10 +352,6 @@ $ ->
             ladda.start()
             sputnik.authenticate username, password
             $('#login_modal .alert:visible').hide()
-
-        $("#register").click () ->
-            $("#register_modal").on('hidden.bs.modal', -> $('#register_error').hide())
-            $("#register_modal").modal()
 
         $("#register_button").click (event) ->
             event.preventDefault()
@@ -358,12 +374,6 @@ $ ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
             orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
             orderOfMag(x) == orderOfMag(y)
-
-
-        $("#logout").click (event) ->
-            document.cookie = ''
-            sputnik.logout()
-            location.reload()
 
         $("#compropago_pay_button").click (event) ->
             event.preventDefault()
@@ -486,7 +496,7 @@ $ ->
             username = $("#login_username").val()
             $('#login_modal .alert:visible').hide()
 
-            if username.length < 4
+            if not username.length
                 $('#login_error').text("Please enter a username to reset the password").slideDown()
                 return
 
@@ -512,13 +522,6 @@ $ ->
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             bootbox.alert "Password reset failure: #{err[1]}"
-
-        $("#change_password_token_button").click ->
-            console.log "[mexbt:15 - hit!]"
-            if $('#new_password_token').val() == $('#new_password_token_confirm').val()
-                sputnik.changePasswordToken($('#new_password_token').val())
-            else
-                $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text "Passwords do not match"
 
         sputnik.on "change_password_success", (message) ->
             bootbox.alert "Password reset"
@@ -654,7 +657,7 @@ $ ->
 
         @compliance_client_handler = (form) ->
             fd = new FormData()
-            fd.append('username', $("#login_name").text())
+            fd.append('username', ractive.get("sputnik.username"))
             passports = form.find('input[name=passport]')[0].files
             residencies = form.find('input[name=residency]')[0].files
 
