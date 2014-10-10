@@ -177,9 +177,8 @@ class Instance:
         if not self.deployed:
             return
 
-        instance_id = self.get_output("InstanceId")
-
         try:
+            instance_id = self.get_output("InstanceId")
             self.instance = self.ec2.get_all_instances(
                 instance_id)[0].instances[0]
         except:
