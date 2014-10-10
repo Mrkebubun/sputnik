@@ -428,11 +428,11 @@ $ ->
                 enabled_features: ["narrow_chart_enabled"]
 
             if target is "tv_chart_container"
-                options.width = 640
-                options.height = 480
+                options.width = 561
+                options.height = 421
                 options.autosize = false
             else
-                options.width = 320
+                options.width = 238
                 options.height = 240
                 options.autosize = false
                 options.disabled_features.push "header_widget"
