@@ -209,6 +209,18 @@ $ ->
                 sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
                 start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
                 end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
+                now = new Date()
+                if isNaN start_timestamp
+                    start = new Date()
+                    start.setDate(now.getDate() - 7)
+                    start_timestamp = start.getTime() * 1000
+                    $('#transactions_start_date').val(start.toDateString())
+                if isNaN end_timestamp
+                    end = new Date()
+                    end.setDate(now.getDate() + 7)
+                    end_timestamp = end.getTime() * 1000
+                    $('#transactions_end_date').val(end.toDateString())
+
                 sputnik.getTransactionHistory(start_timestamp, end_timestamp)
 
             submit_compliance: (event) ->
