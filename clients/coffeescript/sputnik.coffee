@@ -17,7 +17,6 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
-        audit_hash: null
     chat_messages: []
     connected: false
 
@@ -73,10 +72,11 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (nickname, email) =>
+    changeProfile: (email, nickname) =>
         @call("change_profile", email, nickname).then (@profile) =>
-            @updateAuditHash()
+            @log ["profile_changed", @profile]
             @emit "profile", @profile
+            @emit "change_profile_success", @profile
 
     getAudit: () =>
         @call("get_audit").then (wire_audit_details) =>

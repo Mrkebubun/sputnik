@@ -33,7 +33,7 @@ $ ->
                 current_currency: null
                 current_page: "dashboard"
                 dashboard_tab: "active-contracts"
-                account_tab: "user-information"
+                account_tab: "profile"
                 fh_tab: "deposit"
                 tb_tab: "trades"
                 audit_tab: "Liability"
@@ -213,6 +213,16 @@ $ ->
                 event.original.preventDefault()
                 compliance_client_handler($('#compliance form').eq(0))
 
+            change_profile: (event) ->
+                event.original.preventDefault()
+                sputnik.changeProfile(ractive.get("sputnik.profile.email"), ractive.get("sputnik.profile.nickname"))
+
+            change_password: (event) ->
+                event.original.preventDefault()
+                if $('#new_password').val() isnt $('#new_password_confirm').val()
+                    bootbox.alert "Passwords do not match"
+                else
+                    sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
@@ -354,24 +364,6 @@ $ ->
             document.cookie = ''
             sputnik.logout()
             location.reload()
-
-        $("#save_changes_button").click (event) ->
-            if $('#change_password_tab').data('dirty')
-                if $('#new_password').val() is $('#new_password_confirm').val()
-                    bootbox.alert "Passwords do not match"
-                else
-                    sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
-
-            if $('#user_information_tab').data('dirty')
-                sputnik.changeProfile($('#new_nickname').val(), $('#new_email').val())
-
-            if $('#compliance_tab').data('dirty')
-                $('#compliance_tab form').submit (e)->
-                    e.preventDefault()
-                    compliance_client_handler($('#compliance_tab form').eq(0))
-                $('#compliance_tab form').submit()
-
-            $('#account_modal .tab-pane').data('dirty', no)
 
         $("#compropago_pay_button").click (event) ->
             event.preventDefault()
@@ -519,8 +511,7 @@ $ ->
             $('#change_password_token_modal').modal "show"
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
-            console.log "[mexbt:15 - hit error]"
-            $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text("Error: #{err[1]}")
+            bootbox.alert "Password reset failure: #{err[1]}"
 
         $("#change_password_token_button").click ->
             console.log "[mexbt:15 - hit!]"
@@ -529,14 +520,11 @@ $ ->
             else
                 $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text "Passwords do not match"
 
-        sputnik.on "change_password_success", ->
-            $('#change_password_token_modal').find('input,a,label,button').slideUp()
-            $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-success').text('Password reset')
-            setTimeout(
-                ->
-                    $('#change_password_token_modal').modal "hide"
-            ,
-                5000)
+        sputnik.on "change_password_success", (message) ->
+            bootbox.alert "Password reset"
+
+        sputnik.on "change_profile_success", (profile) ->
+            bootbox.alert "Profile changed"
 
         sputnik.on "session_expired", ->
             console.log "Session is stale."
@@ -585,10 +573,6 @@ $ ->
 
         sputnik.on "place_order_fail", (error) ->
             bootbox.alert "order placement failed: #{error[1]}"
-
-        sputnik.on "profile", (profile) ->
-            $('#new_nickname').val profile.nickname
-            $('#new_email').val profile.email
 
 #        sputnik.on "audit_details", (audit) ->
 #            $('#audit_timestamp').text audit.timestamp

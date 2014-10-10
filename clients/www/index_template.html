@@ -488,8 +488,8 @@
                 <div class="container">
                     <div class="row">
                         <div class="col-sm-12">
-                            <div class="{{account_tab == 'user-information' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:user-information">User Information</a></h4>
+                            <div class="{{account_tab == 'profile' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:profile">Profile</a></h4>
                             </div>
                             <div class="{{account_tab == 'funding-history' ? 'tab-active' : 'tab-inactive' }}" id="tab-funding_and_history">
                                 <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:funding-history">Funding and History</a></h4>
@@ -1074,7 +1074,7 @@
                         </div>
                     </div>
                     {{/if}}
-                    {{#if account_tab == "user-information"}}
+                    {{#if account_tab == "profile"}}
                     <div class="row">
                         <div class="col-sm-12 content">
                             <div class="row">
@@ -1094,7 +1094,7 @@
                                             <p>Username</p>
                                         </div>
                                         <div class="col-sm-7">
-                                            <p>designofthings</p>
+                                            <p>{{sputnik.username}}</p>
                                         </div>
                                     </div>
                                     <div class="row form-row">
@@ -1102,7 +1102,7 @@
                                             <p>Email</p>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input class="form-control" type="field" name="email">
+                                            <input class="form-control" type="field" name="email" value="{{sputnik.profile.email}}">
                                         </div>
                                     </div>
                                     <div class="row form-row">
@@ -1110,14 +1110,14 @@
                                             <p>Nickname</p>
                                         </div>
                                         <div class="col-sm-7 content-push2">
-                                            <input class="form-control" type="field" name="nickname">
+                                            <input class="form-control" type="field" name="nickname" value="{{sputnik.profile.nickname}}">
                                         </div>
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
                                         </div>
                                         <div class="col-sm-7 form-label">
-                                            <a href="#" class="button-link-box3">Update Email &amp; Nickname</a>
+                                            <a href="#" class="button-link-box3" on-click="change_profile">Update Email &amp; Nickname</a>
                                         </div>
                                     </div>
                                 </div>
@@ -1127,7 +1127,6 @@
                                 <h4 class="heading-sub2">Change Password</h4>
                                 </div>
                             </div>
-
                             <div class="row">
                                 <div class="col-sm-5 deposit-content2">
                                     <div class="row form-row">
@@ -1135,7 +1134,7 @@
                                             <p>Old Password</p>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input class="form-control" type="field" name="old-password">
+                                            <input class="form-control" type="password" id="old_password">
                                         </div>
                                     </div>
                                     <div class="row form-row">
@@ -1143,7 +1142,7 @@
                                             <p>New Password</p>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input class="form-control" type="field" name="new-password">
+                                            <input class="form-control" type="password" id="new_password">
                                         </div>
                                     </div>
                                     <div class="row form-row">
@@ -1151,7 +1150,7 @@
                                             <p>Confirm Password</p>
                                         </div>
                                         <div class="col-sm-7 content-push2">
-                                            <input class="form-control" type="field" name="confirm-password">
+                                            <input class="form-control" type="password" id="new_password_confirm">
                                         </div>
                                     </div>
                                     <div class="row form-row">
@@ -1159,9 +1158,8 @@
 
                                         </div>
                                         <div class="col-sm-7 form-label">
-                                            <a href="#" class="button-link-box3">Change Password</a>
+                                            <a href="#" class="button-link-box3" on-click="change_password">Change Password</a>
                                         </div>
-
                                     </div>
                                 </div>
                             </div>

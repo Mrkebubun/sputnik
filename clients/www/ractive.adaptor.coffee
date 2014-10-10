@@ -16,6 +16,7 @@ class RactiveSputnikWrapper
         @audit_hash = ''
         @exchange_info = {}
         @active_contracts = []
+        @profile = {}
 
         @sputnik.on "audit_details", (audit_details) =>
             @audit = audit_details
@@ -45,6 +46,10 @@ class RactiveSputnikWrapper
             console.log "logged in as #{username}"
 
             @notify "logged_in"
+
+        @sputnik.on "profile", (profile) =>
+            @profile = profile
+            @notify "profile"
 
         @sputnik.on "markets", (markets) =>
             @sputnik.log ["markets", markets]
@@ -200,6 +205,7 @@ class RactiveSputnikWrapper
         audit_hash: @audit_hash
         exchange_info: @exchange_info
         active_contracts: @active_contracts
+        profile: @profile
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
