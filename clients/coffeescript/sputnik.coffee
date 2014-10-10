@@ -113,10 +113,13 @@ class @Sputnik extends EventEmitter
         @log ["Hash", hash]
         args = {}
         for entry in hash
-            pair = entry.split('=')
+            pair = entry.split(/\=(.+)?/)
             key = decodeURIComponent(pair[0])
             value = decodeURIComponent(pair[1])
+            @log [entry, pair, key, value]
             args[key] = value
+
+        @log ["args", args]
 
         if args.function?
             if args.function == 'change_password_token'
