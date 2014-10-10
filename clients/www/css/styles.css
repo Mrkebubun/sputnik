@@ -4,9 +4,7 @@ body {
     color: #4b4b4b;
 }
 
-.navbar {
-    height: inherit;
-}
+
 
 .temp {
     height: 60px;
@@ -215,6 +213,21 @@ h2.dashboard-heading {
     margin-top: 35px;
 }
 
+.button-link-box3 {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 55px;
+}
+
 .active-link-box:hover {
     background: #4ce67f;
     text-decoration: none;
@@ -343,7 +356,8 @@ span.dates {
 }
 
 p.first-line {
-    margin-top: -13px;
+    margin-top: 0px;
+    line-height: 24px;
 }
 
 p.first-line2 {
@@ -768,6 +782,10 @@ h6.sell {
     margin-bottom: 100px;
 }
 
+.content-push2 {
+    margin-bottom: 20px;
+}
+
 /*-- Account - Funding - Withdraw --*/
 
 .deposit-content2 {
@@ -799,12 +817,89 @@ h6.sell {
     margin: 0px 0 20px 21px;
 }
 
+.file::-webkit-file-upload-button {
+  visibility: hidden;
+  z-index:1;
+  margin-top: 6px;
+}
+
+.file {
+
+}
+
+.file::before {
+  content: 'Upload';
+  display: inline-block;
+  background: -webkit-linear-gradient(top, #f9f9f9, #e3e3e3);
+  border: 1px solid #999;
+  border-radius: 3px;
+  padding: 7px 10px;
+  outline: none;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  cursor: pointer;
+  text-shadow: 1px 1px #fff;
+  font-weight: 300;
+  font-size: 10pt;
+  z-index:100;
+}
+.file:hover::before {
+  border-color: black;
+}
+.file:active::before {
+  background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
+}
+
+
+/*-- Main Screen Additional Styles --*/
+
+.table-header {
+    margin-top: 28px;
+    width: 100%;
+
+}
+
+.recent-price {
+    width: 40%;
+    padding-bottom: 8px;
+}
+
+.recent-quantity {
+    width: 20%;
+    padding-bottom: 8px;
+}
+
+.recent-time {
+    width: 40%;
+    padding-bottom: 8px;
+}
+
+.recent-price-content {
+    padding: 5px 0 5px 0;
+}
+
+.recent-quantity-content {
+    padding: 5px 0 5px 0;
+}
+
+.recent-time-content {
+    padding: 5px 0 5px 0;
+}
+
+h4.bid {
+    margin: 30px 0 5px 0px;
+    font-size: 18px;
+}
+
+
+
 /*-- Media Queries --*/
 
 @media screen and (max-width: 768px) and (min-width: 120px) {
     .contract-overview-info2 {
         margin-top: 25px;
     }
+
 
     ul#navlinks {
         text-align: left;
@@ -903,6 +998,10 @@ h6.sell {
         text-align: right;
     }
 
+    .navbar {
+        height: 67px;
+    }
+
     .navlinks-right1 {
         margin: 30px 5px 0 85px !important;
     }
@@ -946,6 +1045,10 @@ h6.sell {
         text-align: right;
     }
 
+    .navbar {
+        height: 67px;
+    }
+
     .field-date {
         float: right;
         width: 70%;
@@ -971,6 +1074,10 @@ h6.sell {
         padding: 23px 0px 0px 0px;
         margin: -85px 0px 0 335px;
         text-align: right;
+    }
+
+    .navbar {
+        height: 67px;
     }
 
     .navlinks-right1 {

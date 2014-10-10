@@ -159,8 +159,8 @@
                                                 Volume: {{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}
                                             </p>
                                             <p>Last: {{sputnik.trade_history[current_ticker][0].price}}
-                                                Bid: {{sputnik.books[current_ticker].best_bid.price}}
-                                                Ask: {{sputnik.books[current_ticker].best_ask.price}}
+                                                &nbsp;&nbsp;&nbsp;Bid: {{sputnik.books[current_ticker].best_bid.price}}
+                                                &nbsp;&nbsp;&nbsp;Ask: {{sputnik.books[current_ticker].best_ask.price}}
                                             </p>
                                         </div>
                                         {{#if sputnik.logged_in}}
@@ -232,7 +232,7 @@
                                                     </div>
                                                     <div class="row">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert">Your balance is too low for this order.</div>
-                                                        <button type="button" id="buyButton" on-click="buy">Buy</button>
+                                                        <a href="#" class="button-link-box3" id="buyButton" on-click="buy">Buy</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -263,7 +263,7 @@
                                                     </div>
                                                     <div class="row">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert">Your balance is too low for this order.</div>
-                                                        <button type="button" id="sellButton" on-click="sell">Sell</button>
+                                                        <a href="#" class="button-link-box3" id="sellButton" on-click="sell">Sell</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -312,20 +312,20 @@
                                         </select>
                                         {{#if tb_tab == 'trades'}}
                                         <div id="trades">
-                                            <table id="trades-table">
+                                            <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th>Price</th>
-                                                    <th>Qty</th>
-                                                    <th>Time</th>
+                                                    <th class="recent-price">Price</th>
+                                                    <th class="recent-quantity">Qty</th>
+                                                    <th class="recent-time">Time</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody id="trades-tbody">
                                                     {{#sputnik.trade_history[current_ticker]}}
                                                     <tr>
-                                                        <td>{{price}}</td>
-                                                        <td>{{quantity}}</td>
-                                                        <td>{{timestamp}}</td>
+                                                        <td class="recent-price-content">{{price}}</td>
+                                                        <td class="recent-quantity-content">{{quantity}}</td>
+                                                        <td class="recent-time-content">{{timestamp}}</td>
                                                     </tr>
                                                     {{/}}
                                                 </tbody>
@@ -334,36 +334,36 @@
                                         {{/if}}
                                         {{#if tb_tab == 'book'}}
                                         <div id="book">
-                                            Bids
-                                            <table>
+                                            <h4 class="bid">Bids</h4>
+                                            <table class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th>Price</th>
-                                                    <th>Quantity</th>
+                                                    <th class="recent-price">Price</th>
+                                                    <th class="recent-quantity">Quantity</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody id="bids">
                                                     {{#sputnik.books[current_ticker].bids:i}}
                                                     <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                        <td>{{price}}</td>
-                                                        <td>{{quantity}}</td>
+                                                        <td class="recent-price-content">{{price}}</td>
+                                                        <td class="recent-quantity-content">{{quantity}}</td>
                                                     </tr>
                                                     {{/}}
                                                 </tbody>
                                             </table>
-                                            Asks
-                                            <table>
+                                            <h4 class="bid">Asks</h4>
+                                            <table class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th>Price</th>
-                                                    <th>Quantity</th>
+                                                    <th class="recent-price">Price</th>
+                                                    <th class="recent-quantity">Quantity</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody id="asks">
                                                     {{#sputnik.books[current_ticker].asks:i}}
                                                     <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                        <td>{{price}}</td>
-                                                        <td>{{quantity}}</td>
+                                                        <td class="recent-price-content">{{price}}</td>
+                                                        <td class="recent-quantity-content">{{quantity}}</td>
                                                     </tr>
                                                     {{/}}
                                                 </tbody>
@@ -1079,5 +1079,219 @@
         </div>
     </div>
     {{/if}}
+</div>
+
+
+<!--<div id="page-account-compliance">
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="container">
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <div class="tab-inactive" id="tab-user_information">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="cash_pair-btn">User Information</a></h4>
+                                </div>
+                                <div class="tab-inactive" id="tab-funding_and_history">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Funding and History</a></h4>
+                                </div>
+                                <div class="tab-inactive" id="tab-audit">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Audit</a></h4>
+                                </div>
+                                <div class="tab-active" id="tab-compliance">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Compliance</a></h4>
+                                </div>
+                                
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <h2 class="dashboard-heading">Compliance</h2>
+                                    </div>
+                                    
+
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                    <h4 class="heading-sub">Documents</h4>
+                                    
+
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-sm-5 deposit-content2">
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>ID / Passport</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <input class="file" type="file" name="passport">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Proof of Residency</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <input class="file" type="file" name="residency">
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                    <h4 class="heading-sub2">Questionnaire</h4>
+                                    
+
+                                    </div>
+                                </div>
+                            
+                               
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>-->
+
+<div id="page-account-userinfo">
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="container">
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <div class="tab-active" id="tab-user_information">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="cash_pair-btn">User Information</a></h4>
+                                </div>
+                                <div class="tab-inactive" id="tab-funding_and_history">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Funding and History</a></h4>
+                                </div>
+                                <div class="tab-inactive" id="tab-audit">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Audit</a></h4>
+                                </div>
+                                <div class="tab-inactive" id="tab-compliance">
+                                    <h4 class="tab-heading"><a href="#" class="tablink" id="futures-btn">Compliance</a></h4>
+                                </div>
+                                
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <h2 class="dashboard-heading">User Information</h2>
+                                    </div>
+                                    
+
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                    <h4 class="heading-sub">Profile Details</h4>
+                                    
+
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-sm-5 deposit-content2">
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Username</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <p>designofthings</p>
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Email</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <input class="form-control" type="field" name="email">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Nickname</p>
+                                            </div>
+                                            <div class="col-sm-7 content-push2">
+                                                <input class="form-control" type="field" name="nickname">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                               
+                                            </div>
+                                            <div class="col-sm-7 form-label">
+                                                <a href="#" class="button-link-box3">Update Email &amp; Nickname</a>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                    <h4 class="heading-sub2">Change Password</h4>
+                                    
+
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-sm-5 deposit-content2">
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Old Password</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <input class="form-control" type="field" name="old-password">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>New Password</p>
+                                            </div>
+                                            <div class="col-sm-7">
+                                                <input class="form-control" type="field" name="new-password">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                <p>Confirm Password</p>
+                                            </div>
+                                            <div class="col-sm-7 content-push2">
+                                                <input class="form-control" type="field" name="confirm-password">
+                                            </div>
+                                        </div>
+                                        <div class="row form-row">
+                                            <div class="col-sm-5 form-label">
+                                                
+                                            </div>
+                                            <div class="col-sm-7 form-label">
+                                                <a href="#" class="button-link-box3">Change Password</a>
+                                            </div>
+                                            
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                            
+                               
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
