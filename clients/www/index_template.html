@@ -661,7 +661,7 @@
                                             {{else}}
                                             <p>{{sputnik.currencies[current_currency].address}}</p>
                                             {{/if}}
-                                            <a href="#" class="button-link-box" onclick="sputnik.newAddress('{{current_currency}}');">Get New Address</a>
+                                            <a href="#" class="button-link-box" on-click="new_address:{{current_currency}}">Get New Address</a>
                                         </div>
                                     </div>
                                     {{/current_currency}}

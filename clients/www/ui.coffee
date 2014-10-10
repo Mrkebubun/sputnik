@@ -251,6 +251,10 @@ $ ->
                 event.original.preventDefault()
                 sputnik.cancelOrder(id)
 
+            new_address: (event, ticker) ->
+                event.original.preventDefault()
+                sputnik.newAddress(ticker)
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
