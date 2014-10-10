@@ -247,6 +247,10 @@ $ ->
                 sputnik.logout()
                 location.reload()
 
+            cancel_order: (event, id) ->
+                event.original.preventDefault()
+                sputnik.cancelOrder(id)
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker

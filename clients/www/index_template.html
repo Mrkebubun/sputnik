@@ -305,7 +305,7 @@
                                                         <td>{{price}}</td>
                                                         <td>{{quantity_left}}</td>
                                                         <td>{{side}}</td>
-                                                        <td><button onclick='sputnik.cancelOrder({{id}})' class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                                        <td><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                                     </tr>
                                                     {{/if}}
                                                     {{/}}
@@ -487,7 +487,7 @@
                                                 <td class="cell-type2">{{side}}</td>
                                                 <td class="cell-price">{{price}}</td>
                                                 <td class="cell-quantity">{{quantity_left}}</td>
-                                                <td class="cell-cancel">&nbsp;&nbsp;<button onclick='sputnik.cancelOrder({{id}})' class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                                <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                             </tr>
                                             {{/}}
                                         </tbody>
