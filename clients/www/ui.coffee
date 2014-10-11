@@ -139,14 +139,18 @@ $ ->
             buykey: (event) ->
                 if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), ractive.get("current_ticker"), 'BUY')
                     $("#buy_alert").show()
+                    $("#buyButton").hide()
                 else
                     $("#buy_alert").hide()
+                    $("#buyButton").show()
 
             sellkey: (event) ->
                 if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), ractive.get("current_ticker"), 'SELL')
                     $("#sell_alert").show()
+                    $("#sellButton").hide()
                 else
                     $("#sell_alert").hide()
+                    $("#sellButton").show()
 
             buy: (event) ->
                 event.original.preventDefault()
