@@ -137,7 +137,13 @@ $ ->
                 sputnik.requestWithdrawal(ticker, amount, address)
 
             buykey: (event) ->
-                if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), Number($("#buy_price").val()), ractive.get("current_ticker"), 'BUY')
+                buy_price_str = $('#buy_price').val()
+                if buy_price_str == ''
+                    buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+
+                buy_price = Number(buy_price_str)
+
+                if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), buy_price, ractive.get("current_ticker"), 'BUY')
                     $("#buy_alert").show()
                     $("#buyButton").hide()
                 else
@@ -145,7 +151,12 @@ $ ->
                     $("#buyButton").show()
 
             sellkey: (event) ->
-                if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), Number($("#sell_price").val()), ractive.get("current_ticker"), 'SELL')
+                sell_price_str = $('#sell_price').val()
+                if sell_price_str == ''
+                    sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+
+                sell_price = Number(sell_price_str)
+                if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), sell_price, ractive.get("current_ticker"), 'SELL')
                     $("#sell_alert").show()
                     $("#sellButton").hide()
                 else
@@ -162,10 +173,10 @@ $ ->
                     return true
 
                 if buy_price_str == ''
-                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                    bootbox.confirm "Placing order with price: #{buy_price}.\n\nAre you sure?", (result) =>
+                    buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+                    bootbox.confirm "Placing order with price: #{buy_price_str}.\n\nAre you sure?", (result) =>
                         if result
-                            sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                            sputnik.placeOrder(buy_quantity, Number(buy_price_str), ractive.get("current_ticker"), 'BUY')
                 else
                     buy_price = Number(buy_price_str)
                     if buy_price <= 0
@@ -190,10 +201,10 @@ $ ->
                     return true
 
                 if sell_price_str == ''
-                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                    bootbox.confirm "Placing order with price: #{sell_price}.\n\nAre you sure?", (result) =>
+                    sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+                    bootbox.confirm "Placing order with price: #{sell_price_str}.\n\nAre you sure?", (result) =>
                         if result
-                            sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                            sputnik.placeOrder(sell_quantity, Number(sell_price), ractive.get("current_ticker"), 'SELL')
                 else
                     sell_price = Number(sell_price_str)
                     if sell_price <= 0
