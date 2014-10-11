@@ -15,6 +15,7 @@ from sputnik import config
 from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
+import shlex
 
 class PermissionsManager:
     def __init__(self, session):
@@ -317,7 +318,7 @@ class LowEarthOrbit:
         }
 
     def parse(self, line):
-        tokens = line.split()
+        tokens = shlex.split(line)
         if len(tokens) == 0:
             return
         if len(tokens) < 2:
