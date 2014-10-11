@@ -1705,7 +1705,8 @@ if __name__ == '__main__':
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
-    exchange_info = { 'name': config.get("webserver", "exchange_name") }
+    exchange_info = { 'name': config.get("webserver", "exchange_name"),
+                      'feed_uri': config.get("webserver", "exchange_rss_feed")}
 
     factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
                                      debugWamp=debug, debugCodePaths=debug, exchange_info=exchange_info)

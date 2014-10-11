@@ -593,6 +593,32 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
+    def clear_contract(self, ticker, price_ui):
+        contract = util.get_contract(self.session, ticker)
+        price = util.price_to_wire(contract, price_ui)
+        uid = util.get_uid()
+
+        # Don't try to clear if the contract is not active
+        if not contract.active:
+            return
+
+        # Mark contract inactive
+        try:
+            contract.active = False
+            self.session.add(contract)
+            self.session.commit()
+        except Exception as e:
+            log.err("Unable to mark contract inactive %s" % e)
+        else:
+            d = self.accountant.clear_contract(None, ticker, price, uid)
+            # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
+            # We need to make sure that the timeout here is long, because clear_contract
+            # won't return for a while
+            #
+            # How do we ensure that the accountants know that it is reactivated?
+            # send a ZMQ message to them all?
+
+
     def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
@@ -626,6 +652,7 @@ class Administrator:
     @util.timed
     def update_bs_cache(self):
         now = datetime.utcnow()
+        timestamp = util.dt_to_timestamp(now)
 
         balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
                                                                    'total': 0,
@@ -668,10 +695,10 @@ class Administrator:
                 position = row.position
 
             position_details = {'username': row.username,
-                                'hash': user.user_hash,
+                                'hash': user.user_hash(timestamp),
                                 'position': position,
                                 'position_fmt': util.quantity_fmt(contract, position),
-                                'timestamp': util.dt_to_timestamp(now)}
+                                'timestamp': timestamp}
 
             balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
 
@@ -685,7 +712,7 @@ class Administrator:
                 details['contract'] = contract.ticker
                 details['total_fmt'] = util.quantity_fmt(contract, details['total'])
 
-        balance_sheet['timestamp'] = util.dt_to_timestamp(now)
+        balance_sheet['timestamp'] = timestamp
         self.bs_cache = {}
         for side, sheet in balance_sheet.iteritems():
             if isinstance(sheet, collections.defaultdict):
@@ -706,9 +733,10 @@ class Administrator:
             for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
-                    details['positions'].append((position['hash'], position['position']))
+                    details['positions'].append((position['hash'], position['position_fmt']))
                 del details['positions_raw']
                 del details['positions_by_user']
+                del details['total']
 
         return balance_sheet
 
@@ -722,7 +750,7 @@ class Administrator:
         return permission_groups
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True).all()
         return contracts
 
     def get_contract(self, ticker):
@@ -967,45 +995,46 @@ class AdminWebUI(Resource):
         """
         self.log(request)
         resources = [
-            # Level 0
-            {'/': self.admin,
-             '/reset_admin_password': self.reset_admin_password
-            },
-            # Level 1
-            {'/': self.user_list,
-             '/user_details': self.user_details,
-             '/user_orders': self.user_orders,
-             '/user_postings': self.user_postings,
-             '/rescan_address': self.rescan_address,
-             '/admin': self.admin,
-             '/contracts': self.contracts
-            },
-            # Level 2
-            {'/reset_password': self.reset_password,
-             '/permission_groups': self.permission_groups,
-             '/change_permission_group': self.change_permission_group
-            },
-            # Level 3
-            {'/balance_sheet': self.balance_sheet,
-             '/ledger': self.ledger,
-             '/new_permission_group': self.new_permission_group
-            },
-            # Level 4
-            {
-                '/process_withdrawal': self.process_withdrawal,
-                '/withdrawals': self.withdrawals,
-                '/deposits': self.deposits,
-                '/order_book': self.order_book,
-                '/manual_deposit': self.manual_deposit,
-                '/cancel_order': self.cancel_order},
-            # Level 5
-            {'/admin_list': self.admin_list,
-             '/new_admin_user': self.new_admin_user,
-             '/set_admin_level': self.set_admin_level,
-             '/force_reset_admin_password': self.force_reset_admin_password,
-             '/transfer_position': self.transfer_position,
-             '/adjust_position': self.adjust_position}]
-
+                    # Level 0
+                    { '/': self.admin,
+                      '/reset_admin_password': self.reset_admin_password
+                    },
+                    # Level 1
+                     {'/': self.user_list,
+                      '/user_details': self.user_details,
+                      '/user_orders': self.user_orders,
+                      '/user_postings': self.user_postings,
+                      '/rescan_address': self.rescan_address,
+                      '/admin': self.admin,
+                      '/contracts': self.contracts
+                     },
+                    # Level 2
+                     {'/reset_password': self.reset_password,
+                      '/permission_groups': self.permission_groups,
+                      '/change_permission_group': self.change_permission_group
+                     },
+                    # Level 3
+                     {'/balance_sheet': self.balance_sheet,
+                      '/ledger': self.ledger,
+                      '/new_permission_group': self.new_permission_group
+                     },
+                    # Level 4
+                     {
+                      '/process_withdrawal': self.process_withdrawal,
+                      '/withdrawals': self.withdrawals,
+                      '/deposits': self.deposits,
+                      '/order_book': self.order_book,
+                      '/manual_deposit': self.manual_deposit,
+                      '/cancel_order': self.cancel_order},
+                    # Level 5
+                     {'/admin_list': self.admin_list,
+                      '/new_admin_user': self.new_admin_user,
+                      '/set_admin_level': self.set_admin_level,
+                      '/force_reset_admin_password': self.force_reset_admin_password,
+                      '/transfer_position': self.transfer_position,
+                      '/adjust_position': self.adjust_position,
+                      '/clear_contract': self.clear_contract}]
+        
         resource_list = {}
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
@@ -1068,6 +1097,10 @@ class AdminWebUI(Resource):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
         return t.render(contracts=contracts).encode('utf-8')
+
+    def clear_contract(self, request):
+        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        return redirectTo("/contracts", request)
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()

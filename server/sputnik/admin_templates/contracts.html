@@ -28,7 +28,7 @@
 {% block contracts_active %}class="active"{% endblock %}
 {% block body %}
 <div class="container">
-<div class="panel panel-primary">
+<div class="panel panel-primary table-responsive" style="overflow-x: auto;">
     <div class="panel-heading">Contract List</div>
     <div class="panel-body">
     <form role="form" action="#">
@@ -43,7 +43,7 @@
     </form>
     <table id="contracts" class="table table-striped table-hover">
         <thead>
-            <tr><th>Ticker</th><th>Description</th><th>Full Description</th><th>Contract Type</th><th>Tick Size</th>
+            <tr><th>Ticker</th><th>Clear</th><th>Description</th><th>Full Description</th><th>Contract Type</th><th>Tick Size</th>
                 <th>Lot Size</th><th>Denominator</th><th>Expiration</th>
                 <th>Denominated</th><th>Payout</th><th>Margin High</th><th>Margin Low</th>
             </tr>
@@ -52,7 +52,21 @@
             {% for contract in contracts %}
             {% if contract.active %}
                 <tr>
-                    <td><a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a></td>
+                    <td>
+                        {% if contract.contract_type != "cash" %}
+                            <a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a>
+                        {% else %}
+                            {{contract.ticker}}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contract.expired %}
+                        <form method="POST" action="/clear_contract">
+                            <input type="hidden" name="ticker" value="{{contract.ticker}}">
+                            <input type="text" name="price" placeholder="Price" size="5">
+                        </form>
+                        {% endif %}
+                    </td>
                     <td>{{contract.description}}</a></td>
                     <td>{{contract.full_description}}</td>
                     <td>{{contract.contract_type}}</td>

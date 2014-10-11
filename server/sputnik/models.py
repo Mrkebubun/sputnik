@@ -81,7 +81,7 @@ class Contract(db.Base):
     lot_size = Column(BigInteger, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
-    expired = Column(Boolean, server_default=sql.false())
+    #expired = Column(Boolean, server_default=sql.false())
 
     denominated_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
     denominated_contract = relationship('Contract', remote_side='Contract.ticker',
@@ -100,6 +100,13 @@ class Contract(db.Base):
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
+
+    @property
+    def expired(self):
+        if self.expiration is None:
+            return False
+        elif self.expiration < datetime.utcnow():
+            return True
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
@@ -322,16 +329,14 @@ class User(db.Base):
     permissions = relationship("PermissionGroup")
     postings = relationship("Posting", back_populates="user")
 
-    @property
-    def user_hash(self):
+    def user_hash(self, timestamp):
         """
 
 
         :returns: str
         """
         combined_string = "%s:%s:%s:%s:%d" % (self.audit_secret, self.username, self.nickname, self.email,
-                                           util.dt_to_timestamp(datetime.combine(date.today(),
-                                                                                 datetime.min.time())))
+                                              timestamp)
 
         user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
         return user_hash
@@ -373,7 +378,7 @@ class Journal(db.Base):
 
     id = Column(Integer, primary_key=True)
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
-                        'Trade', 'Fee',
+                        'Trade', 'Fee', 'Clearing',
                         name='journal_types'), nullable=False)
     timestamp = Column(DateTime, index=True)
     postings = relationship('Posting', back_populates="journal")
