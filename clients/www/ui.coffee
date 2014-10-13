@@ -451,8 +451,8 @@ $ ->
                 show_popup_button: false
                 disabled_features: ["header_symbol_search", "header_settings", "header_indicators", "header_compare", "header_undo_redo", "header_screenshot", "header_properties", "left_toolbar"]
                 enabled_features: ["narrow_chart_enabled"]
-                options.width = '100%'
-                options.autosize = true
+                width: '100%'
+                autosize: true
 
             if target is "tv_chart_container"
                 options.height = 480
