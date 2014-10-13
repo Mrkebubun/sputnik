@@ -842,7 +842,7 @@ h6.sell {
 }
 
 .deposit-heading {
-    margin: 35px 0 0 21px;
+    margin: 35px 0 25px 0px;
 }
 
 .content-push {
@@ -877,11 +877,15 @@ h6.sell {
 }
 
 .heading-sub {
-    margin: 35px 0 20px 21px;
+    margin: 40px 0 20px 21px;
 }
 
 .heading-sub2 {
     margin: 0px 0 20px 21px;
+}
+
+.heading-sub3 {
+    margin: 10px 0 10px -17px;
 }
 
 .file::-webkit-file-upload-button {
@@ -915,6 +919,18 @@ h6.sell {
 }
 .file:active::before {
   background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
+}
+
+.content-pull {
+    margin-top: 35px;
+}
+
+.content-push2 {
+    margin-bottom: 20px;
+}
+
+.content-push3 {
+    margin-top: 25px;
 }
 
 
