@@ -178,11 +178,27 @@ h2.dashboard-heading {
     color: #ffffff;
     font: 300 15px "Lato", Helvetica, sans-serif;
     background: #33cc66;
-    padding: 8px 17px 8px 17px;
+    padding: 8px 27px 8px 27px;
     text-decoration: none;
 }
 
 .button-link-box {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-left: 21px;
+    margin-top: 35px;
+}
+
+.button-link-box:hover {
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
     border-radius: 4px;
@@ -213,7 +229,37 @@ h2.dashboard-heading {
     margin-top: 35px;
 }
 
+.button-link-box2:hover {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 35px;
+}
+
 .button-link-box3 {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 55px;
+}
+
+.button-link-box3:hover {
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
     border-radius: 4px;
@@ -676,6 +722,14 @@ h6.sell {
     border-right: 1px solid #ccc;
 }
 
+.introductory-text {
+    margin: 20px 0 0 21px;
+}
+
+.button-request {
+    margin: 35px 0 25px 0;
+}
+
 /*-- Dashboard - All Orders --*/
 
 .table-contract {
@@ -904,6 +958,13 @@ h4.bid {
     font-size: 18px;
 }
 
+/* -- Main Screen - Order Book -- */
+
+.bid {
+    margin-top: 25px;
+}
+
+
 
 
 /*-- Media Queries --*/
@@ -982,6 +1043,14 @@ h4.bid {
 
     span.dates {
         margin-left: 25px;
+    }
+
+    .tabs-row {
+        display:none;
+    }
+
+    .select-format {
+        margin-bottom: 25px;
     }
 
 }

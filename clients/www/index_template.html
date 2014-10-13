@@ -1,7 +1,7 @@
 <div class="alert alert-warning" id="not_connected">
     Connecting to server.
 </div>
-<div class="container-fluid" id="main_page" style="display:none;">
+<div class="container-fluid" id="main_page" style="">
     <div class="modal fade" id="login_modal">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -133,10 +133,15 @@
                     <div class="row">
                         <div class="col-sm-12">
                             {{#sputnik.types:type}}
-                            <div class="{{current_type == type ? 'tab-active' : 'tab-inactive'}}">
+                            <div class="{{current_type == type ? 'tab-active' : 'tab-inactive'}} tabs-row">
                                 <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{type_alias[type]}}</a></h4>
+                            
                             </div>
                             {{/}}
+                            <select class="contract-select form-control select-format">
+                                <option value="Tab">Tab</option>
+                            </select>
+
                         </div>
                     </div>
                     <div class="row">
@@ -535,7 +540,7 @@
             <div class="col-xs-12">
                 <div class="container">
                     <div class="row">
-                        <div class="col-sm-12">
+                        <div class="col-sm-12 tabs-row">
                             <div class="{{account_tab == 'profile' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
                                 <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:profile">Profile</a></h4>
                             </div>
@@ -548,7 +553,14 @@
                             <div class="{{account_tab == 'compliance' ? 'tab-active' : 'tab-inactive' }}" id="tab-compliance">
                                 <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:compliance">Compliance</a></h4>
                             </div>
+                            
                         </div>
+                        <select class="contract-select form-control select-format">
+                                <option value="Profile">Profile</option>
+                                <option value="Funding and History">Funding and History</option>
+                                <option value="Audit">Audit</option>
+                                <option value="Compliance">Compliance</option>
+                            </select>
                     </div>
                     {{#if account_tab == "funding-history"}}
                     <div id="funding-history">
@@ -558,7 +570,7 @@
                                     <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">Deposit</a>
                                     <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">Withdraw</a>
                                     <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">Transaction History</a>
-                                    <select class="form-control contract-select" value="{{fh_tab}}">
+                                    <select class="form-control contract-select">
                                         <option value="Select" selected="selected">Select</option>
                                         <option value="deposit">Deposit</option>
                                         <option value="withdraw">Withdraw</option>
@@ -568,12 +580,10 @@
                                 {{#if fh_tab == "history"}}
                                 <div id="transaction-history">
                                     <div class="row">
-                                        <div class="col-sm-3">
+                                        <div class="col-sm-6">
                                             <h2 class="dashboard-heading">Transaction History</h2>
                                         </div>
-                                        <div class="col-sm-3">
-                                            <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
-                                        </div>
+                                        
                                         <div class="col-sm-3">
                                             <form>
                                             <span class="dates">Start date</span> <input class="form-control field-date"
@@ -591,6 +601,13 @@
                                             </form>
                                         </div>
                                     </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 introductory-text">
+                                            Introductory text.
+                                        </div>
+                                    </div>
+
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
@@ -609,6 +626,13 @@
 
                                         </div>
                                     </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 button-request">
+                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
+                                        </div>
+                                    </div>
+
                                     <div class="row">
                                         <div class="col-sm-12">
                                             <table class="table-full">
