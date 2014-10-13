@@ -453,6 +453,9 @@ $ ->
                 enabled_features: ["narrow_chart_enabled"]
                 width: '100%'
                 autosize: true
+                overrides:
+                    "symbolWatermarkProperties.transparency": 100
+                    "symbolWatermarkProperties.color": "#FFFFFF"
 
             if target is "tv_chart_container"
                 options.height = 480
@@ -470,6 +473,7 @@ $ ->
                 if target isnt "tv_chart_container"
                     $("##{target} iframe").contents().find(".onchart-tv-logo").hide()
                     $("##{target} iframe").contents().find(".pane-legend").hide()
+                    $("##{target} iframe").contents().find(".chart-controls-bar").hide()
 
         getFeedwind = () ->
             href = window.location.href
