@@ -392,6 +392,13 @@ class @Sputnik extends EventEmitter
         else
             return price / (source.denominator * contract.denominator)
 
+    cashSpentFromWire: (cash_spent_wire) =>
+        cash_spent = @copy(cash_spent_wire)
+        for ticker, cash of cash_spent
+            cash_spent[ticker] = @quantityFromWire(ticker, cash)
+
+        return cash_spent
+
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
@@ -801,6 +808,13 @@ class @Sputnik extends EventEmitter
         [low_margin, high_margin] = @calculateMargin()
         @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
 
+    availableToWithdraw: (ticker) =>
+        margin = @calculateMargin()
+        high_margin = margin[1]
+        if ticker is "BTC"
+            return @positions[ticker].position - high_margin
+
+
     calculateMargin: (new_order) =>
         low_margin = 0
         high_margin = 0
@@ -873,6 +887,8 @@ class @Sputnik extends EventEmitter
             high_margin += additional_margin
 
         @log ["Margin:", low_margin, high_margin]
+        @log ["cash_spent", max_cash_spent]
+        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
         return [low_margin, high_margin]
 
 if module?

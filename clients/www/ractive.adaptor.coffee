@@ -17,6 +17,11 @@ class RactiveSputnikWrapper
         @exchange_info = {}
         @active_contracts = []
         @profile = {}
+        @cash_spent = {}
+
+        @sputnik.on "cash_spent", (cash_spent) =>
+            @cash_spent = cash_spent
+            @notify "cash_spent"
 
         @sputnik.on "audit_details", (audit_details) =>
             @audit = audit_details
@@ -209,6 +214,7 @@ class RactiveSputnikWrapper
         exchange_info: @exchange_info
         active_contracts: @active_contracts
         profile: @profile
+        cash_spent: @cash_spent
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

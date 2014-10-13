@@ -204,7 +204,7 @@ $ ->
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
                     bootbox.confirm "Placing order with price: #{sell_price_str}.\n\nAre you sure?", (result) =>
                         if result
-                            sputnik.placeOrder(sell_quantity, Number(sell_price), ractive.get("current_ticker"), 'SELL')
+                            sputnik.placeOrder(sell_quantity, Number(sell_price_str), ractive.get("current_ticker"), 'SELL')
                 else
                     sell_price = Number(sell_price_str)
                     if sell_price <= 0

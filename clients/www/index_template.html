@@ -760,8 +760,7 @@
                                             <p class="text-balance"> <strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                         <div class="col-sm-4">
-                                            <!-- TODO: Update balance available for withdrawal -->
-                                            <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position}}</strong></p>
+                                            <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}</strong></p>
                                         </div>
                                     </div>
                                     
