@@ -472,12 +472,12 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row dashboard-row">
+                                    <div class="row dashboard-row" style="padding-left: 0px; font-size: 21px;">
                                         {{#sputnik.active_contracts}}
                                         <div class="col-sm-6">
                                             <h4 class="subheading">{{sputnik.markets[this].description}}</h4>
                                             <div class="row">
-                                                <div class="col-xs-11 dashboard-graph" style="padding-left: 0px;" intro="show_chart:{{this}}" id="dashboard_{{clean_ticker(this)}}"></div>
+                                                <div class="col-xs-11 dashboard-graph" style="padding-left: 0px; font-size: 15px;" intro="show_chart:{{this}}" id="dashboard_{{clean_ticker(this)}}"></div>
                                             </div>
                                         </div>
                                         {{/}}
@@ -683,7 +683,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 content-push">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
                                                 <span class="caret"></span>
                                                 {{#sputnik.currencies[current_currency]}}
@@ -716,7 +716,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12 content-push">
+                                        <div class="col-sm-12">
                                             <div id="qr_code"></div>
                                             {{#if current_currency == "BTC"}}
                                             <p><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
@@ -764,17 +764,19 @@
                                             <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position}}</strong></p>
                                         </div>
                                     </div>
-                                    <div class="row form-row">
-                                        <div class="col-sm-5 form-label2">
-                                            <p>Withdrawal Amount</p>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <input class="form-control" type="text" id="withdraw-amount">
-                                        </div>
-                                    </div>
+                                    
                                     {{#if current_currency == "BTC"}}
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content">
+                                            <div class="row form-row content-pull">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>Withdrawal Amount</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdrawal-amount">
+
+                                                </div>
+                                            </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
                                                     <p>Address</p>
@@ -784,7 +786,7 @@
                                                 </div>
                                             </div>
                                             <div class="row form-row">
-                                                <div class="col-sm-5 form-label">
+                                                <div class="col-sm-5 form-label content-push2">
                                                     <p>Confirm Address</p>
                                                 </div>
                                                 <div class="col-sm-7">
@@ -792,23 +794,22 @@
                                                 </div>
                                             </div>
                                             <div class="row">
-                                                <div class="col-sm-12">
-                                                    <a href="#" class="button-link-box2" on-click="withdraw:crypto">Withdraw</a>
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7">
+                                                <a href="#" class="button-link-box2" on-click="withdraw:crypto">Withdraw</a>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     {{else}}
-                                    <div class="row">
-                                        <div class="col-sm-5 deposit-heading">
-                                            <h4 class="header-sub">Wire to this bank account:</h4>
-                                        </div>
-                                        <div class="col-sm-5 deposit-heading">
-                                            <h4 class="header-sub2">Mail a check to me:</h4>
-                                        </div>
-                                    </div>
+                                    
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content">
+                                            <div class="col-sm-12 deposit-heading">
+                                                <h4 class="heading-sub3">Wire to this bank account:</h4>
+                                            </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
                                                     <p>Bank Name</p>
@@ -850,12 +851,18 @@
                                                 </div>
                                             </div>
                                             <div class="row">
-                                                <div class="col-sm-12">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7 content-push3">
                                                     <a href="#" class="button-link-box2" on-click="withdraw:wire">Withdraw</a>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-sm-5 deposit-content">
+                                            <div class="col-sm-12 deposit-heading">
+                                                <h4 class="heading-sub3">Mail a check to me:</h4>
+                                            </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
                                                     <p>Name</p>
@@ -913,7 +920,10 @@
                                                 </div>
                                             </div>
                                             <div class="row">
-                                                <div class="col-sm-12">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7 content-push3">
                                                     <a href="#" class="button-link-box2" on-click="withdraw:mail">Withdraw</a>
                                                 </div>
                                             </div>
