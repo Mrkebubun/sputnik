@@ -33,6 +33,8 @@ class RactiveSputnikWrapper
         @sputnik.on "transaction_history", (history) =>
             @transaction_history = {}
             for item in history
+                item.quantity = item.quantity.toFixed(@sputnik.getQuantityPrecision(item.contract))
+                #item.balance = item.balance.toFixed(@sputnik.getQuantityPrecision(item.contract))
                 if item.contract of @transaction_history
                     @transaction_history[item.contract].push item
                 else
