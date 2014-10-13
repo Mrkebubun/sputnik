@@ -138,8 +138,10 @@
                             
                             </div>
                             {{/}}
-                            <select class="contract-select form-control select-format">
-                                <option value="Tab">Tab</option>
+                            <select class="contract-select form-control select-format" value="{{current_type}}">
+                                {{#sputnik.types:type}}
+                                <option value="{{type}}">{{type_alias[type]}}</option>
+                                {{/}}
                             </select>
 
                         </div>
@@ -570,7 +572,7 @@
                                     <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">Deposit</a>
                                     <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">Withdraw</a>
                                     <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">Transaction History</a>
-                                    <select class="form-control contract-select">
+                                    <select class="form-control contract-select" value="{{fh_tab}}">
                                         <option value="Select" selected="selected">Select</option>
                                         <option value="deposit">Deposit</option>
                                         <option value="withdraw">Withdraw</option>
