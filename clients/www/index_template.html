@@ -555,11 +555,11 @@
                             </div>
                             
                         </div>
-                        <select class="contract-select form-control select-format">
-                                <option value="Profile">Profile</option>
-                                <option value="Funding and History">Funding and History</option>
-                                <option value="Audit">Audit</option>
-                                <option value="Compliance">Compliance</option>
+                        <select class="contract-select form-control select-format" value="{{account_tab}}">
+                                <option value="profile">Profile</option>
+                                <option value="funding-history">Funding and History</option>
+                                <option value="audit">Audit</option>
+                                <option value="compliance">Compliance</option>
                             </select>
                     </div>
                     {{#if account_tab == "funding-history"}}
@@ -604,7 +604,7 @@
 
                                     <div class="row">
                                         <div class="col-sm-12 introductory-text">
-                                            Introductory text.
+                                            Please hit 'Request' to download transactions
                                         </div>
                                     </div>
 
@@ -656,6 +656,16 @@
                                                         <td class="cell-balance">X</td>
                                                         <td class="cell-note">{{note}}</td>
                                                     </tr>
+                                                    {{else}}
+                                                    <tr class="cells">
+                                                        {{^current_currency}}
+                                                        <td colspan="100" align="center">Select a currency</td>
+                                                        {{/current_currency}}
+                                                        {{#current_currency}}
+                                                        <td colspan="100" align="center">No transactions for {{current_currency}} downloaded</td>
+                                                        {{/current_currency}}
+                                                    </tr>
+                                                    {{/}}
                                                     {{/}}
                                                 </tbody>
                                             </table>
@@ -725,7 +735,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 content">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
                                                 <span class="caret"></span>
                                                 {{#sputnik.currencies[current_currency]}}
