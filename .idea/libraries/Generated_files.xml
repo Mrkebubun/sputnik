@@ -3,6 +3,7 @@
     <properties>
       <sourceFilesUrls>
         <item url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
