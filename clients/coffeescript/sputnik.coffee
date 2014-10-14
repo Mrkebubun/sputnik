@@ -353,6 +353,8 @@ class @Sputnik extends EventEmitter
         ticker = wire_transaction.contract
         transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
         transaction.timestamp = @dateTimeFormat(wire_transaction.timestamp)
+        if transaction.balance?
+            transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
 
     quantityToWire: (ticker, quantity) =>
