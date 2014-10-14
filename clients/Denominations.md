@@ -247,7 +247,9 @@ You can only buy/sell integer qty of contracts. You can't buy/sell a fractional 
 
 ## Margin
 
-Each contract has a high_margin and low_margin. This value is BTC (satoshi) per contract.
+Each contract has a high_margin and low_margin. This value is from 0-100 which represents
+a percentage of the safe_price which must be held per contract.
+
 For each contract the user is long or short, their margin requirements are increased by those amounts.
 
 Margin balances are also increased/decreased by the projected settlement cashflow, using the safe_price

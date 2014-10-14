@@ -50,14 +50,14 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             print 'SAFE_PRICE :', SAFE_PRICE
             print 'position.reference_price :', position.reference_price
             print position
-            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
-            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
+            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             log.msg(low_max)
             log.msg(low_min)
 
