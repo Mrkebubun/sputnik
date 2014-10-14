@@ -132,20 +132,24 @@ class RactiveSputnikWrapper
                 if @markets[ticker]?.contract_type isnt "cash_pair"
                     @positions[ticker] = position
                     @positions[ticker].position_fmt = position.position.toFixed(@sputnik.getQuantityPrecision(ticker))
-            # Set active contracts based on what we have positions in
-
+            sputnik.log ["positions", @positions]
             @notify "positions"
+
+            # Set active contracts based on what we have positions in
             @active_contracts = []
             for ticker, market of @markets
                 if market.contract_type is "cash_pair"
                     if ticker not in @active_contracts
-                        if @positions[market.denominated_contract_ticker].position != 0 or @positions[market.payout_contract_ticker].position != 0
+                        if @positions[market.denominated_contract_ticker]? and @positions[market.denominated_contract_ticker].position != 0
                             @active_contracts.push ticker
-                else if market.contract_type isnt "cash"
-                    if ticker not in @active_contracts
-                        if @positions[ticker].position != 0
+                        else if @positions[market.payout_contract_ticker]? and @positions[market.payout_contract_ticker].position != 0
                             @active_contracts.push ticker
 
+                else if market.contract_type isnt "cash"
+                    if ticker not in @active_contracts
+                        if @positions[ticker]? and @positions[ticker].position != 0
+                            @active_contracts.push ticker
+            @sputnik.log ["active_contracts", @active_contracts]
             @notify "active_contracts"
 
         
