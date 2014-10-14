@@ -102,17 +102,8 @@
                                         <li><a href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
                                         <li><a href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
                                         {{#if sputnik.logged_in}}
-                                        <li class="navlinks-right3">
-                                            <div class="login-box">
-                                            <button class="btn btn-default dropdown-toggle dropdown-style" type="button" id="logout-menu" data-toggle="dropdown">
-                                                <span id="login_name">{{sputnik.username}}</span>
-                                                <span class="caret"></span>
-                                                <ul class="dropdown-menu" role="menu" aria-labelledby="logout-menu">
-                                                    <li role="presentation"><a role="menuitem" tabindex="-1" href="#" id="logout">Logout</a></li>
-                                                </ul>
-                                            </button>
-                                            </div>
-                                        </li>
+                                        <li class="navlinks-right2"><a href="#" on-click="logout">Logout</a></li>
+                                        <li class="navlinks-right3"><span id="login_name">{{sputnik.username}}</span></li>
                                         {{else}}
                                         <li class="navlinks-right2"><a href="#" on-click="show_login_register">Login/Register</a></li>
                                         {{/if}}
