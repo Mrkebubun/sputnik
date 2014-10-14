@@ -180,7 +180,7 @@ You can only buy integer qty of contracts. You can't buy/sell a fractional contr
 Price must be an integer between 0 and denominator
 
 
-# Cost calculations
+## Cost calculations
 
 When someone purchases a single contract for 0.454 (454 if the denominator is 1000) then the amount spent (in satoshi,
 because BTC.denominator is 1e8) is
@@ -194,6 +194,87 @@ If they purchase two contracts, the amount spent is twice that:
 ```
     quantity * price * contract.lot_size / contract.denominator = 2 * 454 * 1e5 / 1e3
 ```
+# Futures
+
+Futures only have two contracts involved, the denomination contract (usually BTC) and the futures contract itself. 
+
+| | denominator | tick size | lot size |
+|-------------|-----------|----------|-----|
+| BTC         | 1e8       | n/a      | n/a |
+| USDBTC      | 1e4       | 1        | 1e5 |
+| RAINFALL    | 1e2       | 1        | 1e5 |
+| IPO         | 1e3       | 1e1      | 1e5 |
+
+Every contract's price is an index value which is defined in the contract description, which determines the settlement price
+at expiry.
+
+For example, for a USDBTC future, the index value may be the reciprocal out to four decimal places
+of the Bitstamp BTC/USD price at
+a specified time. (Which is the price of a single dollar in bitcoin.) For a rain future, the index value might
+be the total number of centimeters of rain in a given month, out to two decimal places. For an IPO future,
+the index value might be the market capitalization of the company 180 days after the IPO, in billions of dollars.
+
+The lot size defines how many Bitcoin (satoshi) is associated with each index point.
+  
+The denominator tell us how the price is represented internally as an integer.
+
+The tick size tells us the minimum price movement when trading. 
+
+Internal price:
+
+```
+index_value * denominator
+```
+
+Value per tick:
+```
+lot_size * tick_size / denominator
+```
+
+Tick size in terms of index value
+```
+tick_size / denominator (index units)
+```
+
+| contract | price | internal price | value per tick (satoshi) | tick_size in terms of index value |
+|----------|-------------|------------------|
+| USDBTC   | 0.0025 USD/BTC | 25 | 1e2 | 0.0001 USD/BTC |
+| RAINFALL | 20.04 cm | 2004 | 1e5 | 1e3 | 0.01 cm |
+| IPO | USD 250mm | 250 | 1e3 | USD 10mm |
+
+
+You can only buy/sell integer qty of contracts. You can't buy/sell a fractional contract.
+
+## Margin
+
+Each contract has a high_margin and low_margin. This value is BTC (satoshi) per contract.
+For each contract the user is long or short, their margin requirements are increased by those amounts.
+
+Margin balances are also increased/decreased by the projected settlement cashflow, using the safe_price
+as the settlement_price
+
+## Cashflows
+
+### Trading
+
+On a trade, if the user already has a position in the contract, the reference price must be updated to the
+new trade price. Therefore, in addition to fees, a settlement cashflow takes place based on the pre-existing
+position:
+
+```
+quantity * (trade_price - reference_price) * lot_size / denominator
+```
+
+### Settlement
+
+On settlement, a user's cash flow is calculated:
+
+```
+quantity * (settlement_price - reference_price) * lot_size / denominator
+```
+
+And their reference_price is reset to their settlement_price.
+
 
 # Equations
 
@@ -207,6 +288,7 @@ x & y === x - x % y
 | cash          	| N/A                                                                                  	| quantity * contract.denominator                            	| NA                                                                	| quantity / contract.denominator        	| NA                                                                      	|
 | cash_pair     	| price * contract.denominator * denominated_contract.denominator & contract.tick_size 	| quantity * payout_contract.denominator & contract.lot_size 	| price / (contract.denominator * denominated_contract.denominator) 	| quantity / payout_contract.denominator 	| quantity * price / (contract.denominator * payout_contract.denominator) 	|
 | prediction    	| price * contract.denominator & contract.tick_size                                    	| quantity & 1                                               	| price / contract.denominator                                      	| quantity                               	| quantity * price * contract.lot_size / contract.denominator             	|
+| futures           | price * contract.denominator & contract.tick_size                                     | quantity & 1                                                  | price / contract.denominator                                          | quantity                                  | quantity * (settlement_price - reference_price) * contract.lot_size / contract.denominator |
 
 # Additional notes
 
