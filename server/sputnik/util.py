@@ -112,7 +112,7 @@ def timestamp_to_dt(timestamp):
     return datetime.utcfromtimestamp(timestamp/1e6)
 
 
-def get_fees(username, contract, transaction_size, trial_period=False):
+def get_fees(username, contract, transaction_size, quantity, trial_period=False):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -145,6 +145,11 @@ def get_fees(username, contract, transaction_size, trial_period=False):
         denominated_contract = contract.denominated_contract
         fees = int(round(transaction_size * 0.005))
         return { denominated_contract.ticker: fees }
+    elif contract.contract_type == "futures":
+        # Futures charge 1% of the lot size * # of contracts
+        denominated_contract = contract.denominated_contract
+        fees = int(round(quantity * contract.lot_size * 0.01))
+        return {denominated_contract.ticker: fees}
     else:
         # Only cash_pair & prediction is implemented now
         raise NotImplementedError

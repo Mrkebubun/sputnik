@@ -427,10 +427,9 @@ class Accountant:
 
         return user_postings, vendor_postings, remainder_postings
 
-    def get_cash_spent(self, contract, price, quantity):
+    def get_cash_spent(self, contract, price, quantity, user=None):
         if contract.contract_type == "futures":
             raise NotImplementedError
-
             # log.msg("This is a futures trade.")
             # aggressive_cash_position = self.get_position(aggressive_username, "BTC")
             # aggressive_future_position = self.get_position(aggressive_username, ticker, price)
@@ -525,8 +524,6 @@ class Accountant:
         last = next
         log.msg("post_transaction: part 1: %.3f ms." % elapsed)
 
-        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
-
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
@@ -546,17 +543,26 @@ class Accountant:
 
         note = "%s order: %s" % (ap, order)
 
-        user_denominated = create_posting("Trade", username,
-                denominated_contract.ticker, cash_spent, denominated_direction,
-                note)
+        postings = []
+        if contract.contract_type != "futures":
+            denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
+            user_denominated = create_posting("Trade", username,
+                    denominated_contract.ticker, cash_spent, denominated_direction,
+                    note)
+            postings.append(user_denominated)
+        else:
+            payout_contract = contract
+
         user_payout = create_posting("Trade", username, payout_contract.ticker,
                 quantity, payout_direction, note)
+
+        postings.append(user_payout)
 
         # calculate fees
         # We aren't charging the liquidity provider
         fees = {}
         fees = util.get_fees(username, contract,
-                abs(cash_spent), trial_period=self.trial_period)
+                abs(cash_spent), quantity=abs(quantity), trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
                 fees[fee] = 0
@@ -567,19 +573,12 @@ class Accountant:
         elapsed = (next - last) * 1000
         log.msg("post_transaction: part 3: %.3f ms." % elapsed)
 
-        # Submit to ledger
-        # (user denominated, user payout) x 2 = 4
-        count = 4 + 2 * len(remainder_fees) + 2 * len(user_fees) + 2 * len(vendor_fees)
-        postings = [user_denominated, user_payout]
         postings.extend(user_fees)
-        #postings.extend(vendor_fees)
-        #postings.extend(remainder_fees)
 
-
+        count = 2 * len(postings) + 2 * len(remainder_fees) + 2 * len(vendor_fees)
         for posting in postings + vendor_fees + remainder_fees:
             posting["count"] = count
             posting["uid"] = uid
-
 
         for fee in vendor_fees:
             self.accountant_proxy.remote_post(fee["username"], fee)
@@ -649,11 +648,53 @@ class Accountant:
             log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
 
+
         # TODO: add errbacks for these
         d.addBoth(update_order)
         d.addCallback(notify_fill)
         if aggressive:
             d.addCallback(publish_trade)
+
+        if contract.contract_type == "futures":
+            old_position = self.get_position(user, contract, price)
+            position_before_trade = old_position.position
+
+            def update_reference_price(result):
+                try:
+                    future_position = self.get_position(user, contract, price)
+                    old_reference_price = future_position.reference_price
+                    future_position.reference_price = price
+                    self.session.commit()
+                except Exception as e:
+                    self.session.rollback()
+                    log.err("Exception while updating reference price!")
+
+                price_difference = old_reference_price - price
+                cash_spent_float = price_difference * position_before_trade * contract.lot_size / contract.denominator
+                cash_spent_int = int(cash_spent_float)
+                if cash_spent_float != cash_spent_int:
+                    message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
+                              (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
+                    log.err(message)
+                    self.alerts_proxy.send_alert(message, "Integer failure")
+
+                note = "Update reference price %d -> %d" % (old_reference_price, price)
+                user_posting = create_posting("Clearing", username, denominated_contract.ticker, cash_spent_int,
+                                              "credit", note)
+                system_posting = create_posting("Clearing", "futures_clearing", denominated_contract.ticker, cash_spent,
+                                                "debit", note)
+
+                rp_uid = util.get_uid()
+                for posting in [user_posting, system_posting]:
+                    posting["uid"] = rp_uid
+                    posting["count"] = 2
+
+                self.accountant_proxy.remote_post("futures_clearing", system_posting)
+                d = self.post_or_fail(user_posting)
+                # TODO: Deal with failure here. Revert the change to the reference price?
+
+                return d
+            d.addCallback(update_reference_price)
 
         return d.addErrback(log.err)
 
