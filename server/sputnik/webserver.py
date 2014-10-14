@@ -466,6 +466,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.clientAuthAllowAnonymous = True
         self.base_uri = config.get("webserver", "base_uri")
 
+    def onConnect(self, request):
+        log.msg(str(request.headers))
+        return WampCraServerProtocol.onConnect(self, request)
 
     def connectionMade(self):
         """
