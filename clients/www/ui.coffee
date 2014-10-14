@@ -449,13 +449,12 @@ $ ->
                 details: false
                 save_image: false
                 show_popup_button: false
-                disabled_features: ["header_symbol_search", "header_settings", "header_indicators", "header_compare", "header_undo_redo", "header_screenshot", "header_properties", "left_toolbar"]
+                disabled_features: ["use_localstorage_for_settings", "header_symbol_search", "header_settings", "header_indicators", "header_compare", "header_undo_redo", "header_screenshot", "header_properties", "left_toolbar"]
                 enabled_features: ["narrow_chart_enabled"]
                 width: '100%'
                 autosize: true
                 overrides:
                     "symbolWatermarkProperties.transparency": 100
-                    "symbolWatermarkProperties.color": "#FFFFFF"
 
             if target is "tv_chart_container"
                 options.height = 480
