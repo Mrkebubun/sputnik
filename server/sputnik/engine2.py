@@ -422,9 +422,9 @@ class WebserverNotifier(EngineListener):
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, engine, forwarder, accountant, webserver):
+    def __init__(self, engine, accountant, webserver):
         self.engine = engine
-        self.forwarder = forwarder
+        #self.forwarder = forwarder
         self.accountant = accountant
         self.webserver = webserver
 
@@ -435,24 +435,26 @@ class SafePriceNotifier(EngineListener):
     def on_init(self):
         self.ticker = self.contract.ticker
 
-        # TODO: seriously, fix this hack
-        try:
-            self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
-        except IndexError:
-            self.safe_price = 42
 
-        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        trades = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).order_by(
+            models.Trade.timestamp)
+        for trade in trades:
+            self.update_safe_price(trade.price, trade.quantity, publish=False)
+
+        self.accountant.safe_prices(None, engine.ticker, self.safe_price)
+        self.webserver.safe_prices(engine.ticker, self.safe_price)
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
+        self.update_safe_price(price, quantity)
+
+    def update_safe_price(self, price, quantity, publish=True):
+        self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * quantity
         self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * quantity * price
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
-        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        if publish:
+            self.accountant.safe_prices(None, engine.ticker, self.safe_price)
+            self.webserver.safe_prices(engine.ticker, self.safe_price)
 
 
 class AccountantExport(ComponentExport):
@@ -515,11 +517,11 @@ if __name__ == "__main__":
 
     watchdog(config.get("watchdog", "engine") %
              (config.getint("watchdog", "engine_base_port") + contract.id))
-    #safe_price_notifier = SafePriceNotifier(engine)
+    safe_price_notifier = SafePriceNotifier(engine, accountant, webserver)
     engine.add_listener(logger)
     engine.add_listener(accountant_notifier)
     engine.add_listener(webserver_notifier)
-    #engine.add_listener(safe_price_notifier)
+    engine.add_listener(safe_price_notifier)
 
     # Cancel all orders with some quantity_left that have been dispatched but not cancelled
     for order in session.query(models.Order).filter_by(

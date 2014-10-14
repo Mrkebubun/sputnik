@@ -1212,7 +1212,7 @@ class EngineExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
-    def safe_prices(self, ticker, price):
+    def safe_prices(self, username, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export
