@@ -128,6 +128,7 @@ corresponding server objects. Each is encoded in JSON.
      type: "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment"
      note: "note about the transaction"
      direction: "debit|credit"
+     balance: 234523
 }
 ```
 
@@ -135,6 +136,9 @@ corresponding server objects. Each is encoded in JSON.
 
 ### get_markets()
 Take no arguments. Returns a ticker-indexed dictionary of contracts corresponding to currently active markets.
+
+### get_exchange_info()
+Takes no arguments. Gets information about the exchange running here.
 
 ### get_trade_history(ticker, start_timestamp, end_timestamp)
 
@@ -166,8 +170,8 @@ assets vs total liabilities.
 ```json
 {
     timestamp: "2342342"
-    assets: {}
-    liabilities: {}
+    Asset: {}
+    Liability: {}
 }
 ```
 
@@ -329,4 +333,5 @@ Each event is a ```fill``` object.
 ### transactions#USERNAME
 
 Each event updates the user when a balance in their account changes, due to withdrawals, deposits, trades, fees,
-transfers, adjustments-- anything. Each event is a ```transaction``` object
+transfers, adjustments-- anything. Each event is a ```transaction``` object, but without the `balance` field.
+
