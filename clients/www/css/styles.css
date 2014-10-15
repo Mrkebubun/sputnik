@@ -458,7 +458,9 @@ h6.sell {
 }
 
 .order-book-box {
-    height: 100%;
+    position: absolute;
+    height: 348px;
+    overflow: auto;
 }
 
 .header-box {

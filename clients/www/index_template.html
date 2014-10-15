@@ -388,25 +388,23 @@
                                                 <li class="bid"><a href="#asks_tab" data-toggle="tab">Asks</a></li>
                                             </ul>
                                             <div class="tab-content">
-                                                <div class="tab-pane active" id="bids_tab">
-                                                    <div class="order-book-box scroll-box">
-                                                        <table class="table-header">
-                                                            <thead>
-                                                            <tr>
-                                                                <th class="recent-price">Price</th>
-                                                                <th class="recent-quantity">Quantity</th>
+                                                <div class="tab-pane active order-book-box" id="bids_tab">
+                                                    <table class="table-header">
+                                                        <thead>
+                                                        <tr>
+                                                            <th class="recent-price">Price</th>
+                                                            <th class="recent-quantity">Quantity</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody id="bids">
+                                                            {{#sputnik.books[current_ticker].bids:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content2">{{price}}</td>
+                                                                <td class="recent-quantity-content2">{{quantity}}</td>
                                                             </tr>
-                                                            </thead>
-                                                            <tbody id="bids">
-                                                                {{#sputnik.books[current_ticker].bids:i}}
-                                                                <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                                    <td class="recent-price-content2">{{price}}</td>
-                                                                    <td class="recent-quantity-content2">{{quantity}}</td>
-                                                                </tr>
-                                                                {{/}}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                                 <div class="tab-pane" id="asks_tab">
                                                     <div class="order-book-box scroll-box">
