@@ -272,11 +272,9 @@
                                                             </form>
                                                         </div>
                                                     </div>
-                                                    <div class="row">
+                                                    <div class="row spacer-top">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert">Your balance is too low for this order.</div>
-                                                        <div style="padding-top:15px;">
-                                                            <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">Buy</a>
-                                                        </div>
+                                                        <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">Buy</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -305,11 +303,9 @@
                                                             </form>
                                                         </div>
                                                     </div>
-                                                    <div class="row">
+                                                    <div class="row spacer-top">
                                                         <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert">Your balance is too low for this order.</div>
-                                                        <div style="padding-top:15px;">
-                                                            <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">Sell</a>
-                                                        </div>
+                                                        <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">Sell</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -589,7 +585,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 spacer-bottom">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
                                                 <span class="caret"></span>
                                                 {{#sputnik.currencies[current_currency]}}
@@ -623,7 +619,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 spacer-bottom">
                                             <div class="content-push-right" id="qr_code"></div>
                                             {{#if current_currency == "BTC"}}
                                             <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
@@ -644,7 +640,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 spacer-bottom">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
                                                 <span class="caret"></span>
                                                 {{#sputnik.currencies[current_currency]}}
@@ -1099,7 +1095,7 @@
                                     </div>
                                     -->
                                     <div class="row">
-                                        <div class="col-sm-12">
+                                        <div class="col-sm-12 spacer-bottom">
                                             <a href="#" class="button-link-box" on-click="submit_compliance">Submit</a>
                                         </div>
                                     </div>
