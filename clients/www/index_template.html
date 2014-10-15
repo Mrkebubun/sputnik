@@ -663,8 +663,7 @@
                                             <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}</strong></p>
                                         </div>
                                     </div>
-                                    
-                                    {{#if current_currency == "BTC"}}
+                                   
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content">
                                             <div class="row form-row content-pull">
@@ -675,6 +674,12 @@
                                                     <input class="form-control" type="text" id="withdrawal-amount">
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {{#if current_currency == "BTC"}}
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
                                                     <p>Address</p>
