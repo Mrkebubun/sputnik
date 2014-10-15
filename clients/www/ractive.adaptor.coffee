@@ -64,7 +64,12 @@ class RactiveSputnikWrapper
             @markets = {}
             @types = {}
 
+            now = new Date().getTime()
+
             for ticker, market of markets
+                if market.expiration/1000 < now
+                    continue
+
                 if market.contract_type isnt "cash"
                     @markets[ticker] = market
                     type = market.contract_type
