@@ -180,9 +180,6 @@ class ContractManager:
         elif contract.contract_type == "prediction":
             print "\tPrediction details:"
             print "\t\texpiration:\t%s" % contract.expiration
-        elif contract.contract_type == "cash":
-            print "\t\tdeposit_instructions:\t%s" % contract.deposit_instructions
-            print "\t\tcold_wallet_Address:\t%s" % contract.cold_wallet_address
 
     def add(self, ticker):
         try:

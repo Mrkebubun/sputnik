@@ -17,8 +17,8 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
-        audit_hash: null
     chat_messages: []
+    connected: false
 
     constructor: (@uri) ->
 
@@ -29,6 +29,10 @@ class @Sputnik extends EventEmitter
 
     connect: () =>
         ab.connect @uri, @onOpen, @onClose
+        setTimeout () =>
+            if not @connected
+                @connect()
+        , 30000
 
     close: () =>
         @session?.close()
@@ -46,6 +50,7 @@ class @Sputnik extends EventEmitter
         @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
         @unsubscribe "safe_prices##{market}"
+        @unsubscribe "ohlcv##{market}", @onOHLCV
 
     # authentication and account management
 
@@ -67,13 +72,15 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (nickname, email) =>
+    changeProfile: (email, nickname) =>
         @call("change_profile", email, nickname).then (@profile) =>
-            @updateAuditHash()
+            @log ["profile_changed", @profile]
             @emit "profile", @profile
+            @emit "change_profile_success", @profile
 
     getAudit: () =>
         @call("get_audit").then (wire_audit_details) =>
+            @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
             audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]
@@ -106,10 +113,13 @@ class @Sputnik extends EventEmitter
         @log ["Hash", hash]
         args = {}
         for entry in hash
-            pair = entry.split('=')
+            pair = entry.split(/\=(.+)?/)
             key = decodeURIComponent(pair[0])
             value = decodeURIComponent(pair[1])
+            @log [entry, pair, key, value]
             args[key] = value
+
+        @log ["args", args]
 
         if args.function?
             if args.function == 'change_password_token'
@@ -180,9 +190,12 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
+        @log "Attempting cookie login"
+
         @session.authreq(uid).then \
             (challenge) =>
                 # TODO: Why is this secret hardcoded?
+                @log "Got challenge: #{challenge}"
                 secret = "EOcGpbPeYMMpL5hQH/fI5lb4Pn2vePsOddtY5xM+Zxs="
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onSessionExpired
@@ -233,7 +246,12 @@ class @Sputnik extends EventEmitter
     # data conversion
 
     cstFromTicker: (ticker) =>
+        if not ticker of @markets
+            # Spit out some debugging, this should not happen
+            @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
+        if not contract?
+            @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[contract.payout_contract_ticker]
@@ -337,8 +355,8 @@ class @Sputnik extends EventEmitter
         transaction = @copy(wire_transaction)
         ticker = wire_transaction.contract
         transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
-        transaction.timestamp = @timeFormat(wire_transaction.timestamp)
-        if wire_transaction.balance?
+        transaction.timestamp = @dateTimeFormat(wire_transaction.timestamp)
+        if transaction.balance?
             transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
 
@@ -379,22 +397,41 @@ class @Sputnik extends EventEmitter
         else
             return price / (source.denominator * contract.denominator)
 
+    cashSpentFromWire: (cash_spent_wire) =>
+        cash_spent = @copy(cash_spent_wire)
+        for ticker, cash of cash_spent
+            cash_spent[ticker] = @quantityFromWire(ticker, cash)
+
+        return cash_spent
+
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
         if contract.contract_type is "prediction"
-            return Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0))
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
             return 0
         else if contract.contract_type is "cash"
-            return Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0))
         else
-            return Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0)
+            return Math.round(Math.max(Math.log(target.denominator / contract.lot_size) / Math.LN10,0))
+
+    getMinMove: (ticker) =>
+        [contract, source, target] = @cstFromTicker(ticker)
+        return contract.tick_size
+
+
+    getPriceScale: (ticker) =>
+        [contract, source, target] = @cstFromTicker(ticker)
+        if contract.contract_type is "prediction"
+            return contract.denominator
+        else
+            return source.denominator * contract.denominator
 
     # order manipulation
     canPlaceOrder: (quantity, price, ticker, side) =>
@@ -406,7 +443,7 @@ class @Sputnik extends EventEmitter
           side: side
       [low_margin, high_margin] = @calculateMargin @orderToWire new_order
       cash_position = @positions["BTC"].position
-      return high_margin <= cash_position.position
+      return high_margin <= cash_position
 
     placeOrder: (quantity, price, ticker, side) =>
         order =
@@ -513,13 +550,10 @@ class @Sputnik extends EventEmitter
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
 
-        @emitBook ticker
         @getOrderBook ticker
-
-        @emitTradeHistory ticker
         @getTradeHistory ticker
-
-        @emitOHLCVHistory ticker, "day"
+        @getOHLCVHistory ticker, "minute"
+        @getOHLCVHistory ticker, "hour"
         @getOHLCVHistory ticker, "day"
 
         @follow ticker
@@ -596,10 +630,12 @@ class @Sputnik extends EventEmitter
 
     # connection events
     onOpen: (@session) =>
+        @connected = true
         @log "Connected to #{@uri}."
         @processHash()
 
         @call("get_markets").then @onMarkets, @wtf
+        @call("get_exchange_info").then @onExchangeInfo, @wtf
         @subscribe "chat", @onChat
         # TODO: Are chats private? Do we want them for authenticated users only?
         @call("get_chat_history").then \
@@ -614,6 +650,7 @@ class @Sputnik extends EventEmitter
 
     onClose: (code, reason, details) =>
         @log "Connection lost."
+        @connected = false
         @emit "close", [code, reason, details]
 
     # authentication internals
@@ -629,6 +666,10 @@ class @Sputnik extends EventEmitter
 
         @log ["Markets", @markets]
         @emit "markets", @markets
+
+    onExchangeInfo: (@exchange_info) =>
+        @log ["Exchange Info", @exchange_info]
+        @emit "exchange_info", @exchange_info
 
     # feeds
     onBook: (book) =>
@@ -655,7 +696,7 @@ class @Sputnik extends EventEmitter
         now = new Date()
         an_hour_ago = new Date()
         an_hour_ago.setHours(now.getHours() - 1)
-        while @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
+        while @markets[ticker].trades.length and @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
             @markets[ticker].trades.shift()
 
     emitTradeHistory: (ticker) =>
@@ -703,6 +744,7 @@ class @Sputnik extends EventEmitter
         @emit "ohlcv_history", ohlcv
 
     onTrade: (trade) =>
+        @log ["Trade", trade]
         ticker = trade.contract
         @markets[ticker].trades.push trade
         @emit "trade", @tradeFromWire(trade)
@@ -754,7 +796,13 @@ class @Sputnik extends EventEmitter
         else
             sign = -1
 
-        @positions[transaction.contract].position += sign * transaction.quantity
+        if transaction.contract of @positions
+            @positions[transaction.contract].position += sign * transaction.quantity
+        else
+            @positions[transaction.contract] =
+                position: sign * transaction.quantity
+                contract: transaction.contract
+
         @emit "transaction", @transactionFromWire(transaction)
 
         positions = {}
@@ -764,6 +812,13 @@ class @Sputnik extends EventEmitter
         @emit "positions", positions
         [low_margin, high_margin] = @calculateMargin()
         @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+
+    availableToWithdraw: (ticker) =>
+        margin = @calculateMargin()
+        high_margin = margin[1]
+        if ticker is "BTC"
+            return @positions[ticker].position - high_margin
+
 
     calculateMargin: (new_order) =>
         low_margin = 0
@@ -837,6 +892,8 @@ class @Sputnik extends EventEmitter
             high_margin += additional_margin
 
         @log ["Margin:", low_margin, high_margin]
+        @log ["cash_spent", max_cash_spent]
+        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
         return [low_margin, high_margin]
 
 if module?
