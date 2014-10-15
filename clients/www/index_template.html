@@ -574,102 +574,6 @@
                                         <option value="history">Transaction History</option>
                                     </select>
                                 </div>
-                                {{#if fh_tab == "history"}}
-                                <div id="transaction-history">
-                                    <div class="row">
-                                        <div class="col-sm-6">
-                                            <h2 class="dashboard-heading">Transaction History</h2>
-                                        </div>
-                                        
-                                        <div class="col-sm-3">
-                                            <form>
-                                            <span class="dates">Start date</span> <input class="form-control field-date"
-                                                                                         data-provide="datepicker"
-                                                                                         data-date-format="MM d, yyyy"
-                                                                                         type="text" id="transactions_start_date">
-                                            </form>
-                                        </div>
-                                        <div class="col-sm-3">
-                                            <form>
-                                            <span class="dates">End date</span> <input class="field-date form-control"
-                                                                                       data-provide="datepicker"
-                                                                                       data-date-format="MM d, yyyy"
-                                                                                       type="text" id="transactions_end_date">
-                                            </form>
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-sm-12 introductory-text">
-                                            Please hit 'Request' to download transactions
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-sm-12">
-                                            <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
-                                                <span class="caret"></span>
-                                                {{#sputnik.currencies[current_currency]}}
-                                                {{description}}
-                                                {{else}}
-                                                Select Currency
-                                                {{/}}
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
-                                                {{#sputnik.currencies:ticker}}
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
-                                                {{/}}
-                                            </ul>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-sm-12 button-request">
-                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
-                                        </div>
-                                    </div>
-
-                                    <div class="row">
-                                        <div class="col-sm-12">
-                                            <table class="table-full">
-                                                <thead>
-                                                <tr>
-                                                    <th class="table-date">Date and Time</th>
-                                                    <th class="table-type">Type</th>
-                                                    <th class="table-debit">Debit</th>
-                                                    <th class="table-credit">Credit</th>
-                                                    <th class="table-balance">Balance</th>
-                                                    <th class="table-note">Note</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {{#sputnik.transaction_history[current_currency]}}
-                                                    <tr class="cells">
-                                                        <td class="cell-date">{{timestamp}}</td>
-                                                        <td class="cell-type">{{type}}</td>
-                                                        <td class="cell-debit" align="right">{{direction == "debit" ? quantity : ''}}</td>
-                                                        <td class="cell-credit" align="right">{{direction == "credit" ? quantity : ''}}</td>
-                                                        <td class="cell-balance">{{balance}}</td>
-                                                        <td class="cell-note">{{note}}</td>
-                                                    </tr>
-                                                    {{else}}
-                                                    <tr class="cells">
-                                                        {{^current_currency}}
-                                                        <td colspan="100" align="center">Select a currency</td>
-                                                        {{/current_currency}}
-                                                        {{#current_currency}}
-                                                        <td colspan="100" align="center">No transactions for {{current_currency}} downloaded</td>
-                                                        {{/current_currency}}
-                                                    </tr>
-                                                    {{/}}
-                                                    {{/}}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                                {{/if}}
                                 {{#if fh_tab == "deposit"}}
                                 <div id="deposit">
                                     <div class="row">
@@ -925,6 +829,102 @@
                                     </div>
                                     {{/if}}
                                     {{/current_currency}}
+                                </div>
+                                {{/if}}
+                                {{#if fh_tab == "history"}}
+                                <div id="transaction-history">
+                                    <div class="row">
+                                        <div class="col-sm-6">
+                                            <h2 class="dashboard-heading">Transaction History</h2>
+                                        </div>
+                                        
+                                        <div class="col-sm-3">
+                                            <form>
+                                            <span class="dates">Start date</span> <input class="form-control field-date"
+                                                                                         data-provide="datepicker"
+                                                                                         data-date-format="MM d, yyyy"
+                                                                                         type="text" id="transactions_start_date">
+                                            </form>
+                                        </div>
+                                        <div class="col-sm-3">
+                                            <form>
+                                            <span class="dates">End date</span> <input class="field-date form-control"
+                                                                                       data-provide="datepicker"
+                                                                                       data-date-format="MM d, yyyy"
+                                                                                       type="text" id="transactions_end_date">
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 introductory-text">
+                                            Please hit 'Request' to download transactions
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
+                                                <span class="caret"></span>
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                Select Currency
+                                                {{/}}
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
+                                            </ul>
+
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 button-request">
+                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <table class="table-full">
+                                                <thead>
+                                                <tr>
+                                                    <th class="table-date">Date and Time</th>
+                                                    <th class="table-type">Type</th>
+                                                    <th class="table-debit">Debit</th>
+                                                    <th class="table-credit">Credit</th>
+                                                    <th class="table-balance">Balance</th>
+                                                    <th class="table-note">Note</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{#sputnik.transaction_history[current_currency]}}
+                                                    <tr class="cells">
+                                                        <td class="cell-date">{{timestamp}}</td>
+                                                        <td class="cell-type">{{type}}</td>
+                                                        <td class="cell-debit" align="right">{{direction == "debit" ? quantity : ''}}</td>
+                                                        <td class="cell-credit" align="right">{{direction == "credit" ? quantity : ''}}</td>
+                                                        <td class="cell-balance">{{balance}}</td>
+                                                        <td class="cell-note">{{note}}</td>
+                                                    </tr>
+                                                    {{else}}
+                                                    <tr class="cells">
+                                                        {{^current_currency}}
+                                                        <td colspan="100" align="center">Select a currency</td>
+                                                        {{/current_currency}}
+                                                        {{#current_currency}}
+                                                        <td colspan="100" align="center">No transactions for {{current_currency}} downloaded</td>
+                                                        {{/current_currency}}
+                                                    </tr>
+                                                    {{/}}
+                                                    {{/}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                                 {{/if}}
                             </div>
@@ -1260,3 +1260,4 @@
     </div>
     {{/if}}
 </div>
+
