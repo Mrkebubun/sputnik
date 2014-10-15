@@ -10,19 +10,13 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import config
-import database
-import models
 import sys
 import collections
 from datetime import datetime
-from util import ChainedOpenSSLContextFactory
-import util
-from sendmail import Sendmail
-from watchdog import watchdog
-from accountant import AccountantProxy
-
-from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
+import json
+import copy
+import string
+import pickle
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -30,31 +24,33 @@ from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
-
 from zope.interface import implements
-
 from twisted.internet import reactor, defer
 from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
-from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
+from twisted.cred.checkers import ICredentialsChecker
 from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import json
-
 import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import copy
-
-import string, Crypto.Random.random
+import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
-
 from autobahn.wamp1.protocol import WampCraProtocol
-from rpc_schema import schema
-import pickle
 from dateutil import parser
+
+import config
+import database
+import models
+from util import ChainedOpenSSLContextFactory
+import util
+from sendmail import Sendmail
+from watchdog import watchdog
+from accountant import AccountantProxy
+from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
+from rpc_schema import schema
 
 
 class AdministratorException(Exception): pass
@@ -305,7 +301,7 @@ class Administrator:
 
         # Now email the token
         log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email, user.nickname),
+        s = self.sendmail.send_mail(content, to_address=user.email,
                                     subject='Reset password link enclosed')
 
         return True
