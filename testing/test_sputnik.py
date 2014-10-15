@@ -35,6 +35,14 @@ contracts set NETS2014 tick_size 1
 contracts set NETS2014 expiration 2014-06-28
 contracts set NETS2014 denominated_contract_ticker BTC
 
+contracts add NETS2015
+contracts set NETS2015 contract_type prediction
+contracts set NETS2015 denominator 1000
+contracts set NETS2015 lot_size 1000000
+contracts set NETS2015 tick_size 1
+contracts set NETS2015 expiration 2015-06-28
+contracts set NETS2015 denominated_contract_ticker BTC
+
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC lot_size 1000000
@@ -212,19 +220,21 @@ class FakeSendmail(FakeComponent):
         self.from_address = from_address
         FakeComponent.__init__(self, "sendmail")
 
+def fix_config():
+    spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
+    test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \
+            spec_dir
+    from sputnik import config
+
+    config.reset()
+    config.readfp(StringIO.StringIO(test_config))
 
 class TestSputnik(unittest.TestCase):
     def setUp(self):
         logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                             level=logging.DEBUG)
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
-        spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
-        test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \
-                spec_dir
-        from sputnik import config
-
-        config.reset()
-        config.readfp(StringIO.StringIO(test_config))
+        fix_config()
 
         from sputnik import database, models
 

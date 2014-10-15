@@ -143,5 +143,35 @@
         },
         "required": ["username", "address", "received", "total"],
         "additionalProperties": false
+    },
+    "clear_contract":
+    {
+        "type":"object",
+        "description": "Clear a contract at a final clearing price",
+        "properties":
+        {
+            "username":
+            {
+                "type": "null",
+                "description": "This should be null/None because it is for all users on this accountant"
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "The ticker of the contract we are clearing"
+            },
+            "price":
+            {
+                "type": "integer",
+                "description": "the final clearing price for the contract"
+            },
+            "uid":
+            {
+                "type": "string",
+                "description": "unique identifier"
+            }
+        },
+        "required": ["username", "ticker", "price", "uid"],
+        "additionalProperties": false
     }
 }

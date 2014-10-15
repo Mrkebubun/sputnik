@@ -380,6 +380,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.my_call("get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
+    def getExchangeInfo(self):
+        d = self.my_call("get_exchange_info")
+        d.addCallbacks(pprint, self.onError)
+
     """
     Private RPC Calls
     """
@@ -463,16 +467,19 @@ class BasicBot(TradingBot):
 
     def startAutomation(self):
         # Test the audit
-        self.getAudit()
+        #self.getAudit()
+
+        # Test exchange info
+        self.getExchangeInfo()
 
         # Test some OHLCV history fns
-        self.getOHLCVHistory('BTC/HUF', 'day')
-        self.getOHLCVHistory('BTC/HUF', 'minute')
+        #self.getOHLCVHistory('BTC/HUF', 'day')
+        #self.getOHLCVHistory('BTC/HUF', 'minute')
 
         # Now make an account
-        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
