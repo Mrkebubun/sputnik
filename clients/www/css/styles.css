@@ -878,6 +878,15 @@ h6.sell {
     margin-bottom: 100px;
 }
 
+.content-push-right2 {
+    margin-left: 21px;
+    margin-top: 25px;
+}
+
+.content-push-right {
+    margin-left: 21px;
+}
+
 .content-push2 {
     margin-bottom: 20px;
 }
@@ -975,6 +984,13 @@ h6.sell {
     margin-bottom: 20px;
 }
 
+.content-push6 {
+    margin-bottom: 35px;
+    margin-top: 20px;
+    margin-left: 21px;
+    display: block;
+}
+
 
 /*-- Main Screen Additional Styles --*/
 
@@ -1003,8 +1019,18 @@ h6.sell {
     padding: 5px 0 5px 0;
 }
 
+.recent-price-content2 {
+    padding: 5px 0 5px 0;
+    text-align: right;
+}
+
 .recent-quantity-content {
     padding: 5px 0 5px 0;
+}
+
+.recent-quantity-content2 {
+    padding: 5px 0 5px 0;
+    text-align: right;
 }
 
 .recent-time-content {

@@ -394,8 +394,8 @@
                                                         <tbody id="bids">
                                                             {{#sputnik.books[current_ticker].bids:i}}
                                                             <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                                <td class="recent-price-content">{{price}}</td>
-                                                                <td class="recent-quantity-content">{{quantity}}</td>
+                                                                <td class="recent-price-content2">{{price}}</td>
+                                                                <td class="recent-quantity-content2">{{quantity}}</td>
                                                             </tr>
                                                             {{/}}
                                                         </tbody>
@@ -678,7 +678,7 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-sm-12 content-push">
+                                        <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
                                                 <span class="caret"></span>
                                                 {{#sputnik.currencies[current_currency]}}
@@ -702,7 +702,7 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12 deposit-heading">
-                                            <h4 class="header-sub">Deposit Instructions</h4>
+                                            <h4 class="header-sub content-push-right">Deposit Instructions</h4>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -712,11 +712,11 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <div id="qr_code"></div>
+                                            <div class="content-push-right" id="qr_code"></div>
                                             {{#if current_currency == "BTC"}}
-                                            <p><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
+                                            <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
                                             {{else}}
-                                            <p>{{sputnik.currencies[current_currency].address}}</p>
+                                            <p class="content-push6">{{sputnik.currencies[current_currency].address}}</p>
                                             {{/if}}
                                             <a href="#" class="button-link-box" on-click="new_address:{{current_currency}}">Get New Address</a>
                                         </div>
@@ -1106,8 +1106,8 @@
                                         <h2 class="dashboard-heading">Audit</h2>
                                     </div>
                                 </div>
-                                <p>Timestamp: {{sputnik.audit.timestamp}}</p>
-                                <p>My Hash: {{sputnik.audit_hash}}</p>
+                                <p class="content-push-right2">Timestamp: {{sputnik.audit.timestamp}}</p>
+                                <p class="content-push-right">My Hash: {{sputnik.audit_hash}}</p>
                                 <div class="row">
                                     <div class="col-sm-12">
                                         <div class="contracts2">
