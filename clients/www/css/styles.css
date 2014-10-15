@@ -105,6 +105,19 @@ a.main-nav-link {
     z-index: 1;
 }
 
+.tab-content {
+    border: 0 !important;
+}
+
+.alert {
+    margin-bottom: 35px !important;
+}
+
+.terms {
+    font: 300 15px "Lato", Arial, sans-serif;
+    margin-left: 5px;
+}
+
 .tab-active {
     float: left;
     position: relative;
@@ -272,6 +285,14 @@ h2.dashboard-heading {
     box-shadow: 0px 5px 0px #2da354;
     margin-bottom: 40px;
     margin-top: 55px;
+}
+
+.button-place {
+    margin: 30px 0 0 10px;
+}
+
+.button-place2 {
+    margin: 50px 0 0 0px;
 }
 
 .active-link-box:hover {
@@ -567,6 +588,14 @@ h6.sell {
 
 .zoombar {
     margin-top: 25px;
+}
+
+.login-tab {
+    margin-top: 15px;
+}
+
+.login-close {
+    margin-top: -15px;
 }
 
 .graph-box {
@@ -890,11 +919,14 @@ h6.sell {
 
 .file::-webkit-file-upload-button {
   visibility: hidden;
+  border: 1;
   z-index:1;
-  margin-top: 6px;
+  margin-top: 3px;
 }
 
-.file {
+.file::button {
+  visibility: hidden;
+  z-index:1;
 
 }
 
@@ -904,8 +936,9 @@ h6.sell {
   background: -webkit-linear-gradient(top, #f9f9f9, #e3e3e3);
   border: 1px solid #999;
   border-radius: 3px;
-  padding: 7px 10px;
+  padding: 3px 10px;
   outline: none;
+  margin-bottom:25px;
   white-space: nowrap;
   -webkit-user-select: none;
   cursor: pointer;
@@ -931,6 +964,15 @@ h6.sell {
 
 .content-push3 {
     margin-top: 25px;
+}
+
+.content-push4 {
+    margin-bottom: 35px;
+    border: 0px !important;
+}
+
+.content-push5 {
+    margin-bottom: 20px;
 }
 
 
@@ -980,6 +1022,27 @@ h4.bid {
     margin-top: 25px;
 }
 
+/* -- Nav bar special --*/
+
+.login-box {
+    float: right;
+    margin-top: -26px;
+}
+
+.login-name {
+    margin-top: 25px;
+}
+
+.login-name2 {
+    margin-top: 13px;
+}
+
+.login-register {
+    margin-top: -40px;
+}
+.logout {
+    margin-top: -40px;
+}
 
 
 
@@ -990,6 +1053,11 @@ h4.bid {
         margin-top: 25px;
     }
 
+.login-box {
+    clear: both;
+    float: left;
+    margin-top: -60px;
+}
 
     ul#navlinks {
         text-align: left;
@@ -1143,6 +1211,10 @@ h4.bid {
         text-align: right;
     }
 
+.login-box {
+    float: right;
+    margin-top: -15px;
+}
     .navbar {
         height: 67px;
     }
@@ -1158,7 +1230,7 @@ h4.bid {
     }
 
     .navlinks-right3 {
-        margin: 25px 0px 0 245px !important;
+        margin: 25px 0px 0 145px !important;
     }
 
     .login-box {
@@ -1187,7 +1259,7 @@ h4.bid {
     }
 
     .navlinks-right3 {
-        margin: 15px 0px 0px 440px !important;
+        margin: 43px 0px 0px 370px !important;
     }
 
     .login-box {
@@ -1207,3 +1279,6 @@ h4.bid {
     font-size: 13px;
     color: rgb(0, 153, 212);
 }
+
+
+
