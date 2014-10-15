@@ -483,7 +483,7 @@ $ ->
             href = window.location.href
             css = href.substring(0, href.lastIndexOf('/')+1) + "css/feed.css"
             params =
-                rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.rss_feed")
+                rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.feed_uri")
                 rssmikle_frame_width: "284"
                 rssmikle_frame_height: "400"
                 rssmikle_target: "_blank"
