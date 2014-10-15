@@ -9,7 +9,7 @@ $ ->
 
     uri = ws_protocol + "//" + hostname + ":8000"
     # REMOVE THIS IF NOT TESTING VS DEMO
-    #uri = "wss://demo.m2.io:8000"
+    uri = "wss://demo.m2.io:8000"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
