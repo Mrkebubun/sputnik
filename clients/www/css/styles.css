@@ -1182,7 +1182,7 @@ h4.bid {
 
 }
 
-@media screen and (max-width: 992px) and (min-width: 120px) {
+@media screen and (max-width: 992px) and (min-width: 768px) {
     .recent-time {
         display: none;
     }

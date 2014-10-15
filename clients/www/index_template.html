@@ -161,43 +161,43 @@
                                                 <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration)}}</p>
                                             </div>
                                             <div class="row">
-                                                <div class="col-xs-6">
+                                                <div class="col-sm-6">
                                                     <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
                                                         <option value="day">Yesterday</option>
                                                         <option value="hour">Last Hour</option>
                                                         <option value="minute">Last Minute</option>
                                                     </select>
-                                                    <table>
+                                                    <table class="table-header">
                                                         <tr>
-                                                            <td class="recent-price-content">Open</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].open}}</td>
+                                                            <td class="recent-price-content">Open</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].open}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">High</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].high}}</td>
+                                                            <td class="recent-price-content">High</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].high}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Low</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].low}}</td>
+                                                            <td class="recent-price-content">Low</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].low}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Close</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].close}}</td>
+                                                            <td class="recent-price-content">Close</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].close}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">VWAP</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].vwap}}</td>
+                                                            <td class="recent-price-content">VWAP</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].vwap}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Volume</td><td>{{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}</td>
+                                                            <td class="recent-quantity-content">Volume</td><td class="recent-price-content2">{{sputnik.ohlcv[current_ticker][ohlcv_period].volume}}</td>
                                                         </tr>
                                                     </table>
                                                 </div>
                                                 <div class="col-sm-6">
-                                                    <table>
+                                                    <table class="table-header">
                                                         <tr>
-                                                            <td class="recent-price-content">Last</td><td>{{sputnik.trade_history[current_ticker][0].price}}</td>
+                                                            <td class="recent-price-content">Last</td><td class="recent-price-content2">{{sputnik.trade_history[current_ticker][0].price}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Bid</td><td>{{sputnik.books[current_ticker].best_bid.price}}</td>
+                                                            <td class="recent-price-content">Bid</td><td class="recent-price-content2">{{sputnik.books[current_ticker].best_bid.price}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Ask</td><td>{{sputnik.books[current_ticker].best_ask.price}}</td>
+                                                            <td class="recent-price-content">Ask</td><td class="recent-price-content2">{{sputnik.books[current_ticker].best_ask.price}}</td>
                                                         </tr>
                                                     </table>
                                                 </div>
@@ -673,7 +673,6 @@
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdrawal-amount">
-
                                                 </div>
                                             </div>
                                             <div class="row form-row">
