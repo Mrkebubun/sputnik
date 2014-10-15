@@ -380,11 +380,14 @@ $ ->
             username = $("#login_username").val()
             password = $("#login_password").val()
 
-            $("#login_error").hide()
-            ladda = Ladda.create $("#login_button")[0]
-            ladda.start()
-            sputnik.authenticate username, password
-            $('#login_modal .alert:visible').hide()
+            if username is ''
+                $("#login_error").text("Invalid username").show()
+            else
+                $("#login_error").hide()
+                ladda = Ladda.create $("#login_button")[0]
+                ladda.start()
+                sputnik.authenticate username, password
+                $('#login_modal .alert:visible').hide()
 
         $("#register_button").click (event) ->
             event.preventDefault()
