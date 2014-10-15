@@ -38,7 +38,6 @@ from watchdog import watchdog
 from blockscore import BlockScore
 
 from jsonschema import validate
-from twisted.python import log
 from twisted.internet import reactor, task
 from twisted.web.server import Site
 from twisted.web.server import NOT_DONE_YET
@@ -549,7 +548,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result: the permissions for the user
             :returns: dict - the permissions for the user
             """
-            if result[0][0]:
+            if not result:
+                raise Exception("User %s not found" % username)
+            elif result[0][0]:
                 # TODO: SECURITY: This is susceptible to a timing attack.
                 def _cb(result):
                     if result:
