@@ -153,14 +153,14 @@ class @Sputnik extends EventEmitter
                 @call("change_password_token", @username, secret, @token).then \
                     (message) =>
                         @log "password change successfully"
-                        @emit "change_password_success", message
+                        @emit "change_password_token_success", message
 
-                        # Reconnect so we can log in
-                        @close()
-                        @connect()
+                        # Log me in
+                        signature = @session.authsign(challenge, secret)
+                        @session.auth(signature).then @onAuthSuccess, @onAuthFail
                     , (error) =>
                         @error "password change error", error
-                        @emit "change_password_fail", error
+                        @emit "change_password_token_fail", error
 
     changePassword: (old_password, new_password) =>
         if not @authenticated

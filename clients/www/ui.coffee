@@ -9,7 +9,7 @@ $ ->
 
     uri = ws_protocol + "//" + hostname + ":8000"
     # REMOVE THIS IF NOT TESTING VS DEMO
-    #uri = "wss://demo.m2.io:8000"
+    uri = "wss://demo.m2.io:8000"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
@@ -555,6 +555,16 @@ $ ->
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             bootbox.alert "Password reset failure: #{err[1]}"
+
+        sputnik.on "change_password_token_fail", (err) -> #BUG: this is not firing multiple times
+            $('#change_password_token_modal').modal "hide"
+            window.location.hash = ''
+            bootbox.alert "Password reset failure: #{err[1]}"
+
+        sputnik.on "change_password_token_success", (message) ->
+            $('#change_password_token_modal').modal "hide"
+            window.location.hash = ''
+            bootbox.alert "Password reset"
 
         sputnik.on "change_password_success", (message) ->
             bootbox.alert "Password reset"
