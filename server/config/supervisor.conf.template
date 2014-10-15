@@ -85,7 +85,7 @@ command=crashmail -a -m ${alert_email} -o ${webserver_address}
 events=PROCESS_STATE_EXITED
 
 [eventlistener:memmon]
-command=memmon -a 200MB -m ${alert_email}
+command=memmon -a ${memmon_size} -m ${alert_email}
 events=TICK_60
 
 [group:engines]

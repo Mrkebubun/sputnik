@@ -5,12 +5,14 @@ from twisted.internet.defer import maybeDeferred
 from twisted.internet import task
 import datetime
 
-from test_sputnik import TestSputnik
+from test_sputnik import fix_config, TestSputnik
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../tools"))
+
+fix_config()
 
 from sputnik import ledger
 from sputnik import models

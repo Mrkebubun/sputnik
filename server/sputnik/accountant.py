@@ -36,11 +36,14 @@ from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_
     push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
 from twisted.internet import reactor
+from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import SQLAlchemyError
 from watchdog import watchdog
 
 import time
+from datetime import datetime
 
 class AccountantException(Exception):
     pass
@@ -50,6 +53,10 @@ TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
 WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
 INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
 DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
+CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
+CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
+NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
+CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
 
 class Accountant:
     """The Accountant primary class
@@ -98,17 +105,40 @@ class Accountant:
         self.accountant_number = accountant_number
 
     def post_or_fail(self, *postings):
-        def update_counters(increment=False):
-            if increment:
-                change = 1
-            else:
-                change = -1
+        # This is the core ledger communication method.
+        # Posting happens as follows:
+        # 1. All affected positions have a counter incremented to keep track of
+        #    pending postings.
+        # 2. The ledger's RPC post() is invoked.
+        # 3. When the call returns, the position counters are decremented. This
+        #    happens whether or not there was an error.
+        # 4a. If there was no error, positions are updated and the webserver is
+        #     notified.
+        # 4b. If there was an error, an effort is made to determine what caused
+        #     it. If the error was severe, send_alert() is called to let us
+        #     know. In all cases, the error is propogated downstream to let
+        #     whoever called post_or_fail know that the post was not successful.
+        # Note: It is *important* that all invocations of post_or_fail attach
+        #       an errback (even if it is just log.err) to catch the
+        #       propogating error.
 
-            for posting in postings:
-                position = self.get_position(posting['username'], posting['contract'])
-                position.pending_postings += change
-                self.session.add(position)
-            self.session.commit()
+        def update_counters(increment=False):
+            change = 1 if increment else -1
+
+            try:
+                for posting in postings:
+                    position = self.get_position(
+                            posting['username'], posting['contract'])
+                    position.pending_postings += change
+                    # make sure the position exists
+                    self.session.add(position)
+                self.session.commit()
+            except SQLAlchemyError, e:
+                log.err("Could not update counters: %s" % e)
+                self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+                self.session.rollback()
+            finally:
+                self.session.rollback()
 
         def on_success(result):
             log.msg("Post success: %s" % result)
@@ -117,20 +147,14 @@ class Accountant:
                     position = self.get_position(posting['username'], posting['contract'])
                     user = self.get_user(posting['username'])
                     if posting['direction'] == 'debit':
-                        if user.type == 'Asset':
-                            sign = 1
-                        else:
-                            sign = -1
+                        sign = 1 if user.type == 'Asset' else -1
                     else:
-                        if user.type == 'Asset':
-                            sign = -1
-                        else:
-                            sign = 1
+                        sign = -1 if user.type == 'Asset' else 1
 
                     log.msg("Adjusting position %s by %d %s" % (position, posting['quantity'], posting['direction']))
                     position.position += sign * posting['quantity']
                     log.msg("New position: %s" % position)
-                    self.session.merge(position)
+                    #self.session.merge(position)
                 self.session.commit()
             finally:
                 self.session.rollback()
@@ -140,6 +164,7 @@ class Accountant:
             log.err("Ledger exception:")
             log.err(failure.value)
             self.alerts_proxy.send_alert("Exception in ledger. See logs.")
+            # propogate error downstream
             return failure
 
         def on_fail_rpc(failure):
@@ -150,6 +175,13 @@ class Accountant:
             else:
                 log.err("Improper ledger RPC invocation:")
                 log.err(failure)
+            # propogate error downstream
+            return failure
+
+        def on_fail_other(failure):
+            log.err("Error in processing posting result. This should be handled downstream.")
+            log.err(failure)
+            # propogate error downstream
             return failure
 
         def publish_transactions(result):
@@ -174,6 +206,10 @@ class Accountant:
         d.addBoth(decrement_counters)
         d.addCallback(on_success).addCallback(publish_transactions)
         d.addErrback(on_fail_ledger).addErrback(on_fail_rpc)
+
+        # Just in case there are no error handlers downstream, log any leftover
+        # errors here.
+        d.addErrback(on_fail_other)
 
         return d
 
@@ -203,7 +239,10 @@ class Accountant:
         :returns: models.Contract -- the Contract object matching the ticker
         :raises: AccountantException
         """
-        return util.get_contract(self.session, ticker)
+        try:
+            return util.get_contract(self.session, ticker)
+        except:
+            raise AccountantException("No such contract: '%s'." % ticker)
 
     def adjust_position(self, username, ticker, quantity, admin_username):
         """Adjust a user's position, offsetting with the 'adjustment' account
@@ -228,7 +267,7 @@ class Accountant:
         debit["count"] = 2
         credit["uid"] = uid
         debit["uid"] = uid
-        return self.post_or_fail(credit, debit)
+        return self.post_or_fail(credit, debit).addErrback(log.err)
 
     def get_position(self, username, ticker, reference_price=0):
         """Return a user's position for a contact. If it does not exist, initialize it
@@ -253,7 +292,7 @@ class Accountant:
                           (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
-            self.session.add(position)
+            # self.session.add(position)
             return position
 
     def check_margin(self, username, low_margin, high_margin):
@@ -281,14 +320,24 @@ class Accountant:
         # Audit the user
         if not self.is_user_enabled(user):
             log.msg("%s user is disabled" % user.username)
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise DISABLED_USER
 
         if not user.permissions.trade:
             log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise TRADE_NOT_PERMITTED
 
         # Make sure there is a position in the contract, if it is not a cash_pair
@@ -303,12 +352,22 @@ class Accountant:
         if self.check_margin(order.username, low_margin, high_margin):
             log.msg("Order accepted.")
             order.accepted = True
-            self.session.merge(order)
-            self.session.commit()
+            try:
+                # self.session.merge(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
+            finally:
+                self.session.rollback()
         else:
             log.msg("Order rejected due to margin.")
-            self.session.delete(order)
-            self.session.commit()
+            try:
+                self.session.delete(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+            finally:
+                self.session.rollback()
             raise INSUFFICIENT_MARGIN
 
 
@@ -368,37 +427,7 @@ class Accountant:
 
         return user_postings, vendor_postings, remainder_postings
 
-
-
-    def post_transaction(self, username, transaction):
-        """Update the database to reflect that the given trade happened. Charge fees.
-
-        :param transaction: the transaction object
-        :type transaction: dict
-        """
-        log.msg("Processing transaction %s." % transaction)
-        last = time.time()
-        if username != transaction["username"]:
-            raise RemoteCallException("username does not match transaction")
-
-        aggressive = transaction["aggressive"]
-        ticker = transaction["contract"]
-        order = transaction["order"]
-        other_order = transaction["other_order"]
-        side = transaction["side"]
-        price = transaction["price"]
-        quantity = transaction["quantity"]
-        timestamp = transaction["timestamp"]
-        uid = transaction["uid"]
-
-        contract = self.get_contract(ticker)
-        user = self.get_user(username)
-
-        next = time.time()
-        elapsed = (next - last) * 1000
-        last = next
-        log.msg("post_transaction: part 1: %.3f ms." % elapsed)
-
+    def get_cash_spent(self, contract, price, quantity):
         if contract.contract_type == "futures":
             raise NotImplementedError
 
@@ -461,6 +490,43 @@ class Accountant:
                           contract.contract_type)
             raise NotImplementedError
 
+        return denominated_contract, payout_contract, cash_spent_int
+
+    def post_transaction(self, username, transaction):
+        """Update the database to reflect that the given trade happened. Charge fees.
+
+        :param transaction: the transaction object
+        :type transaction: dict
+        """
+        log.msg("Processing transaction %s." % transaction)
+        last = time.time()
+        if username != transaction["username"]:
+            raise RemoteCallException("username does not match transaction")
+
+        aggressive = transaction["aggressive"]
+        ticker = transaction["contract"]
+        order = transaction["order"]
+        other_order = transaction["other_order"]
+        side = transaction["side"]
+        price = transaction["price"]
+        quantity = transaction["quantity"]
+        timestamp = transaction["timestamp"]
+        uid = transaction["uid"]
+
+        contract = self.get_contract(ticker)
+        if not contract.active:
+            raise CONTRACT_NOT_ACTIVE
+
+
+        user = self.get_user(username)
+
+        next = time.time()
+        elapsed = (next - last) * 1000
+        last = next
+        log.msg("post_transaction: part 1: %.3f ms." % elapsed)
+
+        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
+
         next = time.time()
         elapsed = (next - last) * 1000
         last = next
@@ -481,7 +547,7 @@ class Accountant:
         note = "%s order: %s" % (ap, order)
 
         user_denominated = create_posting("Trade", username,
-                denominated_contract.ticker, cash_spent_int, denominated_direction,
+                denominated_contract.ticker, cash_spent, denominated_direction,
                 note)
         user_payout = create_posting("Trade", username, payout_contract.ticker,
                 quantity, payout_direction, note)
@@ -490,7 +556,7 @@ class Accountant:
         # We aren't charging the liquidity provider
         fees = {}
         fees = util.get_fees(username, contract,
-                abs(cash_spent_int), trial_period=self.trial_period)
+                abs(cash_spent), trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
                 fees[fee] = 0
@@ -540,7 +606,7 @@ class Accountant:
             try:
                 db_order = self.session.query(models.Order).filter_by(id=order).one()
                 db_order.quantity_left -= quantity
-                self.session.add(db_order)
+                # self.session.add(db_order)
                 self.session.commit()
                 log.msg("Updated order: %s" % db_order)
             except Exception as e:
@@ -572,7 +638,7 @@ class Accountant:
         def publish_trade(result):
             try:
                 trade.posted = True
-                self.session.add(trade)
+                # self.session.add(trade)
                 self.session.commit()
                 log.msg("Trade marked as posted: %s" % trade)
             except Exception as e:
@@ -589,7 +655,7 @@ class Accountant:
         if aggressive:
             d.addCallback(publish_trade)
 
-        return d
+        return d.addErrback(log.err)
 
     def raiseException(self, failure):
         raise failure.value
@@ -617,9 +683,15 @@ class Accountant:
         d = self.engines[order.contract.ticker].cancel_order(order_id)
 
         def update_order(result):
-            order.is_cancelled = True
-            self.session.add(order)
-            self.session.commit()
+            try:
+                order.is_cancelled = True
+                # self.session.add(order)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                log.err("Unable to commit order cancellation")
+                raise e
+
             return result
 
         def publish_order(result):
@@ -646,8 +718,13 @@ class Accountant:
             raise AccountantException(0, "Order %d is already cancelled" % id)
 
         order.is_cancelled = True
-        self.session.add(order)
-        self.session.commit()
+        try:
+            # self.session.add(order)
+            self.session.commit()
+        except:
+            self.alerts_proxy.send_alert("Could not merge cancelled order: %s" % order)
+        finally:
+            self.session.rollback()
 
         self.webserver.order(username, order.to_webserver())
 
@@ -663,10 +740,10 @@ class Accountant:
         contract = self.get_contract(order["contract"])
 
         if not contract.active:
-            raise AccountantException(0, "Contract is not active.")
+            raise CONTRACT_NOT_ACTIVE
 
         if contract.expired:
-            raise AccountantException(0, "Contract expired")
+            raise CONTRACT_EXPIRED
 
         # do not allow orders for internally used contracts
         if contract.contract_type == 'cash':
@@ -700,8 +777,13 @@ class Accountant:
 
         def mark_order_dispatched(result):
             o.dispatched = True
-            self.session.add(o)
-            self.session.commit()
+            try:
+                # self.session.add(o)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not mark order as dispatched: %s" % o)
+            finally:
+                self.session.rollback()
             return result
 
         def publish_order(result):
@@ -729,8 +811,7 @@ class Accountant:
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
-        d = self.post_or_fail(posting)
-        return d
+        return self.post_or_fail(posting).addErrback(log.err)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -790,7 +871,7 @@ class Accountant:
                     return True
 
                 d.addCallback(onSuccess)
-                return d
+                return d.addErrback(log.err)
         except Exception as e:
             self.session.rollback()
             log.err("Exception received while attempting withdrawal: %s" % e)
@@ -828,7 +909,7 @@ class Accountant:
                 total_deposited_at_address.accounted_for += deposit
 
             # update address
-            self.session.add(total_deposited_at_address)
+            # self.session.add(total_deposited_at_address)
             self.session.commit()
 
             #prepare cash deposit
@@ -898,45 +979,11 @@ class Accountant:
             for posting in remote_postings:
                 self.accountant_proxy.remote_post(posting['username'], posting)
 
-            return d
+            return d.addErrback(log.err)
         except Exception as e:
             self.session.rollback()
             log.err(
                 "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
-
-    def clear_contract(self, ticker):
-        """Deletes a contract
-
-        :param ticker: the contract to delete
-        :type ticker: str, models.Contract
-        """
-        try:
-            contract = self.get_contract(ticker)
-            # disable new orders on contract
-            contract.active = False
-            # cancel all pending orders
-            orders = self.session.query(models.Order).filter_by(
-                contract=contract, is_cancelled=False).all()
-            for order in orders:
-                self.cancel_order(order.username, order.id)
-            # place orders on behalf of users
-            positions = self.session.query(models.Position).filter_by(
-                contract=contract).all()
-            for position in positions:
-                order = {}
-                order["username"] = position.username
-                order["contract_id"] = position.contract_id
-                if position.position > 0:
-                    order["quantity"] = position.position
-                    order["side"] = 0  # sell
-                elif position.position < 0:
-                    order["quantity"] = -position.position
-                    order["side"] = 1  # buy
-                #order["price"] = details["price"] #todo what's that missing details?
-                self.place_order(order["username"], order)
-            self.session.commit()
-        except:
-            self.session.rollback()
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
@@ -951,7 +998,7 @@ class Accountant:
             log.msg("Changing permission group for %s to %d" % (username, id))
             user = self.get_user(username)
             user.permission_group_id = id
-            self.session.add(user)
+            # self.session.add(user)
             self.session.commit()
         except Exception as e:
             log.err("Error: %s" % e)
@@ -983,9 +1030,26 @@ class Accountant:
             models.Order.quantity_left>0).filter_by(
             is_cancelled=False
         )
+        return self.cancel_many_orders(orders)
+
+    def cancel_many_orders(self, orders):
+        deferreds = []
         for order in orders:
-            log.msg("Cancelling user %s order %d" % (user.username, order.id))
-            self.cancel_order(user.username, order.id)
+            log.msg("Cancelling user %s order %d" % (order.username, order.id))
+            d = self.cancel_order(order.username, order.id)
+
+            def cancel_failure(failure):
+                log.err(failure)
+                # Try again?
+                log.msg("Trying again-- Cancelling user %s order %d" % (order.username, order.id))
+                d = self.cancel_order(order.username, order.id)
+                d.addErrback(cancel_failure)
+                return d
+
+            d.addErrback(cancel_failure)
+            deferreds.append(d)
+
+        return defer.DeferredList(deferreds)
 
     def get_my_users(self):
         users = self.session.query(models.User)
@@ -1014,7 +1078,7 @@ class Accountant:
         try:
             for position in user.positions:
                 position.pending_postings = 0
-                self.session.add(position)
+                # self.session.add(position)
             self.session.commit()
         except:
             self.session.rollback()
@@ -1033,7 +1097,7 @@ class Accountant:
                     # position has settled, sync with ledger
                     position.position, position.cp_timestamp = util.position_calculated(position, self.session)
                     position.position_checkpoint = position.position
-                    self.session.add(position)
+                    # self.session.add(position)
                 else:
                     clean = False
             if clean:
@@ -1051,6 +1115,69 @@ class Accountant:
             # Admin intervention required. ABORT!
             return
 
+    def clear_contract(self, username, ticker, price, uid):
+        contract = self.get_contract(ticker)
+
+        if contract.expiration is None:
+            raise NON_CLEARING_CONTRACT
+
+        # TODO: If it's an early clearing, don't check for contract expiration
+        if contract.expiration >= datetime.utcnow():
+            raise CONTRACT_NOT_EXPIRED
+
+        if contract.active:
+            # Mark contract inactive
+            try:
+                contract.active = False
+                # self.session.add(contract)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                log.err("Unable to mark contract inactive %s" % e)
+
+        my_users = [user.username for user in self.get_my_users()]
+
+        # Cancel orders
+        orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
+            models.Order.quantity_left > 0).filter(
+            models.Order.username.in_(my_users))
+        d = self.cancel_many_orders(orders)
+
+        def after_cancellations(results):
+            # Wait until all pending postings have gone through
+            pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
+                models.Position.username.in_(my_users))
+            if sum([row[0] for row in pending_postings]) > 0:
+                d = task.deferLater(reactor, 300, self.after_cancellations, results)
+            else:
+                all_positions = self.session.query(models.Position).filter_by(contract=contract)
+                position_count = all_positions.count()
+                my_positions = all_positions.filter(models.Position.username.in_(my_users))
+                results = [self.clear_position(position, price, position_count, uid) for position in my_positions]
+                d = defer.DeferredList(results)
+
+            return d
+
+        d.addCallback(after_cancellations)
+        return d
+
+    def clear_position(self, position, price, position_count, uid):
+        # We use position_calculated here to be sure we get the canonical position
+        position_calculated, timestamp = util.position_calculated(position, self.session)
+        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(position.contract,
+                                                                                price, position_calculated)
+
+        note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
+        credit = create_posting("Clearing", position.username,
+                denominated_contract.ticker, cash_spent, 'credit',
+                note)
+        debit = create_posting("Clearing", position.username, payout_contract.ticker,
+                position_calculated, 'debit', note)
+        for posting in credit, debit:
+            posting['count'] = position_count * 2
+            posting['uid'] = uid
+
+        return self.post_or_fail(credit, debit).addErrback(log.err)
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
@@ -1134,7 +1261,7 @@ class AccountantExport(ComponentExport):
     @export
     @schema("rpc/accountant.accountant.json#remote_post")
     def remote_post(self, username, *postings):
-        self.accountant.post_or_fail(*postings)
+        self.accountant.post_or_fail(*postings).addErrback(log.err)
         # we do not want or need this to propogate back to the caller
         return None
 
@@ -1172,6 +1299,11 @@ class AdministratorExport(ComponentExport):
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
 
+    @export
+    @schema("rpc/accountant.administrator.json#clear_contract")
+    def clear_contract(self, username, ticker, price, uid):
+        return self.accountant.clear_contract(username, ticker, price, uid)
+
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):
         self.num_procs = config.getint("accountant", "num_procs")
@@ -1193,8 +1325,11 @@ class AccountantProxy:
             raise AttributeError
 
         def routed_method(username, *args, **kwargs):
-            proxy = self.proxies[self.get_accountant_for_user(username)]
-            return getattr(proxy, key)(username, *args, **kwargs)
+            if username is None:
+                return [getattr(proxy, key)(None, *args, **kwargs) for proxy in self.proxies]
+            else:
+                proxy = self.proxies[self.get_accountant_for_user(username)]
+                return getattr(proxy, key)(username, *args, **kwargs)
 
         return routed_method
 

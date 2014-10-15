@@ -54,6 +54,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from autobahn.wamp1.protocol import WampCraProtocol
 from rpc_schema import schema
 import pickle
+from dateutil import parser
 
 
 class AdministratorException(Exception): pass
@@ -593,6 +594,32 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
+    def clear_contract(self, ticker, price_ui):
+        contract = util.get_contract(self.session, ticker)
+        price = util.price_to_wire(contract, price_ui)
+        uid = util.get_uid()
+
+        # Don't try to clear if the contract is not active
+        if not contract.active:
+            return
+
+        # Mark contract inactive
+        try:
+            contract.active = False
+            self.session.add(contract)
+            self.session.commit()
+        except Exception as e:
+            log.err("Unable to mark contract inactive %s" % e)
+        else:
+            d = self.accountant.clear_contract(None, ticker, price, uid)
+            # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
+            # We need to make sure that the timeout here is long, because clear_contract
+            # won't return for a while
+            #
+            # How do we ensure that the accountants know that it is reactivated?
+            # send a ZMQ message to them all?
+
+
     def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
         quantity = util.quantity_to_wire(address_db.contract, quantity_ui)
@@ -626,7 +653,7 @@ class Administrator:
     @util.timed
     def update_bs_cache(self):
         now = datetime.utcnow()
-
+        timestamp = util.dt_to_timestamp(now)
 
         balance_sheet = {'Asset': collections.defaultdict(lambda: {'positions_by_user': {},
                                                                    'total': 0,
@@ -663,29 +690,30 @@ class Administrator:
             user = self.get_user(row.username)
             contract = self.get_contract(row.contract_id)
             if row.username in balance_sheet[user.type][contract.ticker]['positions_by_user']:
-                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username]['position'] + row.position
+                position = balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username][
+                               'position'] + row.position
             else:
                 position = row.position
 
             position_details = {'username': row.username,
-                                'hash': user.user_hash,
+                                'hash': user.user_hash(timestamp),
                                 'position': position,
                                 'position_fmt': util.quantity_fmt(contract, position),
-                                'timestamp': util.dt_to_timestamp(now)}
+                                'timestamp': timestamp}
 
             balance_sheet[user.type][contract.ticker]['positions_by_user'][row.username] = position_details
-
 
         for side, sheet in balance_sheet.iteritems():
             for ticker, details in sheet.iteritems():
                 contract = self.get_contract(ticker)
 
-                details['total'] = sum([r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
+                details['total'] = sum(
+                    [r['position'] for r in balance_sheet[side][ticker]['positions_by_user'].values()])
                 details['positions_raw'] = balance_sheet[side][ticker]['positions_by_user'].values()
                 details['contract'] = contract.ticker
                 details['total_fmt'] = util.quantity_fmt(contract, details['total'])
 
-        balance_sheet['timestamp'] = util.dt_to_timestamp(now)
+        balance_sheet['timestamp'] = timestamp
         self.bs_cache = {}
         for side, sheet in balance_sheet.iteritems():
             if isinstance(sheet, collections.defaultdict):
@@ -706,9 +734,10 @@ class Administrator:
             for ticker, details in balance_sheet[side].iteritems():
                 details['positions'] = []
                 for position in details['positions_raw']:
-                    details['positions'].append((position['hash'], position['position']))
+                    details['positions'].append((position['hash'], position['position_fmt']))
                 del details['positions_raw']
                 del details['positions_by_user']
+                del details['total']
 
         return balance_sheet
 
@@ -722,12 +751,19 @@ class Administrator:
         return permission_groups
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True).all()
         return contracts
 
     def get_contract(self, ticker):
         contract = util.get_contract(self.session, ticker)
         return contract
+
+    def edit_contract(self, ticker, args):
+        contract = self.get_contract(ticker)
+        for key, value in args.iteritems():
+            setattr(contract, key, value)
+
+        self.session.commit()
 
     @util.timed
     def get_withdrawals(self):
@@ -750,6 +786,7 @@ class Administrator:
     @util.timed
     def get_postings(self, user, contract, page=0):
         import time
+
         last = time.time()
 
         all_postings = self.session.query(models.Posting).filter_by(
@@ -806,8 +843,99 @@ class Administrator:
         self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
-class AdminWebUI(Resource):
+class AdminAPI(Resource):
     isLeaf = True
+
+    def __init__(self, administrator, avatarId, avatarLevel):
+        self.administrator = administrator
+        self.avatarId = avatarId
+        self.avatarLevel = avatarLevel
+
+    def log(self, request, data):
+        """Log the request
+
+        """
+        log.msg(
+            self.avatarId,
+            request.getClientIP(),
+            request.getUser(),
+            request.method,
+            request.uri,
+            request.clientproto,
+            request.code,
+            request.sentLength or "-",
+            request.getHeader("referer") or "-",
+            request.getHeader("user-agent") or "-",
+            json.dumps(request.args),
+            data)
+
+    def process_request(self, request, data=None):
+        if self.avatarLevel < 4:
+            raise Exception("Insufficient privileges to run Admin API")
+
+        resources = {'/api/withdrawals': self.withdrawals,
+                     '/api/deposits': self.deposits,
+                     '/api/process_withdrawal': self.process_withdrawal,
+                     '/api/manual_deposit': self.manual_deposit,
+                     '/api/rescan_address': self.rescan_address,
+        }
+        if request.path in resources:
+            return resources[request.path](request, data)
+        else:
+            raise Exception("Invalid request")
+
+
+    def withdrawals(self, request, data):
+        withdrawals = self.administrator.get_withdrawals()
+        return [w.dict for w in withdrawals if w.pending]
+
+    def deposits(self, request, data):
+        deposits = self.administrator.get_deposits()
+        return [d.dict for d in deposits]
+
+    def rescan_address(self, request, data):
+        self.administrator.cashier.rescan_address(data['address'])
+        return {'result': True}
+
+    def process_withdrawal(self, request, data):
+        if 'cancel' in data:
+            cancel = data['cancel']
+            if cancel is True:
+                online = False
+        else:
+            cancel = False
+            if 'online' in data:
+                online = data['online']
+            else:
+                online = False
+
+        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+                                              admin_username=self.avatarId)
+        return {'result': True}
+
+    def manual_deposit(self, request, data):
+        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
+        return {'result': True}
+
+    def render(self, request):
+        data = request.content.read()
+        self.log(request, data)
+        request.setHeader('content-type', 'application/json')
+        try:
+            if request.method == "GET":
+                result = self.process_request(request)
+            else:
+                parsed_data = json.loads(data)
+                result = self.process_request(request, data=parsed_data)
+        except Exception as e:
+            result = {"error": str(e)}
+
+        return json.dumps(result, sort_keys=True,
+                          indent=4, separators=(',', ': '))
+
+
+class AdminWebUI(Resource):
+    isLeaf = False
 
     def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
         """The web Resource that front-ends the administrator
@@ -847,17 +975,15 @@ class AdminWebUI(Resource):
         return calcHA1('md5', username, realm, password, None, None)
 
     def getChild(self, path, request):
-        """Log a request and return myself
+        """return myself
 
         """
-        self.log(request)
         return self
 
     def log(self, request):
         """Log the request
 
         """
-        line = '%s %s %s "%s %s %s" %d %s "%s" "%s" "%s" %s'
         log.msg(
             self.avatarId,
             request.getClientIP(),
@@ -869,7 +995,6 @@ class AdminWebUI(Resource):
             request.sentLength or "-",
             request.getHeader("referer") or "-",
             request.getHeader("user-agent") or "-",
-            request.getHeader("authorization") or "-",
             json.dumps(request.args))
 
     def render(self, request):
@@ -878,45 +1003,47 @@ class AdminWebUI(Resource):
         """
         self.log(request)
         resources = [
-            # Level 0
-            {'/': self.admin,
-             '/reset_admin_password': self.reset_admin_password
-            },
-            # Level 1
-            {'/': self.user_list,
-             '/user_details': self.user_details,
-             '/user_orders': self.user_orders,
-             '/user_postings': self.user_postings,
-             '/rescan_address': self.rescan_address,
-             '/admin': self.admin,
-             '/contracts': self.contracts
-            },
-            # Level 2
-            {'/reset_password': self.reset_password,
-             '/permission_groups': self.permission_groups,
-             '/change_permission_group': self.change_permission_group
-            },
-            # Level 3
-            {'/balance_sheet': self.balance_sheet,
-             '/ledger': self.ledger,
-             '/new_permission_group': self.new_permission_group
-            },
-            # Level 4
-            {
-                '/process_withdrawal': self.process_withdrawal,
-                '/withdrawals': self.withdrawals,
-                '/deposits': self.deposits,
-                '/order_book': self.order_book,
-                '/manual_deposit': self.manual_deposit,
-                '/cancel_order': self.cancel_order},
-            # Level 5
-            {'/admin_list': self.admin_list,
-             '/new_admin_user': self.new_admin_user,
-             '/set_admin_level': self.set_admin_level,
-             '/force_reset_admin_password': self.force_reset_admin_password,
-             '/transfer_position': self.transfer_position,
-             '/adjust_position': self.adjust_position}]
-
+                    # Level 0
+                    { '/': self.admin,
+                      '/reset_admin_password': self.reset_admin_password
+                    },
+                    # Level 1
+                     {'/': self.user_list,
+                      '/user_details': self.user_details,
+                      '/user_orders': self.user_orders,
+                      '/user_postings': self.user_postings,
+                      '/rescan_address': self.rescan_address,
+                      '/admin': self.admin,
+                      '/contracts': self.contracts
+                     },
+                    # Level 2
+                     {'/reset_password': self.reset_password,
+                      '/permission_groups': self.permission_groups,
+                      '/change_permission_group': self.change_permission_group
+                     },
+                    # Level 3
+                     {'/balance_sheet': self.balance_sheet,
+                      '/ledger': self.ledger,
+                      '/new_permission_group': self.new_permission_group,
+                      '/edit_contract': self.edit_contract
+                     },
+                    # Level 4
+                     {
+                      '/process_withdrawal': self.process_withdrawal,
+                      '/withdrawals': self.withdrawals,
+                      '/deposits': self.deposits,
+                      '/order_book': self.order_book,
+                      '/manual_deposit': self.manual_deposit,
+                      '/cancel_order': self.cancel_order},
+                    # Level 5
+                     {'/admin_list': self.admin_list,
+                      '/new_admin_user': self.new_admin_user,
+                      '/set_admin_level': self.set_admin_level,
+                      '/force_reset_admin_password': self.force_reset_admin_password,
+                      '/transfer_position': self.transfer_position,
+                      '/adjust_position': self.adjust_position,
+                      '/clear_contract': self.clear_contract}]
+        
         resource_list = {}
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
@@ -924,9 +1051,11 @@ class AdminWebUI(Resource):
             resource = resource_list[request.path]
             return resource(request)
         except KeyError:
-            # Take me to /
-            request.path = '/'
-            return self.render(request)
+            return self.invalid_request(request)
+
+    def invalid_request(self, request):
+        t = self.jinja_env.get_template("invalid_request.html")
+        return t.render().encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -977,6 +1106,23 @@ class AdminWebUI(Resource):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
         return t.render(contracts=contracts).encode('utf-8')
+
+    def edit_contract(self, request):
+        ticker = request.args['ticker'][0]
+        args = {}
+        for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
+            if key in request.args:
+                args[key] = request.args[key][0]
+
+        if "expiration" in request.args:
+            args['expiration'] = parser.parse(request.args['expiration'][0])
+
+        self.administrator.edit_contract(ticker, args)
+        return redirectTo('/contracts', request)
+
+    def clear_contract(self, request):
+        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        return redirectTo("/contracts", request)
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()
@@ -1240,7 +1386,11 @@ class SimpleRealm(object):
             except Exception as e:
                 print "Exception: %s" % e
 
-            return IResource, AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory), lambda: None
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
+            ui_resource.putChild('api', api_resource)
+
+            return IResource, ui_resource, lambda: None
         else:
             raise NotImplementedError
 

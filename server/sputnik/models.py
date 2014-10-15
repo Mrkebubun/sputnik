@@ -81,7 +81,7 @@ class Contract(db.Base):
     lot_size = Column(BigInteger, nullable=False, server_default="1")
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
-    expired = Column(Boolean, server_default=sql.false())
+    #expired = Column(Boolean, server_default=sql.false())
 
     denominated_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
     denominated_contract = relationship('Contract', remote_side='Contract.ticker',
@@ -100,6 +100,13 @@ class Contract(db.Base):
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
+
+    @property
+    def expired(self):
+        if self.expiration is None:
+            return False
+        elif self.expiration < datetime.utcnow():
+            return True
 
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
@@ -322,16 +329,14 @@ class User(db.Base):
     permissions = relationship("PermissionGroup")
     postings = relationship("Posting", back_populates="user")
 
-    @property
-    def user_hash(self):
+    def user_hash(self, timestamp):
         """
 
 
         :returns: str
         """
         combined_string = "%s:%s:%s:%s:%d" % (self.audit_secret, self.username, self.nickname, self.email,
-                                           util.dt_to_timestamp(datetime.combine(date.today(),
-                                                                                 datetime.min.time())))
+                                              timestamp)
 
         user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
         return user_hash
@@ -373,7 +378,7 @@ class Journal(db.Base):
 
     id = Column(Integer, primary_key=True)
     type = Column(Enum('Deposit', 'Withdrawal', 'Transfer', 'Adjustment',
-                        'Trade', 'Fee',
+                        'Trade', 'Fee', 'Clearing',
                         name='journal_types'), nullable=False)
     timestamp = Column(DateTime, index=True)
     postings = relationship('Posting', back_populates="journal")
@@ -500,7 +505,7 @@ class Addresses(db.Base, QuantityUI):
     contract_id = Column(Integer, ForeignKey('contracts.id'))
     contract = relationship('Contract')
 
-    address = Column(String, nullable=False)
+    address = Column(String, nullable=False, index=True)
     active = Column(Boolean, nullable=False, server_default=sql.false())
     accounted_for = Column(BigInteger, server_default='0', nullable=False)
 
@@ -512,6 +517,16 @@ class Addresses(db.Base, QuantityUI):
         :returns: int
         """
         return self.accounted_for
+
+    @property
+    def dict(self):
+        return { 'id': self.id,
+                 'username': self.username,
+                 'contract': self.contract.ticker,
+                 'address': self.address,
+                 'active': self.active,
+                 'accounted_for': self.quantity_fmt
+                 }
 
     def __init__(self, user, contract, address):
         """
@@ -589,6 +604,15 @@ class Withdrawal(db.Base, QuantityUI):
     pending = Column(Boolean, nullable=False, server_default=sql.true())
     entered = Column(DateTime, nullable=False)
     completed = Column(DateTime)
+
+    @property
+    def dict(self):
+        return {'id': self.id,
+                'username': self.username,
+                'address': self.address,
+                'contract': self.contract.ticker,
+                'amount': self.quantity_fmt,
+                'entered': util.dt_to_timestamp(self.entered)}
 
     @property
     def quantity(self):

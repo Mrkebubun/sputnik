@@ -190,9 +190,12 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
+        @log "Attempting cookie login"
+
         @session.authreq(uid).then \
             (challenge) =>
                 # TODO: Why is this secret hardcoded?
+                @log "Got challenge: #{challenge}"
                 secret = "EOcGpbPeYMMpL5hQH/fI5lb4Pn2vePsOddtY5xM+Zxs="
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onSessionExpired
