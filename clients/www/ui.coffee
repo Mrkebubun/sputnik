@@ -308,16 +308,21 @@ $ ->
                 $("#page-#{page}").hide()
 
             # Attempt a cookie login
-            cookie = document.cookie
-            sputnik.log "cookie: #{cookie}"
-            if cookie
-                parts = cookie.split("=", 2)[1].split(":", 2)
-                name = parts[0]
-                uid = parts[1]
-                if !uid
-                    document.cookie = ''
-                else
-                    sputnik.restoreSession uid
+            full_cookie = document.cookie
+            sputnik.log "full_cookie: #{full_cookie}"
+            if full_cookie
+                cookies = full_cookie.split(';')
+                for cookie in cookies
+                    field_value = cookie.trim().split("=", 2)
+                    if field_value[0] == "login"
+                        name_uid = field_value[1].split(":", 2)
+
+                        if !name_uid[1]
+                            sputnik.log "resetting cookie to null"
+                            document.cookie = ''
+                        else
+                            sputnik.log "attempting cookie login with: #{name_uid[1]}"
+                            sputnik.restoreSession name_uid[1]
 
         sputnik.on "auth_success", (username) ->
             ladda = Ladda.create $("#login_button")[0]
@@ -330,7 +335,7 @@ $ ->
             sputnik.getCookie()
 
         sputnik.on "cookie", (uid) ->
-            sputnik.log "cookie: " + uid
+            sputnik.log "got cookie: " + uid
             document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
         sputnik.on "auth_fail", (error) ->
