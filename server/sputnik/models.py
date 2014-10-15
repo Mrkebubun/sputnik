@@ -60,7 +60,7 @@ class ResetToken(db.Base):
         """
         self.username = username
         self.expiration = datetime.utcnow() + timedelta(hours=hours_to_expiry)
-        self.token = base64.b64encode(("%032X" % getrandbits(128)).decode("hex"))
+        self.token = base64.urlsafe_b64encode(("%032X" % getrandbits(128)).decode("hex"))
         self.used = False
 
     def __repr__(self):

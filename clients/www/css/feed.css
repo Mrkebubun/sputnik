@@ -1,0 +1,121 @@
+/*Container*/
+#container {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    font-color: #000000;
+    background-color: #FFFFFF;
+}
+
+/*Header*/
+#header {
+    height: 10px;
+    margin: 10px 0px 10px 0;
+    padding: 10px 5px 10px 5px;
+    font-color: #FFFFFF;
+}
+
+#header .feed_title {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif;
+    background: #33cc66;
+    padding: 8px 17px 8px 17px;
+    text-decoration: none;
+}
+
+#header .feed_title a:link {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+#header .feed_title a:visited {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+#header .feed_title a:hover {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+#header .feed_title a:active {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/*Content*/
+#content {
+    margin: 0;
+    padding: 5px 5px 10px 10px;
+}
+
+#content .feed_item {
+    margin: 10px 0 10px 0px;
+    padding: 0 0 0px 0px;
+}
+
+#content .feed_item_title {
+    font-family: Arial;
+    font: 300 13px "Lato", Helvetica, sans-serif;
+    margin: 1px 20px 1px 3px;
+    padding: 1px 0 1px 3px;
+    color: #000000;
+    font-weight: bold;
+}
+
+#content .feed_item_title a:link {
+    color: #000000;
+    text-decoration: none;
+}
+
+/*feed_item_title:link*/
+#content .feed_item_title a:visited {
+    color: #000000;
+    text-decoration: none;
+}
+
+/*feed_item_title:visited*/
+#content .feed_item_title a:hover {
+    color: #000000;
+    text-decoration: underline;
+}
+
+/*feed_item_title:hover*/
+#content .feed_item_title a:active {
+    color: #000000;
+    text-decoration: none;
+}
+
+#content .feed_item_date {
+    font-family: Arial;
+    font: 300 10px "Lato", Helvetica, sans-serif;
+    margin: 0 0 0 3px;
+    padding: 0 0 0 3px;
+    color: #000000;
+    line-height: 135%;
+}
+
+#content .feed_item_link {
+    font-family: Arial;
+    font: 300 10px "Lato", Helvetica, sans-serif;
+    margin: 0 0 0 3px;
+    padding: 0 0 0 3px;
+    color: #000000;
+    line-height: 135%;
+}
+
+/*feed_item_title:active*/
+#content .feed_item_description {
+    font-family: Arial;
+    font: 300 10px "Lato", Helvetica, sans-serif;
+    margin: 0 0 0 3px;
+    padding: 0 0 0 3px;
+    color: #000000;
+    line-height: 135%;
+}
+
+/*feed_item_description:active*/
