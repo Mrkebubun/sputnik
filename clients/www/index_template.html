@@ -204,42 +204,44 @@
                                             </div>
                                         </div>
                                         {{#if sputnik.logged_in}}
-                                        <div id="contract-balances" class="col-sm-6">
-                                            {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
-                                            <div id="cash_pair-balance">
-                                                <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
-                                                        <p class="first-line2" id="denominated_balance">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
+                                        <div id="contract-balances" class="col-xs-6">
+                                            <div class="row">
+                                                {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
+                                                <div id="cash_pair-balance" class="col-xs-6">
+                                                    <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                            <p class="first-line2" id="denominated_balance">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
+                                                    </div>
+                                                    <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
+                                                            <p class="first-line2" id="payout_balance">{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position_fmt}}</p>
+                                                    </div>
                                                 </div>
-                                                <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
-                                                        <p class="first-line2" id="payout_balance">{{sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position_fmt}}</p>
+                                                {{else}}
+                                                <div id="margin-balance" class="col-xs-6">
+                                                    <div class="row">
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="btc_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                            <p class="first-line2" id="btc_balance">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
+                                                        </div>
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="contract_ticker">{{current_ticker}}</p>
+                                                            <p class="first-line2" id="contract_balance">{{sputnik.positions[current_ticker].position_fmt}}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header">LOW MARGIN</p>
+                                                            <p class="first-line2" id="low_margin">{{sputnik.margin[0]}}</p>
+                                                        </div>
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header">HIGH MARGIN</p>
+                                                            <p class="first-line2" id="high_margin">{{sputnik.margin[1]}}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
+                                                {{/if}}
                                             </div>
-                                            {{else}}
-                                            <div id="margin-balance">
-                                                <div class="row">
-                                                    <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header" id="btc_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
-                                                        <p class="first-line2" id="btc_balance">{{sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position_fmt}}</p>
-                                                    </div>
-                                                    <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header" id="contract_ticker">{{current_ticker}}</p>
-                                                        <p class="first-line2" id="contract_balance">{{sputnik.positions[current_ticker].position_fmt}}</p>
-                                                    </div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header">LOW MARGIN</p>
-                                                        <p class="first-line2" id="low_margin">{{sputnik.margin[0]}}</p>
-                                                    </div>
-                                                    <div class="col-sm-4 col-xs-4 contract-overview-info2">
-                                                        <p class="grey-header">HIGH MARGIN</p>
-                                                        <p class="first-line2" id="high_margin">{{sputnik.margin[1]}}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {{/if}}
                                         </div>
                                         {{/if}}
                                     </div>
