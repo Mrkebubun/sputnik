@@ -367,8 +367,8 @@
                                                 <tbody id="trades-tbody">
                                                     {{#sputnik.trade_history[current_ticker]}}
                                                     <tr>
-                                                        <td class="recent-price-content">{{price}}</td>
-                                                        <td class="recent-quantity-content">{{quantity}}</td>
+                                                        <td class="recent-price-content2">{{price}}</td>
+                                                        <td class="recent-quantity-content2">{{quantity}}</td>
                                                         <td class="recent-time-content">{{timestamp}}</td>
                                                     </tr>
                                                     {{/}}
@@ -412,8 +412,8 @@
                                                         <tbody id="asks">
                                                             {{#sputnik.books[current_ticker].asks:i}}
                                                             <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                                <td class="recent-price-content">{{price}}</td>
-                                                                <td class="recent-quantity-content">{{quantity}}</td>
+                                                                <td class="recent-price-content2">{{price}}</td>
+                                                                <td class="recent-quantity-content2">{{quantity}}</td>
                                                             </tr>
                                                             {{/}}
                                                         </tbody>

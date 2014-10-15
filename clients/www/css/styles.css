@@ -1020,7 +1020,7 @@ h6.sell {
 }
 
 .recent-price-content2 {
-    padding: 5px 0 5px 0;
+    padding: 5px 20px 5px 0;
     text-align: right;
 }
 
@@ -1029,7 +1029,7 @@ h6.sell {
 }
 
 .recent-quantity-content2 {
-    padding: 5px 0 5px 0;
+    padding: 5px 20px 5px 0;
     text-align: right;
 }
 
@@ -1181,6 +1181,17 @@ h4.bid {
     }
 
 }
+
+@media screen and (max-width: 992px) and (min-width: 120px) {
+    .recent-time {
+        display: none;
+    }
+
+    .recent-time-content {
+        display: none;
+    }
+}
+
 
 @media screen and (max-width: 992px) and (min-width: 767px) {
 
