@@ -339,7 +339,6 @@
                                                             <td class="recent-quantity-content2">{{quantity_left}}</td>
                                                             <td class="recent-type-content">{{side}}</td>
                                                             <td class="recent-cancel-content"><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
-
                                                         </tr>
                                                         {{/if}}
                                                         {{/}}
@@ -360,6 +359,7 @@
                                             <option value="book">Order Book</option>
                                         </select>
                                         {{#if tb_tab == 'trades'}}
+                                        <div style="height: 5%"></div>
                                         <div id="trades" class="trades-box scroll-box">
                                             <table id="trades-table" class="table-header">
                                                 <thead>

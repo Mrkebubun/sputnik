@@ -454,7 +454,7 @@ h6.sell {
 }
 
 .trades-box {
-    height: 100%;
+    height: 95%;
 }
 
 .order-book-box {
@@ -1001,7 +1001,7 @@ order-box {
 /*-- Main Screen Additional Styles --*/
 
 .table-header {
-    margin-top: 28px;
+    margin-top: 15px;
     width: 100%;
 }
 
