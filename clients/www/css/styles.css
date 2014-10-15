@@ -1112,6 +1112,10 @@ h4.bid {
         margin-top: 25px;
     }
 
+    .dashboard-contracts {
+        display: none;
+    }
+
 .login-box {
     clear: both;
     float: left;
