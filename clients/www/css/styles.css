@@ -997,17 +997,33 @@ h6.sell {
 .table-header {
     margin-top: 28px;
     width: 100%;
+}
 
+.table-header2 {
+    margin-top: 5px;
+    width: 100%;
 }
 
 .recent-price {
+    align: right;
     width: 40%;
     padding-bottom: 8px;
 }
 
 .recent-quantity {
+    align: right;
     width: 20%;
     padding-bottom: 8px;
+}
+
+.recent-type {
+    width: 10%;
+    padding-bottom: 8px;
+}
+
+.recent-cancel {
+    width: 5%;
+    padding-bottom: 8px
 }
 
 .recent-time {
@@ -1031,6 +1047,14 @@ h6.sell {
 .recent-quantity-content2 {
     padding: 5px 20px 5px 0;
     text-align: right;
+}
+
+.recent-type-content {
+    padding: 5px 0 5px 0;
+}
+
+.recent-cancel-content {
+    padding: 5px 0 5px 0;
 }
 
 .recent-time-content {

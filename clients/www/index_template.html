@@ -318,23 +318,24 @@
                                             </div>
                                             <div class="row">
                                                 <div class="buy-box2 scroll-box">
-                                                    <table>
+                                                    <table class="table-header2">
                                                         <thead>
                                                             <tr>
-                                                                <th>Price</th>
-                                                                <th>Quantity</th>
-                                                                <th>Buy/Sell</th>
-                                                                <th>Cancel</th>
+                                                                <th class="recent-price">Price</th>
+                                                                <th class="recent-quantity">Quantity</th>
+                                                                <th class="recent-type">Buy/Sell</th>
+                                                                <th class="recent-cancel">Cancel</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="orders">
                                                         {{#sputnik.orders:id}}
                                                         {{#if contract == current_ticker}}
                                                         <tr>
-                                                            <td>{{price}}</td>
-                                                            <td>{{quantity_left}}</td>
-                                                            <td>{{side}}</td>
-                                                            <td><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                                            <td class="recent-price-content2">{{price}}</td>
+                                                            <td class="recent-quantity-content2">{{quantity_left}}</td>
+                                                            <td class="recent-type-content">{{side}}</td>
+                                                            <td class="recent-cancel-content"><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
+
                                                         </tr>
                                                         {{/if}}
                                                         {{/}}
