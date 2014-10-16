@@ -487,8 +487,8 @@ $ ->
             css = href.substring(0, href.lastIndexOf('/')+1) + "css/feed.css"
             params =
                 rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.feed_uri")
-                rssmikle_frame_width: "284"
-                rssmikle_frame_height: "400"
+                rssmikle_frame_width: "100%"
+                rssmikle_frame_height: "100%"
                 rssmikle_target: "_blank"
                 rssmikle_font: "Arial, Helvetica, sans-serif"
                 rssmikle_font_size: "12"
@@ -513,7 +513,7 @@ $ ->
                 rssmikle_item_bgcolor: "#FFFFFF"
                 rssmikle_item_bgimage: ""
                 rssmikle_item_title_length: "55"
-                rssmikle_item_title_color: "#000000"
+                rssmikle_item_title_color: "#FFFFFF"
                 rssmikle_item_border_bottom: "on"
                 rssmikle_item_description: "title_only"
                 item_link: "on"
