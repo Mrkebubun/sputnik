@@ -18,6 +18,7 @@ class RactiveSputnikWrapper
         @active_contracts = []
         @profile = {}
         @cash_spent = {}
+        @position_contracts = {}
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -65,6 +66,7 @@ class RactiveSputnikWrapper
             @types = {}
 
             now = new Date().getTime()
+            @position_contracts = {}
 
             for ticker, market of markets
                 if market.expiration/1000 < now
@@ -75,14 +77,20 @@ class RactiveSputnikWrapper
                     type = market.contract_type
                     (@types[type] or (@types[type] = [])).push ticker
                     # Later we'll come up with a better rule for what is an active contract
+                    # but for now if we're not logged in, it is all contracts you can trade
                     @active_contracts.push ticker
                 else
                     @currencies[ticker] = market
+
+                if market.contract_type isnt "cash_pair"
+                    # All contracts you can have a position in
+                    @position_contracts[ticker] = market
 
             @notify "markets"
             @notify "types"
             @notify "currencies"
             @notify "active_contracts"
+            @notify "position_contracts"
 
         @sputnik.on "address", (address) =>
             @currencies[address[0]].address = address[1]
@@ -226,6 +234,7 @@ class RactiveSputnikWrapper
         active_contracts: @active_contracts
         profile: @profile
         cash_spent: @cash_spent
+        position_contracts: @position_contracts
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
