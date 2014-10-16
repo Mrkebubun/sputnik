@@ -96,19 +96,19 @@
                                 <h1 class="logotext" on-click="switch_page:dashboard">{{sputnik.exchange_info.name}}</h1>
                                 <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                                     <ul id="navlinks" class="nav navbar-nav">
-                                        <li><a href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
-                                        <li><a href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
-                                        <li><a href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
                                     </ul>
                                     <div class="login-box">
-                                        <ul id="navlinks" class="nav navbar-nav">
+                                        
                                             {{#if sputnik.logged_in}}
-                                            <li class="login-name"><div class="login-name2"><span id="login_name">Logged in as {{sputnik.username}}</span></div></li>
-                                            <li class="logout"><a href="#" on-click="logout">Logout</a></li>
+                                            <div data-toggle="collapse" data-target=".navbar-collapse" class="login-name2" style="float: left;"><span id="login_name">{{sputnik.username}}&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                                            <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">Logout</a></div>
                                             {{else}}
-                                            <li class="login-register"><a href="#" on-click="show_login_register">Login/Register</a></li>
+                                            <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">Login/Register</a></div>
                                             {{/if}}
-                                        </ul>
+                                        
                                     </div>
                                 </div><!-- /.navbar-collapse -->
                             </div><!-- /.container-fluid -->
@@ -260,9 +260,9 @@
                                                     <div class="row">
                                                         <div class="col-sm-6">
                                                             <p>Price</p>
-                                                            <form>
-                                                                <input type="text" id="buy_price" name="price" class="form-control field"
-                                                                       placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
+
+                                                            <form class="content-push7">
+                                                                <input type="text" id="buy_price" name="price" class="form-control field" placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
@@ -290,7 +290,7 @@
                                                     <div class="row">
                                                         <div class="col-sm-6">
                                                             <p>Price</p>
-                                                            <form>
+                                                            <form class="content-push7">
                                                                 <input type="text" id="sell_price" name="price" class="form-control field"
                                                                         placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
                                                             </form>
@@ -321,10 +321,10 @@
                                                     <table class="table-header2">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price">Price</th>
-                                                                <th class="recent-quantity">Quantity</th>
-                                                                <th class="recent-type">Buy/Sell</th>
-                                                                <th class="recent-cancel">Cancel</th>
+                                                                <th class="recent-price-myorder">Price</th>
+                                                                <th class="recent-quantity-myorder">Quantity</th>
+                                                                <th class="recent-type-myorder">Buy/Sell</th>
+                                                                <th class="recent-cancel-myorder">Cancel</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="orders">
@@ -444,7 +444,7 @@
                     <div class="row">
                         <div class="col-sm-12">
                             <div class="{{dashboard_tab == 'active-contracts' ? 'tab-active' : 'tab-inactive' }}" id="tab-active-contracts">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">Contracts</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">Contracts/News</a></h4>
                             </div>
                             {{#if sputnik.logged_in}}
                             <div class="{{dashboard_tab == 'orders' ? 'tab-active' : 'tab-inactive' }}" id="tab-all-orders">
@@ -457,7 +457,7 @@
                     <div id="most-active">
                         <div class="row">
                             <div class="col-sm-12 content">
-                                <div class="col-xs-12 col-lg-9">
+                                <div class="col-xs-12 col-lg-9 dashboard-contracts">
                                     <h2 class="dashboard-heading">{{sputnik.logged_in ? "My" : "Active"}} Contracts</h2>
                                     <div class="row">
                                         <div class="tv-logo">
@@ -1072,10 +1072,20 @@
                                                 <div class="col-sm-7">
                                                     <input class="form-control file" type="file" name="passport" required
                                                            id="id_passport">
-                                                    <input name="passport_number" type="text" class="form-control" id="passport_number"
-                                                           placeholder="Passport Number" required>
+                                                
                                                 </div>
                                             </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7">
+                                            
+                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="Passport Number">
+
+                                                </div>
+                                            </div>
+                                            
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
                                                     <p>Proof of Residency</p>
@@ -1095,8 +1105,14 @@
                                     </div>
                                     -->
                                     <div class="row">
-                                        <div class="col-sm-12 spacer-bottom">
-                                            <a href="#" class="button-link-box" on-click="submit_compliance">Submit</a>
+                                        <div class="col-sm-5">
+                                            <div class="row">
+                                                <div class="col-sm-5 spacer-bottom">
+                                                </div>
+                                                <div class="col-sm-7 spacer-bottom">
+                                                    <a href="#" class="button-link-box" on-click="submit_compliance">Submit</a>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </form>
@@ -1151,16 +1167,16 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="#">
-                                                <tr class="cells">
-                                                    <th class="cell-id">TOTAL</th>
-                                                    <th class="cell-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].total_fmt}}</th>
-                                                </tr>
                                                 {{#sputnik.audit[audit_tab][audit_contract].positions}}
                                                 <tr class="{{this[0] == sputnik.audit_hash ? 'cells highlight' : 'cells'}}">
                                                     <td class="cell-id">{{this[0]}}</td>
                                                     <td class="cell-amount" align="right">{{this[1]}}</td>
                                                 </tr>
                                                 {{/}}
+                                                <tr class="cells">
+                                                    <th class="cell-id">TOTAL</th>
+                                                    <th class="cell-amount total-amount" align="right">{{sputnik.audit[audit_tab][audit_contract].total_fmt}}</th>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>

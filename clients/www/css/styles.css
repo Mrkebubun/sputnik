@@ -60,6 +60,14 @@ ul#navlinks {
     z-index: 2000;
 }
 
+ul#navlinks4 {
+    display: inline;
+    text-align: right;
+    margin-top: -52px;
+    float: left;
+    z-index: 2000;
+}
+
 .navlinks-right1 {
     margin: 30px 5px 0 170px !important;
 }
@@ -191,7 +199,7 @@ h2.dashboard-heading {
     color: #ffffff;
     font: 300 15px "Lato", Helvetica, sans-serif;
     background: #33cc66;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
     text-decoration: none;
 }
 
@@ -264,12 +272,32 @@ h2.dashboard-heading {
     font-family: Arial;
     color: #ffffff;
     font: 300 15px "Lato", Helvetica, sans-serif;
-    background: #33cc66;
-    padding: 8px 17px 8px 17px;
+    background: #33cc66 !important;
+    padding: 8px 17px 8px 17px !important;
     text-decoration: none;
     box-shadow: 0px 5px 0px #2da354;
     margin-bottom: 40px;
     margin-top: 55px;
+}
+
+.button-link-box3:hover {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif !important;
+    background: #33cc66 !important;
+    padding: 8px 17px 8px 17px !important;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 55px;
+}
+
+.ladda-button:hover {
+    padding: 8px 17px 8px 17px !important;
+    font: 300 15px "Lato", Helvetica, sans-serif !important;
 }
 
 .button-link-box3:hover {
@@ -288,7 +316,8 @@ h2.dashboard-heading {
 }
 
 .button-place {
-    margin: 30px 0 0 10px;
+    margin: 0px 0 0 14px;
+    padding-top: 35px;
 }
 
 .button-place2 {
@@ -303,12 +332,12 @@ h2.dashboard-heading {
 
 .inactive-link-box {
     font: 300 15px "Lato", Helvetica, sans-serif;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
 }
 
 .inactive-link-box:hover {
     font: 300 15px "Lato", Helvetica, sans-serif;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
     color: #33cc66;
 }
 
@@ -459,7 +488,7 @@ h6.sell {
 
 .order-book-box {
     position: absolute;
-    width: 85%;
+    width: 100%;
     height: 348px;
     overflow: auto;
 }
@@ -954,7 +983,7 @@ h6.sell {
   background: -webkit-linear-gradient(top, #f9f9f9, #e3e3e3);
   border: 1px solid #999;
   border-radius: 3px;
-  padding: 3px 10px;
+  padding: 0px 10px;
   outline: none;
   margin-bottom:25px;
   white-space: nowrap;
@@ -962,7 +991,7 @@ h6.sell {
   cursor: pointer;
   text-shadow: 1px 1px #fff;
   font-weight: 300;
-  font-size: 10pt;
+  font-size: 9pt;
   z-index:100;
 }
 .file:hover::before {
@@ -970,6 +999,30 @@ h6.sell {
 }
 .file:active::before {
   background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
+}
+
+.passport-field {
+    margin-top: 20px;
+}
+
+.total-amount {
+    text-align: right;
+}
+
+.recent-price-myorder {
+    width: 25%;
+}
+
+.recent-quantity-myorder {
+    width: 25%;
+}
+
+.recent-type-myorder {
+    width: 25%;
+}
+
+.recent-cancel-myorder {
+    width: 25%;
 }
 
 .content-pull {
@@ -998,6 +1051,10 @@ h6.sell {
     margin-top: 20px;
     margin-left: 21px;
     display: block;
+}
+
+.content-push7 {
+    margin-bottom: 5px;
 }
 
 
@@ -1085,22 +1142,23 @@ h4.bid {
 
 .login-box {
     float: right;
-    margin-top: -26px;
+    padding-top: 0px;
 }
 
 .login-name {
-    margin-top: 25px;
+    margin-top: 0px;
 }
 
 .login-name2 {
-    margin-top: 13px;
+    margin-top: 24px;
+    margin-left: 0px;
 }
 
 .login-register {
-    margin-top: -40px;
+    margin-top: 24px;
 }
 .logout {
-    margin-top: -40px;
+    margin-top: 24px;
 }
 
 
@@ -1112,10 +1170,29 @@ h4.bid {
         margin-top: 25px;
     }
 
+.container-resize {
+    background-color: transparent;
+}
+
+.navbar {
+    margin-top: 2px;
+}
+.container-fluid {
+    border-right: solid 1px #c1c1c1;
+    border-left: solid 1px #c1c1c1;
+    border-bottom: solid 1px #c1c1c1;
+    margin-top: 0px !important;
+}
+
+    .dashboard-contracts {
+        display: none;
+    }
+
 .login-box {
     clear: both;
     float: left;
-    margin-top: -60px;
+    padding-bottom: 30px;
+    padding-left: 13px;
 }
 
     ul#navlinks {
@@ -1129,7 +1206,12 @@ h4.bid {
     .navbar-collapse {
         width: 100%;
         border-top: 0px;
+        padding-right: 15px;
     }
+
+    
+
+
 
     .navlinks-right1 {
         font-size: 18px !important;
@@ -1150,7 +1232,7 @@ h4.bid {
     }
 
     .login-box {
-        margin: 0px 0px 0px 2px;
+        margin: 0px 0px 0px 0px;
     }
 
     .active-link-box {
@@ -1256,7 +1338,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 26px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
     .field-date {
@@ -1264,7 +1346,7 @@ h4.bid {
         width: 60%;
         margin-top: -23px;
     }
-
+/*--
     .navbar-nav {
         width: 530px;
         
@@ -1274,7 +1356,7 @@ h4.bid {
         width: 530px;
         
     }
-
+--*/
 
 
 }
@@ -1288,7 +1370,7 @@ h4.bid {
 
 .login-box {
     float: right;
-    margin-top: -15px;
+    margin-top: 0px;
 }
     .navbar {
         height: 67px;
@@ -1309,7 +1391,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 16px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
 }
@@ -1338,7 +1420,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 26px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
     .field-date {
