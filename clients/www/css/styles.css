@@ -264,12 +264,32 @@ h2.dashboard-heading {
     font-family: Arial;
     color: #ffffff;
     font: 300 15px "Lato", Helvetica, sans-serif;
-    background: #33cc66;
-    padding: 8px 17px 8px 17px;
+    background: #33cc66 !important;
+    padding: 8px 17px 8px 17px !important;
     text-decoration: none;
     box-shadow: 0px 5px 0px #2da354;
     margin-bottom: 40px;
     margin-top: 55px;
+}
+
+.button-link-box3:hover {
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    font-family: Arial;
+    color: #ffffff;
+    font: 300 15px "Lato", Helvetica, sans-serif !important;
+    background: #33cc66 !important;
+    padding: 8px 17px 8px 17px !important;
+    text-decoration: none;
+    box-shadow: 0px 5px 0px #2da354;
+    margin-bottom: 40px;
+    margin-top: 55px;
+}
+
+.ladda-button:hover {
+    padding: 8px 17px 8px 17px !important;
+    font: 300 15px "Lato", Helvetica, sans-serif !important;
 }
 
 .button-link-box3:hover {
