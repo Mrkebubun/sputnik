@@ -1004,6 +1004,10 @@ h6.sell {
     margin-top: 20px;
 }
 
+.total-amount {
+    text-align: right;
+}
+
 .content-pull {
     margin-top: 35px;
 }
