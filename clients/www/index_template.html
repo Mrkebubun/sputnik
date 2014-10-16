@@ -103,7 +103,7 @@
                                     <div class="login-box">
                                         <ul id="navlinks" class="nav navbar-nav">
                                             {{#if sputnik.logged_in}}
-                                            <li class="login-name"><div class="login-name2"><span id="login_name">Logged in as {{sputnik.username}}</span></div></li>
+                                            <li class="login-name"><div class="login-name2"><span id="login_name">{{sputnik.username}}</span></div></li>
                                             <li class="logout"><a href="#" on-click="logout">Logout</a></li>
                                             {{else}}
                                             <li class="login-register"><a href="#" on-click="show_login_register">Login/Register</a></li>
