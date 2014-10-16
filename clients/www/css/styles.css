@@ -316,7 +316,8 @@ h2.dashboard-heading {
 }
 
 .button-place {
-    margin: 30px 0 0 10px;
+    margin: 0px 0 0 14px;
+    padding-top: 35px;
 }
 
 .button-place2 {
@@ -1008,6 +1009,22 @@ h6.sell {
     text-align: right;
 }
 
+.recent-price-myorder {
+    width: 25%;
+}
+
+.recent-quantity-myorder {
+    width: 25%;
+}
+
+.recent-type-myorder {
+    width: 25%;
+}
+
+.recent-cancel-myorder {
+    width: 25%;
+}
+
 .content-pull {
     margin-top: 35px;
 }
@@ -1037,7 +1054,7 @@ h6.sell {
 }
 
 .content-push7 {
-    margin-bottom: 35px;
+    margin-bottom: 5px;
 }
 
 
