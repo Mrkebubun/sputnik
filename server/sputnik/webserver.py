@@ -1000,7 +1000,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             d = dbpool.runQuery("SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
                                 "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
                                 "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
-                                "AND posting.contract_id=contracts.id",
+                                "AND posting.contract_id=contracts.id ORDER BY journal.timestamp",
                 (self.username, timestamp_to_dt(from_timestamp), timestamp_to_dt(to_timestamp)))
             d.addCallback(_gotTransactions)
             d.addErrback(_cb_error)
