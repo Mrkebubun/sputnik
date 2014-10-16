@@ -440,34 +440,21 @@ class Accountant:
                 self.session.commit()
             except Exception as e:
                 log.err("Unable to add position %s to db" % future_position)
-
-            cash_spent_float = (price -
-                                future_position.reference_price) * quantity * contract.lot_size / contract.denominator
+            price = price - future_position.reference_price
         elif contract.contract_type == "prediction":
             denominated_contract = contract.denominated_contract
             payout_contract = contract
-
-            cash_spent_float = float(quantity * price * contract.lot_size / contract.denominator)
         elif contract.contract_type == "cash_pair":
             denominated_contract = contract.denominated_contract
             payout_contract = contract.payout_contract
 
-            cash_spent_float = float(quantity * price) / \
-                               (contract.denominator * payout_contract.denominator)
         else:
             log.err("Unknown contract type '%s'." %
                           contract.contract_type)
             raise NotImplementedError
 
-        cash_spent_int = int(cash_spent_float)
-        if cash_spent_float != cash_spent_int:
-            message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
-                      (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
-            log.err(message)
-            self.alerts_proxy.send_alert(message, "Integer failure")
-            # TODO: abort?
-
-        return denominated_contract, payout_contract, cash_spent_int
+        cash_spent = util.get_cash_spent(contract, price, quantity)
+        return denominated_contract, payout_contract, cash_spent
 
     def post_transaction(self, username, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
@@ -521,7 +508,25 @@ class Accountant:
         note = "%s order: %s" % (ap, order)
 
         postings = []
-        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
+        denominated_contract = contract.denominated_contract
+        payout_contract = contract.payout_contract
+
+        if contract.contract_type == "futures":
+            # We're not marking to market, we're keeping the same reference price
+            # and making a cashflow based on the reference price
+            denominated_contract = contract.denominated_contract
+            payout_contract = contract
+            future_position = self.get_position(user, contract, price)
+            # Make sure the position goes into the db with this reference price
+            try:
+                self.session.add(future_position)
+                self.session.commit()
+            except Exception as e:
+                log.err("Unable to add position %s to db" % future_position)
+            cash_spent = util.get_cash_spent(contract, price - future_position.reference_price, quantity)
+        else:
+            cash_spent = util.get_cash_spent(contract, price, quantity)
+
         user_denominated = create_posting("Trade", username,
                 denominated_contract.ticker, cash_spent, denominated_direction,
                 note)
@@ -543,7 +548,7 @@ class Accountant:
         # We aren't charging the liquidity provider
         fees = {}
         fees = util.get_fees(username, contract,
-                abs(cash_spent), quantity=abs(quantity), trial_period=self.trial_period)
+                price, quantity, trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
                 fees[fee] = 0
@@ -1144,14 +1149,13 @@ class Accountant:
     def clear_position(self, position, price, position_count, uid):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
-        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(position.contract,
-                                                                                price, position_calculated)
+        cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
 
         note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
         credit = create_posting("Clearing", position.username,
-                denominated_contract.ticker, cash_spent, 'credit',
+                position.contract.denominated_contract.ticker, cash_spent, 'credit',
                 note)
-        debit = create_posting("Clearing", position.username, payout_contract.ticker,
+        debit = create_posting("Clearing", position.username, position.contract.payout_contract.ticker,
                 position_calculated, 'debit', note)
         for posting in credit, debit:
             posting['count'] = position_count * 2

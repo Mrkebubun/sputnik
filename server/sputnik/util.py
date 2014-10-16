@@ -114,8 +114,22 @@ def timestamp_to_dt(timestamp):
     """
     return datetime.utcfromtimestamp(timestamp/1e6)
 
+def get_cash_spent(contract, price, quantity):
+    if contract.contract_type == "futures" or contract.contract_type == "predictions":
+        cash_float = float(quantity * price * contract.lot_size) / contract.denominator
+    else:
+        payout_contract = contract.payout_contract
+        cash_float = float(quantity * price) / (contract.denominator * payout_contract.denominator)
 
-def get_fees(username, contract, transaction_size, quantity, trial_period=False):
+    cash_int = int(cash_float)
+    if cash_float != cash_int:
+        message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
+                  (cash_float, quantity, price, contract.lot_size, contract.denominator)
+        log.err(message)
+
+    return cash_int
+
+def get_fees(username, contract, price, quantity, trial_period=False):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -131,31 +145,19 @@ def get_fees(username, contract, transaction_size, quantity, trial_period=False)
     if trial_period:
         return {}
 
-    # Right now fees are very simple, just 40bps of the total from_currency amount
-    # but only charged to the liquidity taker
     # TODO: Make fees based on transaction size
     # TODO: Give some users different fee schedules
     # TODO: Give some contracts different fee schedules
     # TODO: make the fee user accounts configurable in config file
     # TODO: Put fee schedule and user levels into DB
     # TODO: Create fees for futures and predictions
-    if contract.contract_type == "cash_pair":
-        denominated_contract = contract.denominated_contract
-        fees = int(round(transaction_size * 0.004))
-        return { denominated_contract.ticker: fees }
-    elif contract.contract_type == "prediction":
-        # Predictions charge 50bps
-        denominated_contract = contract.denominated_contract
-        fees = int(round(transaction_size * 0.005))
-        return { denominated_contract.ticker: fees }
-    elif contract.contract_type == "futures":
-        # Futures charge 1% of the lot size * # of contracts
-        denominated_contract = contract.denominated_contract
-        fees = int(round(quantity * contract.lot_size * 0.01))
-        return {denominated_contract.ticker: fees}
-    else:
-        # Only cash_pair & prediction is implemented now
-        raise NotImplementedError
+    transaction_size = get_cash_spent(contract, price, quantity)
+    fee_schedule = { 'cash_pair': 0.004,
+                     'prediction': 0.005,
+                     'futures': 0.005
+    }
+    fees = int(round(transaction_size * fee_schedule[contract.contract_type]))
+    return {contract.denominated_contract.ticker: fees}
 
 def get_contract(session, ticker):
     """
