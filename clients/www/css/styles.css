@@ -1000,6 +1000,10 @@ h6.sell {
   background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
 }
 
+.passport-field {
+    margin-top: 20px;
+}
+
 .content-pull {
     margin-top: 35px;
 }
