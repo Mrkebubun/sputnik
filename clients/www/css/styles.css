@@ -60,6 +60,14 @@ ul#navlinks {
     z-index: 2000;
 }
 
+ul#navlinks4 {
+    display: inline;
+    text-align: right;
+    margin-top: -52px;
+    float: left;
+    z-index: 2000;
+}
+
 .navlinks-right1 {
     margin: 30px 5px 0 170px !important;
 }
@@ -1109,22 +1117,23 @@ h4.bid {
 
 .login-box {
     float: right;
-    margin-top: -26px;
+    padding-top: 0px;
 }
 
 .login-name {
-    margin-top: 25px;
+    margin-top: 0px;
 }
 
 .login-name2 {
-    margin-top: 13px;
+    margin-top: 24px;
+    margin-left: 0px;
 }
 
 .login-register {
-    margin-top: -40px;
+    margin-top: 24px;
 }
 .logout {
-    margin-top: -40px;
+    margin-top: 24px;
 }
 
 
@@ -1136,6 +1145,20 @@ h4.bid {
         margin-top: 25px;
     }
 
+.container-resize {
+    background-color: transparent;
+}
+
+.navbar {
+    margin-top: 2px;
+}
+.container-fluid {
+    border-right: solid 1px #c1c1c1;
+    border-left: solid 1px #c1c1c1;
+    border-bottom: solid 1px #c1c1c1;
+    margin-top: 0px !important;
+}
+
     .dashboard-contracts {
         display: none;
     }
@@ -1143,7 +1166,8 @@ h4.bid {
 .login-box {
     clear: both;
     float: left;
-    margin-top: -60px;
+    padding-bottom: 30px;
+    padding-left: 13px;
 }
 
     ul#navlinks {
@@ -1157,7 +1181,12 @@ h4.bid {
     .navbar-collapse {
         width: 100%;
         border-top: 0px;
+        padding-right: 15px;
     }
+
+    
+
+
 
     .navlinks-right1 {
         font-size: 18px !important;
@@ -1178,7 +1207,7 @@ h4.bid {
     }
 
     .login-box {
-        margin: 0px 0px 0px 2px;
+        margin: 0px 0px 0px 0px;
     }
 
     .active-link-box {
@@ -1284,7 +1313,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 26px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
     .field-date {
@@ -1316,7 +1345,7 @@ h4.bid {
 
 .login-box {
     float: right;
-    margin-top: -15px;
+    margin-top: 0px;
 }
     .navbar {
         height: 67px;
@@ -1337,7 +1366,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 16px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
 }
@@ -1366,7 +1395,7 @@ h4.bid {
     }
 
     .login-box {
-        padding: 26px 0px 0px 20px;
+        padding: 0px 0px 0px 0px;
     }
 
     .field-date {

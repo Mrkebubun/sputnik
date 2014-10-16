@@ -96,19 +96,19 @@
                                 <h1 class="logotext" on-click="switch_page:dashboard">{{sputnik.exchange_info.name}}</h1>
                                 <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                                     <ul id="navlinks" class="nav navbar-nav">
-                                        <li><a href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
-                                        <li><a href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
-                                        <li><a href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
                                     </ul>
                                     <div class="login-box">
-                                        <ul id="navlinks" class="nav navbar-nav">
+                                        
                                             {{#if sputnik.logged_in}}
-                                            <li class="login-name"><div class="login-name2"><span id="login_name">{{sputnik.username}}</span></div></li>
-                                            <li class="logout"><a href="#" on-click="logout">Logout</a></li>
+                                            <div data-toggle="collapse" data-target=".navbar-collapse" class="login-name2" style="float: left;"><span id="login_name">{{sputnik.username}}&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                                            <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">Logout</a></div>
                                             {{else}}
-                                            <li class="login-register"><a href="#" on-click="show_login_register">Login/Register</a></li>
+                                            <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">Login/Register</a></div>
                                             {{/if}}
-                                        </ul>
+                                        
                                     </div>
                                 </div><!-- /.navbar-collapse -->
                             </div><!-- /.container-fluid -->
