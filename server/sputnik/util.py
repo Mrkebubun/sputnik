@@ -1,15 +1,18 @@
 __author__ = 'sameer'
 
 from datetime import datetime
-from twisted.internet import ssl
-from OpenSSL import SSL
-import models
 import math
 import time
 import uuid
+
+from twisted.internet import ssl
+from OpenSSL import SSL
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+
+import models
+
 
 def timed(f):
     def wrapped(*args, **kwargs):
@@ -24,10 +27,10 @@ def get_uid():
     return uuid.uuid4().get_hex()
 
 def price_to_wire(contract, price):
-    if contract.contract_type == "prediction":
-        price = price * contract.denominator
-    else:
+    if contract.contract_type == "cash_pair":
         price = price * contract.denominated_contract.denominator * contract.denominator
+    else:
+        price = price * contract.denominator
 
     p = price - price % contract.tick_size
     if p != int(p):
@@ -36,13 +39,13 @@ def price_to_wire(contract, price):
         return int(p)
 
 def price_from_wire(contract, price):
-    if contract.contract_type == "prediction":
-        return float(price) / contract.denominator
-    else:
+    if contract.contract_type == "cash_pair":
         return float(price) / (contract.denominated_contract.denominator * contract.denominator)
+    else:
+        return float(price) / contract.denominator
 
 def quantity_from_wire(contract, quantity):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         return quantity
     elif contract.contract_type == "cash":
         return float(quantity) / contract.denominator
@@ -50,7 +53,7 @@ def quantity_from_wire(contract, quantity):
         return float(quantity) / contract.payout_contract.denominator
 
 def quantity_to_wire(contract, quantity):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         q = quantity
     elif contract.contract_type == "cash":
         q = quantity * contract.denominator
@@ -70,13 +73,13 @@ def get_precision(numerator, denominator):
         return math.log10(numerator / denominator)
 
 def get_price_precision(contract):
-    if contract.contract_type == "prediction":
-        return get_precision(contract.denominator, contract.tick_size)
-    else:
+    if contract.contract_type == "cash_pair":
         return get_precision(contract.denominated_contract.denominator * contract.denominator, contract.tick_size)
+    else:
+        return get_precision(contract.denominator, contract.tick_size)
 
 def get_quantity_precision(contract):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         return 0
     elif contract.contract_type == "cash":
         return get_precision(contract.denominator, contract.lot_size)
