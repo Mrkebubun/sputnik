@@ -874,15 +874,15 @@
                                         <div class="col-sm-12">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
                                                 <span class="caret"></span>
-                                                {{#sputnik.currencies[current_currency]}}
+                                                {{#sputnik.position_contracts[history_contract]}}
                                                 {{description}}
                                                 {{else}}
-                                                Select Currency
+                                                Select Contract
                                                 {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
-                                                {{#sputnik.currencies:ticker}}
-                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{#sputnik.position_contracts:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_history_contract:{{ticker}}">{{description}}</a></li>
                                                 {{/}}
                                             </ul>
 
@@ -909,23 +909,23 @@
                                                 </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {{#sputnik.transaction_history[current_currency]}}
+                                                    {{#sputnik.transaction_history[history_contract]}}
                                                     <tr class="cells">
                                                         <td class="cell-date">{{timestamp}}</td>
                                                         <td class="cell-type">{{type}}</td>
-                                                        <td class="cell-debit" align="right">{{direction == "debit" ? quantity : ''}}</td>
-                                                        <td class="cell-credit" align="right">{{direction == "credit" ? quantity : ''}}</td>
+                                                        <td class="cell-debit">{{direction == "debit" ? quantity : ''}}</td>
+                                                        <td class="cell-credit">{{direction == "credit" ? quantity : ''}}</td>
                                                         <td class="cell-balance">{{balance}}</td>
                                                         <td class="cell-note">{{note}}</td>
                                                     </tr>
                                                     {{else}}
                                                     <tr class="cells">
-                                                        {{^current_currency}}
+                                                        {{^history_contract}}
                                                         <td colspan="100" align="center">Select a currency</td>
-                                                        {{/current_currency}}
-                                                        {{#current_currency}}
-                                                        <td colspan="100" align="center">No transactions for {{current_currency}} downloaded</td>
-                                                        {{/current_currency}}
+                                                        {{/history_contract}}
+                                                        {{#history_contract}}
+                                                        <td colspan="100" align="center">No transactions for {{history_contract}} downloaded</td>
+                                                        {{/history_contract}}
                                                     </tr>
                                                     {{/}}
                                                 </tbody>

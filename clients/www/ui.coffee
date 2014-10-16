@@ -103,6 +103,10 @@ $ ->
                 event.original.preventDefault()
                 ractive.set "audit_contract", ticker
 
+            switch_history_contract: (event, ticker) ->
+                event.original.preventDefault()
+                ractive.set "history_contract", ticker
+
             withdraw: (event, type) ->
                 event.original.preventDefault()
                 ticker = ractive.get("current_currency")

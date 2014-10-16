@@ -766,18 +766,21 @@ h6.sell {
 }
 
 .cell-debit {
-    padding: 10px 0 10px 10px;
+    padding: 10px 6px 10px 10px;
     border-right: 1px solid #ccc;
+    text-align: right;
 }
 
 .cell-credit {
-    padding: 10px 0 10px 10px;
+    padding: 10px 6px 10px 10px;
     border-right: 1px solid #ccc;
+    text-align: right;
 }
 
 .cell-balance {
-    padding: 10px 0 10px 10px;
+    padding: 10px 6px 10px 10px;
     border-right: 1px solid #ccc;
+    text-align: right;
 }
 
 .cell-note {
