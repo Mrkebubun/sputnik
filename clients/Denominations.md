@@ -239,23 +239,12 @@ tick_size / denominator (index units)
 | contract | price | internal price | value per tick (satoshi) | tick_size in terms of index value |
 |----------|-------------|------------------|
 | USDBTC   | 0.0025 USD/BTC | 25 | 1e2 | 0.0001 USD/BTC |
-| RAINFALL | 20.04 cm | 2004 | 1e5 | 1e3 | 0.01 cm |
+| RAINFALL | 20.04 cm | 2004 | 1e3 | 0.01 cm |
 | IPO | USD 250mm | 250 | 1e3 | USD 10mm |
 
 
 You can only buy/sell integer qty of contracts. You can't buy/sell a fractional contract.
 
-## Margin
-
-Each contract has a high_margin and low_margin. This value is from 0-100 which represents
-a percentage of the safe_price which must be held per contract.
-
-For each contract the user is long or short, their margin requirements are increased by those amounts.
-
-Margin balances are also increased/decreased by the projected settlement cashflow, using the safe_price
-as the settlement_price
-
-## Cashflows
 
 ### Trading
 

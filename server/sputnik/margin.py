@@ -1,10 +1,12 @@
 __author__ = 'arthurb'
 
-import models
-import util
 import collections
 
 from twisted.python import log
+
+import models
+import util
+
 
 def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
@@ -50,6 +52,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             print 'SAFE_PRICE :', SAFE_PRICE
             print 'position.reference_price :', position.reference_price
             print position
+            # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
             low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
                 position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
