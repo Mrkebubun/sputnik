@@ -199,7 +199,7 @@ h2.dashboard-heading {
     color: #ffffff;
     font: 300 15px "Lato", Helvetica, sans-serif;
     background: #33cc66;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
     text-decoration: none;
 }
 
@@ -331,12 +331,12 @@ h2.dashboard-heading {
 
 .inactive-link-box {
     font: 300 15px "Lato", Helvetica, sans-serif;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
 }
 
 .inactive-link-box:hover {
     font: 300 15px "Lato", Helvetica, sans-serif;
-    padding: 8px 27px 8px 27px;
+    padding: 8px 17px 8px 17px;
     color: #33cc66;
 }
 
