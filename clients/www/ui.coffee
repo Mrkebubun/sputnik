@@ -278,7 +278,7 @@ $ ->
 
             cancel_order: (event, id) ->
                 event.original.preventDefault()
-                sputnik.cancelOrder(id)
+                sputnik.cancelOrder(parseInt(id))
 
             new_address: (event, ticker) ->
                 event.original.preventDefault()
@@ -292,6 +292,15 @@ $ ->
                 showChart new_ticker
 
         window.ractive = ractive
+
+        setWindowInfo = () ->
+            window_info =
+                width: $(window).width()
+                height: $(window).height()
+            ractive.set "window_info", window_info
+
+        setWindowInfo()
+        $(window).resize setWindowInfo
 
         sputnik.connect()
 
@@ -536,6 +545,14 @@ $ ->
 
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
+
+        sputnik.on "exchange_info", (exchange_info) ->
+          # Remove this once we have the code in the exchange_info
+          exchange_info.google_analytics = 'UA-46975613-1'
+          ga('create', exchange_info.google_analytics, 'auto')
+          ga('require', 'linkid', 'linkid.js')
+          ga('require', 'displayfeatures')
+          ga('send', 'pageview')
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             bootbox.alert "Password reset failure: #{err[1]}"

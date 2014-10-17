@@ -470,6 +470,7 @@
                                     </div>
                                     {{/sputnik.exchange_info.feed_uri}}
                                 </div>
+                                {{#if window_info.width > 768}}
                                 <div class="col-xs-12 col-lg-9 dashboard-contracts">
                                     <h2 class="dashboard-heading">{{sputnik.logged_in ? "My" : "Active"}} Contracts</h2>
                                     <div class="row">
@@ -494,6 +495,7 @@
                                         {{/}}
                                     </div>
                                 </div>
+                                {{/if}}
                             </div>
                         </div>
                     </div>
