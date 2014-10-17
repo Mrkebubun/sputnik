@@ -482,10 +482,13 @@
                                     </div>
                                 </div>
                                 <div class="col-lg-3">
-                                    {{{feedwind}}}
+                                    {{#sputnik.exchange_info.feed_uri}}
+                                    <div intro="show_feedwind" id="feedwind">
+                                    </div>
                                     <div style="font-size:10px; text-align:center;">
                                         <a href="http://feed.mikle.com/" target="_blank" style="color:#CCCCCC;">RSS Feed Widget</a>
                                     </div>
+                                    {{/sputnik.exchange_info.feed_uri}}
                                 </div>
                             </div>
                         </div>

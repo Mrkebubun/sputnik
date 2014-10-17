@@ -47,7 +47,9 @@ $ ->
                     ticker.replace('/', '_')
             transitions:
                 show_chart: (t, ticker) ->
-                    showChart(ticker, t.node.id)
+                    showChart(ticker, t.node.id, transition=t)
+                show_feedwind: (t) ->
+                    showFeedwind(t)
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -441,7 +443,7 @@ $ ->
 
             $('#chatBox').val('')
 
-        showChart = (contract, target="tv_chart_container") ->
+        showChart = (contract, target="tv_chart_container", transition=null) ->
             sputnik.log ["Show chart", contract, target]
             options =
                 fullscreen: false
@@ -486,11 +488,14 @@ $ ->
                     $("##{target} iframe").contents().find(".pane-legend").hide()
                     $("##{target} iframe").contents().find(".chart-controls-bar").hide()
 
-        getFeedwind = () ->
+                if transition?
+                    transition.complete()
+
+        showFeedwind = (t) ->
             href = window.location.href
             css = href.substring(0, href.lastIndexOf('/')+1) + "css/feed.css"
             params =
-                rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.feed_uri")
+                rssmikle_url: this.ractive.get("sputnik.exchange_info.feed_uri")
                 rssmikle_frame_width: "100%"
                 rssmikle_frame_height: "100%"
                 rssmikle_target: "_blank"
@@ -533,8 +538,7 @@ $ ->
                 keyword_inc: ""
                 keyword_exc: ""
 
-            return feedwind_show_widget_iframe(params, true)
-
+            $("##{t.node.id}").html feedwind_show_widget_iframe(params, true)
 
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
@@ -671,4 +675,3 @@ $ ->
                         bootbox.alert("Error while saving:" + err)
                         sputnik.log ["Error:", err]
 
-        ractive.set "feedwind", getFeedwind()
