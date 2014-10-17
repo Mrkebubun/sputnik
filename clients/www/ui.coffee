@@ -280,7 +280,7 @@ $ ->
 
             cancel_order: (event, id) ->
                 event.original.preventDefault()
-                sputnik.cancelOrder(id)
+                sputnik.cancelOrder(parseInt(id))
 
             new_address: (event, ticker) ->
                 event.original.preventDefault()
