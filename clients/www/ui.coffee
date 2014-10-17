@@ -295,6 +295,15 @@ $ ->
 
         window.ractive = ractive
 
+        setWindowInfo = () ->
+            window_info =
+                width: $(window).width()
+                height: $(window).height()
+            ractive.set "window_info", window_info
+
+        setWindowInfo()
+        $(window).resize setWindowInfo
+
         sputnik.connect()
 
         tv = new window.TVFeed sputnik
