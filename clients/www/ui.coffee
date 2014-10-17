@@ -495,7 +495,7 @@ $ ->
             $.get feed_uri, (data) ->
                 image = $(data).find("image")
                 feed =
-                    image_url: $(image).find("url").text()
+                    image_url: $(image).find("url").text().replace("http://", "https://")
                     image_title: $(image).find("title").text()
                     image_link: $(image).find("link").text()
                     items: []
@@ -503,11 +503,12 @@ $ ->
                 $(data).find("item").each () ->
                     el = $(this)
                     date = new Date(Date.parse(el.find("pubDate").text()))
+                    description = el.find("description").text().replace("http://", "https://")
                     item =
                         title: el.find("title").first().text()
                         link: el.find("link").text()
                         date: date.toLocaleDateString()
-                        description: el.find("description").text()
+                        description: description
                     feed.items.push item
 
                 t.root.set "feed", feed
