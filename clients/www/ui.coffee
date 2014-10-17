@@ -45,7 +45,9 @@ $ ->
                     ticker.replace('/', '_')
             transitions:
                 show_chart: (t, ticker) ->
-                    showChart(ticker, t.node.id)
+                    showChart(ticker, t.node.id, transition=t)
+                show_feed: (t) ->
+                    showFeed(t)
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -439,7 +441,7 @@ $ ->
 
             $('#chatBox').val('')
 
-        showChart = (contract, target="tv_chart_container") ->
+        showChart = (contract, target="tv_chart_container", transition=null) ->
             sputnik.log ["Show chart", contract, target]
             options =
                 fullscreen: false
@@ -484,55 +486,31 @@ $ ->
                     $("##{target} iframe").contents().find(".pane-legend").hide()
                     $("##{target} iframe").contents().find(".chart-controls-bar").hide()
 
-        getFeedwind = () ->
+                if transition?
+                    transition.complete()
+
+        showFeed = (t) ->
             href = window.location.href
-            css = href.substring(0, href.lastIndexOf('/')+1) + "css/feed.css"
-            params =
-                rssmikle_url: "http://mimeticmarkets.wordpress.com/feed/" # Later replace with ractive.get("sputnik.exchange_info.feed_uri")
-                rssmikle_frame_width: "100%"
-                rssmikle_frame_height: "100%"
-                rssmikle_target: "_blank"
-                rssmikle_font: "Arial, Helvetica, sans-serif"
-                rssmikle_font_size: "12"
-                rssmikle_border: "off"
-                responsive: "on"
-                rssmikle_css_url: css
-                text_align: "left"
-                text_align2: "left"
-                corner: "off"
-                scrollbar: "on"
-                autoscroll: "off"
-                scrolldirection: "up"
-                scrollstep: "3"
-                mcspeed: "20"
-                sort: "New"
-                rssmikle_title: "on"
-                rssmikle_title_sentence: "News"
-                rssmikle_title_link: ""
-                rssmikle_title_bgcolor: "#33CC66"
-                rssmikle_title_color: "#FFFFFF"
-                rssmikle_title_bgimage: ""
-                rssmikle_item_bgcolor: "#FFFFFF"
-                rssmikle_item_bgimage: ""
-                rssmikle_item_title_length: "55"
-                rssmikle_item_title_color: "#FFFFFF"
-                rssmikle_item_border_bottom: "on"
-                rssmikle_item_description: "title_only"
-                item_link: "on"
-                rssmikle_item_description_length: "150"
-                rssmikle_item_description_color: "#666666"
-                rssmikle_item_date: "gl1"
-                rssmikle_timezone: ""
-                datetime_format: "%b %e, %Y %l:%M:%S %p"
-                item_description_style: "html"
-                item_thumbnail: "full"
-                article_num: "15"
-                rssmikle_item_podcast: "off"
-                keyword_inc: ""
-                keyword_exc: ""
+            feed_uri = href.substring(0, href.lastIndexOf('/') + 1) + "feed/"
+            $.get feed_uri, (data) ->
+                image = $(data).find("image")
+                feed =
+                    image_url: $(image).find("url").text()
+                    image_title: $(image).find("title").text()
+                    image_link: $(image).find("link").text()
+                    items: []
 
-            return feedwind_show_widget_iframe(params, true)
+                $(data).find("item").each () ->
+                    el = $(this)
+                    date = new Date(Date.parse(el.find("pubDate").text()))
+                    item =
+                        title: el.find("title").first().text()
+                        link: el.find("link").text()
+                        date: date.toLocaleDateString()
+                        description: el.find("description").text()
+                    feed.items.push item
 
+                t.root.set "feed", feed
 
         $('#account_modal').change (e) ->
             $(e.target).parents('.tab-pane').data('dirty', yes)
@@ -669,4 +647,3 @@ $ ->
                         bootbox.alert("Error while saving:" + err)
                         sputnik.log ["Error:", err]
 
-        ractive.set "feedwind", getFeedwind()
