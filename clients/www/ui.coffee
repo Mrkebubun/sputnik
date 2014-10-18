@@ -634,6 +634,8 @@ $ ->
             return objectData
 
         @compliance_client_handler = (form) ->
+            ladda = Ladda.create $('#compliance_button')[0]
+            ladda.start()
             fd = new FormData()
             fd.append('username', ractive.get("sputnik.username"))
             passports = form.find('input[name=passport]')[0].files
@@ -660,8 +662,10 @@ $ ->
                     contentType: false,
                     type: 'POST',
                     success: (data) ->
+                        ladda.stop()
                         bootbox.alert("Successfully saved:" + data)
                     error: (err) ->
+                        ladda.stop()
                         bootbox.alert("Error while saving:" + err)
                         sputnik.log ["Error:", err]
 
