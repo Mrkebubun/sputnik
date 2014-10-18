@@ -1634,7 +1634,7 @@ class TicketServer(Resource):
                         request.finish()
 
                     log.msg("Ticket created: %s" % ticket_number)
-                    d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', ticket_number)
+                    d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', str(ticket_number))
                     d3.addCallbacks(onRegisterTicketSuccess, onFail)
 
 
