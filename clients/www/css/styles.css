@@ -297,7 +297,7 @@ h2.dashboard-heading {
 
 .ladda-button:hover {
     padding: 8px 17px 8px 17px !important;
-    font: 300 15px "Lato", Helvetica, sans-serif !important;
+    font-size: 18px !important;
 }
 
 .alert-reset {
@@ -444,6 +444,7 @@ a {
 
 a:hover {
     text-decoration: none;
+    color: #23c85b;
 }
 
 p {
