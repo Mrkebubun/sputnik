@@ -68,14 +68,13 @@
                 </div>
                 <div class="modal-body">
                     <form class="form-signin" role="form">
-                        <input type="password" class="form-control" id="new_password_token" placeholder="New Password" required>
-                        <input type="password" class="form-control" id="new_password_token_confirm" placeholder="Confirm New Password" required>
+                        <input type="password" class="form-control field-space" id="new_password_token" placeholder="New Password" required>
+                        <input type="password" class="form-control field-space" id="new_password_token_confirm" placeholder="Confirm New Password" required>
                     </form>
-                    <div class="alert alert-info">Great! Now just enter your new password and we'll be all set.</div>
+                    <div class="alert alert-info alert-reset">Great! Now just enter your new password and we'll be all set.</div>
                 </div>
-                <div class="modal-footer">
-                    <button class="ladda-button" data-color="blue" data-size="s" data-style="expand-right"
-                            on-click="change_password_token"><span class="ladda-label">Change Password</span></button>
+                <div class="modal-footer reset-footer">
+                    <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="register_button" class="button-place2 button-link-box3 button-place3" on-click="change_password_token"><span class="ladda-label">Change Password</span></a>
                 </div>
             </div>
         </div>

@@ -300,6 +300,22 @@ h2.dashboard-heading {
     font: 300 15px "Lato", Helvetica, sans-serif !important;
 }
 
+.alert-reset {
+    margin: 25px 0 10px 0 !important;
+    
+}
+
+.field-space {
+    margin: 0px 0 20px 0;
+}
+
+.reset-footer {
+    text-align: left;
+    padding: 30px 0 35px 15px !important;
+}
+
+
+
 .button-link-box3:hover {
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
