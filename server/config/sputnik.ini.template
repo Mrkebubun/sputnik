@@ -36,6 +36,7 @@ recaptcha_public_key = ${recaptcha_public_key}
 recaptcha_private_key = ${recaptcha_private_key}
 exchange_name = ${exchange_name}
 exchange_rss_feed = ${exchange_rss_feed}
+google_analytics = ${google_analytics}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d
