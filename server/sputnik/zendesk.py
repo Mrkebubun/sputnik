@@ -4,7 +4,7 @@ import treq
 import json
 from twisted.internet import defer
 from twisted.python import log
-
+import string
 
 class Zendesk(object):
     def __init__(self, domain, api_token, api_username):
@@ -48,7 +48,7 @@ class Zendesk(object):
             ticket = {"ticket": {"requester": {"name": user['nickname'],
                                                "email": user['email'] },
                                  "subject": subject,
-                                 "comment": {"body": comment, "uploads": [str(t[1]) for t in tokens] }}}
+                                 "comment": {"body": comment, "uploads": [str(t[1]) for t in tokens if t[0]]}}}
 
             def handle_response(response):
                 """
@@ -70,7 +70,7 @@ class Zendesk(object):
                         # this should happen sufficiently rarely enough that it is
                         # worth logging here in addition to the failure
                         log.msg("Received code: %s from zendesk for new ticket %s: %s" % (response.code, str(ticket), content))
-                        raise Exception("Zendesk returned code: %s." % response.code)
+                        raise Exception("Zendesk returned code: %s with message: %s" % (response.code, content))
                     else:
                         log.msg("Received 201 Created from Zendesk. Ticket: %s. Content follows: %s" % (str(ticket), content))
                         # if the JSON cannot be decoded, let the error float up
@@ -112,7 +112,7 @@ class Zendesk(object):
         def handle_response(response):
             def parse_content(content):
                 if response.code != 201:
-                    log.msg("Received code: %s from zendesk for file upload" % response.code)
+                    log.msg("Received code: %s from zendesk for file upload: msg %s" % (response.code, content))
                     raise Exception("Zendesk returned code %s" % response.code)
                 else:
                     log.msg("Received 201 Created from Zendesk. Content: %s" % content)
@@ -122,6 +122,8 @@ class Zendesk(object):
 
             return response.content().addCallback(parse_content)
 
+        # replace spaces in name with _
+        name = string.replace(name, ' ', '_')
         d = treq.post("https://%s.zendesk.com/api/v2/uploads.json?filename=%s" % (self.domain, name), data=file_data,
                       headers={"Content-Type": content_type},
                       auth=("%s/token" % self.api_username, self.api_token))
@@ -131,17 +133,24 @@ class Zendesk(object):
 if __name__ == "__main__":
     from twisted.internet import reactor
     from pprint import pprint
+    import sys
+    log.startLogging(sys.stdout)
 
-    class User():
-        nickname = 'blah'
-        email = 'testemail@m2.io'
+    user = { 'nickname': 'Test',
+             'email': 'testmail@m2.io' }
 
-    user = User()
-    zd = Zendesk("mexbt", "zd3AWTPjbA4xa3j4D71FQeknxZqyBgjURkwENsfy", 'sameer@m2.io')
-    d1 = zd.create_ticket(user, "Test Ticket", "Comment", [])
-    d1.addCallback(pprint)
+    zd = Zendesk("mimetic", "5bZYIMtkHWTuaJijvkKuXVeaoXumETWdyCa2wTpN", 'sameer@m2.io')
+    # d1 = zd.create_ticket(user, "Test Ticket", "Comment", [])
+    # d1.addCallback(pprint)
 
-    d2 = zd.create_ticket(user, "Test with Files", "Comment yay", ["content a", "content b"])
+    d2 = zd.create_ticket(user, "Test with Files", "Comment yay", [{'filename': 'content a',
+                                                                    'type': 'unknown',
+                                                                    'data': '2424234'},
+                                                                   {'filename': 'content b',
+                                                                    'type': 'unknown',
+                                                                    'data': '242423534'}
+    ])
     d2.addCallback(pprint)
+    d2.addErrback(log.err)
 
     reactor.run()
