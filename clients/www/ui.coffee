@@ -36,6 +36,7 @@ $ ->
                 tb_tab: "trades"
                 audit_tab: "Liability"
                 audit_contract: "BTC"
+                all_orders_sort_column: "timestamp"
                 type_alias:
                     "cash_pair": "Cash"
                     "prediction": "Predictions"
@@ -46,6 +47,9 @@ $ ->
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
                 values: (obj) -> (value for key, value of obj)
+                sort: (array, column) ->
+                    array = array.slice()
+                    array.sort (a, b) -> a[column] < b[column] ? -1 : 1
             transitions:
                 show_chart: (t, ticker) ->
                     showChart(ticker, t.node.id, transition=t)
@@ -286,6 +290,9 @@ $ ->
             new_address: (event, ticker) ->
                 event.original.preventDefault()
                 sputnik.newAddress(ticker)
+
+            sort_all_orders: (event, column) ->
+                ractive.set("all_orders_sort_column", column)
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?

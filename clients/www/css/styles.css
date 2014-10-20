@@ -896,6 +896,11 @@ h6.sell {
     border-right: 1px solid #ccc;
 }
 
+.cell-timestamp {
+    padding: 10px 0 10px 10px;
+    border-right: 1px solid #ccc;
+}
+
 .cell-cancel {
     padding: 10px 0 10px 0;
 
