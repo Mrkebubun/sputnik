@@ -346,7 +346,7 @@
                                 </div>
                                 {{/if}}
                                 <div class="row">
-                                    <div class="col-sm-3 recent-trades-box">
+                                    <div class="col-sm-6 col-lg-4 recent-trades-box">
                                         <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">Recent Trades</a>
                                         <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">Order Book</a>
                                         <select class="form-control trades-select" value="{{tb_tab}}">
@@ -377,65 +377,53 @@
                                         </div>
                                         {{/if}}
                                         {{#if tb_tab == 'book'}}
-                                        <div id="book">
-                                            <ul class="nav nav-tabs">
-                                                <li class="bid active"><a href="#bids_tab" data-toggle="tab">Bids</a></li>
-                                                <li class="bid"><a href="#asks_tab" data-toggle="tab">Asks</a></li>
-                                            </ul>
-                                            <div class="tab-content">
-                                                <div class="tab-pane active" id="bids_tab">
-                                                    <div class="order-book-box-header2">
-                                                        <table class="table-header">
-                                                            <thead>
+                                        <div style="height: 5%"></div>
+                                        <div id="book" class="book-box scroll-box">
+                                            <div class="row">
+                                                <div class="col-xs-6">
+                                                    BIDS
+                                                    <table id="bids-table" class="table-header">
+                                                        <thead>
                                                             <tr>
                                                                 <th class="recent-price">Price</th>
                                                                 <th class="recent-quantity">Quantity</th>
                                                             </tr>
-                                                            </thead>
-                                                        </table>
-                                                    </div>
-                                                    <div class="order-book-box scroll-box">
-                                                        <table class="table-header">
-                                                            <tbody id="bids">
-                                                                {{#sputnik.books[current_ticker].bids:i}}
-                                                                <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                                    <td class="recent-price-content2">{{price}}</td>
-                                                                    <td class="recent-quantity-content2">{{quantity}}</td>
-                                                                </tr>
-                                                                {{/}}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{#sputnik.books[current_ticker].bids:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content2">{{price}}</td>
+                                                                <td class="recent-quantity-content2">{{quantity}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
-                                                <div class="tab-pane" id="asks_tab">
-                                                    <div class="order-book-box-header2">
-                                                        <table class="table-header">
-                                                            <thead>
+                                                <div class="col-xs-6">
+                                                    ASKS
+                                                    <table id="asks-table" class="table-header">
+                                                        <thead>
                                                             <tr>
                                                                 <th class="recent-price">Price</th>
                                                                 <th class="recent-quantity">Quantity</th>
                                                             </tr>
-                                                            </thead>
-                                                        </table>
-                                                    </div>
-                                                    <div class="order-book-box scroll-box">
-                                                        <table class="table-header">
-                                                            <tbody id="asks">
-                                                                {{#sputnik.books[current_ticker].asks:i}}
-                                                                <tr class="{{i == 0 ? 'alert-success' : '' }}">
-                                                                    <td class="recent-price-content2">{{price}}</td>
-                                                                    <td class="recent-quantity-content2">{{quantity}}</td>
-                                                                </tr>
-                                                                {{/}}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{#sputnik.books[current_ticker].asks:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content2">{{price}}</td>
+                                                                <td class="recent-quantity-content2">{{quantity}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
+
                                         </div>
                                         {{/if}}
                                     </div>
-                                    <div intro="show_chart:{{current_ticker}}" class="col-sm-9" style="padding-left: 0px;" id="tv_chart_container"></div>
+                                    <div intro="show_chart:{{current_ticker}}" class="col-sm-6 col-lg-8" style="padding-left: 0px;" id="tv_chart_container"></div>
                                 </div>
                             </div>
                         </div>
