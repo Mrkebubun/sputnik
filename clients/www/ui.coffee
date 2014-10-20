@@ -340,13 +340,13 @@ $ ->
                             sputnik.restoreSession name_uid[1]
 
         sputnik.on "auth_success", (username) ->
+            ga('send', 'event', 'login', 'success')
             ladda = Ladda.create $("#login_button")[0]
             ladda.stop()
             $("#login_modal").modal "hide"
             ladda = Ladda.create $("#register_button")[0]
             ladda.stop()
             $("#register_modal").modal "hide"
-
             sputnik.getCookie()
 
         sputnik.on "cookie", (uid) ->
@@ -354,22 +354,26 @@ $ ->
             document.cookie = "login" + "=" + sputnik?.username + ":" + uid
 
         sputnik.on "auth_fail", (error) ->
+            ga('send', 'event', 'login', 'failure')
             ladda = Ladda.create $("#login_button")[0]
             ladda.stop()
             $("#login_error").text("Incorrect username or password.").show()
 
         sputnik.on "make_account_success", () ->
+            ga('send', 'event', 'register', 'success')
             # do not clear the modal yet, do it in auth_success
             username = $("#register_username").val()
             password = $("#register_password").val()
             sputnik.authenticate username, password
 
         sputnik.on "make_account_fail", (event) ->
+            ga('send', 'event', 'register', 'failure', reason)
             ladda = Ladda.create $("#register_button")[0]
             ladda.stop()
             [code, reason] = event
             $("#register_error").text(reason)
             $("#register_error").show()
+
 
         # compropago modal success and error
         sputnik.on "compropago_deposit_success", (event) ->
@@ -445,12 +449,12 @@ $ ->
             if (Number(amount) < 6000)
               sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone, customer_phone_company
 
-        $('#chatButton').click ->
-            chat_return = sputnik.chat chatBox.value
-            if not chat_return[0]
-                bootbox.alert chat_return[1]
-
-            $('#chatBox').val('')
+#        $('#chatButton').click ->
+#            chat_return = sputnik.chat chatBox.value
+#            if not chat_return[0]
+#                bootbox.alert chat_return[1]
+#
+#            $('#chatBox').val('')
 
         showChart = (contract, target="tv_chart_container", transition=null) ->
             sputnik.log ["Show chart", contract, target]
@@ -524,9 +528,6 @@ $ ->
 
                 t.root.set "feed", feed
 
-        $('#account_modal').change (e) ->
-            $(e.target).parents('.tab-pane').data('dirty', yes)
-
         $('#get_reset_token').click ->
             username = $("#login_username").val()
             $('#login_modal .alert:visible').hide()
@@ -535,7 +536,6 @@ $ ->
                 $('#login_error').text("Please enter a username to reset the password").slideDown()
                 return
 
-    #        $('#login_modal').find('input,a,label,button').slideUp()
             sputnik.getResetToken(username)
             $('#reset_token_sent').show()
             setTimeout(
@@ -544,35 +544,41 @@ $ ->
                     $("#login_modal").modal "hide"
             ,
             5000)
+            ga('send', 'event', 'password', 'get_reset_token')
 
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
 
         sputnik.on "exchange_info", (exchange_info) ->
           # Remove this once we have the code in the exchange_info
-          exchange_info.google_analytics = 'UA-46975613-1'
+          exchange_info.google_analytics = 'UA-46975613-2'
           ga('create', exchange_info.google_analytics, 'auto')
           ga('require', 'linkid', 'linkid.js')
           ga('require', 'displayfeatures')
           ga('send', 'pageview')
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
+            ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])
             bootbox.alert "Password reset failure: #{err[1]}"
 
         sputnik.on "change_password_token_fail", (err) -> #BUG: this is not firing multiple times
+            ga('send', 'event', 'password', 'change_password_token_fail', 'error', err[1])
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
             bootbox.alert "Password reset failure: #{err[1]}"
 
         sputnik.on "change_password_token_success", (message) ->
+            ga('send', 'event', 'password', 'change_password_token_success')
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
             bootbox.alert "Password reset"
 
         sputnik.on "change_password_success", (message) ->
+            ga('send', 'event', 'password', 'change_password_success')
             bootbox.alert "Password reset"
 
         sputnik.on "change_profile_success", (profile) ->
+            ga('send', 'event', 'profile', 'change_profile_success')
             bootbox.alert "Profile changed"
 
         sputnik.on "session_expired", ->
@@ -588,27 +594,29 @@ $ ->
     #        $.growl({title: "Chat", message: chat})
 
         sputnik.on "address_fail", (error) ->
+            ga('send', 'event', 'deposit', 'address_fail', 'error', error[1])
             bootbox.alert "Deposit address error: #{error[1]}"
 
         sputnik.on "address", (address) =>
+            ga('send', 'event', 'deposit', 'address')
             $('#qr_code').empty()
             if address[0] == "BTC"
                 $('#qr_code').qrcode("bitcoin:" + address[1])
 
-        sputnik.on "password_change_success", (info) ->
-            bootbox.alert "Password successfully changed"
-
-        sputnik.on "password_change_fail", (error) ->
-            bootbox.alert "Password change fail: #{error}"
-
         sputnik.on "request_withdrawal_success", (info) ->
+            ga('send', 'event', 'withdraw', 'request_withdrawal_success')
             bootbox.alert "Withdrawal request placed"
 
         sputnik.on "request_withdrawal_fail", (error) ->
+            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[1])
             bootbox.alert "Withdrawal request failed: #{error[1]}"
 
         sputnik.on "place_order_fail", (error) ->
+            ga('send', 'event', 'order', 'place_order_fail', 'error', error[1])
             bootbox.alert "order placement failed: #{error[1]}"
+
+        sputnik.on "place_order_success", (info) ->
+            ga('send', 'event', 'order', 'place_order_success')
 
         sputnik.on "fill", (fill) ->
             quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
@@ -616,6 +624,7 @@ $ ->
             $.growl.notice { title: "Fill", message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
+            ga('send', 'event', 'close', 'close')
             $('#main_page').hide()
             $('#not_connected').show()
 
@@ -662,8 +671,10 @@ $ ->
                     contentType: false,
                     type: 'POST',
                     success: (data) ->
+                        ga('send', 'event', 'compliance', 'save')
                         bootbox.alert("Successfully saved:" + data)
                     error: (err) ->
+                        ga('send', 'event', 'compliance', 'failure', 'error', err)
                         bootbox.alert("Error while saving:" + err)
                         sputnik.log ["Error:", err]
 
