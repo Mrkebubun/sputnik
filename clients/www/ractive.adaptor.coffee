@@ -86,11 +86,18 @@ class RactiveSputnikWrapper
                     # All contracts you can have a position in
                     @position_contracts[ticker] = market
 
+                    if not @positions[ticker]?
+                        zero = 0
+                        @positions[ticker] =
+                            position: zero
+                            position_fmt: zero.toFixed(sputnik.getQuantityPrecision(ticker))
+
             @notify "markets"
             @notify "types"
             @notify "currencies"
             @notify "active_contracts"
             @notify "position_contracts"
+            @notify "positions"
 
         @sputnik.on "address", (address) =>
             @currencies[address[0]].address = address[1]
