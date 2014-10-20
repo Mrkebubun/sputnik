@@ -45,6 +45,7 @@ $ ->
                         new Date(datetime/1000).toLocaleString()
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
+                values: (obj) -> (value for key, value of obj)
             transitions:
                 show_chart: (t, ticker) ->
                     showChart(ticker, t.node.id, transition=t)

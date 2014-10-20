@@ -517,7 +517,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {{#sputnik.orders:id}}
+                                            {{#values(sputnik.orders)}}
                                             <tr class="cells">
                                                 <td class="cell-contract">{{contract}}</td>
                                                 <td class="cell-type2">{{side}}</td>
@@ -525,6 +525,8 @@
                                                 <td class="cell-quantity">{{quantity_left}}</td>
                                                 <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                             </tr>
+                                            {{else}}
+                                            <tr class="cells"><td colspan="100" align="center">No open orders</td></tr>
                                             {{/}}
                                         </tbody>
                                     </table>
