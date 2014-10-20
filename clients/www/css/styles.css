@@ -149,6 +149,26 @@ h2.dashboard-heading {
     margin-top: 45px;
 }
 
+h2.dashboard-heading2 {
+    font-size: 26px;
+    margin-left: 0px;
+    margin-top: 45px;
+}
+
+.m2-logo {
+    margin-right: 10px;
+}
+
+p.news-date {
+    font-weight: 700;
+    margin: 25px 0 10px 0;
+    display: block;
+}
+
+a.news-title {
+    margin: 10px 0 20px 0;
+}
+
 .subheading {
     margin-top: 35px;
     font-size: 21px;
@@ -1461,6 +1481,14 @@ h4.bid {
     font-family: 'Open Sans', sans-serif;
     font-size: 13px;
     color: rgb(0, 153, 212);
+}
+
+.tv-solid {
+    margin-left: 31px;
+}
+
+.news-box {
+    margin: 15px 0 15px 0;
 }
 
 .spacer-bottom {
