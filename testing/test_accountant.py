@@ -55,7 +55,8 @@ class TestAccountantBase(TestSputnik):
             from sputnik import engine2
 
             self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
-                            "NETS2015": engine2.AccountantExport(FakeEngine())}
+                            "NETS2015": engine2.AccountantExport(FakeEngine()),
+                            'USDBTC0W': engine2.AccountantExport(FakeEngine())}
             self.webserver = FakeComponent("webserver")
             self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
             self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
@@ -359,7 +360,7 @@ class TestCashierExport(TestAccountant):
 
 
 class TestAdministratorExport(TestAccountant):
-    def test_clear_contract(self):
+    def test_clear_contract_prediction(self):
         self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
@@ -433,6 +434,113 @@ class TestAdministratorExport(TestAccountant):
             return d
 
         d.addCallback(on_setup_done)
+        return d
+
+    def test_clear_contract_futures(self):
+        from sputnik import util
+        from sputnik import models
+        import datetime
+        self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+        # Deposit cash
+        self.set_permissions_group('short_account', 'Deposit')
+        self.set_permissions_group('long_account', 'Deposit')
+
+        self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5000000)
+        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv",  5000000)
+
+        self.set_permissions_group("short_account", 'Trade')
+        self.set_permissions_group("long_account", "Trade")
+
+        d3 = self.webserver_export.place_order('short_account', {'username': 'short_account',
+                                                                              'contract': 'USDBTC0W',
+                                                                              'price': 1100,
+                                                                              'quantity': 3,
+                                                                              'side': 'SELL',
+                                                                              'timestamp': util.dt_to_timestamp(
+                                                                                  datetime.datetime.utcnow())})
+
+        d4 = self.webserver_export.place_order('long_account', {'username': 'long_account',
+                                                                                    'contract': 'USDBTC0W',
+                                                                                    'price': 900,
+                                                                                    'quantity': 3,
+                                                                                    'side': 'BUY',
+                                                                                    'timestamp': util.dt_to_timestamp(
+                                                                                        datetime.datetime.utcnow())})
+
+        d = defer.DeferredList([d3, d4])
+
+        def on_place_orders(result):
+            orders = [o[1] for o in result]
+            # Make like a trade happened
+            uid = util.get_uid()
+            long_transaction = {
+                'username': 'long_account',
+                'aggressive': True,
+                'contract': 'USDBTC0W',
+                'order': orders[0],
+                'other_order': orders[1],
+                'side': 'BUY',
+                'price': 1000,
+                'quantity': 5,
+                'timestamp': 234234,
+                'uid': uid
+            }
+
+            import copy
+            short_transaction = copy.copy(long_transaction)
+            short_transaction['aggressive'] = False
+            short_transaction['order'] = orders[1]
+            short_transaction['other_order'] = orders[0]
+            short_transaction['side'] = 'SELL'
+            short_transaction['username'] = 'short_account'
+
+            d1 = self.accountant.post_transaction('short_account', short_transaction)
+            d2 = self.accountant.post_transaction('long_account', long_transaction)
+
+            d = defer.DeferredList([d1, d2])
+
+            def on_setup_done(results):
+                uid = util.get_uid()
+
+                # Set the contract to have already expired in the past
+                USDBTC = self.session.query(models.Contract).filter_by(ticker='USDBTC0W').one()
+                USDBTC.expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+                self.session.add(USDBTC)
+                self.session.commit()
+
+                # Clear at 50 more than it was traded for
+                d = self.administrator_export.clear_contract(None, 'USDBTC0W', 1050, uid)
+                def on_clear(results):
+                    BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                    short_positions = self.session.query(models.Position).filter_by(username='short_account').all()
+                    long_positions = self.session.query(models.Position).filter_by(username='long_account').all()
+                    clearing_positions = self.session.query(models.Position).filter_by(username='clearing_USDBTC0W').all()
+                    pprint(short_positions)
+                    pprint(long_positions)
+                    pprint(clearing_positions)
+                    postings = self.session.query(models.Posting).all()
+                    pprint(postings)
+                    # self.assertEqual(short_positions.filter_by(contract=USDBTC).one().position, 0)
+                    # self.assertEqual(long_positions.filter_by(contract=USDBTC).one().position, 0)
+                    #
+                    # self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 53000000-5000000)
+                    # self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 3000000+5000000)
+                    #
+                    # short_orders = self.session.query(models.Order).filter_by(username='short_account').filter_by(
+                    #     is_cancelled=False).all()
+                    # long_orders = self.session.query(models.Order).filter_by(username='long_account').filter_by(
+                    #     is_cancelled=False).all()
+                    # self.assertEquals(long_orders, [])
+                    # self.assertEquals(short_orders, [])
+
+                d.addCallback(on_clear)
+                return d
+
+            d.addCallback(on_setup_done)
+
+        d.addCallback(on_place_orders)
         return d
 
     def test_transfer_position(self):

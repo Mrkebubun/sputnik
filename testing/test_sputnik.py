@@ -45,6 +45,17 @@ contracts set NETS2015 expiration 2015-06-28
 contracts set NETS2015 denominated_contract_ticker BTC
 contracts set NETS2015 payout_contract_ticker NETS2015
 
+contracts add USDBTC0W
+contracts set USDBTC0W contract_type futures
+contracts set USDBTC0W denominator 1000
+contracts set USDBTC0W lot_size 100000
+contracts set USDBTC0W tick_size 1
+contracts set USDBTC0W expiration 2015-06-28
+contracts set USDBTC0W denominated_contract_ticker BTC
+contracts set USDBTC0W payout_contract_ticker USDBTC0W
+contracts set USDBTC0W margin_low 25
+contracts set USDBTC0W margin_high 50
+
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC lot_size 1000000
@@ -112,6 +123,9 @@ accounts set pendingwithdrawal type Liability
 
 accounts add adjustments
 accounts set adjustments type Asset
+
+accounts add clearing_USDBTC0W
+accounts set clearing_USDBTC0W type Asset
 
 admin add admin
 """

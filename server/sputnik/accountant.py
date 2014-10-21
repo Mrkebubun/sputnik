@@ -1208,6 +1208,7 @@ class Accountant:
                     note)
             debit = create_posting("Clearing", position.username, position.contract.ticker,
                     position_calculated, 'debit', note)
+
             for posting in credit, debit:
                 posting['count'] = position_count * 2
                 posting['uid'] = uid
@@ -1220,14 +1221,18 @@ class Accountant:
             credit = create_posting("Clearing", position.username,
                                     position.contract.denominated_contract_ticker, cash_spent, 'credit',
                                     note)
-            debit = create_posting("Clearing", position.username,
-                                   position.contract.payout_contract_ticker, position_calculated, 'debit',
-                                   note)
             clearing = create_posting("Clearing", "clearing_%s" % position.contract.ticker,
                                    position.contract.denominated_contract_ticker, cash_spent, 'debit',
                                    note)
+
+            # This is a simple two posting journal entry
+            small_uid = util.get_uid()
+            for posting in credit, clearing:
+                posting['count'] = 2
+                posting['uid'] = small_uid
+
             self.accountant_proxy.remote_post(clearing['username'], clearing)
-            d = self.post_or_fail(credit, debit)
+            d = self.post_or_fail(credit)
 
             def set_reference_price(result):
                 try:
@@ -1237,7 +1242,15 @@ class Accountant:
                     self.session.rollback()
                     raise e
 
-                return result
+                debit = create_posting("Clearing", position.username,
+                                       position.contract.payout_contract_ticker, position_calculated, 'debit',
+                                       note)
+
+                # This one is big journal entry has to encompass everything
+                debit['count'] = position_count
+                debit['uid'] = uid
+                d = self.post_or_fail(debit)
+                return d
 
             d.addCallback(set_reference_price).addErrback(log.err)
             return d

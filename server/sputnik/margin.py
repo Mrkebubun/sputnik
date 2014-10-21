@@ -7,6 +7,9 @@ from twisted.python import log
 import models
 import util
 
+class MarginException(Exception):
+    pass
+
 
 def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
@@ -52,15 +55,23 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             print 'SAFE_PRICE :', SAFE_PRICE
             print 'position.reference_price :', position.reference_price
             print position
+            if position.reference_price is None:
+                if position.position != 0:
+                    raise MarginException("No reference price with non-zero position")
+
+                reference_price = SAFE_PRICE
+            else:
+                reference_price = position.reference_price
+
             # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
             low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
-                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
-                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             high_max = abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
-                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
-                position.reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             log.msg(low_max)
             log.msg(low_min)
 
