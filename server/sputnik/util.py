@@ -115,7 +115,7 @@ def timestamp_to_dt(timestamp):
     return datetime.utcfromtimestamp(timestamp/1e6)
 
 def get_cash_spent(contract, price, quantity):
-    if contract.contract_type == "futures" or contract.contract_type == "predictions":
+    if contract.contract_type == "futures" or contract.contract_type == "prediction":
         cash_float = float(quantity * price * contract.lot_size) / contract.denominator
     else:
         payout_contract = contract.payout_contract

@@ -46,32 +46,34 @@ class FakeAccountantProxy(accountant.AccountantExport):
 
 class TestAccountantBase(TestSputnik):
     def setUp(self):
-        self.run_leo(accountant_init)
-        from sputnik import accountant
-        from sputnik import ledger
-        from sputnik import cashier
-        from sputnik import engine2
+        # This can't be run by itself because it needs TestSputnik.setUp
+        if self.__class__.__name__ != "TestAccountantBase":
+            self.run_leo(accountant_init)
+            from sputnik import accountant
+            from sputnik import ledger
+            from sputnik import cashier
+            from sputnik import engine2
 
-        self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
-                        "NETS2015": engine2.AccountantExport(FakeEngine())}
-        self.webserver = FakeComponent("webserver")
-        self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
-        self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
-        self.alerts_proxy = FakeComponent("alerts")
-        #self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
-        self.accountant = accountant.Accountant(self.session, self.engines,
-                                                self.cashier,
-                                                self.ledger,
-                                                self.webserver,
-                                                None,
-                                                self.alerts_proxy,
-                                                debug=True,
-                                                trial_period=False)
-        self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
-        self.cashier_export = accountant.CashierExport(self.accountant)
-        self.administrator_export = accountant.AdministratorExport(self.accountant)
-        self.webserver_export = accountant.WebserverExport(self.accountant)
-        self.engine_export = accountant.EngineExport(self.accountant)
+            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
+                            "NETS2015": engine2.AccountantExport(FakeEngine())}
+            self.webserver = FakeComponent("webserver")
+            self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
+            self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
+            self.alerts_proxy = FakeComponent("alerts")
+            #self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
+            self.accountant = accountant.Accountant(self.session, self.engines,
+                                                    self.cashier,
+                                                    self.ledger,
+                                                    self.webserver,
+                                                    None,
+                                                    self.alerts_proxy,
+                                                    debug=True,
+                                                    trial_period=False)
+            self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
+            self.cashier_export = accountant.CashierExport(self.accountant)
+            self.administrator_export = accountant.AdministratorExport(self.accountant)
+            self.webserver_export = accountant.WebserverExport(self.accountant)
+            self.engine_export = accountant.EngineExport(self.accountant)
 
 class TestAccountantAudit(TestAccountantBase):
     def setUp(self):

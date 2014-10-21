@@ -558,7 +558,7 @@ class Position(db.Base, QuantityUI):
     position = Column(BigInteger)
     position_checkpoint = Column(BigInteger, server_default="0")
     position_cp_timestamp = Column(DateTime)
-    reference_price = Column(BigInteger, nullable=False, server_default="0")
+    reference_price = Column(BigInteger, nullable=True)
     pending_postings = Column(BigInteger, server_default="0", nullable="False")
 
     @property

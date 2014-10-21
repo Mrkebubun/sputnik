@@ -590,31 +590,35 @@ class Administrator:
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
 
-    def clear_contract(self, ticker, price_ui):
+    def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)
-        price = util.price_to_wire(contract, price_ui)
+
+        if price_ui is not None:
+            price = util.price_to_wire(contract, price_ui)
+        else:
+            price = None
+
         uid = util.get_uid()
 
         # Don't try to clear if the contract is not active
         if not contract.active:
             return
 
-        # Mark contract inactive
-        try:
-            contract.active = False
-            self.session.add(contract)
-            self.session.commit()
-        except Exception as e:
-            log.err("Unable to mark contract inactive %s" % e)
-        else:
-            d = self.accountant.clear_contract(None, ticker, price, uid)
-            # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
-            # We need to make sure that the timeout here is long, because clear_contract
-            # won't return for a while
-            #
-            # How do we ensure that the accountants know that it is reactivated?
-            # send a ZMQ message to them all?
+        d = self.accountant.clear_contract(None, ticker, price, uid)
 
+        # If the contract is expired, mark it inactive once clearing is done
+        if contract.expired:
+            def mark_inactive(result):
+                try:
+                    contract.active = False
+                    self.session.commit()
+                except Exception as e:
+                    self.session.rollback()
+                    raise e
+
+            d.addCallback(mark_inactive)
+
+        return d
 
     def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
@@ -866,7 +870,7 @@ class AdminAPI(Resource):
             data)
 
     def process_request(self, request, data=None):
-        if self.avatarLevel < 4:
+        if self.avatarLevel < 5:
             raise Exception("Insufficient privileges to run Admin API")
 
         resources = {'/api/withdrawals': self.withdrawals,
@@ -874,6 +878,7 @@ class AdminAPI(Resource):
                      '/api/process_withdrawal': self.process_withdrawal,
                      '/api/manual_deposit': self.manual_deposit,
                      '/api/rescan_address': self.rescan_address,
+                     '/api/clear_contract': self.clear_contract,
         }
         if request.path in resources:
             return resources[request.path](request, data)
@@ -892,6 +897,19 @@ class AdminAPI(Resource):
     def rescan_address(self, request, data):
         self.administrator.cashier.rescan_address(data['address'])
         return {'result': True}
+
+    def clear_contract(self, request, data):
+        if 'price' not in data:
+            d = self.administrator.clear_contract(data['ticker'])
+        else:
+            d = self.administrator.clear_contract(data['ticker'], float(data['price']))
+
+        def process_done(result):
+            request.write(json.dumps({'result': True}))
+            request.finish()
+
+        d.addCallback(process_done)
+        return NOT_DONE_YET
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
@@ -926,8 +944,11 @@ class AdminAPI(Resource):
         except Exception as e:
             result = {"error": str(e)}
 
-        return json.dumps(result, sort_keys=True,
-                          indent=4, separators=(',', ': '))
+        if result == NOT_DONE_YET:
+            return result
+        else:
+            return json.dumps(result, sort_keys=True,
+                              indent=4, separators=(',', ': '))
 
 
 class AdminWebUI(Resource):
@@ -1117,8 +1138,13 @@ class AdminWebUI(Resource):
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
-        return redirectTo("/contracts", request)
+        d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        def clearing_done(result):
+            request.write(redirectTo('/contracts', request).encode('utf-8'))
+            request.finish()
+
+        d.addCallback(clearing_done)
+        return NOT_DONE_YET
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()

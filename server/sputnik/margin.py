@@ -105,7 +105,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             if order.side == 'SELL':
                 max_cash_spent[order.contract.payout_contract.ticker] += order.quantity_left
                 if order.contract.denominated_contract.ticker in fees:
-                    fees[order.contract.denominated_contract.ticker] = max(0, fees[order.contract.denominated_contract.ticker] - transaction_size_int)
+                    fees[order.contract.denominated_contract.ticker] = max(0, fees[order.contract.denominated_contract.ticker] - transaction_size)
 
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee

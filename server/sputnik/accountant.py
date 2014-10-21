@@ -56,6 +56,7 @@ DISABLED_USER = AccountantException(4, "Account disabled. Please try again in fi
 CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
 CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
 NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
+CONTRACT_CLEARING = AccountantException(9, "Contract in clearing process")
 CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
 
 class Accountant:
@@ -102,6 +103,7 @@ class Accountant:
 
         self.webserver = webserver
         self.disabled_users = {}
+        self.clearing_contracts = {}
         self.accountant_number = accountant_number
 
     def post_or_fail(self, *postings):
@@ -302,8 +304,12 @@ class Accountant:
         contract = self.get_contract(ticker)
 
         try:
-            return self.session.query(models.Position).filter_by(
+            position = self.session.query(models.Position).filter_by(
                 user=user, contract=contract).one()
+            if position.reference_price is None and reference_price is not None:
+                position.reference_price = reference_price
+                self.session.add(position)
+            return position
         except NoResultFound:
             log.msg("Creating new position for %s on %s." %
                           (username, contract))
@@ -461,7 +467,8 @@ class Accountant:
             denominated_contract = contract.denominated_contract
             payout_contract = contract
             future_position = self.get_position(user, contract, price)
-            # Make sure the position goes into the db with this reference price
+            # Make sure the position goes into the db with this reference price,
+            # if it doesn't already have a reference price
             try:
                 self.session.add(future_position)
                 self.session.commit()
@@ -504,7 +511,11 @@ class Accountant:
         timestamp = transaction["timestamp"]
         uid = transaction["uid"]
 
+        if ticker in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         contract = self.get_contract(ticker)
+
         if not contract.active:
             raise CONTRACT_NOT_ACTIVE
 
@@ -748,6 +759,9 @@ class Accountant:
         :type order: dict
         :returns: tuple -- (True/False, Result/Error)
         """
+        if order["contract"] in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         user = self.get_user(order["username"])
         contract = self.get_contract(order["contract"])
 
@@ -1127,24 +1141,29 @@ class Accountant:
             return
 
     def clear_contract(self, username, ticker, price, uid):
+        if ticker in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         contract = self.get_contract(ticker)
+
+        if not contract.active:
+            raise CONTRACT_NOT_ACTIVE
 
         if contract.expiration is None:
             raise NON_CLEARING_CONTRACT
 
-        # TODO: If it's an early clearing, don't check for contract expiration
-        if contract.expiration >= datetime.utcnow():
+        # For early clearing we don't pass in a price, we use safe_price
+        if contract.expiration >= datetime.utcnow() and price is not None:
             raise CONTRACT_NOT_EXPIRED
 
-        if contract.active:
-            # Mark contract inactive
-            try:
-                contract.active = False
-                # self.session.add(contract)
-                self.session.commit()
-            except Exception as e:
-                self.session.rollback()
-                log.err("Unable to mark contract inactive %s" % e)
+        if contract.expiration < datetime.utcnow() and price is None:
+            raise CONTRACT_EXPIRED
+
+        if price is None:
+            price = self.safe_prices[ticker]
+
+        # Mark contract as clearing
+        self.clearing_contracts[ticker] = True
 
         my_users = [user.username for user in self.get_my_users()]
 
@@ -1156,6 +1175,7 @@ class Accountant:
 
         def after_cancellations(results):
             # Wait until all pending postings have gone through
+            # TODO: use sql SUM here
             pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
                 models.Position.username.in_(my_users))
             if sum([row[0] for row in pending_postings]) > 0:
@@ -1166,6 +1186,10 @@ class Accountant:
                 my_positions = all_positions.filter(models.Position.username.in_(my_users))
                 results = [self.clear_position(position, price, position_count, uid) for position in my_positions]
                 d = defer.DeferredList(results)
+                def reactivate_contract(result):
+                    del self.clearing_contracts[ticker]
+
+                d.addCallback(reactivate_contract)
 
             return d
 
@@ -1175,19 +1199,51 @@ class Accountant:
     def clear_position(self, position, price, position_count, uid):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
-        cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
+        if position.contract.contract_type == "prediction":
 
-        note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
-        credit = create_posting("Clearing", position.username,
-                position.contract.denominated_contract.ticker, cash_spent, 'credit',
-                note)
-        debit = create_posting("Clearing", position.username, position.contract.payout_contract.ticker,
-                position_calculated, 'debit', note)
-        for posting in credit, debit:
-            posting['count'] = position_count * 2
-            posting['uid'] = uid
+            cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
+            note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
+            credit = create_posting("Clearing", position.username,
+                    position.contract.denominated_contract.ticker, cash_spent, 'credit',
+                    note)
+            debit = create_posting("Clearing", position.username, position.contract.ticker,
+                    position_calculated, 'debit', note)
+            for posting in credit, debit:
+                posting['count'] = position_count * 2
+                posting['uid'] = uid
 
-        return self.post_or_fail(credit, debit).addErrback(log.err)
+            return self.post_or_fail(credit, debit).addErrback(log.err)
+
+        elif position.contract.contract_type == "futures":
+            cash_spent = util.get_cash_spent(position.contract, price - position.reference_price, position_calculated)
+            note = "Clearing transaction for %s at %d / %d" % (position.contract.ticker, price, position.reference_price)
+            credit = create_posting("Clearing", position.username,
+                                    position.contract.denominated_contract_ticker, cash_spent, 'credit',
+                                    note)
+            debit = create_posting("Clearing", position.username,
+                                   position.contract.payout_contract_ticker, position_calculated, 'debit',
+                                   note)
+            clearing = create_posting("Clearing", "clearing_%s" % position.contract.ticker,
+                                   position.contract.denominated_contract_ticker, cash_spent, 'debit',
+                                   note)
+            self.accountant_proxy.remote_post(clearing['username'], clearing)
+            d = self.post_or_fail(credit, debit)
+
+            def set_reference_price(result):
+                try:
+                    position.reference_price = price
+                    self.session.commit()
+                except Exception as e:
+                    self.session.rollback()
+                    raise e
+
+                return result
+
+            d.addCallback(set_reference_price).addErrback(log.err)
+            return d
+        else:
+            raise NotImplementedError
+
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
