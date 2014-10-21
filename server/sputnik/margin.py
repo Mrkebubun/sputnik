@@ -18,7 +18,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     low_margin = high_margin = 0
 
-    cash_position = {}
+    cash_position = collections.defaultdict(int)
 
     # let's start with positions
     positions = {position.contract_id: position for position in
@@ -101,19 +101,27 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             if transaction_size_float != transaction_size_int:
                 log.err("Position change is not an integer.")
 
+            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
+
             if order.side == 'BUY':
                 max_cash_spent[denominated_contract.ticker] += transaction_size_int
+                if payout_contract.ticker in fees:
+                    fees[payout_contract.ticker] = max(0, fees[payout_contract.ticker] - order.quantity_left)
             if order.side == 'SELL':
                 max_cash_spent[payout_contract.ticker] += order.quantity_left
+                if denominated_contract.ticker in fees:
+                    fees[denominated_contract.ticker] = max(0, fees[denominated_contract.ticker] - transaction_size_int)
+
         elif order.contract.contract_type == 'prediction':
             transaction_size_float = order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
             transaction_size_int = int(transaction_size_float)
             if transaction_size_int != transaction_size_float:
                 log.err("Position change is not an integer")
+            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
+
         else:
             raise NotImplementedError
 
-        fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee
 
@@ -133,7 +141,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
         if cash_ticker == 'BTC':
             additional_margin = max_spent
         else:
-            if cash_ticker in cash_position and max_spent <= cash_position[cash_ticker]:
+            if max_spent <= cash_position[cash_ticker]:
                 additional_margin = 0
             else:
                 additional_margin = 2**48
