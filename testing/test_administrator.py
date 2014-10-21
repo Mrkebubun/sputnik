@@ -147,8 +147,8 @@ class TestWebserverExport(TestAdministrator):
         audit = self.webserver_export.get_audit()
         for side in ['Asset', 'Liability']:
             for currency in audit[side].keys():
-                total = sum([x[1] for x in audit[side][currency]['positions']])
-                self.assertEqual(audit[side][currency]['total'], total)
+                total = sum([float(x[1]) for x in audit[side][currency]['positions']])
+                self.assertAlmostEqual(float(audit[side][currency]['total_fmt']), total)
 
     def test_make_account_success(self):
         self.add_address(address='new_address_without_user')
@@ -514,11 +514,12 @@ class TestAdministratorWebUI(TestAdministrator):
         self.create_account('test', 'address_test')
         request = StupidRequest([''],
                                 path='/rescan_address',
-                                args={'address': ['address_test']})
+                                args={'address': ['address_test'],
+                                      'username': ['test']})
         d = self.render_test_helper(self.web_ui_factory(1), request)
 
         def rendered(ignored):
-            self.assertRegexpMatches(''.join(request.written), '<title>User List</title>')
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
             self.assertTrue(
                 self.administrator.cashier.component.check_for_calls([('rescan_address', ('address_test',), {})]))
 

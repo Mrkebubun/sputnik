@@ -128,6 +128,7 @@ corresponding server objects. Each is encoded in JSON.
      type: "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment"
      note: "note about the transaction"
      direction: "debit|credit"
+     balance: 234523
 }
 ```
 
@@ -332,4 +333,5 @@ Each event is a ```fill``` object.
 ### transactions#USERNAME
 
 Each event updates the user when a balance in their account changes, due to withdrawals, deposits, trades, fees,
-transfers, adjustments-- anything. Each event is a ```transaction``` object
+transfers, adjustments-- anything. Each event is a ```transaction``` object, but without the `balance` field.
+

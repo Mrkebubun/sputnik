@@ -10,19 +10,13 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import config
-import database
-import models
 import sys
 import collections
 from datetime import datetime
-from util import ChainedOpenSSLContextFactory
-import util
-from sendmail import Sendmail
-from watchdog import watchdog
-from accountant import AccountantProxy
-
-from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
+import json
+import copy
+import string
+import pickle
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -30,30 +24,33 @@ from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
-
 from zope.interface import implements
-
 from twisted.internet import reactor, defer
 from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
-from twisted.cred.checkers import AllowAnonymousAccess, ICredentialsChecker
+from twisted.cred.checkers import ICredentialsChecker
 from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import json
-
 import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import copy
-
-import string, Crypto.Random.random
+import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
-
 from autobahn.wamp1.protocol import WampCraProtocol
+from dateutil import parser
+
+import config
+import database
+import models
+from util import ChainedOpenSSLContextFactory
+import util
+from sendmail import Sendmail
+from watchdog import watchdog
+from accountant import AccountantProxy
+from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
-import pickle
 
 
 class AdministratorException(Exception): pass
@@ -304,7 +301,7 @@ class Administrator:
 
         # Now email the token
         log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email, user.nickname),
+        s = self.sendmail.send_mail(content, to_address=user.email,
                                     subject='Reset password link enclosed')
 
         return True
@@ -757,6 +754,13 @@ class Administrator:
         contract = util.get_contract(self.session, ticker)
         return contract
 
+    def edit_contract(self, ticker, args):
+        contract = self.get_contract(ticker)
+        for key, value in args.iteritems():
+            setattr(contract, key, value)
+
+        self.session.commit()
+
     @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
@@ -1016,7 +1020,8 @@ class AdminWebUI(Resource):
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
                       '/ledger': self.ledger,
-                      '/new_permission_group': self.new_permission_group
+                      '/new_permission_group': self.new_permission_group,
+                      '/edit_contract': self.edit_contract
                      },
                     # Level 4
                      {
@@ -1097,6 +1102,19 @@ class AdminWebUI(Resource):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
         return t.render(contracts=contracts).encode('utf-8')
+
+    def edit_contract(self, request):
+        ticker = request.args['ticker'][0]
+        args = {}
+        for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
+            if key in request.args:
+                args[key] = request.args[key][0]
+
+        if "expiration" in request.args:
+            args['expiration'] = parser.parse(request.args['expiration'][0])
+
+        self.administrator.edit_contract(ticker, args)
+        return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
         self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))

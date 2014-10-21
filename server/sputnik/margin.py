@@ -20,7 +20,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     low_margin = high_margin = 0
 
-    cash_position = {}
+    cash_position = collections.defaultdict(int)
 
     # let's start with positions
     positions = {position.contract_id: position for position in
@@ -94,17 +94,22 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     # Deal with cash_pair orders separately because there are no cash_pair positions
     for order in open_orders:
+        fees = util.get_fees(username, order.contract, order.price, order.quantity, trial_period=trial_period)
+        
         if order.contract.contract_type == 'cash_pair':
             transaction_size = util.get_cash_spent(order.contract, order.price, order.quantity)
             if order.side == 'BUY':
                 max_cash_spent[order.contract.denominated_contract.ticker] += transaction_size
-
+                if order.contract.payout_contract.ticker in fees:
+                    fees[order.contract.payout_contract.ticker] = max(0, fees[order.contract.payout_contract.ticker] - order.quantity_left)
             if order.side == 'SELL':
                 max_cash_spent[order.contract.payout_contract.ticker] += order.quantity_left
+                if order.contract.denominated_contract.ticker in fees:
+                    fees[order.contract.denominated_contract.ticker] = max(0, fees[order.contract.denominated_contract.ticker] - transaction_size_int)
 
-        fees = util.get_fees(username, order.contract, order.price, order.quantity, trial_period=trial_period)
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee
+
 
 
     # Make sure max_cash_spent has something in it for every cash contract
@@ -121,7 +126,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
         if cash_ticker == 'BTC':
             additional_margin = max_spent
         else:
-            if cash_ticker in cash_position and max_spent <= cash_position[cash_ticker]:
+            if max_spent <= cash_position[cash_ticker]:
                 additional_margin = 0
             else:
                 additional_margin = 2**48

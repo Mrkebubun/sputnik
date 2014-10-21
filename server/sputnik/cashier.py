@@ -29,6 +29,7 @@ import base64
 from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
+import markdown
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -480,7 +481,10 @@ class Cashier():
 
     def get_deposit_instructions(self, ticker):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        return contract.deposit_instructions
+        return markdown.markdown(contract.deposit_instructions, extensions=["markdown.extensions.extra",
+                                                                            "markdown.extensions.sane_lists",
+                                                                            "markdown.extensions.nl2br"
+                                                                            ])
 
 class CompropagoHook(Resource):
     """

@@ -269,8 +269,25 @@ class Accountant:
         debit["uid"] = uid
         return self.post_or_fail(credit, debit).addErrback(log.err)
 
+    def get_position_value(self, username, ticker):
+        """Return the numeric value of a user's position for a contact. If it does not exist, return 0.
+
+        :param username: the username
+        :type username: str, models.User
+        :param ticker: the contract
+        :type ticker: str, models.User
+        :returns: int -- the position value
+        """
+        user = self.get_user(username)
+        contract = self.get_contract(ticker)
+        try:
+            return self.session.query(models.Position).filter_by(
+                user=user, contract=contract).one().position
+        except NoResultFound:
+            return 0
+
     def get_position(self, username, ticker, reference_price=None):
-        """Return a user's position for a contact. If it does not exist, initialize it
+        """Return a user's position for a contact. If it does not exist, initialize it. WARNING: If a position is created, it will be added to the session.
 
         :param username: the username
         :type username: str, models.User
@@ -292,16 +309,16 @@ class Accountant:
                           (username, contract))
             position = models.Position(user, contract)
             position.reference_price = reference_price
-            # self.session.add(position)
+            self.session.add(position)
             return position
 
     def check_margin(self, username, low_margin, high_margin):
-        cash_position = self.get_position(username, "BTC")
+        cash = self.get_position_value(username, "BTC")
 
         log.msg("high_margin = %d, low_margin = %d, cash_position = %d" %
-                     (high_margin, low_margin, cash_position.position))
+                     (high_margin, low_margin, cash))
 
-        if high_margin > cash_position.position:
+        if high_margin > cash:
             return False
         else:
             return True
@@ -343,7 +360,17 @@ class Accountant:
         # Make sure there is a position in the contract, if it is not a cash_pair
         # cash_pairs don't have positions
         if order.contract.contract_type != "cash_pair":
-            self.get_position(order.username, order.contract)
+            try:
+                position = self.get_position(order.username, order.contract)
+                # this should be unnecessary, but just in case
+                self.session.add(position)
+                self.session.commit()
+            except Exception, e:
+                self.session.rollback()
+                log.err(e)
+                log.err("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
+                self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
+                #TODO: DO NOT INITIALIZE POSITION HERE
 
         low_margin, high_margin = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id,
@@ -881,8 +908,7 @@ class Accountant:
             total_deposited_at_address = self.session.query(models.Addresses).filter_by(address=address).one()
             contract = total_deposited_at_address.contract
 
-            user_cash_position = self.get_position(total_deposited_at_address.username,
-                                                   contract.ticker)
+            user_cash = self.get_position_value(total_deposited_at_address.username, contract.ticker)
             user = self.get_user(total_deposited_at_address.user)
 
             # compute deposit _before_ marking amount as accounted for
@@ -924,7 +950,7 @@ class Accountant:
             else:
                 deposit_limit = float("inf")
 
-            potential_new_position = user_cash_position.position + deposit
+            potential_new_position = user_cash + deposit
             excess_deposit = 0
             if not user.permissions.deposit:
                 log.err("Deposit of %d failed for address=%s because user %s is not permitted to deposit" %
@@ -1231,8 +1257,7 @@ class CashierExport(ComponentExport):
     @export
     @schema("rpc/accountant.cashier.json#get_position")
     def get_position(self, username, ticker):
-        position = self.accountant.get_position(username, ticker)
-        return position.position
+        return self.accountant.get_position_value(username, ticker)
 
 class AccountantExport(ComponentExport):
     """Accountant private chit chat link

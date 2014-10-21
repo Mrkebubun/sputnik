@@ -1,43 +1,3 @@
-[program:engine_BTC_MXN]
-command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/MXN
-autorestart = true
-exitcodes = 0
-redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-directory = ${root}/server/sputnik/
-user=${user}
-
-[program:engine_BTC_HUF]
-command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/HUF
-autorestart = true
-exitcodes = 0
-redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-directory = ${root}/server/sputnik/
-user=${user}
-
-[program:engine_BTC_PLN]
-command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini BTC/PLN
-autorestart = true
-exitcodes = 0
-redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-directory = ${root}/server/sputnik/
-user=${user}
-
-[program:engine_NETS2014]
-command = ${root}/server/sputnik/engine2.py${pycompiled} -c ${conf}/sputnik.ini NETS2014
-autorestart = true
-exitcodes = 0
-redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
-stdout_logfile_backups = 3
-directory = ${root}/server/sputnik/
-user=${user}
-
 [program:accountant]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini %(process_num)d
 process_name = %(program_name)s_%(process_num)d
@@ -125,7 +85,7 @@ command=crashmail -a -m ${alert_email} -o ${webserver_address}
 events=PROCESS_STATE_EXITED
 
 [eventlistener:memmon]
-command=memmon -a 200MB -m ${alert_email}
+command=memmon -a ${memmon_size} -m ${alert_email}
 events=TICK_60
 
 [group:engines]

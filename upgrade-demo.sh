@@ -6,7 +6,12 @@ git pull -u origin
 rm -rf install/profiles/demo
 cp -r /srv/autodeploy/demo/profile install/profiles/demo
 PROFILE_NAME=demo
-HOSTNAME=demo.m2.io
+HOSTNAME=ec2-54-187-247-12.us-west-2.compute.amazonaws.com
+
+HASH=`ssh ${HOSTNAME} cat /srv/sputnik/server/config/sputnik.ini | grep git_hash | awk '{ print $3 }'`
+echo "Replacing version: ${HASH}"
+echo ${HASH} >> /srv/autodeploy/demo/versions
+
 make clean
 echo "[aux]" > aux.ini
 PROFILE=install/profiles/${PROFILE_NAME} make tar

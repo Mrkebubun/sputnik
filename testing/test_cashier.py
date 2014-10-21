@@ -198,7 +198,7 @@ class TestWebserverExport(TestCashier):
 
     def test_get_deposit_instructions(self):
         instructions = self.webserver_export.get_deposit_instructions('BTC')
-        self.assertEqual(instructions, "Please send your crypto-currency to this address")
+        self.assertEqual(instructions,  u'<p>Please send your crypto-currency to this address</p>')
 
 
 class TestAdministratorExport(TestCashier):

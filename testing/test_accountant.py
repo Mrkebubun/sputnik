@@ -758,7 +758,8 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        # We should not need MXN to sell BTC for MXN
+        #self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         from sputnik import util
@@ -783,6 +784,12 @@ class TestWebserverExport(TestAccountant):
             self.assertEqual(order.price, 1000000)
             self.assertEqual(order.quantity, 3000000)
             self.assertEqual(order.side, 'SELL')
+
+            # Check margin
+            from sputnik import margin
+            margin = margin.calculate_margin('test', self.session)
+            self.assertEqual(margin[0], 3000000)
+            self.assertEqual(margin[1], 3000000)
             from sputnik import engine2
             self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
                                                                                 (engine2.Order(**{'contract': 5,
@@ -981,7 +988,8 @@ class TestWebserverExport(TestAccountant):
         self.add_address("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 'MXN')
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
-        self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        # We should not need MXN to sell BTC for MXN
+        #self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
