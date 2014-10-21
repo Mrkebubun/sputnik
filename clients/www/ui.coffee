@@ -148,13 +148,16 @@ $ ->
                 sputnik.requestWithdrawal(ticker, amount, address)
 
             buykey: (event) ->
-                buy_price_str = $('#buy_price').val()
-                if buy_price_str == ''
+                buy_price_str = ractive.get("buy_price")
+                buy_quantity_str = ractive.get("buy_quantity")
+                if not buy_price_str
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-
+                if not buy_quantity_str
+                    buy_quantity_str = "0"
                 buy_price = Number(buy_price_str)
+                buy_quantity = Number(buy_quantity_str)
 
-                if not sputnik.canPlaceOrder(Number($("#buy_quantity").val()), buy_price, ractive.get("current_ticker"), 'BUY')
+                if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
                     $("#buy_alert").show()
                     $("#buyButton").hide()
                 else
@@ -162,12 +165,16 @@ $ ->
                     $("#buyButton").show()
 
             sellkey: (event) ->
-                sell_price_str = $('#sell_price').val()
-                if sell_price_str == ''
+                sell_price_str = ractive.get("sell_price")
+                sell_quantity_str = ractive.get("sell_quantity")
+                if not sell_price_str
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-
+                if not sell_quantity_str == ''
+                    sell_quantity_str = "0"
                 sell_price = Number(sell_price_str)
-                if not sputnik.canPlaceOrder(Number($("#sell_quantity").val()), sell_price, ractive.get("current_ticker"), 'SELL')
+                sell_quantity = Number(sell_quantity_str)
+
+                if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
                     $("#sell_alert").show()
                     $("#sellButton").hide()
                 else
@@ -294,10 +301,21 @@ $ ->
             sort_all_orders: (event, column) ->
                 ractive.set("all_orders_sort_column", column)
 
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker
             if new_ticker?
+                ractive.set "buy_price", ""
+                ractive.set "buy_quantity", ""
+                ractive.set "sell_price", ""
+                ractive.set "sell_quantity", ""
+                # TODO: change this to a template {{if}}
+                $("#buy_alert").hide()
+                $("#buyButton").show()
+                $("#sell_alert").hide()
+                $("#sellButton").show()
+
                 sputnik.openMarket new_ticker
                 showChart new_ticker
 

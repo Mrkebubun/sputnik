@@ -261,13 +261,13 @@
                                                             <p>Price</p>
 
                                                             <form class="content-push7">
-                                                                <input type="text" id="buy_price" name="price" class="form-control field" placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
+                                                                    <input type="text" id="buy_price" name="price" class="form-control field" value="{{buy_price}}" placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
                                                             <form>
-                                                                <input type="text" id="buy_quantity" name="quantity" class="form-control field" on-keyup="buykey">
+                                                                    <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                     </div>
@@ -290,15 +290,14 @@
                                                         <div class="col-sm-6">
                                                             <p>Price</p>
                                                             <form class="content-push7">
-                                                                <input type="text" id="sell_price" name="price" class="form-control field"
-                                                                        placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
+                                                                    <input type="text" id="sell_price" name="price" class="form-control field" value="{{sell_price}}" placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
 
                                                             <form>
-                                                                <input type="text" id="sell_quantity" name="quantity" class="form-control field" on-keyup="sellkey">
+                                                                    <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                     </div>
