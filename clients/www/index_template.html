@@ -348,7 +348,7 @@
                                     <div class="col-sm-6 col-lg-4 recent-trades-box">
                                         <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">Recent Trades</a>
                                         <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">Order Book</a>
-                                        <select class="form-control trades-select" value="{{tb_tab}}">
+                                        <select class="form-control trades-select trades-mobile-push" value="{{tb_tab}}">
                                             <option value="trades" selected="selected">Recent Trades</option>
                                             <option value="book">Order Book</option>
                                         </select>
@@ -358,7 +358,7 @@
                                             <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th class="recent-price">Price</th>
+                                                    <th class="recent-price recent-price-nudge">Price</th>
                                                     <th class="recent-quantity">Qty</th>
                                                     <th class="recent-time">Time</th>
                                                 </tr>
@@ -380,11 +380,11 @@
                                         <div id="book" class="book-box scroll-box">
                                             <div class="row">
                                                 <div class="col-xs-6">
-                                                    BIDS
+                                                    <div class="bids-background"><p class="heading-bids">BIDS</p></div>
                                                     <table id="bids-table" class="table-header">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price">Price</th>
+                                                                <th class="recent-price recent-price-nudge">Price</th>
                                                                 <th class="recent-quantity">Quantity</th>
                                                             </tr>
                                                         </thead>
@@ -398,8 +398,8 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <div class="col-xs-6">
-                                                    ASKS
+                                                <div class="col-xs-6" style="margin-right:-15px;">
+                                                    <div class="asks-background"><p class="heading-asks">ASKS</p></div>
                                                     <table id="asks-table" class="table-header">
                                                         <thead>
                                                             <tr>
