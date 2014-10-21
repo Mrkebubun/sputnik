@@ -37,6 +37,18 @@ class Profile:
         self.read_config_status()
         self.read_aux_config()
 
+    def resolve_profile_dir(self, target, base_profile=None):
+        profile_store = os.path.join(self.git_root, "install", "profiles")
+        search = []
+        if base_profile:
+            search.append(os.path.normpath(os.path.join(base_profile, target)))
+        search.append(os.path.join(profile_store, target))
+        for candidate in search:
+            if os.path.isdir(candidate):
+                if os.path.isfile(os.path.join(candidate, "profile.ini")):
+                    return candidate
+        raise Exception("Cannot find profile: %s." % target)
+
     def read_aux_config(self):
         parser = ConfigParser.SafeConfigParser()
         parsed = parser.read([os.path.join(self.git_root, "aux.ini"),
@@ -69,9 +81,7 @@ class Profile:
         if parser.has_option("meta", "inherits"):
             inherits = parser.get("meta", "inherits")
             for parent in shlex.split(inherits):
-                if "/" not in parent:
-                    parent = os.path.join(profile, "..", parent)
-                self.read_profile_dir(parent)
+                self.read_profile_dir(self.resolve_profile_dir(parent, profile))
 
         # If these haven't been set anywhere upstream, default them
         if "user" not in self.config:
