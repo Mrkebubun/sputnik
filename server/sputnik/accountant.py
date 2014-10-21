@@ -820,7 +820,8 @@ class Accountant:
         d.addErrback(self.raiseException)
         d.addCallback(mark_order_dispatched)
         d.addCallback(publish_order)
-        return d
+
+        return o.id
 
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         """Transfer a position from one user to another
