@@ -261,13 +261,13 @@
                                                             <p>Price</p>
 
                                                             <form class="content-push7">
-                                                                <input type="text" id="buy_price" name="price" class="form-control field" placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
+                                                                    <input type="text" id="buy_price" name="price" class="form-control field" value="{{buy_price}}" placeholder="{{sputnik.books[current_ticker].best_ask.price}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
                                                             <form>
-                                                                <input type="text" id="buy_quantity" name="quantity" class="form-control field" on-keyup="buykey">
+                                                                    <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                     </div>
@@ -290,15 +290,14 @@
                                                         <div class="col-sm-6">
                                                             <p>Price</p>
                                                             <form class="content-push7">
-                                                                <input type="text" id="sell_price" name="price" class="form-control field"
-                                                                        placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
+                                                                    <input type="text" id="sell_price" name="price" class="form-control field" value="{{sell_price}}" placeholder="{{sputnik.books[current_ticker].best_bid.price}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
                                                             <p>Quantity</p>
 
                                                             <form>
-                                                                <input type="text" id="sell_quantity" name="quantity" class="form-control field" on-keyup="sellkey">
+                                                                    <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                     </div>
@@ -349,7 +348,7 @@
                                     <div class="col-sm-6 col-lg-4 recent-trades-box">
                                         <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">Recent Trades</a>
                                         <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">Order Book</a>
-                                        <select class="form-control trades-select" value="{{tb_tab}}">
+                                        <select class="form-control trades-select trades-mobile-push" value="{{tb_tab}}">
                                             <option value="trades" selected="selected">Recent Trades</option>
                                             <option value="book">Order Book</option>
                                         </select>
@@ -359,7 +358,7 @@
                                             <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th class="recent-price">Price</th>
+                                                    <th class="recent-price recent-price-nudge">Price</th>
                                                     <th class="recent-quantity">Qty</th>
                                                     <th class="recent-time">Time</th>
                                                 </tr>
@@ -381,11 +380,11 @@
                                         <div id="book" class="book-box scroll-box">
                                             <div class="row">
                                                 <div class="col-xs-6">
-                                                    BIDS
+                                                    <div class="bids-background"><p class="heading-bids">BIDS</p></div>
                                                     <table id="bids-table" class="table-header">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price">Price</th>
+                                                                <th class="recent-price recent-price-nudge">Price</th>
                                                                 <th class="recent-quantity">Quantity</th>
                                                             </tr>
                                                         </thead>
@@ -399,8 +398,8 @@
                                                         </tbody>
                                                     </table>
                                                 </div>
-                                                <div class="col-xs-6">
-                                                    ASKS
+                                                <div class="col-xs-6" style="margin-right:-15px;">
+                                                    <div class="asks-background"><p class="heading-asks">ASKS</p></div>
                                                     <table id="asks-table" class="table-header">
                                                         <thead>
                                                             <tr>
@@ -508,23 +507,27 @@
                                     <table class="table-full">
                                         <thead>
                                             <tr>
-                                                <th class="table-contract">Contract</th>
-                                                <th class="table-type2">Type</th>
-                                                <th class="table-price">Price</th>
-                                                <th class="table-quantity">Quantity</th>
+                                                <th class="table-contract sortable" on-click="sort_all_orders:contract">Contract</th>
+                                                <th class="table-type2 sortable" on-click="sort_all_orders:type">Type</th>
+                                                <th class="table-price sortable" on-click="sort_all_orders:price">Price</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:quantity">Quantity</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:timestamp">Timestamp</th>
                                                 <th class="table-cancel">Cancel</th>
 
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {{#sputnik.orders:id}}
+                                            {{# sort(values(sputnik.orders), all_orders_sort_column)}}
                                             <tr class="cells">
                                                 <td class="cell-contract">{{contract}}</td>
                                                 <td class="cell-type2">{{side}}</td>
                                                 <td class="cell-price">{{price}}</td>
                                                 <td class="cell-quantity">{{quantity_left}}</td>
+                                                <td class="cell-timestamp">{{timestamp}}</td>
                                                 <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                             </tr>
+                                            {{else}}
+                                            <tr class="cells"><td colspan="100" align="center">No open orders</td></tr>
                                             {{/}}
                                         </tbody>
                                     </table>
