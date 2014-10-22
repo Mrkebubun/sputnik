@@ -155,12 +155,24 @@ $ ->
                 buy_price = Number(buy_price_str)
                 buy_quantity = Number(buy_quantity_str)
 
+                alerts = []
                 if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                    $("#buy_alert").show()
-                    $("#buyButton").hide()
+                    alerts.push "Balance too low"
+
+                if not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
+                    alerts.push "Price invalid"
+
+                if not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
+                    alerts.push "Quantity invalid"
+
+                if alerts.length
+                    $('#buy_alert').text alerts.join(', ')
+                    $('#buy_alert').show()
+                    $('#buyButton').hide()
                 else
-                    $("#buy_alert").hide()
-                    $("#buyButton").show()
+                    $('#buy_alert').hide()
+                    $('#buyButton').show()
+
 
             sellkey: (event) ->
                 sell_price_str = ractive.get("sell_price")
@@ -172,12 +184,24 @@ $ ->
                 sell_price = Number(sell_price_str)
                 sell_quantity = Number(sell_quantity_str)
 
+                alerts = []
                 if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                    $("#sell_alert").show()
-                    $("#sellButton").hide()
+                    alerts.push "Balance too low"
+
+                if not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
+                    alerts.push "Price invalid"
+
+                if not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
+                    alerts.push "Quantity invalid"
+
+                if alerts.length
+                    $('#sell_alert').text alerts.join(', ')
+                    $('#sell_alert').show()
+                    $('#sellButton').hide()
                 else
-                    $("#sell_alert").hide()
-                    $("#sellButton").show()
+                    $('#sell_alert').hide()
+                    $('#sellButton').show()
+
 
             buy: (event) ->
                 event.original.preventDefault()

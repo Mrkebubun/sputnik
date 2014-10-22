@@ -360,6 +360,24 @@ class @Sputnik extends EventEmitter
             transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
 
+    checkPriceValidity: (ticker, price) =>
+        if price != @priceFromWire(ticker, @priceToWire(ticker, price))
+            return false
+        else if @markets[ticker].contract_type == "prediction" and price > 1
+            return false
+        else if price <= 0
+            return false
+        else
+            return true
+
+    checkQuantityValidity: (ticker, quantity) =>
+        if quantity != @quantityFromWire(ticker, @quantityToWire(ticker, quantity))
+            return false
+        else if quantity <= 0
+            return false
+        else
+            return true
+
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
