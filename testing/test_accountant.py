@@ -141,6 +141,71 @@ class TestAccountant(TestAccountantBase):
         self.session.merge(user)
         self.session.commit()
 
+class TestMargin(TestAccountant):
+    def setUp(self):
+        TestAccountant.setUp(self)
+        self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+    def create_position(self, username, ticker, quantity):
+        from sputnik import models
+        user = self.session.query(models.User).filter_by(username=username).one()
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        from sqlalchemy.orm.exc import NoResultFound
+        try:
+            position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
+            position.position = quantity
+            self.session.commit()
+        except NoResultFound:
+            position = models.Position(user, contract, quantity)
+            self.session.add(position)
+
+        self.session.commit()
+
+    def create_order(self, username, ticker, quantity, price, side, accepted=True):
+        from sputnik import models
+        user = self.session.query(models.User).filter_by(username=username).one()
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        order = models.Order(user, contract, quantity, price, side)
+        order.accepted = accepted
+        self.session.add(order)
+        self.session.commit()
+        return order.id
+
+    def cancel_order(self, id):
+        from sputnik import models
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        order.is_cancelled = True
+        self.session.commit()
+
+    def test_cash_pairs_only(self):
+        # 1 BTC
+        self.create_position('test', 'BTC', 100000000)
+        # 1 Peso
+        self.create_position('test', 'MXN', 10000)
+
+        # No orders
+        from sputnik import margin
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        self.assertEqual(low_margin, 0)
+        self.assertEqual(high_margin, 0)
+        self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 0})
+
+        # With a BUY order
+        id = self.create_order('test', 'BTC/MXN', 50000000, 5000, 'BUY')
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        self.assertEqual(low_margin, 0)
+        self.assertEqual(high_margin, 0)
+        # 2500 for the trade, and 10 for the fee
+        self.assertDictEqual(max_cash_spent, {'MXN': 2510, 'BTC': 0})
+        self.cancel_order(id)
+
+        # With a SELL order
+        id = self.create_order('test', 'BTC/MXN', 50000000, 500, 'SELL')
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        self.assertEqual(low_margin, 50000000)
+        self.assertEqual(high_margin, 50000000)
+        self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 50000000})
+
 
 class TestCashierExport(TestAccountant):
     def test_deposit_cash_permission_allowed(self):
@@ -843,7 +908,7 @@ class TestWebserverExport(TestAccountant):
         # Check to make sure margin is right
         from sputnik import margin
 
-        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin('test', self.session)
         self.assertEqual(low_margin, 1500000 + 7500)
         self.assertEqual(high_margin, 1500000 + 7500)
 
@@ -887,7 +952,7 @@ class TestWebserverExport(TestAccountant):
         # Check to make sure margin is right
         from sputnik import margin
 
-        [low_margin, high_margin] = margin.calculate_margin('test', self.session)
+        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin('test', self.session)
         self.assertEqual(low_margin, 2700000 + 1500)
         self.assertEqual(high_margin, 2700000 + 1500)
 
