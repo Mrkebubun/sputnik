@@ -1,3 +1,4 @@
 #!/bin/bash
 
-cp -r ${profile_git_root}/dist/clients/www/* ${profile_www_root}
+cp ${base_profile}/res/terms.html ${profile_www_root}
+
