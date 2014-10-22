@@ -29,20 +29,20 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
     positions = {position.contract_id: position.dict for position in
                  session.query(models.Position).filter_by(username=username)}
 
-    # get all contracts which might have a position, set them to 0
-    contracts = session.query(models.Contract).filter(models.Contract.contract_type != 'cash_pair')
-    for contract in contracts:
-        if contract.id not in positions:
-            positions[contract.id] = {'position': 0,
-                                      'reference_price': None,
-                                      'contract': contract
-            }
-
     open_orders = session.query(models.Order).filter_by(username=username).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
     if order_id:
         open_orders += session.query(models.Order).filter_by(id=order_id).all()
+
+    # Make a blank position for all contracts which have an open order but no position
+    for order in open_orders:
+        if order.contract.id not in positions:
+            positions[order.contract.id] = {
+                'position': 0,
+                'reference_price': None,
+                'contract': order.contract
+            }
 
     for position in positions.values():
 
