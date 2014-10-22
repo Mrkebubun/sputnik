@@ -6,6 +6,7 @@ import shutil
 import fnmatch
 import shlex
 import string
+import re
 import copy
 import subprocess
 import optparse
@@ -13,6 +14,8 @@ import ConfigParser
 import getpass
 import compileall
 import cStringIO
+import tarfile
+import tempfile
 
 # __file__ may be a relative path, and this causes problem when we chdir
 __file__ = os.path.abspath(__file__)
@@ -32,6 +35,8 @@ class Profile:
         self.install = []
         self.post_install = []
         self.upgrade = []
+        
+        self.profile_chain = []
 
         self.read_profile_dir(self.profile)
         self.read_config_status()
@@ -64,6 +69,7 @@ class Profile:
             raise Exception("Profile dependency is circular.")
         self.cache.append(profile)
 
+        self.profile_chain.append(profile)
 
         # while it would be nice, we cannot reuse the parser since we might
         # read a reference to a profile that must be parsed first
@@ -450,6 +456,47 @@ class Installer():
         self.make_stage("upgrade")
         self.make_stage("post-install")
 
+    def make_tar(self):
+        temp = tempfile.mkdtemp()
+        sputnik = os.path.join(temp, "sputnik")
+        
+        # copy dist
+        dist = os.path.join(self.git_root, "dist")
+        shutil.copytree(dist, os.path.join(sputnik, "dist"))
+
+        # copy profiles
+        for profile in self.profile.profile_chain:
+            shutil.copytree(profile, os.path.join(sputnik, "install", "profiles", os.path.basename(profile)))
+       
+        # touch up sputnik.ini
+        ini_path = os.path.join(sputnik, "dist", "config", "sputnik.ini")
+        with open(ini_path, 'r') as ini_file:
+            lines = ini_file.readlines()
+        with open(ini_path, 'w') as ini_file:
+            for line in lines:
+                ini_file.write(re.sub(r"^(dbname = sputnik).*", r"\1", line))
+
+        # copy install.py and Makefile
+        shutil.copy(os.path.join(self.git_root, "install", "install.py"), os.path.join(sputnik, "install", "install.py"))
+        with open(os.path.join(self.git_root, "Makefile")) as makefile:
+            make = makefile.read()
+        with open(os.path.join(sputnik, "Makefile"), 'w') as makefile:
+            name = os.path.basename(self.profile.profile)
+            makefile.write("export PROFILE=install/profiles/%s\n" % name)
+            makefile.write("\n")
+            makefile.write(make)
+
+        # make tar file
+        cwd = os.getcwd()
+        os.chdir(self.git_root)
+        with tarfile.open("sputnik.tar", 'w') as tar:
+            os.chdir(temp)
+            tar.add("sputnik")
+        os.chdir(cwd)
+
+        # clean up
+        shutil.rmtree(temp)
+
     def version(self):
         p = subprocess.Popen(
                 ["/usr/bin/git", "log", "--pretty=format:%H%n%aD", "-1"],
@@ -537,6 +584,8 @@ def main():
                 print "export profile_%s=\"%s\"" % (key, value)
         elif mode == "version":
             print installer.version()
+        elif mode == "tar":
+            installer.make_tar()
         else:
             sys.stderr.write("Install mode not recognized.\n")
             sys.stderr.flush()
