@@ -39,9 +39,7 @@ class RactiveSputnikWrapper
         @sputnik.on "transaction_history", (history) =>
             @transaction_history = {}
             for item in history
-                item.quantity = item.quantity.toFixed(@sputnik.getQuantityPrecision(item.contract))
-                item.balance = item.balance.toFixed(@sputnik.getQuantityPrecision(item.contract))
-                if item.contract of @transaction_history
+                if @transaction_history[item.contract]?
                     @transaction_history[item.contract].push item
                 else
                     @transaction_history[item.contract] = [item]
@@ -87,10 +85,8 @@ class RactiveSputnikWrapper
                     @position_contracts[ticker] = market
 
                     if not @positions[ticker]?
-                        zero = 0
                         @positions[ticker] =
-                            position: zero
-                            position_fmt: zero.toFixed(sputnik.getQuantityPrecision(ticker))
+                            position: 0
 
             @notify "markets"
             @notify "types"
@@ -121,14 +117,6 @@ class RactiveSputnikWrapper
                     price: 0
                     quantity: 0
 
-            for entry in @books[ticker].bids
-                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
-                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
-
-            for entry in @books[ticker].asks
-                entry.price = entry.price.toFixed(@sputnik.getPricePrecision(ticker))
-                entry.quantity = entry.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
-
             if book.asks.length
                 @books[ticker].best_ask = book.asks[0]
             if book.bids.length
@@ -140,9 +128,6 @@ class RactiveSputnikWrapper
             @sputnik.log ["trade_history", trade_history]
             for ticker, history of trade_history
                 @trade_history[ticker] = history.reverse()
-                for trade in @trade_history[ticker]
-                    trade.price = trade.price.toFixed(@sputnik.getPricePrecision(ticker))
-                    trade.quantity = trade.quantity.toFixed(@sputnik.getQuantityPrecision(ticker))
 
             @notify "trade_history"
 
@@ -151,7 +136,7 @@ class RactiveSputnikWrapper
             for ticker, position of positions
                 if @markets[ticker]?.contract_type isnt "cash_pair"
                     @positions[ticker] = position
-                    @positions[ticker].position_fmt = position.position.toFixed(@sputnik.getQuantityPrecision(ticker))
+
             sputnik.log ["positions", @positions]
             @notify "positions"
 
@@ -182,10 +167,6 @@ class RactiveSputnikWrapper
         sputnik.on "orders", (orders) =>
             @sputnik.log ["orders", orders]
             @orders = orders
-            for id, order of @orders
-                order.price = order.price.toFixed(@sputnik.getPricePrecision(order.contract))
-                order.quantity = order.quantity.toFixed(@sputnik.getQuantityPrecision(order.contract))
-                order.quantity_left = order.quantity_left.toFixed(@sputnik.getQuantityPrecision(order.contract))
 
             @notify "orders"
 
@@ -198,13 +179,6 @@ class RactiveSputnikWrapper
                 update_ohlcv(ohlcv)
 
         update_ohlcv = (ohlcv) =>
-            ohlcv.close = ohlcv.close.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
-            ohlcv.high = ohlcv.high.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
-            ohlcv.low = ohlcv.low.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
-            ohlcv.open = ohlcv.open.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
-            ohlcv.vwap = ohlcv.vwap.toFixed(@sputnik.getPricePrecision(ohlcv.contract))
-            ohlcv.volume = ohlcv.volume.toFixed(@sputnik.getQuantityPrecision(ohlcv.contract))
-
             if ohlcv.contract of @ohlcv
                 @ohlcv[ohlcv.contract][ohlcv.period] = ohlcv
             else

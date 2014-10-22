@@ -42,6 +42,10 @@ $ ->
                 format_time: (datetime) ->
                     if datetime?
                         new Date(datetime/1000).toLocaleString()
+                format_price: (ticker, price) ->
+                    Number(price).toFixed(sputnik.getPricePrecision(ticker))
+                format_quantity: (ticker, quantity) ->
+                    Number(quantity).toFixed(sputnik.getQuantityPrecision(ticker))
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
                 values: (obj) -> (value for key, value of obj)
