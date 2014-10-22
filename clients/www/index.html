@@ -70,6 +70,18 @@
       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
       })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
     </script>
+
+    <script type="text/javascript">
+    // http://webcheatsheet.com/javascript/disable_enter_key.php
+
+    function stopRKey(evt) {
+      var evt = (evt) ? evt : ((event) ? event : null);
+      var node = (evt.target) ? evt.target : ((evt.srcElement) ? evt.srcElement : null);
+      if ((evt.keyCode == 13) && (node.type=="text"))  {return false;}
+    }
+
+    document.onkeypress = stopRKey;
+    </script>
 </head>
 <body>
     <div id="target"></div>
