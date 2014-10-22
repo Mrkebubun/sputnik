@@ -19,6 +19,7 @@ class @Sputnik extends EventEmitter
         audit_secret: null
     chat_messages: []
     connected: false
+    safe_prices: {}
 
     constructor: (@uri) ->
 
@@ -43,13 +44,11 @@ class @Sputnik extends EventEmitter
     follow: (market) =>
         @subscribe "book##{market}", @onBook
         @subscribe "trades##{market}", @onTrade
-        @subscribe "safe_prices##{market}", @onSafePrice
         @subscribe "ohlcv##{market}", @onOHLCV
 
     unfollow: (market) =>
         @unsubscribe "book##{market}"
         @unsubscribe "trades##{market}"
-        @unsubscribe "safe_prices##{market}"
         @unsubscribe "ohlcv##{market}", @onOHLCV
 
     # authentication and account management
@@ -381,7 +380,7 @@ class @Sputnik extends EventEmitter
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             # Prediction contracts always have integer quantity
             quantity = quantity - quantity % 1
         else
@@ -393,7 +392,7 @@ class @Sputnik extends EventEmitter
 
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             price = price * contract.denominator
         else
             price = price * source.denominator * contract.denominator
@@ -403,14 +402,14 @@ class @Sputnik extends EventEmitter
 
     quantityFromWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             return quantity
         else
             return quantity / target.denominator
 
     priceFromWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             return price / contract.denominator
         else
             return price / (source.denominator * contract.denominator)
@@ -421,6 +420,13 @@ class @Sputnik extends EventEmitter
             cash_spent[ticker] = @quantityFromWire(ticker, cash)
 
         return cash_spent
+
+    safePricesFromWire: (safe_prices_wire) =>
+        safe_prices = @copy(safe_prices_wire)
+        for ticker, price of safe_prices
+            safe_prices[ticker] = @priceFromWire(ticker, price)
+
+        return safe_prices
 
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
@@ -538,7 +544,6 @@ class @Sputnik extends EventEmitter
             @emit "request_withdrawal_fail", error
 
     # account/position information
-    getSafePrices: () =>
     getOpenOrders: () =>
         @call("get_open_orders").then \
             (@orders) =>
@@ -577,6 +582,10 @@ class @Sputnik extends EventEmitter
         @getOHLCVHistory ticker, "day"
 
         @follow ticker
+
+    getSafePrices: (ticker) =>
+        @call("get_safe_prices", [ticker]).then (safe_prices) ->
+            @onSafePrice(ticker)(safe_prices[ticker])
 
     getOrderBook: (ticker) =>
         @call("get_order_book", ticker).then @onBook
@@ -656,6 +665,7 @@ class @Sputnik extends EventEmitter
 
         @call("get_markets").then @onMarkets, @wtf
         @call("get_exchange_info").then @onExchangeInfo, @wtf
+        @call("get_safe_prices").then @onSafePrices, @wtf
         @subscribe "chat", @onChat
         # TODO: Are chats private? Do we want them for authenticated users only?
         @call("get_chat_history").then \
@@ -678,11 +688,14 @@ class @Sputnik extends EventEmitter
     # default RPC callbacks
 
     onMarkets: (@markets) =>
-        for ticker of markets
+        for ticker, market of @markets
             @markets[ticker].trades = []
             @markets[ticker].bids = []
             @markets[ticker].asks = []
             @markets[ticker].ohlcv = {day: {}, hour: {}, minute: {}}
+
+            if market.contract_type == "futures"
+                @subscribe "safe_prices##{ticker}", @onSafePrice(ticker)
 
         @log ["Markets", @markets]
         @emit "markets", @markets
@@ -771,6 +784,15 @@ class @Sputnik extends EventEmitter
         @cleanTradeHistory(ticker)
         @emitTradeHistory(ticker)
 
+    onSafePrice: (ticker) =>
+        (safe_price) =>
+            @safe_prices[ticker] = safe_price
+            @emit "safe_prices", @safePricesFromWire(@safe_prices)
+
+    onSafePrices: (@safe_prices) =>
+        @emit "safe_prices", @safePricesFromWire(@safe_prices)
+
+
     onChat: (event) =>
         user = event[0]
         message = event[1]
@@ -845,7 +867,6 @@ class @Sputnik extends EventEmitter
     calculateMargin: (new_order) =>
         low_margin = 0
         high_margin = 0
-        #TODO: add futures here
 
         orders = (order for id, order of @orders)
         if new_order?
@@ -862,8 +883,27 @@ class @Sputnik extends EventEmitter
             min_position = position.position - sell_quantities.reduce sum, 0
 
             if contract.contract_type is "futures"
-                # NOT IMPLEMENTED
-                @err "Futures not implemented"
+                SAFE_PRICE = @safe_prices[ticker]
+                if position.reference_price is null
+                    if position.position != 0
+                        @err "No reference price with non-zero position"
+                    reference_price = SAFE_PRICE
+                else
+                    reference_price = position.reference_price
+
+                # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
+                low_max = Math.abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                low_min = Math.abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_max = Math.abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_min = Math.abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+
+                high_margin += Math.max(high_max, high_min)
+                low_margin += Math.max(low_max, low_min)
+
             else if contract.contract_type == "prediction"
                 payoff = contract.lot_size
                 spending = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY")
