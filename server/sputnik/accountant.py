@@ -372,7 +372,7 @@ class Accountant:
                 self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
                 #TODO: DO NOT INITIALIZE POSITION HERE
 
-        low_margin, high_margin = margin.calculate_margin(
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id,
             trial_period=self.trial_period)
 
@@ -820,7 +820,8 @@ class Accountant:
         d.addErrback(self.raiseException)
         d.addCallback(mark_order_dispatched)
         d.addCallback(publish_order)
-        return d
+
+        return o.id
 
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         """Transfer a position from one user to another
@@ -883,7 +884,7 @@ class Accountant:
                 raise DISABLED_USER
 
             # Check margin now
-            low_margin, high_margin = margin.calculate_margin(username,
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(username,
                     self.session, self.safe_prices,
                     withdrawals={ticker:amount},
                     trial_period=self.trial_period)

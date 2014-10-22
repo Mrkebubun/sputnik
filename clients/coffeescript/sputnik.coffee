@@ -441,7 +441,7 @@ class @Sputnik extends EventEmitter
           price: price
           contract: ticker
           side: side
-      [low_margin, high_margin] = @calculateMargin @orderToWire new_order
+      [low_margin, high_margin, max_cash_spent] = @calculateMargin @orderToWire new_order
       cash_position = @positions["BTC"].position
       return high_margin <= cash_position
 
@@ -531,8 +531,9 @@ class @Sputnik extends EventEmitter
                         orders[id] = @orderFromWire(order)
 
                 @emit "orders", orders
-                [low_margin, high_margin] = @calculateMargin()
+                [low_margin, high_margin, max_cash_spent] = @calculateMargin()
                 @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+                @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     getPositions: () =>
         @call("get_positions").then \
@@ -544,8 +545,9 @@ class @Sputnik extends EventEmitter
                         positions[ticker] = @positionFromWire(position)
 
                 @emit "positions", positions
-                [low_margin, high_margin] = @calculateMargin()
+                [low_margin, high_margin, max_cash_spent] = @calculateMargin()
                 @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+                @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
@@ -779,8 +781,9 @@ class @Sputnik extends EventEmitter
 
         @emit "orders", orders
 
-        [low_margin, high_margin] = @calculateMargin()
+        [low_margin, high_margin, max_cash_spent] = @calculateMargin()
         @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     # Fills don't update my cash, transaction feed does
     onFill: (fill) =>
@@ -810,8 +813,9 @@ class @Sputnik extends EventEmitter
             positions[ticker] = @positionFromWire(position)
 
         @emit "positions", positions
-        [low_margin, high_margin] = @calculateMargin()
+        [low_margin, high_margin, max_cash_spent] = @calculateMargin()
         @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     availableToWithdraw: (ticker) =>
         margin = @calculateMargin()
@@ -823,7 +827,7 @@ class @Sputnik extends EventEmitter
     calculateMargin: (new_order) =>
         low_margin = 0
         high_margin = 0
-        #TODO: add futures and contracts here
+        #TODO: add futures here
 
         orders = (order for id, order of @orders)
         if new_order?
@@ -893,8 +897,7 @@ class @Sputnik extends EventEmitter
 
         @log ["Margin:", low_margin, high_margin]
         @log ["cash_spent", max_cash_spent]
-        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
-        return [low_margin, high_margin]
+        return [low_margin, high_margin, max_cash_spent]
 
 if module?
     module.exports =

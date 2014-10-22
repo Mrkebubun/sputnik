@@ -144,11 +144,13 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             if max_spent <= cash_position[cash_ticker]:
                 additional_margin = 0
             else:
+                # TODO: We should fix this hack and just check max_cash_spent in check_margin
+                log.msg("max_spent (%d) > cash_position[%s] (%d)" % (max_spent, cash_ticker, cash_position[cash_ticker]))
                 additional_margin = 2**48
 
         low_margin += additional_margin
         high_margin += additional_margin
 
-    return low_margin, high_margin
+    return low_margin, high_margin, max_cash_spent
 
 
