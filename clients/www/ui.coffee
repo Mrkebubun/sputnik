@@ -247,7 +247,8 @@ $ ->
                 if isNaN end_timestamp
                     end = new Date()
                     end.setDate(now.getDate())
-                    end_timestamp = end.getTime() * 1000
+                    # Add a day because we want the end of the day not the beginning
+                    end_timestamp = end.getTime() * 1000 + 3600 * 24 * 1000000
                     $('#transactions_end_date').val(end.toDateString())
 
                 sputnik.getTransactionHistory(start_timestamp, end_timestamp)
@@ -578,6 +579,7 @@ $ ->
           ga('require', 'linkid', 'linkid.js')
           ga('require', 'displayfeatures')
           ga('send', 'pageview')
+          document.title = exchange_info.name
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])
