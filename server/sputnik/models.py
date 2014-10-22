@@ -570,6 +570,13 @@ class Position(db.Base, QuantityUI):
         """
         return self.position
 
+    @property
+    def dict(self):
+        return {'user': self.user,
+                'contract': self.contract,
+                'position': self.position,
+                'reference_price': self.reference_price}
+
     def __init__(self, user, contract, position=0):
         """
 

@@ -26,8 +26,17 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
     cash_position = collections.defaultdict(int)
 
     # let's start with positions
-    positions = {position.contract_id: position for position in
+    positions = {position.contract_id: position.dict for position in
                  session.query(models.Position).filter_by(username=username)}
+
+    # get all contracts which might have a position, set them to 0
+    contracts = session.query(models.Contract).filter(models.Contract.contract_type != 'cash_pair')
+    for contract in contracts:
+        if contract.id not in positions:
+            positions[contract.id] = {'position': 0,
+                                      'reference_price': None,
+                                      'contract': contract
+            }
 
     open_orders = session.query(models.Order).filter_by(username=username).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
@@ -37,31 +46,31 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     for position in positions.values():
 
-        max_position = position.position + sum(
+        max_position = position['position'] + sum(
             order.quantity_left for order in open_orders if
-            order.contract == position.contract and order.side == 'BUY')
-        min_position = position.position - sum(
+            order.contract == position['contract'] and order.side == 'BUY')
+        min_position = position['position'] - sum(
             order.quantity_left for order in open_orders if
-            order.contract == position.contract and order.side == 'SELL')
+            order.contract == position['contract'] and order.side == 'SELL')
 
-        contract = position.contract
+        contract = position['contract']
 
         if contract.contract_type == 'futures':
-            SAFE_PRICE = safe_prices[position.contract.ticker]
+            SAFE_PRICE = safe_prices[position['contract'].ticker]
 
             log.msg(low_margin)
             print 'max position:', max_position
             print 'contract.margin_low :', contract.margin_low
             print 'SAFE_PRICE :', SAFE_PRICE
-            print 'position.reference_price :', position.reference_price
+            print 'position.reference_price :', position['reference_price']
             print position
-            if position.reference_price is None:
-                if position.position != 0:
+            if position['reference_price'] is None:
+                if position['position'] != 0:
                     raise MarginException("No reference price with non-zero position")
 
                 reference_price = SAFE_PRICE
             else:
-                reference_price = position.reference_price
+                reference_price = position['reference_price']
 
             # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
             low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
@@ -99,7 +108,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             high_margin += additional_margin
 
         if contract.contract_type == 'cash':
-            cash_position[contract.ticker] = position.position
+            cash_position[contract.ticker] = position['position']
 
     max_cash_spent = collections.defaultdict(int)
 

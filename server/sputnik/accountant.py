@@ -123,6 +123,7 @@ class Accountant:
         # Note: It is *important* that all invocations of post_or_fail attach
         #       an errback (even if it is just log.err) to catch the
         #       propogating error.
+        # We initialize positions here if they don't already exist
 
         def update_counters(increment=False):
             change = 1 if increment else -1
@@ -132,7 +133,7 @@ class Accountant:
                     position = self.get_position(
                             posting['username'], posting['contract'])
                     position.pending_postings += change
-                    # make sure the position exists
+                    # we might be initializing the position here, so make sure it is in db
                     self.session.add(position)
                 self.session.commit()
             except SQLAlchemyError, e:
@@ -363,21 +364,6 @@ class Accountant:
                 self.session.rollback()
             raise TRADE_NOT_PERMITTED
 
-        # Make sure there is a position in the contract, if it is not a cash_pair
-        # cash_pairs don't have positions
-        if order.contract.contract_type != "cash_pair":
-            try:
-                position = self.get_position(order.username, order.contract)
-                # this should be unnecessary, but just in case
-                self.session.add(position)
-                self.session.commit()
-            except Exception, e:
-                self.session.rollback()
-                log.err(e)
-                log.err("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
-                self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
-                #TODO: DO NOT INITIALIZE POSITION HERE
-
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(
             order.username, self.session, self.safe_prices, order.id,
             trial_period=self.trial_period)
@@ -460,36 +446,6 @@ class Accountant:
 
         return user_postings, vendor_postings, remainder_postings
 
-    def get_cash_spent(self, contract, price, quantity, user=None):
-        if contract.contract_type == "futures":
-            # We're not marking to market, we're keeping the same reference price
-            # and making a cashflow based on the reference price
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract
-            future_position = self.get_position(user, contract, price)
-            # Make sure the position goes into the db with this reference price,
-            # if it doesn't already have a reference price
-            try:
-                self.session.add(future_position)
-                self.session.commit()
-            except Exception as e:
-                log.err("Unable to add position %s to db" % future_position)
-            price = price - future_position.reference_price
-        elif contract.contract_type == "prediction":
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract
-        elif contract.contract_type == "cash_pair":
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract.payout_contract
-
-        else:
-            log.err("Unknown contract type '%s'." %
-                          contract.contract_type)
-            raise NotImplementedError
-
-        cash_spent = util.get_cash_spent(contract, price, quantity)
-        return denominated_contract, payout_contract, cash_spent
-
     def post_transaction(self, username, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
 
@@ -549,21 +505,24 @@ class Accountant:
         denominated_contract = contract.denominated_contract
         payout_contract = contract.payout_contract
 
+        # Initialize the position here if it doesn't exist already
         if contract.contract_type == "futures":
             # We're not marking to market, we're keeping the same reference price
             # and making a cashflow based on the reference price
             denominated_contract = contract.denominated_contract
             payout_contract = contract
-            future_position = self.get_position(user, contract, price)
-            # Make sure the position goes into the db with this reference price
-            try:
-                self.session.add(future_position)
-                self.session.commit()
-            except Exception as e:
-                log.err("Unable to add position %s to db" % future_position)
-            cash_spent = util.get_cash_spent(contract, price - future_position.reference_price, quantity)
+            position = self.get_position(user, contract, price)
+            cash_spent = util.get_cash_spent(contract, price - position.reference_price, quantity)
         else:
+            position = self.get_position(user, contract)
             cash_spent = util.get_cash_spent(contract, price, quantity)
+
+        # Make sure the position goes into the db with this reference price
+        try:
+            self.session.add(position)
+            self.session.commit()
+        except Exception as e:
+            log.err("Unable to add position %s to db" % position)
 
         user_denominated = create_posting("Trade", username,
                 denominated_contract.ticker, cash_spent, denominated_direction,
