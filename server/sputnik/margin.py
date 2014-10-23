@@ -58,12 +58,12 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
         if contract.contract_type == 'futures':
             SAFE_PRICE = safe_prices[position['contract'].ticker]
 
-            log.msg(low_margin)
-            print 'max position:', max_position
-            print 'contract.margin_low :', contract.margin_low
-            print 'SAFE_PRICE :', SAFE_PRICE
-            print 'position.reference_price :', position['reference_price']
-            print position
+            #log.msg(low_margin)
+            # print 'max position:', max_position
+            # print 'contract.margin_low :', contract.margin_low
+            # print 'SAFE_PRICE :', SAFE_PRICE
+            # print 'position.reference_price :', position['reference_price']
+            # print position
             if position['reference_price'] is None:
                 if position['position'] != 0:
                     raise MarginException("No reference price with non-zero position")
@@ -81,8 +81,8 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
                 reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
             high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
                 reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
-            log.msg(low_max)
-            log.msg(low_min)
+            # log.msg(low_max)
+            # log.msg(low_min)
 
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
