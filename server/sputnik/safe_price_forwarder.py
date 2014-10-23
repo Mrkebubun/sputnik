@@ -16,33 +16,26 @@ A small fowarding service, every engine publishes their safe price to the fronte
 and every safe price consumer subscribes to this device.
 """
 
-import zmq
-
-
-
-def main():
-
-    try:
-        context = zmq.Context(1)
-        # Socket facing clients
-        frontend = context.socket(zmq.SUB)
-        frontend.bind(config.get("safe_price_forwarder", "zmq_frontend_address"))
-
-        frontend.setsockopt(zmq.SUBSCRIBE, "")
-
-        # Socket facing services
-        backend = context.socket(zmq.PUB)
-        backend.bind(config.get("safe_price_forwarder", "zmq_backend_address"))
-
-        zmq.device(zmq.FORWARDER, frontend, backend)
-    except Exception, e:
-        print e
-        print "bringing down zmq device"
-    finally:
-        pass
-        frontend.close()
-        backend.close()
-        context.term()
+from zmq_util import bind_subscriber, bind_publisher
+from twisted.internet import reactor
+from twisted.python import log
+import json
 
 if __name__ == "__main__":
-    main()
+    import sys
+    log.startLogging(sys.stdout)
+    subscriber = bind_subscriber(config.get("safe_price_forwarder", "zmq_frontend_address"))
+    publisher = bind_publisher(config.get("safe_price_forwarder", "zmq_backend_address"))
+
+    subscriber.subscribe("")
+
+    safe_prices = {}
+    def onPrice(*args):
+        update = json.loads(args[0])
+        log.msg("received update: %s" % update)
+        safe_prices.update(update)
+        publisher.publish(json.dumps(safe_prices))
+
+    subscriber.gotMessage = onPrice
+    reactor.run()
+

@@ -13,6 +13,7 @@ if options.filename:
 
 import sys
 import time
+import json
 import heapq
 
 import database
@@ -23,7 +24,7 @@ import util
 
 from twisted.internet import reactor
 from twisted.python import log
-from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
+from zmq_util import export, router_share_async, push_proxy_async, ComponentExport, connect_publisher
 from rpc_schema import schema
 from collections import defaultdict
 from datetime import datetime
@@ -429,11 +430,11 @@ class WebserverNotifier(EngineListener):
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, session, engine, accountant, webserver, contract):
+    def __init__(self, session, engine, accountant, webserver, forwarder, contract):
         self.session = session
         self.engine = engine
         self.contract = contract
-        #self.forwarder = forwarder
+        self.forwarder = forwarder
         self.accountant = accountant
         self.webserver = webserver
 
@@ -472,11 +473,10 @@ class SafePriceNotifier(EngineListener):
         if publish:
             self.publish_safe_price()
 
-
     def publish_safe_price(self):
         self.accountant.safe_prices(None, self.contract.ticker, self.safe_price)
         self.webserver.safe_prices(self.contract.ticker, self.safe_price)
-
+        self.forwarder.publish(json.dumps({self.contract.ticker: self.safe_price}))
 
 class AccountantExport(ComponentExport):
     def __init__(self, engine, safe_price_notifier):
@@ -543,7 +543,10 @@ if __name__ == "__main__":
 
     watchdog(config.get("watchdog", "engine") %
              (config.getint("watchdog", "engine_base_port") + contract.id))
-    safe_price_notifier = SafePriceNotifier(session, engine, accountant, webserver, contract)
+
+    forwarder = connect_publisher(config.get("safe_price_forwarder", "zmq_frontend_address"))
+
+    safe_price_notifier = SafePriceNotifier(session, engine, accountant, webserver, forwarder, contract)
     accountant_export = AccountantExport(engine, safe_price_notifier)
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
 

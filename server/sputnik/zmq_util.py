@@ -6,6 +6,7 @@ import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
+from txzmq import ZmqSubConnection, ZmqPubConnection
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import log
@@ -306,6 +307,21 @@ class SyncRouterExport(SyncExport):
         except Exception, e:
             exception(e)
 
+def bind_publisher(address):
+    socket = ZmqPubConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return socket
+
+def bind_subscriber(address):
+    socket = ZmqSubConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return socket
+
+def connect_publisher(address):
+    socket = ZmqPubConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return socket
+
+def connect_subscriber(address):
+    socket = ZmqSubConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return socket
 
 def router_share_async(obj, address):
     """
