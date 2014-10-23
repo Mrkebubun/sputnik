@@ -66,11 +66,14 @@ PROFILE_NOT_SET = AutoDeployException("Profile not set.")
 
 
 class Instance:
-    def __init__(self, customer=None, region=None, profile=None, key=None,
-                 verbose=False, safety=False, template=None, remote_command=None):
+    def __init__(self, customer=None, region=None, profile=None,
+                 key=None, verbose=False, safety=False, template=None,
+                 remote_command=None):
         self.customer = customer
         self.region = region
-        self.profile = profile
+        if profile == None:
+            profile = "awsrds"
+        self.base_profile = profile
         self.template = template
         self.key = key
         self.verbose = verbose
@@ -88,7 +91,8 @@ class Instance:
                                 self.customer
         self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
                                    self.customer
-        self.profile_dir = "/srv/autodeploy/%s/profile" % self.customer
+        self.profile_dir = "/srv/autodeploy/%s" % self.customer
+        self.profile_ini = os.path.join(self.profile_dir, "profile.ini")
         self.server_ssl_key_dir = "%s/keys" % self.profile_dir
 
         # default uninstalled state
@@ -434,44 +438,35 @@ class Instance:
                     raise COMMAND_FAILED
 
                 parser = ConfigParser.SafeConfigParser()
-                parser.add_section("aux")
-                parser.set("aux", "dbhost", self.get_output("DbAddress"))
-                parser.set("aux", "dbport", self.get_output("DbPort"))
-                parser.set("aux", "dbmasterpw", self.get_db_pass())
+                parser.read(self.profile_ini)
+                if not parser.has_section("meta"):
+                    parser.add_section("meta")
+                parser.set("meta", "name", self.customer)
+                parser.set("meta", "description", "")
+                parser.set("meta", "inherits", self.base_profile)
+                if not parser.has_section("profile"):
+                    parser.add_section("profile")
+                parser.set("profile", "dbhost", self.get_output("DbAddress"))
+                parser.set("profile", "dbport", self.get_output("DbPort"))
+                parser.set("profile", "dbmasterpw", self.get_db_pass())
 
                 # If there are no keys, turn off SSL and use the AWS DNS
                 if not (os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.key"))
                         and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
                         and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
-                    parser.set("aux", "use_ssl", "no")
-                    parser.set("aux", "webserver_address", self.get_output("PublicDNS"))
-                    parser.set("aux", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
-                    parser.set("aux", "webserver_port", "8888")
-                    parser.set("aux", "use_www", "yes")
+                    parser.set("profile", "use_ssl", "no")
+                    parser.set("profile", "webserver_address", self.get_output("PublicDNS"))
+                    parser.set("profile", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
+                    parser.set("profile", "webserver_port", "8888")
+                    parser.set("profile", "use_www", "yes")
                     print "http://%s:8888" % self.get_output("PublicDNS")
 
-                with open(os.path.join(git_root, "aux.ini"), "w") as f:
+                with open(self.profile_ini, "w") as f:
                     parser.write(f)
 
-                if self.profile is None:
-                    if os.path.isdir(self.profile_dir):
-                        self.profile = self.customer
-
-                        print "Copying profile"
-                        result = fabric.api.local("rm -rf install/profiles/%s" % self.profile)
-                        if result.failed:
-                            raise COMMAND_FAILED
-
-                        result = fabric.api.local("cp -r %s install/profiles/%s" % (self.profile_dir, self.profile))
-                        if result.failed:
-                            raise COMMAND_FAILED
-                    else:
-                        raise PROFILE_NOT_SET
-
-
                 print "Generating tarball..."
-                result = fabric.api.local("PROFILE=install/profiles/%s make tar" % \
-                                          self.profile)
+                result = fabric.api.local("PROFILE=%s make tar" % \
+                        self.profile_dir)
                 if result.failed:
                     raise COMMAND_FAILED
 
@@ -584,7 +579,7 @@ def main():
     parser_upgrade = subparsers.add_parser("upgrade", parents=[customer],
                                            help="Upgrade instance.")
     parser_upgrade.add_argument("--profile", dest="profile", action="store",
-                                required=True, help="Path to profile.")
+                                required=False, help="Path to base profile.")
     parser_query = subparsers.add_parser("query", parents=[customer],
                                          help="Query running instance for version.")
     parser_login = subparsers.add_parser("login", parents=[customer],
