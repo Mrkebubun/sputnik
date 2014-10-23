@@ -89,6 +89,9 @@ class MarketMakerBot(TradingBot):
             return
 
         for ticker, market in self.markets.iteritems():
+            new_ask = None
+            new_bid = None
+
             if market['contract_type'] == "cash_pair":
                 currency = market['denominated_contract_ticker']
 
@@ -107,9 +110,12 @@ class MarketMakerBot(TradingBot):
 
                 new_bid = btcusd_bid * bid
                 new_ask = btcusd_ask * ask
-                if ticker == "BTC/PLN":
-                    logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
+            if ticker == "USDBTC0W":
+                new_ask = 1/btcusd_bid * 1000
+                new_bid = 1/btcusd_ask * 1000
+
+            if new_ask is not None and new_bid is not None:
                 # Make sure that the marketwe are making isn't crossed
                 if new_bid > new_ask:
                     tmp = new_bid
@@ -133,10 +139,17 @@ class MarketMakerBot(TradingBot):
                     self.replaceBidAsk(ticker, new_ask, 'SELL')
                     self.replaceBidAsk(ticker, new_bid, 'BUY')
 
+
+
+
     def replaceBidAsk(self, ticker, new_ba, side):
         self.cancelOrders(ticker, side)
+        if self.markets[ticker]['contract_type'] == "futures":
+            quantity = 1
+        else:
+            quantity = 0.25
 
-        self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity), self.price_to_wire(ticker, new_ba), side)
 
     def monitorOrders(self):
         for ticker, market in self.external_markets.iteritems():

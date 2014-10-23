@@ -384,6 +384,13 @@ class WebserverNotifier(EngineListener):
         self.side_map = { OrderSide.BUY: "bids",
                           OrderSide.SELL: "asks"}
 
+        # Publish every 10 min no matter what
+        def regular_publish():
+            self.publish_book()
+            reactor.callLater(600, regular_publish)
+
+        reactor.callLater(600, regular_publish)
+
     def on_init(self):
         self.publish_book()
 
@@ -422,8 +429,10 @@ class WebserverNotifier(EngineListener):
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, engine, accountant, webserver):
+    def __init__(self, session, engine, accountant, webserver, contract):
+        self.session = session
         self.engine = engine
+        self.contract = contract
         #self.forwarder = forwarder
         self.accountant = accountant
         self.webserver = webserver
@@ -431,18 +440,26 @@ class SafePriceNotifier(EngineListener):
         self.ema_price_volume = 0
         self.ema_volume = 0
         self.decay = 0.9
+        self.safe_price = None
+        # Publish every 10 min no matter what
+        def regular_publish():
+            self.publish_safe_price()
+            reactor.callLater(600, regular_publish)
+
+        reactor.callLater(600, regular_publish)
 
     def on_init(self):
-        self.ticker = self.contract.ticker
-
-
-        trades = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).order_by(
+        trades = self.session.query(models.Trade).filter_by(contract=contract).order_by(
             models.Trade.timestamp)
+
         for trade in trades:
             self.update_safe_price(trade.price, trade.quantity, publish=False)
+        if self.safe_price is None:
+            self.safe_price = 42
+            log.msg(
+                    "warning, missing last trade for contract: %s. Using 42 as a stupid default" % self.contract.ticker)
 
-        self.accountant.safe_prices(None, engine.ticker, self.safe_price)
-        self.webserver.safe_prices(engine.ticker, self.safe_price)
+        self.publish_safe_price()
 
     def on_trade_success(self, order, passive_order, price, quantity):
         self.update_safe_price(price, quantity)
@@ -453,13 +470,18 @@ class SafePriceNotifier(EngineListener):
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
         if publish:
-            self.accountant.safe_prices(None, engine.ticker, self.safe_price)
-            self.webserver.safe_prices(engine.ticker, self.safe_price)
+            self.publish_safe_price()
+
+
+    def publish_safe_price(self):
+        self.accountant.safe_prices(None, self.contract.ticker, self.safe_price)
+        self.webserver.safe_prices(self.contract.ticker, self.safe_price)
 
 
 class AccountantExport(ComponentExport):
-    def __init__(self, engine):
+    def __init__(self, engine, safe_price_notifier):
         self.engine = engine
+        self.safe_price_notifier = safe_price_notifier
         ComponentExport.__init__(self, engine)
 
     @export
@@ -471,6 +493,12 @@ class AccountantExport(ComponentExport):
     @schema("rpc/engine.json#cancel_order")
     def cancel_order(self, id):
         return self.engine.cancel_order(id)
+
+    @export
+    @schema("rpc/engine.json#get_safe_price")
+    def get_safe_price(self):
+        return self.safe_price_notifier.safe_price
+
 
 class AdministratorExport(ComponentExport):
     def __init__(self, engine):
@@ -498,10 +526,8 @@ if __name__ == "__main__":
         raise e
 
     engine = Engine()
-    accountant_export = AccountantExport(engine)
     administrator_export = AdministratorExport(engine)
     accountant_port = config.getint("engine", "accountant_base_port") + contract.id
-    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
 
     administrator_port = config.getint("engine", "administrator_base_port") + contract.id
     router_share_async(administrator_export, "tcp://127.0.0.1:%d" % administrator_port)
@@ -517,7 +543,10 @@ if __name__ == "__main__":
 
     watchdog(config.get("watchdog", "engine") %
              (config.getint("watchdog", "engine_base_port") + contract.id))
-    safe_price_notifier = SafePriceNotifier(engine, accountant, webserver)
+    safe_price_notifier = SafePriceNotifier(session, engine, accountant, webserver, contract)
+    accountant_export = AccountantExport(engine, safe_price_notifier)
+    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
+
     engine.add_listener(logger)
     engine.add_listener(accountant_notifier)
     engine.add_listener(webserver_notifier)

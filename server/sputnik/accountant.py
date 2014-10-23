@@ -91,15 +91,11 @@ class Accountant:
         self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
-            try:
-                last_trade = self.session.query(models.Trade).filter_by(
-                    contract=contract).order_by(
-                    models.Trade.timestamp.desc()).first()
-                self.safe_prices[contract.ticker] = int(last_trade.price)
-            except:
-                log.msg(
-                    "warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
-                self.safe_prices[contract.ticker] = 42
+            d = self.engines[contract.ticker].get_safe_price()
+            def _cb(safe_price):
+                self.safe_prices[contract.ticker] = safe_price
+
+            d.addCallback(_cb)
 
         self.webserver = webserver
         self.disabled_users = {}

@@ -158,7 +158,7 @@ def chomsky(times=1, line_length=72):
     return textwrap.fill(' '.join(output), line_length).split('\n')
 
 class RandomBot(TradingBot):
-    place_all_random = False
+    place_all_random = True
 
     def startAutomationAfterAuth(self):
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
@@ -204,13 +204,15 @@ class RandomBot(TradingBot):
             elif self.place_all_random:
                 if contract['contract_type'] == "cash_pair":
                     price = self.price_from_wire(ticker, random.randint(0,1000) * contract['tick_size'])
+                elif contract['contract_type'] == "futures":
+                    price = self.price_from_wire(ticker, random.randint(0,1000) * contract['tick_size'])
                 else:
                     return
             else:
                 return
 
         # a qty somewhere between 0.5 and 2 BTC
-        if contract['contract_type'] == "prediction":
+        if contract['contract_type'] in ["prediction", "futures"]:
             quantity = random.randint(1, 4)
         else:
             quantity = float(random.randint(50, 200))/100

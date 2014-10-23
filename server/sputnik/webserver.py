@@ -190,9 +190,17 @@ class PublicInterface:
                             if trade['timestamp'] > dt_to_timestamp(start_dt_for_period[period]):
                                 self.factory.update_ohlcv(trade, period=period)
 
+                    if len(trades) and ticker not in self.factory.safe_prices:
+                        last_trade = trades[-1]
+                        # Set safe price to last trade on startup if we don't have it, will get overwritten
+                        self.factory.safe_prices[ticker] = last_trade['price']
+                    else:
+                        self.factory.safe_prices[ticker] = 42
+
                 dbpool.runQuery(
                     "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE",
+                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE "
+                    "ORDER BY trades.timestamp",
                     (ticker, from_dt)).addCallback(_cb2, ticker)
 
         return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
@@ -347,6 +355,17 @@ class PublicInterface:
                    if i['timestamp'] <= to_timestamp and i['timestamp'] >= from_timestamp]
 
         return [True, history]
+
+    @exportRpc("get_safe_prices")
+    def get_safe_prices(self, array_of_tickers=None):
+        """
+
+        :param array_of_tickers:
+        :returns: dict
+        """
+        if array_of_tickers is not None:
+            return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
+        return [True, self.factory.safe_prices]
 
     @exportRpc("get_order_book")
     def get_order_book(self, ticker):
@@ -1317,18 +1336,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
                                (order['contract'],)).addCallback(_cb)
-
-    @exportRpc("get_safe_prices")
-    def get_safe_prices(self, array_of_tickers):
-        """
-
-        :param array_of_tickers:
-        :returns: dict
-        """
-        validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
-        if array_of_tickers:
-            return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
-        return self.factory.safe_prices
 
     @exportRpc("cancel_order")
     def cancel_order(self, order_id):

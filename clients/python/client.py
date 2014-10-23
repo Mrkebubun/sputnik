@@ -41,6 +41,46 @@ import Crypto.Random.random
 from ConfigParser import ConfigParser
 from os import path
 
+from twisted.internet import stdio
+from twisted.protocols import basic
+import shlex
+
+class CommandLine(basic.LineReceiver):
+    from os import linesep as delimiter
+    def __init__(self, bot):
+        self.bot = bot
+
+    def connectionMade(self):
+        self.transport.write(">>> ")
+
+    def run_command(self, line):
+        tokens = shlex.split(line)
+        if len(tokens):
+            command = tokens[0]
+            args = tokens[1:]
+            try:
+                fn = getattr(self.bot, command)
+            except AttributeError:
+                print "Command %s not found" % command
+            else:
+                converted_args = []
+                for arg in args:
+                    try:
+                        arg_float = float(arg)
+                    except ValueError:
+                        converted_args.append(arg)
+                    else:
+                        converted_args.append(arg_float)
+                print "Calling: %s %s" % (command, converted_args)
+                try:
+                    fn(*converted_args)
+                except TypeError as e:
+                    print "Called incorrectly: %s" % e
+
+    def lineReceived(self, line):
+        self.run_command(line)
+        self.transport.write(">>> ")
+
 class TradingBot(WampCraClientProtocol):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
@@ -53,6 +93,12 @@ class TradingBot(WampCraClientProtocol):
         self.last_internal_id = 0
         self.chats = []
         self.username = None
+        self.safe_prices = {}
+
+    def connectionMade(self):
+        WampCraClientProtocol.connectionMade(self)
+        stdio.StandardIO(CommandLine(self))
+
 
     def action(self):
         '''
@@ -85,6 +131,10 @@ class TradingBot(WampCraClientProtocol):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
         WampCraClientProtocol.subscribe(self, self.factory.url + "/feeds/%s" % topic, handler)
 
+    def setUsernamePassword(self, username, password):
+        self.username = username
+        self.password = password
+
     def authenticate(self):
         if self.username is None:
             [self.username, self.password] = self.factory.username_password
@@ -101,7 +151,7 @@ class TradingBot(WampCraClientProtocol):
     """
 
     def price_to_wire(self, ticker, price):
-        if self.markets[ticker]['contract_type'] == "prediction":
+        if self.markets[ticker]['contract_type'] in ["prediction", "futures"]:
             price = price * self.markets[ticker]['denominator']
         else:
             price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
@@ -110,14 +160,14 @@ class TradingBot(WampCraClientProtocol):
         return int(price - price % self.markets[ticker]['tick_size'])
 
     def price_from_wire(self, ticker, price):
-        if self.markets[ticker]['contract_type'] == "prediction":
+        if self.markets[ticker]['contract_type'] in ["prediction", "futures"]:
             return float(price) / self.markets[ticker]['denominator']
         else:
             return float(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
                             self.markets[ticker]['denominator'])
 
     def quantity_from_wire(self, ticker, quantity):
-        if self.markets[ticker]['contract_type'] == "prediction":
+        if self.markets[ticker]['contract_type'] in ["prediction", "futures"]:
             return quantity
         elif self.markets[ticker]['contract_type'] == "cash":
             return float(quantity) / self.markets[ticker]['denominator']
@@ -125,7 +175,7 @@ class TradingBot(WampCraClientProtocol):
             return float(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
 
     def quantity_to_wire(self, ticker, quantity):
-        if self.markets[ticker]['contract_type'] == "prediction":
+        if self.markets[ticker]['contract_type'] in ["prediction", "futures"]:
             return int(quantity)
         elif self.markets[ticker]['contract_type'] == "cash":
             return int(quantity * self.markets[ticker]['denominator'])
@@ -271,11 +321,15 @@ class TradingBot(WampCraClientProtocol):
         """
         pprint(["Trade: ", topicUri, event])
 
-    def onSafePrice(self, topicUri, event):
-        """
-        overwrite me
-        """
-        pprint(["SafePrice", topicUri, event])
+    def onSafePrice(self, ticker):
+        def wrapped(topicUri, event):
+            """
+            overwrite me
+            """
+            self.safe_prices[ticker] = event
+            pprint(["SafePrice", topicUri, event])
+
+        return wrapped
 
 
     """
@@ -298,7 +352,7 @@ class TradingBot(WampCraClientProtocol):
 
     def subSafePrices(self, ticker):
         uri = "safe_prices#%s" % ticker
-        self.subscribe(uri, self.onSafePrice)
+        self.subscribe(uri, self.onSafePrice(ticker))
         print 'subscribed to: ', uri
 
     def subChat(self):
@@ -328,6 +382,13 @@ class TradingBot(WampCraClientProtocol):
     Public RPC Calls
     """
 
+    def getSafePrices(self):
+        d = self.my_call("get_safe_prices")
+        def onSafePrices(safe_prices):
+            self.safe_prices = safe_prices
+            pprint(safe_prices)
+
+        d.addCallbacks(onSafePrices, self.onError)
 
     def getTradeHistory(self, ticker):
         d = self.my_call("get_trade_history", ticker)
@@ -464,13 +525,14 @@ class BasicBot(TradingBot):
         TradingBot.onMakeAccount(self, event)
         self.authenticate()
 
-
     def startAutomation(self):
+        #pass
         # Test the audit
         #self.getAudit()
 
         # Test exchange info
-        self.getExchangeInfo()
+        #self.getExchangeInfo()
+        #self.getSafePrices()
 
         # Test some OHLCV history fns
         #self.getOHLCVHistory('BTC/HUF', 'day')
@@ -480,12 +542,14 @@ class BasicBot(TradingBot):
         #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        self.authenticate()
 
     def startAutomationAfterAuth(self):
-        self.getTransactionHistory()
-        self.requestSupportNonce()
-
-        self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
+        pass
+        # self.getTransactionHistory()
+        # self.requestSupportNonce()
+        #
+        # self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(WampClientFactory):
     def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10):
@@ -505,6 +569,7 @@ class BotFactory(WampClientFactory):
                     failure()
 
         reactor.callLater(self.conn.timeout, check_status)
+
 
 
 if __name__ == '__main__':
