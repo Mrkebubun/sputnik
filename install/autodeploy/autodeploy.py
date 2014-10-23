@@ -26,6 +26,7 @@ Transport._preferred_keys = ('ecdsa-sha2-nistp256', 'ssh-rsa', 'ssh-dss')
 import ConfigParser
 import cStringIO
 
+from os.path import join
 
 class Spinner:
     def __enter__(self):
@@ -85,15 +86,13 @@ class Instance:
         if not customer:
             raise AutoDeployException("Customer cannot be None.")
 
-        self.key_filename = "/srv/autodeploy/%s/ssh_login_key.pem" % \
-                            self.customer
-        self.db_pass_filename = "/srv/autodeploy/%s/dbpassword.txt" % \
-                                self.customer
-        self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
-                                   self.customer
-        self.profile_dir = "/srv/autodeploy/%s" % self.customer
-        self.profile_ini = os.path.join(self.profile_dir, "profile.ini")
-        self.server_ssl_key_dir = "%s/keys" % self.profile_dir
+        self.prefix = "/srv/autodeploy/%s" % self.customer
+        self.key_filename = join(self.prefix, "ssh_login_key.pem")
+        self.db_pass_filename = join(self.prefix, "dbpassword.txt")
+        self.server_key_filename = join(self.prefix, "ssh_server_key.pub")
+        self.profile_dir = join(self,prefix, "profile", self.customer)
+        self.profile_ini = join(self.profile_dir, "profile.ini")
+        self.server_ssl_key_dir = join(self,profile_dir, "keys")
 
         # default uninstalled state
         self.deployed = False
@@ -217,9 +216,14 @@ class Instance:
 
         print "Creating instance for %s..." % self.customer
         try:
-            os.mkdir("/srv/autodeploy/%s" % self.customer)
+            os.mkdir(self.prefix)
         except OSError:
-            print "Warning: /srv/autodeploy/%s already exists" % self.customer
+            print "Warning: %s already exists" % self.prefix
+        
+        try:
+            os.makedirs(self.profile_dir)
+        except OSError:
+            print "Warning: %s already exists" % self.profile_dir
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
