@@ -364,7 +364,7 @@ class PublicInterface:
         :returns: dict
         """
         if array_of_tickers is not None:
-            return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
+            return [True, {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}]
         return [True, self.factory.safe_prices]
 
     @exportRpc("get_order_book")

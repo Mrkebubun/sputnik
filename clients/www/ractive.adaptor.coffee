@@ -193,6 +193,7 @@ class RactiveSputnikWrapper
             update_ohlcv(ohlcv)
 
         sputnik.on "safe_prices", (@safe_prices) =>
+            @sputnik.log ["safe_prices", @safe_prices]
             @notify "safe_prices"
 
     notify: (property) =>
