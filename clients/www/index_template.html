@@ -239,7 +239,9 @@
                                                             <p class="grey-header" id="contract_ticker">{{current_ticker}}</p>
                                                             <p class="first-line2" id="contract_balance">{{format_quantity(current_ticker, sputnik.positions[current_ticker].position)}}
                                                                 {{#if (sputnik.markets[current_ticker].contract_type == "futures")}}
+                                                                {{#if sputnik.positions[current_ticker].reference_price}}
                                                                 ({{format_price(current_ticker, sputnik.positions[current_ticker].reference_price)}})
+                                                                {{/if}}
                                                                 {{/if}}
                                                             </p>
                                                         </div>

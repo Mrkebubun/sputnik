@@ -852,14 +852,26 @@ class @Sputnik extends EventEmitter
 
         @emit "transaction", @transactionFromWire(transaction)
 
-        positions = {}
-        for ticker, position of @positions
-            positions[ticker] = @positionFromWire(position)
+        complete_tx_handling = (transaction) =>
+            positions = {}
+            for ticker, position of @positions
+                positions[ticker] = @positionFromWire(position)
 
-        @emit "positions", positions
-        [low_margin, high_margin, max_cash_spent] = @calculateMargin()
-        @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
-        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
+            @emit "positions", positions
+            [low_margin, high_margin, max_cash_spent] = @calculateMargin()
+            @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+            @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
+
+
+        # If it's a futures transaction update the reference price
+        if @markets[transaction.contract].contract_type is "futures"
+            @call("get_positions").then \
+                (positions) =>
+                    @positions[transaction.contract].reference_price = positions[transaction.contract].reference_price
+                    complete_tx_handling(transaction)
+        else
+            complete_tx_handling(transaction)
+
 
     availableToWithdraw: (ticker) =>
         margin = @calculateMargin()
