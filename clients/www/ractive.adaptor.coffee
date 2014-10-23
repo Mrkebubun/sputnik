@@ -19,6 +19,7 @@ class RactiveSputnikWrapper
         @profile = {}
         @cash_spent = {}
         @position_contracts = {}
+        @safe_prices = {}
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -191,6 +192,9 @@ class RactiveSputnikWrapper
             @sputnik.log ["ohlcv", ohlcv]
             update_ohlcv(ohlcv)
 
+        sputnik.on "safe_prices", (@safe_prices) =>
+            @notify "safe_prices"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -216,6 +220,7 @@ class RactiveSputnikWrapper
         profile: @profile
         cash_spent: @cash_spent
         position_contracts: @position_contracts
+        safe_prices: @safe_prices
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

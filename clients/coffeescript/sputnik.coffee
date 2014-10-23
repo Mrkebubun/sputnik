@@ -431,14 +431,14 @@ class @Sputnik extends EventEmitter
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             return Math.round(Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0))
         else
             return Math.round(Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0))
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type is "prediction" or contract.contract_type is "futures"
             return 0
         else if contract.contract_type is "cash"
             return Math.round(Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0))
@@ -583,7 +583,7 @@ class @Sputnik extends EventEmitter
 
         @follow ticker
 
-    getSafePrices: (ticker) =>
+    getSafePrice: (ticker) =>
         @call("get_safe_prices", [ticker]).then (safe_prices) ->
             @onSafePrice(ticker)(safe_prices[ticker])
 
@@ -693,8 +693,7 @@ class @Sputnik extends EventEmitter
             @markets[ticker].bids = []
             @markets[ticker].asks = []
             @markets[ticker].ohlcv = {day: {}, hour: {}, minute: {}}
-
-            if market.contract_type == "futures"
+            if @markets[ticker].contract_type isnt 'cash'
                 @subscribe "safe_prices##{ticker}", @onSafePrice(ticker)
 
         @log ["Markets", @markets]
@@ -786,10 +785,12 @@ class @Sputnik extends EventEmitter
 
     onSafePrice: (ticker) =>
         (safe_price) =>
+            @log ["safe_price", ticker, safe_price]
             @safe_prices[ticker] = safe_price
             @emit "safe_prices", @safePricesFromWire(@safe_prices)
 
     onSafePrices: (@safe_prices) =>
+        @log ["safe_prices", ticker, @safe_prices]
         @emit "safe_prices", @safePricesFromWire(@safe_prices)
 
 

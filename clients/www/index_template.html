@@ -189,6 +189,11 @@
                                                 </div>
                                                 <div class="col-sm-6">
                                                     <table class="table-header">
+                                                        {{#if current_type == "futures"}}
+                                                        <tr>
+                                                            <td class="recent-price-content">Safe</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.safe_prices[current_ticker])}}</td>
+                                                        </tr>
+                                                        {{/if}}
                                                         <tr>
                                                             <td class="recent-price-content">Last</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.trade_history[current_ticker][0].price)}}</td>
                                                         </tr>
