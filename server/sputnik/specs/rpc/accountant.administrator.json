@@ -188,5 +188,40 @@
         },
         "required": ["username"],
         "additionalProperties": false
+    },
+    "liquidate_all":
+    {
+        "type":"object",
+        "description": "Liquidate every derivative position a user has",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    },
+    "liquidate_position":
+    {
+        "type":"object",
+        "description": "Liquidate a particular derivative position a user has",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Contract to liquidate"
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
     }
 }

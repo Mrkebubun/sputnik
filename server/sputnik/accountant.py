@@ -336,7 +336,68 @@ class Accountant:
         else:
             return True
 
-    def accept_order(self, order):
+    def liquidate_all(self, username):
+        # Liquidate all positions for a user
+        positions = self.session.query(models.Position).join(models.Contract).filter_by(username=username).filter(
+            models.Contract.contract_type.in_(["futures", "prediction"]))
+        deferreds = [self.liquidate_position(username, p.contract.ticker) for p in positions]
+        dl = defer.DeferredList(deferreds)
+        return dl
+
+    def liquidate_position(self, username, ticker):
+        # Cancel all orders for a user, and liquidate his position with extreme prejudice
+
+        # Cancel orders
+        log.msg("liquidating %s for %s" % (ticker, username))
+        user = self.get_user(username)
+        contract = self.get_contract(ticker)
+        orders = self.session.query(models.Order).filter_by(
+            username=user.username).filter(
+            models.Order.quantity_left>0).filter_by(
+            is_cancelled=False).filter_by(
+            contract=contract
+        )
+        d = self.cancel_many_orders(orders)
+
+        def after_cancellations(results):
+            # Wait until all pending postings have gone through
+            position = self.get_position(user, ticker)
+            if position.pending_postings > 0:
+                d = task.deferLater(reactor, 300, after_cancellations, results)
+            else:
+                # Now place a closing out order
+                if position.position == 0:
+                    log.msg("Position is 0 not placing order")
+                    return None
+
+                if position.position > 0:
+                    side = 'SELL'
+                    quantity = position.position
+                    price = 0
+                else:
+                    side = 'BUY'
+                    quantity = -position.position
+                    if contract.contract_type == "predictions":
+                        price = contract.denominator
+                    else:
+                        # For futures just do reference price * 100
+                        price = position.reference_price * 100
+                order = {
+                    'price': price,
+                    'quantity': quantity,
+                    'contract': contract.ticker,
+                    'side': side,
+                    'username': username,
+                    'timestamp': util.dt_to_timestamp(datetime.utcnow())
+                }
+                log.msg("Placing order: %s" % order)
+                id = self.place_order(username, order, force=True)
+                return id
+
+        d.addCallback(after_cancellations)
+        return d
+
+    def accept_order(self, order, force=False):
         """Accept the order if possible. Otherwise, delete the order
 
         :param order: Order object we wish to accept
@@ -347,53 +408,56 @@ class Accountant:
 
         user = order.user
 
-        # Audit the user
-        if not self.is_user_enabled(user):
-            log.msg("%s user is disabled" % user.username)
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise DISABLED_USER
+        if not force:
+            # Audit the user
+            if not self.is_user_enabled(user):
+                log.msg("%s user is disabled" % user.username)
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise DISABLED_USER
 
-        if not user.permissions.trade:
-            log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise TRADE_NOT_PERMITTED
+            if not user.permissions.trade:
+                log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise TRADE_NOT_PERMITTED
 
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-            order.username, self.session, self.safe_prices, order.id,
-            trial_period=self.trial_period)
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(
+                order.username, self.session, self.safe_prices, order.id,
+                trial_period=self.trial_period)
 
-        if self.check_margin(order.username, low_margin, high_margin):
-            log.msg("Order accepted.")
-            order.accepted = True
-            try:
-                # self.session.merge(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
-            finally:
-                self.session.rollback()
+            if not self.check_margin(order.username, low_margin, high_margin):
+                log.msg("Order rejected due to margin.")
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise INSUFFICIENT_MARGIN
         else:
-            log.msg("Order rejected due to margin.")
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise INSUFFICIENT_MARGIN
+            log.msg("Forcing order")
+
+        log.msg("Order accepted.")
+        order.accepted = True
+        try:
+            # self.session.merge(order)
+            self.session.commit()
+        except:
+            self.alerts_proxy.send_alert("Could not merge order: %s" % order)
+        finally:
+            self.session.rollback()
 
 
     def charge_fees(self, fees, user):
@@ -717,7 +781,7 @@ class Accountant:
         self.webserver.order(username, order.to_webserver())
 
 
-    def place_order(self, username, order):
+    def place_order(self, username, order, force=False):
         """Place an order
 
         :param order: dictionary representing the order to be placed
@@ -730,28 +794,31 @@ class Accountant:
         user = self.get_user(order["username"])
         contract = self.get_contract(order["contract"])
 
-        if not contract.active:
-            raise CONTRACT_NOT_ACTIVE
+        if not force:
+            if not contract.active:
+                raise CONTRACT_NOT_ACTIVE
 
-        if contract.expired:
-            raise CONTRACT_EXPIRED
+            if contract.expired:
+                raise CONTRACT_EXPIRED
 
-        # do not allow orders for internally used contracts
-        if contract.contract_type == 'cash':
-            log.err("Webserver allowed a 'cash' contract!")
-            raise AccountantException(0, "Not a valid contract type.")
+            # do not allow orders for internally used contracts
+            if contract.contract_type == 'cash':
+                log.err("Webserver allowed a 'cash' contract!")
+                raise AccountantException(0, "Not a valid contract type.")
 
-        if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-            raise AccountantException(0, "invalid price or quantity")
-
-        # case of predictions
-        if contract.contract_type == 'prediction':
-            if not 0 <= order["price"] <= contract.denominator:
+            if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
                 raise AccountantException(0, "invalid price or quantity")
 
-        if contract.contract_type == "cash_pair":
-            if not order["quantity"] % contract.lot_size == 0:
-                raise AccountantException(0, "invalid price or quantity")
+            # case of predictions
+            if contract.contract_type == 'prediction':
+                if not 0 <= order["price"] <= contract.denominator:
+                    raise AccountantException(0, "invalid price or quantity")
+
+            if contract.contract_type == "cash_pair":
+                if not order["quantity"] % contract.lot_size == 0:
+                    raise AccountantException(0, "invalid price or quantity")
+        else:
+            log.msg("Forcing order")
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper(),
                          timestamp=util.timestamp_to_dt(order['timestamp']))
@@ -763,7 +830,7 @@ class Accountant:
             self.session.rollback()
             raise e
 
-        self.accept_order(o)
+        self.accept_order(o, force=force)
         d = self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
 
         def mark_order_dispatched(result):
@@ -1145,7 +1212,7 @@ class Accountant:
             pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
                 models.Position.username.in_(my_users))
             if sum([row[0] for row in pending_postings]) > 0:
-                d = task.deferLater(reactor, 300, self.after_cancellations, results)
+                d = task.deferLater(reactor, 300, after_cancellations, results)
             else:
                 all_positions = self.session.query(models.Position).filter_by(contract=contract)
                 position_count = all_positions.count()
@@ -1357,6 +1424,16 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/accountant.administrator.json#get_margin")
     def get_margin(self, username):
         return self.accountant.get_margin(username)
+
+    @export
+    @schema("rpc/accountant.administrator.json#liquidate_all")
+    def liquidate_all(self, username):
+        return self.accountant.liquidate_all(username)
+
+    @export
+    @schema("rpc/accountant.administrator.json#liquidate_position")
+    def liquidate_position(self, username, ticker):
+        return self.accountant.liquidate_position(username, ticker)
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):

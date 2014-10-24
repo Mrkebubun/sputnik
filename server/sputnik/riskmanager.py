@@ -75,6 +75,7 @@ class RiskManager():
         log.msg("Sending mail: %s" % content)
         d = self.sendmail.send_mail(content, to_address=user.email,
                                     subject="Margin Call" if severe else "Margin Warning")
+        d.addErrback(log.err)
 
         return d
 
