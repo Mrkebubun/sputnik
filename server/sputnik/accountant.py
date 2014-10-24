@@ -92,10 +92,13 @@ class Accountant:
         for contract in self.session.query(models.Contract).filter_by(
                 active=True).all():
             d = self.engines[contract.ticker].get_safe_price()
-            def _cb(safe_price):
-                self.safe_prices[contract.ticker] = safe_price
+            def get_cb(ticker):
+                def _cb(safe_price):
+                    self.safe_prices[ticker] = safe_price
 
-            d.addCallback(_cb)
+                return _cb
+
+            d.addCallback(get_cb(contract.ticker))
 
         self.webserver = webserver
         self.disabled_users = {}
@@ -377,7 +380,7 @@ class Accountant:
                 else:
                     side = 'BUY'
                     quantity = -position.position
-                    if contract.contract_type == "predictions":
+                    if contract.contract_type == "prediction":
                         price = contract.denominator
                     else:
                         # For futures just do reference price * 100
@@ -1436,12 +1439,12 @@ class AdministratorExport(ComponentExport):
         return self.accountant.liquidate_position(username, ticker)
 
 class AccountantProxy:
-    def __init__(self, mode, uri, base_port):
+    def __init__(self, mode, uri, base_port, timeout=1):
         self.num_procs = config.getint("accountant", "num_procs")
         self.proxies = []
         for i in range(self.num_procs):
             if mode == "dealer":
-                proxy = dealer_proxy_async(uri % (base_port + i))
+                proxy = dealer_proxy_async(uri % (base_port + i), timeout=timeout)
             elif mode == "push":
                 proxy = push_proxy_async(uri % (base_port + i))
             else:

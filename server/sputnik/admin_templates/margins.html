@@ -17,15 +17,17 @@ table.table.table-striped tr.low td {
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
+                        <th></th>
                         <th>Username</th>
-                        <th>Low Margin</th>
-                        <th>High Margin</th>
-                        <th>Cash Position</th>
+                        <th align="right">Low Margin</th>
+                        <th align="right">High Margin</th>
+                        <th align="right">Cash Position</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for margin in margins %}
                     <tr {% if margin.cash_position < margin.high_margin %}{%if margin.cash_position < margin.low_margin %}class="call"{% else %}class="low"{% endif %}{% endif %}>
+                        <td>{%if margin.cash_position < margin.low_margin %}<a href="/liquidate_all?username={{margin.username}}">Liquidate</a>{% endif %}</td>
                         <td><a href="/user_details?username={{margin.username}}">{{margin.username}}</a></td>
                         <td align="right">{{margin.low_margin_fmt}}</td>
                         <td align="right">{{margin.high_margin_fmt}}</td>

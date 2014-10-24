@@ -86,7 +86,7 @@ class Administrator:
     """
 
     def __init__(self, session, accountant, cashier, engines,
-                 zendesk_domain,
+                 zendesk_domain, accountant_slow,
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
@@ -103,6 +103,7 @@ class Administrator:
         """
         self.session = session
         self.accountant = accountant
+        self.accountant_slow = accountant_slow
         self.cashier = cashier
         self.engines = engines
         self.zendesk_domain = zendesk_domain
@@ -551,7 +552,7 @@ class Administrator:
                 margin['cash_position_fmt'] = util.quantity_fmt(BTC, margin['cash_position'])
                 return margin
 
-            d = self.accountant.get_margin(user.username)
+            d = self.accountant_slow.get_margin(user.username)
             d.addCallback(fmt)
             deferreds.append(d)
 
@@ -633,7 +634,7 @@ class Administrator:
         if not contract.active:
             return
 
-        d = self.accountant.clear_contract(None, ticker, price, uid)
+        d = self.accountant_slow.clear_contract(None, ticker, price, uid)
 
         # If the contract is expired, mark it inactive once clearing is done
         if contract.expired:
@@ -871,6 +872,12 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
+    def liquidate_all(self, username):
+        self.accountant_slow.liquidate_all(username)
+
+    def liquidate_position(self, username, ticker):
+        self.accountant_slow.liquidate_position(username, ticker)
+
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -1090,6 +1097,8 @@ class AdminWebUI(Resource):
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/transfer_position': self.transfer_position,
                       '/adjust_position': self.adjust_position,
+                      '/liquidate_all': self.liquidate_all,
+                      '/liquidate_position': self.liquidate_position,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1187,6 +1196,14 @@ class AdminWebUI(Resource):
 
         d.addCallback(clearing_done)
         return NOT_DONE_YET
+
+    def liquidate_all(self, request):
+        self.administrator.liquidate_all(request.args['username'][0])
+        return redirectTo('/margins', request)
+
+    def liquidate_position(self, request):
+        self.administrator.liquidate_position(request.args['username'][0], request.args['ticker'][0])
+        return redirectTo('/user_details?username=%s' % request.args['username'][0], request)
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()
@@ -1535,6 +1552,12 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
+    # Slow accountant with 20 minute timeout
+    accountant_slow = AccountantProxy("dealer",
+                                 config.get("accountant", "administrator_export"),
+                                 config.getint("accountant", "administrator_export_base_port"),
+                                 timeout=60*20)
+
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
 
@@ -1559,6 +1582,7 @@ if __name__ == "__main__":
 
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
+                                  accountant_slow,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
