@@ -67,5 +67,20 @@
         },
         "required": ["username", "ticker", "quantity", "address"],
         "additionalProperties": false
+    },
+    "get_margin":
+    {
+        "type":"object",
+        "description": "Query a user's margin values.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
     }
 }

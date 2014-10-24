@@ -148,7 +148,7 @@ class Administrator:
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
-            contract_type='cash').all()
+            contract_type='cash')
         for contract in contracts:
             position = models.Position(user, contract)
             self.session.add(position)
@@ -193,7 +193,7 @@ class Administrator:
         :raises: INVALID_TOKEN, EXPIRED_TOKEN
         """
         token_good = False
-        found_tokens = self.session.query(models.ResetToken).filter_by(token=input_token, username=username).all()
+        found_tokens = self.session.query(models.ResetToken).filter_by(token=input_token, username=username)
         if not len(found_tokens):
             raise INVALID_TOKEN
         for token in found_tokens:
@@ -317,7 +317,7 @@ class Administrator:
 
         :returns: list -- list of models.User
         """
-        users = self.session.query(models.User).all()
+        users = self.session.query(models.User)
         return users
 
     def get_admin_users(self):
@@ -325,7 +325,7 @@ class Administrator:
 
         :returns: list -- list of models.AdminUser
         """
-        admin_users = self.session.query(models.AdminUser).all()
+        admin_users = self.session.query(models.AdminUser)
         return admin_users
 
     @util.timed
@@ -495,7 +495,7 @@ class Administrator:
 
         :returns: list -- models.Position
         """
-        positions = self.session.query(models.Position).all()
+        positions = self.session.query(models.Position)
         return positions
 
     def get_position(self, user, ticker):
@@ -539,6 +539,35 @@ class Administrator:
 
         d.addCallback(reconcile_with_db)
         return d
+
+    def get_margins(self):
+        users = self.get_users()
+        deferreds = []
+        BTC = self.get_contract('BTC')
+        for user in users.filter_by(type='Liability'):
+            def fmt(margin):
+                margin['low_margin_fmt'] = util.quantity_fmt(BTC, margin['low_margin'])
+                margin['high_margin_fmt'] = util.quantity_fmt(BTC, margin['high_margin'])
+                margin['cash_position_fmt'] = util.quantity_fmt(BTC, margin['cash_position'])
+                return margin
+
+            d = self.accountant.get_margin(user.username)
+            d.addCallback(fmt)
+            deferreds.append(d)
+
+        def process_all(results):
+            all_margins = []
+            for result in results:
+                if result[0]:
+                    all_margins.append(result[1])
+                else:
+                    log.err("Trouble with get_margin: %s" % result[1])
+
+            return all_margins
+
+        dl = defer.DeferredList(deferreds)
+        dl.addCallback(process_all)
+        return dl
 
     def cancel_order(self, username, id):
         self.accountant.cancel_order(username, id)
@@ -747,11 +776,11 @@ class Administrator:
 
         :returns: list -- models.PermissionGroup
         """
-        permission_groups = self.session.query(models.PermissionGroup).all()
+        permission_groups = self.session.query(models.PermissionGroup)
         return permission_groups
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).filter_by(active=True).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True)
         return contracts
 
     def get_contract(self, ticker):
@@ -767,12 +796,12 @@ class Administrator:
 
     @util.timed
     def get_withdrawals(self):
-        withdrawals = self.session.query(models.Withdrawal).all()
+        withdrawals = self.session.query(models.Withdrawal)
         return withdrawals
 
     @util.timed
     def get_deposits(self):
-        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
+        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None)
         return addresses
 
     @util.timed
@@ -1051,7 +1080,9 @@ class AdminWebUI(Resource):
                       '/deposits': self.deposits,
                       '/order_book': self.order_book,
                       '/manual_deposit': self.manual_deposit,
-                      '/cancel_order': self.cancel_order},
+                      '/cancel_order': self.cancel_order,
+                      '/margins': self.margins
+                     },
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -1073,6 +1104,17 @@ class AdminWebUI(Resource):
     def invalid_request(self, request):
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
+
+    def margins(self, request):
+        d = self.administrator.get_margins()
+        def show_margins(margins):
+            t = self.jinja_env.get_template('margins.html')
+            rendered = t.render(margins=margins)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
+
+        d.addCallback(show_margins)
+        return NOT_DONE_YET
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1511,7 +1553,7 @@ if __name__ == "__main__":
     bs_cache_update = config.getint("administrator", "bs_cache_update")
     engine_base_port = config.getint("engine", "administrator_base_port")
     engines = {}
-    for contract in session.query(models.Contract).filter_by(active=True).all():
+    for contract in session.query(models.Contract).filter_by(active=True):
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 

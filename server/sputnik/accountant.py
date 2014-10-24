@@ -285,6 +285,16 @@ class Accountant:
         except NoResultFound:
             return 0
 
+    def get_margin(self, username):
+        low_margin, high_margin, cash_spent = margin.calculate_margin(username, self.session, safe_prices=self.safe_prices)
+        cash_position = self.get_position_value(username, 'BTC')
+        return {
+            'username': username,
+            'low_margin': low_margin,
+            'high_margin': high_margin,
+            'cash_position': cash_position,
+        }
+
     def get_position(self, username, ticker, reference_price=None):
         """Return a user's position for a contact. If it does not exist, initialize it. WARNING: If a position is created, it will be added to the session.
 
@@ -1237,6 +1247,11 @@ class WebserverExport(ComponentExport):
     def request_withdrawal(self, username, ticker, quantity, address):
         return self.accountant.request_withdrawal(username, ticker, quantity, address)
 
+    @export
+    @schema("rpc/accountant.webserver.json#get_margin")
+    def get_margin(self, username):
+        return self.accountant.get_margin(username)
+
 
 class EngineExport(ComponentExport):
     """Accountant functions exposed to the Engine
@@ -1337,6 +1352,11 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
         return self.accountant.clear_contract(username, ticker, price, uid)
+
+    @export
+    @schema("rpc/accountant.administrator.json#get_margin")
+    def get_margin(self, username):
+        return self.accountant.get_margin(username)
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):

@@ -1153,6 +1153,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
             (self.username,)).addCallback(_cb)
 
+    @exportRpc("get_margin")
+    def get_margin(self):
+        def _cb(result):
+            return [True, result]
+
+        return self.accountant.get_margin(self.username).addCallback(_cb)
+
     @exportRpc("get_profile")
     def get_profile(self):
         """

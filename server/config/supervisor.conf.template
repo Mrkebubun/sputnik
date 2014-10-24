@@ -50,7 +50,7 @@ stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
-[program:risk_manager]
+[program:riskmanager]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0

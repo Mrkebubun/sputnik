@@ -56,36 +56,41 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
         contract = position['contract']
 
         if contract.contract_type == 'futures':
-            SAFE_PRICE = safe_prices[position['contract'].ticker]
-
-            #log.msg(low_margin)
-            # print 'max position:', max_position
-            # print 'contract.margin_low :', contract.margin_low
-            # print 'SAFE_PRICE :', SAFE_PRICE
-            # print 'position.reference_price :', position['reference_price']
-            # print position
-            if position['reference_price'] is None:
-                if position['position'] != 0:
-                    raise MarginException("No reference price with non-zero position")
-
-                reference_price = SAFE_PRICE
+            if position['contract'].ticker not in safe_prices:
+                log.err("%s not in safe_prices, marking margin high" % position['contract'].ticker)
+                high_margin += 2**48
+                low_margin += 2**48
             else:
-                reference_price = position['reference_price']
+                SAFE_PRICE = safe_prices[position['contract'].ticker]
 
-            # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
-            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
-                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
-            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
-                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
-            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
-                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
-            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
-                reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
-            # log.msg(low_max)
-            # log.msg(low_min)
+                #log.msg(low_margin)
+                # print 'max position:', max_position
+                # print 'contract.margin_low :', contract.margin_low
+                # print 'SAFE_PRICE :', SAFE_PRICE
+                # print 'position.reference_price :', position['reference_price']
+                # print position
+                if position['reference_price'] is None:
+                    if position['position'] != 0:
+                        raise MarginException("No reference price with non-zero position")
 
-            high_margin += max(high_max, high_min)
-            low_margin += max(low_max, low_min)
+                    reference_price = SAFE_PRICE
+                else:
+                    reference_price = position['reference_price']
+
+                # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
+                low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_max = abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                # log.msg(low_max)
+                # log.msg(low_min)
+
+                high_margin += max(high_max, high_min)
+                low_margin += max(low_max, low_min)
 
         if contract.contract_type == 'prediction':
             payoff = contract.lot_size
