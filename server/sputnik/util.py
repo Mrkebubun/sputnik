@@ -230,3 +230,19 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
 
+def getLoggers(prefix):
+    def debug(message):
+        log.msg(message, system=prefix, level=10)
+
+    def info(message):
+        log.msg(message, system=prefix, level=20)
+
+    def warn(message):
+        log.msg(message, system=prefix, level=30)
+
+    def error(message):
+        log.err(message, system=prefix, level=40)
+
+    def critical(message):
+        log.err(message, system=prefix, level=50)
+
