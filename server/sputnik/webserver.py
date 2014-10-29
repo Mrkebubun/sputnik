@@ -1687,7 +1687,7 @@ if __name__ == '__main__':
     # https://autobahn.ws/python/reference
     #factory.setProtocolOptions(maxMessagePayloadSize=1000)
 
-    runner = ApplicationRunner(url=base_uri, realm='')
+    runner = ApplicationRunner(url=base_uri, realm='sputnik')
     runner.run(factory.make, start_reactor=False)
 
     watchdog = watchdog(config.get("watchdog", "webserver"))

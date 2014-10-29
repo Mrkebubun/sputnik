@@ -143,7 +143,7 @@ class TradingBot(ApplicationSession):
         self.subChat()
         self.startAutomation()
 
-    def onClose(self, wasClean, code, reason):
+    def onClose(self, wasClean):
         reactor.stop()
 
     def onAuthSuccess(self, permissions):
@@ -462,7 +462,7 @@ class TradingBot(ApplicationSession):
 class BasicBot(TradingBot):
     def onMakeAccount(self, event):
         TradingBot.onMakeAccount(self, event)
-        self.authenticate()
+        #self.authenticate()
 
 
     def startAutomation(self):
@@ -520,5 +520,5 @@ if __name__ == '__main__':
     factory = BotFactory(username_password=(username, password))
     factory.session = BasicBot
 
-    runner = ApplicationRunner(url=base_uri, realm='')
+    runner = ApplicationRunner(url=base_uri, realm='sputnik', debug_wamp=True)
     runner.run(factory.make)
