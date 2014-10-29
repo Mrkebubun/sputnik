@@ -30,25 +30,34 @@
                                 }
                             ]
                         }
-                    ]
+                    ],
+                    "classes":["timeservice.TimeService"]
                 }
             ], 
             "transports": [
                 {
-                    "endpoint": "tcp:8080", 
+                    "endpoint": {
+                        "port": 8000, 
+                        "type": "tcp"
+                    }, 
                     "paths": {
                         "/": {
+                            "directory": "static", 
+                            "type": "static"
+                        }, 
+                        "ws": {
                             "auth": {
                                 "mozilla_persona": {
                                     "role": {
                                         "type": "static", 
                                         "value": "authenticated"
                                     }
-                                }
+                                },
+                                "options":{"debug":"true"}
                             }, 
                             "cookie": {}, 
                             "type": "websocket", 
-                            "url": "ws://sputnikmkt.com:8080/"
+                            "url": "ws://sputnikmkt.com:8000/ws"
                         }
                     }, 
                     "type": "web"
