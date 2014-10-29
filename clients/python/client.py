@@ -27,27 +27,27 @@
 
 import sys
 from pprint import pprint
-
-from twisted.python import log
-from twisted.internet import reactor, ssl, defer
 import logging
-
-from autobahn.twisted.websocket import connectWS
-from autobahn.wamp1.protocol import WampClientFactory, WampCraClientProtocol, WampCraProtocol
 from datetime import datetime, timedelta
 import random
 import string
-import Crypto.Random.random
 from ConfigParser import ConfigParser
 from os import path
 
-class TradingBot(WampCraClientProtocol):
+from twisted.python import log
+from twisted.internet import reactor, defer
+from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner, ApplicationSessionFactory
+import Crypto.Random.random
+
+
+class TradingBot(ApplicationSession):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
    """
 
-    def __init__(self):
+    def __init__(self, *args):
+        ApplicationSession.__init__(self, *args)
         self.markets = {}
         self.orders = {}
         self.last_internal_id = 0
@@ -68,7 +68,7 @@ class TradingBot(WampCraClientProtocol):
 
     def my_call(self, method_name, *args):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
-        d = self.call(self.factory.url + "/rpc/" + method_name, *args)
+        d = self.call(method_name, *args)
         def onSuccess(result):
             if len(result) != 2:
                 log.warn("RPC Protocol error in %s" % method_name)
@@ -83,18 +83,18 @@ class TradingBot(WampCraClientProtocol):
 
     def subscribe(self, topic, handler):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        WampCraClientProtocol.subscribe(self, self.factory.url + "/feeds/%s" % topic, handler)
-
-    def authenticate(self):
-        if self.username is None:
-            [self.username, self.password] = self.factory.username_password
-
-        d = WampCraClientProtocol.authenticate(self,
-                                               authKey=self.username,
-                                               authExtra=None,
-                                               authSecret=self.password)
-
-        d.addCallbacks(self.onAuthSuccess, self.onAuthError)
+        self.subscribe("%s" % topic, handler)
+    #
+    # def authenticate(self):
+    #     if self.username is None:
+    #         [self.username, self.password] = self.factory.username_password
+    #
+    #     d = WampCraClientProtocol.authenticate(self,
+    #                                            authKey=self.username,
+    #                                            authExtra=None,
+    #                                            authSecret=self.password)
+    #
+    #     d.addCallbacks(self.onAuthSuccess, self.onAuthError)
 
     """
     Utility functions
@@ -467,19 +467,19 @@ class BasicBot(TradingBot):
 
     def startAutomation(self):
         # Test the audit
-        #self.getAudit()
+        self.getAudit()
 
         # Test exchange info
         self.getExchangeInfo()
 
         # Test some OHLCV history fns
-        #self.getOHLCVHistory('BTC/HUF', 'day')
-        #self.getOHLCVHistory('BTC/HUF', 'minute')
+        self.getOHLCVHistory('BTC/HUF', 'day')
+        self.getOHLCVHistory('BTC/HUF', 'minute')
 
         # Now make an account
-        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
@@ -487,25 +487,16 @@ class BasicBot(TradingBot):
 
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
-class BotFactory(WampClientFactory):
-    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10):
-        WampClientFactory.__init__(self, url, debugWamp=debugWamp)
+class BotFactory(ApplicationSessionFactory):
+    def __init__(self, username_password=(None, None), rate=10):
         self.username_password = username_password
         self.rate = rate
         self.conn = None
 
-    def connect(self, context_factory, failure=None):
-        self.conn = connectWS(self, context_factory)
-        def check_status():
-            if self.conn.state != "connected":
-                if failure is None:
-                    print "Unable to connect to %s" % self.url
-                    reactor.stop()
-                else:
-                    failure()
-
-        reactor.callLater(self.conn.timeout, check_status)
-
+    def make(self, config):
+        session = self.session(config)
+        session.factory = self
+        return session
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -526,14 +517,8 @@ if __name__ == '__main__':
     username = config.get("client", "username")
     password = config.get("client", "password")
 
-    factory = BotFactory(base_uri, debugWamp=debug, username_password=(username, password))
-    factory.protocol = BasicBot
+    factory = BotFactory(username_password=(username, password))
+    factory.session = BasicBot
 
-    # null -> ....
-    if factory.isSecure:
-        contextFactory = ssl.ClientContextFactory()
-    else:
-        contextFactory = None
-
-    factory.connect(contextFactory)
-    reactor.run()
+    runner = ApplicationRunner(url=base_uri, realm='')
+    runner.run(factory.make)

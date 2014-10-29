@@ -38,30 +38,18 @@ from watchdog import watchdog
 from blockscore import BlockScore
 
 from jsonschema import validate
-from twisted.internet import reactor, task
+from twisted.internet import reactor
 from twisted.web.server import Site
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.resource import Resource
 from twisted.web.static import File
 from twisted.python import log
-from autobahn.twisted.websocket import listenWS
-from autobahn.wamp1.protocol import exportRpc, \
-    WampCraProtocol, \
-    WampServerFactory, \
-    WampCraServerProtocol, exportSub, exportPub
+from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner, ApplicationSessionFactory
+from autobahn import wamp
+from autobahn.wamp.auth import derive_key
+from twisted.internet.defer import inlineCallbacks
 
-from autobahn.wamp1.protocol import CallHandler
-
-from txzmq import ZmqFactory
 import markdown
-
-zf = ZmqFactory()
-
-# noinspection PyUnresolvedReferences
-#if config.get("database", "uri").startswith("postgres"):
-#    import txpostgres as adbapi
-#else:
-# noinspection PyPep8Naming
 import twisted.enterprise.adbapi as adbapi
 
 # noinspection PyUnresolvedReferences
@@ -78,38 +66,7 @@ else:
                                user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
-
-class RateLimitedCallHandler(CallHandler):
-    def _callProcedure(self, call):
-        """
-
-        :param call:
-        :returns:
-        """
-
-        def do_actual_call(actual_call):
-            """
-
-            :param actual_call:
-            :returns:
-            """
-            actual_call.proto.last_call = time.time()
-            return CallHandler._callProcedure(self, actual_call)
-
-        now = time.time()
-        if now - call.proto.last_call < 0.01:
-            # try again later
-            log.msg("rate limiting...")
-            delay = max(0, call.proto.last_call + 0.01 - now)
-            d = task.deferLater(reactor, delay, self._callProcedure, call)
-            return d
-        return do_actual_call(call)
-
-
 MAX_TICKER_LENGTH = 100
-
-class AdministratorExport:
-    pass
 
 
 def malicious_looking(w):
@@ -120,17 +77,9 @@ def malicious_looking(w):
     """
     return any(x in w for x in '<>&')
 
-class PublicInterface:
-    def __init__(self, factory):
-        """
+class PublicInterface(ApplicationSession):
 
-        :param factory:
-        """
-        self.factory = factory
-        self.factory.chats = []
-        self.init()
-
-    def init(self):
+    def onConnect(self):
         # TODO: clean this up
         """Get markets, load trade history, compute OHLCV for trade history
 
@@ -199,11 +148,11 @@ class PublicInterface:
                                "tick_size, lot_size, margin_high, margin_low,"
                                "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts").addCallback(_cb)
 
-    @exportRpc("get_exchange_info")
+    @wamp.register(u"get_exchange_info")
     def get_exchange_info(self):
         return [True, self.factory.exchange_info]
 
-    @exportRpc("get_markets")
+    @wamp.register(u"get_markets")
     def get_markets(self):
         """
 
@@ -212,7 +161,7 @@ class PublicInterface:
         """
         return [True, self.factory.markets]
 
-    @exportRpc("get_audit")
+    @wamp.register(u"get_audit")
     def get_audit(self):
         """
 
@@ -240,7 +189,7 @@ class PublicInterface:
         d.addErrback(_cb_error)
         return d
 
-    @exportRpc("get_ohlcv_history")
+    @wamp.register(u"get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None, end_timestamp=None):
         """Get all the OHLCV entries for a given period (day/minute/hour/etc) and time span
 
@@ -282,7 +231,7 @@ class PublicInterface:
 
         return [True, ohlcv]
 
-    @exportRpc("get_reset_token")
+    @wamp.register(u"get_reset_token")
     def get_reset_token(self, username):
         """Get a password reset token for a certain user -- mail it to them
 
@@ -310,7 +259,7 @@ class PublicInterface:
 
         return d.addCallbacks(onTokenSuccess, onTokenFail)
 
-    @exportRpc("get_trade_history")
+    @wamp.register(u"get_trade_history")
     def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         """
         Gets a list of trades in recent history
@@ -348,7 +297,7 @@ class PublicInterface:
 
         return [True, history]
 
-    @exportRpc("get_order_book")
+    @wamp.register(u"get_order_book")
     def get_order_book(self, ticker):
         """Get the order book for a given ticker
 
@@ -364,7 +313,7 @@ class PublicInterface:
             log.err("No book for %s" % ticker)
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
-    @exportRpc
+    @wamp.register
     def make_account(self, username, password, salt, email, nickname):
         """Create a new account
 
@@ -407,7 +356,7 @@ class PublicInterface:
 
         return d.addCallbacks(onAccountSuccess, onAccountFail)
 
-    @exportRpc("change_password_token")
+    @wamp.register(u"change_password_token")
     def change_password_token(self, username, new_password_hash, token):
         """Changes a users password.  Leaves salt and two factor untouched.
 
@@ -439,13 +388,16 @@ class PublicInterface:
 
         return d.addCallbacks(onResetSuccess, onResetFail)
 
-    @exportRpc
+    @wamp.register
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
 
+    @inlineCallbacks
+    def onJoin(self, details):
+        log.msg("session ready")
+        yield self.register(self)
 
-
-class PepsiColaServerProtocol(WampCraServerProtocol):
+class PrivateInterface(ApplicationSession):
     """
     Authenticating WAMP server using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
     """
@@ -467,20 +419,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     def onConnect(self, request):
         log.msg(str(request.headers))
-        return WampCraServerProtocol.onConnect(self, request)
-
-    def connectionMade(self):
-        """
-        Called when a connection to the protocol is made
-        this is the right place to initialize stuff, not __init__()
-        """
-        WampCraServerProtocol.connectionMade(self)
-
-        # install rate limited call handler
-        self.last_call = 0
-        self.handlerMapping[self.MESSAGE_TYPEID_CALL] = \
-            RateLimitedCallHandler(self, self.prefixes)
-
+        return ApplicationSession.onConnect(self, request)
 
     def connectionLost(self, reason):
         """
@@ -498,20 +437,20 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         log.msg("in session open")
         ## register a single, fixed URI as PubSub topic
-        self.registerForPubSub(self.base_uri + "/feeds/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-        self.registerForPubSub(self.base_uri + "/feeds/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-        self.registerForPubSub(self.base_uri + "/feeds/book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-        self.registerForPubSub(self.base_uri + "/feeds/ohlcv#", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
-
-        self.registerForRpc(self.factory.public_interface,
-                            self.base_uri + "/rpc/")
-
-        self.registerForPubSub(self.base_uri + "/feeds/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
-                               prefixMatch=True)
+        # self.registerForPubSub(self.base_uri + "/feeds/safe_prices#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        #                        prefixMatch=True)
+        # self.registerForPubSub(self.base_uri + "/feeds/trades#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        #                        prefixMatch=True)
+        # self.registerForPubSub(self.base_uri + "/feeds/book#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        #                        prefixMatch=True)
+        # self.registerForPubSub(self.base_uri + "/feeds/ohlcv#", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        #                        prefixMatch=True)
+        #
+        # self.registerForRpc(self.factory.public_interface,
+        #                     self.base_uri + "/rpc/")
+        #
+        # self.registerForPubSub(self.base_uri + "/feeds/chat", pubsub=WampCraServerProtocol.SUBSCRIBE,
+        #                        prefixMatch=True)
 
         # override global client auth options
         if (self.clientAuthTimeout, self.clientAuthAllowAnonymous) != (0, True):
@@ -526,7 +465,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         self.clientAuthAllowAnonymous = True
 
         # call base class method
-        WampCraServerProtocol.onSessionOpen(self)
+        ApplicationSession.onSessionOpen(self)
 
     def getAuthPermissions(self, auth_key, auth_extra):
         """
@@ -601,7 +540,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         # check for a saved session
         if auth_key in self.factory.cookies:
-            return WampCraProtocol.deriveKey("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1})
+            return derive_key("cookie", {'salt': "cookie", 'keylen': 32, 'iterations': 1})
 
         def auth_secret_callback(result):
             """
@@ -628,7 +567,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # TODO: extra hashing is being done with a possibly empty salt
             # does this weaken the original derived key?
             if otp_num:
-                auth_secret = WampCraProtocol.deriveKey(secret, {'salt': otp_num, 'keylen': 32, 'iterations': 10})
+                auth_secret = derive_key(secret, {'salt': otp_num, 'keylen': 32, 'iterations': 10})
             else:
                 auth_secret = secret
 
@@ -645,7 +584,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             # WampCraProtocol.deriveKey returns base64 encoded data. Since ":"
             # is not in the base64 character set, this can never be a valid
             # password
-            return ":" + WampCraProtocol.deriveKey("foobar", {'salt': str(random.random())[2:], 'keylen': 32, 'iterations': 1})
+            return ":" + derive_key("foobar", {'salt': str(random.random())[2:], 'keylen': 32, 'iterations': 1})
+
 
         return dbpool.runQuery(
             'SELECT password, totp FROM users WHERE username=%s LIMIT 1', (auth_key,)
@@ -697,15 +637,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # should the registration of these wait till after onAuth?  And should they only be for the specific user?
         #  Pretty sure yes.
 
-        self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerForPubSub(self.base_uri + "/feeds/transactions#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
-        self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
+        # self.registerForPubSub(self.base_uri + "/feeds/orders#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        # self.registerForPubSub(self.base_uri + "/feeds/fills#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        # self.registerForPubSub(self.base_uri + "/feeds/transactions#" + self.username, pubsub=WampCraServerProtocol.SUBSCRIBE)
+        # self.registerHandlerForPubSub(self, baseUri=self.base_uri + "/feeds/")
 
         return dbpool.runQuery("SELECT nickname FROM users where username=%s LIMIT 1",
                         (self.username,)).addCallback(_cb)
 
-    @exportRpc("request_support_nonce")
+    @wamp.register(u"request_support_nonce")
     def request_support_nonce(self, type):
         """Get a support nonce so this user can submit a support ticket
 
@@ -733,7 +673,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addCallbacks(onRequestSupportSuccess, onRequestSupportFail)
         return d
 
-    @exportRpc("get_permissions")
+    @wamp.register(u"get_permissions")
     def get_permissions(self):
         """Get this user's permissions
 
@@ -770,7 +710,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addCallbacks(onGetPermsSuccess, onGetPermsFail)
         return d
 
-    @exportRpc("get_cookie")
+    @wamp.register(u"get_cookie")
     def get_cookie(self):
         """
 
@@ -779,7 +719,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         """
         return [True, self.cookie]
 
-    @exportRpc("logout")
+    @wamp.register(u"logout")
     def logout(self):
         """Removes the cookie from the cache, disconnects the user
 
@@ -789,7 +729,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             del self.factory.cookies[self.cookie]
         self.dropConnection()
 
-    @exportRpc("get_new_two_factor")
+    @wamp.register(u"get_new_two_factor")
     def get_new_two_factor(self):
         """prepares new two factor authentication for an account
 
@@ -800,7 +740,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #return new
         raise NotImplementedError()
 
-    @exportRpc("disable_two_factor")
+    @wamp.register(u"disable_two_factor")
     def disable_two_factor(self, confirmation):
         """
         disables two factor authentication for an account
@@ -825,7 +765,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         raise NotImplementedError()
 
 
-    @exportRpc("register_two_factor")
+    @wamp.register(u"register_two_factor")
     def register_two_factor(self, confirmation):
         """
         registers two factor authentication for an account
@@ -857,7 +797,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         #    return False
         raise NotImplementedError()
 
-    @exportRpc("make_compropago_deposit")
+    @wamp.register(u"make_compropago_deposit")
     def make_compropago_deposit(self, charge):
         """
 
@@ -944,7 +884,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addErrback(error)
         return d
 
-    @exportRpc("get_transaction_history")
+    @wamp.register(u"get_transaction_history")
     def get_transaction_history(self, from_timestamp=None, to_timestamp=None):
 
         """
@@ -1025,7 +965,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addErrback(_cb_error)
         return d
 
-    @exportRpc("get_new_address")
+    @wamp.register(u"get_new_address")
     def get_new_address(self, ticker):
         """
         assigns a new deposit address to a user and returns the address
@@ -1047,7 +987,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return d
 
 
-    @exportRpc("get_current_address")
+    @wamp.register(u"get_current_address")
     def get_current_address(self, ticker):
         """
         RPC call to obtain the current address associated with a particular user
@@ -1067,7 +1007,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addCallbacks(onCurrentAddress, onError)
         return d
 
-    @exportRpc("get_deposit_instructions")
+    @wamp.register(u"get_deposit_instructions")
     def get_deposit_instructions(self, ticker):
         validate(ticker, {"type": "string"})
         ticker = ticker[:MAX_TICKER_LENGTH]
@@ -1082,7 +1022,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         d.addCallbacks(onDepositInstructions, onError)
         return d
 
-    @exportRpc("request_withdrawal")
+    @wamp.register(u"request_withdrawal")
     def request_withdrawal(self, ticker, amount, address):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -1110,7 +1050,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return d
 
-    @exportRpc("get_positions")
+    @wamp.register(u"get_positions")
     def get_positions(self):
         """
         Returns the user's positions
@@ -1134,7 +1074,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
             (self.username,)).addCallback(_cb)
 
-    @exportRpc("get_profile")
+    @wamp.register(u"get_profile")
     def get_profile(self):
         """
 
@@ -1157,7 +1097,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT nickname, email, audit_secret FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
 
-    @exportRpc("change_profile")
+    @wamp.register(u"change_profile")
     def change_profile(self, email, nickname):
         """
         Updates a user's nickname and email. Can't change
@@ -1197,7 +1137,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return d.addCallbacks(onProfileSuccess, onProfileFail)
 
-    @exportRpc("change_password")
+    @wamp.register(u"change_password")
     def change_password(self, old_password_hash, new_password_hash):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -1227,7 +1167,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         return d.addCallbacks(onResetSuccess, onResetFail)
 
-    @exportRpc("get_open_orders")
+    @wamp.register(u"get_open_orders")
     def get_open_orders(self):
         """gets open orders
 
@@ -1251,7 +1191,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             _cb)
 
 
-    @exportRpc("place_order")
+    @wamp.register(u"place_order")
     def place_order(self, order):
         """
         Places an order on the engine
@@ -1318,7 +1258,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
                                (order['contract'],)).addCallback(_cb)
 
-    @exportRpc("get_safe_prices")
+    @wamp.register(u"get_safe_prices")
     def get_safe_prices(self, array_of_tickers):
         """
 
@@ -1330,7 +1270,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
         return self.factory.safe_prices
 
-    @exportRpc("cancel_order")
+    @wamp.register(u"cancel_order")
     def cancel_order(self, order_id):
         """
         Cancels a specific order
@@ -1356,14 +1296,14 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
     # so we actually never need to call a "verify captcha" function, the captcha parameters are just passed
     # as part as any other rpc that wants to be captcha protected. Leaving this code as an example though
-    # @exportRpc("verify_captcha")
+    # @wamp.register(u"verify_captcha")
     # def verify_captcha(self, challenge, response):
     #     validate(challenge, {"type": "string"})
     #     validate(response, {"type": "string"})
     #     return self.factory.recaptacha.verify(self.getClientIP(), challenge, response)
 
 
-    @exportSub("chat")
+    @wamp.subscribe(u"chat")
     def subscribe(self, topic_uri_prefix, topic_uri_suffix):
         """
         Custom topic subscription handler
@@ -1379,7 +1319,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             log.msg("but he's not logged in, so we won't let him")
             return False
 
-    @exportPub("chat")
+    #@wamp.publish(u"chat")
     def publish(self, topic_uri_prefix, topic_uri_suffix, event):
         """
         Custom topic publication handler
@@ -1429,14 +1369,12 @@ class EngineExport:
     @export
     def book(self, ticker, book):
         self.webserver.all_books[ticker] = book
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/book#%s" % ticker, book)
+        self.webserver.publish("/feeds/book#%s" % ticker, book)
 
     @export
     def safe_prices(self, ticker, price):
         self.webserver.safe_prices[ticker] = price
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/safe_prices#%s" % ticker, price)
+        self.webserver.publish("/feeds/safe_prices#%s" % ticker, price)
 
 class AccountantExport:
     def __init__(self, webserver):
@@ -1444,29 +1382,25 @@ class AccountantExport:
 
     @export
     def fill(self, user, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/fills#%s" % user, trade)
+        self.webserver.publish("/feeds/fills#%s" % user, trade)
 
     @export
     def transaction(self, user, transaction):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/transactions#%s" % user, transaction)
+        self.webserver.publish("/feeds/transactions#%s" % user, transaction)
 
     @export
     def trade(self, ticker, trade):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/trades#%s" % ticker, trade)
+        self.webserver.publish("/feeds/trades#%s" % ticker, trade)
         self.webserver.trade_history[ticker].append(trade)
         for period in ["day", "hour", "minute"]:
             self.webserver.update_ohlcv(trade, period=period, update_feed=True)
 
     @export
     def order(self, username, order):
-        self.webserver.dispatch(
-            self.webserver.base_uri + "/feeds/orders#%s" % username, order)
+        self.webserver.publish("/feeds/orders#%s" % username, order)
 
 
-class PepsiColaServerFactory(WampServerFactory):
+class SputnikFactory(ApplicationSessionFactory):
     """
     Simple broadcast server broadcasting any message it receives to all
     currently connected clients.
@@ -1486,8 +1420,7 @@ class PepsiColaServerFactory(WampServerFactory):
         :param debugCodePaths:
         :type debugCodePaths: bool
         """
-        WampServerFactory.__init__(
-            self, url, debugWamp=debugWamp, debugCodePaths=debugCodePaths)
+        ApplicationSessionFactory.__init__(self)
 
         self.base_uri = base_uri
 
@@ -1499,7 +1432,7 @@ class PepsiColaServerFactory(WampServerFactory):
         self.chats = []
         self.cookies = {}
 
-        self.public_interface = PublicInterface(self)
+#        self.public_interface = PublicInterface(self)
 
         self.accountant = accountant
         self.administrator = administrator
@@ -1509,6 +1442,10 @@ class PepsiColaServerFactory(WampServerFactory):
         self.recaptcha = recaptcha
         self.exchange_info = exchange_info
 
+    def make(self, config):
+        session = self.session(config)
+        session.factory = self
+        return session
 
     def update_ohlcv(self, trade, period="day", update_feed=False):
         """
@@ -1733,9 +1670,9 @@ if __name__ == '__main__':
                       'feed_uri': config.get("webserver", "exchange_rss_feed"),
                       'google_analytics': config.get("webserver", "google_analytics")}
 
-    factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
+    factory = SputnikFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
                                      debugWamp=debug, debugCodePaths=debug, exchange_info=exchange_info)
-    factory.protocol = PepsiColaServerProtocol
+    factory.session = PublicInterface
 
     engine_export = EngineExport(factory)
     accountant_export = AccountantExport(factory)
@@ -1748,9 +1685,10 @@ if __name__ == '__main__':
 
     # prevent excessively large messages
     # https://autobahn.ws/python/reference
-    factory.setProtocolOptions(maxMessagePayloadSize=1000)
+    #factory.setProtocolOptions(maxMessagePayloadSize=1000)
 
-    listenWS(factory, contextFactory, interface=interface)
+    runner = ApplicationRunner(url=base_uri, realm='')
+    runner.run(factory.make, start_reactor=False)
 
     watchdog = watchdog(config.get("watchdog", "webserver"))
     administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
