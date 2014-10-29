@@ -237,8 +237,8 @@ $ ->
             <th></th>
             <th></th>
             <th>Contract</th>
-            <th align="right">Position</th>
-            <th align="right">Reference Price</th>
+            <th style="text-align: right">Position</th>
+            <th style="text-align: right">Reference Price</th>
             <th></th>
         </tr>
     </thead>
@@ -249,7 +249,7 @@ $ ->
             <td></td>
             <td>{{position.contract.ticker}}</td>
             <td align="right">{{position.quantity_fmt}}</td>
-            <td align="right">{{position.reference_price}}</td>
+            <td align="right">{{position.reference_price_fmt}}</td>
             <td>{% if position.contract.contract_type in ["prediction", "futures"] %}<a href="/liquidate_position?username={{user.username}}&ticker={{position.contract.ticker}}">Liquidate</a>{% endif %}</td>
         </tr>
         <tr name="transfer_{{position.id}}" style="display:none;">

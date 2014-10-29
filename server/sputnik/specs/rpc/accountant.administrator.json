@@ -162,7 +162,7 @@
             },
             "price":
             {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "the final clearing price for the contract"
             },
             "uid":

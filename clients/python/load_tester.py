@@ -33,7 +33,7 @@ from twisted.internet import reactor, ssl, task
 
 from autobahn.twisted.websocket import connectWS
 
-from client import BotFactory
+from client import BotFactory, TradingBot
 from random_trader import RandomBot
 from market_maker import MarketMakerBot
 import random
@@ -43,7 +43,7 @@ import argparse
 
 class LoadTester():
     def onMakeAccount(self, event):
-        RandomBot.onMakeAccount(self, event)
+        TradingBot.onMakeAccount(self, event)
         self.authenticate()
 
     def startAutomation(self):

@@ -214,7 +214,7 @@ def position_calculated(position, session, checkpoint=None, start=None, end=None
         last_posting_timestamp = None
 
 
-    return checkpoint + calculated, last_posting_timestamp
+    return int(checkpoint + calculated), last_posting_timestamp
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,

@@ -167,7 +167,7 @@ class AsyncPullExport(AsyncExport):
 
         def exception(failure):
             log.err("Caught exception in method %s." % method_name)
-            log.err(failure)
+            log.err(failure.value)
 
         def complete(result):
             self.counter -= 1
@@ -215,7 +215,7 @@ class AsyncRouterExport(AsyncExport):
 
         def exception(failure):
             log.err("Caught exception in method %s." % method_name)
-            log.err(failure)
+            log.err(failure.value)
             self.connection.reply(message_id, self.encode(False, failure.value))
 
         def complete(result):

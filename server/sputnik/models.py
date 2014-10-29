@@ -571,6 +571,13 @@ class Position(db.Base, QuantityUI):
         return self.position
 
     @property
+    def reference_price_fmt(self):
+        if self.reference_price is not None:
+            return util.price_fmt(self.contract, self.reference_price)
+        else:
+            return None
+
+    @property
     def dict(self):
         return {'user': self.user,
                 'contract': self.contract,

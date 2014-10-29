@@ -81,6 +81,10 @@
                             <input type="hidden" name="ticker" value="{{contract.ticker}}">
                             <input type="text" name="price" placeholder="Price" size="5">
                         </form>
+                        {% else %}
+                        {% if contract.contract_type == "futures" %}
+                        <a href="/clear_contract?ticker={{contract.ticker}}">Clear</a>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td>{{contract.description}}</a></td>
