@@ -1,0 +1,149 @@
+{
+    "make_account": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to make a new account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "password": {
+                "type": "string",
+                "description": "the new user's password salt:hash"
+            }
+        },
+        "required": [ "username", "password" ],
+        "additionalProperties": false
+    },
+    "change_profile": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to edit a user's profile",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username we are modifying"
+            },
+            "profile": {
+                "type": "object",
+                "description": "the new user's password salt:hash",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "the user's contact email address"
+                    },
+                    "nickname": {
+                        "type": "string",
+                        "description": "the nickname the user goes by"
+                    }
+                },
+                "required": [ "email", "nickname" ],
+                "additionalProperties": false
+            }
+        },
+        "required": [ "username", "profile" ],
+        "additionalProperties": false
+    },
+    "reset_password_hash": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to reset a password",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "old_password_hash": {
+                "type": ["string", "null"],
+                "description": "the user's old/existing password hash"
+            },
+            "new_password_hash": {
+                "type": "string",
+                "description": "the hash of the new password"
+            },
+            "token": {
+                "type": ["string", "null"],
+                "description": "if a valid reset token is passed here we don't need the old hash"
+            }
+        },
+        "required": [ "username", "old_password_hash", "new_password_hash" ],
+        "additionalProperties": false
+    },
+    "get_reset_token": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to request a reset token be mailed to the user",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            }
+        },
+        "required": [ "username" ],
+        "additionalProperties": false
+    },
+    "register_support_ticket": {
+        "type": "object",
+        "description": "webserver/ticketserver -> administrator RPC call to register a support ticket",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username of the user making the request"
+            },
+            "nonce": {
+                "type": "string",
+                "description": "a one-time token to ensure that this is a support ticket we want to register"
+            },
+            "type": {
+                "type": "string",
+                "description": "the type of the ticket"
+            },
+            "foreign_key": {
+                "type": "string",
+                "description": "the key to reference the ticket in the support system"
+            }
+        },
+        "required": ["username", "nonce", "type", "foreign_key"],
+        "additionalProperties": false
+    },
+    "request_support_nonce": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get a support ticket nonce",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username who needs to submit the request"
+            },
+            "type": {
+                "type": "string",
+                "description": "the type of the ticket"
+            }
+        },
+        "required": [ "username", "type" ],
+        "additionalProperties": false
+    },
+    "check_support_nonce": {
+        "type": "object",
+        "description": "ticketserver -> administrator RPC call to check a support ticket nonce",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username who needs to submit the request"
+            },
+            "nonce": {
+                "type": "string",
+                "description": "the one time string we are checking"
+            },
+            "type": {
+                "type": "string",
+                "description": "the type of the ticket"
+            }
+        },
+        "required": [ "username", "nonce", "type" ],
+        "additionalProperties": false
+    },
+    "get_audit": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get the balance sheet audit",
+        "additionalProperties": false
+    }
+}
+
+

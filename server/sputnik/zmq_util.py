@@ -1,20 +1,22 @@
 import inspect
 import json
-import logging
 import zmq
 import uuid
+import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
+from twisted.python import log
 from functools import partial
-
-
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
 
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass
+
+class ComponentExport():
+    def __init__(self, component):
+        self.component = component
 
 
 def export(obj):
@@ -24,6 +26,10 @@ def export(obj):
 
 class Export:
     def __init__(self, wrapped):
+        """
+
+        :param wrapped:
+        """
         self.wrapped = wrapped
         self.mapper = {}
         for k in inspect.getmembers(wrapped.__class__, inspect.ismethod):
@@ -31,7 +37,12 @@ class Export:
                 self.mapper[k[0]] = k[1]
 
     def decode(self, message):
-        logging.debug("Decoding message...")
+        """
+
+        :param message:
+        :return: :raise RemoteCallException:
+        """
+        log.msg("Decoding message...")
 
         # deserialize
         try:
@@ -43,6 +54,7 @@ class Export:
         method_name = request.get("method", None)
         args = request.get("args", [])
         kwargs = request.get("kwargs", {})
+        log.msg("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         # look up method
         method = self.mapper.get(method_name, None)
@@ -60,7 +72,7 @@ class Export:
         return method_name, args, kwargs
 
     def encode(self, success, value):
-        logging.debug("Encoding message...")
+        log.msg("Encoding message...")
 
         # try to serialize Exception if there was a failure
         if not success:
@@ -73,7 +85,7 @@ class Export:
         try:
             json.dumps(value)
         except:
-            logging.warn("Message cannot be serialized. Converting to string.")
+            log.err("Message cannot be serialized. Converting to string.")
             # do our best to serialize
             try:
                 value = repr(value)
@@ -81,95 +93,169 @@ class Export:
                 success = False
                 value = "Result could not be serialized."
 
+        log.msg("success=%d, value=%s" % (success, json.dumps(value)))
+
         if success:
             return json.dumps({"success":success, "result":value})
+
         return json.dumps({"success":success, "exception":value})
 
 class AsyncExport(Export):
     def dispatch(self, method_name, args, kwargs):
-        logging.info("Dispatching %s..." % method_name)
-        logging.debug("method_name=%s, args=%s, kwars=%s" %
+        """
+
+        :param method_name:
+        :param args:
+        :param kwargs:
+        :returns: maybeDeferred
+        """
+        log.msg("Dispatching %s..." % method_name)
+        log.msg("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
         return maybeDeferred(method, self.wrapped, *args, **kwargs)
 
 class SyncExport(Export):
     def dispatch(self, method_name, args, kwargs):
-        logging.info("Dispatching %s..." % method_name)
-        logging.debug("method_name=%s, args=%s, kwars=%s" %
+        """
+
+        :param method_name:
+        :param args:
+        :param kwargs:
+        :returns:
+        """
+        log.msg("Dispatching %s..." % method_name)
+        log.msg("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
-        return method(self.wrapped, *args, **kwargs)
+        result = method(self.wrapped, *args, **kwargs)
+        return result
 
 class AsyncPullExport(AsyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.onPull = self.onPull
+        self.counter = 0
 
     def onPull(self, message):
+        """
+
+        :param message:
+        :returns: Deferred
+        """
+        self.counter += 1
+        start = time.time()
+        log.msg("%s queue length: %s" % (self, self.counter))
+
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
         except Exception, e:
-            return logging.warn("RPC Error: %s" % e)
+            log.err("RPC Error: %s" % e)
+            log.err()
+            return
 
         def result(value):
-            logging.info("Got result for method %s." % method_name)
+            log.msg("Got result for method %s." % method_name)
 
         def exception(failure):
-            logging.warn("Caught exception in method %s." % method_name)
-            logging.warn(failure)
+            log.err("Caught exception in method %s." % method_name)
+            log.err(failure)
+
+        def complete(result):
+            self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            log.msg("%s completed in %.3f ms." % (method_name, elapsed))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class AsyncRouterExport(AsyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         AsyncExport.__init__(self, wrapped)
         self.connection = connection
         self.connection.gotMessage = self.gotMessage
+        self.counter = 0
 
     def gotMessage(self, message_id, message):
+        """
+
+        :param message_id:
+        :param message:
+        :returns: Deferred
+        """
+
+        self.counter += 1
+        start = time.time()
+
+        log.msg("%s queue length: %s" % (self, self.counter))
+
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            logging.warn("RPC Error: %s" % e)
+            log.err("RPC Error: %s" % e)
             return self.connection.reply(message_id, self.encode(False, e))
 
         def result(value):
-            logging.info("Got result for method %s." % method_name)
+            log.msg("Got result for method %s." % method_name)
             self.connection.reply(message_id, self.encode(True, value))
 
         def exception(failure):
-            logging.warn("Caught exception in method %s." % method_name)
-            logging.warn(failure)
-            self.connection.reply(message_id,
-                self.encode(False, failure.value))
+            log.err("Caught exception in method %s." % method_name)
+            log.err(failure)
+            self.connection.reply(message_id, self.encode(False, failure.value))
+
+        def complete(result):
+            self.counter -= 1
+            elapsed = (time.time() - start) * 1000
+            log.msg("%s completed in %.3f ms." % (method_name, elapsed))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
+        d.addCallback(complete)
 
 class SyncPullExport(SyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         SyncExport.__init__(self, wrapped)
         self.connection = connection
 
     def process(self, message):
+        """
+
+        """
         sender_id = message[0]
         message = message[1]
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            return logging.warn("RPC Error: %s" % e)
+            log.err("RPC Error: %s" % e)
+            log.err()
+            return
 
         def result(value):
-            logging.info("Got result for method %s." % method_name)
+            log.msg("Got result for method %s." % method_name)
 
         def exception(failure):
-            logging.warn("Caught exception in method %s." % method_name)
-            logging.warn(failure)
+            log.err("Caught exception in method %s." % method_name)
+            log.err(failure)
 
         try:
             result(self.dispatch(method_name, args, kwargs))
@@ -178,28 +264,40 @@ class SyncPullExport(SyncExport):
 
 class SyncRouterExport(SyncExport):
     def __init__(self, wrapped, connection):
+        """
+
+        :param wrapped:
+        :param connection:
+        """
         SyncExport.__init__(self, wrapped)
         self.connection = connection
 
     def process(self, message):
+        """
+
+        :param message:
+        :return:
+        """
         sender_id = message[0]
         message_id = message[1]
         message = message[3]
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            logging.warn("RPC Error: %s" % e)
+            log.err("RPC Error: %s" % e)
+            log.err()
             return self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(False, e)])
 
         def result(value):
-            logging.info("Got result for method %s." % method_name)
+            log.msg("Got result for method %s id: %s" %
+                    (method_name, message_id))
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(True, value)])
 
         def exception(failure):
-            logging.warn("Caught exception in method %s." % method_name)
-            logging.warn(failure)
+            log.err("Caught exception in method %s." % method_name)
+            log.err(failure)
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(False, failure)])
 
@@ -210,14 +308,31 @@ class SyncRouterExport(SyncExport):
 
 
 def router_share_async(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    :returns: AsyncRouterExport
+    """
     socket = ZmqREPConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     return AsyncRouterExport(obj, socket)
 
 def pull_share_async(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    :returns: AsyncPullExport
+    """
     socket = ZmqPullConnection(ZmqFactory(), ZmqEndpoint("bind", address))
     return AsyncPullExport(obj, socket)
 
 def router_share_sync(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    """
     context = zmq.Context()
     socket = context.socket(zmq.ROUTER)
     socket.bind(address)
@@ -226,6 +341,11 @@ def router_share_sync(obj, address):
         sre.process(socket.recv_multipart())
 
 def pull_share_sync(obj, address):
+    """
+
+    :param obj:
+    :param address:
+    """
     context = zmq.Context()
     socket = context.socket(zmq.ROUTER)
     socket.bind(address)
@@ -235,10 +355,20 @@ def pull_share_sync(obj, address):
 
 class Proxy:
     def __init__(self, connection):
+        """
+
+        :param connection:
+        """
         self._connection = connection
 
     def decode(self, message):
-        logging.debug("Decoding message...")
+        """
+
+        :param message:
+        :returns: tuple
+        :raises: Exception
+        """
+        log.msg("Decoding message... %s" % message)
 
         # deserialize
         try:
@@ -272,15 +402,29 @@ class Proxy:
         return success, exception
 
     def encode(self, method_name, args, kwargs):
-        logging.debug("Encoding message...")
+        log.msg("Encoding message...")
+        log.msg("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         return json.dumps({"method":method_name, "args":args, "kwargs":kwargs})
 
     def __getattr__(self, key):
+        """
+
+        :param key:
+        :returns:
+        :raises: Exception
+        """
         if key.startswith("__") and key.endswith("__"):
             raise AttributeError
 
         def remote_method(*args, **kwargs):
+            """
+
+            :param args:
+            :param kwargs:
+            :returns: Deferred
+            :raises: Exception
+            """
             message = self.encode(key, args, kwargs)
             d = self.send(message)
 
@@ -291,6 +435,8 @@ class Proxy:
                 success, result = self.decode(message)
                 if success:
                     return result
+                # In this case the 'result' is an exception so we should
+                # raise it
                 raise result
 
             if isinstance(d, Deferred):
@@ -303,10 +449,20 @@ class Proxy:
 
 class DealerProxyAsync(Proxy):
     def __init__(self, connection, timeout=1):
+        """
+
+        :param connection:
+        :param timeout:
+        """
         self._timeout = timeout
         Proxy.__init__(self, connection)
 
     def send(self, message):
+        """
+
+        :param message:
+        :returns: Deferred
+        """
         d = self._connection.sendMsg(message)
         if self._timeout > 0:
             timeout = reactor.callLater(self._timeout, d.errback,
@@ -320,10 +476,20 @@ class DealerProxyAsync(Proxy):
 
 class PushProxyAsync(Proxy):
     def send(self, message):
+        """
+
+        :param message:
+        :returns:
+        """
         return self._connection.push(message)
 
 class DealerProxySync(Proxy):
     def __init__(self, connection, timeout=1):
+        """
+
+        :param connection:
+        :param timeout:
+        """
         self._timeout = timeout
         Proxy.__init__(self, connection)
         self._connection.RCVTIMEO = int(timeout * 1000)
@@ -343,28 +509,56 @@ class DealerProxySync(Proxy):
         success, result = self.decode(message)
         if success:
             return result
+        # In this case the 'result' is an exception so we should
+        # raise it
         raise result
 
 class PushProxySync(Proxy):
     def send(self, message):
+        """
+
+        :param message:
+        :returns: None
+        """
         self._connection.send(message)
         return None
 
-def dealer_proxy_async(address):
+def dealer_proxy_async(address, timeout=1):
+    """
+
+    :param address:
+    :returns: DealerProxyAsync
+    """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-    return DealerProxyAsync(socket)
+    return DealerProxyAsync(socket, timeout=timeout)
 
 def push_proxy_async(address):
+    """
+
+
+    :param address:
+    :returns: PushProxyAsync
+    """
     socket = ZmqPushConnection(ZmqFactory(), ZmqEndpoint("connect", address))
     return PushProxyAsync(socket)
 
 def dealer_proxy_sync(address):
+    """
+
+    :param address:
+    :returns: DealerProxySync
+    """
     context = zmq.Context()
     socket = context.socket(zmq.DEALER)
     socket.connect(address)
     return DealerProxySync(socket)
 
 def push_proxy_sync(address):
+    """
+
+    :param address:
+    :returns: PushProxySync
+    """
     context = zmq.Context()
     socket = context.socket(zmq.PUSH)
     socket.connect(address)

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Ledger {{journal.id}}{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">Ledger {{journal.id}}</div>
+        <div class="panel-body">
+        <table id="ledger_info" class="table table-striped table-hover">
+            <tbody>
+                <tr>
+                    <td>Timestamp</td>
+                    <td>{{journal.timestamp}}</td>
+                </tr>
+                <tr>
+                    <td>Notes</td>
+                    <td>{{journal.notes}}</td>
+                </tr>
+                <tr>
+                    <td>Type</td>
+                    <!-- TODO: Change this to connect to to zendesk to contact user -->
+                    <td>{{journal.type}}</td>
+                </tr>
+            </tbody>
+        </table>
+        <table id="postings" class="table table-striped table-hover">
+            <thead>
+                <tr><th>Position</th><th>Type</th><th>User</th><th>Quantity</th><th>Note</th><th>Timestamp</th></tr>
+            </thead>
+            <tbody>
+                {% for posting in journal.postings %}
+                <tr>
+                    <td>{{posting.contract.ticker}}</td>
+                    <td>{{posting.user.type}}</td>
+                    <td><a href="/user_details?username={{posting.user.username}}">{{posting.user.username}}</a></td>
+                    <td align="right">{{posting.quantity_fmt}}</td>
+                    <td>{{posting.note}}</td>
+                    <td>{{posting.timestamp}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}

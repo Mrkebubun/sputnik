@@ -33,43 +33,37 @@ from twisted.python import log
 from twisted.internet import reactor, ssl, task
 
 from autobahn.twisted.websocket import connectWS
-from autobahn.wamp1.protocol import WampClientFactory
+from ConfigParser import ConfigParser
 
-from client import TradingBot
+from client import TradingBot, BotFactory
 import urllib2
 import json
 from bs4 import BeautifulSoup
-import time
+import logging
+from os import path
 
-uri = 'wss://sputnikmkt.com:8000'
 class MarketMakerBot(TradingBot):
-    def getUsernamePassword(self):
-        return ['marketmaker', 'marketmaker']
+    external_markets = {}
 
-    def getUri(self):
-        return uri
-
-    def startAutomation(self):
-        rate = 1
-
-        self.btcmxn_bid = None
-        self.btcmxn_ask = None
-
+    def startAutomationAfterAuth(self):
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(rate * 1.0)
+        self.get_external_market.start(self.factory.rate * 6)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
-        self.monitor_orders.start(rate * 0.1)
+        self.monitor_orders.start(self.factory.rate * 1)
 
         return True
 
+    def startAutomation(self):
+        self.authenticate()
+
     # See if we have any orders on a given side
-    def cancelOrders(self, side):
-        for id, order in self.orders.iteritems():
+    def cancelOrders(self, currency, side):
+        for id, order in self.orders.items():
             if order['is_cancelled'] or order['quantity_left'] <= 0:
                 continue
 
-            if order['side'] == side:
+            if order['side'] == side and order['contract'] == 'BTC/%s' % currency:
                 self.cancelOrder(id)
 
     def checkOrders(self, side):
@@ -89,61 +83,100 @@ class MarketMakerBot(TradingBot):
             json_data = json.load(file_handle)
             btcusd_bid = float(json_data['bid'])
             btcusd_ask = float(json_data['ask'])
-
-            # Get Yahoo USD/MXN quote
-            url = "http://finance.yahoo.com/q?s=USDMXN=X"
-            file_handle = urllib2.urlopen(url)
-            soup = BeautifulSoup(file_handle)
-            usdmxn_bid = float(soup.find(id="yfs_b00_usdmxn=x").text)
-            usdmxn_ask = float(soup.find(id="yfs_a00_usdmxn=x").text)
         except Exception as e:
             # Unable to get markets, just exit
             print "unable to get external market data: %s" % e
-
-        btcmxn_bid = int(btcusd_bid * usdmxn_bid)
-        btcmxn_ask = int(btcusd_ask * usdmxn_ask)
-        if btcmxn_bid != self.btcmxn_bid:
-            self.btcmxn_bid = btcmxn_bid
-            self.replaceBidAsk(btcmxn_bid, 'BUY')
-        if btcmxn_ask != self.btcmxn_ask:
-            self.btcmxn_ask = btcmxn_ask
-            self.replaceBidAsk(btcmxn_ask, 'SELL')
-
-    def replaceBidAsk(self, new_ba, side):
-        self.cancelOrders(side)
-        self.btcmxn_bid = new_ba
-
-        self.placeOrder('BTC/MXN', 25000000, int(new_ba) * 100, side)
-
-    def monitorOrders(self):
-        # Make sure we have orders open for both bid and ask
-        if self.btcmxn_bid is None or self.btcmxn_ask is None:
             return
 
-        for side in ['BUY', 'SELL']:
-            total_qty = 0
-            for id, order in self.orders.iteritems():
-                if order['side'] == side and order['is_cancelled'] is False:
-                    total_qty += order['quantity_left']
-            qty_to_add = 25000000 - total_qty
-            if qty_to_add > 0:
-                if side == 'BUY':
-                    price = int(self.btcmxn_bid) * 100
-                else:
-                    price = int(self.btcmxn_ask) * 100
+        for ticker, market in self.markets.iteritems():
+            if market['contract_type'] == "cash_pair":
+                currency = market['denominated_contract_ticker']
 
-                self.placeOrder('BTC/MXN', qty_to_add, price, side)
+                try:
+                # Get Yahoo quote
+                    url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
+                    file_handle = urllib2.urlopen(url)
+                    soup = BeautifulSoup(file_handle)
+                    bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text)
+                    ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text)
+                except Exception as e:
+                    # Unable to get markets, just exit
+                    print "unable to get external market data: %s" % e
+                    continue
+
+
+                new_bid = btcusd_bid * bid
+                new_ask = btcusd_ask * ask
+                if ticker == "BTC/PLN":
+                    logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
+
+                # Make sure that the marketwe are making isn't crossed
+                if new_bid > new_ask:
+                    tmp = new_bid
+                    new_bid = new_ask
+                    new_ask = tmp
+
+                # If it's matched, make a spread just because
+                if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
+                    new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                    new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+
+                if ticker in self.external_markets:
+                    if new_bid != self.external_markets[ticker]['bid']:
+                        self.external_markets[ticker]['bid'] = new_bid
+                        self.replaceBidAsk(ticker, new_bid, 'BUY')
+                    if new_ask != self.external_markets[ticker]['ask']:
+                        self.external_markets[ticker]['ask'] = new_ask
+                        self.replaceBidAsk(currency, new_ask, 'SELL')
+                else:
+                    self.external_markets[ticker] = {'bid': new_bid, 'ask': new_ask}
+                    self.replaceBidAsk(ticker, new_ask, 'SELL')
+                    self.replaceBidAsk(ticker, new_bid, 'BUY')
+
+    def replaceBidAsk(self, ticker, new_ba, side):
+        self.cancelOrders(ticker, side)
+
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
+
+    def monitorOrders(self):
+        for ticker, market in self.external_markets.iteritems():
+            # Make sure we have orders open for both bid and ask
+            for side in ['BUY', 'SELL']:
+                total_qty = 0
+                for id, order in self.orders.iteritems():
+                    if order['side'] == side and order['is_cancelled'] is False and order['contract'] == ticker:
+                        total_qty += self.quantity_from_wire(ticker, order['quantity_left'])
+
+                qty_to_add = 0.25 - total_qty
+                if qty_to_add > 0:
+                    if side == 'BUY':
+                        price = market['bid']
+                    else:
+                        price = market['ask']
+
+                    self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
+                                       self.price_to_wire(ticker, price), side)
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        log.startLogging(sys.stdout)
         debug = True
     else:
         debug = False
 
     log.startLogging(sys.stdout)
-    factory = WampClientFactory(uri, debugWamp=debug)
+    config = ConfigParser()
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
+
+    uri = config.get("client", "uri")
+    username = config.get("market_maker", "username")
+    password = config.get("market_maker", "password")
+    rate = config.getfloat("market_maker", "rate")
+
+    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate)
     factory.protocol = MarketMakerBot
 
     # null -> ....
@@ -152,5 +185,6 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    connectWS(factory, contextFactory)
+    factory.connect(contextFactory)
     reactor.run()
+

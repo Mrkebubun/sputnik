@@ -1,0 +1,3 @@
+[submodule "charting_library"]
+	path = charting_library
+	url = git@sputnikmkt.com:charting_library.git

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Admin Tasks{% endblock %}
+{% block admin_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">Admin Tasks</div>
+        <div class="panel-body">
+            <form action="/reset_admin_password" method="post">
+                <input type="hidden" name="username" placeholder="Username">
+                <input type="password" name="old_password" placeholder="Old Password">
+                <input type="password" name="new_password" placeholder="New Password">
+                <input type="password" name="new_password_confirm" placeholder="Password Confirmation">
+                <button type="submit">Reset Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

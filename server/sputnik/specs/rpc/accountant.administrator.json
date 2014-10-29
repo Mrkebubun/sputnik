@@ -1,0 +1,177 @@
+{
+    "adjust_position":
+    {
+        "type":"object",
+        "description": "Credit a user's position.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of the affected user."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Affected contract."
+            },
+            "quantity":
+            {
+                "type": "integer",
+                "description": "Credit amount."
+            },
+            "admin_username":
+            {
+                "type": "string",
+                "description": "the username of the administrator requesting this adjustment"
+            }
+        },
+        "required": ["username", "ticker", "quantity", "admin_username"],
+        "additionalProperties": false
+    },
+    "cancel_order":
+    {
+        "type":"object",
+        "description": "Cancel an open order.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "Order id of order to cancel."
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    },
+    "transfer_position":
+    {
+        "type":"object",
+        "description": "Transfer position from one user to another.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of one of the affected users."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Affected contract."
+            },
+            "direction":
+            {
+                "enum": ["credit", "debit"],
+                "description": "Transfer direction."
+            },
+            "quantity":
+            {
+                "type": "integer",
+                "description": "Transfer volume."
+            },
+            "note":
+            {
+                "type": ["string", "null"],
+                "description": "Optional short note."
+            },
+            "uid":
+            {
+                "type": "string",
+                "description": "Unique id for the transfer."
+            }
+        },
+        "required": ["username", "ticker", "direction", "quantity", "uid"],
+        "additionalProperties": false
+    },
+    "change_permission_group":
+    {
+        "type":"object",
+        "description": "Change user's permission group.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of affected user."
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "New group id."
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    },
+    "deposit_cash":
+    {
+        "type":"object",
+        "description": "Deposit cash in user's address.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom to deposit."
+            },
+            "address":
+            {
+                "type": "string",
+                "description": "User's address."
+            },
+            "received":
+            {
+                "type": "integer",
+                "description": "Amount received."
+            },
+            "total":
+            {
+                "type": "boolean",
+                "description": "Whether received is address total or delta."
+            },
+            "admin_username":
+            {
+                "type": "string",
+                "description": "the username of the administrator requesting this adjustment"
+            }
+        },
+        "required": ["username", "address", "received", "total"],
+        "additionalProperties": false
+    },
+    "clear_contract":
+    {
+        "type":"object",
+        "description": "Clear a contract at a final clearing price",
+        "properties":
+        {
+            "username":
+            {
+                "type": "null",
+                "description": "This should be null/None because it is for all users on this accountant"
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "The ticker of the contract we are clearing"
+            },
+            "price":
+            {
+                "type": "integer",
+                "description": "the final clearing price for the contract"
+            },
+            "uid":
+            {
+                "type": "string",
+                "description": "unique identifier"
+            }
+        },
+        "required": ["username", "ticker", "price", "uid"],
+        "additionalProperties": false
+    }
+}

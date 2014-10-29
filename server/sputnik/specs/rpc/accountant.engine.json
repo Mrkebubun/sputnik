@@ -1,0 +1,40 @@
+{
+    "post_transaction":
+    {
+        "type": "object",
+        "description": "Post a transaction.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "transaction":
+            {
+                "$ref": "objects/transaction.json"
+            }
+        },
+        "required": ["username", "transaction"]
+    },
+    "cancel_order":
+    {
+        "type":"object",
+        "description": "Cancel an open order.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username for whom transaction is processed."
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "Order id of order to cancel."
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    }
+}

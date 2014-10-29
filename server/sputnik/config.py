@@ -18,6 +18,11 @@ from ConfigParser import ConfigParser
 
 class AutoConfigParser(ConfigParser):
     def __init__(self, *args, **kwargs):
+        """
+
+        :param args:
+        :param kwargs:
+        """
         ConfigParser.__init__(self, *args, **kwargs)
         self.autoconfig_filename = None
 
@@ -34,11 +39,19 @@ class AutoConfigParser(ConfigParser):
         self.autoconfig()
 
     def reset(self):
+        """
+
+
+        """
         self.autoconfig_filename = None
         for section in self.sections():
             self.remove_section(section)
 
     def reconfigure(self, files):
+        """
+
+        :param files:
+        """
         self.reset()
         self.read(files)
 
@@ -48,6 +61,10 @@ class AutoConfigParser(ConfigParser):
         #   consequences in the program is not expecting it. So, stop as soon
         #   as a valid config file is found.
 
+        """
+
+
+        """
         for filename in self.autoconfig_files:
             try:
                 with open(filename) as fp:

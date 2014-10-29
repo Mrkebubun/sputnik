@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cp -rH ${profile_git_root}/server/sputnik/specs ${profile_git_root}/dist
+

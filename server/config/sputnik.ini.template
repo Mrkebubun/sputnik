@@ -4,16 +4,20 @@ public_port = 8181
 public_interface = ${webserver_interface}
 private_port = 8282
 private_interface = 127.0.0.1
-administrator_export = tcp://127.0.0.1:4132
-testnet = ${testnet}
+administrator_export = tcp://127.0.0.1:4160
+accountant_export = tcp://127.0.0.1:4170
+webserver_export = tcp://127.0.0.1:4140
 compropago_key = ${compropago_key}
+cold_wallet_period = 3600
+minimum_confirmations = ${minimum_confirmations}
 
 [engine]
-base_port = 4200
+accountant_base_port = 4200
+administrator_base_port = 4250
 
 [webserver]
-engine_export = tcp://127.0.0.1:10000
-accountant_export = tcp://127.0.0.1:4701
+engine_export = tcp://127.0.0.1:4720
+accountant_export = tcp://127.0.0.1:4740
 interface = ${webserver_interface}
 ws_address = ${webserver_address}
 ws_port = 8000
@@ -23,29 +27,81 @@ ssl_key = ${keys}/server.key
 ssl_cert = ${keys}/server.crt
 ssl_cert_chain = ${keys}/server.chain
 www = ${use_www}
-www_port = 8888
+www_address = ${webserver_address}
+www_port = ${webserver_port}
 www_root = ${www_root}
 debug = ${debug}
 base_uri = ${base_uri}
+recaptcha_public_key = ${recaptcha_public_key}
+recaptcha_private_key = ${recaptcha_private_key}
+exchange_name = ${exchange_name}
+exchange_rss_feed = ${exchange_rss_feed}
+google_analytics = ${google_analytics}
 
 [accountant]
-engine_export = tcp://127.0.0.1:4432
-webserver_export = tcp://127.0.0.1:4433
-cashier_export = tcp://127.0.0.1:4434
-administrator_export = tcp://127.0.0.1:4435
+engine_export = tcp://127.0.0.1:%d
+webserver_export = tcp://127.0.0.1:%d
+cashier_export = tcp://127.0.0.1:%d
+administrator_export = tcp://127.0.0.1:%d
+accountant_export = tcp://127.0.0.1:%d
+engine_export_base_port = 4420
+webserver_export_base_port = 4470
+cashier_export_base_port = 4410
+administrator_export_base_port = 4460
+accountant_export_base_port = 4440
+num_procs = ${accountant_count}
 debug = ${debug}
+trial_period = ${trial_period}
+mimetic_share = ${mimetic_share}
 
 [administrator]
-webserver_export = tcp://127.0.0.1:4601
+webserver_export = tcp://127.0.0.1:4670
+accountant_export = tcp://127.0.0.1:4640
+ticketserver_export = tcp://127.0.0.1:4680
 UI_port = ${administrator_port}
 interface = ${webserver_interface}
+address = ${webserver_address}
 debug = ${debug}
+email = ${administrator_email}
+user_limit = 500
+bs_cache_update = ${bs_cache_update}
+
+[ticketserver]
+ticketserver_port = ${ticketserver_port}
+zendesk_token = ${zendesk_token}
+zendesk_email = ${zendesk_email}
+zendesk_domain = ${zendesk_domain}
+enable_blockscore = true
+blockscore_api_key = ${blockscore_api_key}
 
 [safe_price_forwarder]
-zmq_frontend_address = tcp://127.0.0.1:4501
-zmq_backend_address = tcp://127.0.0.1:4502
+zmq_frontend_address = tcp://127.0.0.1:4500
+zmq_backend_address = tcp://127.0.0.1:4520
+
+[ledger]
+accountant_export = tcp://127.0.0.1:4340
+timeout = 3000
+
+[alerts]
+from = ${user}@${webserver_address}
+to = ${alert_email}
+subject = ${webserver_address}
+export = tcp://127.0.0.1:5100
 
 [version]
 git_hash = ${git_hash}
 git_date = ${git_date}
 git_tag = ${git_tag}
+
+[specs]
+schema_root = ${schema_root}
+
+[watchdog]
+accountant = tcp://127.0.0.1:%d
+accountant_base_port = 4490
+cashier = tcp://127.0.0.1:4190
+webserver = tcp://127.0.0.1:4790
+administrator = tcp://127.0.0.1:4690
+ledger = tcp://127.0.0.1:4390
+engine = tcp://127.0.0.1:%d
+engine_base_port = 4290

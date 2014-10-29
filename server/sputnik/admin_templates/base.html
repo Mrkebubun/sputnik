@@ -14,8 +14,13 @@
 <body>
     <ul class="nav nav-tabs">
       <li {% block users_active %}{% endblock %}><a href="/">Users</a></li>
-      <li {% block audit_active %}{% endblock %}><a href="/audit">Audit</a></li>
-      <li {% block fees_active %}{% endblock %}><a href="/fees">Fees</a></li>
+      <li {% block balance_sheet_active %}{% endblock %}><a href="/balance_sheet">Balance Sheet</a></li>
+      <li {% block admin_active %}{% endblock %}><a href="/admin">Admin</a></li>
+      <li {% block admin_list_active %}{% endblock %}><a href="/admin_list">Admin List</a></li>
+      <li {% block permission_groups_active %}{% endblock %}><a href="/permission_groups">Permissions</a></li>
+      <li {% block withdrawals_active %}{% endblock %}><a href="/withdrawals">Withdrawals</a></li>
+      <li {% block deposits_active %}{% endblock %}><a href="/deposits">Deposits</a></li>
+      <li {% block contracts_active %}{% endblock %}><a href="/contracts">Contracts</a></li>
     </ul>
     <br>
     {% block body %}{% endblock %}

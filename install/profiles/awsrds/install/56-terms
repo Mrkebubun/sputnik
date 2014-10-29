@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cp ${base_profile}/res/terms.html ${profile_www_root}
+

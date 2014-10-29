@@ -1,10 +1,3 @@
-HOST=$(shell hostname)
-ifeq (${HOST},cube)
-ifndef PROFILE
-export PROFILE=$(realpath install/profiles/sputnik)
-endif
-endif
-
 ifndef PROFILE
 export PROFILE=$(realpath install/profiles/git)
 endif
@@ -14,7 +7,10 @@ endif
 all: dist
 
 clean:
-	rm -r dist
+	rm -rf dist
+
+build-deps:
+	install/install.py build-deps
 
 deps:
 	install/install.py deps
@@ -28,16 +24,17 @@ build:
 dist: config build
 	install/install.py dist
 
-tar: dist
-	mkdir -p .tar/sputnik/install/profiles
-	cp -r dist .tar/sputnik
-	sed -i "s/\(dbname = sputnik\).*/\1/" .tar/sputnik/dist/config/sputnik.ini
-	cp install/install.py .tar/sputnik/install
-	cp -r ${PROFILE} .tar/sputnik/install/profiles
-	echo "export PROFILE=install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
-	cat Makefile >> .tar/sputnik/Makefile
-	cd .tar && tar -cf ../sputnik.tar sputnik
+test:
+	cd testing && make no_ui
+
+clients_tar:
+	mkdir -p .tar/clients
+	cp -r clients/python/* .tar/clients
+	cd .tar && tar -cf ../clients.tar clients
 	rm -r .tar
+    
+tar: dist
+	install/install.py tar
 
 install: deps
 	install/install.py install

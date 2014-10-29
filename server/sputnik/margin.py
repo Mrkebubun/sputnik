@@ -1,24 +1,24 @@
 __author__ = 'arthurb'
 
 import models
-import logging
 import util
 import collections
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+from twisted.python import log
 
-def calculate_margin(username, session, safe_prices, order_id=None):
+def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
+    :type order_id: int
     :param username: the username
-    :return: low and high margin
+    :type username: str
+    :returns: tuple - low and high margin
     """
-    BTC = session.query(models.Contract).filter_by(ticker="BTC").one()
 
     low_margin = high_margin = 0
 
-    cash_position = {}
+    cash_position = collections.defaultdict(int)
 
     # let's start with positions
     positions = {position.contract_id: position for position in
@@ -44,7 +44,7 @@ def calculate_margin(username, session, safe_prices, order_id=None):
         if contract.contract_type == 'futures':
             SAFE_PRICE = safe_prices[position.contract.ticker]
 
-            logging.info(low_margin)
+            log.msg(low_margin)
             print 'max position:', max_position
             print 'contract.margin_low :', contract.margin_low
             print 'SAFE_PRICE :', SAFE_PRICE
@@ -58,21 +58,23 @@ def calculate_margin(username, session, safe_prices, order_id=None):
                 position.reference_price - SAFE_PRICE)
             high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
                 position.reference_price - SAFE_PRICE)
-            logging.info(low_max)
-            logging.info(low_min)
+            log.msg(low_max)
+            log.msg(low_min)
 
             high_margin += max(high_max, high_min)
             low_margin += max(low_max, low_min)
 
         if contract.contract_type == 'prediction':
-            payoff = contract.denominator
+            payoff = contract.lot_size
 
             # case where all our buy orders are hit
-            max_spent = sum(order.quantity_left * order.price for order in open_orders if
+            max_spent = sum(order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+                            for order in open_orders if
                             order.contract == contract and order.side == 'BUY')
 
-            # case where all out sell orders are hit
-            max_received = sum(order.quantity_left * order.price for order in open_orders if
+            # case where all our sell orders are hit
+            max_received = sum(order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+                               for order in open_orders if
                                order.contract == contract and order.side == 'SELL')
 
             worst_short_cover = -min_position * payoff if min_position < 0 else 0
@@ -87,39 +89,68 @@ def calculate_margin(username, session, safe_prices, order_id=None):
 
     max_cash_spent = collections.defaultdict(int)
 
+    # Deal with cash_pair orders separately because there are no cash_pair positions
     for order in open_orders:
         if order.contract.contract_type == 'cash_pair':
-            from_currency_ticker, to_currency_ticker = util.split_pair(order.contract.ticker)
-            # TODO: Fix this temporary hack to deal with inefficient margin code
-            to_currency = BTC
+            denominated_contract = order.contract.denominated_contract
+            payout_contract = order.contract.payout_contract
 
             transaction_size_float = order.quantity_left * order.price / (order.contract.denominator *
-                                                                          to_currency.denominator)
+                                                                          payout_contract.denominator)
             transaction_size_int = int(transaction_size_float)
             if transaction_size_float != transaction_size_int:
-                logging.error("Position change is not an integer.")
+                log.err("Position change is not an integer.")
+
+            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
 
             if order.side == 'BUY':
-                max_cash_spent[from_currency_ticker] += transaction_size_int
+                max_cash_spent[denominated_contract.ticker] += transaction_size_int
+                if payout_contract.ticker in fees:
+                    fees[payout_contract.ticker] = max(0, fees[payout_contract.ticker] - order.quantity_left)
             if order.side == 'SELL':
-                max_cash_spent[to_currency_ticker] += order.quantity_left
+                max_cash_spent[payout_contract.ticker] += order.quantity_left
+                if denominated_contract.ticker in fees:
+                    fees[denominated_contract.ticker] = max(0, fees[denominated_contract.ticker] - transaction_size_int)
 
-            fees = util.get_fees(username, order.contract, transaction_size_int)
-            if from_currency_ticker in fees:
-                max_cash_spent[from_currency_ticker] += fees[from_currency_ticker]
-            if to_currency_ticker in fees:
-                max_cash_spent[to_currency_ticker] += fees[to_currency_ticker]
+        elif order.contract.contract_type == 'prediction':
+            transaction_size_float = order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
+            transaction_size_int = int(transaction_size_float)
+            if transaction_size_int != transaction_size_float:
+                log.err("Position change is not an integer")
+            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
 
-    for cash_ticker in cash_position:
-        if cash_ticker == 'BTC':
-            additional_margin = max_cash_spent['BTC']
         else:
-            # this is a bit hackish, I make the margin requirement REALLY big if we can't meet a cash order
-            additional_margin = 0 if max_cash_spent[cash_ticker] <= cash_position[cash_ticker] else 2**48
+            raise NotImplementedError
+
+        for ticker, fee in fees.iteritems():
+            max_cash_spent[ticker] += fee
+
+
+
+    # Make sure max_cash_spent has something in it for every cash contract
+    for ticker in cash_position.iterkeys():
+        if ticker not in max_cash_spent:
+            max_cash_spent[ticker] = 0
+
+    # Deal with withdrawals
+    if withdrawals:
+        for ticker, amount in withdrawals.iteritems():
+            max_cash_spent[ticker] += amount
+
+    for cash_ticker, max_spent in max_cash_spent.iteritems():
+        if cash_ticker == 'BTC':
+            additional_margin = max_spent
+        else:
+            if max_spent <= cash_position[cash_ticker]:
+                additional_margin = 0
+            else:
+                # TODO: We should fix this hack and just check max_cash_spent in check_margin
+                log.msg("max_spent (%d) > cash_position[%s] (%d)" % (max_spent, cash_ticker, cash_position[cash_ticker]))
+                additional_margin = 2**48
 
         low_margin += additional_margin
         high_margin += additional_margin
 
-    return low_margin, high_margin
+    return low_margin, high_margin, max_cash_spent
 
 

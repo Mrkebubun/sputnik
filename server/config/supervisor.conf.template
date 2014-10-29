@@ -1,18 +1,22 @@
-[program:engine_BTC_MXN]
-command = ${root}/server/sputnik/engine.py${pycompiled} -c ${conf}/sputnik.ini BTC/MXN
+[program:accountant]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini %(process_num)d
+process_name = %(program_name)s_%(process_num)d
+numprocs = ${accountant_count}
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
-stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile = ${logs}/%(program_name)s_%(process_num)d.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
-[program:accountant]
+[program:ledger]
 command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -22,6 +26,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -31,6 +36,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -40,6 +46,7 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
 
@@ -49,5 +56,37 @@ autorestart = true
 exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 directory = ${root}/server/sputnik/
 user=${user}
+
+[program:watchdog]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+directory = ${root}/server/sputnik/
+user=${user}
+
+[program:alerts]
+command = ${root}/server/sputnik/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+autorestart = true
+exitcodes = 0
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+directory = ${root}/server/sputnik/
+user=${user}
+
+[eventlistener:process_exited]
+command=crashmail -a -m ${alert_email} -o ${webserver_address}
+events=PROCESS_STATE_EXITED
+
+[eventlistener:memmon]
+command=memmon -a ${memmon_size} -m ${alert_email}
+events=TICK_60
+
+[group:engines]
+programs=${engines_clean}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Contracts{% endblock %}
+{% block coffeescript %}
+    <script type="text/coffeescript">
+        $ ->
+            window.edit_contract = (id) ->
+                $("tr[name=edit_#{id}]").toggle()
+
+            rows = $("#contracts").children("tbody").children("tr")
+
+            $("#search").keyup ->
+                term = $.trim $(@).val().toLowerCase()
+                rows.hide()
+                if $("#exact").prop("checked")
+                    for row in rows
+                        for line in $(row).text().split "\n"
+                            if $.trim(line) is term
+                                $(row).show()
+                else
+                    for row in rows
+                        if $(row).text().search(term) > -1
+                            $(row).show()
+
+            # restripe
+            $("tr").removeClass("alternate")
+            $("tr:not(.hide):odd").addClass("alternate")
+
+            $("#exact").change -> $("#search").keyup()
+    </script>
+{% endblock %}
+{% block contracts_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary table-responsive" style="overflow-x: auto;">
+    <div class="panel-heading">Contract List</div>
+    <div class="panel-body">
+    <form role="form" action="#">
+    <div class="form-group">
+        <input type="search" id="search" autocomplete="off" placeholder="Search">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="exact"> Exact match
+            </label>
+        </div>
+    </div>
+    </form>
+    <table id="contracts" class="table table-striped table-hover">
+        <thead>
+            <tr><th></th>
+                <th>Ticker</th>
+                <th>Clear</th>
+                <th>Description</th>
+                <th>Contract Type</th>
+                <th>Tick Size</th>
+                <th>Lot Size</th>
+                <th>Denominator</th>
+                <th>Expiration</th>
+                <th>Cold Wallet Address</th>
+                <th>Hot Wallet Limit</th>
+                <th>Denominated</th>
+                <th>Payout</th>
+                <th>Margin High</th>
+                <th>Margin Low</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contract in contracts %}
+            {% if contract.active %}
+                <tr>
+                    <td><span class="caret btn-link" onclick="edit_contract({{contract.id}})"></span></td>
+                    <td>
+                        {% if contract.contract_type != "cash" %}
+                            <a href="/order_book?ticker={{contract.ticker}}">{{contract.ticker}}</a>
+                        {% else %}
+                            {{contract.ticker}}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contract.expired %}
+                        <form method="POST" action="/clear_contract">
+                            <input type="hidden" name="ticker" value="{{contract.ticker}}">
+                            <input type="text" name="price" placeholder="Price" size="5">
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td>{{contract.description}}</a></td>
+                    <td>{{contract.contract_type}}</td>
+                    <td>{{contract.tick_size}}</td>
+                    <td>{{contract.lot_size}}</td>
+                    <td>{{contract.denominator}}</td>
+                    <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.expiration}}{% endif %}</td>
+                    {% if contract.contract_type == "cash" %}
+                    <td>{% if contract.ticker == "BTC" %}{{contract.cold_wallet_address}}{% endif %}</td>
+                    <td>{% if contract.ticker == "BTC" %}{{contract.hot_wallet_limit}}{% endif %}</td>
+                    {% else %}
+                    <td></td><td></td>
+                    {% endif %}
+                    <td>{% if contract.contract_type != "cash" %}{{contract.denominated_contract_ticker}}{% endif %}</td>
+                    <td>{% if contract.contract_type != "cash" %}{{contract.payout_contract_ticker}}{% endif %}</td>
+                    <td>{% if contract.contract_type == "futures" %}{{contract.margin_high}}{% endif %}</td>
+                    <td>{% if contract.contract_type == "futures" %}{{contract.margin_low}}{% endif %}</td>
+                </tr>
+                <tr name="edit_{{contract.id}}" style="display:none;">
+                    <td colspan="100">
+                        <form method="POST" action="/edit_contract">
+                            <button type="submit">Edit</button>
+                            <input type="hidden" name="ticker" value="{{contract.ticker}}">
+                            <table>
+                            <tr>
+                                <td>Short Description</td>
+                                <td><input type="text" name="description" value="{{contract.description}}"></td>
+                            </tr>
+                            <tr>
+                                <td>Full Description</td>
+                                <td><textarea rows="20" cols="80" name="full_description">{{contract.full_description}}</textarea></td>
+                            </tr>
+                            {% if contract.contract_type == "cash" %}
+                                {% if contract.ticker == "BTC" %}
+                                <tr>
+                                    <td>Cold Wallet Address</td>
+                                    <td><input type="text" name="cold_wallet_address" value="{{contract.cold_wallet_address}}"></td>
+                                </tr>
+                                <tr>
+                                    <td>Hot Wallet Limit</td>
+                                    <td><input type="text" name="hot_wallet_limit" value="{{contract.hot_wallet_limit}}"></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td>Deposit Instructions</td>
+                                    <td><textarea rows="4" cols="80" name="deposit_instructions">{{contract.deposit_instructions}}</textarea></td>
+                                </tr>
+                                {% endif %}
+                            {% endif %}
+                            {% if contract.contract_type == "prediction" or contract.contract_type == "futures" %}
+                                <tr>
+                                    <td>Expiration</td>
+                                    <td><input type="text" name="expiration" value="{{contract.expiration}}"></td>
+                                </tr>
+                            {% endif %}
+                            </table>
+                        </form>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+{% endblock %}
+
