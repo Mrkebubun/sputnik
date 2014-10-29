@@ -1,0 +1,59 @@
+
+{
+   "controller": {
+   },
+   "workers": [
+      {
+         "type": "router",
+         "realms": [
+            {
+               "name": "realm1",
+               "roles": [
+                  {
+                     "name": "anonymous",
+                     "permissions": [
+                        {
+                           "uri": "*",
+                           "publish": false,
+                           "subscribe": true,
+                           "call": true,
+                           "register": false
+                        }
+                     ]
+                  },
+                  {
+                      "name": "authenticated",
+                      "permissions": [
+                         {
+                            "uri": "*",
+                            "publish": false,
+                            "subscribe": true,
+                            "call": true,
+                            "register": false
+                         }
+                     ]
+                  }
+               ]
+            }
+         ],
+         "transports": [
+            {
+               "type": "web",
+               "endpoint": {
+                  "type": "tcp",
+                  "port": 8080
+               },
+               "paths": {
+                  "/": {
+                     "type": "static",
+                     "directory": ".."
+                  },
+                  "ws": {
+                     "type": "websocket"
+                  }
+               }
+            }
+         ]
+      }
+   ]
+}
