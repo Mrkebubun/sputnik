@@ -67,6 +67,15 @@ class ResetToken(db.Base):
         return "<ResetToken('%s', '%s', '%s', used=%d)>" % \
                (self.username, self.token, self.expiration, self.used)
 
+class FeeGroup(db.Base):
+    __table_args__ = {'extend_existing': True, 'sqlite_autoincrement': True}
+    __tablename__ = 'fee_groups'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    aggressive_factor = Column(Integer, server_default="100", nullable=False)
+    passive_factor = Column(Integer, server_default="100", nullable=False)
+
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})
     __tablename__ = 'contracts'
@@ -82,6 +91,8 @@ class Contract(db.Base):
     denominator = Column(BigInteger, server_default="1", nullable=False)
     expiration = Column(DateTime)
     #expired = Column(Boolean, server_default=sql.false())
+    # Fees in bps
+    fees = Column(BigInteger, server_default="100", nullable=False)
 
     denominated_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
     denominated_contract = relationship('Contract', remote_side='Contract.ticker',
@@ -317,6 +328,7 @@ class User(db.Base):
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
+    fee_group_id = Column(Integer, ForeignKey('fee_groups.id'), server_default="1")
     type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability', server_default="Liability")
     audit_secret = Column(String)
@@ -327,6 +339,7 @@ class User(db.Base):
     withdrawals = relationship("Withdrawal", back_populates="user")
     support_tickets = relationship("SupportTicket", back_populates="user")
     permissions = relationship("PermissionGroup")
+    fees = relationship("FeeGroup")
     postings = relationship("Posting", back_populates="user")
 
     def user_hash(self, timestamp):

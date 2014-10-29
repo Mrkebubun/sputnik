@@ -819,6 +819,49 @@ class Administrator:
         log.msg("Changing permission group for %s to %d" % (username, id))
         self.accountant.change_permission_group(username, id)
 
+    def change_fee_group(self, username, id):
+        """Change the permission group for a user
+
+        :param username: The user we are changing
+        :type username: str
+        :param id: the id of the new permission group
+        :type id: int
+        """
+        log.msg("Changing fee group for %s to %d" % (username, id))
+        self.accountant.change_fee_group(username, id)
+
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor):
+        """Change the permission group for a user
+
+        :param username: The user we are changing
+        :type username: str
+        :param id: the id of the new permission group
+        :type id: int
+        """
+        log.msg("Modifying fee group %d" % id)
+
+        try:
+            group = self.session.query(models.FeeGroup).filter_by(id=id).one()
+            group.name = name
+            group.aggressive_factor = aggressive_factor
+            group.passive_factor = passive_factor
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
+        self.accountant.reload_fee_group(None, group.id)
+
+    def new_fee_group(self, name, aggressive_factor, passive_factor):
+        try:
+            log.msg("Creating new fee group: %s" % name)
+            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            self.session.add(fee_group)
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            log.err("Error: %s" % e)
+
     def new_permission_group(self, name, permissions):
         """Create a new permission group
 
@@ -1021,7 +1064,10 @@ class AdminWebUI(Resource):
                      {'/balance_sheet': self.balance_sheet,
                       '/ledger': self.ledger,
                       '/new_permission_group': self.new_permission_group,
-                      '/edit_contract': self.edit_contract
+                      '/edit_contract': self.edit_contract,
+                      '/change_fee_group': self.change_fee_group,
+                      '/new_fee_group': self.new_few_group,
+                      '/modify_fee_group': self.modify_fee_group,
                      },
                     # Level 4
                      {
@@ -1097,6 +1143,27 @@ class AdminWebUI(Resource):
         id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+
+    def change_fee_group(self, request):
+        username = request.args['username'][0]
+        id = int(request.args['id'][0])
+        self.administrator.change_fee_group(username, id)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+
+    def modify_fee_group(self, request):
+        id = int(request.args['id'][0])
+        name = request.args['name'][0]
+        aggressive_factor = int(request.args['aggressive_factor'][0])
+        passive_factor = int(request.args['passive_factor'][0])
+        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor)
+        return redirectTo('/fee_groups', request)
+
+    def new_fee_group(self, request):
+        name = request.args['name'][0]
+        aggressive_factor = int(request.args['aggressive_factor'][0])
+        passive_factor = int(request.args['passive_factor'][0])
+        self.administrator.new_fee_group(name, aggressive_factor, passive_factor)
+        return redirectTo('/fee_groups', request)
 
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
