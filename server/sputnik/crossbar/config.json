@@ -1,59 +1,60 @@
-
 {
-   "controller": {
-   },
-   "workers": [
-      {
-         "type": "router",
-         "realms": [
-            {
-               "name": "realm1",
-               "roles": [
-                  {
-                     "name": "anonymous",
-                     "permissions": [
+    "controller": {}, 
+    "workers": [
+        {
+            "realms": [
+                {
+                    "name": "realm1", 
+                    "roles": [
                         {
-                           "uri": "*",
-                           "publish": false,
-                           "subscribe": true,
-                           "call": true,
-                           "register": false
+                            "name": "anonymous", 
+                            "permissions": [
+                                {
+                                    "call": true, 
+                                    "publish": false, 
+                                    "register": false, 
+                                    "subscribe": true, 
+                                    "uri": "*"
+                                }
+                            ]
+                        }, 
+                        {
+                            "name": "authenticated", 
+                            "permissions": [
+                                {
+                                    "call": true, 
+                                    "publish": false, 
+                                    "register": false, 
+                                    "subscribe": true, 
+                                    "uri": "*"
+                                }
+                            ]
                         }
-                     ]
-                  },
-                  {
-                      "name": "authenticated",
-                      "permissions": [
-                         {
-                            "uri": "*",
-                            "publish": false,
-                            "subscribe": true,
-                            "call": true,
-                            "register": false
-                         }
-                     ]
-                  }
-               ]
-            }
-         ],
-         "transports": [
-            {
-               "type": "web",
-               "endpoint": {
-                  "type": "tcp",
-                  "port": 8080
-               },
-               "paths": {
-                  "/": {
-                     "type": "static",
-                     "directory": ".."
-                  },
-                  "ws": {
-                     "type": "websocket"
-                  }
-               }
-            }
-         ]
-      }
-   ]
+                    ]
+                }
+            ], 
+            "transports": [
+                {
+                    "endpoint": "tcp:8080", 
+                    "paths": {
+                        "/": {
+                            "auth": {
+                                "mozilla_persona": {
+                                    "role": {
+                                        "type": "static", 
+                                        "value": "authenticated"
+                                    }
+                                }
+                            }, 
+                            "cookie": {}, 
+                            "type": "websocket", 
+                            "url": "ws://sputnikmkt.com:8080/"
+                        }
+                    }, 
+                    "type": "web"
+                }
+            ], 
+            "type": "router"
+        }
+    ]
 }
