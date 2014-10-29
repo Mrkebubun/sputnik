@@ -37,6 +37,7 @@ from os import path
 from twisted.python import log
 from twisted.internet import reactor, defer
 from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner, ApplicationSessionFactory
+from autobahn.wamp.auth import derive_key
 import Crypto.Random.random
 
 
@@ -68,7 +69,7 @@ class TradingBot(ApplicationSession):
 
     def my_call(self, method_name, *args):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
-        d = self.call(method_name, *args)
+        d = self.call(u'%s/%s' % (self.factory.url, method_name), *args)
         def onSuccess(result):
             if len(result) != 2:
                 log.warn("RPC Protocol error in %s" % method_name)
@@ -83,7 +84,7 @@ class TradingBot(ApplicationSession):
 
     def subscribe(self, topic, handler):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        self.subscribe("%s" % topic, handler)
+        ApplicationSession.subscribe(self, "%s" % topic, handler)
     #
     # def authenticate(self):
     #     if self.username is None:
@@ -138,7 +139,7 @@ class TradingBot(ApplicationSession):
     reactive events - on* 
     """
 
-    def onSessionOpen(self):
+    def onJoin(self, details):
         self.getMarkets()
         self.subChat()
         self.startAutomation()
@@ -283,27 +284,27 @@ class TradingBot(ApplicationSession):
     """
     def subOHLCV(self, ticker):
         uri = "ohlcv#%s" % ticker
-        self.subscribe(uri, self.onOHLCV)
+        self.subscribe(self.onOHLCV, uri)
         print "subscribed to: ", uri
 
     def subBook(self, ticker):
         uri = "book#%s" % ticker
-        self.subscribe(uri, self.onBook)
+        self.subscribe(self.onBook, uri)
         print 'subscribed to: ', uri
 
     def subTrades(self, ticker):
         uri = "trades#%s" % ticker
-        self.subscribe(uri, self.onTrade)
+        self.subscribe(self.onTrade, uri)
         print 'subscribed to: ', uri
 
     def subSafePrices(self, ticker):
         uri = "safe_prices#%s" % ticker
-        self.subscribe(uri, self.onSafePrice)
+        self.subscribe(self.onSafePrice, uri)
         print 'subscribed to: ', uri
 
     def subChat(self):
         uri = "chat"
-        self.subscribe(uri, self.onChat)
+        self.subscribe(self.onChat, uri)
         print 'subscribe to: ', uri
 
     """
@@ -330,23 +331,23 @@ class TradingBot(ApplicationSession):
 
 
     def getTradeHistory(self, ticker):
-        d = self.my_call("get_trade_history", ticker)
+        d = self.my_call(u"get_trade_history", ticker)
         d.addCallbacks(pprint, self.onError)
 
     def getChatHistory(self):
-        d = self.my_call("get_chat_history")
+        d = self.my_call(u"get_chat_history")
         d.addCallbacks(self.onChatHistory, self.onError)
 
     def getMarkets(self):
-        d = self.my_call("get_markets")
+        d = self.my_call(u"get_markets")
         d.addCallbacks(self.onMarkets, self.onError)
 
     def getOrderBook(self, ticker):
-        d = self.my_call("get_order_book", ticker)
+        d = self.my_call(u"get_order_book", ticker)
         d.addCallbacks(lambda x: self.onBook("get_order_book", x), self.onError)
 
     def getAudit(self):
-        d = self.my_call("get_audit")
+        d = self.my_call(u"get_audit")
         d.addCallbacks(self.onAudit, self.onError)
 
     def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
@@ -361,7 +362,7 @@ class TradingBot(ApplicationSession):
         else:
             end_timestamp = None
 
-        d = self.my_call("get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
+        d = self.my_call(u"get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
         d.addCallbacks(self.onOHLCVHistory, self.onError)
 
     def makeAccount(self, username, password, email, nickname):
@@ -372,7 +373,7 @@ class TradingBot(ApplicationSession):
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password_hash = WampCraProtocol.deriveKey(password, extra)
+        password_hash = derive_key(password, extra)
         d = self.my_call("make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onError)
 
@@ -488,7 +489,8 @@ class BasicBot(TradingBot):
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(ApplicationSessionFactory):
-    def __init__(self, username_password=(None, None), rate=10):
+    def __init__(self, url, username_password=(None, None), rate=10):
+        self.url = url
         self.username_password = username_password
         self.rate = rate
         self.conn = None
@@ -517,7 +519,7 @@ if __name__ == '__main__':
     username = config.get("client", "username")
     password = config.get("client", "password")
 
-    factory = BotFactory(username_password=(username, password))
+    factory = BotFactory(base_uri, username_password=(username, password))
     factory.session = BasicBot
 
     runner = ApplicationRunner(url=base_uri, realm='sputnik', debug_wamp=True)

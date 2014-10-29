@@ -313,7 +313,7 @@ class PublicInterface(ApplicationSession):
             log.err("No book for %s" % ticker)
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
-    @wamp.register
+    @wamp.register(u'make_account')
     def make_account(self, username, password, salt, email, nickname):
         """Create a new account
 
@@ -388,7 +388,7 @@ class PublicInterface(ApplicationSession):
 
         return d.addCallbacks(onResetSuccess, onResetFail)
 
-    @wamp.register
+    @wamp.register(u'get_chat_history')
     def get_chat_history(self):
         return [True, self.factory.chats[-30:]]
 
@@ -1687,7 +1687,7 @@ if __name__ == '__main__':
     # https://autobahn.ws/python/reference
     #factory.setProtocolOptions(maxMessagePayloadSize=1000)
 
-    runner = ApplicationRunner(url=base_uri, realm='sputnik')
+    runner = ApplicationRunner(url=base_uri, realm='sputnik', debug=True)
     runner.run(factory.make, start_reactor=False)
 
     watchdog = watchdog(config.get("watchdog", "webserver"))
