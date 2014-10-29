@@ -69,7 +69,7 @@ class TradingBot(ApplicationSession):
 
     def my_call(self, method_name, *args):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
-        d = self.call(u'%s/%s' % (self.factory.url, method_name), *args)
+        d = self.call(method_name, *args)
         def onSuccess(result):
             if len(result) != 2:
                 log.warn("RPC Protocol error in %s" % method_name)
