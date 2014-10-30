@@ -1082,7 +1082,7 @@ class AdminWebUI(Resource):
                       '/new_permission_group': self.new_permission_group,
                       '/edit_contract': self.edit_contract,
                       '/change_fee_group': self.change_fee_group,
-                      '/new_fee_group': self.new_few_group,
+                      '/new_fee_group': self.new_fee_group,
                       '/modify_fee_group': self.modify_fee_group,
                      },
                     # Level 4
@@ -1337,10 +1337,12 @@ class AdminWebUI(Resource):
             orders_page = 0
 
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
+        fee_groups = self.administrator.get_fee_groups()
 
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
+                            fee_groups=fee_groups,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
                             min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
