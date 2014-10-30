@@ -372,8 +372,9 @@ class Accountant:
                 self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
                 #TODO: DO NOT INITIALIZE POSITION HERE
 
+        user = self.get_user(order.username)
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-            order.username, self.session, self.safe_prices, order.id,
+            user, self.session, self.safe_prices, order.id,
             trial_period=self.trial_period)
 
         if self.check_margin(order.username, low_margin, high_margin):
@@ -879,7 +880,7 @@ class Accountant:
                 raise DISABLED_USER
 
             # Check margin now
-            low_margin, high_margin, max_cash_spent = margin.calculate_margin(username,
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(user,
                     self.session, self.safe_prices,
                     withdrawals={ticker:amount},
                     trial_period=self.trial_period)

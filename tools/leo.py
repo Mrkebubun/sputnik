@@ -40,7 +40,27 @@ class PermissionsManager:
         if group == None:
             raise Exception("Permission group '%s' not found." % name)
         setattr(group, field, value)
-        self.session.merge(group)
+
+class FeesManager:
+    def __init__(self, session):
+        self.session = session
+
+    def add(self, name, aggressive_factor, passive_factor):
+        try:
+            group = self.session.query(models.FeeGroup).filter_by(name=name).one()
+        except NoResultFound:
+            group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            self.session.add(group)
+        else:
+            print "FeeGroup %s already exists" % group
+
+    def set(self, name, field, value):
+        group = self.session.query(models.FeeGroup).filter_by(
+            name=name).first()
+        if group == None:
+            raise Exception("Fee Group '%s' not found" % name)
+        setattr(group, field, value)
+
 
 class AdminManager:
     def __init__(self, session):
@@ -73,6 +93,8 @@ class AccountManager:
         print "\t\ttotp:\t\t%s" % user.totp
         print "\t\tactive:\t\t%s" % user.active
         print "\t\ttype:\t\t%s" % user.type
+        print "\t\tpermissions:\t\t%s" % user.permissions
+        print "\t\tfees:\t\t%s" % user.fees
         print "\tPositions:"
         for position in user.positions:
             prefix = "%s-%s:" % (position.contract.ticker,
@@ -180,6 +202,8 @@ class ContractManager:
         elif contract.contract_type == "prediction":
             print "\tPrediction details:"
             print "\t\texpiration:\t%s" % contract.expiration
+        if contract.contract_type != "cash":
+            print "\tFee:\t%s" % contract.fees
 
     def add(self, ticker):
         try:
@@ -314,7 +338,8 @@ class LowEarthOrbit:
             "addresses": AddressManager(session),
             "database": DatabaseManager(session),
             "permissions": PermissionsManager(session),
-            "admin": AdminManager(session)
+            "admin": AdminManager(session),
+            "fees": FeesManager(session),
         }
 
     def parse(self, line):

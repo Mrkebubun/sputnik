@@ -132,17 +132,20 @@ def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
     # but only charged to the liquidity taker
     # TODO: Make fees based on transaction size
 
-    base_fee = transaction_size * contract.fee
+    base_fee = transaction_size * contract.fees
+    # If we don't know the aggressive/passive -- probably because we're
+    # checking what the fees might be before placing an order
+    # so we assume the fees are the max possible
     if ap is None:
-        user_factor = max(user.fee_group.aggressive_factor, user.fee_group.passive_factor)
+        user_factor = max(user.fees.aggressive_factor, user.fees.passive_factor)
     elif ap == "aggressive":
-        user_factor = max(user.fees.aggressive_factor)
+        user_factor = user.fees.aggressive_factor
     else:
-        user_factor = max(user.fees.passive_factor)
+        user_factor = user.fees.passive_factor
 
     # 100 because factors are in % and 10000 because fees are in bps
     final_fee = int(round(base_fee * user_factor / 100 / 10000))
-    return {denominated_contract.ticker: final_fee}
+    return {contract.denominated_contract.ticker: final_fee}
 
 def get_contract(session, ticker):
     """

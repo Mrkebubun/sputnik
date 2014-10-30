@@ -72,9 +72,17 @@ class FeeGroup(db.Base):
     __tablename__ = 'fee_groups'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
+    name = Column(String, nullable=False, unique=True)
     aggressive_factor = Column(Integer, server_default="100", nullable=False)
     passive_factor = Column(Integer, server_default="100", nullable=False)
+
+    def __init__(self, name, aggressive_factor, passive_factor):
+        self.name = name
+        self.aggressive_factor = aggressive_factor
+        self.passive_factor = passive_factor
+
+    def __repr__(self):
+        return "<FeeGroup('%s', %d, %d)>" % (self.name, self.aggressive_factor, self.passive_factor)
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})

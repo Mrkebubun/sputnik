@@ -746,6 +746,21 @@ class Administrator:
         permission_groups = self.session.query(models.PermissionGroup).all()
         return permission_groups
 
+    def get_fee_groups(self):
+        fee_groups = self.session.query(models.FeeGroup).all()
+        return fee_groups
+
+    def check_fee_groups(self, fee_groups):
+        fee_problems = []
+        for aggressive_group in fee_groups:
+            for passive_group in fee_groups:
+                total_factor = aggressive_group.aggressive_factor + passive_group.passive_factor
+                if total_factor < 0:
+                    fee_problems.append({'aggressive_group': aggressive_group,
+                                         'passive_group': passive_group,
+                                         'total_factor': total_factor})
+        return fee_problems
+
     def get_contracts(self):
         contracts = self.session.query(models.Contract).filter_by(active=True).all()
         return contracts
@@ -1058,7 +1073,8 @@ class AdminWebUI(Resource):
                     # Level 2
                      {'/reset_password': self.reset_password,
                       '/permission_groups': self.permission_groups,
-                      '/change_permission_group': self.change_permission_group
+                      '/change_permission_group': self.change_permission_group,
+                      '/fee_groups': self.fee_groups,
                      },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
@@ -1143,6 +1159,12 @@ class AdminWebUI(Resource):
         id = int(request.args['id'][0])
         self.administrator.change_permission_group(username, id)
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+
+    def fee_groups(self, request):
+        fee_groups = self.administrator.get_fee_groups()
+        fee_group_problems = self.administrator.check_fee_groups(fee_groups)
+        t = self.jinja_env.get_template('fee_groups.html')
+        return t.render(fee_groups=fee_groups, fee_group_problems=fee_group_problems).encode('utf-8')
 
     def change_fee_group(self, request):
         username = request.args['username'][0]

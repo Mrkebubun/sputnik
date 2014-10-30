@@ -6,7 +6,22 @@
 <div class="panel panel-primary">
     <div class="panel-heading">Fee Groups</div>
     <div class="panel-body">
-        <table id="permission_groups" class="table table-striped table-hover">
+        {% if fee_group_problems.length %}
+        <table id="fee_group_problems" class="table table-striped table-hover">
+            <thead>
+                <tr><th>Aggressive Group</th><th>Passive Group</th><th>Total Factor</th></tr>
+            </thead>
+            <tbody>
+                {% for problem in fee_group_problems %}
+                <tr>
+                    <td><a href="#{{problem.aggressive_group.id}}">{{problem.aggressive_group.name}}</a></td>
+                    <td><a href="#{{problem.passive_group.id}}">{{problem.passive_group.name}}</a></td>
+                    <td>{{problem.total_factor}}</td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
+        <table id="fee_groups" class="table table-striped table-hover">
             <thead>
                 <tr><th>Name</th><th>Aggressive Factor</th><th>Passive Factor</th>
             </thead>
@@ -27,7 +42,7 @@
                 </tr>
                 {% for fee_group in fee_groups %}
                 <form action="/modify_fee_group" method="POST">
-                    <tr>
+                    <tr name="{{fee_group.id}}">
                         <td>
                             <input type="text" name="name" value="{{fee_group.name}}">
                             <input type="hidden" name="id" value="{{fee_group.id}}">
