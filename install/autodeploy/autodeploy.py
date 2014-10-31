@@ -90,9 +90,9 @@ class Instance:
         self.key_filename = join(self.prefix, "ssh_login_key.pem")
         self.db_pass_filename = join(self.prefix, "dbpassword.txt")
         self.server_key_filename = join(self.prefix, "ssh_server_key.pub")
-        self.profile_dir = join(self,prefix, "profile", self.customer)
+        self.profile_dir = join(self.prefix, "profile", self.customer)
         self.profile_ini = join(self.profile_dir, "profile.ini")
-        self.server_ssl_key_dir = join(self,profile_dir, "keys")
+        self.server_ssl_key_dir = join(self.profile_dir, "keys")
 
         # default uninstalled state
         self.deployed = False
