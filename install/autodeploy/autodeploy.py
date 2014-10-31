@@ -445,8 +445,9 @@ class Instance:
                 parser.read(self.profile_ini)
                 if not parser.has_section("meta"):
                     parser.add_section("meta")
+                    parser.set("meta", "description", "")
+
                 parser.set("meta", "name", self.customer)
-                parser.set("meta", "description", "")
                 parser.set("meta", "inherits", self.base_profile)
                 if not parser.has_section("profile"):
                     parser.add_section("profile")
@@ -456,7 +457,7 @@ class Instance:
 
                 # If there are no keys, turn off SSL and use the AWS DNS
                 if not (os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.key"))
-                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
+                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.crt"))
                         and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
                     parser.set("profile", "use_ssl", "no")
                     parser.set("profile", "webserver_address", self.get_output("PublicDNS"))
