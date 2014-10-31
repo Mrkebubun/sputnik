@@ -142,6 +142,17 @@ class AccountManager:
                 username=username).first()
         if user == None:
             raise Exception("User '%s' not found." % username)
+
+        if field == "fees":
+            try:
+                fee_group = self.session.query(models.FeeGroup).filter_by(name=value).one()
+            except NoResultFound:
+                print "No fee group: %s" % value
+                return
+            else:
+                field = "fee_group_id"
+                value = fee_group.id
+
         setattr(user, field, value)
         self.session.merge(user)
 

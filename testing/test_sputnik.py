@@ -274,6 +274,11 @@ class TestSputnik(unittest.TestCase):
         user = self.session.query(models.User).filter_by(username=username).one()
         return user
 
+    def get_contract(self, ticker):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        return contract
+
     def add_address(self, username=None, address=None, currency='BTC'):
         self.leo.parse("addresses add %s %s" % (currency, address))
         if username is not None:
