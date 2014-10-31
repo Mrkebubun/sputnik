@@ -372,8 +372,9 @@ class Accountant:
                 self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
                 #TODO: DO NOT INITIALIZE POSITION HERE
 
+        user = self.get_user(order.username)
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-            order.username, self.session, self.safe_prices, order.id,
+            user, self.session, self.safe_prices, order.id,
             trial_period=self.trial_period)
 
         if self.check_margin(order.username, low_margin, high_margin):
@@ -580,13 +581,8 @@ class Accountant:
                 quantity, payout_direction, note)
 
         # calculate fees
-        # We aren't charging the liquidity provider
-        fees = {}
-        fees = util.get_fees(username, contract,
-                abs(cash_spent), trial_period=self.trial_period)
-        if not aggressive:
-            for fee in fees:
-                fees[fee] = 0
+        fees = util.get_fees(user, contract,
+                abs(cash_spent), trial_period=self.trial_period, ap="aggressive" if aggressive else "passive")
 
         user_fees, vendor_fees, remainder_fees = self.charge_fees(fees, user)
 
@@ -884,7 +880,7 @@ class Accountant:
                 raise DISABLED_USER
 
             # Check margin now
-            low_margin, high_margin, max_cash_spent = margin.calculate_margin(username,
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(user,
                     self.session, self.safe_prices,
                     withdrawals={ticker:amount},
                     trial_period=self.trial_period)
@@ -1206,6 +1202,19 @@ class Accountant:
 
         return self.post_or_fail(credit, debit).addErrback(log.err)
 
+    def reload_fee_group(self, id):
+        group = self.session.query(models.FeeGroup).filter_by(id=id).one()
+        self.session.expire(group)
+
+    def change_fee_group(self, username, id):
+        try:
+            user = self.get_user(username)
+            user.fee_group_id = id
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
 
@@ -1329,6 +1338,15 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
         return self.accountant.clear_contract(username, ticker, price, uid)
+
+    @export
+    def change_fee_group(self, username, id):
+        return self.accountant.change_fee_group(username, id)
+
+    @export
+    def reload_fee_group(self, username, id):
+        return self.accountant.reload_fee_group(id)
+
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):

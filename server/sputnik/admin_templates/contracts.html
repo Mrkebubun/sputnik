@@ -51,6 +51,7 @@
                 <th>Clear</th>
                 <th>Description</th>
                 <th>Contract Type</th>
+                <th>Fees</th>
                 <th>Tick Size</th>
                 <th>Lot Size</th>
                 <th>Denominator</th>
@@ -85,6 +86,7 @@
                     </td>
                     <td>{{contract.description}}</a></td>
                     <td>{{contract.contract_type}}</td>
+                    <td>{%if contract.contract_type != "cash" %}{{contract.fees}}{% endif %}</td>
                     <td>{{contract.tick_size}}</td>
                     <td>{{contract.lot_size}}</td>
                     <td>{{contract.denominator}}</td>
@@ -130,6 +132,11 @@
                                     <td><textarea rows="4" cols="80" name="deposit_instructions">{{contract.deposit_instructions}}</textarea></td>
                                 </tr>
                                 {% endif %}
+                            {% else %}
+                                <tr>
+                                    <td>Fees</td>
+                                    <td><input type="text" name="fees" value="{{contract.fees}}"></td>
+                                </tr>
                             {% endif %}
                             {% if contract.contract_type == "prediction" or contract.contract_type == "futures" %}
                                 <tr>

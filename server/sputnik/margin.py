@@ -6,13 +6,13 @@ import collections
 
 from twisted.python import log
 
-def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
+def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
     :type order_id: int
-    :param username: the username
-    :type username: str
+    :param user: the user
+    :type user: User
     :returns: tuple - low and high margin
     """
 
@@ -22,9 +22,9 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     # let's start with positions
     positions = {position.contract_id: position for position in
-                 session.query(models.Position).filter_by(username=username)}
+                 session.query(models.Position).filter_by(user=user)}
 
-    open_orders = session.query(models.Order).filter_by(username=username).filter(
+    open_orders = session.query(models.Order).filter_by(user=user).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
     if order_id:
@@ -101,7 +101,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             if transaction_size_float != transaction_size_int:
                 log.err("Position change is not an integer.")
 
-            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
+            fees = util.get_fees(user, order.contract, transaction_size_int, trial_period=trial_period)
 
             if order.side == 'BUY':
                 max_cash_spent[denominated_contract.ticker] += transaction_size_int
@@ -117,7 +117,7 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
             transaction_size_int = int(transaction_size_float)
             if transaction_size_int != transaction_size_float:
                 log.err("Position change is not an integer")
-            fees = util.get_fees(username, order.contract, transaction_size_int, trial_period=trial_period)
+            fees = util.get_fees(user, order.contract, transaction_size_int, trial_period=trial_period)
 
         else:
             raise NotImplementedError

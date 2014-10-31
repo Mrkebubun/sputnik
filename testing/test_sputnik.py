@@ -34,6 +34,7 @@ contracts set NETS2014 lot_size 1000000
 contracts set NETS2014 tick_size 1
 contracts set NETS2014 expiration 2014-06-28
 contracts set NETS2014 denominated_contract_ticker BTC
+contracts set NETS2014 fees 200
 
 contracts add NETS2015
 contracts set NETS2015 contract_type prediction
@@ -42,6 +43,7 @@ contracts set NETS2015 lot_size 1000000
 contracts set NETS2015 tick_size 1
 contracts set NETS2015 expiration 2015-06-28
 contracts set NETS2015 denominated_contract_ticker BTC
+contracts set NETS2015 fees 200
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
@@ -65,6 +67,7 @@ contracts set BTC/MXN lot_size 1000000
 contracts set BTC/MXN denominator 1
 contracts set BTC/MXN denominated_contract_ticker MXN
 contracts set BTC/MXN payout_contract_ticker BTC
+contracts set BTC/MXN fees 100
 
 contracts set BTC/PLN contract_type cash_pair
 contracts set BTC/PLN tick_size 100
@@ -72,6 +75,7 @@ contracts set BTC/PLN lot_size 1000000
 contracts set BTC/PLN denominator 1
 contracts set BTC/PLN denominated_contract_ticker PLN
 contracts set BTC/PLN payout_contract_ticker BTC
+contracts set BTC/PLN fees 100
 
 contracts set BTC/HUF contract_type cash_pair
 contracts set BTC/HUF tick_size 100
@@ -79,10 +83,13 @@ contracts set BTC/HUF lot_size 1000000
 contracts set BTC/HUF denominator 1
 contracts set BTC/HUF denominated_contract_ticker HUF
 contracts set BTC/HUF payout_contract_ticker BTC
+contracts set BTC/HUF fees 100
 
 permissions add Default login
 permissions add Full trade withdraw deposit login
 permissions add NoTrade withdraw deposit login
+
+fees add Default 100 100
 
 accounts add customer
 accounts add m2
@@ -261,6 +268,16 @@ class TestSputnik(unittest.TestCase):
 
         if address is not None:
             self.add_address(username, address, currency=currency)
+
+    def get_user(self, username):
+        from sputnik import models
+        user = self.session.query(models.User).filter_by(username=username).one()
+        return user
+
+    def get_contract(self, ticker):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        return contract
 
     def add_address(self, username=None, address=None, currency='BTC'):
         self.leo.parse("addresses add %s %s" % (currency, address))

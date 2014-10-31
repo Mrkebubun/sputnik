@@ -746,6 +746,21 @@ class Administrator:
         permission_groups = self.session.query(models.PermissionGroup).all()
         return permission_groups
 
+    def get_fee_groups(self):
+        fee_groups = self.session.query(models.FeeGroup).all()
+        return fee_groups
+
+    def check_fee_groups(self, fee_groups):
+        fee_problems = []
+        for aggressive_group in fee_groups:
+            for passive_group in fee_groups:
+                total_factor = aggressive_group.aggressive_factor + passive_group.passive_factor
+                if total_factor < 0:
+                    fee_problems.append({'aggressive_group': aggressive_group,
+                                         'passive_group': passive_group,
+                                         'total_factor': total_factor})
+        return fee_problems
+
     def get_contracts(self):
         contracts = self.session.query(models.Contract).filter_by(active=True).all()
         return contracts
@@ -818,6 +833,49 @@ class Administrator:
         """
         log.msg("Changing permission group for %s to %d" % (username, id))
         self.accountant.change_permission_group(username, id)
+
+    def change_fee_group(self, username, id):
+        """Change the permission group for a user
+
+        :param username: The user we are changing
+        :type username: str
+        :param id: the id of the new permission group
+        :type id: int
+        """
+        log.msg("Changing fee group for %s to %d" % (username, id))
+        self.accountant.change_fee_group(username, id)
+
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor):
+        """Change the permission group for a user
+
+        :param username: The user we are changing
+        :type username: str
+        :param id: the id of the new permission group
+        :type id: int
+        """
+        log.msg("Modifying fee group %d" % id)
+
+        try:
+            group = self.session.query(models.FeeGroup).filter_by(id=id).one()
+            group.name = name
+            group.aggressive_factor = aggressive_factor
+            group.passive_factor = passive_factor
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
+        self.accountant.reload_fee_group(None, group.id)
+
+    def new_fee_group(self, name, aggressive_factor, passive_factor):
+        try:
+            log.msg("Creating new fee group: %s" % name)
+            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            self.session.add(fee_group)
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            log.err("Error: %s" % e)
 
     def new_permission_group(self, name, permissions):
         """Create a new permission group
@@ -1015,13 +1073,17 @@ class AdminWebUI(Resource):
                     # Level 2
                      {'/reset_password': self.reset_password,
                       '/permission_groups': self.permission_groups,
-                      '/change_permission_group': self.change_permission_group
+                      '/change_permission_group': self.change_permission_group,
+                      '/fee_groups': self.fee_groups,
                      },
                     # Level 3
                      {'/balance_sheet': self.balance_sheet,
                       '/ledger': self.ledger,
                       '/new_permission_group': self.new_permission_group,
-                      '/edit_contract': self.edit_contract
+                      '/edit_contract': self.edit_contract,
+                      '/change_fee_group': self.change_fee_group,
+                      '/new_fee_group': self.new_fee_group,
+                      '/modify_fee_group': self.modify_fee_group,
                      },
                     # Level 4
                      {
@@ -1098,6 +1160,33 @@ class AdminWebUI(Resource):
         self.administrator.change_permission_group(username, id)
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
+    def fee_groups(self, request):
+        fee_groups = self.administrator.get_fee_groups()
+        fee_group_problems = self.administrator.check_fee_groups(fee_groups)
+        t = self.jinja_env.get_template('fee_groups.html')
+        return t.render(fee_groups=fee_groups, fee_group_problems=fee_group_problems).encode('utf-8')
+
+    def change_fee_group(self, request):
+        username = request.args['username'][0]
+        id = int(request.args['id'][0])
+        self.administrator.change_fee_group(username, id)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+
+    def modify_fee_group(self, request):
+        id = int(request.args['id'][0])
+        name = request.args['name'][0]
+        aggressive_factor = int(request.args['aggressive_factor'][0])
+        passive_factor = int(request.args['passive_factor'][0])
+        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor)
+        return redirectTo('/fee_groups', request)
+
+    def new_fee_group(self, request):
+        name = request.args['name'][0]
+        aggressive_factor = int(request.args['aggressive_factor'][0])
+        passive_factor = int(request.args['passive_factor'][0])
+        self.administrator.new_fee_group(name, aggressive_factor, passive_factor)
+        return redirectTo('/fee_groups', request)
+
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
@@ -1109,6 +1198,10 @@ class AdminWebUI(Resource):
         for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
             if key in request.args:
                 args[key] = request.args[key][0]
+
+        for key in ["fees", "hot_wallet_limit"]:
+            if key in request.args:
+                args[key] = int(request.args[key][0])
 
         if "expiration" in request.args:
             args['expiration'] = parser.parse(request.args['expiration'][0])
@@ -1248,10 +1341,12 @@ class AdminWebUI(Resource):
             orders_page = 0
 
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
+        fee_groups = self.administrator.get_fee_groups()
 
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
+                            fee_groups=fee_groups,
                             debug=self.administrator.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
                             min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
