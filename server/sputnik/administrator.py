@@ -1199,6 +1199,10 @@ class AdminWebUI(Resource):
             if key in request.args:
                 args[key] = request.args[key][0]
 
+        for key in ["fees", "hot_wallet_limit"]:
+            if key in request.args:
+                args[key] = int(request.args[key][0])
+
         if "expiration" in request.args:
             args['expiration'] = parser.parse(request.args['expiration'][0])
 
