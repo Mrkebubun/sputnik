@@ -71,7 +71,7 @@ ticketserver_port = ${ticketserver_port}
 zendesk_token = ${zendesk_token}
 zendesk_email = ${zendesk_email}
 zendesk_domain = ${zendesk_domain}
-enable_blockscore = true
+enable_blockscore = ${blockscore_enable}
 blockscore_api_key = ${blockscore_api_key}
 
 [safe_price_forwarder]
