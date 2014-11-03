@@ -1282,7 +1282,7 @@ class AdminWebUI(Resource):
         """Reset an administrator password even if we don't know the old password
 
         """
-        self.administrator.reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+        self.administrator.force_reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
                                                                                            username=
                                                                                            request.args['username'][0]))
 
