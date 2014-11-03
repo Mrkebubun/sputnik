@@ -354,7 +354,7 @@ class LowEarthOrbit:
         }
 
     def parse(self, line):
-        tokens = [t.decode('string_escape') for t in shlex.split(line)]
+        tokens = [t.decode('unicode_escape') for t in shlex.split(line)]
 
         if len(tokens) == 0:
             return
