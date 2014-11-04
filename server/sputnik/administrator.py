@@ -1197,7 +1197,7 @@ class AdminWebUI(Resource):
         args = {}
         for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
             if key in request.args:
-                args[key] = request.args[key][0]
+                args[key] = request.args[key][0].decode('utf-8')
 
         for key in ["fees", "hot_wallet_limit"]:
             if key in request.args:
@@ -1282,7 +1282,7 @@ class AdminWebUI(Resource):
         """Reset an administrator password even if we don't know the old password
 
         """
-        self.administrator.reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
+        self.administrator.force_reset_admin_password(request.args['username'][0], self.calc_ha1(request.args['password'][0],
                                                                                            username=
                                                                                            request.args['username'][0]))
 
