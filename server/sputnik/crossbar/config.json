@@ -53,11 +53,17 @@
                                         "value": "authenticated"
                                     }
                                 },
+                                "anonymous": {
+                                    "role": {
+                                        "type": "static",
+                                        "value": "anonymous"
+                                    }
+                                },
                                 "options":{"debug":"true"}
                             }, 
                             "cookie": {}, 
                             "type": "websocket", 
-                            "url": "ws://sputnikmkt.com:8000/ws"
+                            "url": "ws://localhost:8000/ws"
                         }
                     }, 
                     "type": "web"

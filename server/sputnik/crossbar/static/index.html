@@ -19,6 +19,7 @@
       <script src="https://login.persona.org/include.js"></script>
 
       <script>
+         AUTOBAHN_DEBUG = true;
          var signinLink = document.getElementById('signin');
          signinLink.onclick = function() {
             navigator.id.request();
@@ -37,7 +38,8 @@
          var currentUser = null;
 
          function onchallenge (session, method, extra) {
-            if (method === "mozilla-persona") {
+            console.log("got challenge");
+            if (method === "mozilla_persona") {
 
                userLabel.innerHTML = 'Please sign in ...';
                signinLink.disabled = false;
@@ -49,13 +51,13 @@
          }
 
          var connection = new autobahn.Connection({
-            url: 'ws://sputnikmkt.com:8000/ws',
+            url: 'ws://localhost:8000/ws',
             realm: 'realm1',
             onchallenge: onchallenge
          });
 
          connection.onopen = function (session, details) {
-             console.log("opened");
+            console.log("opened");
 
             userLabel.innerHTML = 'Authenticated: ' + details.authid;
             signinLink.disabled = true;
@@ -74,7 +76,8 @@
             );
          };
 
-         connection.onclose = function () {
+         connection.onclose = function (reason, details) {
+            console.log("closed: " + details.message);
             //window.location.reload();
          }
 
