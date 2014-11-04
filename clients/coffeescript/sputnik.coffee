@@ -917,6 +917,29 @@ class @Sputnik extends EventEmitter
         @log ["cash_spent", max_cash_spent]
         return [low_margin, high_margin, max_cash_spent]
 
+    initGl: () =>
+        $.when(
+            $.get( "cldr/supplemental/likelySubtags.json" ),
+            $.get( "cldr/supplemental/timeData.json" ),
+            $.get( "cldr/supplemental/weekData.json" ),
+            $.get( "cldr/supplemental/plurals.json")
+        ).then( () ->
+            [].slice.apply(arguments, [0]).map (result) ->
+                result[0]
+        ).then(Globalize.load)
+
+    setGlLocale: (locale) =>
+        sputnik = this
+        $.when(
+            $.get( "cldr/main/#{locale}/ca-gregorian.json" ),
+            $.get( "cldr/main/#{locale}/timeZoneNames.json" ),
+            $.get( "cldr/main/#{locale}/numbers.json"),
+        ).then( () =>
+            [].slice.apply(arguments, [0]).map (result) ->
+                result[0]
+        ).then(Globalize.load).then () ->
+            sputnik.gl = new Globalize(locale)
+
 if module?
     module.exports =
         Sputnik: @Sputnik

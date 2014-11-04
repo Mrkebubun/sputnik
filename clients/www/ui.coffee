@@ -12,6 +12,9 @@ $ ->
     sputnik = new Sputnik uri
     window.sputnik = sputnik
 
+    sputnik.initGl()
+    sputnik.setGlLocale("es")
+
     $.ajax {
             url: 'index_template.html'
             success: (data, status, xhr) ->
@@ -43,9 +46,23 @@ $ ->
                     if datetime?
                         new Date(datetime/1000).toLocaleString()
                 format_price: (ticker, price) ->
-                    Number(price).toFixed(sputnik.getPricePrecision(ticker))
+                    precision = sputnik.getPricePrecision(ticker)
+                    fn = sputnik.gl.numberFormatter
+                        useGrouping: true
+                        minimumFractionDigits: precision
+                        maximumFractionDigits: precision
+
+                    fn(Number(price))
+
                 format_quantity: (ticker, quantity) ->
-                    Number(quantity).toFixed(sputnik.getQuantityPrecision(ticker))
+                    precision = sputnik.getQuantityPrecision(ticker)
+                    fn = sputnik.gl.numberFormatter
+                        useGrouping: true
+                        minimumFractionDigits: precision
+                        maximumFractionDigits: precision
+
+                    fn(Number(quantity))
+
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
                 values: (obj) -> (value for key, value of obj)
@@ -603,11 +620,13 @@ $ ->
             $('#change_password_token_modal').modal "show"
 
         sputnik.on "exchange_info", (exchange_info) ->
-          ga('create', exchange_info.google_analytics, 'auto')
-          ga('require', 'linkid', 'linkid.js')
-          ga('require', 'displayfeatures')
-          ga('send', 'pageview')
-          document.title = exchange_info.name
+            ga('create', exchange_info.google_analytics, 'auto')
+            ga('require', 'linkid', 'linkid.js')
+            ga('require', 'displayfeatures')
+            ga('send', 'pageview')
+            document.title = exchange_info.name
+            if exchange_info.locale?
+                sputnik.setGlLocale(exchange_info.locale)
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])
