@@ -2,9 +2,10 @@
 
 if [ -n "$UPGRADE" ]; then
     supervisorctl shutdown
-    sleep 5
+    echo "Start supervisor manually once you've done necessary DB migrations"
+    echo "$ cd /srv/sputnik/tools; alembic upgrade head"
+    echo "$ service supervisor start"
+else
+    service supervisor restart
 fi
-
-service supervisor restart
-
 

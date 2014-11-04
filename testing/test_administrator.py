@@ -82,6 +82,29 @@ class TestAdministrator(TestSputnik):
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
 class TestInternal(TestAdministrator):
+    def setUp(self):
+        TestAdministrator.setUp(self)
+        fees_init = """
+fees add LiqRebate 100 -50
+fees add NoFee 0 0
+fees add HeavyFee 200 200
+
+accounts set marketmaker fees LiqRebate
+accounts set randomtrader fees HeavyFee
+accounts set m2 fees NoFee
+
+contracts set BTC/MXN fees 50
+contracts set NETS2015 fees 350
+"""
+        self.run_leo(fees_init)
+
+    def test_check_fee_groups(self):
+        fees = self.administrator.get_fee_groups()
+        fee_problems = self.administrator.check_fee_groups(fees)
+        self.assertEqual(fee_problems[0]['aggressive_group'].name, 'NoFee')
+        self.assertEqual(fee_problems[0]['passive_group'].name, 'LiqRebate')
+        self.assertEqual(fee_problems[0]['total_factor'], -50)
+
     def test_get_order_book(self):
         # Create one order that is in the order book and one that is not
         from sputnik import models, util
