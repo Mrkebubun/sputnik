@@ -1,3 +1,4 @@
 apache2
 binfmt-support
 postgresql-client
+postfix
