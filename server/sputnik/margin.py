@@ -120,7 +120,9 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
             fees = util.get_fees(user, order.contract, transaction_size_int, trial_period=trial_period)
 
         else:
-            raise NotImplementedError
+            pass
+            fees = {}
+            #raise NotImplementedError
 
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee

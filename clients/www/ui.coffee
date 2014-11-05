@@ -12,9 +12,6 @@ $ ->
     sputnik = new Sputnik uri
     window.sputnik = sputnik
 
-    sputnik.initGl()
-    sputnik.setGlLocale("es")
-
     $.ajax {
             url: 'index_template.html'
             success: (data, status, xhr) ->
@@ -44,24 +41,24 @@ $ ->
                     "futures": "Futures"
                 format_time: (datetime) ->
                     if datetime?
-                        new Date(datetime/1000).toLocaleString()
-                format_price: (ticker, price) ->
-                    precision = sputnik.getPricePrecision(ticker)
-                    fn = sputnik.gl.numberFormatter
-                        useGrouping: true
-                        minimumFractionDigits: precision
-                        maximumFractionDigits: precision
+                        sputnik.timeFormat(datetime)
 
-                    fn(Number(price))
+                format_date: (datetime) ->
+                    if datetime?
+                        sputnik.dateFormat(datetime)
+
+                format_datetime: (datetime) ->
+                    if datetime?
+                        sputnik.dateTimeFormat(datetime)
+
+                format_price: (ticker, price) ->
+                    sputnik.priceFormat(ticker, price)
 
                 format_quantity: (ticker, quantity) ->
-                    precision = sputnik.getQuantityPrecision(ticker)
-                    fn = sputnik.gl.numberFormatter
-                        useGrouping: true
-                        minimumFractionDigits: precision
-                        maximumFractionDigits: precision
+                    sputnik.quantityFormat(ticker, quantity)
 
-                    fn(Number(quantity))
+                translate: (path) ->
+                    sputnik.translate path
 
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
@@ -138,7 +135,7 @@ $ ->
             withdraw: (event, type) ->
                 event.original.preventDefault()
                 ticker = ractive.get("current_currency")
-                amount = Number($('#withdraw-amount').val())
+                amount = sputnik.parseNumber($('#withdraw-amount').val())
                 if type == "crypto"
                     address = $('#crypto_address').val()
                     confirm_address = $('#crypto_confirm_address').val()
@@ -173,18 +170,21 @@ $ ->
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
                 if not buy_quantity_str
                     buy_quantity_str = "0"
-                buy_price = Number(buy_price_str)
-                buy_quantity = Number(buy_quantity_str)
+                buy_price = sputnik.parseNumber(buy_price_str)
+                buy_quantity = sputnik.parseNumber(buy_quantity_str)
 
                 alerts = []
-                if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                    alerts.push "Balance too low"
 
-                if not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
+
+                if isNaN buy_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
                     alerts.push "Price invalid"
 
-                if not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
+                if isNaN buy_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
                     alerts.push "Quantity invalid"
+
+                if alerts.length == 0
+                    if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                        alerts.push "Balance too low"
 
                 if alerts.length
                     $('#buy_alert').text alerts.join(', ')
@@ -202,18 +202,19 @@ $ ->
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
                 if not sell_quantity_str == ''
                     sell_quantity_str = "0"
-                sell_price = Number(sell_price_str)
-                sell_quantity = Number(sell_quantity_str)
+                sell_price = sputnik.parseNumber(sell_price_str)
+                sell_quantity = sputnik.parseNumber(sell_quantity_str)
 
                 alerts = []
-                if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                    alerts.push "Balance too low"
-
-                if not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
+                if isNaN sell_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
                     alerts.push "Price invalid"
 
-                if not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
+                if isNaN sell_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
                     alerts.push "Quantity invalid"
+
+                if alerts.length == 0
+                    if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                        alerts.push "Balance too low"
 
                 if alerts.length
                     $('#sell_alert').text alerts.join(', ')
@@ -226,10 +227,10 @@ $ ->
 
             buy: (event) ->
                 event.original.preventDefault()
-                buy_quantity = Number($('#buy_quantity').val())
+                buy_quantity = sputnik.parseNumber($('#buy_quantity').val())
                 buy_price_str = $("#buy_price").val()
 
-                if buy_quantity <= 0
+                if buy_quantity <= 0 or isNaN buy_quantity
                     bootbox.alert "Invalid quantity"
                     return true
 
@@ -237,10 +238,10 @@ $ ->
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
                     bootbox.confirm "Placing order with price: #{buy_price_str}.\n\nAre you sure?", (result) =>
                         if result
-                            sputnik.placeOrder(buy_quantity, Number(buy_price_str), ractive.get("current_ticker"), 'BUY')
+                            sputnik.placeOrder(buy_quantity, sputnik.parseNumber(buy_price_str), ractive.get("current_ticker"), 'BUY')
                 else
-                    buy_price = Number(buy_price_str)
-                    if buy_price <= 0
+                    buy_price = sputnik.parseNumber(buy_price_str)
+                    if buy_price <= 0 or isNaN buy_price
                         bootbox.alert "Invalid price"
                         return true
 
@@ -253,11 +254,11 @@ $ ->
 
             sell: (event) ->
                 event.original.preventDefault()
-                sell_quantity = Number($('#sell_quantity').val())
+                sell_quantity = sputnik.parseNumber($('#sell_quantity').val())
                 sell_price_str = $("#sell_price").val()
 
 
-                if sell_quantity <= 0
+                if sell_quantity <= 0 or isNaN sell_quantity
                     bootbox.alert "Invalid quantity"
                     return true
 
@@ -265,10 +266,10 @@ $ ->
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
                     bootbox.confirm "Placing order with price: #{sell_price_str}.\n\nAre you sure?", (result) =>
                         if result
-                            sputnik.placeOrder(sell_quantity, Number(sell_price_str), ractive.get("current_ticker"), 'SELL')
+                            sputnik.placeOrder(sell_quantity, sputnik.parseNumber(sell_price_str), ractive.get("current_ticker"), 'SELL')
                 else
-                    sell_price = Number(sell_price_str)
-                    if sell_price <= 0
+                    sell_price = sputnik.parseNumber(sell_price_str)
+                    if sell_price <= 0 or isNaN sell_price
                         bootbox.alert "Invalid price"
 
                     if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
@@ -281,20 +282,32 @@ $ ->
             transactions: (event) ->
                 event.original.preventDefault()
                 sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
-                start_timestamp = Date.parse($("#transactions_start_date").val()) * 1000
-                end_timestamp = Date.parse($("#transactions_end_date").val()) * 1000
+                start_timestamp = sputnik.parseDate($("#transactions_start_date").val())
+                end_timestamp = sputnik.parseDate($("#transactions_end_date").val())
                 now = new Date()
                 if isNaN start_timestamp
                     start = new Date()
                     start.setDate(now.getDate() - 7)
                     start_timestamp = start.getTime() * 1000
-                    $('#transactions_start_date').val(start.toDateString())
+                    $('#transactions_start_date').val(sputnik.dateFormat(start_timestamp))
+                    $("#transactions_start_date").fadeIn(100).fadeOut(100).fadeIn(100).fadeOut(100).fadeIn(100);
+
                 if isNaN end_timestamp
                     end = new Date()
                     end.setDate(now.getDate())
                     # Add a day because we want the end of the day not the beginning
                     end_timestamp = end.getTime() * 1000 + 3600 * 24 * 1000000
-                    $('#transactions_end_date').val(end.toDateString())
+                    $('#transactions_end_date').val(sputnik.dateFormat(end_timestamp - 3600 * 24 * 1000000))
+                    $("#transactions_end_date").fadeIn(100).fadeOut(100).fadeIn(100).fadeOut(100).fadeIn(100);
+                else
+                    # Add a day because we want the end of the day not the beginning
+                    end_timestamp += 3600 * 24 * 1000000
+
+                if end_timestamp <= start_timestamp
+                    # One day of data
+                    end_timestamp = start_timestamp + 3600 * 24 * 1000000
+                    $('#transactions_end_date').val(sputnik.dateFormat(start_timestamp))
+                    $("#transactions_end_date").fadeIn(100).fadeOut(100).fadeIn(100).fadeOut(100).fadeIn(100);
 
                 sputnik.getTransactionHistory(start_timestamp, end_timestamp)
 
@@ -516,8 +529,8 @@ $ ->
             customer_phone = $('#compropago_phone').val()
             customer_phone_company = $('#compropago_phone_company').val()
 
-            if (Number(amount) < 6000)
-              sputnik.makeCompropagoDeposit store, Number(amount), customer_email, send_sms, customer_phone, customer_phone_company
+            if (sputnik.parseNumber(amount) < 6000)
+              sputnik.makeCompropagoDeposit store, sputnik.parseNumber(amount), customer_email, send_sms, customer_phone, customer_phone_company
 
 #        $('#chatButton').click ->
 #            chat_return = sputnik.chat chatBox.value
@@ -592,7 +605,7 @@ $ ->
                     item =
                         title: el.find("title").first().text()
                         link: el.find("link").text()
-                        date: date.toLocaleDateString()
+                        date: sputnik.dateFormat(date.getTime() * 1000)
                         description: description
                     feed.items.push item
 
@@ -625,8 +638,6 @@ $ ->
             ga('require', 'displayfeatures')
             ga('send', 'pageview')
             document.title = exchange_info.name
-            if exchange_info.locale?
-                sputnik.setGlLocale(exchange_info.locale)
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])

@@ -89,7 +89,7 @@ class @TVFeed
             return_bars = []
             for timestamp, bar of history
                 return_bars.push {
-                    time: timestamp / 1e3
+                    time: timestamp / 1000
                     open: @sputnik.priceFromWire(symbolInfo.name, bar.open)
                     close: @sputnik.priceFromWire(symbolInfo.name, bar.close)
                     high: @sputnik.priceFromWire(symbolInfo.name, bar.high)

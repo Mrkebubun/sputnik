@@ -21,7 +21,9 @@ class @Sputnik extends EventEmitter
     connected: false
 
     constructor: (@uri) ->
-
+        # Initialize globalization settings
+        @initGl()
+        @setGlLocale("es")
 
         ### Sputnik API  ###
 
@@ -82,7 +84,6 @@ class @Sputnik extends EventEmitter
         @call("get_audit").then (wire_audit_details) =>
             @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
-            audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]
                 for ticker, data of side
                     data.total = @quantityFromWire(ticker, data.total)
@@ -259,22 +260,62 @@ class @Sputnik extends EventEmitter
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[ticker]
         else
-            source = null
+            source = @markets[ticker]
             target = @markets[ticker]
 
         return [contract, source, target]
 
+    priceFormat: (ticker, price) =>
+        precision = @getPricePrecision(ticker)
+        fn = @gl.numberFormatter
+            useGrouping: true
+            minimumFractionDigits: precision
+            maximumFractionDigits: precision
+        fn(Number(price))
+
+    quantityFormat: (ticker, quantity) =>
+        precision = @getQuantityPrecision(ticker)
+        fn = @gl.numberFormatter
+            useGrouping: true
+            minimumFractionDigits: precision
+            maximumFractionDigits: precision
+
+        fn(Number(quantity))
+
     timeFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            time: "short"
         dt = new Date(timestamp / 1000)
-        return dt.toLocaleTimeString()
+        fn(dt)
 
     dateTimeFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            datetime: "short"
         dt = new Date(timestamp / 1000)
-        return dt.toLocaleString()
+        fn(dt)
 
     dateFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            date: "short"
         dt = new Date(timestamp / 1000)
-        return dt.toLocaleDateString()
+        fn(dt)
+
+    translate: (path) =>
+        @gl.translate(path)
+
+    parseNumber: (string) =>
+        # Force a string
+        @gl.parseNumber(string.toString())
+
+    parseDate: (string) =>
+        dt = @gl.parseDate(string,
+            date: "short"
+        )
+        if dt?
+            # Convert to sputnik
+            return dt.getTime() * 1000
+        else
+            return NaN
 
     copy: (object) =>
         new_object = {}
@@ -292,10 +333,8 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
-            open_timestamp: @timeFormat(wire_ohlcv['open_timestamp'])
-            wire_open_timestamp: wire_ohlcv['open_timestamp']
-            close_timestamp: @timeFormat(wire_ohlcv['close_timestamp'])
-            wire_close_timestamp: wire_ohlcv['close_timestamp']
+            open_timestamp: wire_ohlcv['open_timestamp']
+            close_timestamp: wire_ohlcv['close_timestamp']
             period: wire_ohlcv.period
         return ohlcv
 
@@ -321,7 +360,7 @@ class @Sputnik extends EventEmitter
         order.price = @priceFromWire(ticker, wire_order.price)
         order.quantity = @quantityFromWire(ticker, wire_order.quantity)
         order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
-        order.timestamp = @timeFormat(wire_order.timestamp)
+        order.timestamp = wire_order.timestamp
         return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
@@ -335,8 +374,7 @@ class @Sputnik extends EventEmitter
         trade = @copy(wire_trade)
         trade.price = @priceFromWire(ticker, wire_trade.price)
         trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
-        trade.wire_timestamp = wire_trade.timestamp
-        trade.timestamp = @timeFormat(wire_trade.timestamp)
+        trade.timestamp = wire_trade.timestamp
         return trade
 
     fillFromWire: (wire_fill) =>
@@ -345,8 +383,7 @@ class @Sputnik extends EventEmitter
         fill.fees = @copy(wire_fill.fees)
         fill.price = @priceFromWire(ticker, wire_fill.price)
         fill.quantity = @quantityFromWire(ticker, wire_fill.quantity)
-        fill.wire_timestamp = wire_fill.timestamp
-        fill.timestamp = @timeFormat(wire_fill.timestamp)
+        fill.timestamp = wire_fill.timestamp
         for fee_ticker, fee of wire_fill.fees
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
@@ -355,7 +392,7 @@ class @Sputnik extends EventEmitter
         transaction = @copy(wire_transaction)
         ticker = wire_transaction.contract
         transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
-        transaction.timestamp = @dateTimeFormat(wire_transaction.timestamp)
+        transaction.timestamp = wire_transaction.timestamp
         if transaction.balance?
             transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
@@ -688,6 +725,9 @@ class @Sputnik extends EventEmitter
         @emit "markets", @markets
 
     onExchangeInfo: (@exchange_info) =>
+        if @exchange_info.locale?
+            @setGlLocale(@exchange_info.locale)
+
         @log ["Exchange Info", @exchange_info]
         @emit "exchange_info", @exchange_info
 
@@ -863,7 +903,7 @@ class @Sputnik extends EventEmitter
 
             if contract.contract_type is "futures"
                 # NOT IMPLEMENTED
-                @err "Futures not implemented"
+                @error "Futures not implemented"
             else if contract.contract_type == "prediction"
                 payoff = contract.lot_size
                 spending = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY")

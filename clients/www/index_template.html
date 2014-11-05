@@ -377,7 +377,7 @@
                                                     <tr>
                                                         <td class="recent-price-content2">{{format_price(current_ticker, price)}}</td>
                                                         <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity)}}</td>
-                                                        <td class="recent-time-content">{{timestamp}}</td>
+                                                        <td class="recent-time-content">{{format_time(timestamp)}}</td>
                                                     </tr>
                                                     {{/}}
                                                 </tbody>
@@ -532,7 +532,7 @@
                                                 <td class="cell-type2">{{side}}</td>
                                                 <td class="cell-price">{{format_price(contract, price)}}</td>
                                                 <td class="cell-quantity">{{format_quantity(contract, quantity_left)}}</td>
-                                                <td class="cell-timestamp">{{timestamp}}</td>
+                                                <td class="cell-timestamp">{{format_time(timestamp)}}</td>
                                                 <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                             </tr>
                                             {{else}}
@@ -870,16 +870,12 @@
                                         <div class="col-sm-3">
                                             <form>
                                             <span class="dates">Start date</span> <input class="form-control field-date"
-                                                                                         data-provide="datepicker"
-                                                                                         data-date-format="MM d, yyyy"
                                                                                          type="text" id="transactions_start_date">
                                             </form>
                                         </div>
                                         <div class="col-sm-3">
                                             <form>
                                             <span class="dates">End date</span> <input class="field-date form-control"
-                                                                                       data-provide="datepicker"
-                                                                                       data-date-format="MM d, yyyy"
                                                                                        type="text" id="transactions_end_date">
                                             </form>
                                         </div>
@@ -932,7 +928,7 @@
                                                 <tbody>
                                                     {{#sputnik.transaction_history[history_contract]}}
                                                     <tr class="cells">
-                                                        <td class="cell-date">{{timestamp}}</td>
+                                                        <td class="cell-date">{{format_datetime(timestamp)}}</td>
                                                         <td class="cell-type">{{type}}</td>
                                                         <td class="cell-debit">{{direction == "debit" ? format_quantity(history_contract, quantity) : ''}}</td>
                                                         <td class="cell-credit">{{direction == "credit" ? format_quantity(history_contract, quantity) : ''}}</td>
@@ -1150,7 +1146,7 @@
                                         <h2 class="dashboard-heading">Audit</h2>
                                     </div>
                                 </div>
-                                <p class="content-push-right2">Timestamp: {{sputnik.audit.timestamp}}</p>
+                                <p class="content-push-right2">Timestamp: {{format_datetime(sputnik.audit.timestamp)}}</p>
                                 <p class="content-push-right">My Hash: {{sputnik.audit_hash}}</p>
                                 <div class="row">
                                     <div class="col-sm-12">
