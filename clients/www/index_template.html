@@ -1,5 +1,5 @@
 <div class="alert alert-warning" id="not_connected">
-    Connecting to server.
+    {{translate("alerts/connecting")}}.
 </div>
 <div class="container-fluid" id="main_page" style="">
     <div class="modal fade" id="login_modal">
@@ -8,8 +8,8 @@
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
                     <ul class="nav nav-tabs">
-                        <li class="active login-tab"><a href="#login_tab" data-toggle="tab">Login</a></li>
-                        <li class="login-tab"><a href="#register_tab" data-toggle="tab">Register</a></li>
+                        <li class="active login-tab"><a href="#login_tab" data-toggle="tab">{{translate("tabs/login")}}</a></li>
+                        <li class="login-tab"><a href="#register_tab" data-toggle="tab">{{translate("tabs/register")}}</a></li>
                     </ul>
                 </div>
                 <div class="modal-body form-horizontal">
@@ -20,37 +20,36 @@
                                        autofocus><br>
                                 <input type="password" class="form-control" id="login_password" placeholder="Password"
                                 required><br>
-                                <a href="#" id="get_reset_token">Reset password</a>
+                                <a href="#" id="get_reset_token">{{translate("buttons/reset_password")}}</a>
                             </form>
                             <div class="alert alert-warning" style="display:none" id="login_error">
-                                Incorrect username or password.
+                                {{translate("alerts/bad_username_pw")}}
                             </div>
                             <div id="reset_token_sent" class="alert alert-info" style="display:none">
-                                Check your email. Contact customer support for further assistance.
+                                {{translate("alerts/reset_sent")}}
                             </div>
-                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="login_button" class="ladda-button button-place2 button-link-box3">Login</a>
+                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="login_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/login")}}</a>
                         </div>
                         <div class="tab-pane" id="register_tab">
                             <form class="form-signin form-horizontal" role="form">
-                                <input type="text" class="form-control" id="register_username" placeholder="Username" required
+                                <input type="text" class="form-control" id="register_username" placeholder="{{translate('fields/username')}}" required
                                        autofocus><br>
-                                <input type="email" class="form-control" id="register_email" placeholder="Email" required><br>
-                                <input type="password" class="form-control" id="register_password" placeholder="Password"
+                                <input type="email" class="form-control" id="register_email" placeholder="{{translate('fields/email')}}" required><br>
+                                <input type="password" class="form-control" id="register_password" placeholder="{{translate('fields/password')}}"
                                        required><br>
                                 <input type="text" class="form-control" id="register_nickname"
-                                       placeholder="Nickname"><br>
+                                       placeholder="{{translate('fields/nickname')}}"><br>
                                 <div class="form-group">
                                     <div class="col-xs-9 content-push5">
                                         <label> <input type="checkbox" id="register_eula" value="1">
-                                            <span class="terms">I agree
-                                            to the <a href="terms.html" target="_blank">terms and conditions</a> </span><br>
+                                            <span class="terms">{{translate("register_modal/agree")}} <a href="terms.html" target="_blank">{{translate("register_modal/terms")}}</a> </span><br>
                                         </label>
                                     </div>
                                 </div>
                             </form>
                             <div class="alert alert-warning" style="display:none" id="register_error">
                             </div>
-                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="register_button" class="ladda-button button-place2 button-link-box3">Register</a>
+                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="register_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/register")}}</a>
                         </div>
                     </div>
                 </div>
@@ -64,17 +63,17 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">Reset Password</h4>
+                    <h4 class="modal-title">{{translate("titles/reset_password")}}</h4>
                 </div>
                 <div class="modal-body">
                     <form class="form-signin" role="form">
-                        <input type="password" class="form-control field-space" id="new_password_token" placeholder="New Password" required>
-                        <input type="password" class="form-control field-space" id="new_password_token_confirm" placeholder="Confirm New Password" required>
+                        <input type="password" class="form-control field-space" id="new_password_token" placeholder="{{translate('fields/new_password')}}" required>
+                        <input type="password" class="form-control field-space" id="new_password_token_confirm" placeholder="{{translate('fields/confirm_new_password')}}" required>
                     </form>
-                    <div class="alert alert-info alert-reset">Great! Now just enter your new password and we'll be all set.</div>
+                    <div class="alert alert-info alert-reset">{{translate("alerts/enter_new_password")}}</div>
                 </div>
                 <div class="modal-footer reset-footer">
-                    <a data-color="blue" data-size="s" data-style="zoom-out" href="#" class="ladda-button button-link-box3 button-place3" on-click="change_password_token"><span class="ladda-label">Change Password</span></a>
+                    <a data-color="blue" data-size="s" data-style="zoom-out" href="#" class="ladda-button button-link-box3 button-place3" on-click="change_password_token"><span class="ladda-label">{{translate("buttons/change_password")}}</span></a>
                 </div>
             </div>
         </div>
@@ -95,17 +94,17 @@
                                 <h1 class="logotext" on-click="switch_page:dashboard">{{sputnik.exchange_info.name}}</h1>
                                 <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                                     <ul id="navlinks" class="nav navbar-nav">
-                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">Dashboard</a></li>
-                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">Trade</a></li>
-                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">Account</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">{{translate("top_menu/dashboard")}}</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">{{translate("top_menu/trade")}}</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">{{translate("top_menu/account")}}</a></li>
                                     </ul>
                                     <div class="login-box">
                                         
                                             {{#if sputnik.logged_in}}
                                             <div data-toggle="collapse" data-target=".navbar-collapse" class="login-name2" style="float: left;"><span id="login_name">{{sputnik.username}}&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
-                                            <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">Logout</a></div>
+                                            <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">{{translate("top_menu/logout")}}</a></div>
                                             {{else}}
-                                            <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">Login/Register</a></div>
+                                            <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">{{translate("top_menu/login_register")}}</a></div>
                                             {{/if}}
                                         
                                     </div>
@@ -126,13 +125,13 @@
                         <div class="col-sm-12">
                             {{#sputnik.types:type}}
                             <div class="{{current_type == type ? 'tab-active' : 'tab-inactive'}} tabs-row">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{type_alias[type]}}</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{translate("contract_type/" + type)}}</a></h4>
                             
                             </div>
                             {{/}}
                             <select class="contract-select form-control select-format" value="{{current_type}}">
                                 {{#sputnik.types:type}}
-                                <option value="{{type}}">{{type_alias[type]}}</option>
+                                <option value="{{type}}">{{translate("contract_type/" + type)}}</option>
                                 {{/}}
                             </select>
 
@@ -162,41 +161,41 @@
                                             <div class="row">
                                                 <div class="col-sm-6">
                                                     <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
-                                                        <option value="day">Yesterday</option>
-                                                        <option value="hour">Last Hour</option>
-                                                        <option value="minute">Last Minute</option>
+                                                        <option value="day">{{translate("trade/ohlcv/yesterday")}}</option>
+                                                        <option value="hour">{{translate("trade/ohlcv/last_hour")}}</option>
+                                                        <option value="minute">{{translate("trade/ohlcv/last_minute")}}</option>
                                                     </select>
                                                     <table class="table-header">
                                                         <tr>
-                                                            <td class="recent-price-content">Open</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].open)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/open")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].open)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">High</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].high)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/high")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].high)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Low</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].low)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/low")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].low)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Close</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].close)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/close")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].close)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">VWAP</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].vwap)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/vwap")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].vwap)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-quantity-content">Volume</td><td class="recent-price-content2">{{format_quantity(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].volume)}}</td>
+                                                            <td class="recent-quantity-content">{{translate("trade/titles/volume")}}</td><td class="recent-price-content2">{{format_quantity(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].volume)}}</td>
                                                         </tr>
                                                     </table>
                                                 </div>
                                                 <div class="col-sm-6">
                                                     <table class="table-header">
                                                         <tr>
-                                                            <td class="recent-price-content">Last</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.trade_history[current_ticker][0].price)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/last")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.trade_history[current_ticker][0].price)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Bid</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_bid.price)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/bid")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_bid.price)}}</td>
                                                         </tr>
                                                         <tr>
-                                                            <td class="recent-price-content">Ask</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_ask.price)}}</td>
+                                                            <td class="recent-price-content">{{translate("trade/titles/ask")}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_ask.price)}}</td>
                                                         </tr>
                                                     </table>
                                                 </div>
@@ -209,7 +208,7 @@
                                                 <div id="cash_pair-balance" class="col-xs-6">
                                                     <div class="row">
                                                         <div class="col-xs-12" class="grey-header" align="center">
-                                                            AVAILABLE TO TRADE
+                                                            {{translate("trade/balances/available_to_trade")}}
                                                         </div>
                                                     </div>
                                                     <div class="row">
@@ -237,11 +236,11 @@
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-xs-12 col-sm-6 contract-overview-info2">
-                                                            <p class="grey-header">LOW MARGIN</p>
+                                                            <p class="grey-header">{{translate("trade/balances/low_margin")}}</p>
                                                             <p class="first-line2" id="low_margin">{{format_quantity('BTC', sputnik.margin[0])}}</p>
                                                         </div>
                                                         <div class="col-xs-12 col-sm-6 contract-overview-info2">
-                                                            <p class="grey-header">HIGH MARGIN</p>
+                                                            <p class="grey-header">{{translate("trade/balances/high_margin")}}</p>
                                                             <p class="first-line2" id="high_margin">{{format_quantity('BTC', sputnik.margin[1])}}</p>
                                                         </div>
                                                     </div>
@@ -258,14 +257,14 @@
                                         <div class="col-xs-6 col-sm-4 buy-box">
                                             <div class="row">
                                                 <div class="col-sm-12 header-box">
-                                                    <h6 class="buy">Buy</h6>
+                                                    <h6 class="buy">{{translate("trade/titles/buy")}}</h6>
                                                 </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-sm-12 buy-box2">
                                                     <div class="row">
                                                         <div class="col-sm-6">
-                                                            <p>Price</p>
+                                                            <p>{{translate("trade/titles/price")}}</p>
 
                                                             <form class="content-push7">
                                                                     <input type="text" id="buy_price" name="price" class="form-control field" value="{{buy_price}}"
@@ -273,15 +272,15 @@
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
-                                                            <p>Quantity</p>
+                                                            <p>{{translate("trade/titles/quantity")}}</p>
                                                             <form>
                                                                     <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                     </div>
                                                     <div class="row spacer-top">
-                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert">Your balance is too low for this order.</div>
-                                                        <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">Buy</a>
+                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
+                                                        <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy")}}</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -289,21 +288,21 @@
                                         <div class="col-xs-6 col-sm-4 sell-box">
                                             <div class="row">
                                                 <div class="col-sm-12 header-box-sell">
-                                                    <h6 class="buy">Sell</h6>
+                                                    <h6 class="buy">{{translate("trade/titles/sell")}}</h6>
                                                 </div>
                                             </div>
                                             <div class="row">
                                                 <div class="col-sm-12 buy-box2">
                                                     <div class="row">
                                                         <div class="col-sm-6">
-                                                            <p>Price</p>
+                                                            <p>{{translate("trade/titles/price")}}</p>
                                                             <form class="content-push7">
                                                                     <input type="text" id="sell_price" name="price" class="form-control field" value="{{sell_price}}"
                                                                            placeholder="{{format_price(current_ticker, sputnik.books[current_ticker].best_bid.price)}}" on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
-                                                            <p>Quantity</p>
+                                                            <p>{{translate("trade/titles/quantity")}}</p>
 
                                                             <form>
                                                                     <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
@@ -311,8 +310,8 @@
                                                         </div>
                                                     </div>
                                                     <div class="row spacer-top">
-                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert">Your balance is too low for this order.</div>
-                                                        <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">Sell</a>
+                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
+                                                        <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell")}}</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -320,7 +319,7 @@
                                         <div class="col-xs-12 col-sm-4">
                                             <div class="row">
                                                 <div class="col-sm-12 header-box-myorders">
-                                                    <h6 class="buy">My Orders</h6>
+                                                    <h6 class="buy">{{translate("trade/titles/my_orders")}}</h6>
                                                 </div>
                                             </div>
                                             <div class="row">
@@ -328,10 +327,10 @@
                                                     <table class="table-header2">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price-myorder">Price</th>
-                                                                <th class="recent-quantity-myorder">Quantity</th>
-                                                                <th class="recent-type-myorder">Buy/Sell</th>
-                                                                <th class="recent-cancel-myorder">Cancel</th>
+                                                                <th class="recent-price-myorder">{{translate("trade/titles/price")}}</th>
+                                                                <th class="recent-quantity-myorder">{{translate("trade/titles/quantity")}}</th>
+                                                                <th class="recent-type-myorder">{{translate("trade/titles/buy_sell")}}</th>
+                                                                <th class="recent-cancel-myorder">{{translate("trade/titles/cancel")}}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="orders">
@@ -340,7 +339,7 @@
                                                         <tr>
                                                             <td class="recent-price-content2">{{format_price(current_ticker, price)}}</td>
                                                             <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity_left)}}</td>
-                                                            <td class="recent-type-content">{{side}}</td>
+                                                            <td class="recent-type-content">{{translate("trade/fields/" + side)}}</td>
                                                             <td class="recent-cancel-content"><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                                         </tr>
                                                         {{/if}}
@@ -355,11 +354,11 @@
                                 {{/if}}
                                 <div class="row">
                                     <div class="col-sm-6 col-lg-4 recent-trades-box">
-                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">Recent Trades</a>
-                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">Order Book</a>
+                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">{{translate("trades/titles/recent_trades")}}</a>
+                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">{{translate("trades/titles/order_book")}}</a>
                                         <select class="form-control trades-select trades-mobile-push" value="{{tb_tab}}">
-                                            <option value="trades" selected="selected">Recent Trades</option>
-                                            <option value="book">Order Book</option>
+                                            <option value="trades" selected="selected">{{translate("trades/titles/recent_trades")}}</option>
+                                            <option value="book">{{translate("trades/titles/order_book")}}</option>
                                         </select>
                                         {{#if tb_tab == 'trades'}}
                                         <div style="height: 5%"></div>
@@ -367,9 +366,9 @@
                                             <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th class="recent-price recent-price-nudge">Price</th>
-                                                    <th class="recent-quantity">Qty</th>
-                                                    <th class="recent-time">Time</th>
+                                                    <th class="recent-price recent-price-nudge">{{translate("trades/titles/price")}}</th>
+                                                    <th class="recent-quantity">{{translate("trades/titles/quantity")}}</th>
+                                                    <th class="recent-time">{{translate("trades/titles/time")}}</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody id="trades-tbody">
@@ -389,12 +388,12 @@
                                         <div id="book" class="book-box scroll-box">
                                             <div class="row">
                                                 <div class="col-xs-6">
-                                                    <div class="bids-background"><p class="heading-bids">BIDS</p></div>
+                                                    <div class="bids-background"><p class="heading-bids">{{translate("trade/titles/bids")}}</p></div>
                                                     <table id="bids-table" class="table-header">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price recent-price-nudge">Price</th>
-                                                                <th class="recent-quantity">Quantity</th>
+                                                                <th class="recent-price recent-price-nudge">{{translate("trade/titles/price")}}</th>
+                                                                <th class="recent-quantity">{{translate("trade/titles/quantity")}}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -408,12 +407,12 @@
                                                     </table>
                                                 </div>
                                                 <div class="col-xs-6" style="margin-right:-15px;">
-                                                    <div class="asks-background"><p class="heading-asks">ASKS</p></div>
+                                                    <div class="asks-background"><p class="heading-asks">{{translate("trade/titles/asks")}}</p></div>
                                                     <table id="asks-table" class="table-header">
                                                         <thead>
                                                             <tr>
-                                                                <th class="recent-price">Price</th>
-                                                                <th class="recent-quantity">Quantity</th>
+                                                                <th class="recent-price">{{translate("trade/titles/price")}}</th>
+                                                                <th class="recent-quantity">{{translate("trade/titles/quantity")}}</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -449,11 +448,11 @@
                     <div class="row">
                         <div class="col-sm-12">
                             <div class="{{dashboard_tab == 'active-contracts' ? 'tab-active' : 'tab-inactive' }}" id="tab-active-contracts">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">News</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">{{translate("dashboard/titles/news")}}</a></h4>
                             </div>
                             {{#if sputnik.logged_in}}
                             <div class="{{dashboard_tab == 'orders' ? 'tab-active' : 'tab-inactive' }}" id="tab-all-orders">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:orders">All Orders</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:orders">{{translate("dashboard/titles/all_orders")}}</a></h4>
                             </div>
                             {{/if}}
                         </div>
@@ -477,7 +476,7 @@
                                 </div>
                                 {{#if window_info.width > 768}}
                                 <div class="col-xs-12 col-lg-9 dashboard-contracts">
-                                    <h2 class="dashboard-heading">{{sputnik.logged_in ? "My" : "Active"}} Contracts</h2>
+                                    <h2 class="dashboard-heading">{{translate("dashboard/titles/" + sputnik.logged_in ? "my_contracts" : "active_contracts")}}</h2>
                                     <div class="row">
                                         <div class="tv-logo">
                                             <div class="tv-wrapper">
@@ -510,17 +509,17 @@
                     <div id="allorders">
                         <div class="row">
                             <div class="col-sm-12 content">
-                            <h2 class="dashboard-heading">All of Your Current Orders</h2>
+                            <h2 class="dashboard-heading">{{translate("dashboard/titles/all_orders_long")}}</h2>
                                 <div class="row">
                                 <div class="col-sm-12">
                                     <table class="table-full">
                                         <thead>
                                             <tr>
-                                                <th class="table-contract sortable" on-click="sort_all_orders:contract">Contract</th>
-                                                <th class="table-type2 sortable" on-click="sort_all_orders:type">Type</th>
-                                                <th class="table-price sortable" on-click="sort_all_orders:price">Price</th>
-                                                <th class="table-quantity sortable" on-click="sort_all_orders:quantity">Quantity</th>
-                                                <th class="table-quantity sortable" on-click="sort_all_orders:timestamp">Timestamp</th>
+                                                <th class="table-contract sortable" on-click="sort_all_orders:contract">{{translate("dashboard/titles/contract")}}</th>
+                                                <th class="table-type2 sortable" on-click="sort_all_orders:type">{{translate("dashboard/titles/buy_sell")}}</th>
+                                                <th class="table-price sortable" on-click="sort_all_orders:price">{{translate("dashboard/titles/price")}}</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:quantity">{{translate("dashboard/titles/quantity")}}</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:timestamp">{{translate("dashboard/titles/timestamp")}}</th>
                                                 <th class="table-cancel">Cancel</th>
 
                                             </tr>
@@ -529,14 +528,14 @@
                                             {{# sort(values(sputnik.orders), all_orders_sort_column)}}
                                             <tr class="cells">
                                                 <td class="cell-contract">{{contract}}</td>
-                                                <td class="cell-type2">{{side}}</td>
+                                                <td class="cell-type2">{{translate("dashboard/fields/" + side)}}</td>
                                                 <td class="cell-price">{{format_price(contract, price)}}</td>
                                                 <td class="cell-quantity">{{format_quantity(contract, quantity_left)}}</td>
                                                 <td class="cell-timestamp">{{format_time(timestamp)}}</td>
                                                 <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
                                             </tr>
                                             {{else}}
-                                            <tr class="cells"><td colspan="100" align="center">No open orders</td></tr>
+                                            <tr class="cells"><td colspan="100" align="center">{{translate("dashboard/alerts/no_orders")}}</td></tr>
                                             {{/}}
                                         </tbody>
                                     </table>
@@ -560,24 +559,24 @@
                     <div class="row">
                         <div class="col-sm-12 tabs-row">
                             <div class="{{account_tab == 'profile' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:profile">Profile</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:profile">{{translate("account/pages/profile")}}</a></h4>
                             </div>
                             <div class="{{account_tab == 'funding-history' ? 'tab-active' : 'tab-inactive' }}" id="tab-funding_and_history">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:funding-history">Funding and History</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:funding-history">{{translate("account/pages/funding_history")}}</a></h4>
                             </div>
                             <div class="{{account_tab == 'audit' ? 'tab-active' : 'tab-inactive' }}" id="tab-audit">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:audit">Audit</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:audit">{{translate("account/pages/audit")}}</a></h4>
                             </div>
                             <div class="{{account_tab == 'compliance' ? 'tab-active' : 'tab-inactive' }}" id="tab-compliance">
-                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:compliance">Compliance</a></h4>
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:compliance">{{translate("account/pages/compliance")}}</a></h4>
                             </div>
                             
                         </div>
                         <select class="contract-select form-control select-format" value="{{account_tab}}">
-                                <option value="profile">Profile</option>
-                                <option value="funding-history">Funding and History</option>
-                                <option value="audit">Audit</option>
-                                <option value="compliance">Compliance</option>
+                                <option value="profile">{{translate("account/pages/profile")}}</option>
+                                <option value="funding-history">{{translate("account/pages/funding_history")}}</option>
+                                <option value="audit">{{translate("account/pages/audit")}}</option>
+                                <option value="compliance">{{translate("account/pages/compliance")}}</option>
                             </select>
                     </div>
                     {{#if account_tab == "funding-history"}}
@@ -585,21 +584,21 @@
                         <div class="row">
                             <div class="col-sm-12 content">
                                 <div class="contracts">
-                                    <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">Deposit</a>
-                                    <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">Withdraw</a>
-                                    <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">Transaction History</a>
+                                    <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">{{translate("account/funding_history/pages/deposit")}}</a>
+                                    <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">{{translate("account/funding_history/pages/withdraw")}}</a>
+                                    <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">{{translate("account/funding_history/pages/history")}}</a>
                                     <select class="form-control contract-select" value="{{fh_tab}}">
-                                        <option value="Select" selected="selected">Select</option>
-                                        <option value="deposit">Deposit</option>
-                                        <option value="withdraw">Withdraw</option>
-                                        <option value="history">Transaction History</option>
+                                        <option value="Select" selected="selected">{{translate("account/funding_history/select")}}</option>
+                                        <option value="deposit">{{translate("account/funding_history/pages/deposit")}}</option>
+                                        <option value="withdraw">{{translate("account/funding_history/pages/withdraw")}}</option>
+                                        <option value="history">{{translate("account/funding_history/pages/history")}}</option>
                                     </select>
                                 </div>
                                 {{#if fh_tab == "deposit"}}
                                 <div id="deposit">
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <h2 class="dashboard-heading">Deposit Funds</h2>
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/deposit_funds")}}</h2>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -609,7 +608,7 @@
                                                 {{#sputnik.currencies[current_currency]}}
                                                 {{description}}
                                                 {{else}}
-                                                Select Currency
+                                                {{translate("account/funding_history/select_currency")}}
                                                 {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-2">
@@ -622,13 +621,13 @@
                                     {{#current_currency}}
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <p class="text-balance">{{current_currency}} Balance:</p>
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance")}}:</p>
                                             <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position)}}</strong></p>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12 deposit-heading">
-                                            <h4 class="header-sub content-push-right">Deposit Instructions</h4>
+                                            <h4 class="header-sub content-push-right">{{translate("account/funding_history/titles/deposit_instructions")}}</h4>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -644,7 +643,7 @@
                                             {{else}}
                                             <p class="content-push6">{{sputnik.currencies[current_currency].address}}</p>
                                             {{/if}}
-                                            <a href="#" class="button-link-box" on-click="new_address:{{current_currency}}">Get New Address</a>
+                                            <a href="#" class="button-link-box" on-click="new_address:{{current_currency}}">{{translate("account/funding_history/buttons/get_new_address")}}</a>
                                         </div>
                                     </div>
                                     {{/current_currency}}
@@ -654,7 +653,7 @@
                                 <div id="withdraw">
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <h2 class="dashboard-heading">Withdraw Funds</h2>
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/withdraw_funds")}}</h2>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -664,7 +663,7 @@
                                                 {{#sputnik.currencies[current_currency]}}
                                                 {{description}}
                                                 {{else}}
-                                                Select Currency
+                                                {{translate("account/funding_history/select_currency")}}
                                                 {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-3">
@@ -677,11 +676,11 @@
                                     {{#current_currency}}
                                     <div class="row">
                                         <div class="col-sm-3">
-                                            <p class="text-balance">{{current_currency}} Balance:</p>
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance")}}:</p>
                                             <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position)}}</strong></p>
                                         </div>
                                         <div class="col-sm-4">
-                                            <p class="text-balance">{{current_currency}} Balance Available for Withdrawal:</p> <p class="text-balance"><strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency]))}}</strong></p>
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance_available")}}:</p> <p class="text-balance"><strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency]))}}</strong></p>
                                         </div>
                                     </div>
                                    
@@ -689,12 +688,12 @@
                                         <div class="col-sm-5 deposit-content">
                                             <div class="row form-row content-pull">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Withdrawal Amount</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/amount")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-amount" value="{{withdrawal_amount}}">
                                                     {{#if withdrawal_amount > sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
-                                                    <div class="alert alert-danger alert-warning text-center">Insufficient Funds</div>
+                                                    <div class="alert alert-danger alert-warning text-center">{{translate("account/funding_history/withdrawal/alerts/insufficient_funds")}}</div>
                                                     {{/if}}
                                                 </div>
                                             </div>
@@ -706,7 +705,7 @@
                                         <div class="col-sm-5 deposit-content">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/crypto_address")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="crypto_address">
@@ -714,7 +713,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label content-push2">
-                                                    <p>Confirm Address</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/confirm_crypto_address")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="crypto_confirm_address">
@@ -725,7 +724,7 @@
                                                     
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <a href="#" class="button-link-box2" on-click="withdraw:crypto">Withdraw</a>
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:crypto">{{translate("account/funding_history/withdrawal/buttons/withdraw")}}</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -734,11 +733,11 @@
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content">
                                             <div class="col-sm-12 deposit-heading">
-                                                <h4 class="heading-sub3">Wire to this bank account:</h4>
+                                                <h4 class="heading-sub3">{{translate("account/funding_history/withdrawal/titles/wire_to_bank")}}:</h4>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Bank Name</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_name")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-bank-name">
@@ -746,7 +745,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Bank Address</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_address")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-bank-address">
@@ -754,7 +753,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Bank ABA/Swift</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_swift")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-aba-swift">
@@ -762,7 +761,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Account Name</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_account_name")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-account-name">
@@ -770,7 +769,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Account Number</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_account_number")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" name="withdraw-account-number">
@@ -781,17 +780,17 @@
                                                     
                                                 </div>
                                                 <div class="col-sm-7 content-push3">
-                                                    <a href="#" class="button-link-box2" on-click="withdraw:wire">Withdraw</a>
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:wire">{{translate("account/funding_history/withdrawal/buttons/withdraw")}}</a>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-sm-5 deposit-content">
                                             <div class="col-sm-12 deposit-heading">
-                                                <h4 class="heading-sub3">Mail a check to me:</h4>
+                                                <h4 class="heading-sub3">{{translate("account/funding_history/withdrawal/titles/mail_check")}}:</h4>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Name</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/name")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-name">
@@ -799,7 +798,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address 1</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/address_1")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-address1">
@@ -807,7 +806,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address 2</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/address_2")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-address2">
@@ -815,7 +814,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>City</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/city")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-city">
@@ -823,7 +822,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>State/Province</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/state")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-state">
@@ -831,7 +830,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Postal Code</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/postal_code")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-postalcode">
@@ -839,7 +838,7 @@
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Country</p>
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/country")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control" type="text" id="withdraw-country">
@@ -850,7 +849,7 @@
                                                     
                                                 </div>
                                                 <div class="col-sm-7 content-push3">
-                                                    <a href="#" class="button-link-box2" on-click="withdraw:mail">Withdraw</a>
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:mail">{{translate("account/funding_history/withdrawal/buttons/withdraw")}}</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -864,18 +863,18 @@
                                 <div id="transaction-history">
                                     <div class="row">
                                         <div class="col-sm-6">
-                                            <h2 class="dashboard-heading">Transaction History</h2>
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/transaction_history")}}</h2>
                                         </div>
                                         
                                         <div class="col-sm-3">
                                             <form>
-                                            <span class="dates">Start date</span> <input class="form-control field-date"
+                                            <span class="dates">{{translate("account/funding_history/titles/start_date")}}</span> <input class="form-control field-date"
                                                                                          type="text" id="transactions_start_date">
                                             </form>
                                         </div>
                                         <div class="col-sm-3">
                                             <form>
-                                            <span class="dates">End date</span> <input class="field-date form-control"
+                                            <span class="dates">{{translate("account/funding_history/titles/end_date")}}</span> <input class="field-date form-control"
                                                                                        type="text" id="transactions_end_date">
                                             </form>
                                         </div>
@@ -883,7 +882,7 @@
 
                                     <div class="row">
                                         <div class="col-sm-12 introductory-text">
-                                            Please hit 'Request' to download transactions
+                                            {{translate("account/funding_history/hit_request")}}
                                         </div>
                                     </div>
 
@@ -894,7 +893,7 @@
                                                 {{#sputnik.position_contracts[history_contract]}}
                                                 {{description}}
                                                 {{else}}
-                                                Select Contract
+                                                {{translate("account/funding_history/select_contract")}}
                                                 {{/}}
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
@@ -908,7 +907,7 @@
 
                                     <div class="row">
                                         <div class="col-sm-12 button-request">
-                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">Request</a>
+                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">{{translate("account/funding_history/buttons/request")}}</a>
                                         </div>
                                     </div>
 
@@ -917,19 +916,19 @@
                                             <table class="table-full">
                                                 <thead>
                                                 <tr>
-                                                    <th class="table-date">Date and Time</th>
-                                                    <th class="table-type">Type</th>
-                                                    <th class="table-debit">Debit</th>
-                                                    <th class="table-credit">Credit</th>
-                                                    <th class="table-balance">Balance</th>
-                                                    <th class="table-note">Note</th>
+                                                    <th class="table-date">{{translate("account/funding_history/titles/date_time")}}</th>
+                                                    <th class="table-type">{{translate("account/funding_history/titles/type")}}</th>
+                                                    <th class="table-debit">{{translate("account/funding_history/titles/debit")}}</th>
+                                                    <th class="table-credit">{{translate("account/funding_history/titles/credit")}}</th>
+                                                    <th class="table-balance">{{translate("account/funding_history/titles/balance")}}</th>
+                                                    <th class="table-note">{{translate("account/funding_history/titles/note")}}</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
                                                     {{#sputnik.transaction_history[history_contract]}}
                                                     <tr class="cells">
                                                         <td class="cell-date">{{format_datetime(timestamp)}}</td>
-                                                        <td class="cell-type">{{type}}</td>
+                                                        <td class="cell-type">{{translate("account/funding_history/transaction_types/" + type)}}</td>
                                                         <td class="cell-debit">{{direction == "debit" ? format_quantity(history_contract, quantity) : ''}}</td>
                                                         <td class="cell-credit">{{direction == "credit" ? format_quantity(history_contract, quantity) : ''}}</td>
                                                         <td class="cell-balance">{{format_quantity(history_contract, balance)}}</td>
@@ -938,10 +937,10 @@
                                                     {{else}}
                                                     <tr class="cells">
                                                         {{^history_contract}}
-                                                        <td colspan="100" align="center">Select a currency</td>
+                                                        <td colspan="100" align="center">{{translate("account/funding_history/alerts/select_currency")}}</td>
                                                         {{/history_contract}}
                                                         {{#history_contract}}
-                                                        <td colspan="100" align="center">No transactions for {{history_contract}} downloaded</td>
+                                                        <td colspan="100" align="center">{{translate("account/funding_history/alerts/no_transactions")}} {{history_contract}} downloaded</td>
                                                         {{/history_contract}}
                                                     </tr>
                                                     {{/}}
@@ -961,49 +960,49 @@
                             <div class="col-sm-12 content">
                                 <div class="row">
                                     <div class="col-sm-12">
-                                        <h2 class="dashboard-heading">Compliance</h2>
+                                        <h2 class="dashboard-heading">{{translate("account/pages/compliance")}}</h2>
                                     </div>
                                 </div>
                                 <form>
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <h4 class="heading-sub">Identify</h4>
+                                            <h4 class="heading-sub">{{translate("account/compliance/titles/identify")}}</h4>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>First Name</p>
+                                                    <p>{{translate("account/compliance/titles/first_name")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="first_name" type="text" class="form-control" id="first_name"
-                                                           placeholder="First Name"
+                                                           placeholder="{{translate('account/compliance/titles/first_name')}}"
                                                            required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Middle Name</p>
+                                                    <p>{{translate("account/compliance/titles/middle_name")}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="middle_name" type="text" class="form-control" id="middle_name"
-                                                            placeholder="Middle Name">
+                                                            placeholder="{{translate('account/compliance/titles/middle_name')}}">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Last Name</p>
+                                                    <p>{{translate('account/compliance/titles/identify')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="last_name" type="text" class="form-control" id="last_name"
-                                                           placeholder="Last Name"
+                                                           placeholder="{{translate('account/compliance/titles/last_name')}}"
                                                            required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Date of Birth</p>
+                                                    <p>{{translate('account/compliance/titles/dob')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="date_of_birth" type="text" class="form-control" id="date_of_birth"
@@ -1014,77 +1013,77 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <h4 class="heading-sub">Address</h4>
+                                            <h4 class="heading-sub">{{translate('account/compliance/titles/address')}}</h4>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address (Line 1)</p>
+                                                    <p>{{translate('account/compliance/titles/address_1')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="address1" type="text" class="form-control" id="address1"
-                                                           placeholder="Address (Line 1)" required>
+                                                           placeholder="{{translate('account/compliance/titles/address_1')}}" required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Address (Line 2)</p>
+                                                    <p>{{translate('account/compliance/titles/address_2')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="address2" type="text" class="form-control" id="address2"
-                                                           placeholder="Address (Line 1)" required>
+                                                           placeholder="{{translate('account/compliance/titles/address_2')}}" required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>City</p>
+                                                    <p>{{translate('account/compliance/titles/city')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="city" type="text" class="form-control" id="city"
-                                                           placeholder="City" required>
+                                                           placeholder="{{translate('account/compliance/titles/city')}}" required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>State/Province</p>
+                                                    <p>{{translate('account/compliance/titles/state')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="state" type="text" class="form-control" id="state"
-                                                           placeholder="State" required>
+                                                           placeholder="{{translate('account/compliance/titles/state')}}" required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Postal Code</p>
+                                                    <p>{{translate('account/compliance/titles/postal_code')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="postal_code" type="text" class="form-control" id="postal_code"
-                                                           placeholder="Postal Code" required>
+                                                           placeholder="{{translate('account/compliance/titles/postal_code')}}" required>
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Country Code</p>
+                                                    <p>{{translate('account/compliance/titles/country_code')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input name="country_code" type="text" class="form-control" id="country_code"
-                                                           placeholder="Country Code" required>
+                                                           placeholder="{{translate('account/compliance/titles/country_code')}}" required>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12">
-                                            <h4 class="heading-sub">Documents</h4>
+                                            <h4 class="heading-sub">{{translate('account/compliance/titles/documents')}}</h4>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Passport</p>
+                                                    <p>{{translate('account/compliance/titles/passport')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control file" type="file" name="passport" required
@@ -1098,14 +1097,14 @@
                                                 </div>
                                                 <div class="col-sm-7">
                                             
-                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="Passport Number">
+                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="{{translate('account/compliance/titles/passport_number')}}">
 
                                                 </div>
                                             </div>
                                             
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>Proof of Residency</p>
+                                                    <p>{{translate('account/compliance/titles/residency')}}</p>
                                                 </div>
                                                 <div class="col-sm-7">
                                                     <input class="form-control file" type="file" name="residency" required
@@ -1127,7 +1126,7 @@
                                                 <div class="col-sm-5 spacer-bottom">
                                                 </div>
                                                 <div class="col-sm-7 spacer-bottom">
-                                                    <a data-color="green" data-size="s" data-style="zoom-out" href="#" id="compliance_button" class="ladda-button button-link-box3" on-click="submit_compliance">Submit</a>
+                                                    <a data-color="green" data-size="s" data-style="zoom-out" href="#" id="compliance_button" class="ladda-button button-link-box3" on-click="submit_compliance">{{translate("account/compliance/buttons/submit")}}</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -1143,26 +1142,26 @@
                             <div class="col-sm-12 content">
                                 <div class="row">
                                     <div class="col-sm-12">
-                                        <h2 class="dashboard-heading">Audit</h2>
+                                        <h2 class="dashboard-heading">{{translate("account/pages/audit")}}</h2>
                                     </div>
                                 </div>
-                                <p class="content-push-right2">Timestamp: {{format_datetime(sputnik.audit.timestamp)}}</p>
-                                <p class="content-push-right">My Hash: {{sputnik.audit_hash}}</p>
+                                <p class="content-push-right2">{{translate("account/audit/titles/timestamp")}}: {{format_datetime(sputnik.audit.timestamp)}}</p>
+                                <p class="content-push-right">{{translate("account/audit/titles/my_hash")}}: {{sputnik.audit_hash}}</p>
                                 <div class="row">
                                     <div class="col-sm-12">
                                         <div class="contracts2">
-                                            <a href="#" on-click="switch_audit_tab:Asset" class="{{audit_tab == 'Asset' ? 'active-link-box' : 'inactive-link-box'}}">Assets</a>
-                                            <a href="#" on-click="switch_audit_tab:Liability" class="{{audit_tab == 'Liability' ? 'active-link-box' : 'inactive-link-box'}}">Liabilities</a>
+                                            <a href="#" on-click="switch_audit_tab:Asset" class="{{audit_tab == 'Asset' ? 'active-link-box' : 'inactive-link-box'}}">{{translate("account/audit/titles/assets")}}</a>
+                                            <a href="#" on-click="switch_audit_tab:Liability" class="{{audit_tab == 'Liability' ? 'active-link-box' : 'inactive-link-box'}}">{{translate("account/audit/titles/liabilities")}}</a>
                                             <select class="form-control contract-select" value="{{audit_tab}}">
-                                                <option value="Asset">Assets</option>
-                                                <option value="Liability">Liabilities</option>
+                                                <option value="Asset">{{translate("account/audit/titles/assets")}}</option>
+                                                <option value="Liability">{{translate("account/audit/titles/liabilities")}}</option>
                                             </select>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-sm-12">
-                                        <p class="asset-select">Select an asset class:</p>
+                                        <p class="asset-select">{{translate("account/audit/select")}}:</p>
                                          <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="dropdownMenu1" data-toggle="dropdown">
                                             {{audit_contract}}
                                             <span class="caret"></span>
@@ -1179,8 +1178,8 @@
                                         <table class="table-full">
                                             <thead>
                                                 <tr>
-                                                    <th class="table-id">ID</th>
-                                                    <th class="table-amount">Amount</th>
+                                                    <th class="table-id">{{translate("account/audit/titles/id")}}</th>
+                                                    <th class="table-amount">{{translate("account/audit/titles/amount")}}</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="#">
@@ -1207,19 +1206,19 @@
                         <div class="col-sm-12 content">
                             <div class="row">
                                 <div class="col-sm-12">
-                                    <h2 class="dashboard-heading">User Information</h2>
+                                    <h2 class="dashboard-heading">{{translate("account/pages/profile")}}</h2>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-sm-12">
-                                    <h4 class="heading-sub">Profile Details</h4>
+                                    <h4 class="heading-sub">{{translate("account/profile/titles/details")}}</h4>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-sm-5 deposit-content2">
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>Username</p>
+                                            <p>{{translate("account/profile/titles/username")}}</p>
                                         </div>
                                         <div class="col-sm-7">
                                             <p>{{sputnik.username}}</p>
@@ -1227,7 +1226,7 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>Email</p>
+                                            <p>{{translate("account/profile/titles/email")}}</p>
                                         </div>
                                         <div class="col-sm-7">
                                             <input class="form-control" type="field" name="email" value="{{sputnik.profile.email}}">
@@ -1235,7 +1234,7 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>Nickname</p>
+                                            <p>{{translate("account/profile/titles/nickname")}}</p>
                                         </div>
                                         <div class="col-sm-7 content-push2">
                                             <input class="form-control" type="field" name="nickname" value="{{sputnik.profile.nickname}}">
@@ -1245,7 +1244,7 @@
                                         <div class="col-sm-5 form-label">
                                         </div>
                                         <div class="col-sm-7 form-label">
-                                            <a href="#" class="button-link-box3" on-click="change_profile">Update Email &amp; Nickname</a>
+                                            <a href="#" class="button-link-box3" on-click="change_profile">{{translate("account/profile/buttons/update")}}</a>
                                         </div>
                                     </div>
                                 </div>
@@ -1259,7 +1258,7 @@
                                 <div class="col-sm-5 deposit-content2">
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>Old Password</p>
+                                            <p>{{translate("account/profile/titles/old_password")}}</p>
                                         </div>
                                         <div class="col-sm-7">
                                             <input class="form-control" type="password" id="old_password">
@@ -1267,7 +1266,7 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>New Password</p>
+                                            <p>{{translate("account/profile/titles/new_password")}}</p>
                                         </div>
                                         <div class="col-sm-7">
                                             <input class="form-control" type="password" id="new_password">
@@ -1275,7 +1274,7 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>Confirm Password</p>
+                                            <p>{{translate("account/profile/titles/confirm_password")}}</p>
                                         </div>
                                         <div class="col-sm-7 content-push2">
                                             <input class="form-control" type="password" id="new_password_confirm">
@@ -1286,7 +1285,7 @@
 
                                         </div>
                                         <div class="col-sm-7 form-label">
-                                            <a href="#" class="button-link-box3" on-click="change_password">Change Password</a>
+                                            <a href="#" class="button-link-box3" on-click="change_password">{{translate("account/profile/buttons/change_password")}}</a>
                                         </div>
                                     </div>
                                 </div>

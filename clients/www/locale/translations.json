@@ -1,0 +1,240 @@
+{
+    "en": {
+        "top_menu": {
+            "dashboard": "Dashboard",
+            "trade": "Trade",
+            "account": "Account",
+            "login_register": "Login/Register",
+            "logout": "Logout"
+        },
+        "tabs": {
+            "login": "Login",
+            "register": "Register"
+        },
+        "titles": {
+            "reset_password": "Reset Password"
+        },
+        "alerts": {
+            "connecting": "Connecting to server.",
+            "bad_username_pw": "Incorrect username or password.",
+            "reset_sent": "Check your email. Contact customer support for further assistance.",
+            "enter_new_password": "Great! Now just enter your new password and we'll be all set."
+        },
+        "buttons": {
+            "buy": "Buy",
+            "sell": "Sell",
+            "login": "Login",
+            "register": "Register",
+            "reset_password": "Reset Password",
+            "change_password": "Change Password"
+        },
+        "fields": {
+            "username": "Username",
+            "password": "Password",
+            "email": "Email",
+            "nickname": "Nickname",
+            "new_password": "New Password",
+            "confirm_new_password": "Confirm New Password"
+        },
+        "register_modal": {
+            "terms": "terms and conditions",
+            "agree": "I agree to the "
+        },
+        "contract_type": {
+            "cash_pair": "Cash",
+            "prediction": "Prediction",
+            "futures": "Futures"
+        },
+        "trade": {
+            "ohlcv": {
+                "yesterday": "Yesterday",
+                "last_hour": "Last Hour",
+                "last_minute": "Last Minute"
+            },
+            "balances": {
+                "available_to_trade": "AVAILABLE TO TRADE",
+                "low_margin": "LOW MARGIN",
+                "high_margin": "HIGH_MARGIN"
+            },
+            "titles": {
+                "buy": "Buy",
+                "sell": "Sell",
+                "price": "Price",
+                "quantity": "Quantity",
+                "my_orders": "My Orders",
+                "cancel": "Cancel",
+                "buy_sell": "Buy/Sell",
+                "open": "Open",
+                "high": "High",
+                "low": "Low",
+                "close": "Close",
+                "vwap": "VWAP",
+                "volume": "Volume",
+                "last": "Last",
+                "bid": "Bid",
+                "bids": "BIDS",
+                "ask": "Ask",
+                "asks": "ASKS",
+                "recent_trades": "Recent Trades",
+                "order_book": "Order Book",
+                "time": "Time"
+            },
+            "fields": {
+                "BUY": "BUY",
+                "SELL": "SELL"
+            },
+            "buttons": {
+                "buy": "Buy",
+                "sell": "Sell"
+            }
+        },
+        "dashboard": {
+            "titles": {
+                "news": "News",
+                "all_orders": "All Orders",
+                "all_orders_long": "All Of Your Current Orders",
+                "price": "Price",
+                "quantity": "Quantity",
+                "contract": "Contract",
+                "timestamp": "Timestamp",
+                "buy_sell": "Buy/Sell",
+                "my_contracts": "My Contracts",
+                "active_contracts": "Active Contracts"
+            },
+            "fields": {
+                "BUY": "BUY",
+                "SELL": "SELL"
+            },
+            "alerts": {
+                "no_orders": "No open orders"
+            }
+        },
+        "account": {
+            "pages": {
+                "profile": "User Information",
+                "funding_history": "Funding and History",
+                "audit": "Audit",
+                "compliance": "Compliance"
+            },
+            "profile": {
+                "titles": {
+                    "details": "Profile Details",
+                    "username": "Username",
+                    "email": "Email",
+                    "nickname": "Nickname",
+                    "change_password": "Change Password",
+                    "old_password": "Old Password",
+                    "new_password": "New Password",
+                    "confirm_password": "Confirm Password"
+                },
+                "buttons": {
+                    "update": "Update Email & Nickname",
+                    "change_password": "Change Password"
+                }
+            },
+            "audit": {
+                "titles": {
+                    "timestamp": "Timestamp",
+                    "my_hash": "My Hash",
+                    "assets": "Assets",
+                    "liabilities": "Liabilities",
+                    "id": "ID",
+                    "amount": "Amount"
+                },
+                "select": "Select an asset"
+            },
+            "compliance": {
+                "titles": {
+                    "identify": "Identify",
+                    "first_name": "First Name",
+                    "middle_name": "Middle Name",
+                    "last_name": "Last Name",
+                    "dob": "Date of Birth",
+                    "address": "Address",
+                    "address_1": "Address (Line 1)",
+                    "address_2": "Address (Line 2)",
+                    "city": "City",
+                    "state": "State/Province",
+                    "postal_code": "Postal Code/ZIP",
+                    "country_code": "Country Code",
+                    "documents": "Documents",
+                    "passport": "Passport",
+                    "passport_number": "Passport Number",
+                    "residency": "Proof of Residency"
+                },
+                "buttons": {
+                    "submit": "Submit"
+                }
+            },
+            "funding_history": {
+                "select": "Select",
+                "select_currency": "Select Currency",
+                "select_contract": "Select Contract",
+                "pages": {
+                    "deposit": "Deposit",
+                    "withdraw": "Withdraw",
+                    "history": "Transaction History"
+                },
+                "titles": {
+                    "balance": "Balance",
+                    "balance_available": "Balance Available for Withdrawal",
+                    "deposit_instructions": "Deposit Instructions",
+                    "deposit_funds": "Deposit Funds",
+                    "withdraw_funds": "Withdraw Funds",
+                    "transaction_history": "Transaction History",
+                    "start_date": "Start Date",
+                    "end_date": "End Date",
+                    "date_time": "Date and Time",
+                    "type": "Type",
+                    "debit": "Debit",
+                    "credit": "Credit",
+                    "note": "Note"
+                },
+                "transaction_types": {
+                    "Fee": "Fee",
+                    "Trade": "Trade",
+                    "Transfer": "Transfer",
+                    "Deposit": "Deposit",
+                    "Adjustment": "Adjustment",
+                    "Clearing": "Clearing"
+                },
+                "hit_request": "Please hit 'Request' to download transactions",
+                "buttons": {
+                    "get_new_address": "Get New Address",
+                    "request": "Request"
+                },
+                "alerts": {
+                    "no_transactions": "No transactions downloaded for",
+                    "select_currency": "Select a currency"
+                },
+                "withdrawal": {
+                    "titles": {
+                        "amount": "Withdrawal Amount",
+                        "crypto_address": "Address",
+                        "confirm_crypto_address": "Confirm Address",
+                        "wire_to_bank": "Wire to this bank account",
+                        "bank_name": "Bank Name",
+                        "bank_address": "Bank Address",
+                        "bank_swift": "Bank Swift/ABA",
+                        "bank_account_name": "Account Name",
+                        "bank_account_number": "Account Number",
+                        "mail_check": "Mail a check to me",
+                        "name": "Name",
+                        "address_1": "Address (Line 1)",
+                        "address_2": "Address (Line 2)",
+                        "city": "City/Locality",
+                        "state": "State/Province",
+                        "postal_code": "Postal Code/ZIP",
+                        "country": "Country"
+                    },
+                    "alerts": {
+                        "insufficient_funds": "Insufficient Funds"
+                    },
+                    "buttons": {
+                        "withdraw": "Withdraw"
+                    }
+                }
+            }
+        }
+    }
+}

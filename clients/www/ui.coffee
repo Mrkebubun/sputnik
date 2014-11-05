@@ -35,10 +35,6 @@ $ ->
                 audit_tab: "Liability"
                 audit_contract: "BTC"
                 all_orders_sort_column: "timestamp"
-                type_alias:
-                    "cash_pair": "Cash"
-                    "prediction": "Predictions"
-                    "futures": "Futures"
                 format_time: (datetime) ->
                     if datetime?
                         sputnik.timeFormat(datetime)
@@ -58,7 +54,9 @@ $ ->
                     sputnik.quantityFormat(ticker, quantity)
 
                 translate: (path) ->
-                    sputnik.translate path
+                    rs = sputnik.translate path
+                    sputnik.log ["translate", path, rs]
+                    return rs
 
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')

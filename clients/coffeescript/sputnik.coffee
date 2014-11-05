@@ -23,7 +23,7 @@ class @Sputnik extends EventEmitter
     constructor: (@uri) ->
         # Initialize globalization settings
         @initGl()
-        @setGlLocale("es")
+        @setGlLocale("en")
 
         ### Sputnik API  ###
 
@@ -958,11 +958,14 @@ class @Sputnik extends EventEmitter
         return [low_margin, high_margin, max_cash_spent]
 
     initGl: () =>
+        $.get "locale/translations.json", (data) ->
+            Globalize.loadTranslations(data)
+
         $.when(
             $.get( "cldr/supplemental/likelySubtags.json" ),
             $.get( "cldr/supplemental/timeData.json" ),
             $.get( "cldr/supplemental/weekData.json" ),
-            $.get( "cldr/supplemental/plurals.json")
+            $.get( "cldr/supplemental/plurals.json" ),
         ).then( () ->
             [].slice.apply(arguments, [0]).map (result) ->
                 result[0]
