@@ -54,9 +54,9 @@ $ ->
                     sputnik.quantityFormat(ticker, quantity)
 
                 translate: (path) ->
-                    rs = sputnik.translate path
-                    sputnik.log ["translate", path, rs]
-                    return rs
+                    sputnik.translate path
+                    #sputnik.log ["translate", path, rs]
+                    #return rs
 
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')

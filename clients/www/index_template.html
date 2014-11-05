@@ -354,11 +354,11 @@
                                 {{/if}}
                                 <div class="row">
                                     <div class="col-sm-6 col-lg-4 recent-trades-box">
-                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">{{translate("trades/titles/recent_trades")}}</a>
-                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">{{translate("trades/titles/order_book")}}</a>
+                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">{{translate("trade/titles/recent_trades")}}</a>
+                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">{{translate("trade/titles/order_book")}}</a>
                                         <select class="form-control trades-select trades-mobile-push" value="{{tb_tab}}">
-                                            <option value="trades" selected="selected">{{translate("trades/titles/recent_trades")}}</option>
-                                            <option value="book">{{translate("trades/titles/order_book")}}</option>
+                                            <option value="trades" selected="selected">{{translate("trade/titles/recent_trades")}}</option>
+                                            <option value="book">{{translate("trade/titles/order_book")}}</option>
                                         </select>
                                         {{#if tb_tab == 'trades'}}
                                         <div style="height: 5%"></div>
@@ -366,9 +366,9 @@
                                             <table id="trades-table" class="table-header">
                                                 <thead>
                                                 <tr>
-                                                    <th class="recent-price recent-price-nudge">{{translate("trades/titles/price")}}</th>
-                                                    <th class="recent-quantity">{{translate("trades/titles/quantity")}}</th>
-                                                    <th class="recent-time">{{translate("trades/titles/time")}}</th>
+                                                    <th class="recent-price recent-price-nudge">{{translate("trade/titles/price")}}</th>
+                                                    <th class="recent-quantity">{{translate("trade/titles/quantity")}}</th>
+                                                    <th class="recent-time">{{translate("trade/titles/time")}}</th>
                                                 </tr>
                                                 </thead>
                                                 <tbody id="trades-tbody">
@@ -476,7 +476,7 @@
                                 </div>
                                 {{#if window_info.width > 768}}
                                 <div class="col-xs-12 col-lg-9 dashboard-contracts">
-                                    <h2 class="dashboard-heading">{{translate("dashboard/titles/" + sputnik.logged_in ? "my_contracts" : "active_contracts")}}</h2>
+                                    <h2 class="dashboard-heading">{{translate("dashboard/titles/" + (sputnik.logged_in ? "my_contracts" : "active_contracts"))}}</h2>
                                     <div class="row">
                                         <div class="tv-logo">
                                             <div class="tv-wrapper">
