@@ -424,6 +424,20 @@ class Instance:
             if result.failed:
                 raise COMMAND_FAILED
 
+    def sudo(self):
+        self.check()
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            result = fabric.api.sudo(self.remote_command)
+            if result.failed:
+                raise COMMAND_FAILED
+
+    def start(self):
+        self.remote_command = "service supervisor start"
+        self.sudo()
 
     def install(self, upgrade=False):
         self.check()
@@ -595,7 +609,10 @@ def main():
     parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
     parser_run = parser_run.add_argument("remote_command",
                                          help="what is the remote command to run")
-
+    parser_sudo = subparsers.add_parser("sudo", help="Run a command as root", parents=[customer])
+    parser_sudo = parser_run.add_argument("remote_command",
+                                         help="what is the remote command to run")
+    parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
