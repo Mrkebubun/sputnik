@@ -1,4 +1,8 @@
 #!/bin/bash
 
-cp ${base_profile}/res/terms.html ${profile_www_root}
+if [ -e ${profile}/res/terms.html ]; then
+    cp ${profile}/res/terms.html ${profile_www_root}
+else
+    cp ${base_profile}/res/terms.html ${profile_www_root}
+fi
 
