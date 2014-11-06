@@ -301,7 +301,12 @@ class @Sputnik extends EventEmitter
         fn(dt)
 
     translate: (path) =>
-        @gl.translate(path)
+        translated = @gl.translate(path)
+        if translated?
+            @error "Unable to translate: #{path}"
+            return path
+        else
+            return translated
 
     parseNumber: (string) =>
         # Force a string

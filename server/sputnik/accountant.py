@@ -48,15 +48,18 @@ from datetime import datetime
 class AccountantException(Exception):
     pass
 
-INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
-TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
-WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
-INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
-DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
-CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
-CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
-NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
-CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
+INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
+TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
+WITHDRAW_NOT_PERMITTED = AccountantException("exceptions/accountant/withdraw_not_permitted")
+INVALID_CURRENCY_QUANTITY = AccountantException("exceptions/accountant/invalid_currency_quantity")
+DISABLED_USER = AccountantException("exceptions/accountant/disabled_user")
+CONTRACT_EXPIRED = AccountantException("exceptions/accountant/contract_expired")
+CONTRACT_NOT_EXPIRED = AccountantException("exceptions/accountant/contract_not_expired")
+NON_CLEARING_CONTRACT = AccountantException("exceptions/accountant/non_clearing_Contract")
+CONTRACT_NOT_ACTIVE = AccountantException("exceptions/accountant/contract_not_active")
+NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
+USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
+ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 
 class Accountant:
     """The Accountant primary class
@@ -695,13 +698,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % order_id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % order_id)
+            raise ORDER_CANCELLED
 
         d = self.engines[order.contract.ticker].cancel_order(order_id)
 
@@ -732,13 +735,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % id)
+            raise ORDER_CANCELLED
 
         order.is_cancelled = True
         try:

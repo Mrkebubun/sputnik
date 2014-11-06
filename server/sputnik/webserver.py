@@ -1149,8 +1149,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :returns: list - [success, dict or message]
             """
             if not result:
-                return [False, (0, "get profile failed")]
-
+                return [False, "exceptions/webserver/get_profile_failed"]
 
             return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2]}]
 
@@ -1299,7 +1298,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             # Check for zero price or quantity
             if order["price"] == 0 or order["quantity"] == 0:
-                return [False, (0, "invalid price or quantity")]
+                return [False, "exceptions/webserver/invalid_price_quantity"]
 
             # check tick size and lot size in the accountant, not here
 

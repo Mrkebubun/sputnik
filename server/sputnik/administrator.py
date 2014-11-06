@@ -56,17 +56,17 @@ from rpc_schema import schema
 class AdministratorException(Exception): pass
 
 
-USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
-NO_SUCH_USER = AdministratorException(2, "No such user.")
-FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
-INVALID_TOKEN = AdministratorException(4, "No such token found.")
-EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
-TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
-USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
-ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
-INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
-SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
-INVALID_CURRENCY_QUANTITY = AdministratorException(12, "Invalid currency quantity")
+USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
+NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
+PASSWORD_MISMATCH = AdministratorException("exceptions/administrator/password_mismatch")
+INVALID_TOKEN = AdministratorException("exceptions/administrator/invalid_token")
+EXPIRED_TOKEN = AdministratorException("exceptions/administrator/expired_token")
+TICKET_EXISTS = AdministratorException("exceptions/administrator/ticket_exists")
+USER_LIMIT_REACHED = AdministratorException("exceptions/administrator/user_limit_reached")
+ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_username_taken")
+INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
+SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
+INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
 
 
 def session_aware(func):
@@ -257,7 +257,7 @@ class Administrator:
         [salt, hash] = user.password.split(':')
 
         if hash != old_password_hash and token is None:
-            raise FAILED_PASSWORD_CHANGE
+            raise PASSWORD_MISMATCH
         elif hash != old_password_hash:
             # Check token
             token = self.check_token(username, token)
@@ -460,7 +460,7 @@ class Administrator:
         # If the pw is blank, don't check
         if user.password_hash != "":
             if user.password_hash != old_password_hash:
-                raise FAILED_PASSWORD_CHANGE
+                raise PASSWORD_MISMATCH
 
         user.password_hash = new_password_hash
         self.session.add(user)

@@ -202,7 +202,7 @@ class TestWebserverExport(TestAdministrator):
         self.add_address(address='second_new_address_without_user')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'Username is already taken'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'username_taken'):
             self.webserver_export.make_account('new_user', 'new_user_password_hash')
 
     def test_many_accounts(self):
@@ -220,7 +220,7 @@ class TestWebserverExport(TestAdministrator):
 
         # Now it should fail
         self.add_address(address='address_%d' % user_limit)
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'User limit reached'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'user_limit_reached'):
             self.webserver_export.make_account('user_%d' % user_limit, 'test_password')
 
 
@@ -266,7 +266,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "Password does not match"):
+        with self.assertRaisesRegexp(administrator.AdministratorException, "password_mismatch"):
             self.webserver_export.reset_password_hash('test', "bad_old_hash", new_password_hash)
 
     def test_reset_password_hash_bad_token(self):
@@ -284,7 +284,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "No such token found"):
+        with self.assertRaisesRegexp(administrator.AdministratorException, "invalid_token"):
             self.assertTrue(
                 self.webserver_export.reset_password_hash('test', None, new_password_hash, token='bad_token'))
 
@@ -381,7 +381,7 @@ class TestTicketServerExport(TestAdministrator):
         self.create_account('test')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'Invalid support nonce'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'invalid_support_nonce'):
             self.ticketserver_export.check_support_nonce('test', 'bad_nonce', 'Compliance')
 
     def test_register_support_ticket(self):

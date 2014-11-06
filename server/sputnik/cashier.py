@@ -40,12 +40,12 @@ if options.filename:
 class CashierException(Exception):
     pass
 
-WITHDRAWAL_NOT_FOUND = CashierException(0, "Withdrawal not found")
-WITHDRAWAL_COMPLETE = CashierException(1, "Withdrawal already complete")
-OUT_OF_ADDRESSES = CashierException(2, "Out of addresses")
-NO_AUTOMATIC_WITHDRAWAL = CashierException(3, "No automatic withdrawals for this contract")
-INSUFFICIENT_FUNDS = CashierException(4, "Insufficient funds in wallet")
-WITHDRAWAL_TOO_LARGE = CashierException(5, "Withdrawal too large portion of on-line wallet")
+WITHDRAWAL_NOT_FOUND = CashierException("exceptions/cashier/withdrawal_not_found")
+WITHDRAWAL_COMPLETE = CashierException("exceptions/cashier/withdrawal_complete")
+OUT_OF_ADDRESSES = CashierException("exceptions/cashier/out_of_addresses")
+NO_AUTOMATIC_WITHDRAWAL = CashierException("exceptions/cashier/no_automatic_withdrawal")
+INSUFFICIENT_FUNDS = CashierException("exceptions/cashier/insufficient_funds")
+WITHDRAWAL_TOO_LARGE = CashierException("exceptions/cashier/withdrawal_too_large")
 
 class Cashier():
     """

@@ -138,7 +138,7 @@ $ ->
                     address = $('#crypto_address').val()
                     confirm_address = $('#crypto_confirm_address').val()
                     if address != confirm_address
-                        bootbox.alert "Addresses do not match"
+                        bootbox.alert sputnik.translate("account/funding_history/withdrawal/alerts/mismatched_address")
                         return
                 else if type == "wire"
                     address_obj =
@@ -175,14 +175,14 @@ $ ->
 
 
                 if isNaN buy_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
-                    alerts.push "Price invalid"
+                    alerts.push sputnik.translate("trade/alerts/price_invalid")
 
                 if isNaN buy_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
-                    alerts.push "Quantity invalid"
+                    alerts.push sputnik.translate("trade/alerts/quantity_invalid")
 
                 if alerts.length == 0
                     if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                        alerts.push "Balance too low"
+                        alerts.push sputnik.translate("trade/alerts/insufficient_funds")
 
                 if alerts.length
                     $('#buy_alert').text alerts.join(', ')
@@ -205,14 +205,14 @@ $ ->
 
                 alerts = []
                 if isNaN sell_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
-                    alerts.push "Price invalid"
+                    alerts.push sputnik.translate("trade/alerts/price_invalid")
 
                 if isNaN sell_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
-                    alerts.push "Quantity invalid"
+                    alerts.push sputnik.translate("trade/alerts/quantity_invalid")
 
                 if alerts.length == 0
                     if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                        alerts.push "Balance too low"
+                        alerts.push sputnik.translate("trade/alerts/insufficient_funds")
 
                 if alerts.length
                     $('#sell_alert').text alerts.join(', ')
@@ -229,22 +229,23 @@ $ ->
                 buy_price_str = $("#buy_price").val()
 
                 if buy_quantity <= 0 or isNaN buy_quantity
-                    bootbox.alert "Invalid quantity"
+                    bootbox.alert sputnik.translate("trade/alerts/quantity_invalid")
                     return true
 
                 if buy_price_str == ''
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                    bootbox.confirm "Placing order with price: #{buy_price_str}.\n\nAre you sure?", (result) =>
+                    bootbox.confirm(sputnik.translate("trade/alerts/placing_order_with_price") + buy_price_str + sputnik.translate("trades/alerts/are_you_sure"), (result) =>
                         if result
                             sputnik.placeOrder(buy_quantity, sputnik.parseNumber(buy_price_str), ractive.get("current_ticker"), 'BUY')
+                    )
                 else
                     buy_price = sputnik.parseNumber(buy_price_str)
                     if buy_price <= 0 or isNaN buy_price
-                        bootbox.alert "Invalid price"
+                        bootbox.alert sputnik.translate("trade/alerts/price_invalid")
                         return true
 
                     if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
-                        bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                        bootbox.confirm sputnik.translate("trade/alerts/strange_price"), (result) ->
                             if result
                                 sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
                     else
@@ -257,21 +258,22 @@ $ ->
 
 
                 if sell_quantity <= 0 or isNaN sell_quantity
-                    bootbox.alert "Invalid quantity"
+                    bootbox.alert sputnik.translate("trade/alerts/quantity_invalid")
                     return true
 
                 if sell_price_str == ''
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                    bootbox.confirm "Placing order with price: #{sell_price_str}.\n\nAre you sure?", (result) =>
+                    bootbox.confirm(sputnik.translate("trade/alerts/placing_order_with_price") + sell_price_str + sputnik.translate("trades/alerts/are_you_sure"), (result) =>
                         if result
                             sputnik.placeOrder(sell_quantity, sputnik.parseNumber(sell_price_str), ractive.get("current_ticker"), 'SELL')
+                    )
                 else
                     sell_price = sputnik.parseNumber(sell_price_str)
                     if sell_price <= 0 or isNaN sell_price
-                        bootbox.alert "Invalid price"
+                        bootbox.alert sputnik.translate("trade/alerts/price_invalid")
 
                     if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
-                        bootbox.confirm 'This price is significantly different from the latest market price.\n\nAre you sure you want to execute this trade?', (result) ->
+                        bootbox.confirm sputnik.translate("trade/alerts/strange_price"), (result) ->
                             if result
                                 sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
                     else
@@ -320,7 +322,7 @@ $ ->
             change_password: (event) ->
                 event.original.preventDefault()
                 if $('#new_password').val() isnt $('#new_password_confirm').val()
-                    bootbox.alert "Passwords do not match"
+                    bootbox.alert sputnik.translate("alerts/mismatched_password")
                 else
                     sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
@@ -329,7 +331,7 @@ $ ->
                 if $('#new_password_token').val() == $('#new_password_token_confirm').val()
                     sputnik.changePasswordToken($('#new_password_token').val())
                 else
-                    $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text "Passwords do not match"
+                    $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text sputnik.translate("alerts/mismatched_password")
 
             show_login_register: (event) ->
                 event.original.preventDefault()
@@ -438,7 +440,7 @@ $ ->
             ga('send', 'event', 'login', 'failure')
             ladda = Ladda.create $("#login_button")[0]
             ladda.stop()
-            $("#login_error").text("Incorrect username or password.").show()
+            $("#login_error").text(sputnik.translate("alerts/bad_username_pw")).show()
 
         sputnik.on "make_account_success", () ->
             ga('send', 'event', 'register', 'success')
@@ -448,11 +450,10 @@ $ ->
             sputnik.authenticate username, password
 
         sputnik.on "make_account_fail", (event) ->
-            ga('send', 'event', 'register', 'failure', reason)
+            ga('send', 'event', 'register', 'failure', event)
             ladda = Ladda.create $("#register_button")[0]
             ladda.stop()
-            [code, reason] = event
-            $("#register_error").text(reason)
+            $("#register_error").text(sputnik.translate(event))
             $("#register_error").show()
 
 
@@ -637,15 +638,15 @@ $ ->
             ga('send', 'pageview')
             document.title = exchange_info.name
 
-        sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
-            ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])
-            bootbox.alert "Password reset failure: #{err[1]}"
+        sputnik.on "change_password_fail", (error) -> #BUG: this is not firing multiple times
+            ga('send', 'event', 'password', 'change_password_fail', 'error', error)
+            bootbox.alert sputnik.translate(error)
 
-        sputnik.on "change_password_token_fail", (err) -> #BUG: this is not firing multiple times
-            ga('send', 'event', 'password', 'change_password_token_fail', 'error', err[1])
+        sputnik.on "change_password_token_fail", (error) -> #BUG: this is not firing multiple times
+            ga('send', 'event', 'password', 'change_password_token_fail', 'error', error)
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
-            bootbox.alert "Password reset failure: #{err[1]}"
+            bootbox.alert sputnik.translate(error)
 
         sputnik.on "change_password_token_success", (message) ->
             ga('send', 'event', 'password', 'change_password_token_success')
@@ -674,8 +675,8 @@ $ ->
     #        $.growl({title: "Chat", message: chat})
 
         sputnik.on "address_fail", (error) ->
-            ga('send', 'event', 'deposit', 'address_fail', 'error', error[1])
-            bootbox.alert "Deposit address error: #{error[1]}"
+            ga('send', 'event', 'deposit', 'address_fail', 'error', error)
+            bootbox.alert sputnik.translate(error)
 
         sputnik.on "address", (address) =>
             ga('send', 'event', 'deposit', 'address')
@@ -685,23 +686,23 @@ $ ->
 
         sputnik.on "request_withdrawal_success", (info) ->
             ga('send', 'event', 'withdraw', 'request_withdrawal_success')
-            bootbox.alert "Withdrawal request placed"
+            bootbox.alert sputnik.translate("account/funding_history/withdrawal/alerts/request_placed")
 
         sputnik.on "request_withdrawal_fail", (error) ->
-            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[1])
-            bootbox.alert "Withdrawal request failed: #{error[1]}"
+            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error)
+            bootbox.alert sputnik.translate(error)
 
         sputnik.on "place_order_fail", (error) ->
-            ga('send', 'event', 'order', 'place_order_fail', 'error', error[1])
-            bootbox.alert "order placement failed: #{error[1]}"
+            ga('send', 'event', 'order', 'place_order_fail', 'error', error)
+            bootbox.alert sputnik.translate(error)
 
         sputnik.on "place_order_success", (info) ->
             ga('send', 'event', 'order', 'place_order_success')
 
         sputnik.on "fill", (fill) ->
-            quantity_fmt = fill.quantity.toFixed(sputnik.getQuantityPrecision(fill.contract))
-            price_fmt = fill.price.toFixed(sputnik.getPricePrecision(fill.contract))
-            $.growl.notice { title: "Fill", message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+            quantity_fmt = sputnik.quantityFormat(fill.quantity, fill.contract)
+            price_fmt = sputnik.priceFormat(fill.price, fill.contract)
+            $.growl.notice { title: sputnik.translate("trade/titles/fill"), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')
@@ -733,10 +734,10 @@ $ ->
             residencies = form.find('input[name=residency]')[0].files
 
             if not passports.length
-              bootbox.alert "Must submit a scanned passport"
+              bootbox.alert sputnik.translate("account/compliance/alerts/passport_required")
               return
             if not residencies.length
-              bootbox.alert "Must submit a proof of residency"
+              bootbox.alert sputnik.translate("account/compliance/alerts/residency_required")
               return
 
             fd.append('file', passports[0])
@@ -755,10 +756,10 @@ $ ->
                     success: (data) ->
                         ladda.stop()
                         ga('send', 'event', 'compliance', 'save')
-                        bootbox.alert("Successfully saved:" + data)
-                    error: (err) ->
+                        bootbox.alert sputnik.translate("account/compliance/alerts/request_success")
+                    error: (error) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'failure', 'error', err)
-                        bootbox.alert("Error while saving:" + err)
-                        sputnik.log ["Error:", err]
+                        ga('send', 'event', 'compliance', 'failure', 'error', error)
+                        bootbox.alert sputnik.translate(error)
+                        sputnik.log ["Error:", error]
 
