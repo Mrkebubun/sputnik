@@ -167,6 +167,7 @@ class Installer():
         self.config = self.profile.config
         
         self.env = copy.copy(os.environ)
+        self.env["profile"] = self.profile.profile
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
         for key, value in self.config.iteritems():
             self.env["profile_%s" % key] = value
