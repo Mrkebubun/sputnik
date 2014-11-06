@@ -658,7 +658,7 @@ class Administrator:
                                                                        'total': 0,
                                                                        'positions_raw': []})}
 
-        # Build the balance sheet from scratch with a single query
+        # # Build the balance sheet from scratch with a single query
         # if 'timestamp' in self.bs_cache:
         #     bs_query = self.session.query(models.Posting.username,
         #                                   models.Posting.contract_id,
@@ -669,12 +669,15 @@ class Administrator:
         #         models.Posting.username,
         #         models.Posting.contract_id)
         #
-        #     # Copy the cached balance sheet over, without losing any defaultdict-ness
+        #     # Copy the cached balance sheet over, without losing any defaultdict-ness, also update the hashes
         #     for side in ["Asset", "Liability"]:
         #         if side in self.bs_cache:
         #             for contract in self.bs_cache[side]:
-        #                 for user, position_details in self.bs_cache[side][contract]['positions_by_user'].iteritems():
-        #                     balance_sheet[side][contract]['positions_by_user'][user] = position_details
+        #                 for username, position_details in self.bs_cache[side][contract]['positions_by_user'].iteritems():
+        #                     user = self.get_user(username)
+        #                     position_details['hash'] = user.user_hash(timestamp)
+        #                     balance_sheet[side][contract]['positions_by_user'][username] = position_details
+        #
         # else:
         bs_query = self.session.query(models.Posting.username,
                                       models.Posting.contract_id,
