@@ -68,8 +68,7 @@ PROFILE_NOT_SET = AutoDeployException("Profile not set.")
 
 class Instance:
     def __init__(self, customer=None, region=None, profile=None,
-                 key=None, verbose=False, safety=False, template=None,
-                 remote_command=None):
+                 key=None, verbose=False, safety=False, template=None):
         self.customer = customer
         self.region = region
         if profile == None:
@@ -79,7 +78,6 @@ class Instance:
         self.key = key
         self.verbose = verbose
         self.safety = safety
-        self.remote_command = remote_command
 
         self.default_region = "us-west-1"
 
@@ -413,31 +411,34 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
-    def run(self):
+    def run(self, command):
         self.check()
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.run(self.remote_command)
+            result = fabric.api.run(command)
             if result.failed:
                 raise COMMAND_FAILED
 
-    def sudo(self):
+        return result
+
+    def sudo(self, command):
         self.check()
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.sudo(self.remote_command)
+            result = fabric.api.sudo(command)
             if result.failed:
                 raise COMMAND_FAILED
+
+        return result
 
     def start(self):
-        self.remote_command = "service supervisor start"
-        self.sudo()
+        return self.sudo("service supervisor start")
 
     def install(self, upgrade=False):
         self.check()
@@ -607,16 +608,21 @@ def main():
     parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
                                                    help="Install python clients")
     parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
-    parser_run = parser_run.add_argument("remote_command",
+    parser_run = parser_run.add_argument("args", nargs=argparse.REMAINDER,
                                          help="what is the remote command to run")
     parser_sudo = subparsers.add_parser("sudo", help="Run a command as root", parents=[customer])
-    parser_sudo = parser_run.add_argument("remote_command",
+    parser_sudo = parser_sudo.add_argument("args", nargs=argparse.REMAINDER,
                                          help="what is the remote command to run")
     parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
     del kwargs["command"]
+
+    args = []
+    if "args" in kwargs:
+        args = kwargs["args"]
+        del kwargs["args"]
 
     if command == "list":
         return Instance.list(kwargs.get("region", None))
@@ -625,7 +631,9 @@ def main():
     method = getattr(instance, command)
 
     try:
-        method()
+        result = method(*args)
+        if result:
+            print result
     except AutoDeployException, e:
         print e
 
