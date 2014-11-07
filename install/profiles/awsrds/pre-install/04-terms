@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ -e ${profile}/res/terms.html ]; then
+    cp ${profile}/res/terms.html ${profile_git_root}/dist/clients/www
+else
+    cp ${base_profile}/res/terms.html ${profile_git_root}/dist/clients/www
+fi
+

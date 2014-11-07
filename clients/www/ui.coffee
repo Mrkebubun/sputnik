@@ -632,11 +632,11 @@ $ ->
             $('#change_password_token_modal').modal "show"
 
         sputnik.on "exchange_info", (exchange_info) ->
-            ga('create', exchange_info.google_analytics, 'auto')
-            ga('require', 'linkid', 'linkid.js')
-            ga('require', 'displayfeatures')
-            ga('send', 'pageview')
-            document.title = exchange_info.name
+          ga('create', exchange_info.google_analytics, 'auto')
+          ga('require', 'linkid', 'linkid.js')
+          ga('require', 'displayfeatures')
+          ga('send', 'pageview')
+          document.title = exchange_info.exchange_name
 
         sputnik.on "change_password_fail", (error) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', error)

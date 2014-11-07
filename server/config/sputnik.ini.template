@@ -34,9 +34,14 @@ debug = ${debug}
 base_uri = ${base_uri}
 recaptcha_public_key = ${recaptcha_public_key}
 recaptcha_private_key = ${recaptcha_private_key}
-exchange_name = ${exchange_name}
-exchange_rss_feed = ${exchange_rss_feed}
+
+[exchange_info]
 google_analytics = ${google_analytics}
+corporate_url = ${corporate_url}
+corporate_name = ${corporate_name}
+exchange_rss_feed = ${exchange_rss_feed}
+exchange_name = ${exchange_name}
+support_email = ${support_email}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d

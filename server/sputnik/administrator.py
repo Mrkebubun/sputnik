@@ -658,29 +658,32 @@ class Administrator:
                                                                        'total': 0,
                                                                        'positions_raw': []})}
 
-        # Build the balance sheet from scratch with a single query
-        if 'timestamp' in self.bs_cache:
-            bs_query = self.session.query(models.Posting.username,
-                                          models.Posting.contract_id,
-                                          func.sum(models.Posting.quantity).label('position'),
-                                          func.max(models.Journal.timestamp).label('last_timestamp')).filter(
-                models.Journal.id == models.Posting.journal_id).filter(
-                models.Journal.timestamp > util.timestamp_to_dt(self.bs_cache['timestamp'])).group_by(
-                models.Posting.username,
-                models.Posting.contract_id)
-
-            # Copy the cached balance sheet over, without losing any defaultdict-ness
-            for side in ["Asset", "Liability"]:
-                if side in self.bs_cache:
-                    for contract in self.bs_cache[side]:
-                        for user, position_details in self.bs_cache[side][contract]['positions_by_user'].iteritems():
-                            balance_sheet[side][contract]['positions_by_user'][user] = position_details
-        else:
-            bs_query = self.session.query(models.Posting.username,
-                                          models.Posting.contract_id,
-                                          func.sum(models.Posting.quantity).label('position')).group_by(
-                models.Posting.username,
-                models.Posting.contract_id)
+        # # Build the balance sheet from scratch with a single query
+        # if 'timestamp' in self.bs_cache:
+        #     bs_query = self.session.query(models.Posting.username,
+        #                                   models.Posting.contract_id,
+        #                                   func.sum(models.Posting.quantity).label('position'),
+        #                                   func.max(models.Journal.timestamp).label('last_timestamp')).filter(
+        #         models.Journal.id == models.Posting.journal_id).filter(
+        #         models.Journal.timestamp > util.timestamp_to_dt(self.bs_cache['timestamp'])).group_by(
+        #         models.Posting.username,
+        #         models.Posting.contract_id)
+        #
+        #     # Copy the cached balance sheet over, without losing any defaultdict-ness, also update the hashes
+        #     for side in ["Asset", "Liability"]:
+        #         if side in self.bs_cache:
+        #             for contract in self.bs_cache[side]:
+        #                 for username, position_details in self.bs_cache[side][contract]['positions_by_user'].iteritems():
+        #                     user = self.get_user(username)
+        #                     position_details['hash'] = user.user_hash(timestamp)
+        #                     balance_sheet[side][contract]['positions_by_user'][username] = position_details
+        #
+        # else:
+        bs_query = self.session.query(models.Posting.username,
+                                      models.Posting.contract_id,
+                                      func.sum(models.Posting.quantity).label('position')).group_by(
+            models.Posting.username,
+            models.Posting.contract_id)
 
         for row in bs_query:
             user = self.get_user(row.username)
