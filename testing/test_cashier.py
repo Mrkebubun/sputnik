@@ -305,7 +305,7 @@ class TestAdministratorExport(TestCashier):
                 self.assertTrue(False)
 
             def onFail(failure):
-                self.assertEqual(failure.value.args[1], "Insufficient funds in wallet")
+                self.assertEqual(failure.value.args, ("exceptions/cashier/insufficient_funds",))
                 from sputnik import models
 
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
