@@ -633,7 +633,7 @@ $ ->
           ga('require', 'linkid', 'linkid.js')
           ga('require', 'displayfeatures')
           ga('send', 'pageview')
-          document.title = exchange_info.name
+          document.title = exchange_info.exchange_name
 
         sputnik.on "change_password_fail", (err) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', err[1])
