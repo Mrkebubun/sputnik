@@ -19,7 +19,12 @@
             "bad_username_pw": "Incorrect username or password.",
             "reset_sent": "Check your email. Contact customer support for further assistance.",
             "enter_new_password": "Great! Now just enter your new password and we'll be all set.",
-            "mismatched_password": "Passwords do not match"
+            "mismatched_password": "Passwords do not match",
+            "invalid_username": "Invalid username",
+            "complete_registration": "Please complete the registration form and accept the terms of service to continue.",
+            "enter_username": "Please enter a username to reset the password",
+            "password_reset": "Password reset",
+            "profile_changed": "Profile changed"
         },
         "buttons": {
             "buy": "Buy",

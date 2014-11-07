@@ -453,7 +453,7 @@ $ ->
             ga('send', 'event', 'register', 'failure', event)
             ladda = Ladda.create $("#register_button")[0]
             ladda.stop()
-            $("#register_error").text(sputnik.translate(event))
+            $("#register_error").text(sputnik.translate(event[0]))
             $("#register_error").show()
 
 
@@ -475,7 +475,7 @@ $ ->
           ladda = Ladda.create $('#compropago_pay_button')[0]
           ladda.stop()
           [code, reason] = event
-          $('#compropago_error').text(reason)
+          $('#compropago_error').text(event[0])
           $('#compropago_error').show()
 
         $("#login_modal").keypress (e) -> $("#login_button").click() if e.which is 13
@@ -487,7 +487,7 @@ $ ->
             password = $("#login_password").val()
 
             if username is ''
-                $("#login_error").text("Invalid username").show()
+                $("#login_error").text(sputnik.translate("alerts/invalid_username")).show()
             else
                 $("#login_error").hide()
                 ladda = Ladda.create $("#login_button")[0]
@@ -510,7 +510,7 @@ $ ->
                 ladda.start()
                 sputnik.makeAccount username, password, email, nickname
             else
-                $('#register_error').text('Please complete the registration form and accept the terms and conditions to continue.').slideDown()
+                $('#register_error').text(sputnik.translate("alerts/complete_registration")).slideDown()
 
         withinAnOrderOfMagnitude = (x, y) ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
@@ -615,7 +615,7 @@ $ ->
             $('#login_modal .alert:visible').hide()
 
             if not username.length
-                $('#login_error').text("Please enter a username to reset the password").slideDown()
+                $('#login_error').text(sputnik.translate("alerts/enter_username")).slideDown()
                 return
 
             sputnik.getResetToken(username)
@@ -639,28 +639,28 @@ $ ->
           document.title = exchange_info.exchange_name
 
         sputnik.on "change_password_fail", (error) -> #BUG: this is not firing multiple times
-            ga('send', 'event', 'password', 'change_password_fail', 'error', error)
-            bootbox.alert sputnik.translate(error)
+            ga('send', 'event', 'password', 'change_password_fail', 'error', error[0])
+            bootbox.alert sputnik.translate(error[0])
 
         sputnik.on "change_password_token_fail", (error) -> #BUG: this is not firing multiple times
-            ga('send', 'event', 'password', 'change_password_token_fail', 'error', error)
+            ga('send', 'event', 'password', 'change_password_token_fail', 'error', error[0])
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
-            bootbox.alert sputnik.translate(error)
+            bootbox.alert sputnik.translate(error[0])
 
         sputnik.on "change_password_token_success", (message) ->
             ga('send', 'event', 'password', 'change_password_token_success')
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
-            bootbox.alert "Password reset"
+            bootbox.alert sputnik.translate("alerts/password_reset")
 
         sputnik.on "change_password_success", (message) ->
             ga('send', 'event', 'password', 'change_password_success')
-            bootbox.alert "Password reset"
+            bootbox.alert sputnik.translate("alerts/password_reset")
 
         sputnik.on "change_profile_success", (profile) ->
             ga('send', 'event', 'profile', 'change_profile_success')
-            bootbox.alert "Profile changed"
+            bootbox.alert sputnik.translate("alerts/profile_changed")
 
         sputnik.on "session_expired", ->
             console.log "Session is stale."
@@ -675,8 +675,8 @@ $ ->
     #        $.growl({title: "Chat", message: chat})
 
         sputnik.on "address_fail", (error) ->
-            ga('send', 'event', 'deposit', 'address_fail', 'error', error)
-            bootbox.alert sputnik.translate(error)
+            ga('send', 'event', 'deposit', 'address_fail', 'error', error[0])
+            bootbox.alert sputnik.translate(error[0])
 
         sputnik.on "address", (address) =>
             ga('send', 'event', 'deposit', 'address')
@@ -689,12 +689,12 @@ $ ->
             bootbox.alert sputnik.translate("account/funding_history/withdrawal/alerts/request_placed")
 
         sputnik.on "request_withdrawal_fail", (error) ->
-            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error)
-            bootbox.alert sputnik.translate(error)
+            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[0])
+            bootbox.alert sputnik.translate(error[0])
 
         sputnik.on "place_order_fail", (error) ->
-            ga('send', 'event', 'order', 'place_order_fail', 'error', error)
-            bootbox.alert sputnik.translate(error)
+            ga('send', 'event', 'order', 'place_order_fail', 'error', error[0])
+            bootbox.alert sputnik.translate(error[0])
 
         sputnik.on "place_order_success", (info) ->
             ga('send', 'event', 'order', 'place_order_success')
@@ -759,7 +759,7 @@ $ ->
                         bootbox.alert sputnik.translate("account/compliance/alerts/request_success")
                     error: (error) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'failure', 'error', error)
-                        bootbox.alert sputnik.translate(error)
+                        ga('send', 'event', 'compliance', 'failure', 'error', error[0])
+                        bootbox.alert sputnik.translate(error[0])
                         sputnik.log ["Error:", error]
 
