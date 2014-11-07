@@ -1729,7 +1729,7 @@ if __name__ == '__main__':
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
-    exchange_info = zip(config.items("exchange_info"))
+    exchange_info = dict(config.items("exchange_info"))
 
     factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
                                      debugWamp=debug, debugCodePaths=debug, exchange_info=exchange_info)
