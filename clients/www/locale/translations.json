@@ -320,8 +320,318 @@
         }
     },
     "pt": {
+        "top_menu": {
+            "dashboard": "Painel",
+            "trade": "Negociação",
+            "account": "Conta",
+            "login_register": "Entrar/Registrar",
+            "logout": "Sair"
+        },
+        "tabs": {
+            "login": "Entrar",
+            "register": "Registrar"
+        },
+        "titles": {
+            "reset_password": "Reconfigurar senha"
+        },
+        "alerts": {
+            "connecting": "Conectando servidor.",
+            "bad_username_pw": "Nome ou senha incorretos.",
+            "reset_sent": "Verifique seu email. Contate o suporte ao cliente para mais assistencia.",
+            "enter_new_password": "Ótimo! Agora coloque a nova senha e tudo estará configurado.",
+            "mismatched_password": "Senhas não são iguais",
+            "invalid_username": "Nome de usuário inválido",
+            "complete_registration": "Por favor complete o formulário de registro e aceite os termos de serviço para continuar",
+            "enter_username": "Por favor coloque o nome de usuário para reconfigurar a senha.",
+            "password_reset": "Reconfigurar senha",
+            "profile_changed": "Perfil modificado"
+        },
         "buttons": {
-            "buy": "Compra"
+            "buy": "Comprar",
+            "sell": "Vender",
+            "login": "Entrar",
+            "register": "Registrar",
+            "reset_password": "Reconfigurar senha",
+            "change_password": "Mudar senha"
+        },
+        "fields": {
+            "username": "Usuário",
+            "password": "Senha",
+            "email": "E-mail",
+            "nickname": "Apelido",
+            "new_password": "Nova Senha",
+            "confirm_new_password": "Confirmar nova senha"
+        },
+        "register_modal": {
+            "terms": "termos e condições",
+            "agree": "Eu concordo com os "
+        },
+        "contract_type": {
+            "cash_pair": "Dinheiro",
+            "prediction": "Predição",
+            "futures": "Futuros"
+        },
+        "trade": {
+            "ohlcv": {
+                "yesterday": "Ontem",
+                "last_hour": "Última hora",
+                "last_minute": "Último minuto"
+            },
+            "balances": {
+                "available_to_trade": "DISPONÍVEL PARA NEGOCIAR",
+                "low_margin": "MARGEM BAIXA",
+                "high_margin": "MARGEM ALTA"
+            },
+            "titles": {
+                "buy": "Comprar",
+                "sell": "Vender",
+                "price": "Preço",
+                "quantity": "Quantidade",
+                "my_orders": "Minhas ordens",
+                "cancel": "Cancelar",
+                "buy_sell": "Comprar/Vender",
+                "open": "Abertura",
+                "high": "Máxima",
+                "low": "Mínima",
+                "close": "Fechamento",
+                "vwap": "VWAP",
+                "volume": "Volume",
+                "last": "Último",
+                "bid": "Bid",
+                "bids": "BIDS",
+                "ask": "Ask",
+                "asks": "ASKS",
+                "recent_trades": "Negociações recentes",
+                "order_book": "Livro de ordens",
+                "time": "Hora",
+                "fill": "Completo"
+            },
+            "fields": {
+                "BUY": "COMPRAR",
+                "SELL": "VENDER"
+            },
+            "buttons": {
+                "buy": "Comprar",
+                "sell": "Vender"
+            },
+            "alerts": {
+                "price_invalid": "Preço inválido",
+                "quantity_invalid": "Quantidade inválida",
+                "insufficient_funds": "Saldo muito baixo",
+                "placing_order_with_price": "Colocar ordem com preço",
+                "are_you_sure": "Você tem certeza?",
+                "strange_price": "O preço é significantemente diferente do último preço do mercado. Você tem certeza que deseja executar esta negociação?"
+            }
+        },
+        "dashboard": {
+            "titles": {
+                "news": "Notícias",
+                "all_orders": "Todas as Ordens",
+                "all_orders_long": "Todas as suas ordens atuais",
+                "price": "Preço",
+                "quantity": "Quantidade",
+                "contract": "Contrato",
+                "timestamp": "Hora",
+                "buy_sell": "Comprar/Vender",
+                "my_contracts": "Meus contratos",
+                "active_contracts": "Contratos ativos"
+            },
+            "fields": {
+                "BUY": "COMPRAR",
+                "SELL": "VENDER"
+            },
+            "alerts": {
+                "no_orders": "Não há ordens abertas"
+            }
+        },
+        "account": {
+            "pages": {
+                "profile": "Informação do usuário",
+                "funding_history": "Fundos e histórico",
+                "audit": "Auditoria",
+                "compliance": "Compliance"
+            },
+            "profile": {
+                "titles": {
+                    "details": "Detalhes do perfil",
+                    "username": "Nome do usuário",
+                    "email": "E-mail",
+                    "nickname": "Apelido",
+                    "change_password": "Mudar senha",
+                    "old_password": "Senha antiga",
+                    "new_password": "Nova senha",
+                    "confirm_password": "Confirmar senha"
+                },
+                "buttons": {
+                    "update": "Atualizar e-mail e apelido",
+                    "change_password": "Mudar senha"
+                }
+            },
+            "audit": {
+                "titles": {
+                    "timestamp": "Hora",
+                    "my_hash": "Meu código",
+                    "assets": "Bens",
+                    "liabilities": "Passivo",
+                    "id": "ID",
+                    "amount": "Quantidade"
+                },
+                "select": "Selecione um bem"
+            },
+            "compliance": {
+                "titles": {
+                    "identify": "Identificar",
+                    "first_name": "Primeiro Nome",
+                    "middle_name": "Sobrenome",
+                    "last_name": "Último nome",
+                    "dob": "Data de nascimento",
+                    "address": "Endereço",
+                    "address_1": "Endereço (Linha 1)",
+                    "address_2": "Endereço (Linha 2)",
+                    "city": "Cidade",
+                    "state": "Estado",
+                    "postal_code": "CEP",
+                    "country_code": "Código do país",
+                    "documents": "Documentos",
+                    "passport": "Passaporte",
+                    "passport_number": "Número de passaporte",
+                    "residency": "Prova de residência"
+                },
+                "buttons": {
+                    "submit": "Enviar"
+                },
+                "alerts": {
+                    "passport_required": "É necessário enviar prova de identidade",
+                    "residency_required": "É necessário enviar prova de residência",
+                    "request_success": "Envio de compliance com sucesso"
+
+                }
+            },
+            "funding_history": {
+                "select": "Selecionar",
+                "select_currency": "Selecionar moeda",
+                "select_contract": "Selecionar contrato",
+                "pages": {
+                    "deposit": "Deposito",
+                    "withdraw": "Retirada",
+                    "history": "Histórico de transação"
+                },
+                "titles": {
+                    "balance": "Saldo",
+                    "balance_available": "Saldo disponível para retirada",
+                    "deposit_instructions": "Instruções de depósito",
+                    "deposit_funds": "Depositar",
+                    "withdraw_funds": "Retirar",
+                    "transaction_history": "Histórico de transações",
+                    "start_date": "Data de início",
+                    "end_date": "Data final",
+                    "date_time": "Data e hora",
+                    "type": "Tipo",
+                    "debit": "Débito",
+                    "credit": "Crédito",
+                    "note": "Nota"
+                },
+                "transaction_types": {
+                    "Fee": "Taxas",
+                    "Trade": "Negociação",
+                    "Transfer": "Transferencia",
+                    "Deposit": "Depósito",
+                    "Adjustment": "Ajuste",
+                    "Clearing": "Acerto"
+                },
+                "hit_request": "Por favor clique em 'Requisitar' para baixar as transações",
+                "buttons": {
+                    "get_new_address": "Solicitar novo endereço",
+                    "request": "Requisitar"
+                },
+                "alerts": {
+                    "no_transactions": "Nenhuma transação",
+                    "select_currency": "Selecionar uma moeda"
+                },
+                "withdrawal": {
+                    "titles": {
+                        "amount": "Valor de retirada",
+                        "crypto_address": "Endereço",
+                        "confirm_crypto_address": "Confirmar endereço",
+                        "wire_to_bank": "Transferir para esta conta no banco",
+                        "bank_name": "Nome do banco",
+                        "bank_address": "Endereço do banco",
+                        "bank_swift": "Códifgo SWIFT/ABA",
+                        "bank_account_name": "Nome da conta",
+                        "bank_account_number": "Número da conta",
+                        "mail_check": "Me envie um cheque",
+                        "name": "Nome",
+                        "address_1": "Endereço (Linha 1)",
+                        "address_2": "Endereço (Linha 2)",
+                        "city": "Cidade/Localidade",
+                        "state": "Estado",
+                        "postal_code": "CEP",
+                        "country": "País"
+                    },
+                    "alerts": {
+                        "insufficient_funds": "Saldo insuficiente",
+                        "request_placed": "Pedido de retirada registrado",
+                        "mismatched_address": "Endereço não é igual"
+                    },
+                    "buttons": {
+                        "withdraw": "Retirada"
+                    }
+                }
+            }
+        },
+        "exceptions": {
+            "accountant": {
+                "insufficient_margin": "Margem insuficiente",
+                "trade_not_permitted": "Negociação não permitida",
+                "withdraw_not_permitted": "Retirada não permitida",
+                "invalid_currency_quantity": "Quantidade inválida",
+                "disabled_user": "Usuário temporariamente desabilitado. Tente novamente em cinco minutos.",
+                "contract_expired": "Contrato expirado",
+                "contract_not_expired": "Contrato não expirado",
+                "non_clearing_contract": "Contrato não é de acerto",
+                "contract_not_active": "Contrato não está ativo",
+                "no_order_found": "Ordem não encontrada",
+                "user_order_mismatch": "Usuário não é o dono desta ordem",
+                "order_cancelled": "Ordem já foi cancelada"
+            },
+            "administrator": {
+                "username_taken": "Nome de usuário já está em uso",
+                "no_such_user": "Não há este usuário",
+                "password_mismatch": "Senha incorreta",
+                "invalid_token": "Token incorreto",
+                "expired_token": "Token expirado",
+                "ticket_exists": "Ticket existe",
+                "user_limit_reached": "Número de usuários esgotado",
+                "admin_username_taken": "Nome de administrador utilizado",
+                "invalid_support_nonce": "Bilhete de suporte inválido",
+                "support_nonce_used": "Bilhete de suporte utilizado",
+                "invalid_currency_quantity": "Quantidade inválida"
+            },
+            "cashier": {
+                "withdrawal_not_found": "Pedido de retirada não encontrado",
+                "withdrawal_complete": "Retirada já completada",
+                "out_of_addresses": "Sem endereços",
+                "no_automatic_withdrawal": "Sem retiradas automáticas",
+                "insufficient_funds": "Fundos insuficientes na carteira",
+                "withdrawal_too_large": "Retirada grande demais"
+            },
+            "ledger": {
+                "argument_error": "Envio(s) não pode ser decodificado",
+                "uid_mismatch": "Pacote de envios tem o mesmo UID",
+                "quantity_mismatch": "Quantidade de envios não tem saldo",
+                "type_mismatch": "Tipos de envios tem que ser todos iguais",
+                "count_mismatch": "Contagem de envios inconsistente",
+                "group_timeout": "Tempo excedido aguardando por envios",
+                "internal_error": "Argumentos inválidos para enviar",
+                "database_error": "Erro de banco de dados"
+            },
+            "webserver": {
+                "invalid_price_quantity": "Preço/quantidade inválidos",
+                "get_profile_failed": "Recuperar perfil inválido"
+            },
+            "zendesk": {
+                "zendesk_error": "Erro em Zendesk"
+            }
         }
     }
 }
