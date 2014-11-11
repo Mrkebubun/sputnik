@@ -11,6 +11,12 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
 
+def get_locale_template(locale, jinja_env, template):
+    locales = [locale, "root"]
+    templates = [template.format(locale=locale) for locale in locales]
+    t = jinja_env.select_template(templates)
+    return t
+
 def timed(f):
     def wrapped(*args, **kwargs):
         start = time.time()

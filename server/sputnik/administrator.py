@@ -296,7 +296,7 @@ class Administrator:
 
         log.msg("Created token: %s" % token)
         # Now email the token
-        t = self.jinja_env.get_template('reset_password.email')
+        t = util.get_locale_template(user.locale, self.jinja_env, 'reset_password.{locale}.email')
         content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
                            user=user, base_uri=self.base_uri).encode('utf-8')
 

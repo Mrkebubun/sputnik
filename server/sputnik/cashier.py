@@ -392,8 +392,8 @@ class Cashier():
         email notification of withdrawal pending to the user.
         """
 
-        # Now email the token
-        t = self.jinja_env.get_template('pending_withdrawal.email')
+        # Now email the notification
+        t = util.get_locale_template(withdrawal.user.locale, self.jinja_env, 'pending_withdrawal.{locale}.email')
         content = t.render(withdrawal=withdrawal).encode('utf-8')
 
         # Now email the token

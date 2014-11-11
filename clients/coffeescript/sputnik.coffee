@@ -43,13 +43,14 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
+        locale: null
     chat_messages: []
     connected: false
 
     constructor: (@uri) ->
         # Initialize globalization settings
         @initGl()
-        @setGlLocale("en")
+        @setGlLocale(navigator.language)
 
         ### Sputnik API  ###
 
@@ -82,7 +83,7 @@ class @Sputnik extends EventEmitter
 
     # authentication and account management
 
-    makeAccount: (username, secret, email, nickname) =>
+    makeAccount: (username, secret, email, nickname, locale) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
         @authextra =
@@ -90,7 +91,7 @@ class @Sputnik extends EventEmitter
             iterations: 1000
         password = ab.deriveKey secret, @authextra
 
-        @call("make_account", username, password, salt, email, nickname).then \
+        @call("make_account", username, password, salt, email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
@@ -98,10 +99,11 @@ class @Sputnik extends EventEmitter
 
     getProfile: () =>
         @call("get_profile").then (@profile) =>
+            @setGlLocale(@profile.locale)
             @emit "profile", @profile
 
-    changeProfile: (email, nickname) =>
-        @call("change_profile", email, nickname).then (@profile) =>
+    changeProfile: (email, nickname, locale) =>
+        @call("change_profile", email, nickname, locale).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
