@@ -330,7 +330,7 @@ class @Sputnik extends EventEmitter
 
     translate: (path) =>
         translated = @gl.translate(path)
-        if translated?
+        if not translated?
             @error "Unable to translate: #{path}"
             return path
         else

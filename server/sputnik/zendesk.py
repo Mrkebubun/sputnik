@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import log
 import string
 
-class ZendeskException:
+class ZendeskException(Exception):
     pass
 
 ZENDESK_ERROR = ZendeskException("exceptions/zendesk/zendesk_error")
