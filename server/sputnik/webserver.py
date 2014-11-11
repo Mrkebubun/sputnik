@@ -365,7 +365,7 @@ class PublicInterface:
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
-    def make_account(self, username, password, salt, email, nickname):
+    def make_account(self, username, password, salt, email, nickname, locale=None):
         """Create a new account
 
         :param username:
@@ -386,7 +386,12 @@ class PublicInterface:
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
-        profile = {"email": email, "nickname": nickname}
+
+        if locale is not None:
+            profile = {"email": email, "nickname": nickname, "locale": locale}
+        else:
+            profile = {"email": email, "nickname": nickname}
+
         self.factory.administrator.change_profile(username, profile)
 
         def onAccountSuccess(result):
@@ -1151,13 +1156,13 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             if not result:
                 return [False, "exceptions/webserver/get_profile_failed"]
 
-            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2]}]
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2], 'locale': result[0][3]}]
 
-        return dbpool.runQuery("SELECT nickname, email, audit_secret FROM users WHERE username=%s", (self.username,)).addCallback(
+        return dbpool.runQuery("SELECT nickname, email, audit_secret, locale FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
 
     @exportRpc("change_profile")
-    def change_profile(self, email, nickname):
+    def change_profile(self, email, nickname, locale=None):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
@@ -1175,7 +1180,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if malicious_looking(email) or malicious_looking(nickname):
             return [False, "malicious looking input"]
 
-        profile = {"email": email, "nickname": nickname}
+        if locale is not None:
+            profile =  {"email": email, "nickname": nickname, 'locale': locale}
+        else:
+            profile = {"email": email, "nickname": nickname}
+
         d = self.factory.administrator.change_profile(self.username, profile)
 
         def onProfileSuccess(result):

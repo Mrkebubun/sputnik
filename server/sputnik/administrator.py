@@ -176,6 +176,7 @@ class Administrator:
 
         user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
+        user.locale = profile.get("locale", user.locale)
         self.session.merge(user)
 
         self.session.commit()

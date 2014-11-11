@@ -137,6 +137,7 @@
                     "username": "Username",
                     "email": "Email",
                     "nickname": "Nickname",
+                    "locale": "Locale",
                     "change_password": "Change Password",
                     "old_password": "Old Password",
                     "new_password": "New Password",

@@ -1242,6 +1242,15 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/locale")}}</p>
+                                        </div>
+                                        <div class="col-sm-7 content-push2">
+                                            <!-- TODO: Change this to a dropdown -->
+                                            <input class="form-control" type="field" name="locale" value="{{sputnik.profile.locale}}">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
                                         </div>
                                         <div class="col-sm-7 form-label">
                                             <a href="#" class="button-link-box3" on-click="change_profile">{{translate("account/profile/buttons/update")}}</a>

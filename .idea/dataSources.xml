@@ -2,7 +2,6 @@
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" hash="4280197134">
     <data-source source="LOCAL" name="Data Source" uuid="77566593-c56b-4cab-881f-ddaebafcd8e9">
-      <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql:sputnik</jdbc-url>

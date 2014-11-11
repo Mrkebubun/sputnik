@@ -340,6 +340,7 @@ class User(db.Base):
     type = Column(Enum('Liability', 'Asset', name='position_types'), nullable=False,
                                    default='Liability', server_default="Liability")
     audit_secret = Column(String)
+    locale = Column(String, server_default="en")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

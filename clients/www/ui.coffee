@@ -317,7 +317,8 @@ $ ->
 
             change_profile: (event) ->
                 event.original.preventDefault()
-                sputnik.changeProfile(ractive.get("sputnik.profile.email"), ractive.get("sputnik.profile.nickname"))
+                sputnik.changeProfile(ractive.get("sputnik.profile.email"), ractive.get("sputnik.profile.nickname"),
+                                      ractive.get("sputnik.profile.locale"))
 
             change_password: (event) ->
                 event.original.preventDefault()
@@ -508,7 +509,7 @@ $ ->
                 $('#register_error').hide()
                 ladda = Ladda.create $("#register_button")[0]
                 ladda.start()
-                sputnik.makeAccount username, password, email, nickname
+                sputnik.makeAccount username, password, email, nickname, navigator.language
             else
                 $('#register_error').text(sputnik.translate("alerts/complete_registration")).slideDown()
 
