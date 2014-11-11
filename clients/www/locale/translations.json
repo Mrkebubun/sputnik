@@ -316,8 +316,241 @@
         }
     },
     "es": {
+        "top_menu": {
+            "dashboard": "Dashboard",
+            "trade": "Canje",
+            "account": "Cuenta",
+            "login_register": "Login/Registro",
+            "logout": "Salir"
+        },
+        "tabs": {
+            "login": "Login",
+            "register": "Register"
+        },
+        "titles": {
+            "reset_password": "Reiniciar clave"
+        },
+        "alerts": {
+            "connecting": "Conectando al servidor.",
+            "bad_username_pw": "Usuario o clave incorrecta.",
+            "reset_sent": "Verifica tu correo electrónico. Contacta a servicio al cliente para ayuda adicional.",
+            "enter_new_password": "!Excelente! Ahora solo debes ingresar tu nueva clave y estarás listo."
+        },
         "buttons": {
-            "buy": "Compra"
+            "buy": "Comprar",
+            "sell": "Vender",
+            "login": "Login",
+            "register": "Registro",
+            "reset_password": "Reiniciar clave",
+            "change_password": "Cambiar clave"
+        },
+        "fields": {
+            "username": "Usuario",
+            "password": "Clave",
+            "email": "Email",
+            "nickname": "Apodo",
+            "new_password": "Nueva clave",
+            "confirm_new_password": "Confirmar nueva clave"
+        },
+        "register_modal": {
+            "terms": "términos y condiciones",
+            "agree": "Estoy de acuerdo con los "
+        },
+        "contract_type": {
+            "cash_pair": "Efectivo",
+            "prediction": "Predicción",
+            "futures": "Futuros"
+        },
+        "trade": {
+            "ohlcv": {
+                "yesterday": "Ayer",
+                "last_hour": "Última hora",
+                "last_minute": "Último minuto"
+            },
+            "balances": {
+                "available_to_trade": "DISPONIBLE PARA CANJE",
+                "low_margin": "BAJO MÁRGEN",
+                "high_margin": "ALTO MÁRGEN"
+            },
+            "titles": {
+                "buy": "Comprar",
+                "sell": "Vender",
+                "price": "Precio",
+                "quantity": "Cantidad",
+                "my_orders": "Mis Órdenes",
+                "cancel": "Cancelar",
+                "buy_sell": "Comprar/Vender",
+                "open": "Apertura",
+                "high": "Alto",
+                "low": "Bajo",
+                "close": "Cierre",
+                "vwap": "VWAP",
+                "volume": "Volumen",
+                "last": "Last",
+                "bid": "Ofrecer",
+                "bids": "OFERTAS",
+                "ask": "Pedir",
+                "asks": "PEDIDOS",
+                "recent_trades": "Canjes Recientes",
+                "order_book": "Libro de Órdenes",
+                "time": "Hora"
+            },
+            "fields": {
+                "BUY": "COMPRA",
+                "SELL": "VENTA"
+            },
+            "buttons": {
+                "buy": "Comprar",
+                "sell": "Vender"
+            }
+        },
+        "dashboard": {
+            "titles": {
+                "news": "Noticias",
+                "all_orders": "Todas las órdenes",
+                "all_orders_long": "Todas tus órdenes actuales",
+                "price": "Precio",
+                "quantity": "Cantidad",
+                "contract": "Contrato",
+                "timestamp": "Marca de Tiempo",
+                "buy_sell": "Compra/Venta",
+                "my_contracts": "Mis Contratos",
+                "active_contracts": "Contratos Activos"
+            },
+            "fields": {
+                "BUY": "COMPRA",
+                "SELL": "VENTA"
+            },
+            "alerts": {
+                "no_orders": "No hay ordenes abiertas"
+            }
+        },
+        "account": {
+            "pages": {
+                "profile": "Información de Usuario",
+                "funding_history": "Fondos e Historial",
+                "audit": "Auditoría",
+                "compliance": "Cumplimiento"
+            },
+            "profile": {
+                "titles": {
+                    "details": "Detalles",
+                    "username": "Usuario",
+                    "email": "Email",
+                    "nickname": "Apodo",
+                    "change_password": "Cambiar Clave",
+                    "old_password": "Clave Vieja",
+                    "new_password": "Clave Nueva",
+                    "confirm_password": "Confirmar Clave"
+                },
+                "buttons": {
+                    "update": "Actualizar Email & Apodo",
+                    "change_password": "Cambiar Clave"
+                }
+            },
+            "audit": {
+                "titles": {
+                    "timestamp": "Marca de Tiempo",
+                    "my_hash": "Mi Hash",
+                    "assets": "Activos",
+                    "liabilities": "Pasivos",
+                    "id": "ID",
+                    "amount": "Cantidad"
+                },
+                "select": "Seleccionar un Activo"
+            },
+            "compliance": {
+                "titles": {
+                    "identify": "Indentificar",
+                    "first_name": "Primer Nombre",
+                    "middle_name": "Segundo Nombre",
+                    "last_name": "Apellido",
+                    "dob": "Fecha de Nacimiento",
+                    "address": "Dirección",
+                    "address_1": "Dirección (Linea 1)",
+                    "address_2": "Dirección (Linea 2)",
+                    "city": "Ciudad",
+                    "state": "Estado/Provincia",
+                    "postal_code": "Código Postal/ZIP",
+                    "country_code": "Código de País",
+                    "documents": "Documentos",
+                    "passport": "Pasaporte",
+                    "passport_number": "Número de Pasaporte",
+                    "residency": "Prueba de Residencia"
+                },
+                "buttons": {
+                    "submit": "Enviar"
+                }
+            },
+            "funding_history": {
+                "select": "Seleccionar",
+                "select_currency": "Seleccionar Moneda",
+                "select_contract": "Seleccionar Contrato",
+                "pages": {
+                    "deposit": "Depositar",
+                    "withdraw": "Retirar",
+                    "history": "Transacciones Históricas"
+                },
+                "titles": {
+                    "balance": "Balance",
+                    "balance_available": "Balance Disponible para Retiro",
+                    "deposit_instructions": "Instrucciones de Depósito",
+                    "deposit_funds": "Depositar Fondos",
+                    "withdraw_funds": "Retirar Fondos",
+                    "transaction_history": "Historial de Transacciones",
+                    "start_date": "Fecha de Inicio",
+                    "end_date": "Fecha de Finalización",
+                    "date_time": "Fecha y Hora",
+                    "type": "Tipo",
+                    "debit": "Débito",
+                    "credit": "Crédito",
+                    "note": "Nota"
+                },
+                "transaction_types": {
+                    "Fee": "Cuota",
+                    "Trade": "Canje",
+                    "Transfer": "Transferir",
+                    "Deposit": "Depositar",
+                    "Adjustment": "Ajustes",
+                    "Clearing": "Liquidación"
+                },
+                "hit_request": "Favor presionar 'Solicitar' para bajar las transacciones",
+                "buttons": {
+                    "get_new_address": "Obtener Dirección Nueva",
+                    "request": "Solicitar"
+                },
+                "alerts": {
+                    "no_transactions": "Transacciones no bajadas para",
+                    "select_currency": "Selecciona una Moneda"
+                },
+                "withdrawal": {
+                    "titles": {
+                        "amount": "Cantidad a Retirar",
+                        "crypto_address": "Dirección",
+                        "confirm_crypto_address": "Confirmar Dirección",
+                        "wire_to_bank": "Girar a esta cuenta de banco",
+                        "bank_name": "Nombre del Banco",
+                        "bank_address": "Dirección del Banco",
+                        "bank_swift": "Swift/ABA del Banco",
+                        "bank_account_name": "Nombre de Cuenta",
+                        "bank_account_number": "Número de Cuenta",
+                        "mail_check": "Enviarme un cheque por correo",
+                        "name": "Nombre",
+                        "address_1": "Dirección (Linea 1)",
+                        "address_2": "Dirección (Linea 2)",
+                        "city": "Ciudad",
+                        "state": "Estado/Provincia",
+                        "postal_code": "Código Postal/ZIP",
+                        "country": "País"
+                    },
+                    "alerts": {
+                        "insufficient_funds": "Fondos Insuficientes"
+                    },
+                    "buttons": {
+                        "withdraw": "Retirar"
+                    }
+                }
+            }
         }
     },
     "pt": {
