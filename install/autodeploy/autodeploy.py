@@ -548,6 +548,30 @@ class Instance:
 
         fabric.api.open_shell()
 
+    def backup(self):
+        if self.broken:
+            raise INSTANCE_BROKEN
+
+        if not self.deployed:
+            raise INSTANCE_NOT_FOUND
+
+        if not self.ready:
+            raise INSTANCE_NOT_READY
+
+        backup_dir = join(self.prefix, "backups")
+        try:
+            os.makedirs(backup_dir)
+        except OSError:
+            pass
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            with fabric.api.lcd(backup_dir):
+                fabric.api.get("/data/bitcoind/wallet.dat", use_sudo=True)
+
     @staticmethod
     def list(region=None):
         if region == None:
@@ -604,6 +628,8 @@ def main():
                                          help="Query running instance for version.")
     parser_login = subparsers.add_parser("login", parents=[customer],
                                          help="Login via ssh.")
+    parser_backup = subparsers.add_parser("backup", parents=[customer],
+                                         help="Make a backup.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
     parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
                                                    help="Install python clients")
