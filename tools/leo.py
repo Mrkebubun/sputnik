@@ -164,7 +164,7 @@ class AccountManager:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        encoded_secret = secret.encode('ascii', 'ignore')
+        encoded_secret = secret.encode("utf-8")
         if secret != encoded_secret:
             raise Exception("passwords with non-ascii characters not valid")
         password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(encoded_secret, extra)
