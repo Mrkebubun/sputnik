@@ -105,7 +105,8 @@
                 "insufficient_funds": "Balance too low",
                 "placing_order_with_price": "Placing order with price",
                 "are_you_sure": "Are you sure?",
-                "strange_price": "This price is significantly different from the latest market price. Are you sure you want to execute this trade?"
+                "strange_price": "This price is significantly different from the latest market price. Are you sure you want to execute this trade?",
+                "place_order_success": "Order successfully placed"
             }
         },
         "dashboard": {

@@ -170,6 +170,9 @@ $ ->
                     if quantity?
                         locale.quantityFormat(ticker, quantity, locale_str)
 
+                parse_number: (string, locale_str) ->
+                    locale.parseNumber(string, locale_str)
+
                 translate: (path, locale_str) ->
                     locale.translate path, locale_str
 
@@ -353,9 +356,12 @@ $ ->
 
                 if buy_price_str == ''
                     buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price") + locale.priceFormat(buy_price, ractive.get "current_ticker", ractive.get "sputnik.profile.locale") + locale.translate("trades/alerts/are_you_sure", ractive.get "sputnik.profile.locale"), (result) =>
+                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
+                                                     ractive.get("sputnik.profile.locale")) + " " +
+                                    locale.priceFormat( ractive.get("current_ticker"), buy_price, ractive.get("sputnik.profile.locale")) + ". " +
+                                    locale.translate("trade/alerts/are_you_sure", ractive.get "sputnik.profile.locale"), (result) =>
                         if result
-                            sputnik.placeOrder(buy_quantity, buy_price ractive.get("current_ticker"), 'BUY')
+                            sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
                     )
                 else
                     buy_price = locale.parseNumber(buy_price_str, ractive.get "sputnik.profile.locale")
@@ -382,7 +388,10 @@ $ ->
 
                 if sell_price_str == ''
                     sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price", ractive.get "sputnik.profile.locale") + locale.priceFormat(sell_price, ractive.get "current_ticker", ractive.get "sputnik.profile.locale") + locale.translate("trades/alerts/are_you_sure", ractive.get "sputnik.profile.locale"), (result) =>
+                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
+                                                     ractive.get("sputnik.profile.locale")) + " " +
+                                    locale.priceFormat( ractive.get("current_ticker"), sell_price, ractive.get("sputnik.profile.locale")) + ". " +
+                                    locale.translate("trade/alerts/are_you_sure", ractive.get "sputnik.profile.locale"), (result) =>
                         if result
                             sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
                     )
@@ -809,19 +818,20 @@ $ ->
             bootbox.alert locale.translate("account/funding_history/withdrawal/alerts/request_placed", ractive.get "sputnik.profile.locale")
 
         sputnik.on "request_withdrawal_fail", (error) ->
-            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[0], ractive.get "sputnik.profile.locale")
-            bootbox.alert locale.translate(error[0])
+            ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[0])
+            bootbox.alert locale.translate(error[0], ractive.get "sputnik.profile.locale")
 
         sputnik.on "place_order_fail", (error) ->
-            ga('send', 'event', 'order', 'place_order_fail', 'error', error[0], ractive.get "sputnik.profile.locale")
-            bootbox.alert locale.translate(error[0])
+            ga('send', 'event', 'order', 'place_order_fail', 'error', error[0])
+            bootbox.alert locale.translate(error[0], ractive.get "sputnik.profile.locale")
 
         sputnik.on "place_order_success", (info) ->
             ga('send', 'event', 'order', 'place_order_success')
+            bootbox.alert locale.translate("trade/alerts/place_order_success", ractive.get "sputnik.profile.locale")
 
         sputnik.on "fill", (fill) ->
-            quantity_fmt = locale.quantityFormat(fill.quantity, fill.contract, ractive.get "sputnik.profile.locale")
-            price_fmt = locale.priceFormat(fill.price, fill.contract, ractive.get "sputnik.profile.locale")
+            quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get "sputnik.profile.locale")
+            price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get "sputnik.profile.locale")
             $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get "sputnik.profile.locale"), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
