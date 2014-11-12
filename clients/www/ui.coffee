@@ -94,7 +94,8 @@ class @Locale
 
     parseNumber: (string, locale_str) =>
         # Force a string
-        @supported_locales[@checkLocale(locale_str)].gl.parseNumber(string.toString())
+        # add a leading zero because ",4" doesn't give us 0.4, but "0,4" does
+        @supported_locales[@checkLocale(locale_str)].gl.parseNumber("0" + string.toString())
 
     parseDate: (string, locale_str) =>
         dt = @supported_locales[@checkLocale(locale_str)].gl.parseDate(string,

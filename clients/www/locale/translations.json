@@ -223,6 +223,7 @@
                     "Trade": "Trade",
                     "Transfer": "Transfer",
                     "Deposit": "Deposit",
+                    "Withdrawal": "Withdrawal",
                     "Adjustment": "Adjustment",
                     "Clearing": "Clearing"
                 },

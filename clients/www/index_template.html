@@ -699,6 +699,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > 0}}
                                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) <= sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
                                     {{#if current_currency == "BTC"}}
                                     <div class="row">
@@ -854,6 +855,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    {{/if}}
                                     {{/if}}
                                     {{/if}}
                                     {{/current_currency}}
