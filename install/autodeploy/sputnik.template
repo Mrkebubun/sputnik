@@ -34,7 +34,7 @@
         "RegionMap": {
             "us-west-1": {
                 "AMI": "ami-3d4d4478",
-                "DataVolume": "snap-6ed21caf"
+                "DataVolume": "snap-0a6353ca"
             }
         }
     },
@@ -55,7 +55,7 @@
                         "Ref": "AWS::Region"
                     }, "AMI" ]
                 },
-                "InstanceType": "t2.micro"
+                "InstanceType": "t2.small"
             }
         },
         "ElasticIP": {

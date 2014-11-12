@@ -82,6 +82,29 @@ class TestAdministrator(TestSputnik):
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
 class TestInternal(TestAdministrator):
+    def setUp(self):
+        TestAdministrator.setUp(self)
+        fees_init = """
+fees add LiqRebate 100 -50
+fees add NoFee 0 0
+fees add HeavyFee 200 200
+
+accounts set marketmaker fees LiqRebate
+accounts set randomtrader fees HeavyFee
+accounts set m2 fees NoFee
+
+contracts set BTC/MXN fees 50
+contracts set NETS2015 fees 350
+"""
+        self.run_leo(fees_init)
+
+    def test_check_fee_groups(self):
+        fees = self.administrator.get_fee_groups()
+        fee_problems = self.administrator.check_fee_groups(fees)
+        self.assertEqual(fee_problems[0]['aggressive_group'].name, 'NoFee')
+        self.assertEqual(fee_problems[0]['passive_group'].name, 'LiqRebate')
+        self.assertEqual(fee_problems[0]['total_factor'], -50)
+
     def test_get_order_book(self):
         # Create one order that is in the order book and one that is not
         from sputnik import models, util
@@ -179,7 +202,7 @@ class TestWebserverExport(TestAdministrator):
         self.add_address(address='second_new_address_without_user')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'Username is already taken'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'username_taken'):
             self.webserver_export.make_account('new_user', 'new_user_password_hash')
 
     def test_many_accounts(self):
@@ -197,7 +220,7 @@ class TestWebserverExport(TestAdministrator):
 
         # Now it should fail
         self.add_address(address='address_%d' % user_limit)
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'User limit reached'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'user_limit_reached'):
             self.webserver_export.make_account('user_%d' % user_limit, 'test_password')
 
 
@@ -243,7 +266,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "Password does not match"):
+        with self.assertRaisesRegexp(administrator.AdministratorException, "password_mismatch"):
             self.webserver_export.reset_password_hash('test', "bad_old_hash", new_password_hash)
 
     def test_reset_password_hash_bad_token(self):
@@ -261,7 +284,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "No such token found"):
+        with self.assertRaisesRegexp(administrator.AdministratorException, "invalid_token"):
             self.assertTrue(
                 self.webserver_export.reset_password_hash('test', None, new_password_hash, token='bad_token'))
 
@@ -358,7 +381,7 @@ class TestTicketServerExport(TestAdministrator):
         self.create_account('test')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'Invalid support nonce'):
+        with self.assertRaisesRegexp(administrator.AdministratorException, 'invalid_support_nonce'):
             self.ticketserver_export.check_support_nonce('test', 'bad_nonce', 'Compliance')
 
     def test_register_support_ticket(self):

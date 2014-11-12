@@ -174,12 +174,30 @@ $ ->
             <td><a href="mailto:{{user.email}}">{{user.email}}</a></td>
         </tr>
         <tr>
+            <td>Locale</td>
+            <td>{{user.locale}}</td>
+        </tr>
+        <tr>
             <td>Permissions Group</td>
             <td>
                 <form action="/change_permission_group" method="post">
                     <select name="id">
                         {% for permission_group in permission_groups %}
                         <option value="{{permission_group.id}}" {% if user.permission_group_id == permission_group.id %}selected{% endif %}>{{permission_group.name}}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="username" value="{{user.username}}">
+                    <button type="submit">Change</button>
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td>Fee Group</td>
+            <td>
+                <form action="/change_fee_group" method="post">
+                    <select name="id">
+                        {% for fee_group in fee_groups %}
+                        <option value="{{fee_group.id}}" {% if user.fee_group_id == fee_group.id %}selected{% endif %}>{{fee_group.name}}</option>
                         {% endfor %}
                     </select>
                     <input type="hidden" name="username" value="{{user.username}}">

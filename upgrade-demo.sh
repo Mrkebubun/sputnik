@@ -13,7 +13,6 @@ echo "Replacing version: ${HASH}"
 echo ${HASH} >> /srv/autodeploy/demo/versions
 
 make clean
-echo "[aux]" > aux.ini
 PROFILE=install/profiles/${PROFILE_NAME} make tar
 scp sputnik.tar ${HOSTNAME}:. 
 ssh ${HOSTNAME} rm -rf sputnik

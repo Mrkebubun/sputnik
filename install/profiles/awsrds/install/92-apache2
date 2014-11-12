@@ -1,10 +1,10 @@
 #!/bin/sh
 
-cp ${base_profile}/res/https-redirect.conf /etc/apache2/conf-available
+cp ${base_profile}/res/redirect.conf /etc/apache2/conf-available
 sed -e "s|TICKETSERVER_PORT|${profile_ticketserver_port}|" ${base_profile}/res/ticket-server-proxy.conf >/etc/apache2/conf-available/ticket-server-proxy.conf
-sed -e "s|RSS_FEED|${exchange_rss_feed}|" ${base_profile}/res/feed-proxy.conf >/etc/apache2/conf-available/feed-proxy.conf
+sed -e "s|RSS_FEED|${profile_exchange_rss_feed}|" ${base_profile}/res/feed-proxy.conf >/etc/apache2/conf-available/feed-proxy.conf
 
-a2enconf https-redirect
+a2enconf redirect
 a2enconf ticket-server-proxy
 a2enconf feed-proxy
 a2enmod ssl

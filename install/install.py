@@ -56,8 +56,7 @@ class Profile:
 
     def read_aux_config(self):
         parser = ConfigParser.SafeConfigParser()
-        parsed = parser.read([os.path.join(self.git_root, "aux.ini"),
-                                os.path.join(self.git_root, "dist/aux.ini")])
+        parsed = parser.read(os.path.join(self.profile, "aux.ini"))
         if len(parsed) != 1:
             return
 
@@ -168,6 +167,7 @@ class Installer():
         self.config = self.profile.config
         
         self.env = copy.copy(os.environ)
+        self.env["profile"] = self.profile.profile
         self.env["DEBIAN_FRONTEND"] = "noninteractive"
         for key, value in self.config.iteritems():
             self.env["profile_%s" % key] = value

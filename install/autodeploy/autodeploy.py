@@ -26,6 +26,7 @@ Transport._preferred_keys = ('ecdsa-sha2-nistp256', 'ssh-rsa', 'ssh-dss')
 import ConfigParser
 import cStringIO
 
+from os.path import join
 
 class Spinner:
     def __enter__(self):
@@ -66,30 +67,30 @@ PROFILE_NOT_SET = AutoDeployException("Profile not set.")
 
 
 class Instance:
-    def __init__(self, customer=None, region=None, profile=None, key=None,
-                 verbose=False, safety=False, template=None, remote_command=None):
+    def __init__(self, customer=None, region=None, profile=None,
+                 key=None, verbose=False, safety=False, template=None):
         self.customer = customer
         self.region = region
-        self.profile = profile
+        if profile == None:
+            profile = "awsrds"
+        self.base_profile = profile
         self.template = template
         self.key = key
         self.verbose = verbose
         self.safety = safety
-        self.remote_command = remote_command
 
         self.default_region = "us-west-1"
 
         if not customer:
             raise AutoDeployException("Customer cannot be None.")
 
-        self.key_filename = "/srv/autodeploy/%s/ssh_login_key.pem" % \
-                            self.customer
-        self.db_pass_filename = "/srv/autodeploy/%s/dbpassword.txt" % \
-                                self.customer
-        self.server_key_filename = "/srv/autodeploy/%s/ssh_server_key.pub" % \
-                                   self.customer
-        self.profile_dir = "/srv/autodeploy/%s/profile" % self.customer
-        self.server_ssl_key_dir = "%s/keys" % self.profile_dir
+        self.prefix = "/srv/autodeploy/%s" % self.customer
+        self.key_filename = join(self.prefix, "ssh_login_key.pem")
+        self.db_pass_filename = join(self.prefix, "dbpassword.txt")
+        self.server_key_filename = join(self.prefix, "ssh_server_key.pub")
+        self.profile_dir = join(self.prefix, "profile", self.customer)
+        self.profile_ini = join(self.profile_dir, "profile.ini")
+        self.server_ssl_key_dir = join(self.profile_dir, "keys")
 
         # default uninstalled state
         self.deployed = False
@@ -213,9 +214,14 @@ class Instance:
 
         print "Creating instance for %s..." % self.customer
         try:
-            os.mkdir("/srv/autodeploy/%s" % self.customer)
+            os.mkdir(self.prefix)
         except OSError:
-            print "Warning: /srv/autodeploy/%s already exists" % self.customer
+            print "Warning: %s already exists" % self.prefix
+        
+        try:
+            os.makedirs(self.profile_dir)
+        except OSError:
+            print "Warning: %s already exists" % self.profile_dir
 
         if os.path.isfile(self.key_filename):
             raise AutoDeployException("Key file exists. Will not overwrite.")
@@ -405,17 +411,34 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
-    def run(self):
+    def run(self, command):
         self.check()
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.run(self.remote_command)
+            result = fabric.api.run(command)
             if result.failed:
                 raise COMMAND_FAILED
 
+        return result
+
+    def sudo(self, command):
+        self.check()
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            result = fabric.api.sudo(command)
+            if result.failed:
+                raise COMMAND_FAILED
+
+        return result
+
+    def start(self):
+        return self.sudo("service supervisor start")
 
     def install(self, upgrade=False):
         self.check()
@@ -434,44 +457,36 @@ class Instance:
                     raise COMMAND_FAILED
 
                 parser = ConfigParser.SafeConfigParser()
-                parser.add_section("aux")
-                parser.set("aux", "dbhost", self.get_output("DbAddress"))
-                parser.set("aux", "dbport", self.get_output("DbPort"))
-                parser.set("aux", "dbmasterpw", self.get_db_pass())
+                parser.read(self.profile_ini)
+                if not parser.has_section("meta"):
+                    parser.add_section("meta")
+                    parser.set("meta", "description", "")
+
+                parser.set("meta", "name", self.customer)
+                parser.set("meta", "inherits", self.base_profile)
+                if not parser.has_section("profile"):
+                    parser.add_section("profile")
+                parser.set("profile", "dbhost", self.get_output("DbAddress"))
+                parser.set("profile", "dbport", self.get_output("DbPort"))
+                parser.set("profile", "dbmasterpw", self.get_db_pass())
 
                 # If there are no keys, turn off SSL and use the AWS DNS
                 if not (os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.key"))
-                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.cert"))
+                        and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.crt"))
                         and os.path.isfile(os.path.join(self.server_ssl_key_dir, "server.chain"))):
-                    parser.set("aux", "use_ssl", "no")
-                    parser.set("aux", "webserver_address", self.get_output("PublicDNS"))
-                    parser.set("aux", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
-                    parser.set("aux", "webserver_port", "8888")
-                    parser.set("aux", "use_www", "yes")
+                    parser.set("profile", "use_ssl", "no")
+                    parser.set("profile", "webserver_address", self.get_output("PublicDNS"))
+                    parser.set("profile", "base_uri", "ws://%s:8000" % self.get_output("PublicDNS"))
+                    parser.set("profile", "webserver_port", "8888")
+                    parser.set("profile", "use_www", "yes")
                     print "http://%s:8888" % self.get_output("PublicDNS")
 
-                with open(os.path.join(git_root, "aux.ini"), "w") as f:
+                with open(self.profile_ini, "w") as f:
                     parser.write(f)
 
-                if self.profile is None:
-                    if os.path.isdir(self.profile_dir):
-                        self.profile = self.customer
-
-                        print "Copying profile"
-                        result = fabric.api.local("rm -rf install/profiles/%s" % self.profile)
-                        if result.failed:
-                            raise COMMAND_FAILED
-
-                        result = fabric.api.local("cp -r %s install/profiles/%s" % (self.profile_dir, self.profile))
-                        if result.failed:
-                            raise COMMAND_FAILED
-                    else:
-                        raise PROFILE_NOT_SET
-
-
                 print "Generating tarball..."
-                result = fabric.api.local("PROFILE=install/profiles/%s make tar" % \
-                                          self.profile)
+                result = fabric.api.local("PROFILE=%s make tar" % \
+                        self.profile_dir)
                 if result.failed:
                     raise COMMAND_FAILED
 
@@ -533,6 +548,30 @@ class Instance:
 
         fabric.api.open_shell()
 
+    def backup(self):
+        if self.broken:
+            raise INSTANCE_BROKEN
+
+        if not self.deployed:
+            raise INSTANCE_NOT_FOUND
+
+        if not self.ready:
+            raise INSTANCE_NOT_READY
+
+        backup_dir = join(self.prefix, "backups")
+        try:
+            os.makedirs(backup_dir)
+        except OSError:
+            pass
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            with fabric.api.lcd(backup_dir):
+                fabric.api.get("/data/bitcoind/wallet.dat", use_sudo=True)
+
     @staticmethod
     def list(region=None):
         if region == None:
@@ -584,22 +623,32 @@ def main():
     parser_upgrade = subparsers.add_parser("upgrade", parents=[customer],
                                            help="Upgrade instance.")
     parser_upgrade.add_argument("--profile", dest="profile", action="store",
-                                required=True, help="Path to profile.")
+                                required=False, help="Path to base profile.")
     parser_query = subparsers.add_parser("query", parents=[customer],
                                          help="Query running instance for version.")
     parser_login = subparsers.add_parser("login", parents=[customer],
                                          help="Login via ssh.")
+    parser_backup = subparsers.add_parser("backup", parents=[customer],
+                                         help="Make a backup.")
     parser_list = subparsers.add_parser("list", help="List existing instances.")
     parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
                                                    help="Install python clients")
     parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
-    parser_run = parser_run.add_argument("remote_command",
+    parser_run = parser_run.add_argument("args", nargs=argparse.REMAINDER,
                                          help="what is the remote command to run")
-
+    parser_sudo = subparsers.add_parser("sudo", help="Run a command as root", parents=[customer])
+    parser_sudo = parser_sudo.add_argument("args", nargs=argparse.REMAINDER,
+                                         help="what is the remote command to run")
+    parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
     del kwargs["command"]
+
+    args = []
+    if "args" in kwargs:
+        args = kwargs["args"]
+        del kwargs["args"]
 
     if command == "list":
         return Instance.list(kwargs.get("region", None))
@@ -608,7 +657,9 @@ def main():
     method = getattr(instance, command)
 
     try:
-        method()
+        result = method(*args)
+        if result:
+            print result
     except AutoDeployException, e:
         print e
 

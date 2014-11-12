@@ -1,3 +1,29 @@
+# Copyright (c) 2014, Mimetic Markets, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 if module?
     global.window = require "./window.js"
     global.ab = global.window.ab
@@ -17,12 +43,13 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
+        locale: null
     chat_messages: []
     connected: false
     log_flag: false
 
     constructor: (@uri) ->
-
+        # Initialize globalization settings
 
         ### Sputnik API  ###
 
@@ -53,7 +80,7 @@ class @Sputnik extends EventEmitter
 
     # authentication and account management
 
-    makeAccount: (username, secret, email, nickname) =>
+    makeAccount: (username, secret, email, nickname, locale) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
         @authextra =
@@ -61,7 +88,7 @@ class @Sputnik extends EventEmitter
             iterations: 1000
         password = ab.deriveKey secret, @authextra
 
-        @call("make_account", username, password, salt, email, nickname).then \
+        @call("make_account", username, password, salt, email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
@@ -71,8 +98,8 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (email, nickname) =>
-        @call("change_profile", email, nickname).then (@profile) =>
+    changeProfile: (email, nickname, locale) =>
+        @call("change_profile", email, nickname, locale).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
@@ -81,7 +108,6 @@ class @Sputnik extends EventEmitter
         @call("get_audit").then (wire_audit_details) =>
             @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
-            audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]
                 for ticker, data of side
                     data.total = @quantityFromWire(ticker, data.total)
@@ -125,8 +151,6 @@ class @Sputnik extends EventEmitter
                 @username = args.username
                 @token = args.token
                 @emit args['function'], args
-        if args.debug?
-            @log_flag = true
 
     authenticate: (login, password) =>
         if not @session?
@@ -222,6 +246,7 @@ class @Sputnik extends EventEmitter
         @authenticated = true
 
         @getProfile()
+        @getSafePrices()
         @getOpenOrders()
         @getPositions()
 
@@ -259,22 +284,10 @@ class @Sputnik extends EventEmitter
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[ticker]
         else
-            source = null
+            source = @markets[ticker]
             target = @markets[ticker]
 
         return [contract, source, target]
-
-    timeFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleTimeString()
-
-    dateTimeFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleString()
-
-    dateFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleDateString()
 
     copy: (object) =>
         new_object = {}
@@ -292,10 +305,8 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
-            open_timestamp: @timeFormat(wire_ohlcv['open_timestamp'])
-            wire_open_timestamp: wire_ohlcv['open_timestamp']
-            close_timestamp: @timeFormat(wire_ohlcv['close_timestamp'])
-            wire_close_timestamp: wire_ohlcv['close_timestamp']
+            open_timestamp: wire_ohlcv['open_timestamp']
+            close_timestamp: wire_ohlcv['close_timestamp']
             period: wire_ohlcv.period
         return ohlcv
 
@@ -321,7 +332,7 @@ class @Sputnik extends EventEmitter
         order.price = @priceFromWire(ticker, wire_order.price)
         order.quantity = @quantityFromWire(ticker, wire_order.quantity)
         order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
-        order.timestamp = @timeFormat(wire_order.timestamp)
+        order.timestamp = wire_order.timestamp
         return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
@@ -335,8 +346,7 @@ class @Sputnik extends EventEmitter
         trade = @copy(wire_trade)
         trade.price = @priceFromWire(ticker, wire_trade.price)
         trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
-        trade.wire_timestamp = wire_trade.timestamp
-        trade.timestamp = @timeFormat(wire_trade.timestamp)
+        trade.timestamp = wire_trade.timestamp
         return trade
 
     fillFromWire: (wire_fill) =>
@@ -345,8 +355,7 @@ class @Sputnik extends EventEmitter
         fill.fees = @copy(wire_fill.fees)
         fill.price = @priceFromWire(ticker, wire_fill.price)
         fill.quantity = @quantityFromWire(ticker, wire_fill.quantity)
-        fill.wire_timestamp = wire_fill.timestamp
-        fill.timestamp = @timeFormat(wire_fill.timestamp)
+        fill.timestamp = wire_fill.timestamp
         for fee_ticker, fee of wire_fill.fees
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
@@ -355,7 +364,7 @@ class @Sputnik extends EventEmitter
         transaction = @copy(wire_transaction)
         ticker = wire_transaction.contract
         transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
-        transaction.timestamp = @dateTimeFormat(wire_transaction.timestamp)
+        transaction.timestamp = wire_transaction.timestamp
         if transaction.balance?
             transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
@@ -714,6 +723,9 @@ class @Sputnik extends EventEmitter
         @call("get_safe_prices", tickers).then @onSafePrices, @wtf
 
     onExchangeInfo: (@exchange_info) =>
+        if @exchange_info.locale?
+            @setGlLocale(@exchange_info.locale)
+
         @log ["Exchange Info", @exchange_info]
         @emit "exchange_info", @exchange_info
 

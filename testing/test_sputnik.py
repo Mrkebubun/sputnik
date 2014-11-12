@@ -34,6 +34,7 @@ contracts set NETS2014 lot_size 1000000
 contracts set NETS2014 tick_size 1
 contracts set NETS2014 expiration 2014-06-28
 contracts set NETS2014 denominated_contract_ticker BTC
+contracts set NETS2014 fees 200
 contracts set NETS2014 payout_contract_ticker NETS2014
 
 contracts add NETS2015
@@ -44,6 +45,7 @@ contracts set NETS2015 tick_size 1
 contracts set NETS2015 expiration 2015-06-28
 contracts set NETS2015 denominated_contract_ticker BTC
 contracts set NETS2015 payout_contract_ticker NETS2015
+contracts set NETS2015 fees 200
 
 contracts add USDBTC0W
 contracts set USDBTC0W contract_type futures
@@ -55,6 +57,7 @@ contracts set USDBTC0W denominated_contract_ticker BTC
 contracts set USDBTC0W payout_contract_ticker USDBTC0W
 contracts set USDBTC0W margin_low 25
 contracts set USDBTC0W margin_high 50
+contracts set USDBTC0W fees 200
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
@@ -78,6 +81,7 @@ contracts set BTC/MXN lot_size 1000000
 contracts set BTC/MXN denominator 1
 contracts set BTC/MXN denominated_contract_ticker MXN
 contracts set BTC/MXN payout_contract_ticker BTC
+contracts set BTC/MXN fees 100
 
 contracts set BTC/PLN contract_type cash_pair
 contracts set BTC/PLN tick_size 100
@@ -85,6 +89,7 @@ contracts set BTC/PLN lot_size 1000000
 contracts set BTC/PLN denominator 1
 contracts set BTC/PLN denominated_contract_ticker PLN
 contracts set BTC/PLN payout_contract_ticker BTC
+contracts set BTC/PLN fees 100
 
 contracts set BTC/HUF contract_type cash_pair
 contracts set BTC/HUF tick_size 100
@@ -92,10 +97,13 @@ contracts set BTC/HUF lot_size 1000000
 contracts set BTC/HUF denominator 1
 contracts set BTC/HUF denominated_contract_ticker HUF
 contracts set BTC/HUF payout_contract_ticker BTC
+contracts set BTC/HUF fees 100
 
 permissions add Default login
 permissions add Full trade withdraw deposit login
 permissions add NoTrade withdraw deposit login
+
+fees add Default 100 100
 
 accounts add customer
 accounts add m2

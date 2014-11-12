@@ -305,7 +305,7 @@ class TestAdministratorExport(TestCashier):
                 self.assertTrue(False)
 
             def onFail(failure):
-                self.assertEqual(failure.value.args[1], "Insufficient funds in wallet")
+                self.assertEqual(failure.value.args, ("exceptions/cashier/insufficient_funds",))
                 from sputnik import models
 
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
@@ -330,11 +330,11 @@ class TestAdministratorExport(TestCashier):
         def onSuccess(withdrawal_id):
             from sputnik import cashier
 
-            with self.assertRaisesRegexp(cashier.CashierException, "No automatic withdrawals"):
+            with self.assertRaisesRegexp(cashier.CashierException, ""):
                 d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
                 def onFail(failure):
-                    self.assertEqual(failure.value.args[1], "No automatic withdrawals")
+                    self.assertEqual(failure.value.args[1], "no_automatic_withdrawal")
                     from sputnik import models
 
                     withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()

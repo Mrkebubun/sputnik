@@ -48,16 +48,19 @@ from datetime import datetime
 class AccountantException(Exception):
     pass
 
-INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
-TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
-WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
-INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
-DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
-CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
-CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
-NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
-CONTRACT_CLEARING = AccountantException(9, "Contract in clearing process")
-CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
+INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
+TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
+WITHDRAW_NOT_PERMITTED = AccountantException("exceptions/accountant/withdraw_not_permitted")
+INVALID_CURRENCY_QUANTITY = AccountantException("exceptions/accountant/invalid_currency_quantity")
+DISABLED_USER = AccountantException("exceptions/accountant/disabled_user")
+CONTRACT_EXPIRED = AccountantException("exceptions/accountant/contract_expired")
+CONTRACT_NOT_EXPIRED = AccountantException("exceptions/accountant/contract_not_expired")
+NON_CLEARING_CONTRACT = AccountantException("exceptions/accountant/non_clearing_contract")
+CONTRACT_CLEARING = AccountantException(9, "exceptions/accountant/contract_clearing")
+CONTRACT_NOT_ACTIVE = AccountantException("exceptions/accountant/contract_not_active")
+NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
+USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
+ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 
 class Accountant:
     """The Accountant primary class
@@ -449,6 +452,21 @@ class Accountant:
                 finally:
                     self.session.rollback()
                 raise INSUFFICIENT_MARGIN
+        user = self.get_user(order.username)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(
+            user, self.session, self.safe_prices, order.id,
+            trial_period=self.trial_period)
+
+        if self.check_margin(order.username, low_margin, high_margin):
+            log.msg("Order accepted.")
+            order.accepted = True
+            try:
+                # self.session.merge(order)
+                self.session.commit()
+            except:
+                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
+            finally:
+                self.session.rollback()
         else:
             log.msg("Forcing order")
 
@@ -617,7 +635,7 @@ class Accountant:
         # calculate fees
         # We aren't charging the liquidity provider
         fees = {}
-        fees = util.get_fees(username, contract,
+        fees = util.get_fees(user, contract,
                 price, quantity, trial_period=self.trial_period)
         if not aggressive:
             for fee in fees:
@@ -727,13 +745,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % order_id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % order_id)
+            raise ORDER_CANCELLED
 
         d = self.engines[order.contract.ticker].cancel_order(order_id)
 
@@ -764,13 +782,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % id)
+            raise ORDER_CANCELLED
 
         order.is_cancelled = True
         try:
@@ -918,7 +936,7 @@ class Accountant:
                 raise DISABLED_USER
 
             # Check margin now
-            low_margin, high_margin, max_cash_spent = margin.calculate_margin(username,
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(user,
                     self.session, self.safe_prices,
                     withdrawals={ticker:amount},
                     trial_period=self.trial_period)
@@ -1232,6 +1250,18 @@ class Accountant:
         d.addCallback(after_cancellations)
         return d
 
+    def reload_fee_group(self, id):
+        group = self.session.query(models.FeeGroup).filter_by(id=id).one()
+        self.session.expire(group)
+
+    def change_fee_group(self, username, id):
+        try:
+            user = self.get_user(username)
+            user.fee_group_id = id
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
     def clear_position(self, position, price, position_count, uid):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
@@ -1422,6 +1452,15 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
         return self.accountant.clear_contract(username, ticker, price, uid)
+
+    @export
+    def change_fee_group(self, username, id):
+        return self.accountant.change_fee_group(username, id)
+
+    @export
+    def reload_fee_group(self, username, id):
+        return self.accountant.reload_fee_group(id)
+
 
     @export
     @schema("rpc/accountant.administrator.json#get_margin")

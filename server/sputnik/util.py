@@ -1,18 +1,22 @@
 __author__ = 'sameer'
 
 from datetime import datetime
+from twisted.internet import ssl
+from OpenSSL import SSL
+import models
 import math
 import time
 import uuid
-
-from twisted.internet import ssl
-from OpenSSL import SSL
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
-
 import models
 
+def get_locale_template(locale, jinja_env, template):
+    locales = [locale, "root"]
+    templates = [template.format(locale=locale) for locale in locales]
+    t = jinja_env.select_template(templates)
+    return t
 
 def timed(f):
     def wrapped(*args, **kwargs):
@@ -129,7 +133,7 @@ def get_cash_spent(contract, price, quantity):
 
     return cash_int
 
-def get_fees(username, contract, price, quantity, trial_period=False):
+def get_fees(user, contract, price, quantity, trial_period=False, ap=None):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -146,18 +150,21 @@ def get_fees(username, contract, price, quantity, trial_period=False):
         return {}
 
     # TODO: Make fees based on transaction size
-    # TODO: Give some users different fee schedules
-    # TODO: Give some contracts different fee schedules
-    # TODO: make the fee user accounts configurable in config file
-    # TODO: Put fee schedule and user levels into DB
-    # TODO: Create fees for futures and predictions
     transaction_size = get_cash_spent(contract, price, quantity)
-    fee_schedule = { 'cash_pair': 0.004,
-                     'prediction': 0.005,
-                     'futures': 0.005
-    }
-    fees = int(round(transaction_size * fee_schedule[contract.contract_type]))
-    return {contract.denominated_contract.ticker: fees}
+    base_fee = transaction_size * contract.fees
+    # If we don't know the aggressive/passive -- probably because we're
+    # checking what the fees might be before placing an order
+    # so we assume the fees are the max possible
+    if ap is None:
+        user_factor = max(user.fees.aggressive_factor, user.fees.passive_factor)
+    elif ap == "aggressive":
+        user_factor = user.fees.aggressive_factor
+    else:
+        user_factor = user.fees.passive_factor
+
+    # 100 because factors are in % and 10000 because fees are in bps
+    final_fee = int(round(base_fee * user_factor / 100 / 10000))
+    return {contract.denominated_contract.ticker: final_fee}
 
 def get_contract(session, ticker):
     """
@@ -239,4 +246,20 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_certificate_chain_file(self.certificateChainFileName)
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
+
+def getLoggers(prefix):
+    def debug(message):
+        log.msg(message, system=prefix, level=10)
+
+    def info(message):
+        log.msg(message, system=prefix, level=20)
+
+    def warn(message):
+        log.msg(message, system=prefix, level=30)
+
+    def error(message):
+        log.err(message, system=prefix, level=40)
+
+    def critical(message):
+        log.err(message, system=prefix, level=50)
 

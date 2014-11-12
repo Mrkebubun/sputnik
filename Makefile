@@ -7,7 +7,7 @@ endif
 all: dist
 
 clean:
-	rm -rf dist aux.ini
+	rm -rf dist
 
 build-deps:
 	install/install.py build-deps
@@ -23,7 +23,6 @@ build:
 
 dist: config build
 	install/install.py dist
-	cp aux.ini dist
 
 test:
 	cd testing && make no_ui
@@ -35,19 +34,7 @@ clients_tar:
 	rm -r .tar
     
 tar: dist
-	mkdir -p .tar/sputnik/install/profiles
-	cp -r dist .tar/sputnik
-	mkdir -p .tar/sputnik/tools
-	cp -r tools/alembic* .tar/sputnik/tools
-	sed -i "s/\(dbname = sputnik\).*/\1/" .tar/sputnik/dist/config/sputnik.ini
-	cp install/install.py .tar/sputnik/install
-	cp -r install/profiles/minimal .tar/sputnik/install/profiles
-	cp -r install/profiles/awsrds .tar/sputnik/install/profiles
-	cp -r ${PROFILE} .tar/sputnik/install/profiles
-	echo "export PROFILE=install/profiles/$(notdir ${PROFILE})" > .tar/sputnik/Makefile
-	cat Makefile >> .tar/sputnik/Makefile
-	cd .tar && tar -cf ../sputnik.tar sputnik
-	rm -r .tar
+	install/install.py tar
 
 install: deps
 	install/install.py install

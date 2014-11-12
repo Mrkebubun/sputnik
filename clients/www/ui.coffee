@@ -11,12 +11,17 @@ $ ->
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
+    
+    locale = new Locale navigator.language, sputnik
+    window.locale = locale
 
-    $.ajax {
-            url: 'index_template.html'
-            success: (data, status, xhr) ->
-                start(data)
-            }
+    locale.init().then( () ->
+        $.ajax {
+                url: 'index_template.html'
+                success: (data, status, xhr) ->
+                    start(data)
+                }
+    )
 
     start = (template) ->
         ractive = new Ractive
@@ -35,19 +40,34 @@ $ ->
                 audit_tab: "Liability"
                 audit_contract: "BTC"
                 all_orders_sort_column: "timestamp"
-                type_alias:
-                    "cash_pair": "Cash"
-                    "prediction": "Predictions"
-                    "futures": "Futures"
-                format_time: (datetime) ->
+                locale: locale
+
+                format_time: (datetime, locale_str) ->
                     if datetime?
-                        new Date(datetime/1000).toLocaleString()
-                format_price: (ticker, price) ->
+                        locale.timeFormat(datetime, locale_str)
+
+                format_date: (datetime, locale_str) ->
+                    if datetime?
+                        locale.dateFormat(datetime, locale_str)
+
+                format_datetime: (datetime, locale_str) ->
+                    if datetime?
+                        locale.dateTimeFormat(datetime, locale_str)
+
+                format_price: (ticker, price, locale_str) ->
                     if price?
-                        Number(price).toFixed(sputnik.getPricePrecision(ticker))
-                format_quantity: (ticker, quantity) ->
+                        locale.priceFormat(ticker, price, locale_str)
+
+                format_quantity: (ticker, quantity, locale_str) ->
                     if quantity?
-                        Number(quantity).toFixed(sputnik.getQuantityPrecision(ticker))
+                        locale.quantityFormat(ticker, quantity, locale_str)
+
+                parse_number: (string, locale_str) ->
+                    locale.parseNumber(string, locale_str)
+
+                translate: (path, locale_str) ->
+                    locale.translate path, locale_str
+
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
                 values: (obj) -> (value for key, value of obj)

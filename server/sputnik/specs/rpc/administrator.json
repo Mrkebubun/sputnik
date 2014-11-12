@@ -34,6 +34,10 @@
                     "nickname": {
                         "type": "string",
                         "description": "the nickname the user goes by"
+                    },
+                    "locale": {
+                        "type": "string",
+                        "description": "locale code for the user"
                     }
                 },
                 "required": [ "email", "nickname" ],

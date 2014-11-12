@@ -1,23 +1,23 @@
 __author__ = 'arthurb'
 
+import models
+import util
 import collections
 
 from twisted.python import log
-
-import models
-import util
 
 class MarginException(Exception):
     pass
 
 
-def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
+def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
+def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
     :type order_id: int
-    :param username: the username
-    :type username: str
+    :param user: the user
+    :type user: User
     :returns: tuple - low and high margin
     """
 
@@ -26,10 +26,10 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
     cash_position = collections.defaultdict(int)
 
     # let's start with positions
-    positions = {position.contract_id: position.dict for position in
-                 session.query(models.Position).filter_by(username=username)}
+    positions = {position.contract_id: position for position in
+                 session.query(models.Position).filter_by(user=user)}
 
-    open_orders = session.query(models.Order).filter_by(username=username).filter(
+    open_orders = session.query(models.Order).filter_by(user=user).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
 
     if order_id:
@@ -119,10 +119,11 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
     # Deal with cash_pair orders separately because there are no cash_pair positions
     for order in open_orders:
-        fees = util.get_fees(username, order.contract, order.price, order.quantity, trial_period=trial_period)
+        fees = util.get_fees(user, order.contract, order.price, order.quantity, trial_period=trial_period)
         
         if order.contract.contract_type == 'cash_pair':
             transaction_size = util.get_cash_spent(order.contract, order.price, order.quantity)
+            
             if order.side == 'BUY':
                 max_cash_spent[order.contract.denominated_contract.ticker] += transaction_size
                 if order.contract.payout_contract.ticker in fees:
@@ -134,8 +135,6 @@ def calculate_margin(username, session, safe_prices={}, order_id=None, withdrawa
 
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee
-
-
 
     # Make sure max_cash_spent has something in it for every cash contract
     for ticker in cash_position.iterkeys():

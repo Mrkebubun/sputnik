@@ -384,7 +384,7 @@ class PublicInterface:
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
-    def make_account(self, username, password, salt, email, nickname):
+    def make_account(self, username, password, salt, email, nickname, locale=None):
         """Create a new account
 
         :param username:
@@ -405,7 +405,12 @@ class PublicInterface:
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
-        profile = {"email": email, "nickname": nickname}
+
+        if locale is not None:
+            profile = {"email": email, "nickname": nickname, "locale": locale}
+        else:
+            profile = {"email": email, "nickname": nickname}
+
         self.factory.administrator.change_profile(username, profile)
 
         def onAccountSuccess(result):
@@ -1175,16 +1180,15 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :returns: list - [success, dict or message]
             """
             if not result:
-                return [False, (0, "get profile failed")]
+                return [False, "exceptions/webserver/get_profile_failed"]
 
+            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2], 'locale': result[0][3]}]
 
-            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2]}]
-
-        return dbpool.runQuery("SELECT nickname, email, audit_secret FROM users WHERE username=%s", (self.username,)).addCallback(
+        return dbpool.runQuery("SELECT nickname, email, audit_secret, locale FROM users WHERE username=%s", (self.username,)).addCallback(
             _cb)
 
     @exportRpc("change_profile")
-    def change_profile(self, email, nickname):
+    def change_profile(self, email, nickname, locale=None):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
@@ -1202,7 +1206,11 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         if malicious_looking(email) or malicious_looking(nickname):
             return [False, "malicious looking input"]
 
-        profile = {"email": email, "nickname": nickname}
+        if locale is not None:
+            profile =  {"email": email, "nickname": nickname, 'locale': locale}
+        else:
+            profile = {"email": email, "nickname": nickname}
+
         d = self.factory.administrator.change_profile(self.username, profile)
 
         def onProfileSuccess(result):
@@ -1325,7 +1333,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
             # Check for zero price or quantity
             if order["price"] == 0 or order["quantity"] == 0:
-                return [False, (0, "invalid price or quantity")]
+                return [False, "exceptions/webserver/invalid_price_quantity"]
 
             # check tick size and lot size in the accountant, not here
 
@@ -1743,9 +1751,7 @@ if __name__ == '__main__':
             private_key=config.get("webserver", "recaptcha_private_key"),
             public_key=config.get("webserver", "recaptcha_public_key"))
 
-    exchange_info = { 'name': config.get("webserver", "exchange_name"),
-                      'feed_uri': config.get("webserver", "exchange_rss_feed"),
-                      'google_analytics': config.get("webserver", "google_analytics")}
+    exchange_info = dict(config.items("exchange_info"))
 
     factory = PepsiColaServerFactory(uri, base_uri, accountant, administrator, cashier, compropago, recaptcha,
                                      debugWamp=debug, debugCodePaths=debug, exchange_info=exchange_info)
