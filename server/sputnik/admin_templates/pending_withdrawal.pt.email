@@ -1,7 +1,5 @@
-PRETEND THIS IS IN PORTUGUESE
+Olá, {{withdrawal.user.nickname}} ({{withdrawal.user.username}}),
 
-Hello {{withdrawal.user.nickname}} ({{withdrawal.user.username}}),
-
-Your withdrawal request of {{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
-has been submitted for manual processing. It may take up to 24 hours to be processed.
-Please contact support with any questions, and reference: {{withdrawal.id}}
+Sua solicitação de retirada de {{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
+foi submetida ao processamento manual e pode lever até 24h para ser processada. Por favor contate o suporte se tiver
+quaisquer questões e informe o código: {{withdrawal.id}}
