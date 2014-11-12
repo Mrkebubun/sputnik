@@ -176,7 +176,7 @@ class RandomBot(TradingBot):
     def placeRandomOrder(self):
         random_markets = []
         for ticker, contract in self.markets.iteritems():
-            if contract['contract_type'] != "cash":
+            if contract['contract_type'] != "cash" and ticker not in self.factory.ignore_contracts:
                 random_markets.append(ticker)
 
         # Pick a market at random
@@ -253,8 +253,10 @@ if __name__ == '__main__':
     username = config.get("random_trader", "username")
     password = config.get("random_trader", "password")
     rate = config.getfloat("random_trader", "rate")
+    ignore_contracts = [x.strip() for x in config.get("random_trader", "ignore_contracts").split(',')]
 
-    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate)
+    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate,
+                         ignore_contracts=ignore_contracts)
     factory.protocol = RandomBot
 
     # null -> ....

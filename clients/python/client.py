@@ -380,6 +380,10 @@ class TradingBot(WampCraClientProtocol):
         d = self.my_call("get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
+    def getExchangeInfo(self):
+        d = self.my_call("get_exchange_info")
+        d.addCallbacks(pprint, self.onError)
+
     """
     Private RPC Calls
     """
@@ -463,16 +467,19 @@ class BasicBot(TradingBot):
 
     def startAutomation(self):
         # Test the audit
-        self.getAudit()
+        #self.getAudit()
+
+        # Test exchange info
+        self.getExchangeInfo()
 
         # Test some OHLCV history fns
-        self.getOHLCVHistory('BTC/HUF', 'day')
-        self.getOHLCVHistory('BTC/HUF', 'minute')
+        #self.getOHLCVHistory('BTC/HUF', 'day')
+        #self.getOHLCVHistory('BTC/HUF', 'minute')
 
         # Now make an account
-        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        #self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        #self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
         self.getTransactionHistory()
@@ -481,11 +488,12 @@ class BasicBot(TradingBot):
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(WampClientFactory):
-    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10):
+    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10, ignore_contracts=[]):
         WampClientFactory.__init__(self, url, debugWamp=debugWamp)
         self.username_password = username_password
         self.rate = rate
         self.conn = None
+        self.ignore_contracts = ignore_contracts
 
     def connect(self, context_factory, failure=None):
         self.conn = connectWS(self, context_factory)
