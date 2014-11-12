@@ -1,3 +1,106 @@
+class @Locale
+
+    constructor: (@locale, @sputnik) ->
+        @supported_locales =
+            en: "English"
+            "en-US": "English/US"
+            pt: "Portuguese"
+            es: "Spanish"
+
+    init: () =>
+        this_object = this
+        $.get "locale/translations.json", (data) =>
+            Globalize.loadTranslations(data)
+
+        $.when(
+            $.get( "cldr/supplemental/likelySubtags.json" ),
+            $.get( "cldr/supplemental/timeData.json" ),
+            $.get( "cldr/supplemental/weekData.json" ),
+            $.get( "cldr/supplemental/plurals.json" ),
+        ).then( () ->
+            [].slice.apply(arguments, [0]).map (result) ->
+                result[0]
+        ).then(Globalize.load).then( () ->
+            $.when(
+                this_object.loadLocale("en"),
+                this_object.loadLocale("en-US"),
+                this_object.loadLocale("pt"),
+                this_object.loadLocale("es")
+            ).then this_object.setLocale
+        )
+
+    loadLocale: (locale) =>
+        $.when(
+            $.get( "cldr/main/#{locale}/ca-gregorian.json" ),
+            $.get( "cldr/main/#{locale}/timeZoneNames.json" ),
+            $.get( "cldr/main/#{locale}/numbers.json"),
+        ).then( () =>
+            [].slice.apply(arguments, [0]).map (result) ->
+                result[0]
+        ).then(Globalize.load)
+            
+    setLocale: (locale) =>
+        if locale?
+            @locale = locale
+        @gl = new Globalize(@locale)
+
+    translate: (path) =>
+        translated = @gl.translate(path)
+        if not translated?
+            @sputnik.error "Unable to translate: #{path}"
+            return path
+        else
+            return translated
+
+    priceFormat: (ticker, price) =>
+        precision = @sputnik.getPricePrecision(ticker)
+        fn = @gl.numberFormatter
+            useGrouping: true
+            minimumFractionDigits: precision
+            maximumFractionDigits: precision
+        fn(Number(price))
+
+    quantityFormat: (ticker, quantity) =>
+        precision = @sputnik.getQuantityPrecision(ticker)
+        fn = @gl.numberFormatter
+            useGrouping: true
+            minimumFractionDigits: precision
+            maximumFractionDigits: precision
+
+        fn(Number(quantity))
+
+    timeFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            time: "short"
+        dt = new Date(timestamp / 1000)
+        fn(dt)
+
+    dateTimeFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            datetime: "short"
+        dt = new Date(timestamp / 1000)
+        fn(dt)
+
+    dateFormat: (timestamp) =>
+        fn = @gl.dateFormatter
+            date: "short"
+        dt = new Date(timestamp / 1000)
+        fn(dt)
+
+    parseNumber: (string) =>
+        # Force a string
+        @gl.parseNumber(string.toString())
+
+    parseDate: (string) =>
+        dt = @gl.parseDate(string,
+            date: "short"
+        )
+        if dt?
+            # Convert to sputnik
+            return dt.getTime() * 1000
+        else
+            return NaN
+
 $ ->
     location = window.location
     hostname = location.hostname
@@ -11,12 +114,17 @@ $ ->
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
+    
+    locale = new Locale navigator.language, sputnik
+    window.locale = locale
 
-    $.ajax {
-            url: 'index_template.html'
-            success: (data, status, xhr) ->
-                start(data)
-            }
+    locale.init().then( () ->
+        $.ajax {
+                url: 'index_template.html'
+                success: (data, status, xhr) ->
+                    start(data)
+                }
+    )
 
     start = (template) ->
         ractive = new Ractive
@@ -35,28 +143,32 @@ $ ->
                 audit_tab: "Liability"
                 audit_contract: "BTC"
                 all_orders_sort_column: "timestamp"
-                format_time: (datetime) ->
+                locale: locale
+                # We need the dummy fields to force ractive
+                # to recalculate of the dummy changes. ie we would put
+                # sputnik.locale into the dummy field
+                format_time: (datetime, dummy) ->
                     if datetime?
-                        sputnik.timeFormat(datetime)
+                        locale.timeFormat(datetime)
 
-                format_date: (datetime) ->
+                format_date: (datetime, dummy) ->
                     if datetime?
-                        sputnik.dateFormat(datetime)
+                        locale.dateFormat(datetime)
 
-                format_datetime: (datetime) ->
+                format_datetime: (datetime, dummy) ->
                     if datetime?
-                        sputnik.dateTimeFormat(datetime)
+                        locale.dateTimeFormat(datetime)
 
-                format_price: (ticker, price) ->
-                    sputnik.priceFormat(ticker, price)
+                format_price: (ticker, price, dummy) ->
+                    if price?
+                        locale.priceFormat(ticker, price)
 
-                format_quantity: (ticker, quantity) ->
-                    sputnik.quantityFormat(ticker, quantity)
+                format_quantity: (ticker, quantity, dummy) ->
+                    if quantity?
+                        locale.quantityFormat(ticker, quantity)
 
-                translate: (path) ->
-                    sputnik.translate path
-                    #sputnik.log ["translate", path, rs]
-                    #return rs
+                translate: (path, dummy) ->
+                    locale.translate path
 
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
@@ -133,12 +245,12 @@ $ ->
             withdraw: (event, type) ->
                 event.original.preventDefault()
                 ticker = ractive.get("current_currency")
-                amount = sputnik.parseNumber($('#withdraw-amount').val())
+                amount = locale.parseNumber($('#withdraw-amount').val())
                 if type == "crypto"
                     address = $('#crypto_address').val()
                     confirm_address = $('#crypto_confirm_address').val()
                     if address != confirm_address
-                        bootbox.alert sputnik.translate("account/funding_history/withdrawal/alerts/mismatched_address")
+                        bootbox.alert locale.translate("account/funding_history/withdrawal/alerts/mismatched_address")
                         return
                 else if type == "wire"
                     address_obj =
@@ -168,21 +280,21 @@ $ ->
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
                 if not buy_quantity_str
                     buy_quantity_str = "0"
-                buy_price = sputnik.parseNumber(buy_price_str)
-                buy_quantity = sputnik.parseNumber(buy_quantity_str)
+                buy_price = locale.parseNumber(buy_price_str)
+                buy_quantity = locale.parseNumber(buy_quantity_str)
 
                 alerts = []
 
 
                 if isNaN buy_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
-                    alerts.push sputnik.translate("trade/alerts/price_invalid")
+                    alerts.push locale.translate("trade/alerts/price_invalid")
 
                 if isNaN buy_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
-                    alerts.push sputnik.translate("trade/alerts/quantity_invalid")
+                    alerts.push locale.translate("trade/alerts/quantity_invalid")
 
                 if alerts.length == 0
                     if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                        alerts.push sputnik.translate("trade/alerts/insufficient_funds")
+                        alerts.push locale.translate("trade/alerts/insufficient_funds")
 
                 if alerts.length
                     $('#buy_alert').text alerts.join(', ')
@@ -200,19 +312,19 @@ $ ->
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
                 if not sell_quantity_str == ''
                     sell_quantity_str = "0"
-                sell_price = sputnik.parseNumber(sell_price_str)
-                sell_quantity = sputnik.parseNumber(sell_quantity_str)
+                sell_price = locale.parseNumber(sell_price_str)
+                sell_quantity = locale.parseNumber(sell_quantity_str)
 
                 alerts = []
                 if isNaN sell_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
-                    alerts.push sputnik.translate("trade/alerts/price_invalid")
+                    alerts.push locale.translate("trade/alerts/price_invalid")
 
                 if isNaN sell_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
-                    alerts.push sputnik.translate("trade/alerts/quantity_invalid")
+                    alerts.push locale.translate("trade/alerts/quantity_invalid")
 
                 if alerts.length == 0
                     if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                        alerts.push sputnik.translate("trade/alerts/insufficient_funds")
+                        alerts.push locale.translate("trade/alerts/insufficient_funds")
 
                 if alerts.length
                     $('#sell_alert').text alerts.join(', ')
@@ -225,27 +337,27 @@ $ ->
 
             buy: (event) ->
                 event.original.preventDefault()
-                buy_quantity = sputnik.parseNumber($('#buy_quantity').val())
+                buy_quantity = locale.parseNumber($('#buy_quantity').val())
                 buy_price_str = $("#buy_price").val()
 
                 if buy_quantity <= 0 or isNaN buy_quantity
-                    bootbox.alert sputnik.translate("trade/alerts/quantity_invalid")
+                    bootbox.alert locale.translate("trade/alerts/quantity_invalid")
                     return true
 
                 if buy_price_str == ''
                     buy_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                    bootbox.confirm(sputnik.translate("trade/alerts/placing_order_with_price") + buy_price_str + sputnik.translate("trades/alerts/are_you_sure"), (result) =>
+                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price") + buy_price_str + locale.translate("trades/alerts/are_you_sure"), (result) =>
                         if result
-                            sputnik.placeOrder(buy_quantity, sputnik.parseNumber(buy_price_str), ractive.get("current_ticker"), 'BUY')
+                            sputnik.placeOrder(buy_quantity, locale.parseNumber(buy_price_str), ractive.get("current_ticker"), 'BUY')
                     )
                 else
-                    buy_price = sputnik.parseNumber(buy_price_str)
+                    buy_price = locale.parseNumber(buy_price_str)
                     if buy_price <= 0 or isNaN buy_price
-                        bootbox.alert sputnik.translate("trade/alerts/price_invalid")
+                        bootbox.alert locale.translate("trade/alerts/price_invalid")
                         return true
 
                     if not withinAnOrderOfMagnitude(buy_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price)
-                        bootbox.confirm sputnik.translate("trade/alerts/strange_price"), (result) ->
+                        bootbox.confirm locale.translate("trade/alerts/strange_price"), (result) ->
                             if result
                                 sputnik.placeOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
                     else
@@ -253,27 +365,27 @@ $ ->
 
             sell: (event) ->
                 event.original.preventDefault()
-                sell_quantity = sputnik.parseNumber($('#sell_quantity').val())
+                sell_quantity = locale.parseNumber($('#sell_quantity').val())
                 sell_price_str = $("#sell_price").val()
 
 
                 if sell_quantity <= 0 or isNaN sell_quantity
-                    bootbox.alert sputnik.translate("trade/alerts/quantity_invalid")
+                    bootbox.alert locale.translate("trade/alerts/quantity_invalid")
                     return true
 
                 if sell_price_str == ''
                     sell_price_str = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                    bootbox.confirm(sputnik.translate("trade/alerts/placing_order_with_price") + sell_price_str + sputnik.translate("trades/alerts/are_you_sure"), (result) =>
+                    bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price") + sell_price_str + locale.translate("trades/alerts/are_you_sure"), (result) =>
                         if result
-                            sputnik.placeOrder(sell_quantity, sputnik.parseNumber(sell_price_str), ractive.get("current_ticker"), 'SELL')
+                            sputnik.placeOrder(sell_quantity, locale.parseNumber(sell_price_str), ractive.get("current_ticker"), 'SELL')
                     )
                 else
-                    sell_price = sputnik.parseNumber(sell_price_str)
+                    sell_price = locale.parseNumber(sell_price_str)
                     if sell_price <= 0 or isNaN sell_price
-                        bootbox.alert sputnik.translate("trade/alerts/price_invalid")
+                        bootbox.alert locale.translate("trade/alerts/price_invalid")
 
                     if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
-                        bootbox.confirm sputnik.translate("trade/alerts/strange_price"), (result) ->
+                        bootbox.confirm locale.translate("trade/alerts/strange_price"), (result) ->
                             if result
                                 sputnik.placeOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
                     else
@@ -282,8 +394,8 @@ $ ->
             transactions: (event) ->
                 event.original.preventDefault()
                 sputnik.log ["get_history", $("#transactions_start_date").val(), $("#transactions_end_date").val()]
-                start_timestamp = sputnik.parseDate($("#transactions_start_date").val())
-                end_timestamp = sputnik.parseDate($("#transactions_end_date").val())
+                start_timestamp = locale.parseDate($("#transactions_start_date").val())
+                end_timestamp = locale.parseDate($("#transactions_end_date").val())
                 now = new Date()
                 if isNaN start_timestamp
                     start = new Date()
@@ -323,7 +435,7 @@ $ ->
             change_password: (event) ->
                 event.original.preventDefault()
                 if $('#new_password').val() isnt $('#new_password_confirm').val()
-                    bootbox.alert sputnik.translate("alerts/mismatched_password")
+                    bootbox.alert locale.translate("alerts/mismatched_password")
                 else
                     sputnik.changePassword $('#old_password').val(), $('#new_password_confirm').val()
 
@@ -332,7 +444,7 @@ $ ->
                 if $('#new_password_token').val() == $('#new_password_token_confirm').val()
                     sputnik.changePasswordToken($('#new_password_token').val())
                 else
-                    $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text sputnik.translate("alerts/mismatched_password")
+                    $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text locale.translate("alerts/mismatched_password")
 
             show_login_register: (event) ->
                 event.original.preventDefault()
@@ -376,6 +488,9 @@ $ ->
 
                 sputnik.openMarket new_ticker
                 showChart new_ticker
+                
+        ractive.observe "sputnik.profile.locale", (new_locale, old_locale, path) ->
+            locale.setLocale(new_locale)
 
         window.ractive = ractive
 
@@ -441,7 +556,7 @@ $ ->
             ga('send', 'event', 'login', 'failure')
             ladda = Ladda.create $("#login_button")[0]
             ladda.stop()
-            $("#login_error").text(sputnik.translate("alerts/bad_username_pw")).show()
+            $("#login_error").text(locale.translate("alerts/bad_username_pw")).show()
 
         sputnik.on "make_account_success", () ->
             ga('send', 'event', 'register', 'success')
@@ -454,7 +569,7 @@ $ ->
             ga('send', 'event', 'register', 'failure', event)
             ladda = Ladda.create $("#register_button")[0]
             ladda.stop()
-            $("#register_error").text(sputnik.translate(event[0]))
+            $("#register_error").text(locale.translate(event[0]))
             $("#register_error").show()
 
 
@@ -488,7 +603,7 @@ $ ->
             password = $("#login_password").val()
 
             if username is ''
-                $("#login_error").text(sputnik.translate("alerts/invalid_username")).show()
+                $("#login_error").text(locale.translate("alerts/invalid_username")).show()
             else
                 $("#login_error").hide()
                 ladda = Ladda.create $("#login_button")[0]
@@ -511,7 +626,7 @@ $ ->
                 ladda.start()
                 sputnik.makeAccount username, password, email, nickname, navigator.language
             else
-                $('#register_error').text(sputnik.translate("alerts/complete_registration")).slideDown()
+                $('#register_error').text(locale.translate("alerts/complete_registration")).slideDown()
 
         withinAnOrderOfMagnitude = (x, y) ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
@@ -529,8 +644,8 @@ $ ->
             customer_phone = $('#compropago_phone').val()
             customer_phone_company = $('#compropago_phone_company').val()
 
-            if (sputnik.parseNumber(amount) < 6000)
-              sputnik.makeCompropagoDeposit store, sputnik.parseNumber(amount), customer_email, send_sms, customer_phone, customer_phone_company
+            if (locale.parseNumber(amount) < 6000)
+              sputnik.makeCompropagoDeposit store, locale.parseNumber(amount), customer_email, send_sms, customer_phone, customer_phone_company
 
 #        $('#chatButton').click ->
 #            chat_return = sputnik.chat chatBox.value
@@ -616,7 +731,7 @@ $ ->
             $('#login_modal .alert:visible').hide()
 
             if not username.length
-                $('#login_error').text(sputnik.translate("alerts/enter_username")).slideDown()
+                $('#login_error').text(locale.translate("alerts/enter_username")).slideDown()
                 return
 
             sputnik.getResetToken(username)
@@ -641,27 +756,27 @@ $ ->
 
         sputnik.on "change_password_fail", (error) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_fail', 'error', error[0])
-            bootbox.alert sputnik.translate(error[0])
+            bootbox.alert locale.translate(error[0])
 
         sputnik.on "change_password_token_fail", (error) -> #BUG: this is not firing multiple times
             ga('send', 'event', 'password', 'change_password_token_fail', 'error', error[0])
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
-            bootbox.alert sputnik.translate(error[0])
+            bootbox.alert locale.translate(error[0])
 
         sputnik.on "change_password_token_success", (message) ->
             ga('send', 'event', 'password', 'change_password_token_success')
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
-            bootbox.alert sputnik.translate("alerts/password_reset")
+            bootbox.alert locale.translate("alerts/password_reset")
 
         sputnik.on "change_password_success", (message) ->
             ga('send', 'event', 'password', 'change_password_success')
-            bootbox.alert sputnik.translate("alerts/password_reset")
+            bootbox.alert locale.translate("alerts/password_reset")
 
         sputnik.on "change_profile_success", (profile) ->
             ga('send', 'event', 'profile', 'change_profile_success')
-            bootbox.alert sputnik.translate("alerts/profile_changed")
+            bootbox.alert locale.translate("alerts/profile_changed")
 
         sputnik.on "session_expired", ->
             console.log "Session is stale."
@@ -677,7 +792,7 @@ $ ->
 
         sputnik.on "address_fail", (error) ->
             ga('send', 'event', 'deposit', 'address_fail', 'error', error[0])
-            bootbox.alert sputnik.translate(error[0])
+            bootbox.alert locale.translate(error[0])
 
         sputnik.on "address", (address) =>
             ga('send', 'event', 'deposit', 'address')
@@ -687,15 +802,15 @@ $ ->
 
         sputnik.on "request_withdrawal_success", (info) ->
             ga('send', 'event', 'withdraw', 'request_withdrawal_success')
-            bootbox.alert sputnik.translate("account/funding_history/withdrawal/alerts/request_placed")
+            bootbox.alert locale.translate("account/funding_history/withdrawal/alerts/request_placed")
 
         sputnik.on "request_withdrawal_fail", (error) ->
             ga('send', 'event', 'withdraw', 'request_withdrawal_fail', 'error', error[0])
-            bootbox.alert sputnik.translate(error[0])
+            bootbox.alert locale.translate(error[0])
 
         sputnik.on "place_order_fail", (error) ->
             ga('send', 'event', 'order', 'place_order_fail', 'error', error[0])
-            bootbox.alert sputnik.translate(error[0])
+            bootbox.alert locale.translate(error[0])
 
         sputnik.on "place_order_success", (info) ->
             ga('send', 'event', 'order', 'place_order_success')
@@ -703,7 +818,7 @@ $ ->
         sputnik.on "fill", (fill) ->
             quantity_fmt = sputnik.quantityFormat(fill.quantity, fill.contract)
             price_fmt = sputnik.priceFormat(fill.price, fill.contract)
-            $.growl.notice { title: sputnik.translate("trade/titles/fill"), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+            $.growl.notice { title: locale.translate("trade/titles/fill"), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')
@@ -735,10 +850,10 @@ $ ->
             residencies = form.find('input[name=residency]')[0].files
 
             if not passports.length
-              bootbox.alert sputnik.translate("account/compliance/alerts/passport_required")
+              bootbox.alert locale.translate("account/compliance/alerts/passport_required")
               return
             if not residencies.length
-              bootbox.alert sputnik.translate("account/compliance/alerts/residency_required")
+              bootbox.alert locale.translate("account/compliance/alerts/residency_required")
               return
 
             fd.append('file', passports[0])
@@ -757,10 +872,10 @@ $ ->
                     success: (data) ->
                         ladda.stop()
                         ga('send', 'event', 'compliance', 'save')
-                        bootbox.alert sputnik.translate("account/compliance/alerts/request_success")
+                        bootbox.alert locale.translate("account/compliance/alerts/request_success")
                     error: (error) ->
                         ladda.stop()
                         ga('send', 'event', 'compliance', 'failure', 'error', error[0])
-                        bootbox.alert sputnik.translate(error[0])
+                        bootbox.alert locale.translate(error[0])
                         sputnik.log ["Error:", error]
 

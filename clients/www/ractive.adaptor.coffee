@@ -42,7 +42,8 @@ class RactiveSputnikWrapper
         @audit_hash = ''
         @exchange_info = {}
         @active_contracts = []
-        @profile = {}
+        @profile =
+            locale: navigator.language
         @cash_spent = {}
         @position_contracts = {}
 

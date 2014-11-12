@@ -49,8 +49,6 @@ class @Sputnik extends EventEmitter
 
     constructor: (@uri) ->
         # Initialize globalization settings
-        @initGl()
-        @setGlLocale(navigator.language)
 
         ### Sputnik API  ###
 
@@ -99,7 +97,6 @@ class @Sputnik extends EventEmitter
 
     getProfile: () =>
         @call("get_profile").then (@profile) =>
-            @setGlLocale(@profile.locale)
             @emit "profile", @profile
 
     changeProfile: (email, nickname, locale) =>
@@ -292,63 +289,6 @@ class @Sputnik extends EventEmitter
             target = @markets[ticker]
 
         return [contract, source, target]
-
-    priceFormat: (ticker, price) =>
-        precision = @getPricePrecision(ticker)
-        fn = @gl.numberFormatter
-            useGrouping: true
-            minimumFractionDigits: precision
-            maximumFractionDigits: precision
-        fn(Number(price))
-
-    quantityFormat: (ticker, quantity) =>
-        precision = @getQuantityPrecision(ticker)
-        fn = @gl.numberFormatter
-            useGrouping: true
-            minimumFractionDigits: precision
-            maximumFractionDigits: precision
-
-        fn(Number(quantity))
-
-    timeFormat: (timestamp) =>
-        fn = @gl.dateFormatter
-            time: "short"
-        dt = new Date(timestamp / 1000)
-        fn(dt)
-
-    dateTimeFormat: (timestamp) =>
-        fn = @gl.dateFormatter
-            datetime: "short"
-        dt = new Date(timestamp / 1000)
-        fn(dt)
-
-    dateFormat: (timestamp) =>
-        fn = @gl.dateFormatter
-            date: "short"
-        dt = new Date(timestamp / 1000)
-        fn(dt)
-
-    translate: (path) =>
-        translated = @gl.translate(path)
-        if not translated?
-            @error "Unable to translate: #{path}"
-            return path
-        else
-            return translated
-
-    parseNumber: (string) =>
-        # Force a string
-        @gl.parseNumber(string.toString())
-
-    parseDate: (string) =>
-        dt = @gl.parseDate(string,
-            date: "short"
-        )
-        if dt?
-            # Convert to sputnik
-            return dt.getTime() * 1000
-        else
-            return NaN
 
     copy: (object) =>
         new_object = {}
@@ -990,31 +930,6 @@ class @Sputnik extends EventEmitter
         @log ["cash_spent", max_cash_spent]
         return [low_margin, high_margin, max_cash_spent]
 
-    initGl: () =>
-        $.get "locale/translations.json", (data) ->
-            Globalize.loadTranslations(data)
-
-        $.when(
-            $.get( "cldr/supplemental/likelySubtags.json" ),
-            $.get( "cldr/supplemental/timeData.json" ),
-            $.get( "cldr/supplemental/weekData.json" ),
-            $.get( "cldr/supplemental/plurals.json" ),
-        ).then( () ->
-            [].slice.apply(arguments, [0]).map (result) ->
-                result[0]
-        ).then(Globalize.load)
-
-    setGlLocale: (locale) =>
-        sputnik = this
-        $.when(
-            $.get( "cldr/main/#{locale}/ca-gregorian.json" ),
-            $.get( "cldr/main/#{locale}/timeZoneNames.json" ),
-            $.get( "cldr/main/#{locale}/numbers.json"),
-        ).then( () =>
-            [].slice.apply(arguments, [0]).map (result) ->
-                result[0]
-        ).then(Globalize.load).then () ->
-            sputnik.gl = new Globalize(locale)
 
 if module?
     module.exports =
