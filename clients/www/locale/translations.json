@@ -1,5 +1,10 @@
 {
     "root": {
+        "locales": {
+            "en": "English",
+            "es": "Spanish",
+            "pt": "Portuguese"
+        },
         "top_menu": {
             "dashboard": "Dashboard",
             "trade": "Trade",
@@ -316,6 +321,11 @@
         }
     },
     "es": {
+        "locales": {
+            "en": "inglés",
+            "es": "español",
+            "pt": "portugués"
+        },
         "top_menu": {
             "dashboard": "Dashboard",
             "trade": "Canje",
@@ -554,6 +564,11 @@
         }
     },
     "pt": {
+        "locales": {
+            "en": "inglês",
+            "es": "espanhol",
+            "pt": "português"
+        },
         "top_menu": {
             "dashboard": "Painel",
             "trade": "Negociação",

@@ -1247,8 +1247,8 @@
                                         <div class="col-sm-7 content-push2">
                                             <select value="{{sputnik.profile.locale}}" class="form-control">
                                                 {{#locale.supported_locales:locale}}
-                                                <option value="{{locale}}">{{this}}</option>
-                                                {{/locale.supported.locales.local_list}}
+                                                <option value="{{locale}}">{{translate("locales/" + locale, sputnik.profile.locale)}}</option>
+                                                {{/locale.supported_locales}}
                                             </select>
                                         </div>
                                     </div>
