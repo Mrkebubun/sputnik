@@ -112,7 +112,7 @@ def timestamp_to_dt(timestamp):
     return datetime.utcfromtimestamp(timestamp/1e6)
 
 
-def get_fees(username, contract, transaction_size, trial_period=False):
+def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -131,23 +131,21 @@ def get_fees(username, contract, transaction_size, trial_period=False):
     # Right now fees are very simple, just 40bps of the total from_currency amount
     # but only charged to the liquidity taker
     # TODO: Make fees based on transaction size
-    # TODO: Give some users different fee schedules
-    # TODO: Give some contracts different fee schedules
-    # TODO: make the fee user accounts configurable in config file
-    # TODO: Put fee schedule and user levels into DB
-    # TODO: Create fees for futures and predictions
-    if contract.contract_type == "cash_pair":
-        denominated_contract = contract.denominated_contract
-        fees = int(round(transaction_size * 0.004))
-        return { denominated_contract.ticker: fees }
-    elif contract.contract_type == "prediction":
-        # Predictions charge 50bps
-        denominated_contract = contract.denominated_contract
-        fees = int(round(transaction_size * 0.005))
-        return { denominated_contract.ticker: fees }
+
+    base_fee = transaction_size * contract.fees
+    # If we don't know the aggressive/passive -- probably because we're
+    # checking what the fees might be before placing an order
+    # so we assume the fees are the max possible
+    if ap is None:
+        user_factor = max(user.fees.aggressive_factor, user.fees.passive_factor)
+    elif ap == "aggressive":
+        user_factor = user.fees.aggressive_factor
     else:
-        # Only cash_pair & prediction is implemented now
-        raise NotImplementedError
+        user_factor = user.fees.passive_factor
+
+    # 100 because factors are in % and 10000 because fees are in bps
+    final_fee = int(round(base_fee * user_factor / 100 / 10000))
+    return {contract.denominated_contract.ticker: final_fee}
 
 def get_contract(session, ticker):
     """

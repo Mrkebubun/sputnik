@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
@@ -18,6 +19,7 @@
       <li {% block admin_active %}{% endblock %}><a href="/admin">Admin</a></li>
       <li {% block admin_list_active %}{% endblock %}><a href="/admin_list">Admin List</a></li>
       <li {% block permission_groups_active %}{% endblock %}><a href="/permission_groups">Permissions</a></li>
+      <li {% block fee_groups_active %}{% endblock %}><a href="/fee_groups">Fee Groups</a></li>
       <li {% block withdrawals_active %}{% endblock %}><a href="/withdrawals">Withdrawals</a></li>
       <li {% block deposits_active %}{% endblock %}><a href="/deposits">Deposits</a></li>
       <li {% block contracts_active %}{% endblock %}><a href="/contracts">Contracts</a></li>

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mkdir -p ${profile_git_root}/dist/alembic
+cp -rH ${profile_git_root}/tools/alembic* ${profile_git_root}/dist/alembic

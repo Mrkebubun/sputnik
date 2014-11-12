@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Fees{% endblock %}
+{% block fee_groups_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary">
+    <div class="panel-heading">Fee Groups</div>
+    <div class="panel-body">
+        {% if fee_group_problems|length %}
+        <div class="alert alert-danger text-center" role="alert">YOUR FEE STRUCTURE WILL RESULT IN LOSING MONEY</div>
+        <table id="fee_group_problems" class="table table-striped table-hover">
+            <thead>
+                <tr><th>Aggressive Group</th><th>Passive Group</th><th>Total Factor</th></tr>
+            </thead>
+            <tbody>
+                {% for problem in fee_group_problems %}
+                <tr>
+                    <td><a href="#{{problem.aggressive_group.id}}">{{problem.aggressive_group.name}}</a></td>
+                    <td><a href="#{{problem.passive_group.id}}">{{problem.passive_group.name}}</a></td>
+                    <td>{{problem.total_factor}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        <table id="fee_groups" class="table table-striped table-hover">
+            <thead>
+                <tr><th>Name</th><th>Aggressive Factor</th><th>Passive Factor</th><th></th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <form action="/new_fee_group" method="post">
+                        <td>
+                            <input type="text" name="name" placeholder="New">
+                        </td>
+                        <td>
+                            <input type="text" name="aggressive_factor" value="100">
+                        <td>
+                            <input type="text" name="passive_factor" value="100">
+                        </td>
+                        <td>
+                            <button type="submit">Create</button>
+                        </td>
+                    </form>
+                </tr>
+                {% for fee_group in fee_groups %}
+                <form action="/modify_fee_group" method="POST">
+                    <tr name="{{fee_group.id}}">
+                        <td>
+                            <input type="text" name="name" value="{{fee_group.name}}">
+                            <input type="hidden" name="id" value="{{fee_group.id}}">
+                        </td>
+                        <td>
+                            <input type="text" name="aggressive_factor" value="{{fee_group.aggressive_factor}}">
+                        </td>
+                        <td>
+                            <input type="text" name="passive_factor" value="{{fee_group.passive_factor}}">
+                        </td>
+                        <td>
+                            <button type="submit">Change</button>
+                        </td>
+                    </tr>
+                </form>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}

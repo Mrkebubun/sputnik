@@ -141,6 +141,92 @@ class TestAccountant(TestAccountantBase):
         self.session.merge(user)
         self.session.commit()
 
+class TestFees(TestAccountant):
+    def setUp(self):
+        TestAccountant.setUp(self)
+        fees_init = """
+fees add LiqRebate 100 -50
+fees add NoFee 0 0
+fees add HeavyFee 200 200
+
+accounts set marketmaker fees LiqRebate
+accounts set randomtrader fees HeavyFee
+accounts set m2 fees NoFee
+
+contracts set BTC/MXN fees 50
+contracts set NETS2015 fees 350
+"""
+        self.run_leo(fees_init)
+
+    def test_fees(self):
+        from sputnik import util
+
+        BTCMXN = self.get_contract('BTC/MXN')
+        NETS2015 = self.get_contract('NETS2015')
+        BTCHUF = self.get_contract('BTC/HUF')
+        NETS2014 = self.get_contract('NETS2014')
+
+        marketmaker = self.get_user('marketmaker')
+        randomtrader = self.get_user('randomtrader')
+        m2 = self.get_user('m2')
+        customer = self.get_user('customer')
+
+        fees_result = {}
+        for user in [marketmaker, randomtrader, m2, customer]:
+            for contract in [BTCMXN, NETS2015, BTCHUF, NETS2014]:
+                for ap in [None, "aggressive", "passive"]:
+                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, 10000, ap=ap)
+        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 100},
+                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
+                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 100},
+                                           (u'customer', u'BTC/MXN', None): {u'MXN': 50},
+                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
+                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 50},
+                                           (u'customer', u'NETS2014', None): {u'BTC': 200},
+                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 200},
+                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 200},
+                                           (u'customer', u'NETS2015', None): {u'BTC': 350},
+                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 350},
+                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 350},
+                                           (u'm2', u'BTC/HUF', None): {u'HUF': 0},
+                                           (u'm2', u'BTC/HUF', 'aggressive'): {u'HUF': 0},
+                                           (u'm2', u'BTC/HUF', 'passive'): {u'HUF': 0},
+                                           (u'm2', u'BTC/MXN', None): {u'MXN': 0},
+                                           (u'm2', u'BTC/MXN', 'aggressive'): {u'MXN': 0},
+                                           (u'm2', u'BTC/MXN', 'passive'): {u'MXN': 0},
+                                           (u'm2', u'NETS2014', None): {u'BTC': 0},
+                                           (u'm2', u'NETS2014', 'aggressive'): {u'BTC': 0},
+                                           (u'm2', u'NETS2014', 'passive'): {u'BTC': 0},
+                                           (u'm2', u'NETS2015', None): {u'BTC': 0},
+                                           (u'm2', u'NETS2015', 'aggressive'): {u'BTC': 0},
+                                           (u'm2', u'NETS2015', 'passive'): {u'BTC': 0},
+                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 100},
+                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
+                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -50},
+                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 50},
+                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
+                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -25},
+                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 200},
+                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 200},
+                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -100},
+                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 350},
+                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 350},
+                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -175},
+                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 200},
+                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 200},
+                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 200},
+                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 100},
+                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 100},
+                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 100},
+                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 400},
+                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 400},
+                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 400},
+                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 700},
+                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 700},
+                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 700}}
+        )
+
+
 class TestMargin(TestAccountant):
     def setUp(self):
         TestAccountant.setUp(self)
@@ -191,23 +277,24 @@ class TestMargin(TestAccountant):
 
         # No orders
         from sputnik import margin
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        test = self.get_user('test')
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, 0)
         self.assertEqual(high_margin, 0)
         self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 0})
 
         # With a BUY order
         id = self.create_order('test', 'BTC/MXN', 50000000, 5000, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, 0)
         self.assertEqual(high_margin, 0)
-        # 2500 for the trade, and 10 for the fee
-        self.assertDictEqual(max_cash_spent, {'MXN': 2500 * 1.004, 'BTC': 0})
+        # 2500 for the trade, and 100bps for the fee
+        self.assertDictEqual(max_cash_spent, {'MXN': 2500 * 1.01, 'BTC': 0})
         self.cancel_order(id)
 
         # With a SELL order
         id = self.create_order('test', 'BTC/MXN', 50000000, 500, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         # BTC cash spent gets applied to margin
         self.assertEqual(low_margin, 50000000)
         self.assertEqual(high_margin, 50000000)
@@ -217,16 +304,17 @@ class TestMargin(TestAccountant):
         # With too big an order in terms of fiat
         # 0.5BTC for 3Pesos each for 1.5Peso total cost plus fees
         id = self.create_order('test', 'BTC/MXN', 50000000, 30000, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertGreaterEqual(low_margin, 2**48)
         self.assertGreaterEqual(high_margin, 2**48)
-        self.assertDictEqual(max_cash_spent, {'MXN': 15000 * 1.004, 'BTC': 0})
+        # 100bps fee
+        self.assertDictEqual(max_cash_spent, {'MXN': 15000 * 1.01, 'BTC': 0})
         self.cancel_order(id)
 
         # With a big order in terms of BTC
         # Sell 2 BTC for 1.5Peos each
         id = self.create_order('test', 'BTC/MXN', 200000000, 15000, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, 200000000)
         self.assertEqual(high_margin, 200000000)
         self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 200000000})
@@ -240,16 +328,18 @@ class TestMargin(TestAccountant):
         self.create_order('test', 'BTC/MXN', 20000000, 15000, 'SELL')
 
         BTC_spent = 50000000 + 20000000
-        MXN_spent = ( 25000000 * 15000 / 100000000 ) * 1.004 + ( 20000000 * 10000 / 100000000 ) * 1.004 + ( 30000000 * 2500 / 100000000 ) * 1.004
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        # 100bps fee
+        MXN_spent = int((25000000 * 15000 / 100000000 ) * 1.01) + int((20000000 * 10000 / 100000000 ) * 1.01) + int((30000000 * 2500 / 100000000 ) * 1.01)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, BTC_spent)
         self.assertEqual(high_margin, BTC_spent)
         self.assertDictEqual(max_cash_spent, {'MXN': MXN_spent, 'BTC': BTC_spent})
 
         # Now a too big order in terms of MXN
         self.create_order('test', 'BTC/MXN', 50000000, 30000, 'BUY')
-        MXN_spent += (50000000 * 30000 / 100000000) * 1.004
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        # 100bps fee
+        MXN_spent += (50000000 * 30000 / 100000000) * 1.01
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertGreaterEqual(low_margin, 2**48)
         self.assertGreaterEqual(high_margin, 2**48)
         self.assertDictEqual(max_cash_spent, {'MXN': MXN_spent, 'BTC': BTC_spent})
@@ -257,17 +347,18 @@ class TestMargin(TestAccountant):
     def test_predictions_only(self):
         # Check margin given some positions
         from sputnik import margin
+        test = self.get_user('test')
 
         # Long position, no margin needed
         self.create_position('test', 'NETS2015', 4)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, 0)
         self.assertEqual(high_margin, 0)
         self.assertDictEqual(max_cash_spent, {'BTC': 0})
 
         # Short position, fully margined
         self.create_position('test', 'NETS2015', -4)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         # (4 x lotsize)
         self.assertEqual(low_margin, 4000000)
         self.assertEqual(high_margin, 4000000)
@@ -276,24 +367,25 @@ class TestMargin(TestAccountant):
         # With a long order, no position
         self.create_position('test', 'NETS2015', 0)
         id = self.create_order('test', 'NETS2015', 1, 500, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
-        # 1x0.5x lot size plus fee
-        self.assertEqual(low_margin, round(500000 * 1.005))
-        self.assertEqual(high_margin, round(500000 * 1.005))
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
+        # 1x0.5x lot size plus fee (200bps)
+        self.assertEqual(low_margin, round(500000 * 1.02))
+        self.assertEqual(high_margin, round(500000 * 1.02))
 
         # Cash spent for BTC is only the fee here, the cash spent on the trade
         # is dealt with already in the margin calculation
-        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.005)})
+        # 200bps fee
+        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.02)})
         self.cancel_order(id)
 
         # With a short order
         id = self.create_order('test', 'NETS2015', 1, 500, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         # 1x(1 - 0.5)xlot_size (will have to pay 1 if clears at 1, but will receive 0.5 when traded)
-        # Also have to pay a fee
-        self.assertEqual(low_margin, round(500000 * 1.005))
-        self.assertEqual(high_margin, round(500000 * 1.005))
-        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.005)})
+        # Also have to pay a fee (200bps)
+        self.assertEqual(low_margin, round(500000 * 1.02))
+        self.assertEqual(high_margin, round(500000 * 1.02))
+        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.02)})
         self.cancel_order(id)
 
 
@@ -786,9 +878,9 @@ class TestEngineExport(TestAccountant):
             passive_user_NETS2015_position = self.session.query(models.Position).filter_by(username='passive_user',
                                                                                       contract=NETS2015).one()
 
-            # This is based on all BTC fees being zero
-            self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000 - 1500000 * 0.005)
-            self.assertEqual(passive_user_btc_position.position, 3000000 - 1500000)
+            # This is based a 200bps fee on both sides
+            self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000 * 0.98)
+            self.assertEqual(passive_user_btc_position.position, 3000000 - 1500000 * 1.02)
             self.assertEqual(aggressive_user_btc_position.pending_postings, 0)
             self.assertEqual(passive_user_btc_position.pending_postings, 0)
 
@@ -881,9 +973,9 @@ class TestEngineExport(TestAccountant):
             self.assertEqual(aggressive_user_btc_position.position, 2000000)
             self.assertEqual(passive_user_btc_position.position, 400000000 + 3000000)
 
-            # This is based on 40bps MXN fee, only charged to the aggressive_user
-            self.assertEqual(aggressive_user_mxn_position.position, 1792800 + 500000)
-            self.assertEqual(passive_user_mxn_position.position, 1200000)
+            # This is based on 100bps MXN fee charged to both sides (see test_sputnik.py)
+            self.assertEqual(aggressive_user_mxn_position.position, round(1800000 * 0.99) + 500000)
+            self.assertEqual(passive_user_mxn_position.position, round(3000000 - 1800000 * 1.01))
 
         dl = defer.DeferredList([d1, d2])
         dl.addCallback(onSuccess)
@@ -929,7 +1021,8 @@ class TestWebserverExport(TestAccountant):
 
         # Check margin
         from sputnik import margin
-        margin = margin.calculate_margin('test', self.session)
+        test = self.get_user('test')
+        margin = margin.calculate_margin(test, self.session)
         self.assertEqual(margin[0], 3000000)
         self.assertEqual(margin[1], 3000000)
         from sputnik import engine2
@@ -997,10 +1090,12 @@ class TestWebserverExport(TestAccountant):
 
         # Check to make sure margin is right
         from sputnik import margin
+        test = self.get_user('test')
 
-        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin('test', self.session)
-        self.assertEqual(low_margin, 1500000 + 7500)
-        self.assertEqual(high_margin, 1500000 + 7500)
+        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin(test, self.session)
+        # 200bps fee
+        self.assertEqual(low_margin, 1500000 * 1.02)
+        self.assertEqual(high_margin, 1500000 * 1.02)
 
 
     def test_place_order_prediction_sell(self):
@@ -1041,10 +1136,11 @@ class TestWebserverExport(TestAccountant):
 
         # Check to make sure margin is right
         from sputnik import margin
-
-        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin('test', self.session)
-        self.assertEqual(low_margin, 2700000 + 1500)
-        self.assertEqual(high_margin, 2700000 + 1500)
+        test = self.get_user('test')
+        [low_margin, high_margin, max_cash_spent] = margin.calculate_margin(test, self.session)
+        # 200bps fee
+        self.assertEqual(low_margin, 2700000 + 300000 * 0.02)
+        self.assertEqual(high_margin, 2700000 + 300000 * 0.02)
 
 
     def test_place_order_no_perms(self):
