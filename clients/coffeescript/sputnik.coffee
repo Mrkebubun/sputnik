@@ -698,9 +698,6 @@ class @Sputnik extends EventEmitter
         @emit "markets", @markets
 
     onExchangeInfo: (@exchange_info) =>
-        if @exchange_info.locale?
-            @setGlLocale(@exchange_info.locale)
-
         @log ["Exchange Info", @exchange_info]
         @emit "exchange_info", @exchange_info
 
