@@ -6,12 +6,22 @@ from autobahn import util
 from autobahn.wamp import types, auth
 from autobahn.twisted.wamp import ApplicationSession, RouterSession
 
+import config
+
+
+
 class AuthHandler(RouterSession):
     challenge = None
 
+    @inlineCallbacks
     def getUserSecret(self, authid):
-        # foobar, foo
-        return (u'SVNVtlXyvR7OMDzTCFeXcIYROvKo8fP1KSVZCo69t4A=', u"foo")
+        try:
+            dbpool = self.factory.dbpool
+            result = yield dbpool.runQuery('SELECT password, totp FROM users WHERE username=%s LIMIT 1', (authid,))
+            salt, secret = result[0][0].split(":")
+            returnValue((secret, salt))
+        except Exception, e:
+            returnValue(u":", unicode(random.random())[2:])
 
     @inlineCallbacks
     def onHello(self, realm, details):
@@ -85,7 +95,7 @@ if __name__ == "__main__":
     from autobahn.twisted.resource import WebSocketResource
 
     root = File(".")
-    resource = WebSocketResource(transport_factory)
+    resour e = WebSocketResource(transport_factory)
     root.putChild("ws", resource)
     site = Site(root)
     site.noisy = False
