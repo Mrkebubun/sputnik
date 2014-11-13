@@ -17,6 +17,7 @@ permissions add Trade trade login
 permissions add Withdraw withdraw login
 """
 
+
 class FakeEngine(FakeComponent):
     name = "engine"
 
@@ -38,10 +39,19 @@ class FakeLedger(FakeComponent):
         self._log_call('post', *postings)
         return defer.succeed(None)
 
+
 from sputnik import accountant
+
+
 class FakeAccountantProxy(accountant.AccountantExport):
     def get_accountant_for_user(self, username):
         return 0
+
+
+class FakeSafePriceNotifier():
+    @property
+    def safe_price(self):
+        return defer.succeed(42)
 
 
 class TestAccountantBase(TestSputnik):
@@ -54,14 +64,17 @@ class TestAccountantBase(TestSputnik):
             from sputnik import cashier
             from sputnik import engine2
 
-            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
-                            "NETS2015": engine2.AccountantExport(FakeEngine()),
-                            'USDBTC0W': engine2.AccountantExport(FakeEngine())}
+            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
+                            "BTC/PLN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
+                            "BTC/HUF": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
+                            "NETS2014": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
+                            "NETS2015": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
+                            'USDBTC0W': engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier())}
             self.webserver = FakeComponent("webserver")
             self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
             self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
             self.alerts_proxy = FakeComponent("alerts")
-            #self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
+            # self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
             self.accountant = accountant.Accountant(self.session, self.engines,
                                                     self.cashier,
                                                     self.ledger,
@@ -76,6 +89,7 @@ class TestAccountantBase(TestSputnik):
             self.webserver_export = accountant.WebserverExport(self.accountant)
             self.engine_export = accountant.EngineExport(self.accountant)
 
+
 class TestAccountantAudit(TestAccountantBase):
     def setUp(self):
         TestSputnik.setUp(self)
@@ -84,6 +98,7 @@ class TestAccountantAudit(TestAccountantBase):
         self.create_account("messed_up_trader_a", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
         from sputnik import models
+
         BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
         BTCMXN = self.session.query(models.Contract).filter_by(ticker='BTC/MXN').one()
         messed_up_trader_a = self.session.query(models.User).filter_by(username='messed_up_trader_a').one()
@@ -99,7 +114,7 @@ class TestAccountantAudit(TestAccountantBase):
         self.session.commit()
         self.order_id = btc_order.id
 
-        self.clock =  task.Clock()
+        self.clock = task.Clock()
         reactor.callLater = self.clock.callLater
 
         TestAccountantBase.setUp(self)
@@ -108,8 +123,10 @@ class TestAccountantAudit(TestAccountantBase):
         self.accountant.repair_user_positions()
         from sputnik import models, util
         import datetime
+
         BTC = self.session.query(models.Contract).filter_by(ticker="BTC").one()
-        position = self.session.query(models.Position).filter_by(username="messed_up_trader_a").filter_by(contract_id=BTC.id).one()
+        position = self.session.query(models.Position).filter_by(username="messed_up_trader_a").filter_by(
+            contract_id=BTC.id).one()
         self.assertEqual(position.pending_postings, 0)
         self.assertEqual(position.position, 50)
         with self.assertRaisesRegexp(accountant.AccountantException, 'disabled_user'):
@@ -129,6 +146,7 @@ class TestAccountantAudit(TestAccountantBase):
                                                        'side': 'SELL',
                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
+
 class TestAccountant(TestAccountantBase):
     def setUp(self):
         TestSputnik.setUp(self)
@@ -143,6 +161,7 @@ class TestAccountant(TestAccountantBase):
         user.permissions = group
         self.session.merge(user)
         self.session.commit()
+
 
 class TestFees(TestAccountant):
     def setUp(self):
@@ -178,19 +197,29 @@ contracts set NETS2015 fees 350
         for user in [marketmaker, randomtrader, m2, customer]:
             for contract in [BTCMXN, NETS2015, BTCHUF, NETS2014]:
                 for ap in [None, "aggressive", "passive"]:
-                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, 10000, ap=ap)
-        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 50},
-                                           (u'customer', u'NETS2014', None): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2015', None): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 350},
+                    cash_spent = 1000000000
+                    price = 1000000
+                    if contract.contract_type == "futures" or contract.contract_type == "prediction":
+                        quantity = cash_spent * contract.denominator / price / contract.lot_size
+                    else:
+                        payout_contract = contract.payout_contract
+                        quantity = cash_spent * contract.denominator * payout_contract.denominator / price
+
+                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, price, quantity,
+                                                                                      ap=ap)
+
+        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/MXN', None): {u'MXN': 5000000},
+                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 5000000},
+                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 5000000},
+                                           (u'customer', u'NETS2014', None): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2015', None): {u'BTC': 35000000},
+                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 35000000},
+                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 35000000},
                                            (u'm2', u'BTC/HUF', None): {u'HUF': 0},
                                            (u'm2', u'BTC/HUF', 'aggressive'): {u'HUF': 0},
                                            (u'm2', u'BTC/HUF', 'passive'): {u'HUF': 0},
@@ -203,30 +232,31 @@ contracts set NETS2015 fees 350
                                            (u'm2', u'NETS2015', None): {u'BTC': 0},
                                            (u'm2', u'NETS2015', 'aggressive'): {u'BTC': 0},
                                            (u'm2', u'NETS2015', 'passive'): {u'BTC': 0},
-                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -50},
-                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -25},
-                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -100},
-                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -175},
-                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 100},
-                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 700}}
+                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 10000000},
+                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 10000000},
+                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -5000000},
+                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 5000000},
+                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 5000000},
+                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -2500000},
+                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 20000000},
+                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 20000000},
+                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -10000000},
+                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 35000000},
+                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 35000000},
+                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -17500000},
+                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 10000000},
+                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 10000000},
+                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 10000000},
+                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 70000000},
+                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 70000000},
+                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 70000000}}
+
         )
 
 
@@ -237,9 +267,11 @@ class TestMargin(TestAccountant):
 
     def create_position(self, username, ticker, quantity, reference_price=None):
         from sputnik import models
+
         user = self.session.query(models.User).filter_by(username=username).one()
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
         from sqlalchemy.orm.exc import NoResultFound
+
         try:
             position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
             position.position = quantity
@@ -258,6 +290,7 @@ class TestMargin(TestAccountant):
 
     def create_order(self, username, ticker, quantity, price, side, accepted=True):
         from sputnik import models
+
         user = self.session.query(models.User).filter_by(username=username).one()
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
         order = models.Order(user, contract, quantity, price, side)
@@ -268,6 +301,7 @@ class TestMargin(TestAccountant):
 
     def cancel_order(self, id):
         from sputnik import models
+
         order = self.session.query(models.Order).filter_by(id=id).one()
         order.is_cancelled = True
         self.session.commit()
@@ -286,6 +320,7 @@ class TestMargin(TestAccountant):
 
         # No orders
         from sputnik import margin
+
         test = self.get_user('test')
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, 0)
@@ -314,8 +349,8 @@ class TestMargin(TestAccountant):
         # 0.5BTC for 3Pesos each for 1.5Peso total cost plus fees
         id = self.create_order('test', 'BTC/MXN', 50000000, 30000, 'BUY')
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertGreaterEqual(low_margin, 2**48)
-        self.assertGreaterEqual(high_margin, 2**48)
+        self.assertGreaterEqual(low_margin, 2 ** 48)
+        self.assertGreaterEqual(high_margin, 2 ** 48)
         # 100bps fee
         self.assertDictEqual(max_cash_spent, {'MXN': 15000 * 1.01, 'BTC': 0})
         self.cancel_order(id)
@@ -333,12 +368,13 @@ class TestMargin(TestAccountant):
         self.create_order('test', 'BTC/MXN', 50000000, 15000, 'SELL')
         self.create_order('test', 'BTC/MXN', 25000000, 15000, 'BUY')
         self.create_order('test', 'BTC/MXN', 20000000, 10000, 'BUY')
-        self.create_order('test', 'BTC/MXN', 30000000,  2500, 'BUY')
+        self.create_order('test', 'BTC/MXN', 30000000, 2500, 'BUY')
         self.create_order('test', 'BTC/MXN', 20000000, 15000, 'SELL')
 
         BTC_spent = 50000000 + 20000000
         # 100bps fee
-        MXN_spent = int((25000000 * 15000 / 100000000 ) * 1.01) + int((20000000 * 10000 / 100000000 ) * 1.01) + int((30000000 * 2500 / 100000000 ) * 1.01)
+        MXN_spent = int((25000000 * 15000 / 100000000 ) * 1.01) + int((20000000 * 10000 / 100000000 ) * 1.01) + int(
+            (30000000 * 2500 / 100000000 ) * 1.01)
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
         self.assertEqual(low_margin, BTC_spent)
         self.assertEqual(high_margin, BTC_spent)
@@ -349,13 +385,14 @@ class TestMargin(TestAccountant):
         # 100bps fee
         MXN_spent += (50000000 * 30000 / 100000000) * 1.01
         low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertGreaterEqual(low_margin, 2**48)
-        self.assertGreaterEqual(high_margin, 2**48)
+        self.assertGreaterEqual(low_margin, 2 ** 48)
+        self.assertGreaterEqual(high_margin, 2 ** 48)
         self.assertDictEqual(max_cash_spent, {'MXN': MXN_spent, 'BTC': BTC_spent})
 
     def test_predictions_only(self):
         # Check margin given some positions
         from sputnik import margin
+
         test = self.get_user('test')
 
         # Long position, no margin needed
@@ -401,29 +438,31 @@ class TestMargin(TestAccountant):
         from sputnik import margin
         # Place an order with no position, safe_price is same as order price
         id = self.create_order('test', 'USDBTC0W', 1, 1000, 'BUY')
+        test = self.get_user('test')
+
         safe_prices = {'USDBTC0W': 1000}
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
         # include fees
-        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1000 * 1 * 100000 / 1000 * 0.005)
-        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1000 * 1 * 100000 / 1000 * 0.005)
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1000 * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1000 * 1 * 100000 / 1000 * 0.02)
         self.cancel_order(id)
 
         # Place an order with no position, but order price is not safe price
         id = self.create_order('test', 'USDBTC0W', 1, 1500, 'BUY')
         safe_prices = {'USDBTC0W': 1000}
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
         # include fees
-        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1500 * 1 * 100000 / 1000 * 0.005)
-        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1500 * 1 * 100000 / 1000 * 0.005)
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1500 * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1500 * 1 * 100000 / 1000 * 0.02)
         self.cancel_order(id)
 
         # Place two offsetting orders
         id1 = self.create_order('test', 'USDBTC0W', 1, 500, 'BUY')
         id2 = self.create_order('test', 'USDBTC0W', 1, 1500, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
         # include fees
-        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + (1500 + 500) * 1 * 100000 / 1000 * 0.005)
-        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + (1500 + 500) * 1 * 100000 / 1000 * 0.005)
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + (1500 + 500) * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + (1500 + 500) * 1 * 100000 / 1000 * 0.02)
         self.cancel_order(id1)
         self.cancel_order(id2)
 
@@ -431,7 +470,7 @@ class TestMargin(TestAccountant):
         # Force the safe price to 1000 too
         safe_prices = {'USDBTC0W': 1000}
         self.create_position('test', 'USDBTC0W', 1, reference_price=1000)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
 
         # Margin should just be price x quantity x lot_size / denominator * low/high_margin
         self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25)
@@ -439,7 +478,7 @@ class TestMargin(TestAccountant):
 
         # Check short position
         self.create_position('test', 'USDBTC0W', -1, reference_price=1000)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
 
         # Margin should just be price x quantity x lot_size / denominator * low/high_margin
         self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25)
@@ -448,7 +487,7 @@ class TestMargin(TestAccountant):
         # Now the price has moved
         safe_prices = {'USDBTC0W': 1500}
         self.create_position('test', 'USDBTC0W', 1, reference_price=1000)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
 
         # Margin should just be price x quantity x lot_size / denominator * low/high_margin minus the impact of the price move
         # base margin has increased though because safe price has increased
@@ -457,12 +496,11 @@ class TestMargin(TestAccountant):
 
         # Check short position
         self.create_position('test', 'USDBTC0W', -1, reference_price=1000)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin('test', self.session, safe_prices=safe_prices)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
 
         # Margin should just be price x quantity x lot_size / denominator * low/high_margin plus the impact of the price move
         self.assertEqual(low_margin, 1500 * 1 * 100000 / 1000 * 0.25 + 500 * 1 * 100000 / 1000)
         self.assertEqual(high_margin, 1500 * 1 * 100000 / 1000 * 0.50 + 500 * 1 * 100000 / 1000)
-
 
 
 class TestCashierExport(TestAccountant):
@@ -707,20 +745,20 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group("long_account", "Trade")
 
         self.webserver_export.place_order('short_account', {'username': 'short_account',
-                                                                              'contract': 'NETS2015',
-                                                                              'price': 900,
-                                                                              'quantity': 3,
-                                                                              'side': 'SELL',
-                                                                              'timestamp': util.dt_to_timestamp(
-                                                                                  datetime.datetime.utcnow())})
+                                                            'contract': 'NETS2015',
+                                                            'price': 900,
+                                                            'quantity': 3,
+                                                            'side': 'SELL',
+                                                            'timestamp': util.dt_to_timestamp(
+                                                                datetime.datetime.utcnow())})
 
         self.webserver_export.place_order('long_account', {'username': 'long_account',
-                                                                                    'contract': 'NETS2015',
-                                                                                    'price': 100,
-                                                                                    'quantity': 3,
-                                                                                    'side': 'BUY',
-                                                                                    'timestamp': util.dt_to_timestamp(
-                                                                                        datetime.datetime.utcnow())})
+                                                           'contract': 'NETS2015',
+                                                           'price': 100,
+                                                           'quantity': 3,
+                                                           'side': 'BUY',
+                                                           'timestamp': util.dt_to_timestamp(
+                                                               datetime.datetime.utcnow())})
         d = defer.DeferredList([d1, d2])
 
         def on_setup_done(results):
@@ -733,6 +771,7 @@ class TestAdministratorExport(TestAccountant):
             self.session.commit()
 
             d = self.administrator_export.clear_contract(None, 'NETS2015', 1000, uid)
+
             def on_clear(results):
                 BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
                 short_positions = self.session.query(models.Position).filter_by(username='short_account')
@@ -740,8 +779,8 @@ class TestAdministratorExport(TestAccountant):
                 self.assertEqual(short_positions.filter_by(contract=NETS).one().position, 0)
                 self.assertEqual(long_positions.filter_by(contract=NETS).one().position, 0)
 
-                self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 53000000-5000000)
-                self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 3000000+5000000)
+                self.assertEqual(short_positions.filter_by(contract=BTC).one().position, 53000000 - 5000000)
+                self.assertEqual(long_positions.filter_by(contract=BTC).one().position, 3000000 + 5000000)
 
                 short_orders = self.session.query(models.Order).filter_by(username='short_account').filter_by(
                     is_cancelled=False).all()
@@ -760,6 +799,7 @@ class TestAdministratorExport(TestAccountant):
         from sputnik import util
         from sputnik import models
         import datetime
+
         self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
@@ -768,26 +808,26 @@ class TestAdministratorExport(TestAccountant):
         self.set_permissions_group('long_account', 'Deposit')
 
         self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5000000)
-        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv",  5000000)
+        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5000000)
 
         self.set_permissions_group("short_account", 'Trade')
         self.set_permissions_group("long_account", "Trade")
 
         o1 = self.webserver_export.place_order('short_account', {'username': 'short_account',
-                                                                              'contract': 'USDBTC0W',
-                                                                              'price': 1100,
-                                                                              'quantity': 1,
-                                                                              'side': 'SELL',
-                                                                              'timestamp': util.dt_to_timestamp(
-                                                                                  datetime.datetime.utcnow())})
+                                                                 'contract': 'USDBTC0W',
+                                                                 'price': 1100,
+                                                                 'quantity': 1,
+                                                                 'side': 'SELL',
+                                                                 'timestamp': util.dt_to_timestamp(
+                                                                     datetime.datetime.utcnow())})
 
         o2 = self.webserver_export.place_order('long_account', {'username': 'long_account',
-                                                                                    'contract': 'USDBTC0W',
-                                                                                    'price': 900,
-                                                                                    'quantity': 1,
-                                                                                    'side': 'BUY',
-                                                                                    'timestamp': util.dt_to_timestamp(
-                                                                                        datetime.datetime.utcnow())})
+                                                                'contract': 'USDBTC0W',
+                                                                'price': 900,
+                                                                'quantity': 1,
+                                                                'side': 'BUY',
+                                                                'timestamp': util.dt_to_timestamp(
+                                                                    datetime.datetime.utcnow())})
 
         # Make like a trade happened
         uid = util.get_uid()
@@ -805,6 +845,7 @@ class TestAdministratorExport(TestAccountant):
         }
 
         import copy
+
         short_transaction = copy.copy(long_transaction)
         short_transaction['aggressive'] = False
         short_transaction['order'] = o2
@@ -828,6 +869,7 @@ class TestAdministratorExport(TestAccountant):
 
             # Clear at 50 more than it was traded for
             d = self.administrator_export.clear_contract(None, 'USDBTC0W', 1050, uid)
+
             def on_clear(results):
                 BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
                 short_positions = self.session.query(models.Position).filter_by(username='short_account')
@@ -838,17 +880,17 @@ class TestAdministratorExport(TestAccountant):
                 for position in clearing_positions:
                     self.assertEqual(position.position, 0)
 
-                # short_account should have lost 50 x lotsize / denominator plus fees (no fees because passive)
+                # short_account should have lost 50 x lotsize / denominator plus fees (200bps of transaction size)
                 for position in short_positions:
                     if position.contract.ticker == 'BTC':
-                        self.assertEqual(position.position, 5000000 - 50 * 100000 / 1000 )
+                        self.assertEqual(position.position, 5000000 - 50 * 100000 / 1000 - 1000 * 100000 / 1000 * 0.02)
                     if position.contract.ticker == 'USDBTC0W':
                         self.assertEqual(position.position, 0)
 
-                # Long account should have gained 50 x lotsize / denominator - fees
+                # Long account should have gained 50 x lotsize / denominator - fees (200bps)
                 for position in long_positions:
                     if position.contract.ticker == 'BTC':
-                        self.assertEqual(position.position, 5000000 + 50 * 100000 / 1000 - 1000 * 100000 / 1000 * 0.005)
+                        self.assertEqual(position.position, 5000000 + 50 * 100000 / 1000 - 1000 * 100000 / 1000 * 0.02)
                     if position.contract.ticker == 'USDBTC0W':
                         self.assertEqual(position.position, 0)
 
@@ -989,7 +1031,7 @@ class TestEngineExport(TestAccountant):
         import datetime
 
         self.create_account("aggressive_user", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv',)
+        self.create_account("passive_user", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', )
         self.set_permissions_group("aggressive_user", 'Deposit')
         self.set_permissions_group("passive_user", "Deposit")
         self.cashier_export.deposit_cash('aggressive_user', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
@@ -999,20 +1041,20 @@ class TestEngineExport(TestAccountant):
         self.set_permissions_group("passive_user", "Trade")
 
         passive_order = self.webserver_export.place_order('passive_user', {'username': 'passive_user',
-                                                                              'contract': 'NETS2015',
-                                                                              'price': 500,
-                                                                              'quantity': 3,
-                                                                              'side': 'BUY',
-                                                                              'timestamp': util.dt_to_timestamp(
-                                                                                  datetime.datetime.utcnow())})
+                                                                           'contract': 'NETS2015',
+                                                                           'price': 500,
+                                                                           'quantity': 3,
+                                                                           'side': 'BUY',
+                                                                           'timestamp': util.dt_to_timestamp(
+                                                                               datetime.datetime.utcnow())})
 
         aggressive_order = self.webserver_export.place_order('aggressive_user', {'username': 'aggressive_user',
-                                                                                    'contract': 'NETS2015',
-                                                                                    'price': 500,
-                                                                                    'quantity': 3,
-                                                                                    'side': 'SELL',
-                                                                                    'timestamp': util.dt_to_timestamp(
-                                                                                        datetime.datetime.utcnow())})
+                                                                                 'contract': 'NETS2015',
+                                                                                 'price': 500,
+                                                                                 'quantity': 3,
+                                                                                 'side': 'SELL',
+                                                                                 'timestamp': util.dt_to_timestamp(
+                                                                                     datetime.datetime.utcnow())})
 
         uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
@@ -1050,10 +1092,11 @@ class TestEngineExport(TestAccountant):
                                                                                          contract=BTC).one()
             passive_user_btc_position = self.session.query(models.Position).filter_by(username='passive_user',
                                                                                       contract=BTC).one()
-            aggressive_user_NETS2015_position = self.session.query(models.Position).filter_by(username='aggressive_user',
-                                                                                         contract=NETS2015).one()
+            aggressive_user_NETS2015_position = self.session.query(models.Position).filter_by(
+                username='aggressive_user',
+                contract=NETS2015).one()
             passive_user_NETS2015_position = self.session.query(models.Position).filter_by(username='passive_user',
-                                                                                      contract=NETS2015).one()
+                                                                                           contract=NETS2015).one()
 
             # This is based a 200bps fee on both sides
             self.assertEqual(aggressive_user_btc_position.position, 5000000 + 1500000 * 0.98)
@@ -1090,21 +1133,20 @@ class TestEngineExport(TestAccountant):
         self.set_permissions_group("passive_user", "Trade")
 
         passive_order = self.webserver_export.place_order('passive_user', {'username': 'passive_user',
-                                                                              'contract': 'BTC/MXN',
-                                                                              'price': 60000000,
-                                                                              'quantity': 3000000,
-                                                                              'side': 'BUY',
-                                                                              'timestamp': util.dt_to_timestamp(
-                                                                                  datetime.datetime.utcnow())})
+                                                                           'contract': 'BTC/MXN',
+                                                                           'price': 60000000,
+                                                                           'quantity': 3000000,
+                                                                           'side': 'BUY',
+                                                                           'timestamp': util.dt_to_timestamp(
+                                                                               datetime.datetime.utcnow())})
 
         aggressive_order = self.webserver_export.place_order('aggressive_user', {'username': 'aggressive_user',
-                                                                                    'contract': 'BTC/MXN',
-                                                                                    'price': 60000000,
-                                                                                    'quantity': 3000000,
-                                                                                    'side': 'SELL',
-                                                                                    'timestamp': util.dt_to_timestamp(
-                                                                                        datetime.datetime.utcnow())})
-
+                                                                                 'contract': 'BTC/MXN',
+                                                                                 'price': 60000000,
+                                                                                 'quantity': 3000000,
+                                                                                 'side': 'SELL',
+                                                                                 'timestamp': util.dt_to_timestamp(
+                                                                                     datetime.datetime.utcnow())})
 
         uid = util.get_uid()
         timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
@@ -1173,19 +1215,18 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         # We should not need MXN to sell BTC for MXN
-        #self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        # self.cashier_export.deposit_cash('test', '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         from sputnik import util
         import datetime
         # Place a sell order, we have enough cash
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'BTC/MXN',
-                                                       'price': 1000000,
-                                                       'quantity': 3000000,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
-
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 1000000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         from sputnik import models
 
@@ -1198,18 +1239,20 @@ class TestWebserverExport(TestAccountant):
 
         # Check margin
         from sputnik import margin
+
         test = self.get_user('test')
         margin = margin.calculate_margin(test, self.session)
         self.assertEqual(margin[0], 3000000)
         self.assertEqual(margin[1], 3000000)
         from sputnik import engine2
+
         self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
                                                                             (engine2.Order(**{'contract': 5,
-                                                                              'id': 1,
-                                                                              'price': 1000000,
-                                                                              'quantity': 3000000,
-                                                                              'side': 1,
-                                                                              'username': u'test'}),),
+                                                                                              'id': 1,
+                                                                                              'price': 1000000,
+                                                                                              'quantity': 3000000,
+                                                                                              'side': 1,
+                                                                                              'username': u'test'}),),
                                                                             {})]))
 
     def test_place_order_prediction_expired(self):
@@ -1241,11 +1284,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
 
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'NETS2015',
-                                                       'price': 500,
-                                                       'quantity': 3,
-                                                       'side': 'BUY',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                        'contract': 'NETS2015',
+                                                        'price': 500,
+                                                        'quantity': 3,
+                                                        'side': 'BUY',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         from sputnik import models
 
@@ -1256,17 +1299,19 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(order.quantity, 3)
         self.assertEqual(order.side, 'BUY')
         from sputnik import engine2
+
         self.assertTrue(self.engines['NETS2015'].component.check_for_calls([('place_order',
                                                                              (engine2.Order(**{'contract': 8,
-                                                                               'id': 1,
-                                                                               'price': 500,
-                                                                               'quantity': 3,
-                                                                               'side': -1,
-                                                                               'username': u'test'}),),
+                                                                                               'id': 1,
+                                                                                               'price': 500,
+                                                                                               'quantity': 3,
+                                                                                               'side': -1,
+                                                                                               'username': u'test'}),),
                                                                              {})]))
 
         # Check to make sure margin is right
         from sputnik import margin
+
         test = self.get_user('test')
 
         [low_margin, high_margin, max_cash_spent] = margin.calculate_margin(test, self.session)
@@ -1286,11 +1331,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
 
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'NETS2015',
-                                                       'price': 100,
-                                                       'quantity': 3,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                        'contract': 'NETS2015',
+                                                        'price': 100,
+                                                        'quantity': 3,
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         from sputnik import models
 
@@ -1302,17 +1347,19 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(order.side, 'SELL')
 
         from sputnik import engine2
+
         self.assertTrue(self.engines['NETS2015'].component.check_for_calls([('place_order',
                                                                              (engine2.Order(**{'contract': 8,
-                                                                               'id': 1,
-                                                                               'price': 100,
-                                                                               'quantity': 3,
-                                                                               'side': 1,
-                                                                               'username': u'test'}),),
+                                                                                               'id': 1,
+                                                                                               'price': 100,
+                                                                                               'quantity': 3,
+                                                                                               'side': 1,
+                                                                                               'username': u'test'}),),
                                                                              {})]))
 
         # Check to make sure margin is right
         from sputnik import margin
+
         test = self.get_user('test')
         [low_margin, high_margin, max_cash_spent] = margin.calculate_margin(test, self.session)
         # 200bps fee
@@ -1388,7 +1435,7 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group("test", 'Deposit')
         self.cashier_export.deposit_cash("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         # We should not need MXN to sell BTC for MXN
-        #self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
+        # self.cashier_export.deposit_cash("test", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group("test", 'Trade')
 
         # Place a sell order, we have enough cash
@@ -1396,12 +1443,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
 
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'BTC/MXN',
-                                                       'price': 1000000,
-                                                       'quantity': 3000000,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
-
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 1000000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         from sputnik import models
 
@@ -1412,13 +1458,14 @@ class TestWebserverExport(TestAccountant):
         self.assertEqual(order.quantity, 3000000)
         self.assertEqual(order.side, 'SELL')
         from sputnik import engine2
+
         self.assertTrue(self.engines['BTC/MXN'].component.check_for_calls([('place_order',
                                                                             (engine2.Order(**{'contract': 5,
-                                                                              'id': 1,
-                                                                              'price': 1000000,
-                                                                              'quantity': 3000000,
-                                                                              'side': 1,
-                                                                              'username': u'test'}),),
+                                                                                              'id': 1,
+                                                                                              'price': 1000000,
+                                                                                              'quantity': 3000000,
+                                                                                              'side': 1,
+                                                                                              'username': u'test'}),),
                                                                             {})]))
 
         # Place another sell, we have insufficient cash now
@@ -1449,11 +1496,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
 
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'BTC/MXN',
-                                                       'price': 1000000,
-                                                       'quantity': 3000000,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 1000000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
         def cancelSuccess(result):
             self.assertEquals(result, None)
@@ -1478,11 +1525,11 @@ class TestWebserverExport(TestAccountant):
         import datetime
 
         id = self.webserver_export.place_order('test', {'username': 'test',
-                                                       'contract': 'BTC/MXN',
-                                                       'price': 1000000,
-                                                       'quantity': 3000000,
-                                                       'side': 'SELL',
-                                                       'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
+                                                        'contract': 'BTC/MXN',
+                                                        'price': 1000000,
+                                                        'quantity': 3000000,
+                                                        'side': 'SELL',
+                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
 
 
         def cancelSuccess(result):

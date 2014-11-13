@@ -93,7 +93,7 @@ class Accountant:
         self.trial_period = trial_period
         self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
-                active=True).all():
+                active=True).filter(models.Contract.contract_type != "cash"):
             d = self.engines[contract.ticker].get_safe_price()
             def get_cb(ticker):
                 def _cb(safe_price):
@@ -331,8 +331,8 @@ class Accountant:
             self.session.add(position)
             return position
 
-    def check_margin(self, username, low_margin, high_margin):
-        cash = self.get_position_value(username, "BTC")
+    def check_margin(self, user, low_margin, high_margin):
+        cash = self.get_position_value(user, "BTC")
 
         log.msg("high_margin = %d, low_margin = %d, cash_position = %d" %
                      (high_margin, low_margin, cash))
@@ -439,10 +439,10 @@ class Accountant:
                 raise TRADE_NOT_PERMITTED
 
             low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-                order.username, self.session, self.safe_prices, order.id,
+                order.user, self.session, self.safe_prices, order.id,
                 trial_period=self.trial_period)
 
-            if not self.check_margin(order.username, low_margin, high_margin):
+            if not self.check_margin(order.user, low_margin, high_margin):
                 log.msg("Order rejected due to margin.")
                 try:
                     self.session.delete(order)
@@ -633,13 +633,10 @@ class Accountant:
             remote_postings.append(system_posting)
 
         # calculate fees
-        # We aren't charging the liquidity provider
         fees = {}
         fees = util.get_fees(user, contract,
-                price, quantity, trial_period=self.trial_period)
-        if not aggressive:
-            for fee in fees:
-                fees[fee] = 0
+                price, quantity, trial_period=self.trial_period, ap="aggressive" if aggressive else "passive")
+
 
         user_fees, vendor_fees, remainder_fees = self.charge_fees(fees, user)
 

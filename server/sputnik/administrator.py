@@ -195,7 +195,7 @@ class Administrator:
         :raises: INVALID_TOKEN, EXPIRED_TOKEN
         """
         token_good = False
-        found_tokens = self.session.query(models.ResetToken).filter_by(token=input_token, username=username)
+        found_tokens = self.session.query(models.ResetToken).filter_by(token=input_token, username=username).all()
         if not len(found_tokens):
             raise INVALID_TOKEN
         for token in found_tokens:

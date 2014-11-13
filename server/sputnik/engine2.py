@@ -377,7 +377,7 @@ class AccountantNotifier(EngineListener):
 
 
 class WebserverNotifier(EngineListener):
-    def __init__(self, engine, webserver, contract):
+    def __init__(self, engine, webserver, contract, reg_publish=True):
         self.engine = engine
         self.webserver = webserver
         self.contract = contract
@@ -386,11 +386,12 @@ class WebserverNotifier(EngineListener):
                           OrderSide.SELL: "asks"}
 
         # Publish every 10 min no matter what
-        def regular_publish():
-            self.publish_book()
-            reactor.callLater(600, regular_publish)
+        if reg_publish:
+            def regular_publish():
+                self.publish_book()
+                reactor.callLater(600, regular_publish)
 
-        reactor.callLater(600, regular_publish)
+            reactor.callLater(600, regular_publish)
 
     def on_init(self):
         self.publish_book()

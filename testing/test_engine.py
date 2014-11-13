@@ -284,7 +284,7 @@ class TestWebserverNotifier(TestNotifier):
         from sputnik import engine2
 
         self.webserver = FakeComponent()
-        self.webserver_notifier = engine2.WebserverNotifier(self.engine, self.webserver, self.contract)
+        self.webserver_notifier = engine2.WebserverNotifier(self.engine, self.webserver, self.contract, reg_publish=False)
 
     def test_on_queue_success(self):
         self.webserver_notifier.on_queue_success(self.order)

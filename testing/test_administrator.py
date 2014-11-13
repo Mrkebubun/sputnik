@@ -72,6 +72,7 @@ class TestAdministrator(TestSputnik):
         self.administrator = administrator.Administrator(self.session, accountant, cashier,
                                                          engines,
                                                          zendesk_domain,
+                                                         accountant,
                                                          debug=True,
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",

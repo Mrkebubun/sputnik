@@ -11,7 +11,6 @@ class MarginException(Exception):
 
 
 def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
-def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -26,7 +25,10 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     cash_position = collections.defaultdict(int)
 
     # let's start with positions
-    positions = {position.contract_id: position for position in
+    positions = {position.contract_id: { 'position': position.position,
+                                         'reference_price': position.reference_price,
+                                         'contract': position.contract }
+                 for position in
                  session.query(models.Position).filter_by(user=user)}
 
     open_orders = session.query(models.Order).filter_by(user=user).filter(
