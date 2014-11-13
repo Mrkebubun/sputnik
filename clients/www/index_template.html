@@ -16,7 +16,7 @@
                     <div class="tab-content">
                         <div class="tab-pane active" id="login_tab">
                             <form class="form-signin content-push4" role="form">
-                                <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/username', sputnik.profile.locale)}}" required
+                                <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required
                                        autofocus><br>
                                 <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
                                 required><br>
@@ -32,13 +32,9 @@
                         </div>
                         <div class="tab-pane" id="register_tab">
                             <form class="form-signin form-horizontal" role="form">
-                                <input type="text" class="form-control" id="register_username" placeholder="{{translate('fields/username', sputnik.profile.locale)}}" required
-                                       autofocus><br>
                                 <input type="email" class="form-control" id="register_email" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required><br>
                                 <input type="password" class="form-control" id="register_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
                                        required><br>
-                                <input type="text" class="form-control" id="register_nickname"
-                                       placeholder="{{translate('fields/nickname', sputnik.profile.locale)}}"><br>
                                 <div class="form-group">
                                     <div class="col-xs-9 content-push5">
                                         <label> <input type="checkbox" id="register_eula" value="1">
