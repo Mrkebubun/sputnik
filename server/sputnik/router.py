@@ -124,7 +124,7 @@ class AuthHandler(RouterSession):
 
     def verifyCookie(self, signature, extra):
         authid = self.factory.cookies.get(signature, None)
-        if authid == self.challenge["authid"]:
+        if authid != None and authid == self.challenge["authid"]:
             return types.Accept(authid=self.challenge["authid"],
                     authrole=self.challenge["authrole"],
                     authmethod=self.challenge["authmethod"],
