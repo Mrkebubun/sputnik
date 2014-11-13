@@ -5,6 +5,8 @@ class @Locale
             en: {}
             pt: {}
             es: {}
+            "pt-BR": {}
+            "es-419": {}
 
     init: () =>
         this_object = this
@@ -24,7 +26,9 @@ class @Locale
                     # TODO: Use the supported_locales to do all these calls
                     this_object.loadLocale("en"),
                     this_object.loadLocale("pt"),
-                    this_object.loadLocale("es")
+                    this_object.loadLocale("pt-BR"),
+                    this_object.loadLocale("es"),
+                    this_object.loadLocale("es-419")
                 )
             )
         ).then( () ->
