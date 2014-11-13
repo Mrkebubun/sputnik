@@ -75,11 +75,15 @@ class FeeGroup(db.Base):
     name = Column(String, nullable=False, unique=True)
     aggressive_factor = Column(Integer, server_default="100", nullable=False)
     passive_factor = Column(Integer, server_default="100", nullable=False)
+    withdraw_factor = Column(Integer, server_default="100", nullable=False)
+    deposit_factor = Column(Integer, server_default="100", nullable=False)
 
-    def __init__(self, name, aggressive_factor, passive_factor):
+    def __init__(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         self.name = name
         self.aggressive_factor = aggressive_factor
         self.passive_factor = passive_factor
+        self.withdraw_factor = withdraw_factor
+        self.deposit_factor = deposit_factor
 
     def __repr__(self):
         return "<FeeGroup('%s', %d, %d)>" % (self.name, self.aggressive_factor, self.passive_factor)
@@ -100,7 +104,19 @@ class Contract(db.Base):
     expiration = Column(DateTime)
     #expired = Column(Boolean, server_default=sql.false())
     # Fees in bps
+    # Not for cash contracts
     fees = Column(BigInteger, server_default="100", nullable=False)
+
+    # For currencies
+    # In terms of the currency
+    withdraw_base_fee = Column(BigInteger, server_default="0", nullable=False)
+    # bps
+    withdraw_bps_fee = Column(BigInteger, server_default="0", nullable=False)
+
+    # in terms of currency
+    deposit_base_fee = Column(BigInteger, server_default="0", nullable=False)
+    # bps
+    deposit_bps_fee = Column(BigInteger, server_default="0", nullable=False)
 
     denominated_contract_ticker = Column(String, ForeignKey('contracts.ticker'))
     denominated_contract = relationship('Contract', remote_side='Contract.ticker',

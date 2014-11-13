@@ -153,6 +153,27 @@ def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
     final_fee = int(round(base_fee * user_factor / 100 / 10000))
     return {contract.denominated_contract.ticker: final_fee}
 
+def get_deposit_fees(user, contract, deposit_amount, trial_period=False):
+    if trial_period:
+        return {}
+
+    base_fee = round(contract.deposit_base_fee + deposit_amount * contract.deposit_bps_fee)
+    user_factor = user.fees.deposit_factor
+    final_fee = int(round(base_fee * user_factor / 100 / 10000))
+
+    return {contract.ticker: final_fee}
+
+def get_withdraw_fees(user, contract, withdraw_amount, trial_period=False):
+    if trial_period:
+        return {}
+
+    base_fee = round(contract.withdraw_base_fee + withdraw_amount * contract.withdraw_bps_fee)
+    user_factor = user.fees.withdraw_factor
+    final_fee = int(round(base_fee * user_factor / 100 / 10000))
+
+    return {contract.ticker: final_fee}
+
+
 def get_contract(session, ticker):
     """
     Return the Contract object corresponding to the ticker.

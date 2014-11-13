@@ -849,7 +849,7 @@ class Administrator:
         log.msg("Changing fee group for %s to %d" % (username, id))
         self.accountant.change_fee_group(username, id)
 
-    def modify_fee_group(self, id, name, aggressive_factor, passive_factor):
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         """Change the permission group for a user
 
         :param username: The user we are changing
@@ -864,6 +864,8 @@ class Administrator:
             group.name = name
             group.aggressive_factor = aggressive_factor
             group.passive_factor = passive_factor
+            group.withdraw_factor = withdraw_factor
+            group.deposit_factor = deposit_factor
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -871,10 +873,10 @@ class Administrator:
 
         self.accountant.reload_fee_group(None, group.id)
 
-    def new_fee_group(self, name, aggressive_factor, passive_factor):
+    def new_fee_group(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         try:
             log.msg("Creating new fee group: %s" % name)
-            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
             self.session.add(fee_group)
             self.session.commit()
         except Exception as e:

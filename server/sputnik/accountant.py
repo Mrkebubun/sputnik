@@ -402,7 +402,7 @@ class Accountant:
             raise INSUFFICIENT_MARGIN
 
 
-    def charge_fees(self, fees, user):
+    def charge_fees(self, fees, user, type="Trade"):
         """Credit fees to the people operating the exchange
         :param fees: The fees to charge ticker-index dict of fees to charge
         :type fees: dict
@@ -425,7 +425,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = create_posting("Trade", user.username,
+            user_posting = create_posting(type, user.username,
                     contract.ticker, fee, 'debit', note="Fee")
             user_postings.append(user_posting)
 
@@ -437,7 +437,7 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = create_posting("Trade",
+                vendor_posting = create_posting(type,
                         vendor_user.username, contract.ticker, vendor_credit,
                         'credit', note="Vendor Credit")
                 vendor_postings.append(vendor_posting)
@@ -447,7 +447,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = create_posting("Trade",
+            remainder_posting = create_posting(type,
                     remainder_user.username, contract.ticker, remaining_fee,
                     'credit')
             remainder_postings.append(remainder_posting)
@@ -867,15 +867,11 @@ class Accountant:
                 log.err("Withdraw request for a wrong lot_size qty: %d" % amount)
                 raise INVALID_CURRENCY_QUANTITY
 
-            uid = util.get_uid()
+
             credit_posting = create_posting("Withdrawal",
                     'pendingwithdrawal', ticker, amount, 'credit', note=address)
-            credit_posting['uid'] = uid
-            credit_posting['count'] = 2
             debit_posting = create_posting("Withdrawal", user.username,
                     ticker, amount, 'debit', note=address)
-            debit_posting['uid'] = uid
-            debit_posting['count'] = 2
 
             # Audit the user
             if not self.is_user_enabled(user):
@@ -891,6 +887,26 @@ class Accountant:
                 log.msg("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
+                my_postings = [credit_posting]
+                remote_postings = [debit_posting]
+                # Withdraw Fees
+                fees = util.get_withdraw_fees(user, contract, amount, trial_period=self.trial_period)
+                user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Withdrawal")
+
+                my_postings.extend(user_postings)
+                remote_postings.extend(vendor_postings)
+                remote_postings.extend(remainder_postings)
+
+                count = len(remote_postings + my_postings)
+                uid = util.get_uid()
+                for posting in my_postings + remote_postings:
+                    posting['count'] = count
+                    posting['uid'] = uid
+
+                d = self.post_or_fail(*my_postings)
+                for posting in remote_postings:
+                    self.accountant_proxy.remote_post(posting['username'], posting)
+
                 self.accountant_proxy.remote_post('pendingwithdrawal', credit_posting)
                 d = self.post_or_fail(debit_posting)
                 def onSuccess(result):
@@ -994,6 +1010,14 @@ class Accountant:
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
+
+            # Deposit Fees
+            fees = util.get_deposit_fees(user, contract, deposit, trial_period=self.trial_period)
+            user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Deposit")
+
+            my_postings.extend(user_postings)
+            remote_postings.extend(vendor_postings)
+            remote_postings.extend(remainder_postings)
 
             count = len(remote_postings + my_postings)
             uid = util.get_uid()
