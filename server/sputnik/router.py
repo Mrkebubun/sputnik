@@ -11,6 +11,7 @@ from autobahn.twisted.wamp import ApplicationSession, RouterSession
 import config
 
 class AuthHandler(RouterSession):
+    authmethod = None # chosen authentication method
     challenge = None # challenge object
     signature = None # signature of challange
     totp = None # totp secret
@@ -158,7 +159,9 @@ class AuthHandler(RouterSession):
         elif self.authmethod == u"cookie":
             return self.verifyCookie(signature, extra)
 
-        return types.Deny(message=u"Server error.")
+        # TODO: Check to see if WAMP implementation protects us from clients
+        #   sending authentication packets before hello (probably, but check).
+        return types.Deny(message=u"Protocol error.")
 
 
 
