@@ -3,7 +3,9 @@
         "locales": {
             "en": "English",
             "es": "Spanish",
-            "pt": "Portuguese"
+            "pt": "Portuguese",
+            "pt-BR": "Portuguese/Brazil",
+            "es-419": "Spanish/LatAm"
         },
         "top_menu": {
             "dashboard": "Dashboard",
