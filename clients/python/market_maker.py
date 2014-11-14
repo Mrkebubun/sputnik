@@ -98,8 +98,8 @@ class MarketMakerBot(TradingBot):
                         url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
                         file_handle = urllib2.urlopen(url)
                         soup = BeautifulSoup(file_handle)
-                        bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text)
-                        ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text)
+                        bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                        ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
                     except Exception as e:
                         # Unable to get markets, just exit
                         print "unable to get external market data: %s" % e
@@ -108,8 +108,7 @@ class MarketMakerBot(TradingBot):
 
                     new_bid = btcusd_bid * bid
                     new_ask = btcusd_ask * ask
-                    if ticker == "BTC/PLN":
-                        logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
+                    logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
                     # Make sure that the marketwe are making isn't crossed
                     if new_bid > new_ask:
