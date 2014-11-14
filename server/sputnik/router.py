@@ -20,7 +20,7 @@ class SputnikRouter(Router):
     def authorize(self, session, uri, action):
         if session._authrole == u"trusted":
             return True
-        log.msg("authorizing " + str(session._authid) + " to " + IRouter.ACTION_TO_STRING[action] + " " + uri)
+        log.msg("authorizing %s(%s) to %s %s" % (session._authid, session._authrole, IRouter.ACTION_TO_STRING[action], uri))
         return True
 
 class SputnikRouterSession(RouterSession):
@@ -164,11 +164,15 @@ class SputnikRouterSession(RouterSession):
                     challenge = self.generateCookieChallenge(details) 
                     extra = {u"challenge": challenge}
                     returnValue(types.Challenge(u"cookie"), extra)
+                elif authmethod == u"anonymous":
+                    returnValue(types.Accept(authid=u"anonymous",
+                                             authrole=u"anonymous",
+                                             authmethod=u"anonymous",
+                                             authprovider=u"anonymous"))
 
         returnValue(types.Deny("No authentication methods found."))
 
     def onAuthenticate(self, signature, extra):
-        log.msg("authenticating")
         if self.authmethod == u"wampcra":
             return self.verifySignature(signature, extra)
         elif self.authmethod == u"cookie":
