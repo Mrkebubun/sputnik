@@ -18,10 +18,33 @@ class SputnikApplicationSession(ApplicationSession):
 
 class SputnikRouter(Router):
     def authorize(self, session, uri, action):
+        log.msg("authorizing %s(%s) to %s %s" % (session._authid, session._authrole, IRouter.ACTION_TO_STRING[action], uri))
+        
+        # allow trusted roles to do everything
         if session._authrole == u"trusted":
             return True
-        log.msg("authorizing %s(%s) to %s %s" % (session._authid, session._authrole, IRouter.ACTION_TO_STRING[action], uri))
-        return True
+
+        # allow others to only call and subscribe
+        if action not in [IRouter.ACTION_CALL, IRouter.ACTION_SUBSCRIBE]:
+            return False
+
+        # allow anonymous access to only public URIs
+        if session._authrole == u"anonymous":
+            if not uri.startswith("sputnik.methods.public"):
+                return True
+            if not uri.startswith("sputnik.feeds.public"):
+                return True
+
+        # allow authenticated users access to authenticated methods and feeds
+        if session._authrole == u"user":
+            # allow calls to private methods
+            if uri.startswith("sputnik.methods.private"):
+                return True
+            # TODO: figure out what to match for private feeds
+            if uri.startswith("sputnik.feeds.private.number"):
+                return True
+
+        return False
 
 class SputnikRouterSession(RouterSession):
     authmethod = None # chosen authentication method
