@@ -1,5 +1,6 @@
 import json
 import hashlib
+import datetime
 
 from twisted.python import log
 from twisted.internet import threads
@@ -7,11 +8,22 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import twisted.enterprise.adbapi as adbapi
 from autobahn import util
 from autobahn.wamp import types, auth
-from autobahn.twisted.wamp import ApplicationSession, RouterSession
+from autobahn.wamp.interfaces import IRouter
+from autobahn.twisted.wamp import ApplicationSession, RouterSession, Router
 
 import config
 
-class AuthHandler(RouterSession):
+class SputnikApplicationSession(ApplicationSession):
+    pass
+
+class SputnikRouter(Router):
+    def authorize(self, session, uri, action):
+        if session._authrole == u"trusted":
+            return True
+        log.msg("authorizing " + str(session._authid) + " to " + IRouter.ACTION_TO_STRING[action] + " " + uri)
+        return True
+
+class SputnikRouterSession(RouterSession):
     authmethod = None # chosen authentication method
     challenge = None # challenge object
     signature = None # signature of challange
@@ -156,6 +168,7 @@ class AuthHandler(RouterSession):
         returnValue(types.Deny("No authentication methods found."))
 
     def onAuthenticate(self, signature, extra):
+        log.msg("authenticating")
         if self.authmethod == u"wampcra":
             return self.verifySignature(signature, extra)
         elif self.authmethod == u"cookie":
@@ -165,7 +178,17 @@ class AuthHandler(RouterSession):
         #   sending authentication packets before hello (probably, but check).
         return types.Deny(message=u"Protocol error.")
 
+    def onJoin(self, details):
+        log.msg("joined")
 
+class TimeService(ApplicationSession):
+    def onJoin(self, details):
+
+        def utcnow():
+            now = datetime.datetime.utcnow()
+            return now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        self.register(utcnow, 'com.timeservice.now')
 
 if __name__ == "__main__":
     from twisted.python import log
@@ -177,10 +200,11 @@ if __name__ == "__main__":
 
     from autobahn.twisted.wamp import RouterFactory
     router_factory = RouterFactory()
+    router_factory.router = SputnikRouter
 
     from autobahn.twisted.wamp import RouterSessionFactory
     session_factory = RouterSessionFactory(router_factory)
-    session_factory.session = AuthHandler
+    session_factory.session = SputnikRouterSession
     dbpassword = config.get("database", "password")
     if dbpassword:
         dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
@@ -195,6 +219,10 @@ if __name__ == "__main__":
                                database=config.get("database", "dbname"))
     session_factory.dbpool = dbpool
     session_factory.cookies = {}
+
+    component_config = types.ComponentConfig(realm = "realm1")
+    component_session = TimeService(component_config)
+    session_factory.add(component_session, u"time_service", u"trusted")
 
     from autobahn.twisted.websocket import WampWebSocketServerFactory
     transport_factory = WampWebSocketServerFactory(session_factory,

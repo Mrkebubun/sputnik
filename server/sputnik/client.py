@@ -12,14 +12,14 @@ from autobahn.wamp import auth
 class MyFrontendComponent(wamp.ApplicationSession):
 
    def onConnect(self):
-      self.join(self.config.realm, [u"wampcra"], u"yury")
+      self.join(self.config.realm, [u"wampcra"], u"a")
 
 
    def onChallenge(self, challenge):
       print challenge
       if challenge.method == u"wampcra":
          if u'salt' in challenge.extra:
-            key = auth.derive_key(u"foobar".encode('utf8'),
+            key = auth.derive_key(u"a".encode('utf8'),
                challenge.extra['salt'].encode('utf8'),
                challenge.extra.get('iterations', None),
                challenge.extra.get('keylen', None))
@@ -31,11 +31,14 @@ class MyFrontendComponent(wamp.ApplicationSession):
          raise Exception("don't know how to compute challenge for authmethod {}".format(challenge.method))
 
 
+   @inlineCallbacks
    def onJoin(self, details):
 
       ## call a remote procedure
       ##
       print "joined"
+      result = yield self.call(u"com.timeservice.now")
+      print result
 
       self.leave()
 
