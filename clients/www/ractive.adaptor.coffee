@@ -59,6 +59,10 @@ class RactiveSputnikWrapper
             @exchange_info = exchange_info
             @notify "exchange_info"
 
+            if @exchange_info.locale?
+                @profile.locale = @exchange_info.locale
+                @notify "profile"
+
         @sputnik.on "audit_hash", (audit_hash) =>
             @audit_hash = audit_hash
             @notify "audit_hash"
