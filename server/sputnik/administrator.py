@@ -174,7 +174,8 @@ class Administrator:
         if not user:
             raise NO_SUCH_USER
 
-        user.email = profile.get("email", user.email)
+        # Don't permit changing email
+        #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
         self.session.merge(user)

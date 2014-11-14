@@ -152,7 +152,7 @@
                     "confirm_password": "Confirm Password"
                 },
                 "buttons": {
-                    "update": "Update Email & Nickname",
+                    "update": "Update Profile",
                     "change_password": "Change Password"
                 }
             },
@@ -458,7 +458,7 @@
                     "confirm_password": "Confirmar Clave"
                 },
                 "buttons": {
-                    "update": "Actualizar Email & Apodo",
+                    "update": "Actualizar Información",
                     "change_password": "Cambiar Clave"
                 }
             },
@@ -716,7 +716,7 @@
                     "confirm_password": "Confirmar senha"
                 },
                 "buttons": {
-                    "update": "Atualizar e-mail e apelido",
+                    "update": "Atualizar perfil",
                     "change_password": "Mudar senha"
                 }
             },

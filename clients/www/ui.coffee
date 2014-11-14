@@ -579,7 +579,7 @@ $ ->
         sputnik.on "make_account_success", () ->
             ga('send', 'event', 'register', 'success')
             # do not clear the modal yet, do it in auth_success
-            username = $("#register_username").val()
+            username = $("#register_email").val()
             password = $("#register_password").val()
             sputnik.authenticate username, password
 
@@ -632,10 +632,10 @@ $ ->
         $("#register_button").click (event) ->
             event.preventDefault()
 
-            username = $("#register_username").val()
+            username = $("#register_email").val()
             password = $("#register_password").val()
             email = $("#register_email").val()
-            nickname = $("#register_nickname").val()
+            nickname = $("#register_email").val()
             eula = $("#register_eula").is(":checked")
 
             if username and password and email and nickname and eula
