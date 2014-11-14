@@ -1,6 +1,7 @@
 import json
 import hashlib
 
+from twisted.python import log
 from twisted.internet import threads
 from twisted.internet.defer import inlineCallbacks, returnValue
 import twisted.enterprise.adbapi as adbapi
@@ -58,11 +59,12 @@ class AuthHandler(RouterSession):
             # We compute the signature even if there is no such user to
             #   prevent timing attacks.
             self.signature = (yield threads.deferToThread(auth.compute_wcs,
-                        key_bytes, challenge.encode("utf8"))).decode("ascii")
+                        secret, challenge.encode("utf8"))).decode("ascii")
 
             # TODO: log success
         except Exception, e:
             # TODO: log attempt
+            log.err(e)
             pass
 
         # Client expects a unicode salt string.
@@ -106,7 +108,7 @@ class AuthHandler(RouterSession):
                 success = False
 
         # Reject the user if we did not actually find them in the database.
-        if not self.found:
+        if not self.exists:
             success = False
 
         # Check the TOTP
