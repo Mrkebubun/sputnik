@@ -384,7 +384,16 @@ def main():
         else:
             leo.parse(" ".join(sys.argv[1:]))
 
-        session.commit()
+        # Before committing run a sanity check on all contracts
+        contracts = session.query(models.Contract)
+        failures = [contract.ticker for contract in contracts if not contract.sanity_check]
+        if len(failures):
+            print "CONTRACTS FAILED SANITY CHECK"
+            print failures
+            session.rollback()
+        else:
+            session.commit()
+
     except Exception, e:
         print e
         session.rollback()
