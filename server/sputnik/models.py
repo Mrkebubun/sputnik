@@ -86,7 +86,8 @@ class FeeGroup(db.Base):
         self.deposit_factor = deposit_factor
 
     def __repr__(self):
-        return "<FeeGroup('%s', %d, %d)>" % (self.name, self.aggressive_factor, self.passive_factor)
+        return "<FeeGroup('%s', %d, %d, %d, %d)>" % \
+               (self.name, self.aggressive_factor, self.passive_factor, self.withdraw_factor, self.deposit_factor)
 
 class Contract(db.Base):
     __table_args__ = (schema.UniqueConstraint('ticker'), {'extend_existing': True, 'sqlite_autoincrement': True})

@@ -138,10 +138,10 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     if withdrawals:
         for ticker, amount in withdrawals.iteritems():
             contract = util.get_contract(session, ticker)
-            fees = util.get_withdraw_fees(user, contract, amount)
+            fees = util.get_withdraw_fees(user, contract, amount, trial_period=trial_period)
 
             max_cash_spent[ticker] += amount
-            for fee_ticker, fee in fees:
+            for fee_ticker, fee in fees.iteritems():
                 max_cash_spent[fee_ticker] += fee
 
     for cash_ticker, max_spent in max_cash_spent.iteritems():
