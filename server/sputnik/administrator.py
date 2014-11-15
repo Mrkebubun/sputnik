@@ -174,7 +174,8 @@ class Administrator:
         if not user:
             raise NO_SUCH_USER
 
-        user.email = profile.get("email", user.email)
+        # Don't permit changing email
+        #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
         self.session.merge(user)
@@ -795,6 +796,8 @@ class Administrator:
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
         order_pages = int(order_count / self.page_size) + 1
+        if page < 0:
+            page = 0
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
@@ -819,6 +822,9 @@ class Administrator:
         last = now
 
         postings_pages = int(postings_count / self.page_size) + 1
+        if page < 0:
+            page = 0
+
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
 

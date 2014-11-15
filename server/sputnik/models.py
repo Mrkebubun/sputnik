@@ -143,6 +143,21 @@ class Contract(db.Base):
         elif self.expiration < datetime.utcnow():
             return True
 
+    @property
+    def sanity_check(self):
+        if self.contract_type == "cash_pair":
+            check = float(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
+        elif self.contract_type in ["prediction", "futures"]:
+            check = float(self.lot_size * self.tick_size) / self.denominator
+        else:
+            # No check for cash contracts
+            check = 1
+
+        if check == int(check):
+            return True
+        else:
+            return False
+
     def __repr__(self):
         return "<Contract('%s')>" % self.ticker
 
