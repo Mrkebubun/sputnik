@@ -232,7 +232,8 @@ class TestWebserverExport(TestAdministrator):
 
         user = self.session.query(models.User).filter_by(username='test').one()
         self.assertEqual(user.nickname, 'user_nickname')
-        self.assertEqual(user.email, 'email@m2.io')
+        # Email can't be changed
+        self.assertEqual(user.email, '')
 
     def test_reset_password_hash(self):
         self.create_account('test', password='null')
