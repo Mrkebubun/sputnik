@@ -1100,54 +1100,52 @@ class TestWebserverExport(TestAccountant):
         self.set_permissions_group('test', 'Deposit')
         self.cashier_export.deposit_cash('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv', 5000000)
         self.set_permissions_group('test', 'Withdraw')
-        d = self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
+        result = self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
-        # wait until it returns
-        def requestSuccess(result):
-            self.assertTrue(result)
+        # Make sure it returns success
+        self.assertTrue(self.successResultOf(result))
 
-            # Check that the positions are changed
-            from sputnik import models
+        # Check that the positions are changed
+        from sputnik import models
 
-            user_position = self.session.query(models.Position).filter_by(username='test').one()
-            pending_position = self.session.query(models.Position).filter_by(username='pendingwithdrawal').one()
+        user_position = self.session.query(models.Position).filter_by(username='test').one()
+        pending_position = self.session.query(models.Position).filter_by(username='pendingwithdrawal').one()
 
-            self.assertEqual(user_position.position, 2000000)
-            self.assertEqual(pending_position.position, 3000000)
+        self.assertEqual(user_position.position, 2000000)
+        self.assertEqual(pending_position.position, 3000000)
 
-            self.assertTrue(self.webserver.component.check_for_calls([('transaction',
-                                                                       (u'onlinecash',
-                                                                        {'contract': u'BTC',
-                                                                         'quantity': 5000000,
-                                                                         'direction': 'debit',
-                                                                         'type': u'Deposit'}),
-                                                                       {}),
-                                                                      ('transaction',
-                                                                       (u'test',
-                                                                        {'contract': u'BTC',
-                                                                         'direction': 'credit',
-                                                                         'quantity': 5000000,
-                                                                         'type': u'Deposit'}),
-                                                                       {}),
-                                                                      ('transaction',
-                                                                       (u'pendingwithdrawal',
-                                                                        {'contract': u'BTC',
-                                                                         'direction': 'credit',
-                                                                         'quantity': 3000000,
-                                                                         'type': u'Withdrawal'}),
-                                                                       {}),
-                                                                      ('transaction',
-                                                                       (u'test',
-                                                                        {'contract': u'BTC',
-                                                                         'direction': 'debit',
-                                                                         'quantity': 3000000,
-                                                                         'type': u'Withdrawal'}),
-                                                                       {})]))
-            self.assertTrue(
-                self.cashier.component.check_for_calls(
-                    [('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
+        self.assertTrue(self.webserver.component.check_for_calls([('transaction',
+                                                                   (u'onlinecash',
+                                                                    {'contract': u'BTC',
+                                                                     'quantity': 5000000,
+                                                                     'direction': 'debit',
+                                                                     'type': u'Deposit'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'test',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'credit',
+                                                                     'quantity': 5000000,
+                                                                     'type': u'Deposit'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'pendingwithdrawal',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'credit',
+                                                                     'quantity': 3000000,
+                                                                     'type': u'Withdrawal'}),
+                                                                   {}),
+                                                                  ('transaction',
+                                                                   (u'test',
+                                                                    {'contract': u'BTC',
+                                                                     'direction': 'debit',
+                                                                     'quantity': 3000000,
+                                                                     'type': u'Withdrawal'}),
+                                                                   {})]))
+        self.assertTrue(
+            self.cashier.component.check_for_calls(
+                [('request_withdrawal', ('test', 'BTC', 'bad_address', 3000000), {})]))
 
-        return d.addCallbacks(requestSuccess)
 
     def test_request_withdrawal_no_perms(self):
         self.create_account("test", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')

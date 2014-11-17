@@ -85,9 +85,9 @@ class TestInternal(TestAdministrator):
     def setUp(self):
         TestAdministrator.setUp(self)
         fees_init = """
-fees add LiqRebate 100 -50
-fees add NoFee 0 0
-fees add HeavyFee 200 200
+fees add LiqRebate 100 -50 100 100
+fees add NoFee 0 0 100 100
+fees add HeavyFee 200 200 100 100
 
 accounts set marketmaker fees LiqRebate
 accounts set randomtrader fees HeavyFee
