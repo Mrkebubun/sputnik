@@ -60,6 +60,10 @@ class RactiveSputnikWrapper
             @exchange_info = exchange_info
             @notify "exchange_info"
 
+            if @exchange_info.locale?
+                @profile.locale = @exchange_info.locale
+                @notify "profile"
+
         @sputnik.on "audit_hash", (audit_hash) =>
             @audit_hash = audit_hash
             @notify "audit_hash"
@@ -169,22 +173,25 @@ class RactiveSputnikWrapper
             @notify "positions"
 
             # Set active contracts based on what we have positions in
-            @active_contracts = []
+            tmp_active_contracts = []
             for ticker, market of @markets
                 if market.contract_type is "cash_pair"
-                    if ticker not in @active_contracts
+                    if ticker not in tmp_active_contracts
                         if @positions[market.denominated_contract_ticker]? and @positions[market.denominated_contract_ticker].position != 0
-                            @active_contracts.push ticker
+                            tmp_active_contracts.push ticker
                         else if @positions[market.payout_contract_ticker]? and @positions[market.payout_contract_ticker].position != 0
-                            @active_contracts.push ticker
+                            tmp_active_contracts.push ticker
 
                 else if market.contract_type isnt "cash"
                     if ticker not in @active_contracts
                         if @positions[ticker]? and @positions[ticker].position != 0
-                            @active_contracts.push ticker
-            @sputnik.log ["active_contracts", @active_contracts]
-            @notify "active_contracts"
+                            tmp_active_contracts.push ticker
 
+            # If there's nothing that results, don't change
+            if tmp_active_contracts.length
+                @active_contracts = tmp_active_contracts
+                @sputnik.log ["active_contracts", @active_contracts]
+                @notify "active_contracts"
         
         sputnik.on "margin", (margin) =>
             @sputnik.log ["margin", margin]

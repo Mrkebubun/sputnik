@@ -136,6 +136,18 @@
                                     <td><textarea rows="4" cols="80" name="deposit_instructions">{{contract.deposit_instructions}}</textarea></td>
                                 </tr>
                                 {% endif %}
+                                <tr>
+                                    <td>Deposit: Fixed Rate</td>
+                                    <td><input type="text" name="deposit_base_fee" value="{{contract.deposit_base_fee}}"></td>
+                                    <td>bps Rate</td>
+                                    <td><input type="text" name="deposit_bps_fee" value="{{contract.deposit_bps_fee}}"></td>
+                                </tr>
+                                <tr>
+                                    <td>Withdraw: Fixed Rate</td>
+                                    <td><input type="text" name="withdraw_base_fee" value="{{contract.withdraw_base_fee}}"></td>
+                                    <td>bps Rate</td>
+                                    <td><input type="text" name="withdraw_bps_fee" value="{{contract.withdraw_bps_fee}}"></td>
+                                </tr>
                             {% else %}
                                 <tr>
                                     <td>Fees</td>

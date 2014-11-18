@@ -86,9 +86,9 @@ class TestInternal(TestAdministrator):
     def setUp(self):
         TestAdministrator.setUp(self)
         fees_init = """
-fees add LiqRebate 100 -50
-fees add NoFee 0 0
-fees add HeavyFee 200 200
+fees add LiqRebate 100 -50 100 100
+fees add NoFee 0 0 100 100
+fees add HeavyFee 200 200 100 100
 
 accounts set marketmaker fees LiqRebate
 accounts set randomtrader fees HeavyFee
@@ -233,7 +233,8 @@ class TestWebserverExport(TestAdministrator):
 
         user = self.session.query(models.User).filter_by(username='test').one()
         self.assertEqual(user.nickname, 'user_nickname')
-        self.assertEqual(user.email, 'email@m2.io')
+        # Email can't be changed
+        self.assertEqual(user.email, '')
 
     def test_reset_password_hash(self):
         self.create_account('test', password='null')

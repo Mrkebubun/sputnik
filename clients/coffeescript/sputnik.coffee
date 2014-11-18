@@ -723,9 +723,6 @@ class @Sputnik extends EventEmitter
         @call("get_safe_prices", tickers).then @onSafePrices, @wtf
 
     onExchangeInfo: (@exchange_info) =>
-        if @exchange_info.locale?
-            @setGlLocale(@exchange_info.locale)
-
         @log ["Exchange Info", @exchange_info]
         @emit "exchange_info", @exchange_info
 

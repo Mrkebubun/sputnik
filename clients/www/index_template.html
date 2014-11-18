@@ -16,9 +16,9 @@
                     <div class="tab-content">
                         <div class="tab-pane active" id="login_tab">
                             <form class="form-signin content-push4" role="form">
-                                <input type="text" class="form-control" id="login_username" placeholder="Username" required
+                                <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required
                                        autofocus><br>
-                                <input type="password" class="form-control" id="login_password" placeholder="Password"
+                                <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
                                 required><br>
                                 <a href="#" id="get_reset_token">{{translate("buttons/reset_password", sputnik.profile.locale)}}</a>
                             </form>
@@ -32,13 +32,9 @@
                         </div>
                         <div class="tab-pane" id="register_tab">
                             <form class="form-signin form-horizontal" role="form">
-                                <input type="text" class="form-control" id="register_username" placeholder="{{translate('fields/username', sputnik.profile.locale)}}" required
-                                       autofocus><br>
                                 <input type="email" class="form-control" id="register_email" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required><br>
                                 <input type="password" class="form-control" id="register_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
                                        required><br>
-                                <input type="text" class="form-control" id="register_nickname"
-                                       placeholder="{{translate('fields/nickname', sputnik.profile.locale)}}"><br>
                                 <div class="form-group">
                                     <div class="col-xs-9 content-push5">
                                         <label> <input type="checkbox" id="register_eula" value="1">
@@ -1231,18 +1227,10 @@
                                 <div class="col-sm-5 deposit-content2">
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>{{translate("account/profile/titles/username", sputnik.profile.locale)}}</p>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <p>{{sputnik.username}}</p>
-                                        </div>
-                                    </div>
-                                    <div class="row form-row">
-                                        <div class="col-sm-5 form-label">
                                             <p>{{translate("account/profile/titles/email", sputnik.profile.locale)}}</p>
                                         </div>
                                         <div class="col-sm-7">
-                                            <input class="form-control" type="field" name="email" value="{{sputnik.profile.email}}">
+                                            <p>{{sputnik.username}}</p>
                                         </div>
                                     </div>
                                     <div class="row form-row">

@@ -45,11 +45,11 @@ class FeesManager:
     def __init__(self, session):
         self.session = session
 
-    def add(self, name, aggressive_factor, passive_factor):
+    def add(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         try:
             group = self.session.query(models.FeeGroup).filter_by(name=name).one()
         except NoResultFound:
-            group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            group = models.FeeGroup(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
             self.session.add(group)
         else:
             print "FeeGroup %s already exists" % group
@@ -218,6 +218,9 @@ class ContractManager:
             print "\t\texpiration:\t%s" % contract.expiration
         if contract.contract_type != "cash":
             print "\tFee:\t%s" % contract.fees
+        if contract.contract_type == "cash":
+            print "\tWithdraw Fee:\t%d/%d" % (contract.withdraw_base_fee, contract.withdraw_bps_fee)
+            print "\tDeposit Fee:\t%d/%d" % (contract.deposit_base_fee, contract.deposit_bps_fee)
 
     def add(self, ticker):
         try:
@@ -384,7 +387,16 @@ def main():
         else:
             leo.parse(" ".join(sys.argv[1:]))
 
-        session.commit()
+        # Before committing run a sanity check on all contracts
+        contracts = session.query(models.Contract)
+        failures = [contract.ticker for contract in contracts if not contract.sanity_check]
+        if len(failures):
+            print "CONTRACTS FAILED SANITY CHECK"
+            print failures
+            session.rollback()
+        else:
+            session.commit()
+
     except Exception, e:
         print e
         session.rollback()

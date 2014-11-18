@@ -13,7 +13,8 @@ ln -sf $profile_root/tools/generate_new_btc_addresses.py${profile_pycompiled} $p
 ln -sf $profile_root/tools/audit_ledger.py${profile_pycompiled} $profile_root/tools/audit_ledger
 
 # Copy over alembic into tools
-cp -r $profile_git_root/dist/alembic/* $profile_root/tools
+cp -r $profile_git_root/dist/alembic $profile_root/tools
+ln -s $profile_conf/alembic.ini $profile_root/tools
 
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf

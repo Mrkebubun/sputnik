@@ -103,7 +103,7 @@ permissions add Default login
 permissions add Full trade withdraw deposit login
 permissions add NoTrade withdraw deposit login
 
-fees add Default 100 100
+fees add Default 100 100 100 100
 
 accounts add customer
 accounts add m2

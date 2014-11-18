@@ -1,4 +1,4 @@
-TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin
+TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees
 TESTS_UI=test_ui
 ALL=$(TESTS) $(TESTS_UI)
 
