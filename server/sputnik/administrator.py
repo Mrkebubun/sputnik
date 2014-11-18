@@ -1211,7 +1211,8 @@ class AdminWebUI(Resource):
             if key in request.args:
                 args[key] = request.args[key][0].decode('utf-8')
 
-        for key in ["fees", "hot_wallet_limit"]:
+        for key in ["fees", "hot_wallet_limit", "deposit_base_fee", "deposit_bps_fee", "withdraw_base_fee",
+                    "withdraw_bps_fee"]:
             if key in request.args:
                 args[key] = int(request.args[key][0])
 
