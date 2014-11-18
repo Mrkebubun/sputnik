@@ -264,7 +264,7 @@
 
                                                             <form class="content-push7">
                                                                     <input type="text" id="buy_price" name="price" class="form-control field" value="{{buy_price}}"
-                                                                           placeholder="{{format_price(current_ticker, sputnik.books[current_ticker].best_ask.price, sputnik.profile.locale)}}" on-keyup="buykey">
+                                                                           placeholder='{{price_for_quantity(current_ticker, buy_quantity, "BUY", sputnik.profile.locale, sputnik.books[current_ticker])}}' on-keyup="buykey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">
@@ -294,7 +294,7 @@
                                                             <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
                                                             <form class="content-push7">
                                                                     <input type="text" id="sell_price" name="price" class="form-control field" value="{{sell_price}}"
-                                                                           placeholder="{{format_price(current_ticker, sputnik.books[current_ticker].best_bid.price, sputnik.profile.locale)}}" on-keyup="sellkey">
+                                                                           placeholder='{{price_for_quantity(current_ticker, sell_quantity, "SELL", sputnik.profile.locale, sputnik.books[current_ticker])}}' on-keyup="sellkey">
                                                             </form>
                                                         </div>
                                                         <div class="col-sm-6 quantity">

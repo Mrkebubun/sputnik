@@ -181,6 +181,11 @@ $ ->
                 translate: (path, locale_str) ->
                     locale.translate path, locale_str
 
+                price_for_quantity: (ticker, quantity_str, side, locale_str, book) ->
+                    price = sputnik.priceForQuantity(ticker, locale.parseNumber(quantity_str, locale_str), side)
+                    sputnik.log ["priceforQuantity", ticker, quantity_str, price]
+                    locale.priceFormat(ticker, price, locale_str)
+
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
                 values: (obj) -> (value for key, value of obj)
@@ -287,14 +292,15 @@ $ ->
             buykey: (event) ->
                 buy_price_str = ractive.get("buy_price")
                 buy_quantity_str = ractive.get("buy_quantity")
-                if not buy_price_str
-                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                else
-                    buy_price = locale.parseNumber(buy_price_str, ractive.get("sputnik.profile.locale"))
 
                 if not buy_quantity_str
                     buy_quantity_str = "0"
                 buy_quantity = locale.parseNumber(buy_quantity_str, ractive.get("sputnik.profile.locale"))
+
+                if not buy_price_str
+                    buy_price = sputnik.priceForQuantity(ractive.get("current_ticker"), buy_quantity, 'BUY')
+                else
+                    buy_price = locale.parseNumber(buy_price_str, ractive.get("sputnik.profile.locale"))
 
                 alerts = []
 
@@ -321,14 +327,15 @@ $ ->
             sellkey: (event) ->
                 sell_price_str = ractive.get("sell_price")
                 sell_quantity_str = ractive.get("sell_quantity")
-                if not sell_price_str
-                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                else
-                    sell_price = locale.parseNumber(sell_price_str, ractive.get("sputnik.profile.locale"))
 
                 if not sell_quantity_str == ''
                     sell_quantity_str = "0"
                 sell_quantity = locale.parseNumber(sell_quantity_str, ractive.get("sputnik.profile.locale"))
+
+                if not sell_price_str
+                    sell_price = sputnik.priceForQuantity(ractive.get("current_ticker"), sell_quantity, 'SELL')
+                else
+                    sell_price = locale.parseNumber(sell_price_str, ractive.get("sputnik.profile.locale"))
 
                 alerts = []
                 if isNaN sell_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
@@ -360,7 +367,7 @@ $ ->
                     return true
 
                 if buy_price_str == ''
-                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+                    buy_price = sputnik.priceForQuantity(ractive.get("current_ticker"), buy_quantity, 'BUY')
                     bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
                                                      ractive.get("sputnik.profile.locale")) + " " +
                                     locale.priceFormat( ractive.get("current_ticker"), buy_price, ractive.get("sputnik.profile.locale")) + ". " +
@@ -392,7 +399,7 @@ $ ->
                     return true
 
                 if sell_price_str == ''
-                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+                    sell_price = sputnik.priceForQuantity(ractive.get("current_ticker"), sell_quantity, 'SELL')
                     bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
                                                      ractive.get("sputnik.profile.locale")) + " " +
                                     locale.priceFormat( ractive.get("current_ticker"), sell_price, ractive.get("sputnik.profile.locale")) + ". " +
