@@ -19,16 +19,20 @@ class TestMargin(TestSputnik):
         self.create_account("test")
         self.user = self.get_user("test")
 
-    def create_position(self, ticker, quantity):
+    def create_position(self, ticker, quantity, reference_price=None):
         from sputnik import models
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
         from sqlalchemy.orm.exc import NoResultFound
         try:
             position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
             position.position = quantity
+            if reference_price is not None:
+                position.reference_price = reference_price
             self.session.commit()
         except NoResultFound:
             position = models.Position(self.user, contract, quantity)
+            if reference_price is not None:
+                position.reference_price = reference_price
             self.session.add(position)
 
         self.session.commit()
@@ -177,6 +181,75 @@ class TestMargin(TestSputnik):
         self.assertEqual(high_margin, round(500000 * 1.02))
         self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.02)})
         self.cancel_order(id)
+
+    def test_futures_only(self):
+        from sputnik import margin
+        # Place an order with no position, safe_price is same as order price
+        id = self.create_order('USDBTC0W', 1, 1000, 'BUY')
+        test = self.get_user('test')
+
+        safe_prices = {'USDBTC0W': 1000}
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+        # include fees
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1000 * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1000 * 1 * 100000 / 1000 * 0.02)
+        self.cancel_order(id)
+
+        # Place an order with no position, but order price is not safe price
+        id = self.create_order('USDBTC0W', 1, 1500, 'BUY')
+        safe_prices = {'USDBTC0W': 1000}
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+        # include fees
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + 1500 * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + 1500 * 1 * 100000 / 1000 * 0.02)
+        self.cancel_order(id)
+
+        # Place two offsetting orders
+        id1 = self.create_order('USDBTC0W', 1, 500, 'BUY')
+        id2 = self.create_order('USDBTC0W', 1, 1500, 'SELL')
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+        # include fees
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25 + (1500 + 500) * 1 * 100000 / 1000 * 0.02)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50 + (1500 + 500) * 1 * 100000 / 1000 * 0.02)
+        self.cancel_order(id1)
+        self.cancel_order(id2)
+
+        # Just a single position with reference price = 1000
+        # Force the safe price to 1000 too
+        safe_prices = {'USDBTC0W': 1000}
+        self.create_position('USDBTC0W', 1, reference_price=1000)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+
+        # Margin should just be price x quantity x lot_size / denominator * low/high_margin
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50)
+
+        # Check short position
+        self.create_position('USDBTC0W', -1, reference_price=1000)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+
+        # Margin should just be price x quantity x lot_size / denominator * low/high_margin
+        self.assertEqual(low_margin, 1000 * 1 * 100000 / 1000 * 0.25)
+        self.assertEqual(high_margin, 1000 * 1 * 100000 / 1000 * 0.50)
+
+        # Now the price has moved
+        safe_prices = {'USDBTC0W': 1500}
+        self.create_position('USDBTC0W', 1, reference_price=1000)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+
+        # Margin should just be price x quantity x lot_size / denominator * low/high_margin minus the impact of the price move
+        # base margin has increased though because safe price has increased
+        self.assertEqual(low_margin, 1500 * 1 * 100000 / 1000 * 0.25 - 500 * 1 * 100000 / 1000)
+        self.assertEqual(high_margin, 1500 * 1 * 100000 / 1000 * 0.50 - 500 * 1 * 100000 / 1000)
+
+        # Check short position
+        self.create_position('USDBTC0W', -1, reference_price=1000)
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+
+        # Margin should just be price x quantity x lot_size / denominator * low/high_margin plus the impact of the price move
+        self.assertEqual(low_margin, 1500 * 1 * 100000 / 1000 * 0.25 + 500 * 1 * 100000 / 1000)
+        self.assertEqual(high_margin, 1500 * 1 * 100000 / 1000 * 0.50 + 500 * 1 * 100000 / 1000)
+
 
     def test_sufficient_cash(self):
         self.create_position("BTC", 100000000)
