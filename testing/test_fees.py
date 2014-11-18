@@ -20,9 +20,9 @@ class TestFees(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
         fees_init = """
-fees add LiqRebate 100 -50 100 100
+fees add LiqRebate 100 -50 100 50
 fees add NoFee 0 0 0 0
-fees add HeavyFee 200 200 200 200
+fees add HeavyFee 200 200 200 400
 
 accounts set marketmaker fees LiqRebate
 accounts set randomtrader fees HeavyFee
@@ -31,9 +31,9 @@ accounts set m2 fees NoFee
 contracts set BTC/MXN fees 50
 contracts set NETS2015 fees 350
 
-contracts set MXN deposit_bps_fee 100
+contracts set MXN deposit_bps_fee 200
 contracts set MXN withdraw_bps_fee 100
-contracts set MXN deposit_base_fee 100
+contracts set MXN deposit_base_fee 50
 contracts set MXN withdraw_base_fee 100
 """
         self.run_leo(fees_init)
@@ -124,8 +124,9 @@ contracts set MXN withdraw_base_fee 100
                                            u'randomtrader': {u'MXN': 20200}})
 
         fees_result = {user.username: util.get_deposit_fees(user, MXN, 1000000) for user in
-                       [marketmaker, randomtrader, m2]}
-        self.assertDictEqual(fees_result, {u'customer': {u'MXN': 10100},
+                       [marketmaker, randomtrader, m2, customer]}
+        pprint(fees_result)
+        self.assertDictEqual(fees_result, {u'customer': {u'MXN': 20050},
                                            u'm2': {u'MXN': 0},
-                                           u'marketmaker': {u'MXN': 10100},
-                                           u'randomtrader': {u'MXN': 20200}})
+                                           u'marketmaker': {u'MXN': 10025},
+                                           u'randomtrader': {u'MXN': 80200}})

@@ -158,7 +158,7 @@ def get_deposit_fees(user, contract, deposit_amount, trial_period=False):
         return {}
 
     base_fee = contract.deposit_base_fee + float(deposit_amount * contract.deposit_bps_fee) / 10000
-    user_factor = float(user.fees.deposit_factor / 100)
+    user_factor = float(user.fees.deposit_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
@@ -168,7 +168,7 @@ def get_withdraw_fees(user, contract, withdraw_amount, trial_period=False):
         return {}
 
     base_fee = contract.withdraw_base_fee + float(withdraw_amount * contract.withdraw_bps_fee) / 10000
-    user_factor = float(user.fees.withdraw_factor / 100)
+    user_factor = float(user.fees.withdraw_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
