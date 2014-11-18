@@ -15,6 +15,7 @@ fix_config()
 
 from sputnik import models, margin
 
+
 class TestFees(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
@@ -104,3 +105,27 @@ contracts set MXN withdraw_base_fee 100
                                            (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 700},
                                            (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 700}}
         )
+
+    def test_deposit_withdraw_fees(self):
+        from sputnik import util
+
+        marketmaker = self.get_user('marketmaker')
+        randomtrader = self.get_user('randomtrader')
+        m2 = self.get_user('m2')
+        customer = self.get_user('customer')
+
+        MXN = self.get_contract('MXN')
+        fees_result = {user.username: util.get_withdraw_fees(user, MXN, 1000000) for user in
+                       [marketmaker, randomtrader, m2, customer]}
+        pprint(fees_result)
+        self.assertDictEqual(fees_result, {u'customer': {u'MXN': 10100},
+                                           u'm2': {u'MXN': 0},
+                                           u'marketmaker': {u'MXN': 10100},
+                                           u'randomtrader': {u'MXN': 20200}})
+
+        fees_result = {user.username: util.get_deposit_fees(user, MXN, 1000000) for user in
+                       [marketmaker, randomtrader, m2]}
+        self.assertDictEqual(fees_result, {u'customer': {u'MXN': 10100},
+                                           u'm2': {u'MXN': 0},
+                                           u'marketmaker': {u'MXN': 10100},
+                                           u'randomtrader': {u'MXN': 20200}})
