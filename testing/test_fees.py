@@ -117,7 +117,6 @@ contracts set MXN withdraw_base_fee 100
         MXN = self.get_contract('MXN')
         fees_result = {user.username: util.get_withdraw_fees(user, MXN, 1000000) for user in
                        [marketmaker, randomtrader, m2, customer]}
-        pprint(fees_result)
         self.assertDictEqual(fees_result, {u'customer': {u'MXN': 10100},
                                            u'm2': {u'MXN': 0},
                                            u'marketmaker': {u'MXN': 10100},
@@ -125,7 +124,6 @@ contracts set MXN withdraw_base_fee 100
 
         fees_result = {user.username: util.get_deposit_fees(user, MXN, 1000000) for user in
                        [marketmaker, randomtrader, m2, customer]}
-        pprint(fees_result)
         self.assertDictEqual(fees_result, {u'customer': {u'MXN': 20050},
                                            u'm2': {u'MXN': 0},
                                            u'marketmaker': {u'MXN': 10025},

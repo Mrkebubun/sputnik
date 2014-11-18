@@ -60,6 +60,7 @@ CONTRACT_NOT_ACTIVE = AccountantException("exceptions/accountant/contract_not_ac
 NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
 USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
 ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
+WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
 
 class Accountant:
     """The Accountant primary class
@@ -868,11 +869,6 @@ class Accountant:
                 raise INVALID_CURRENCY_QUANTITY
 
 
-            credit_posting = create_posting("Withdrawal",
-                    'pendingwithdrawal', ticker, amount, 'credit', note=address)
-            debit_posting = create_posting("Withdrawal", user.username,
-                    ticker, amount, 'debit', note=address)
-
             # Audit the user
             if not self.is_user_enabled(user):
                 log.err("%s user is disabled" % user.username)
@@ -887,10 +883,19 @@ class Accountant:
                 log.msg("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
+                fees = util.get_withdraw_fees(user, contract, amount, trial_period=self.trial_period)
+
+                amount -= fees[ticker]
+                if amount < 0:
+                    raise WITHDRAWAL_TOO_SMALL
+
+                credit_posting = create_posting("Withdrawal",
+                        'pendingwithdrawal', ticker, amount, 'credit', note=address)
+                debit_posting = create_posting("Withdrawal", user.username,
+                        ticker, amount, 'debit', note=address)
                 my_postings = [credit_posting]
                 remote_postings = [debit_posting]
                 # Withdraw Fees
-                fees = util.get_withdraw_fees(user, contract, amount, trial_period=self.trial_period)
                 user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Withdrawal")
 
                 my_postings.extend(user_postings)
