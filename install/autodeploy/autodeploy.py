@@ -574,6 +574,9 @@ class Instance:
             fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
             fabric.api.sudo("rm wallet.dat")
 
+        with context:
+            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic_versions"))
+
     @staticmethod
     def list(region=None):
         if region == None:

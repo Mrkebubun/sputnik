@@ -489,7 +489,7 @@ class BasicBot(TradingBot):
 
 class BotFactory(WampClientFactory):
     def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10, ignore_contracts=[]):
-        WampClientFactory.__init__(self, url, debugWamp=debugWamp)
+        WampClientFactory.__init__(self, url, debugWamp=debugWamp, debug=True, debugApp=True, debugCodePaths=True)
         self.username_password = username_password
         self.rate = rate
         self.conn = None
@@ -527,7 +527,7 @@ if __name__ == '__main__':
     username = config.get("client", "username")
     password = config.get("client", "password")
 
-    factory = BotFactory(base_uri, debugWamp=debug, username_password=(username, password))
+    factory = BotFactory(base_uri, debugWamp=True, username_password=(username, password))
     factory.protocol = BasicBot
 
     # null -> ....
