@@ -36,9 +36,9 @@ clients_tar:
 tar: dist
 	install/install.py tar
 
-install: deps
+install: deps dist
 	install/install.py install
 
-upgrade:
+upgrade: deps dist
 	install/install.py upgrade
 

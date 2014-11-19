@@ -1,6 +1,6 @@
 Sputnik = require("./sputnik").Sputnik
 
-sputnik = new Sputnik "wss://demo.m2.io:8000"
+sputnik = new Sputnik "wss://demo.m2.io:8443"
 sputnik.connect()
 sputnik.on "open", ->
     console.log "Sputnik session open."

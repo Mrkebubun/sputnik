@@ -117,10 +117,12 @@ $ ->
     protocol = location.protocol
     if protocol == 'http:'
         ws_protocol = "ws:"
+        port = 8880
     else
         ws_protocol = "wss:"
+        port = 8443
 
-    uri = ws_protocol + "//" + hostname + ":8000"
+    uri = ws_protocol + "//" + hostname + ":#{port}"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
