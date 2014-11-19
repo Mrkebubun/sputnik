@@ -481,10 +481,8 @@ class Cashier():
 
     def get_deposit_instructions(self, ticker):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        return markdown.markdown(contract.deposit_instructions, extensions=["markdown.extensions.extra",
-                                                                            "markdown.extensions.sane_lists",
-                                                                            "markdown.extensions.nl2br"
-                                                                            ])
+        return markdown.markdown(contract.deposit_instructions,
+                extensions=["extra", "sane_lists", "nl2br"])
 
 class CompropagoHook(Resource):
     """
