@@ -569,8 +569,10 @@ class Instance:
             context = fabric.api.show("everything")
 
         with context:
-            with fabric.api.lcd(backup_dir):
-                fabric.api.get("/data/bitcoind/wallet.dat", use_sudo=True)
+            fabric.api.sudo("cp /data/bitcoind/wallet.dat .")
+            fabric.api.sudo("chown ubuntu wallet.dat")
+            fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
+            fabric.api.sudo("rm wallet.dat")
 
     @staticmethod
     def list(region=None):
