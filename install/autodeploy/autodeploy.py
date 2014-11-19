@@ -256,6 +256,7 @@ class Instance:
                 elif self.stack.stack_status == "CREATE_IN_PROGRESS":
                     time.sleep(10)
                 else:
+                    print "stack status: %s" % self.stack.stack_status
                     raise INSTANCE_BROKEN
         print
         print "Instance for %s created." % self.customer
@@ -271,6 +272,7 @@ class Instance:
                 elif instance.state == "pending":
                     time.sleep(10)
                 else:
+                    print "instance state: %s" % instance.state
                     raise INSTANCE_BROKEN
         print
         print "Instance %s booted." % instance_id
@@ -292,6 +294,9 @@ class Instance:
                                    (instance.ip_address, ssh_host_ecdsa_key))
                 break
         else:
+            print "Unable to get server SSH host key"
+            if self.verbose:
+                print output
             raise INSTANCE_BROKEN
 
     def delete(self):
