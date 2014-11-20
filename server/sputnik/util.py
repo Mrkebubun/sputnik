@@ -295,7 +295,7 @@ class Logger:
     def warn(self, message=None):
         log.msg(message, system=self.prefix, level=30)
 
-    def error(self, messag=None):
+    def error(self, message=None):
         log.err(message, system=self.prefix, level=40)
 
     def critical(self, message=None):
