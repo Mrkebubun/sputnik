@@ -12,6 +12,12 @@ HASH=`ssh ${HOSTNAME} cat /srv/sputnik/server/config/sputnik.ini | grep git_hash
 echo "Replacing version: ${HASH}"
 echo ${HASH} >> /srv/autodeploy/demo/versions
 
+# Tag
+TAG_NAME=$1
+git tag demo-${TAG_NAME}
+git push -u origin demo-${TAG_NAME}
+(cd /srv/autodeploy/demo; git add versions; git commit -m ${TAG_NAME}; git tag ${TAG_NAME})
+
 make clean
 PROFILE=install/profiles/${PROFILE_NAME} make tar
 scp sputnik.tar ${HOSTNAME}:. 
