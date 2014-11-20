@@ -4,12 +4,14 @@ from datetime import datetime
 from twisted.internet import ssl
 from OpenSSL import SSL
 import models
+import sys
 import math
 import time
 import uuid
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+import twisted.python.util
 
 def get_locale_template(locale, jinja_env, template):
     locales = [locale, "root"]
@@ -255,19 +257,47 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
 
-def getLoggers(prefix):
-    def debug(message):
-        log.msg(message, system=prefix, level=10)
+class SputnikObserver(log.FileLogObserver):
+    levels = {10: "DEBUG", 20:"INFO", 30:"WARN", 40:"ERROR", 50:"CRITICAL"}
 
-    def info(message):
-        log.msg(message, system=prefix, level=20)
+    def __init__(self, level=20):
+        self.level = level
+        log.FileLogObserver.__init__(self, sys.stdout)
 
-    def warn(message):
-        log.msg(message, system=prefix, level=30)
+    def emit(self, eventDict):
+        text = log.textFromEventDict(eventDict)
+        if text is None:
+            return
+        
+        level = eventDict.get("level", 20)
+        if level < self.level:
+            return
 
-    def error(message):
-        log.err(message, system=prefix, level=40)
+        timeStr = self.formatTime(eventDict['time'])
+        fmtDict = {'system': eventDict['system'],
+                   'text': text.replace("\n", "\n\t"),
+                   'level': self.levels[level]}
+        msgStr = log._safeFormat("%(level)s [%(system)s] %(text)s\n", fmtDict)
 
-    def critical(message):
-        log.err(message, system=prefix, level=50)
+        twisted.python.util.untilConcludes(self.write, timeStr + " " + msgStr)
+        twisted.python.util.untilConcludes(self.flush)
+
+class Logger:
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def debug(self, message=None):
+        log.msg(message, system=self.prefix, level=10)
+
+    def info(self, message=None):
+        log.msg(message, system=self.prefix, level=20)
+
+    def warn(self, message=None):
+        log.msg(message, system=self.prefix, level=30)
+
+    def error(self, message=None):
+        log.err(message, system=self.prefix, level=40)
+
+    def critical(self, message=None):
+        log.err(message, system=self.prefix, level=50)
 
