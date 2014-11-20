@@ -95,14 +95,12 @@
                                         <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">{{translate("top_menu/account", sputnik.profile.locale)}}</a></li>
                                     </ul>
                                     <div class="login-box">
-                                        
                                             {{#if sputnik.logged_in}}
                                             <div data-toggle="collapse" data-target=".navbar-collapse" class="login-name2" style="float: left;"><span id="login_name">{{sputnik.username}}&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
                                             <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></div>
                                             {{else}}
                                             <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                                             {{/if}}
-                                        
                                     </div>
                                 </div><!-- /.navbar-collapse -->
                             </div><!-- /.container-fluid -->
@@ -1311,7 +1309,7 @@
             <div class="col-xs-4 text-right">
                 <a href="{{sputnik.exchange_info.corporate_url}}">Operated by {{sputnik.exchange_info.corporate_name}}</a>
             </div>
-        </span>
+        </div>
     </div>
 </div>
 
