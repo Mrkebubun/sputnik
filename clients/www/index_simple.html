@@ -1,7 +1,7 @@
 <div class="alert alert-warning" id="not_connected">
-    {{translate("alerts/connecting", sputnik.profile.locale)}}.
+    {{translate("alerts/connecting", sputnik.profile.locale)}}
 </div>
-<div class="container-fluid" id="main_page" style="">
+<div class="container-fluid simple" id="main_page" style="">
     <div class="modal fade" id="login_modal">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -74,95 +74,85 @@
             </div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-xs-12 text-center">
-            {{#if !sputnik.logged_in}}
-            <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a>
-            {{else}}
-            <span id="login_name">{{sputnik.username}}</span>
-            <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
-            {{/if}}
-        </div>
-    </div>
     <div class="container">
-        <div class="buy-sell-orders" id="buy-sell-orders">
-            <div class="row">
-                <div class="col-xs-6 buy-box">
-                    <div class="row">
-                        <div class="col-sm-12 header-box">
-                            <h6 class="buy">{{translate("trade/titles/buy", sputnik.profile.locale)}}</h6>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12 buy-box2">
-                            <div class="row">
-                                <div class="col-sm-6">
-                                    <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
-                                    <form class="content-push7">
-                                        {{price_for_quantity(current_ticker, buy_quantity, "BUY", sputnik.profile.locale, sputnik.books[current_ticker])}}
-                                    </form>
-                                </div>
-                                <div class="col-sm-6 quantity">
-                                    <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
-                                    <form>
-                                            <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
-                                    </form>
-                                </div>
-                            </div>
-                            {{#if sputnik.logged_in}}
-                            <div class="row spacer-top">
-                                <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
-                                <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
-                            </div>
-                            {{/if}}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-6 sell-box">
-                    <div class="row">
-                        <div class="col-sm-12 header-box-sell">
-                            <h6 class="buy">{{translate("trade/titles/sell", sputnik.profile.locale)}}</h6>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-sm-12 buy-box2">
-                            <div class="row">
-                                <div class="col-sm-6">
-                                    <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
-                                    <form class="content-push7">
-                                        {{price_for_quantity(current_ticker, sell_quantity, "SELL", sputnik.profile.locale, sputnik.books[current_ticker])}}
-                                    </form>
-                                </div>
-                                <div class="col-sm-6 quantity">
-                                    <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
-
-                                    <form>
-                                            <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
-                                    </form>
-                                </div>
-                            </div>
-                            {{#if sputnik.logged_in}}
-                            <div class="row spacer-top">
-                                <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
-                                <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>
-                            </div>
-                            {{/if}}
-                        </div>
-                    </div>
-                </div>
+        <div class="row">
+            <div class="col-xs-12 text-center">
+                {{#if !sputnik.logged_in}}
+                <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a>
+                {{else}}
+                <span id="login_name">{{sputnik.username}}</span><br/>
+                <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
+                {{/if}}
             </div>
         </div>
-    </div>
-    <div class="links_footer">
         <div class="row">
-            <div class="col-xs-4 text-left">
-                <a href="https://m2.io/" target="_blank"><img src="images/mimetic_small.png">Powered by Mimetic Markets, Inc.</a>
+            <div class="col-xs-12 text-center simple_ticker">
+                {{current_ticker}}
             </div>
-            <div class="col-xs-4 text-center">
-                <a href="mailto:{{sputnik.exchange_info.support_email}}">Contact Support</a>
+        </div>
+        <div class="row">
+            <div class="col-xs-6 buy-box">
+                <div class="row">
+                    <div class="col-sm-12 header-box">
+                        <h6 class="buy">{{translate("trade/titles/buy", sputnik.profile.locale)}}</h6>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-12 buy-box2">
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
+                                <form class="content-push7">
+                                    {{price_for_quantity(current_ticker, buy_quantity, "BUY", sputnik.profile.locale, sputnik.books[current_ticker])}}
+                                </form>
+                            </div>
+                            <div class="col-sm-6 quantity">
+                                <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
+                                <form>
+                                        <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
+                                </form>
+                            </div>
+                        </div>
+                        {{#if sputnik.logged_in}}
+                        <div class="row spacer-top">
+                            <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
+                            <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
+                        </div>
+                        {{/if}}
+                    </div>
+                </div>
             </div>
-            <div class="col-xs-4 text-right">
-                <a href="{{sputnik.exchange_info.corporate_url}}">Operated by {{sputnik.exchange_info.corporate_name}}</a>
+            <div class="col-xs-6 sell-box">
+                <div class="row">
+                    <div class="col-sm-12 header-box-sell">
+                        <h6 class="buy">{{translate("trade/titles/sell", sputnik.profile.locale)}}</h6>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-12 buy-box2">
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
+                                <form class="content-push7">
+                                    {{price_for_quantity(current_ticker, sell_quantity, "SELL", sputnik.profile.locale, sputnik.books[current_ticker])}}
+                                </form>
+                            </div>
+                            <div class="col-sm-6 quantity">
+                                <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
+
+                                <form>
+                                        <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
+                                </form>
+                            </div>
+                        </div>
+                        {{#if sputnik.logged_in}}
+                        <div class="row spacer-top">
+                            <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
+                            <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>
+                        </div>
+                        {{/if}}
+                    </div>
+                </div>
             </div>
         </div>
     </div>

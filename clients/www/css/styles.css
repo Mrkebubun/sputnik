@@ -1525,3 +1525,12 @@ h4.bid {
 .spacer-top {
     margin-top: 20px;
 }
+
+/* Simple Widget */
+.simple {
+    background-color: #FFFFFF;
+}
+.simple_ticker {
+    background-color: #cd0a0a;
+    font-size: 200%;
+}

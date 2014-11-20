@@ -404,9 +404,9 @@ class @Sputnik extends EventEmitter
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
-            price = price * contract.denominator
+            price = Math.round(price * contract.denominator)
         else
-            price = price * source.denominator * contract.denominator
+            price = Math.round(price * source.denominator * contract.denominator)
 
         price = price - price % contract.tick_size
         return price
