@@ -118,6 +118,10 @@
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
                         </div>
+                        <div class="row spacer-top">
+                            <b>{{sputnik.markets[current_ticker].denominated_contract_ticker}}</b>
+                            {{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker]), sputnik.profile.locale)}}
+                        </div>
                         {{/if}}
                     </div>
                 </div>
@@ -149,6 +153,10 @@
                         <div class="row spacer-top">
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>
+                        </div>
+                        <div class="row spacer-top">
+                            <b>{{sputnik.markets[current_ticker].payout_contract_ticker}}</b>
+                            {{format_quantity(sputnik.markets[current_ticker].payout_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position - (sputnik.markets[current_ticker].payout_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].payout_contract_ticker]), sputnik.profile.locale)}}
                         </div>
                         {{/if}}
                     </div>

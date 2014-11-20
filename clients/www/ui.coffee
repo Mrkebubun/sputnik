@@ -388,8 +388,8 @@ $ ->
 
             buy: (event) ->
                 event.original.preventDefault()
-                buy_quantity = locale.parseNumber($('#buy_quantity').val(), ractive.get("sputnik.profile.locale"))
-                buy_price_str = $("#buy_price").val()
+                buy_quantity = locale.parseNumber(ractive.get("buy_quantity"), ractive.get("sputnik.profile.locale"))
+                buy_price_str = ractive.get("buy_price")
 
                 if buy_quantity <= 0 or isNaN(buy_quantity)
                     bootbox.alert locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
@@ -419,8 +419,8 @@ $ ->
 
             sell: (event) ->
                 event.original.preventDefault()
-                sell_quantity = locale.parseNumber($('#sell_quantity').val(), ractive.get("sputnik.profile.locale"))
-                sell_price_str = $("#sell_price").val()
+                sell_quantity = locale.parseNumber(ractive.get("sell_quantity"), ractive.get("sputnik.profile.locale"))
+                sell_price_str = ractive.get("sell_price")
 
 
                 if sell_quantity <= 0 or isNaN(sell_quantity)
