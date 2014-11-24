@@ -2,6 +2,7 @@
 # This only works for demo, we have autodeploy
 # for everything else now
 # TODO: Move demo into autodeploy and get rid of this script
+git checkout master
 git pull -u origin
 rm -rf install/profiles/demo
 cp -r /srv/autodeploy/demo/profile install/profiles/demo
@@ -14,7 +15,7 @@ echo ${HASH} >> /srv/autodeploy/demo/versions
 
 # Tag
 TAG_NAME=$1
-git tag demo-${TAG_NAME}
+git tag -a demo-${TAG_NAME}
 git push -u origin demo-${TAG_NAME}
 (cd /srv/autodeploy/demo; git add versions; git commit -m ${TAG_NAME}; git tag ${TAG_NAME})
 
