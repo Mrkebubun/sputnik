@@ -145,6 +145,7 @@ class Administrator:
             raise USERNAME_TAKEN
 
         user = models.User(username, password)
+        user.email = username
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
