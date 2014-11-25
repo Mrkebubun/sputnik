@@ -28,7 +28,7 @@ class TestAsyncRouterDealer(unittest.TestCase):
         from sputnik import zmq_util
         import random
         port = random.randint(50000, 60000)
-        self.dealer_proxy = zmq_util.dealer_proxy_async("tcp://127.0.0.1:%d" % port, timeout=None)
+        self.dealer_proxy = zmq_util.dealer_proxy_async("tcp://127.0.0.1:%d" % port, timeout=0)
         self.router_share = zmq_util.router_share_async(TestExport(), "tcp://127.0.0.1:%d" % port)
 
     def tearDown(self):

@@ -6,7 +6,6 @@ import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
-from txzmq import ZmqRequestTimeoutError
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 
@@ -459,11 +458,13 @@ class Proxy:
         return remote_method
 
 class DealerProxyAsync(Proxy):
-    def __init__(self, connection):
+    def __init__(self, connection, timeout=1):
         """
 
         :param connection:
+        :param timeout:
         """
+        self._timeout = timeout
         Proxy.__init__(self, connection)
 
     def send(self, message):
@@ -473,12 +474,15 @@ class DealerProxyAsync(Proxy):
         :returns: Deferred
         """
         d = self._connection.sendMsg(message)
-        
-        def convertTimeout(failure):
-            e = failure.trap(ZmqRequestTimeoutError)
-            raise RemoteCallTimedOut("Call timed out.")
-
-        return d.addErrback(convertTimeout)
+        if self._timeout > 0:
+            timeout = reactor.callLater(self._timeout, d.errback,
+                RemoteCallTimedOut("Call timed out."))
+            def cancelTimeout(result):
+                if timeout.active():
+                    timeout.cancel()
+                return result
+            d.addBoth(cancelTimeout)
+        return d
 
 class PushProxyAsync(Proxy):
     def send(self, message):
@@ -536,8 +540,7 @@ def dealer_proxy_async(address, timeout=1):
     :returns: DealerProxyAsync
     """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-    socket.defaultRequestTimeout = timeout
-    return DealerProxyAsync(socket)
+    return DealerProxyAsync(socket, timeout=timeout)
 
 def push_proxy_async(address):
     """
