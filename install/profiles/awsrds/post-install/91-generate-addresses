@@ -5,6 +5,5 @@ if [ -n "$UPGRADE" ]; then
 fi
 
 # wait until everything starts up
-sleep 20
 sudo -u sputnik $profile_root/tools/generate_new_btc_addresses
 
