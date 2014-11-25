@@ -962,10 +962,12 @@ class Accountant:
             remote_postings = []
             if admin_username is not None:
                 note = "%s (%s)" % (address, admin_username)
+                cash_account = 'offlinecash'
             else:
                 note = address
+                cash_account = 'onlinecash'
 
-            debit_posting = create_posting("Deposit", 'onlinecash',
+            debit_posting = create_posting("Deposit", cash_account,
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
