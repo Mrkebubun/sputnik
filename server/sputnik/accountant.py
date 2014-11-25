@@ -29,6 +29,7 @@ import margin
 import util
 import ledger
 from alerts import AlertsProxy
+from sendmail import Sendmail
 
 from ledger import create_posting
 
@@ -41,6 +42,7 @@ from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import SQLAlchemyError
 from watchdog import watchdog
+from jinja2 import Environment, FileSystemLoader
 
 import time
 from datetime import datetime
@@ -68,7 +70,7 @@ class Accountant:
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
                  alerts_proxy, accountant_number=0, debug=False, trial_period=False,
-                 mimetic_share=0.5):
+                 mimetic_share=0.5, sendmail=None, template_dir='admin_templates'):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -107,6 +109,8 @@ class Accountant:
         self.webserver = webserver
         self.disabled_users = {}
         self.accountant_number = accountant_number
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self.sendmail = sendmail
 
     def post_or_fail(self, *postings):
         # This is the core ledger communication method.
@@ -923,6 +927,21 @@ class Accountant:
             log.err("Exception received while attempting withdrawal: %s" % e)
             raise e
 
+    def notify_deposit_overflow(self, user, contract, amount):
+        """
+        email notification of withdrawal pending to the user.
+        """
+
+        # Now email the notification
+        t = util.get_locale_template(user.locale, self.jinja_env, 'deposit_overflow.{locale}.email')
+        content = t.render(user=user, contract=contract, amount_fmt=util.quantity_fmt(contract, amount)).encode('utf-8')
+
+        # Now email the token
+        log.msg("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email,
+                                                                     user.nickname),
+                          subject='Your deposit was not fully processed')
+
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
         """Deposits cash
         :param username: The username for this address
@@ -1015,6 +1034,8 @@ class Accountant:
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
+
+                self.notify_deposit_overflow(user, contract, excess_deposit)
 
             # Deposit Fees
             fees = util.get_deposit_fees(user, contract, deposit, trial_period=self.trial_period)
@@ -1431,12 +1452,14 @@ if __name__ == "__main__":
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
     mimetic_share = config.getfloat("accountant", "mimetic_share")
+    sendmail = Sendmail(config.get("administrator", "email"))
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             accountant_number=accountant_number,
                             debug=debug,
                             trial_period=trial_period,
-                            mimetic_share=mimetic_share)
+                            mimetic_share=mimetic_share,
+                            sendmail=sendmail)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)
