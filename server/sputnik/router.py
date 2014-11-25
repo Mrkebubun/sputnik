@@ -30,10 +30,11 @@ class SputnikRouter(Router):
 
         # allow anonymous access to only public URIs
         if session._authrole == u"anonymous":
-            if not uri.startswith("sputnik.methods.public"):
+            if uri.startswith("sputnik.methods.public"):
                 return True
-            if not uri.startswith("sputnik.feeds.public"):
+            if uri.startswith("sputnik.feeds.public"):
                 return True
+            return False
 
         # allow authenticated users access to authenticated methods and feeds
         if session._authrole == u"user":
@@ -43,6 +44,7 @@ class SputnikRouter(Router):
             # TODO: figure out what to match for private feeds
             if uri.startswith("sputnik.feeds.private.number"):
                 return True
+            return False
 
         return False
 
