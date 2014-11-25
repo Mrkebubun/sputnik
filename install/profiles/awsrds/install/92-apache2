@@ -20,5 +20,4 @@ sed -e "s|KEYS_DIRECTORY|${profile_keys}|" ${base_profile}/res/default-ssl.conf 
 a2ensite sputnik.conf
 a2ensite sputnik-ssl.conf
 
-service apache2 restart
 
