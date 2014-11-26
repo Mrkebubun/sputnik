@@ -539,7 +539,7 @@ class Instance:
 
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
-        print "Git hash: %s" % parser.get("version", "git_hash")
+        print "%s: %s" % (parser.get("version", "git_tag"), parser.get("version", "git_hash"))
 
     def login(self):
         if self.broken:
