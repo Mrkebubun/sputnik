@@ -7,32 +7,34 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import twisted.enterprise.adbapi as adbapi
 from autobahn import util
 from autobahn.wamp import types, auth
-from autobahn.wamp.interfaces import IRouter
 from autobahn.twisted.wamp import ApplicationSession, RouterSession, Router
 
 import sys
-print sys.path
+sys.path.append("/home/yury/sputnik/server")
 
 from sputnik import config
 from sputnik import observatory
+from sputnik import plugin
+
+debug, log, warn, error, critical = observatory.get_loggers("router")
 
 class SputnikRouter(Router):
     @inlineCallbacks
     def authorize(self, session, uri, action):
+        results = []
         for plugin in self.factory.plugins:
             result = yield plugin.authorize(self, session, uri, action)
             if result == None:
                 continue
-            else:
-                returnValue(result)
+            results.append(result)
 
-        returnValue(False)
+        # Require no False and at least one True.
+        returnValue(all(results) and results)
 
 class SputnikRouterSession(RouterSession):
     @inlineCallbacks
     def onHello(self, realm, details):
-        # TODO: add support for PAM style control flags
-        for plugin in self.factory.plugins:
+        for plugin, flag in self.factory.plugins:
             result = yield plugin.onHello(realm, details)
             if result == None:
                 continue
@@ -43,19 +45,56 @@ class SputnikRouterSession(RouterSession):
 
     @inlineCallbacks
     def onAuthenticate(self, signature, extra):
-        # TODO: add support for PAM style control flags
-        for plugin in self.factory.plugins:
+        optional_failures = []
+        required_failures = []
+        optional_successes = []
+        required_successes = []
+        for plugin, flag in self.factory.plugins:
             result = yield plugin.onAuthenticate(signature, extra)
-            if result == None:
-                continue
-            else:
-                returnValue(result)
+            if isinstance(result, types.Accept):
+                if flag == "binding":
+                    if len(required_failures) == 0:
+                        returnValue(result)
+                elif flag == "optional":
+                    optional_successes.append(result)
+                elif flag == "required":
+                    required_successes.append(result)
+                elif flag == "requisite":
+                    required_successes.append(result)
+                elif flag == "sufficient":
+                    returnValue(result)
+                else:
+                    critical("Invalid control flag %s." % flag)
+                    raise Exception("Invalid control flag %s." % flag)
+            elif isinstance(result, types.Deny):
+                if flag == "binding":
+                    required_failures.append(result)
+                elif flag == "optional":
+                    optional_failures.append(result)
+                elif flag == "required":
+                    required_failures.append(result)
+                elif flag == "requisite":
+                    required_failures.append(result)
+                    returnValue(required_failures[0])
+                elif flag == "sufficient":
+                    optional_failures.append(result)
+                else:
+                    critical("Invalid control flag %s." % flag)
+                    raise Exception("Invalid control flag %s." % flag)
+        
+        if len(required_failed) > 0:
+            returnValue(required_failed[0])
+        
+        if len(required_successes) > 0:
+            returnValue(required_successes[0])
+        elif len(optional_successes) > 0:
+            returnValue(optional_successes[0])
 
-        returnValue(types.Deny(u"Server error."))
+        returnValue(types.Deny(u"No suitable authentication methods found."))
 
     @inlineCallbacks
     def onJoin(self, details):
-        for plugin in self.factory.plugins:
+        for plugin, flag in self.factory.plugins:
             yield plugin.onJoin(details)
 
 class TimeService(ApplicationSession):
@@ -69,6 +108,10 @@ class TimeService(ApplicationSession):
 
 def main():
     observatory.start_logging(0)
+    pm = plugin.PluginManager()
+    pm.load("sputnik.webserver.plugins.authz_basic.BasicPermissions")
+    pm.load("sputnik.webserver.plugins.authn_anonymous.AnonymousLogin")
+    # TODO: wait for plugins to finish loading
 
     from autobahn.twisted.choosereactor import install_reactor
     reactor = install_reactor()
@@ -76,12 +119,20 @@ def main():
     from autobahn.twisted.wamp import RouterFactory
     router_factory = RouterFactory()
     router_factory.router = SputnikRouter
+
+    authz_plugins = ["webserver.authorization.basic"]
     router_factory.plugins = []
+    for plugin_name in authz_plugins:
+        router_factory.plugins.append(pm.plugins[plugin_name])
 
     from autobahn.twisted.wamp import RouterSessionFactory
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
+
+    authn_plugins = [("webserver.authentication.anonymous", "optional")]
     session_factory.plugins = []
+    for plugin_name, flag in authn_plugins:
+        session_factory.plugins.append((pm.plugins[plugin_name], flag))
 
     component_config = types.ComponentConfig(realm = "realm1")
     component_session = TimeService(component_config)
@@ -108,4 +159,7 @@ def main():
     server.listen(site)
 
     reactor.run()
+
+if __name__ == "__main__":
+    main()
 

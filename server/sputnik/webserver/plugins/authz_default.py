@@ -4,10 +4,11 @@ debug, log, warn, error, critical = observatory.get_loggers("permissions")
 
 from sputnik.webserver.plugin import AuthorizationPlugin
 from autobahn.wamp import types
+from autobahn.wamp.interfaces import IRouter
 
-class BasicPermissions(AuthorizationPlugin):
+class DefaultPermissions(AuthorizationPlugin):
     def __init__(self):
-        AuthorizationPlugin.__init__(self, u"default_permissions")
+        AuthorizationPlugin.__init__(self, u"default")
 
     def authorize(self, router, session, uri, action):
         log("Authorizing %s(%s) to %s %s" % \

@@ -1,6 +1,6 @@
 from sputnik import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+debug, log, warn, error, critical = observatory.get_loggers("authn_anonymous")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
 from autobahn.wamp import types
