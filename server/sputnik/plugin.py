@@ -77,6 +77,7 @@ class Plugin:
     def __init__(self, name, service):
         self.name = name
         self.service = service
+        self.fullname = service + "." + name
 
     def configure(self, manager):
         self.manager = manager
@@ -93,7 +94,10 @@ def run_with_plugins(plugin_paths, callback, *args, **kwargs):
     for plugin_path in plugin_paths:
         deferreds.append(plugin_manager.load(plugin_path))
     dl = DeferredList(deferreds)
-    def run_callback(_):
+    def run_callback(result):
+        for success, value in result:
+            if not success:
+                return
         callback(plugin_manager, *args, **kwargs)
     def cleanup(_):
         plugin_paths.reverse()
@@ -102,4 +106,5 @@ def run_with_plugins(plugin_paths, callback, *args, **kwargs):
         return _
     dl.addCallback(run_callback)
     dl.addBoth(cleanup)
+    dl.addErrback(error)
 
