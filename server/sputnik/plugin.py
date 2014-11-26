@@ -1,5 +1,5 @@
 from collections import defaultdict
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 import observatory
 
@@ -14,7 +14,17 @@ class PluginManager:
         self.services = defaultdict(list)
 
     @inlineCallbacks
-    def load_plugin(self, plugin):
+    def load(self, path):
+        module_name, class_name = path.rsplit(".", 1)
+        mod = __import__(module_name)
+        for component in module_name.split(".")[1:]:
+            mod = getattr(mod, component)
+        klass = getattr(mod, class_name)
+        plugin = klass()
+        returnValue((yield self._load_plugin(plugin)))
+
+    @inlineCallbacks
+    def _load_plugin(self, plugin):
         debug("Loading plugin %s..." % plugin.name)
         if plugin.name in self.plugins:
             warn("Plugin %s already loaded." % plugin.name)
@@ -31,9 +41,10 @@ class PluginManager:
         debug("Plugin %s loaded." % plugin.name)
         self.plugins[plugin.name] = plugin
         self.services[plugin.service].append(plugin)
+        returnValue(plugin)
 
     @inlineCallbacks
-    def unload_plugin(self, plugin):
+    def _unload_plugin(self, plugin):
         warn("Plugin unloading not officially supported.")
         debug("Unloading plugin %s..." % plugin.name)
         if plugin.name not in self.plugins:
