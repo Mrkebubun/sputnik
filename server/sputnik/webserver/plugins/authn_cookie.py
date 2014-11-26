@@ -3,7 +3,8 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
-from autobahn.wamp import types, util
+from autobahn import util
+from autobahn.wamp import types
 
 class CookieLogin(AuthenticationPlugin):
     def __init__(self):
@@ -32,7 +33,7 @@ class CookieLogin(AuthenticationPlugin):
                 router_session.challenge = challenge
 
                 # The client expects a unicode challenge string.
-                challenge = json.dumps(challenge, ensure_ascii=False)}
+                challenge = json.dumps(challenge, ensure_ascii=False)
                 extra = {u"challenge": challenge}
 
                 return types.Challenge(u"cookie", extra)

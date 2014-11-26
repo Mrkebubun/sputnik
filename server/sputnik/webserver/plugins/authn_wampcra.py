@@ -1,9 +1,15 @@
+from sputnik import observatory
+
+debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+
 from sputnik.webserver.plugin import AuthenticationPlugin
-from autobahn.wamp import types, util
+from twisted.internet.defer import inlineCallbacks, returnValue
+from autobahn import util
+from autobahn.wamp import types
 
 class WAMPCRALogin(AuthenticationPlugin):
     def __init__(self):
-        AuthenticationPlugin.__init__(self, u"cookie")
+        AuthenticationPlugin.__init__(self, u"wampcra")
         self.cookies = {}
 
     @inlineCallbacks
@@ -54,7 +60,7 @@ class WAMPCRALogin(AuthenticationPlugin):
                             auth.compute_wcs, secret,
                             challenge.encode("utf8"))).decode("ascii")
 
-                except Exception, e
+                except Exception, e:
                     error("Caught exception looking up user.")
                     error()
 

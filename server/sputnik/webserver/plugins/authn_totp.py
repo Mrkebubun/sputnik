@@ -1,7 +1,13 @@
-from sputnik.webserver.plugin import AuthenticationPlugin
-from autobahn.wamp import types, util
+from sputnik import observatory
 
-class WAMPCRALogin(AuthenticationPlugin):
+debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+
+from sputnik.webserver.plugin import AuthenticationPlugin
+from twisted.internet.defer import inlineCallbacks, returnValue
+from autobahn import util
+from autobahn.wamp import types
+
+class TOTPVerification(AuthenticationPlugin):
     def __init__(self):
         AuthenticationPlugin.__init__(self, u"totp")
 
@@ -15,28 +21,21 @@ class WAMPCRALogin(AuthenticationPlugin):
                 username = challenge["authid"].encode("utf8")
 
                 try:
-                    memdb = self.manager.plugins["memdb"]
-                    result = yield memdb.lookup(username)
-                    router_session.totp = result[2]
-                except Exception, e
-                    log.err(e)
+                    databases = self.manager.services["webserver.database"]
+                    for db in database:
+                        result = yield db.lookup(username)
+                        if result:
+                            router_session.totp = result[1]
+                            break
+                    
+                except Exception, e:
+                    pass
 
     def onAuthenticate(self, router_session, signature, extra):
-        try:
-            challenge = router_session.challenge
-            if challenge == None:
-                return
-            if router_session.challenge.get("authmethod") != u"wampcra":
-                return
-        except:
-            # let another plugin handle this
+        if not hasattr(router_session, "totp"):
             return
 
-        pass
-
-        # Check the TOTP
-        if self.totp:
-            codes = [auth.compute_totp(self.totp, i) for i in range(-1, 2)]
-            if extra["totp"].encode("utf8") not in codes:
-                success = False
+        codes = [auth.compute_totp(self.totp, i) for i in range(-1, 2)]
+        if extra["totp"].encode("utf8") not in codes:
+            return types.Deny(u"Invalid TOTP.")
 

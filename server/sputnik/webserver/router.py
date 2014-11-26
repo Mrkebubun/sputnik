@@ -111,6 +111,9 @@ def main():
     pm = plugin.PluginManager()
     pm.load("sputnik.webserver.plugins.authz_basic.BasicPermissions")
     pm.load("sputnik.webserver.plugins.authn_anonymous.AnonymousLogin")
+    pm.load("sputnik.webserver.plugins.authn_cookie.CookieLogin")
+    pm.load("sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin")
+    pm.load("sputnik.webserver.plugins.authn_totp.TOTPVerification")
     # TODO: wait for plugins to finish loading
 
     from autobahn.twisted.choosereactor import install_reactor
@@ -129,7 +132,10 @@ def main():
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
 
-    authn_plugins = [("webserver.authentication.anonymous", "optional")]
+    authn_plugins = [("webserver.authentication.anonymous", "sufficient"),
+                     ("webserver.authentication.cookie", "sufficient"),
+                     ("webserver.authentication.wampcra", "requisite"),
+                     ("webserver.authentication.totp", "requisite")]
     session_factory.plugins = []
     for plugin_name, flag in authn_plugins:
         session_factory.plugins.append((pm.plugins[plugin_name], flag))
