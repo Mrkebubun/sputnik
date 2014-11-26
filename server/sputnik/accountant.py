@@ -48,15 +48,19 @@ from datetime import datetime
 class AccountantException(Exception):
     pass
 
-INSUFFICIENT_MARGIN = AccountantException(0, "Insufficient margin")
-TRADE_NOT_PERMITTED = AccountantException(1, "Trading not permitted")
-WITHDRAW_NOT_PERMITTED = AccountantException(2, "Withdrawals not permitted")
-INVALID_CURRENCY_QUANTITY = AccountantException(3, "Invalid currency quantity")
-DISABLED_USER = AccountantException(4, "Account disabled. Please try again in five minutes.")
-CONTRACT_EXPIRED = AccountantException(5, "Contract expired")
-CONTRACT_NOT_EXPIRED = AccountantException(6, "Contract not expired")
-NON_CLEARING_CONTRACT = AccountantException(7, "Contract not clearable")
-CONTRACT_NOT_ACTIVE = AccountantException(8, "Contract not active")
+INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
+TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
+WITHDRAW_NOT_PERMITTED = AccountantException("exceptions/accountant/withdraw_not_permitted")
+INVALID_CURRENCY_QUANTITY = AccountantException("exceptions/accountant/invalid_currency_quantity")
+DISABLED_USER = AccountantException("exceptions/accountant/disabled_user")
+CONTRACT_EXPIRED = AccountantException("exceptions/accountant/contract_expired")
+CONTRACT_NOT_EXPIRED = AccountantException("exceptions/accountant/contract_not_expired")
+NON_CLEARING_CONTRACT = AccountantException("exceptions/accountant/non_clearing_Contract")
+CONTRACT_NOT_ACTIVE = AccountantException("exceptions/accountant/contract_not_active")
+NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
+USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
+ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
+WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
 
 class Accountant:
     """The Accountant primary class
@@ -399,7 +403,7 @@ class Accountant:
             raise INSUFFICIENT_MARGIN
 
 
-    def charge_fees(self, fees, user):
+    def charge_fees(self, fees, user, type="Trade"):
         """Credit fees to the people operating the exchange
         :param fees: The fees to charge ticker-index dict of fees to charge
         :type fees: dict
@@ -422,7 +426,7 @@ class Accountant:
             contract = self.get_contract(ticker)
 
             # Debit the fee from the user's account
-            user_posting = create_posting("Trade", user.username,
+            user_posting = create_posting(type, user.username,
                     contract.ticker, fee, 'debit', note="Fee")
             user_postings.append(user_posting)
 
@@ -434,7 +438,7 @@ class Accountant:
                 remaining_fee -= vendor_credit
 
                 # Credit the fee to the vendor's account
-                vendor_posting = create_posting("Trade",
+                vendor_posting = create_posting(type,
                         vendor_user.username, contract.ticker, vendor_credit,
                         'credit', note="Vendor Credit")
                 vendor_postings.append(vendor_posting)
@@ -444,7 +448,7 @@ class Accountant:
             # Once that balance gets large we distribute it manually to the
             # various share holders
             remainder_user = self.get_user('remainder')
-            remainder_posting = create_posting("Trade",
+            remainder_posting = create_posting(type,
                     remainder_user.username, contract.ticker, remaining_fee,
                     'credit')
             remainder_postings.append(remainder_posting)
@@ -491,7 +495,7 @@ class Accountant:
             denominated_contract = contract.denominated_contract
             payout_contract = contract
 
-            cash_spent_float = float(quantity * price * contract.lot_size / contract.denominator)
+            cash_spent_float = float(quantity * price * contract.lot_size) / contract.denominator
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
@@ -695,13 +699,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=order_id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % order_id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % order_id)
+            raise ORDER_CANCELLED
 
         d = self.engines[order.contract.ticker].cancel_order(order_id)
 
@@ -732,13 +736,13 @@ class Accountant:
         try:
             order = self.session.query(models.Order).filter_by(id=id).one()
         except NoResultFound:
-            raise AccountantException(0, "No order %d found" % id)
+            raise NO_ORDER_FOUND
 
         if username is not None and order.username != username:
-            raise AccountantException(0, "User %s does not own the order" % username)
+            raise USER_ORDER_MISMATCH
 
         if order.is_cancelled:
-            raise AccountantException(0, "Order %d is already cancelled" % id)
+            raise ORDER_CANCELLED
 
         order.is_cancelled = True
         try:
@@ -864,15 +868,6 @@ class Accountant:
                 log.err("Withdraw request for a wrong lot_size qty: %d" % amount)
                 raise INVALID_CURRENCY_QUANTITY
 
-            uid = util.get_uid()
-            credit_posting = create_posting("Withdrawal",
-                    'pendingwithdrawal', ticker, amount, 'credit', note=address)
-            credit_posting['uid'] = uid
-            credit_posting['count'] = 2
-            debit_posting = create_posting("Withdrawal", user.username,
-                    ticker, amount, 'debit', note=address)
-            debit_posting['uid'] = uid
-            debit_posting['count'] = 2
 
             # Audit the user
             if not self.is_user_enabled(user):
@@ -888,8 +883,35 @@ class Accountant:
                 log.msg("Insufficient margin for withdrawal %d / %d" % (low_margin, high_margin))
                 raise INSUFFICIENT_MARGIN
             else:
-                self.accountant_proxy.remote_post('pendingwithdrawal', credit_posting)
-                d = self.post_or_fail(debit_posting)
+                fees = util.get_withdraw_fees(user, contract, amount, trial_period=self.trial_period)
+
+                amount -= fees[ticker]
+                if amount < 0:
+                    raise WITHDRAWAL_TOO_SMALL
+
+                credit_posting = create_posting("Withdrawal",
+                        'pendingwithdrawal', ticker, amount, 'credit', note=address)
+                debit_posting = create_posting("Withdrawal", user.username,
+                        ticker, amount, 'debit', note=address)
+                my_postings = [credit_posting]
+                remote_postings = [debit_posting]
+                # Withdraw Fees
+                user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Withdrawal")
+
+                my_postings.extend(user_postings)
+                remote_postings.extend(vendor_postings)
+                remote_postings.extend(remainder_postings)
+
+                count = len(remote_postings + my_postings)
+                uid = util.get_uid()
+                for posting in my_postings + remote_postings:
+                    posting['count'] = count
+                    posting['uid'] = uid
+
+                d = self.post_or_fail(*my_postings)
+                for posting in remote_postings:
+                    self.accountant_proxy.remote_post(posting['username'], posting)
+
                 def onSuccess(result):
                     self.cashier.request_withdrawal(username, ticker, address, amount)
                     return True
@@ -991,6 +1013,14 @@ class Accountant:
 
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
+
+            # Deposit Fees
+            fees = util.get_deposit_fees(user, contract, deposit, trial_period=self.trial_period)
+            user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Deposit")
+
+            my_postings.extend(user_postings)
+            remote_postings.extend(vendor_postings)
+            remote_postings.extend(remainder_postings)
 
             count = len(remote_postings + my_postings)
             uid = util.get_uid()
@@ -1389,7 +1419,7 @@ if __name__ == "__main__":
     for contract in session.query(models.Contract).filter_by(active=True).all():
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
-    ledger = dealer_proxy_async(config.get("ledger", "accountant_export"), timeout=0)
+    ledger = dealer_proxy_async(config.get("ledger", "accountant_export"), timeout=None)
     webserver = push_proxy_async(config.get("webserver", "accountant_export"))
     cashier = push_proxy_async(config.get("cashier", "accountant_export"))
     accountant_proxy = AccountantProxy("push",

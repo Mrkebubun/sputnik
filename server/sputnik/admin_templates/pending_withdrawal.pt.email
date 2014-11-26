@@ -1,0 +1,5 @@
+Olá, {{withdrawal.user.nickname}} ({{withdrawal.user.username}}),
+
+Sua solicitação de retirada de {{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
+foi submetida ao processamento manual e pode lever até 24h para ser processada. Por favor contate o suporte se tiver
+quaisquer questões e informe o código: {{withdrawal.id}}

@@ -6,6 +6,11 @@ from twisted.internet import defer
 from twisted.python import log
 import string
 
+class ZendeskException(Exception):
+    pass
+
+ZENDESK_ERROR = ZendeskException("exceptions/zendesk/zendesk_error")
+
 class Zendesk(object):
     def __init__(self, domain, api_token, api_username):
         """
@@ -70,7 +75,7 @@ class Zendesk(object):
                         # this should happen sufficiently rarely enough that it is
                         # worth logging here in addition to the failure
                         log.msg("Received code: %s from zendesk for new ticket %s: %s" % (response.code, str(ticket), content))
-                        raise Exception("Zendesk returned code: %s with message: %s" % (response.code, content))
+                        raise ZENDESK_ERROR
                     else:
                         log.msg("Received 201 Created from Zendesk. Ticket: %s. Content follows: %s" % (str(ticket), content))
                         # if the JSON cannot be decoded, let the error float up
@@ -113,7 +118,7 @@ class Zendesk(object):
             def parse_content(content):
                 if response.code != 201:
                     log.msg("Received code: %s from zendesk for file upload: msg %s" % (response.code, content))
-                    raise Exception("Zendesk returned code %s" % response.code)
+                    raise ZENDESK_ERROR
                 else:
                     log.msg("Received 201 Created from Zendesk. Content: %s" % content)
                     token_data = json.loads(content)

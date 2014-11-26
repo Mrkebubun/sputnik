@@ -1,0 +1,1315 @@
+<div class="alert alert-warning" id="not_connected">
+    {{translate("alerts/connecting", sputnik.profile.locale)}}.
+</div>
+<div class="container-fluid" id="main_page" style="">
+    <div class="modal fade" id="login_modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <ul class="nav nav-tabs">
+                        <li class="active login-tab"><a href="#login_tab" data-toggle="tab">{{translate("tabs/login", sputnik.profile.locale)}}</a></li>
+                        <li class="login-tab"><a href="#register_tab" data-toggle="tab">{{translate("tabs/register", sputnik.profile.locale)}}</a></li>
+                    </ul>
+                </div>
+                <div class="modal-body form-horizontal">
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="login_tab">
+                            <form class="form-signin content-push4" role="form">
+                                <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required
+                                       autofocus><br>
+                                <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
+                                required><br>
+                                <a href="#" id="get_reset_token">{{translate("buttons/reset_password", sputnik.profile.locale)}}</a>
+                            </form>
+                            <div class="alert alert-warning" style="display:none" id="login_error">
+                                {{translate("alerts/bad_username_pw", sputnik.profile.locale)}}
+                            </div>
+                            <div id="reset_token_sent" class="alert alert-info" style="display:none">
+                                {{translate("alerts/reset_sent", sputnik.profile.locale)}}
+                            </div>
+                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="login_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/login", sputnik.profile.locale)}}</a>
+                        </div>
+                        <div class="tab-pane" id="register_tab">
+                            <form class="form-signin form-horizontal" role="form">
+                                <input type="email" class="form-control" id="register_email" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required><br>
+                                <input type="password" class="form-control" id="register_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
+                                       required><br>
+                                <div class="form-group">
+                                    <div class="col-xs-9 content-push5">
+                                        <label> <input type="checkbox" id="register_eula" value="1">
+                                            <span class="terms">{{translate("register_modal/agree", sputnik.profile.locale)}} <a href="terms.html" target="_blank">{{translate("register_modal/terms", sputnik.profile.locale)}}</a> </span><br>
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="alert alert-warning" style="display:none" id="register_error">
+                            </div>
+                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="register_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/register", sputnik.profile.locale)}}</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="change_password_token_modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">{{translate("titles/reset_password", sputnik.profile.locale)}}</h4>
+                </div>
+                <div class="modal-body">
+                    <form class="form-signin" role="form">
+                        <input type="password" class="form-control field-space" id="new_password_token" placeholder="{{translate('fields/new_password', sputnik.profile.locale)}}" required>
+                        <input type="password" class="form-control field-space" id="new_password_token_confirm" placeholder="{{translate('fields/confirm_new_password', sputnik.profile.locale)}}" required>
+                    </form>
+                    <div class="alert alert-info alert-reset">{{translate("alerts/enter_new_password", sputnik.profile.locale)}}</div>
+                </div>
+                <div class="modal-footer reset-footer">
+                    <a data-color="blue" data-size="s" data-style="zoom-out" href="#" class="ladda-button button-link-box3 button-place3" on-click="change_password_token"><span class="ladda-label">{{translate("buttons/change_password", sputnik.profile.locale)}}</span></a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="nav-bar">
+        <div class="row">
+            <div class="col-xs-12 navbar navbar2">
+                <div class="container">
+                    <div class="row temp">
+                        <nav class="navbar navbar-default" role="navigation">
+                            <div class="container-fluid container-resize">
+                                <button type="button" class="navbar-toggle collapsed toggle-button" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                                    <span class="sr-only">Toggle navigation</span>
+                                    <span class="icon-bar"></span>
+                                    <span class="icon-bar"></span>
+                                    <span class="icon-bar"></span>
+                                </button>
+                                <h1 class="logotext" on-click="switch_page:dashboard">{{sputnik.exchange_info.exchange_name}}</h1>
+                                <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                                    <ul id="navlinks" class="nav navbar-nav">
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="dashboard-btn" on-click="switch_page:dashboard" class="main-nav-link">{{translate("top_menu/dashboard", sputnik.profile.locale)}}</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="trade-btn" on-click="switch_page:trade" class="main-nav-link">{{translate("top_menu/trade", sputnik.profile.locale)}}</a></li>
+                                        <li><a data-toggle="collapse" data-target=".navbar-collapse" href="#" id="account-btn" on-click="switch_page:account" class="main-nav-link">{{translate("top_menu/account", sputnik.profile.locale)}}</a></li>
+                                    </ul>
+                                    <div class="login-box">
+                                            {{#if sputnik.logged_in}}
+                                            <div data-toggle="collapse" data-target=".navbar-collapse" class="login-name2" style="float: left;"><span id="login_name">{{sputnik.username}}&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+                                            <div class="logout" style="float: left;"><a href="#" data-toggle="collapse" data-target=".navbar-collapse" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></div>
+                                            {{else}}
+                                            <div  style="float: left;" class="login-register"><a data-toggle="collapse" data-target=".navbar-collapse" href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
+                                            {{/if}}
+                                    </div>
+                                </div><!-- /.navbar-collapse -->
+                            </div><!-- /.container-fluid -->
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{#if current_page == "trade"}}
+    <div id="page-trade">
+        <div class="row">
+            <div class="col-xs-12">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            {{#sputnik.types:type}}
+                            <div class="{{current_type == type ? 'tab-active' : 'tab-inactive'}} tabs-row">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_type:{{type}}">{{translate("contract_type/" + type, sputnik.profile.locale)}}</a></h4>
+                            
+                            </div>
+                            {{/}}
+                            <select class="contract-select form-control select-format" value="{{current_type}}">
+                                {{#sputnik.types:type}}
+                                <option value="{{type}}">{{translate("contract_type/" + type, sputnik.profile.locale)}}</option>
+                                {{/}}
+                            </select>
+
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-12 content">
+                            <div class="contracts" id="contracts">
+                                {{#sputnik.types[current_type]}}
+                                <a href="#" class="{{current_ticker == this ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_contract">{{this}}</a>
+                                {{/}}
+
+                                <select value="{{current_ticker}}" class="form-control contract-select">
+                                {{#sputnik.types[current_type]}}
+                                    <option value="{{this}}">{{this}}</option>
+                                {{/}}
+                                </select>
+                            </div>
+                            <div id="contract">
+                                <div class="contract-overview">
+                                    <div class="row">
+                                        <div class="col-xs-6 contract-overview-info">
+                                            <div class="row">
+                                                <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                                <p class="grey-header" id="contract-expiration">{{format_time(sputnik.markets[current_ticker].expiration, sputnik.profile.locale)}}</p>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <p class="first-line"><select id="ohlcv_period" class="mainselect-dropdown" value="{{ohlcv_period}}">
+                                                        <option value="day">{{translate("trade/ohlcv/yesterday", sputnik.profile.locale)}}</option>
+                                                        <option value="hour">{{translate("trade/ohlcv/last_hour", sputnik.profile.locale)}}</option>
+                                                        <option value="minute">{{translate("trade/ohlcv/last_minute", sputnik.profile.locale)}}</option>
+                                                    </select>
+                                                    <table class="table-header">
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/open", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].open, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/high", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].high, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/low", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].low, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/close", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].close, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/vwap", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].vwap, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-quantity-content">{{translate("trade/titles/volume", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_quantity(current_ticker, sputnik.ohlcv[current_ticker][ohlcv_period].volume, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <table class="table-header">
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/last", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.trade_history[current_ticker][0].price, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/bid", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_bid.price, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="recent-price-content">{{translate("trade/titles/ask", sputnik.profile.locale)}}</td><td class="recent-price-content2">{{format_price(current_ticker, sputnik.books[current_ticker].best_ask.price, sputnik.profile.locale)}}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {{#if sputnik.logged_in}}
+                                        <div id="contract-balances" class="col-xs-6">
+                                            <div class="row">
+                                                {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
+                                                <div id="cash_pair-balance" class="col-xs-6">
+                                                    <div class="row">
+                                                        <div class="col-xs-12" class="grey-header" align="center">
+                                                            {{translate("trade/balances/available_to_trade", sputnik.profile.locale)}}
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                                <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                                <p class="first-line2" id="denominated_balance">{{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker]), sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                                <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
+                                                                <p class="first-line2" id="payout_balance">{{format_quantity(sputnik.markets[current_ticker].payout_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position - (sputnik.markets[current_ticker].payout_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].payout_contract_ticker]), sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {{else}}
+                                                <div id="margin-balance" class="col-xs-6">
+                                                    <div class="row">
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="btc_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
+                                                            <p class="first-line2" id="btc_balance">{{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position, sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header" id="contract_ticker">{{current_ticker}}</p>
+                                                            <p class="first-line2" id="contract_balance">{{format_quantity(current_ticker, sputnik.positions[current_ticker].position, sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header">{{translate("trade/balances/low_margin", sputnik.profile.locale)}}</p>
+                                                            <p class="first-line2" id="low_margin">{{format_quantity('BTC', sputnik.margin[0], sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                        <div class="col-xs-12 col-sm-6 contract-overview-info2">
+                                                            <p class="grey-header">{{translate("trade/balances/high_margin", sputnik.profile.locale)}}</p>
+                                                            <p class="first-line2" id="high_margin">{{format_quantity('BTC', sputnik.margin[1], sputnik.profile.locale)}}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {{/if}}
+                                            </div>
+                                        </div>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                                {{#if sputnik.logged_in}}
+                                <div class="buy-sell-orders" id="buy-sell-orders">
+                                    <div class="row">
+                                        <div class="col-xs-6 col-sm-4 buy-box">
+                                            <div class="row">
+                                                <div class="col-sm-12 header-box">
+                                                    <h6 class="buy">{{translate("trade/titles/buy", sputnik.profile.locale)}}</h6>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-12 buy-box2">
+                                                    <div class="row">
+                                                        <div class="col-sm-6">
+                                                            <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
+
+                                                            <form class="content-push7">
+                                                                    <input type="text" id="buy_price" name="price" class="form-control field" value="{{buy_price}}"
+                                                                           placeholder='{{price_for_quantity(current_ticker, buy_quantity, "BUY", sputnik.profile.locale, sputnik.books[current_ticker])}}' on-keyup="buykey">
+                                                            </form>
+                                                        </div>
+                                                        <div class="col-sm-6 quantity">
+                                                            <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
+                                                            <form>
+                                                                    <input type="text" id="buy_quantity" name="quantity" class="form-control field" value="{{buy_quantity}}" on-keyup="buykey">
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row spacer-top">
+                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
+                                                        <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-6 col-sm-4 sell-box">
+                                            <div class="row">
+                                                <div class="col-sm-12 header-box-sell">
+                                                    <h6 class="buy">{{translate("trade/titles/sell", sputnik.profile.locale)}}</h6>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-12 buy-box2">
+                                                    <div class="row">
+                                                        <div class="col-sm-6">
+                                                            <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
+                                                            <form class="content-push7">
+                                                                    <input type="text" id="sell_price" name="price" class="form-control field" value="{{sell_price}}"
+                                                                           placeholder='{{price_for_quantity(current_ticker, sell_quantity, "SELL", sputnik.profile.locale, sputnik.books[current_ticker])}}' on-keyup="sellkey">
+                                                            </form>
+                                                        </div>
+                                                        <div class="col-sm-6 quantity">
+                                                            <p>{{translate("trade/titles/quantity", sputnik.profile.locale)}}</p>
+
+                                                            <form>
+                                                                    <input type="text" id="sell_quantity" name="quantity" class="form-control field" value="{{sell_quantity}}" on-keyup="sellkey">
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row spacer-top">
+                                                        <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
+                                                        <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-sm-4">
+                                            <div class="row">
+                                                <div class="col-sm-12 header-box-myorders">
+                                                    <h6 class="buy">{{translate("trade/titles/my_orders", sputnik.profile.locale)}}</h6>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="order-box scroll-box">
+                                                    <table class="table-header2">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="recent-price-myorder">{{translate("trade/titles/price", sputnik.profile.locale)}}</th>
+                                                                <th class="recent-quantity-myorder">{{translate("trade/titles/quantity", sputnik.profile.locale)}}</th>
+                                                                <th class="recent-type-myorder">{{translate("trade/titles/buy_sell", sputnik.profile.locale)}}</th>
+                                                                <th class="recent-cancel-myorder">{{translate("trade/titles/cancel", sputnik.profile.locale)}}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="orders">
+                                                        {{#sputnik.orders:id}}
+                                                        {{#if contract == current_ticker}}
+                                                        <tr>
+                                                            <td class="recent-price-content2">{{format_price(current_ticker, price, sputnik.profile.locale)}}</td>
+                                                            <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity_left, sputnik.profile.locale)}}</td>
+                                                            <td class="recent-type-content">{{translate("trade/fields/" + side, sputnik.profile.locale)}}</td>
+                                                            <td class="recent-cancel-content"><button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                                        </tr>
+                                                        {{/if}}
+                                                        {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {{/if}}
+                                <div class="row">
+                                    <div class="col-sm-6 col-lg-4 recent-trades-box">
+                                        <a href="#" class="{{tb_tab == 'trades' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:trades">{{translate("trade/titles/recent_trades", sputnik.profile.locale)}}</a>
+                                        <a href="#" class="{{tb_tab == 'book' ? 'active-link-box-sml' : 'inactive-link-box-sml' }}" on-click="switch_tb_tab:book">{{translate("trade/titles/order_book", sputnik.profile.locale)}}</a>
+                                        <select class="form-control trades-select trades-mobile-push" value="{{tb_tab}}">
+                                            <option value="trades" selected="selected">{{translate("trade/titles/recent_trades", sputnik.profile.locale)}}</option>
+                                            <option value="book">{{translate("trade/titles/order_book", sputnik.profile.locale)}}</option>
+                                        </select>
+                                        {{#if tb_tab == 'trades'}}
+                                        <div style="height: 5%"></div>
+                                        <div id="trades" class="trades-box scroll-box">
+                                            <table id="trades-table" class="table-header">
+                                                <thead>
+                                                <tr>
+                                                    <th class="recent-price recent-price-nudge">{{translate("trade/titles/price", sputnik.profile.locale)}}</th>
+                                                    <th class="recent-quantity">{{translate("trade/titles/quantity", sputnik.profile.locale)}}</th>
+                                                    <th class="recent-time">{{translate("trade/titles/time", sputnik.profile.locale)}}</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="trades-tbody">
+                                                    {{#sputnik.trade_history[current_ticker]}}
+                                                    <tr>
+                                                        <td class="recent-price-content2">{{format_price(current_ticker, price, sputnik.profile.locale)}}</td>
+                                                        <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity, sputnik.profile.locale)}}</td>
+                                                        <td class="recent-time-content">{{format_time(timestamp, sputnik.profile.locale)}}</td>
+                                                    </tr>
+                                                    {{/}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {{/if}}
+                                        {{#if tb_tab == 'book'}}
+                                        <div style="height: 5%"></div>
+                                        <div id="book" class="book-box scroll-box">
+                                            <div class="row">
+                                                <div class="col-xs-6">
+                                                    <div class="bids-background"><p class="heading-bids">{{translate("trade/titles/bids", sputnik.profile.locale)}}</p></div>
+                                                    <table id="bids-table" class="table-header">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="recent-price recent-price-nudge">{{translate("trade/titles/price", sputnik.profile.locale)}}</th>
+                                                                <th class="recent-quantity">{{translate("trade/titles/quantity", sputnik.profile.locale)}}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{#sputnik.books[current_ticker].bids:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content2">{{format_price(current_ticker, price, sputnik.profile.locale)}}</td>
+                                                                <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity, sputnik.profile.locale)}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <div class="col-xs-6" style="margin-right:-15px;">
+                                                    <div class="asks-background"><p class="heading-asks">{{translate("trade/titles/asks", sputnik.profile.locale)}}</p></div>
+                                                    <table id="asks-table" class="table-header">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="recent-price">{{translate("trade/titles/price", sputnik.profile.locale)}}</th>
+                                                                <th class="recent-quantity">{{translate("trade/titles/quantity", sputnik.profile.locale)}}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {{#sputnik.books[current_ticker].asks:i}}
+                                                            <tr class="{{i == 0 ? 'alert-success' : '' }}">
+                                                                <td class="recent-price-content2">{{format_price(current_ticker, price, sputnik.profile.locale)}}</td>
+                                                                <td class="recent-quantity-content2">{{format_quantity(current_ticker, quantity, sputnik.profile.locale)}}</td>
+                                                            </tr>
+                                                            {{/}}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                        {{/if}}
+                                    </div>
+                                    <div intro="show_chart:{{current_ticker}}" class="col-sm-6 col-lg-8" style="padding-left: 0px;" id="tv_chart_container"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{/if}}
+    {{#if current_page == "dashboard"}}
+    <div id="page-dashboard">
+        <div class="row">
+            <div class="col-xs-12">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="{{dashboard_tab == 'active-contracts' ? 'tab-active' : 'tab-inactive' }}" id="tab-active-contracts">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:active-contracts">{{translate("dashboard/titles/news", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            {{#if sputnik.logged_in}}
+                            <div class="{{dashboard_tab == 'orders' ? 'tab-active' : 'tab-inactive' }}" id="tab-all-orders">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_dashboard_tab:orders">{{translate("dashboard/titles/all_orders", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            {{/if}}
+                        </div>
+                    </div>
+                    {{#if dashboard_tab == "active-contracts"}}
+                    <div id="most-active">
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                {{#sputnik.exchange_info.exchange_rss_feed}}
+                                <div class="col-lg-3">
+                                    <div intro="show_feed" id="feed">
+                                        <h2 class="dashboard-heading2">
+                                            <img height="19" width="19" class="m2-logo" src="{{feed.image_url}}" alt="{{feed.image_title}}">{{translate("dashboard/titles/news", sputnik.profile.locale)}}
+                                        </h2>
+                                        {{#feed.items}}
+                                        <p class="news-date">{{date}}</p> <a href="{{link}}" target="_blank" class="news-title">{{title}}</a>
+                                        <p class="news-box">{{{description}}}</p>
+                                        {{/}}
+                                    </div>
+                                </div>
+                                {{/sputnik.exchange_info.exchange_rss_feed}}
+                                {{#if window_info.width > 768}}
+                                <div class="col-xs-12 col-lg-9 dashboard-contracts">
+                                    <h2 class="dashboard-heading">{{translate("dashboard/titles/" + (sputnik.logged_in ? "my_contracts" : "active_contracts"), sputnik.profile.locale)}}</h2>
+                                    <div class="row">
+                                        <div class="tv-logo">
+                                            <div class="tv-wrapper">
+                                                <a class="tv-inner" href="https://www.tradingview.com/"
+                                                                        target="_blank"><img class="tv-solid"
+                                                                                             src="charting_library/static/images/logo-widget-copyright.png"
+                                                                                             alt="TradingView Logo"><span class="tv-text">charts&nbsp;by&nbsp;<span
+                                                        class="tv-highlighted">TradingView</span></span></a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row dashboard-row" style="padding-left: 0px; font-size: 21px;">
+                                        {{#sputnik.active_contracts}}
+                                        <div class="col-xs-12 col-md-6">
+                                            <h4 class="subheading">{{sputnik.markets[this].description}}</h4>
+                                            <div class="row">
+                                                <div class="dashboard-graph" style="padding-left: 0px; font-size: 15px;" intro="show_chart:{{this}}" id="dashboard_{{clean_ticker(this)}}"></div>
+                                            </div>
+                                        </div>
+                                        {{/}}
+                                    </div>
+                                </div>
+                                {{/if}}
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{#if sputnik.logged_in}}
+                    {{#if dashboard_tab == "orders"}}
+                    <div id="allorders">
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                            <h2 class="dashboard-heading">{{translate("dashboard/titles/all_orders_long", sputnik.profile.locale)}}</h2>
+                                <div class="row">
+                                <div class="col-sm-12">
+                                    <table class="table-full">
+                                        <thead>
+                                            <tr>
+                                                <th class="table-contract sortable" on-click="sort_all_orders:contract">{{translate("dashboard/titles/contract", sputnik.profile.locale)}}</th>
+                                                <th class="table-type2 sortable" on-click="sort_all_orders:type">{{translate("dashboard/titles/buy_sell", sputnik.profile.locale)}}</th>
+                                                <th class="table-price sortable" on-click="sort_all_orders:price">{{translate("dashboard/titles/price", sputnik.profile.locale)}}</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:quantity">{{translate("dashboard/titles/quantity", sputnik.profile.locale)}}</th>
+                                                <th class="table-quantity sortable" on-click="sort_all_orders:timestamp">{{translate("dashboard/titles/timestamp", sputnik.profile.locale)}}</th>
+                                                <th class="table-cancel">Cancel</th>
+
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {{# sort(values(sputnik.orders), all_orders_sort_column)}}
+                                            <tr class="cells">
+                                                <td class="cell-contract">{{contract}}</td>
+                                                <td class="cell-type2">{{translate("dashboard/fields/" + side, sputnik.profile.locale)}}</td>
+                                                <td class="cell-price">{{format_price(contract, price, sputnik.profile.locale)}}</td>
+                                                <td class="cell-quantity">{{format_quantity(contract, quantity_left, sputnik.profile.locale)}}</td>
+                                                <td class="cell-timestamp">{{format_time(timestamp, sputnik.profile.locale)}}</td>
+                                                <td class="cell-cancel">&nbsp;&nbsp;<button on-click='cancel_order:{{id}}' class="cancel-button"><img src="images/cancel.png"/></button></td>
+                                            </tr>
+                                            {{else}}
+                                            <tr class="cells"><td colspan="100" align="center">{{translate("dashboard/alerts/no_orders", sputnik.profile.locale)}}</td></tr>
+                                            {{/}}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+    </div>
+    {{/if}}
+    {{#if current_page == "account"}}
+    <div id="page-account">
+        <div class="row">
+            <div class="col-xs-12">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-sm-12 tabs-row">
+                            <div class="{{account_tab == 'profile' ? 'tab-active' : 'tab-inactive' }}" id="tab-user_information">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:profile">{{translate("account/pages/profile", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            <div class="{{account_tab == 'funding-history' ? 'tab-active' : 'tab-inactive' }}" id="tab-funding_and_history">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:funding-history">{{translate("account/pages/funding_history", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            <div class="{{account_tab == 'audit' ? 'tab-active' : 'tab-inactive' }}" id="tab-audit">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:audit">{{translate("account/pages/audit", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            <div class="{{account_tab == 'compliance' ? 'tab-active' : 'tab-inactive' }}" id="tab-compliance">
+                                <h4 class="tab-heading"><a href="#" class="tablink" on-click="switch_account_tab:compliance">{{translate("account/pages/compliance", sputnik.profile.locale)}}</a></h4>
+                            </div>
+                            
+                        </div>
+                        <select class="contract-select form-control select-format" value="{{account_tab}}">
+                                <option value="profile">{{translate("account/pages/profile", sputnik.profile.locale)}}</option>
+                                <option value="funding-history">{{translate("account/pages/funding_history", sputnik.profile.locale)}}</option>
+                                <option value="audit">{{translate("account/pages/audit", sputnik.profile.locale)}}</option>
+                                <option value="compliance">{{translate("account/pages/compliance", sputnik.profile.locale)}}</option>
+                            </select>
+                    </div>
+                    {{#if account_tab == "funding-history"}}
+                    <div id="funding-history">
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                <div class="contracts">
+                                    <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">{{translate("account/funding_history/pages/deposit", sputnik.profile.locale)}}</a>
+                                    <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">{{translate("account/funding_history/pages/withdraw", sputnik.profile.locale)}}</a>
+                                    <a href="#" class="{{fh_tab == 'history' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:history">{{translate("account/funding_history/pages/history", sputnik.profile.locale)}}</a>
+                                    <select class="form-control contract-select" value="{{fh_tab}}">
+                                        <option value="Select" selected="selected">{{translate("account/funding_history/select", sputnik.profile.locale)}}</option>
+                                        <option value="deposit">{{translate("account/funding_history/pages/deposit", sputnik.profile.locale)}}</option>
+                                        <option value="withdraw">{{translate("account/funding_history/pages/withdraw", sputnik.profile.locale)}}</option>
+                                        <option value="history">{{translate("account/funding_history/pages/history", sputnik.profile.locale)}}</option>
+                                    </select>
+                                </div>
+                                {{#if fh_tab == "deposit"}}
+                                <div id="deposit">
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/deposit_funds", sputnik.profile.locale)}}</h2>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12 spacer-bottom">
+                                            <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
+                                                <span class="caret"></span>
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                {{translate("account/funding_history/select_currency", sputnik.profile.locale)}}
+                                                {{/}}
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-2">
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    {{#current_currency}}
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance", sputnik.profile.locale)}}:</p>
+                                            <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position, sputnik.profile.locale)}}</strong></p>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12 deposit-heading">
+                                            <h4 class="header-sub content-push-right">{{translate("account/funding_history/titles/deposit_instructions", sputnik.profile.locale)}}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-8 deposit-content">
+                                            <p>{{{sputnik.currencies[current_currency].instructions}}}</p>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12 spacer-bottom">
+                                            <div class="content-push-right" id="qr_code"></div>
+                                            {{#if current_currency == "BTC"}}
+                                            <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
+                                            {{else}}
+                                            <p class="content-push6">{{sputnik.currencies[current_currency].address}}</p>
+                                            {{/if}}
+                                            <a href="#" class="button-link-box" on-click="new_address:{{current_currency}}">{{translate("account/funding_history/buttons/get_new_address", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                    {{/current_currency}}
+                                </div>
+                                {{/if}}
+                                {{#if fh_tab == "withdraw"}}
+                                <div id="withdraw">
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/withdraw_funds", sputnik.profile.locale)}}</h2>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12 spacer-bottom">
+                                            <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
+                                                <span class="caret"></span>
+                                                {{#sputnik.currencies[current_currency]}}
+                                                {{description}}
+                                                {{else}}
+                                                {{translate("account/funding_history/select_currency", sputnik.profile.locale)}}
+                                                {{/}}
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-3">
+                                                {{#sputnik.currencies:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_currency:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    {{#current_currency}}
+                                    <div class="row">
+                                        <div class="col-sm-3">
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance", sputnik.profile.locale)}}:</p>
+                                            <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position, sputnik.profile.locale)}}</strong></p>
+                                        </div>
+                                        <div class="col-sm-4">
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance_available", sputnik.profile.locale)}}:</p> <p class="text-balance"><strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency]), sputnik.profile.locale)}}</strong></p>
+                                        </div>
+                                    </div>
+                                   
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="row form-row content-pull">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/amount", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-amount" value="{{withdrawal_amount}}">
+                                                    {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
+                                                    <div class="alert alert-danger alert-warning text-center">{{translate("account/funding_history/withdrawal/alerts/insufficient_funds", sputnik.profile.locale)}}</div>
+                                                    {{/if}}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > 0}}
+                                    {{#if parse_number(withdrawal_amount, sputnik.profile.locale) <= sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
+                                    {{#if current_currency == "BTC"}}
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/crypto_address", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="crypto_address">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label content-push2">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/confirm_crypto_address", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="crypto_confirm_address">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:crypto">{{translate("account/funding_history/withdrawal/buttons/withdraw", sputnik.profile.locale)}}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{else}}
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="col-sm-12 deposit-heading">
+                                                <h4 class="heading-sub3">{{translate("account/funding_history/withdrawal/titles/wire_to_bank", sputnik.profile.locale)}}:</h4>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_name", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-bank-name">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_address", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-bank-address">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_swift", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-aba-swift">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_account_name", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-account-name">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/bank_account_number", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" name="withdraw-account-number">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7 content-push3">
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:wire">{{translate("account/funding_history/withdrawal/buttons/withdraw", sputnik.profile.locale)}}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="col-sm-12 deposit-heading">
+                                                <h4 class="heading-sub3">{{translate("account/funding_history/withdrawal/titles/mail_check", sputnik.profile.locale)}}:</h4>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/name", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-name">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/address_1", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-address1">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/address_2", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-address2">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/city", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-city">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/state", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-state">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/postal_code", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-postalcode">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/funding_history/withdrawal/titles/country", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" type="text" id="withdraw-country">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7 content-push3">
+                                                    <a href="#" class="button-link-box2" on-click="withdraw:mail">{{translate("account/funding_history/withdrawal/buttons/withdraw", sputnik.profile.locale)}}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{/if}}
+                                    {{/if}}
+                                    {{/if}}
+                                    {{/current_currency}}
+                                </div>
+                                {{/if}}
+                                {{#if fh_tab == "history"}}
+                                <div id="transaction-history">
+                                    <div class="row">
+                                        <div class="col-sm-6">
+                                            <h2 class="dashboard-heading">{{translate("account/funding_history/titles/transaction_history", sputnik.profile.locale)}}</h2>
+                                        </div>
+                                        
+                                        <div class="col-sm-3">
+                                            <form>
+                                            <span class="dates">{{translate("account/funding_history/titles/start_date", sputnik.profile.locale)}}</span> <input class="form-control field-date"
+                                                                                         type="text" id="transactions_start_date">
+                                            </form>
+                                        </div>
+                                        <div class="col-sm-3">
+                                            <form>
+                                            <span class="dates">{{translate("account/funding_history/titles/end_date", sputnik.profile.locale)}}</span> <input class="field-date form-control"
+                                                                                       type="text" id="transactions_end_date">
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 introductory-text">
+                                            {{translate("account/funding_history/hit_request", sputnik.profile.locale)}}
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-1" data-toggle="dropdown">
+                                                <span class="caret"></span>
+                                                {{#sputnik.position_contracts[history_contract]}}
+                                                {{description}}
+                                                {{else}}
+                                                {{translate("account/funding_history/select_contract", sputnik.profile.locale)}}
+                                                {{/}}
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="currency-menu-1">
+                                                {{#sputnik.position_contracts:ticker}}
+                                                <li role="presentation"><a role="menuitem" tabindex="-1" href="#" on-click="switch_history_contract:{{ticker}}">{{description}}</a></li>
+                                                {{/}}
+                                            </ul>
+
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12 button-request">
+                                        <a href="#" class="dashboard-heading button-link-box" on-click="transactions">{{translate("account/funding_history/buttons/request", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <table class="table-full">
+                                                <thead>
+                                                <tr>
+                                                    <th class="table-date">{{translate("account/funding_history/titles/date_time", sputnik.profile.locale)}}</th>
+                                                    <th class="table-type">{{translate("account/funding_history/titles/type", sputnik.profile.locale)}}</th>
+                                                    <th class="table-debit">{{translate("account/funding_history/titles/debit", sputnik.profile.locale)}}</th>
+                                                    <th class="table-credit">{{translate("account/funding_history/titles/credit", sputnik.profile.locale)}}</th>
+                                                    <th class="table-balance">{{translate("account/funding_history/titles/balance", sputnik.profile.locale)}}</th>
+                                                    <th class="table-note">{{translate("account/funding_history/titles/note", sputnik.profile.locale)}}</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{#sputnik.transaction_history[history_contract]}}
+                                                    <tr class="cells">
+                                                        <td class="cell-date">{{format_datetime(timestamp, sputnik.profile.locale)}}</td>
+                                                        <td class="cell-type">{{translate("account/funding_history/transaction_types/" + type, sputnik.profile.locale)}}</td>
+                                                        <td class="cell-debit">{{direction == "debit" ? format_quantity(history_contract, quantity, sputnik.profile.locale) : ''}}</td>
+                                                        <td class="cell-credit">{{direction == "credit" ? format_quantity(history_contract, quantity, sputnik.profile.locale) : ''}}</td>
+                                                        <td class="cell-balance">{{format_quantity(history_contract, balance, sputnik.profile.locale)}}</td>
+                                                        <td class="cell-note">{{note}}</td>
+                                                    </tr>
+                                                    {{else}}
+                                                    <tr class="cells">
+                                                        {{^history_contract}}
+                                                        <td colspan="100" align="center">{{translate("account/funding_history/alerts/select_currency", sputnik.profile.locale)}}</td>
+                                                        {{/history_contract}}
+                                                        {{#history_contract}}
+                                                        <td colspan="100" align="center">{{translate("account/funding_history/alerts/no_transactions", sputnik.profile.locale)}} {{history_contract}} downloaded</td>
+                                                        {{/history_contract}}
+                                                    </tr>
+                                                    {{/}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                {{/if}}
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{#if account_tab == "compliance"}}
+                    <div id="compliance">
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <h2 class="dashboard-heading">{{translate("account/pages/compliance", sputnik.profile.locale)}}</h2>
+                                    </div>
+                                </div>
+                                <form>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">{{translate("account/compliance/titles/identify", sputnik.profile.locale)}}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/compliance/titles/first_name", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="first_name" type="text" class="form-control" id="first_name"
+                                                           placeholder="{{translate('account/compliance/titles/first_name', sputnik.profile.locale)}}"
+                                                           required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate("account/compliance/titles/middle_name", sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="middle_name" type="text" class="form-control" id="middle_name"
+                                                            placeholder="{{translate('account/compliance/titles/middle_name', sputnik.profile.locale)}}">
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/identify', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="last_name" type="text" class="form-control" id="last_name"
+                                                           placeholder="{{translate('account/compliance/titles/last_name', sputnik.profile.locale)}}"
+                                                           required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/dob', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="date_of_birth" type="text" class="form-control" id="date_of_birth"
+                                                           placeholder="YYYY-MM-DD" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">{{translate('account/compliance/titles/address', sputnik.profile.locale)}}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/address_1', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="address1" type="text" class="form-control" id="address1"
+                                                           placeholder="{{translate('account/compliance/titles/address_1', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/address_2', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="address2" type="text" class="form-control" id="address2"
+                                                           placeholder="{{translate('account/compliance/titles/address_2', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/city', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="city" type="text" class="form-control" id="city"
+                                                           placeholder="{{translate('account/compliance/titles/city', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/state', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="state" type="text" class="form-control" id="state"
+                                                           placeholder="{{translate('account/compliance/titles/state', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/postal_code', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="postal_code" type="text" class="form-control" id="postal_code"
+                                                           placeholder="{{translate('account/compliance/titles/postal_code', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/country_code', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input name="country_code" type="text" class="form-control" id="country_code"
+                                                           placeholder="{{translate('account/compliance/titles/country_code', sputnik.profile.locale)}}" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub">{{translate('account/compliance/titles/documents', sputnik.profile.locale)}}</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content2">
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/passport', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control file" type="file" name="passport" required
+                                                           id="id_passport">
+                                                
+                                                </div>
+                                            </div>
+                                            <div class="row form-row">
+                                                <div class="col-sm-5">
+                                                    
+                                                </div>
+                                                <div class="col-sm-7">
+                                            
+                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="{{translate('account/compliance/titles/passport_number', sputnik.profile.locale)}}">
+
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="row form-row">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/compliance/titles/residency', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control file" type="file" name="residency" required
+                                                           id="proof_of_residency">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!--
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            <h4 class="heading-sub2">Questionnaire</h4>
+                                        </div>
+                                    </div>
+                                    -->
+                                    <div class="row">
+                                        <div class="col-sm-5">
+                                            <div class="row">
+                                                <div class="col-sm-5 spacer-bottom">
+                                                </div>
+                                                <div class="col-sm-7 spacer-bottom">
+                                                    <a data-color="green" data-size="s" data-style="zoom-out" href="#" id="compliance_button" class="ladda-button button-link-box3" on-click="submit_compliance">{{translate("account/compliance/buttons/submit", sputnik.profile.locale)}}</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{#if account_tab == "audit"}}
+                    <div id="audit">
+                        <div class="row">
+                            <div class="col-sm-12 content">
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <h2 class="dashboard-heading">{{translate("account/pages/audit", sputnik.profile.locale)}}</h2>
+                                    </div>
+                                </div>
+                                <p class="content-push-right2">{{translate("account/audit/titles/timestamp", sputnik.profile.locale)}}: {{format_datetime(sputnik.audit.timestamp, sputnik.profile.locale)}}</p>
+                                <p class="content-push-right">{{translate("account/audit/titles/my_hash", sputnik.profile.locale)}}: {{sputnik.audit_hash}}</p>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div class="contracts2">
+                                            <a href="#" on-click="switch_audit_tab:Asset" class="{{audit_tab == 'Asset' ? 'active-link-box' : 'inactive-link-box'}}">{{translate("account/audit/titles/assets", sputnik.profile.locale)}}</a>
+                                            <a href="#" on-click="switch_audit_tab:Liability" class="{{audit_tab == 'Liability' ? 'active-link-box' : 'inactive-link-box'}}">{{translate("account/audit/titles/liabilities", sputnik.profile.locale)}}</a>
+                                            <select class="form-control contract-select" value="{{audit_tab}}">
+                                                <option value="Asset">{{translate("account/audit/titles/assets", sputnik.profile.locale)}}</option>
+                                                <option value="Liability">{{translate("account/audit/titles/liabilities", sputnik.profile.locale)}}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <p class="asset-select">{{translate("account/audit/select", sputnik.profile.locale)}}:</p>
+                                         <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="dropdownMenu1" data-toggle="dropdown">
+                                            {{audit_contract}}
+                                            <span class="caret"></span>
+                                         </button>
+                                         <ul class="dropdown-menu dropdown-menu-left" role="menu" aria-labelledby="dropdownMenu1">
+                                             {{#sputnik.audit[audit_tab]:ticker}}
+                                             <li role="presentation"><a role="menuitem" on-click="switch_audit_contract:{{ticker}}" tabindex="-1" href="#">{{ticker}}</a></li>
+                                             {{/}}
+                                         </ul>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <table class="table-full">
+                                            <thead>
+                                                <tr>
+                                                    <th class="table-id">{{translate("account/audit/titles/id", sputnik.profile.locale)}}</th>
+                                                    <th class="table-amount">{{translate("account/audit/titles/amount", sputnik.profile.locale)}}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="#">
+                                                {{#sputnik.audit[audit_tab][audit_contract].positions}}
+                                                <tr class="{{this[0] == sputnik.audit_hash ? 'cells highlight' : 'cells'}}">
+                                                    <td class="cell-id">{{this[0]}}</td>
+                                                    <td class="cell-amount" align="right">{{format_quantity(audit_contract, this[1], sputnik.profile.locale)}}</td>
+                                                </tr>
+                                                {{/}}
+                                                <tr class="cells">
+                                                    <th class="cell-id">TOTAL</th>
+                                                    <th class="cell-amount total-amount" align="right">{{format_quantity(audit_contract, sputnik.audit[audit_tab][audit_contract].total_fmt, sputnik.profile.locale)}}</th>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{#if account_tab == "profile"}}
+                    <div class="row">
+                        <div class="col-sm-12 content">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <h2 class="dashboard-heading">{{translate("account/pages/profile", sputnik.profile.locale)}}</h2>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <h4 class="heading-sub">{{translate("account/profile/titles/details", sputnik.profile.locale)}}</h4>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-5 deposit-content2">
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/email", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <p>{{sputnik.username}}</p>
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/nickname", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7 content-push2">
+                                            <input class="form-control" type="field" name="nickname" value="{{sputnik.profile.nickname}}">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/locale", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7 content-push2">
+                                            <select value="{{sputnik.profile.locale}}" class="form-control">
+                                                {{#locale.supported_locales:locale}}
+                                                <option value="{{locale}}">{{translate("locales/" + locale, sputnik.profile.locale)}}</option>
+                                                {{/locale.supported_locales}}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                        </div>
+                                        <div class="col-sm-7 form-label">
+                                            <a href="#" class="button-link-box3" on-click="change_profile">{{translate("account/profile/buttons/update", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-12">
+                                <h4 class="heading-sub2">Change Password</h4>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-5 deposit-content2">
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/old_password", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <input class="form-control" type="password" id="old_password">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/new_password", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <input class="form-control" type="password" id="new_password">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/confirm_password", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7 content-push2">
+                                            <input class="form-control" type="password" id="new_password_confirm">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+
+                                        </div>
+                                        <div class="col-sm-7 form-label">
+                                            <a href="#" class="button-link-box3" on-click="change_password">{{translate("account/profile/buttons/change_password", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+    </div>
+    {{/if}}
+    <div class="links_footer">
+        <div class="row">
+            <div class="col-xs-4 text-left">
+                <a href="https://m2.io/" target="_blank"><img src="images/mimetic_small.png">Powered by Mimetic Markets, Inc.</a>
+            </div>
+            <div class="col-xs-4 text-center">
+                <a href="mailto:{{sputnik.exchange_info.support_email}}">Contact Support</a>
+            </div>
+            <div class="col-xs-4 text-right">
+                <a href="{{sputnik.exchange_info.corporate_url}}">Operated by {{sputnik.exchange_info.corporate_name}}</a>
+            </div>
+        </div>
+    </div>
+</div>
+

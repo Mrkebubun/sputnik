@@ -91,9 +91,9 @@ permissions add Default login
 permissions add Full trade withdraw deposit login
 permissions add NoTrade withdraw deposit login
 
-fees add Default 100 100
-fees add NoFee 0 0
-fees add LiqProvider 100 0
+fees add Default 100 100 100 100
+fees add NoFee 0 0 0 0
+fees add LiqProvider 100 0 100 100
 EOF
 
 cat << EOF | $profile_root/tools/leo

@@ -89,49 +89,49 @@ class MarketMakerBot(TradingBot):
             return
 
         for ticker, market in self.markets.iteritems():
-            if market['contract_type'] == "cash_pair":
-                currency = market['denominated_contract_ticker']
+            if ticker not in self.factory.ignore_contracts:
+                if market['contract_type'] == "cash_pair":
+                    currency = market['denominated_contract_ticker']
 
-                try:
-                # Get Yahoo quote
-                    url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
-                    file_handle = urllib2.urlopen(url)
-                    soup = BeautifulSoup(file_handle)
-                    bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text)
-                    ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text)
-                except Exception as e:
-                    # Unable to get markets, just exit
-                    print "unable to get external market data: %s" % e
-                    continue
+                    try:
+                    # Get Yahoo quote
+                        url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
+                        file_handle = urllib2.urlopen(url)
+                        soup = BeautifulSoup(file_handle)
+                        bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                        ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                    except Exception as e:
+                        # Unable to get markets, just exit
+                        print "unable to get external market data: %s" % e
+                        continue
 
 
-                new_bid = btcusd_bid * bid
-                new_ask = btcusd_ask * ask
-                if ticker == "BTC/PLN":
+                    new_bid = btcusd_bid * bid
+                    new_ask = btcusd_ask * ask
                     logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
-                # Make sure that the marketwe are making isn't crossed
-                if new_bid > new_ask:
-                    tmp = new_bid
-                    new_bid = new_ask
-                    new_ask = tmp
+                    # Make sure that the marketwe are making isn't crossed
+                    if new_bid > new_ask:
+                        tmp = new_bid
+                        new_bid = new_ask
+                        new_ask = tmp
 
-                # If it's matched, make a spread just because
-                if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
-                    new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
-                    new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                    # If it's matched, make a spread just because
+                    if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
+                        new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                        new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
 
-                if ticker in self.external_markets:
-                    if new_bid != self.external_markets[ticker]['bid']:
-                        self.external_markets[ticker]['bid'] = new_bid
+                    if ticker in self.external_markets:
+                        if new_bid != self.external_markets[ticker]['bid']:
+                            self.external_markets[ticker]['bid'] = new_bid
+                            self.replaceBidAsk(ticker, new_bid, 'BUY')
+                        if new_ask != self.external_markets[ticker]['ask']:
+                            self.external_markets[ticker]['ask'] = new_ask
+                            self.replaceBidAsk(currency, new_ask, 'SELL')
+                    else:
+                        self.external_markets[ticker] = {'bid': new_bid, 'ask': new_ask}
+                        self.replaceBidAsk(ticker, new_ask, 'SELL')
                         self.replaceBidAsk(ticker, new_bid, 'BUY')
-                    if new_ask != self.external_markets[ticker]['ask']:
-                        self.external_markets[ticker]['ask'] = new_ask
-                        self.replaceBidAsk(currency, new_ask, 'SELL')
-                else:
-                    self.external_markets[ticker] = {'bid': new_bid, 'ask': new_ask}
-                    self.replaceBidAsk(ticker, new_ask, 'SELL')
-                    self.replaceBidAsk(ticker, new_bid, 'BUY')
 
     def replaceBidAsk(self, ticker, new_ba, side):
         self.cancelOrders(ticker, side)
@@ -175,8 +175,10 @@ if __name__ == '__main__':
     username = config.get("market_maker", "username")
     password = config.get("market_maker", "password")
     rate = config.getfloat("market_maker", "rate")
+    ignore_contracts = [x.strip() for x in config.get("market_maker", "ignore_contracts").split(',')]
 
-    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate)
+    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), ignore_contracts=ignore_contracts,
+                         rate=rate)
     factory.protocol = MarketMakerBot
 
     # null -> ....

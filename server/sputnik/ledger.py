@@ -27,14 +27,14 @@ import time
 class LedgerException(Exception):
     pass
 
-ARGUMENT_ERROR = LedgerException(100, "Posting(s) cannot be decoded.")
-UID_MISMATCH = LedgerException(101, "Batch postings must have the same UID.")
-QUANTITY_MISMATCH = LedgerException(200, "Posting quantities do not balance.")
-TYPE_MISMATCH = LedgerException(201, "Posting types do not match.")
-COUNT_MISMATCH = LedgerException(202, "Posting count is inconsistent.")
-GROUP_TIMEOUT = LedgerException(300, "Timeout exceeded waiting for postings.")
-INTERNAL_ERROR = LedgerException(998, "Invalid arguments supplied to commit.")
-DATABASE_ERROR = LedgerException(999, "Database error.")
+ARGUMENT_ERROR = LedgerException("exceptions/ledger/argument_error")
+UID_MISMATCH = LedgerException("exceptions/ledger/uid_mismatch")
+QUANTITY_MISMATCH = LedgerException("exceptions/ledger/quantity_mismatch")
+TYPE_MISMATCH = LedgerException("exceptions/ledger/type_mismatch")
+COUNT_MISMATCH = LedgerException("exceptions/ledger/count_mismatch")
+GROUP_TIMEOUT = LedgerException("exceptions/ledger/group_timeout")
+INTERNAL_ERROR = LedgerException("exceptions/ledger/internal_error")
+DATABASE_ERROR = LedgerException("exceptions/ledger/database_error")
 
 class PostingGroup(TimeoutMixin):
     def __init__(self, timeout=None):

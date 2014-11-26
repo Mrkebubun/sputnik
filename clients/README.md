@@ -5,7 +5,7 @@
 The server and client communicate using [​WAMP] (http://wamp.ws/).
 This is a derivative of a websocket connection with an additional layer supporting RPC and PubSub.
 
-The default port for websockets is 8000. A typical session runs as follows:
+The default port for websockets is 8443. A typical session runs as follows:
 
 1. The client initiates a connection to the server.
 2. The client is not authenticated, so they can only query public data, and subscribe to public feeds.

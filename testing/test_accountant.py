@@ -109,7 +109,7 @@ class TestAccountantAudit(TestAccountantBase):
         position = self.session.query(models.Position).filter_by(username="messed_up_trader_a").filter_by(contract_id=BTC.id).one()
         self.assertEqual(position.pending_postings, 0)
         self.assertEqual(position.position, 50)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Account disabled'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'disabled_user'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -118,7 +118,7 @@ class TestAccountantAudit(TestAccountantBase):
                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
         self.clock.advance(300)
         self.assertEqual(position.position, 0)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -140,254 +140,6 @@ class TestAccountant(TestAccountantBase):
         user.permissions = group
         self.session.merge(user)
         self.session.commit()
-
-class TestFees(TestAccountant):
-    def setUp(self):
-        TestAccountant.setUp(self)
-        fees_init = """
-fees add LiqRebate 100 -50
-fees add NoFee 0 0
-fees add HeavyFee 200 200
-
-accounts set marketmaker fees LiqRebate
-accounts set randomtrader fees HeavyFee
-accounts set m2 fees NoFee
-
-contracts set BTC/MXN fees 50
-contracts set NETS2015 fees 350
-"""
-        self.run_leo(fees_init)
-
-    def test_fees(self):
-        from sputnik import util
-
-        BTCMXN = self.get_contract('BTC/MXN')
-        NETS2015 = self.get_contract('NETS2015')
-        BTCHUF = self.get_contract('BTC/HUF')
-        NETS2014 = self.get_contract('NETS2014')
-
-        marketmaker = self.get_user('marketmaker')
-        randomtrader = self.get_user('randomtrader')
-        m2 = self.get_user('m2')
-        customer = self.get_user('customer')
-
-        fees_result = {}
-        for user in [marketmaker, randomtrader, m2, customer]:
-            for contract in [BTCMXN, NETS2015, BTCHUF, NETS2014]:
-                for ap in [None, "aggressive", "passive"]:
-                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, 10000, ap=ap)
-        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 50},
-                                           (u'customer', u'NETS2014', None): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2015', None): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 350},
-                                           (u'm2', u'BTC/HUF', None): {u'HUF': 0},
-                                           (u'm2', u'BTC/HUF', 'aggressive'): {u'HUF': 0},
-                                           (u'm2', u'BTC/HUF', 'passive'): {u'HUF': 0},
-                                           (u'm2', u'BTC/MXN', None): {u'MXN': 0},
-                                           (u'm2', u'BTC/MXN', 'aggressive'): {u'MXN': 0},
-                                           (u'm2', u'BTC/MXN', 'passive'): {u'MXN': 0},
-                                           (u'm2', u'NETS2014', None): {u'BTC': 0},
-                                           (u'm2', u'NETS2014', 'aggressive'): {u'BTC': 0},
-                                           (u'm2', u'NETS2014', 'passive'): {u'BTC': 0},
-                                           (u'm2', u'NETS2015', None): {u'BTC': 0},
-                                           (u'm2', u'NETS2015', 'aggressive'): {u'BTC': 0},
-                                           (u'm2', u'NETS2015', 'passive'): {u'BTC': 0},
-                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -50},
-                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -25},
-                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -100},
-                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -175},
-                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 100},
-                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 700}}
-        )
-
-
-class TestMargin(TestAccountant):
-    def setUp(self):
-        TestAccountant.setUp(self)
-        self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
-
-    def create_position(self, username, ticker, quantity):
-        from sputnik import models
-        user = self.session.query(models.User).filter_by(username=username).one()
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        from sqlalchemy.orm.exc import NoResultFound
-        try:
-            position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
-            position.position = quantity
-            self.session.commit()
-        except NoResultFound:
-            position = models.Position(user, contract, quantity)
-            self.session.add(position)
-
-        self.session.commit()
-
-    def create_order(self, username, ticker, quantity, price, side, accepted=True):
-        from sputnik import models
-        user = self.session.query(models.User).filter_by(username=username).one()
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        order = models.Order(user, contract, quantity, price, side)
-        order.accepted = accepted
-        self.session.add(order)
-        self.session.commit()
-        return order.id
-
-    def cancel_order(self, id):
-        from sputnik import models
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        order.is_cancelled = True
-        self.session.commit()
-
-    def test_cash_pairs_only(self):
-
-        # We don't have to create a BTC position, because
-        # the margin checking code doesn't worry about our
-        # BTC position, however there is a weird hack so that if
-        # the cash_spent exceeds my fiat positions, then margin
-        # gets set really high, so we need a fiat position to test
-        # that
-
-        # 1 Peso
-        self.create_position('test', 'MXN', 10000)
-
-        # No orders
-        from sputnik import margin
-        test = self.get_user('test')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertEqual(low_margin, 0)
-        self.assertEqual(high_margin, 0)
-        self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 0})
-
-        # With a BUY order
-        id = self.create_order('test', 'BTC/MXN', 50000000, 5000, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertEqual(low_margin, 0)
-        self.assertEqual(high_margin, 0)
-        # 2500 for the trade, and 100bps for the fee
-        self.assertDictEqual(max_cash_spent, {'MXN': 2500 * 1.01, 'BTC': 0})
-        self.cancel_order(id)
-
-        # With a SELL order
-        id = self.create_order('test', 'BTC/MXN', 50000000, 500, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        # BTC cash spent gets applied to margin
-        self.assertEqual(low_margin, 50000000)
-        self.assertEqual(high_margin, 50000000)
-        self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 50000000})
-        self.cancel_order(id)
-
-        # With too big an order in terms of fiat
-        # 0.5BTC for 3Pesos each for 1.5Peso total cost plus fees
-        id = self.create_order('test', 'BTC/MXN', 50000000, 30000, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertGreaterEqual(low_margin, 2**48)
-        self.assertGreaterEqual(high_margin, 2**48)
-        # 100bps fee
-        self.assertDictEqual(max_cash_spent, {'MXN': 15000 * 1.01, 'BTC': 0})
-        self.cancel_order(id)
-
-        # With a big order in terms of BTC
-        # Sell 2 BTC for 1.5Peos each
-        id = self.create_order('test', 'BTC/MXN', 200000000, 15000, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertEqual(low_margin, 200000000)
-        self.assertEqual(high_margin, 200000000)
-        self.assertDictEqual(max_cash_spent, {'MXN': 0, 'BTC': 200000000})
-        self.cancel_order(id)
-
-        # a bunch of random orders
-        self.create_order('test', 'BTC/MXN', 50000000, 15000, 'SELL')
-        self.create_order('test', 'BTC/MXN', 25000000, 15000, 'BUY')
-        self.create_order('test', 'BTC/MXN', 20000000, 10000, 'BUY')
-        self.create_order('test', 'BTC/MXN', 30000000,  2500, 'BUY')
-        self.create_order('test', 'BTC/MXN', 20000000, 15000, 'SELL')
-
-        BTC_spent = 50000000 + 20000000
-        # 100bps fee
-        MXN_spent = int((25000000 * 15000 / 100000000 ) * 1.01) + int((20000000 * 10000 / 100000000 ) * 1.01) + int((30000000 * 2500 / 100000000 ) * 1.01)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertEqual(low_margin, BTC_spent)
-        self.assertEqual(high_margin, BTC_spent)
-        self.assertDictEqual(max_cash_spent, {'MXN': MXN_spent, 'BTC': BTC_spent})
-
-        # Now a too big order in terms of MXN
-        self.create_order('test', 'BTC/MXN', 50000000, 30000, 'BUY')
-        # 100bps fee
-        MXN_spent += (50000000 * 30000 / 100000000) * 1.01
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertGreaterEqual(low_margin, 2**48)
-        self.assertGreaterEqual(high_margin, 2**48)
-        self.assertDictEqual(max_cash_spent, {'MXN': MXN_spent, 'BTC': BTC_spent})
-
-    def test_predictions_only(self):
-        # Check margin given some positions
-        from sputnik import margin
-        test = self.get_user('test')
-
-        # Long position, no margin needed
-        self.create_position('test', 'NETS2015', 4)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        self.assertEqual(low_margin, 0)
-        self.assertEqual(high_margin, 0)
-        self.assertDictEqual(max_cash_spent, {'BTC': 0})
-
-        # Short position, fully margined
-        self.create_position('test', 'NETS2015', -4)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        # (4 x lotsize)
-        self.assertEqual(low_margin, 4000000)
-        self.assertEqual(high_margin, 4000000)
-        self.assertDictEqual(max_cash_spent, {'BTC': 0})
-
-        # With a long order, no position
-        self.create_position('test', 'NETS2015', 0)
-        id = self.create_order('test', 'NETS2015', 1, 500, 'BUY')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        # 1x0.5x lot size plus fee (200bps)
-        self.assertEqual(low_margin, round(500000 * 1.02))
-        self.assertEqual(high_margin, round(500000 * 1.02))
-
-        # Cash spent for BTC is only the fee here, the cash spent on the trade
-        # is dealt with already in the margin calculation
-        # 200bps fee
-        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.02)})
-        self.cancel_order(id)
-
-        # With a short order
-        id = self.create_order('test', 'NETS2015', 1, 500, 'SELL')
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
-        # 1x(1 - 0.5)xlot_size (will have to pay 1 if clears at 1, but will receive 0.5 when traded)
-        # Also have to pay a fee (200bps)
-        self.assertEqual(low_margin, round(500000 * 1.02))
-        self.assertEqual(high_margin, round(500000 * 1.02))
-        self.assertDictEqual(max_cash_spent, {'BTC': round(500000 * 0.02)})
-        self.cancel_order(id)
-
 
 class TestCashierExport(TestAccountant):
     def test_deposit_cash_permission_allowed(self):
@@ -1045,7 +797,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Contract expired'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'contract_expired'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'NETS2014',
                                                        'price': 500,
@@ -1155,7 +907,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Trading not permitted'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1173,7 +925,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1195,7 +947,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
             result = self.webserver_export.place_order('test', {'username': 'test',
                                                                 'contract': 'BTC/MXN',
                                                                 'price': 1000000,
@@ -1249,7 +1001,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1316,7 +1068,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "User wrong does not own the order"):
+        with self.assertRaisesRegexp(accountant.AccountantException, "user_order_mismatch"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1338,7 +1090,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         id = 5
-        with self.assertRaisesRegexp(accountant.AccountantException, "No order 5 found"):
+        with self.assertRaisesRegexp(accountant.AccountantException, "no_order_found"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1400,7 +1152,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Withdrawals not permitted'):
+        with self.assertRaisesRegexp(accountant.AccountantException, "withdraw_not_permitted"):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1413,7 +1165,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1426,7 +1178,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'Insufficient margin'):
+        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])

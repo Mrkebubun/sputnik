@@ -12,9 +12,6 @@ ln -sf $profile_root/tools/leo.py${profile_pycompiled} $profile_root/tools/leo
 ln -sf $profile_root/tools/generate_new_btc_addresses.py${profile_pycompiled} $profile_root/tools/generate_new_btc_addresses
 ln -sf $profile_root/tools/audit_ledger.py${profile_pycompiled} $profile_root/tools/audit_ledger
 
-# Copy over alembic into tools
-cp -r $profile_git_root/dist/alembic/* $profile_root/tools
-
 # copy over config
 cp $profile_git_root/dist/config/* $profile_conf
 
@@ -22,6 +19,12 @@ cp $profile_git_root/dist/config/* $profile_conf
 if [ -d $profile_git_root/dist/keys ]; then
    cp $profile_git_root/dist/keys/* $profile_keys
 fi
+
+# Copy over alembic into tools
+cp -r $profile_git_root/dist/alembic $profile_root/tools
+ln -s $profile_conf/alembic.ini $profile_root/tools
+mkdir -p $profile_root/tools/alembic/versions
+chown -R $profile_user $profile_root/tools/alembic/versions
 
 # change permissions
 chown -R root:root $profile_root

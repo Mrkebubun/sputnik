@@ -56,17 +56,17 @@ from rpc_schema import schema
 class AdministratorException(Exception): pass
 
 
-USERNAME_TAKEN = AdministratorException(1, "Username is already taken.")
-NO_SUCH_USER = AdministratorException(2, "No such user.")
-FAILED_PASSWORD_CHANGE = AdministratorException(3, "Password does not match")
-INVALID_TOKEN = AdministratorException(4, "No such token found.")
-EXPIRED_TOKEN = AdministratorException(5, "Token expired or already used.")
-TICKET_EXISTS = AdministratorException(7, "Ticket already exists")
-USER_LIMIT_REACHED = AdministratorException(8, "User limit reached")
-ADMIN_USERNAME_TAKEN = AdministratorException(9, "Administrator username is already taken")
-INVALID_SUPPORT_NONCE = AdministratorException(10, "Invalid support nonce")
-SUPPORT_NONCE_USED = AdministratorException(11, "Support nonce used already")
-INVALID_CURRENCY_QUANTITY = AdministratorException(12, "Invalid currency quantity")
+USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
+NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
+PASSWORD_MISMATCH = AdministratorException("exceptions/administrator/password_mismatch")
+INVALID_TOKEN = AdministratorException("exceptions/administrator/invalid_token")
+EXPIRED_TOKEN = AdministratorException("exceptions/administrator/expired_token")
+TICKET_EXISTS = AdministratorException("exceptions/administrator/ticket_exists")
+USER_LIMIT_REACHED = AdministratorException("exceptions/administrator/user_limit_reached")
+ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_username_taken")
+INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
+SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
+INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
 
 
 def session_aware(func):
@@ -174,8 +174,10 @@ class Administrator:
         if not user:
             raise NO_SUCH_USER
 
-        user.email = profile.get("email", user.email)
+        # Don't permit changing email
+        #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
+        user.locale = profile.get("locale", user.locale)
         self.session.merge(user)
 
         self.session.commit()
@@ -257,7 +259,7 @@ class Administrator:
         [salt, hash] = user.password.split(':')
 
         if hash != old_password_hash and token is None:
-            raise FAILED_PASSWORD_CHANGE
+            raise PASSWORD_MISMATCH
         elif hash != old_password_hash:
             # Check token
             token = self.check_token(username, token)
@@ -295,7 +297,7 @@ class Administrator:
 
         log.msg("Created token: %s" % token)
         # Now email the token
-        t = self.jinja_env.get_template('reset_password.email')
+        t = util.get_locale_template(user.locale, self.jinja_env, 'reset_password.{locale}.email')
         content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
                            user=user, base_uri=self.base_uri).encode('utf-8')
 
@@ -460,7 +462,7 @@ class Administrator:
         # If the pw is blank, don't check
         if user.password_hash != "":
             if user.password_hash != old_password_hash:
-                raise FAILED_PASSWORD_CHANGE
+                raise PASSWORD_MISMATCH
 
         user.password_hash = new_password_hash
         self.session.add(user)
@@ -794,6 +796,8 @@ class Administrator:
         all_orders = self.session.query(models.Order).filter_by(user=user)
         order_count = all_orders.count()
         order_pages = int(order_count / self.page_size) + 1
+        if page < 0:
+            page = 0
         orders = all_orders.order_by(models.Order.timestamp.desc()).offset(self.page_size * page).limit(self.page_size)
         return orders, order_pages
 
@@ -818,6 +822,9 @@ class Administrator:
         last = now
 
         postings_pages = int(postings_count / self.page_size) + 1
+        if page < 0:
+            page = 0
+
         postings = all_postings.join(models.Posting.journal).order_by(models.Journal.timestamp.desc()).offset(
             self.page_size * page).limit(self.page_size)
 
@@ -848,7 +855,7 @@ class Administrator:
         log.msg("Changing fee group for %s to %d" % (username, id))
         self.accountant.change_fee_group(username, id)
 
-    def modify_fee_group(self, id, name, aggressive_factor, passive_factor):
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         """Change the permission group for a user
 
         :param username: The user we are changing
@@ -863,6 +870,8 @@ class Administrator:
             group.name = name
             group.aggressive_factor = aggressive_factor
             group.passive_factor = passive_factor
+            group.withdraw_factor = withdraw_factor
+            group.deposit_factor = deposit_factor
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -870,10 +879,10 @@ class Administrator:
 
         self.accountant.reload_fee_group(None, group.id)
 
-    def new_fee_group(self, name, aggressive_factor, passive_factor):
+    def new_fee_group(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         try:
             log.msg("Creating new fee group: %s" % name)
-            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor)
+            fee_group = models.FeeGroup(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
             self.session.add(fee_group)
             self.session.commit()
         except Exception as e:
@@ -1202,7 +1211,8 @@ class AdminWebUI(Resource):
             if key in request.args:
                 args[key] = request.args[key][0].decode('utf-8')
 
-        for key in ["fees", "hot_wallet_limit"]:
+        for key in ["fees", "hot_wallet_limit", "deposit_base_fee", "deposit_bps_fee", "withdraw_base_fee",
+                    "withdraw_bps_fee"]:
             if key in request.args:
                 args[key] = int(request.args[key][0])
 

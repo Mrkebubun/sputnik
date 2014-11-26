@@ -4,12 +4,20 @@ from datetime import datetime
 from twisted.internet import ssl
 from OpenSSL import SSL
 import models
+import sys
 import math
 import time
 import uuid
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+import twisted.python.util
+
+def get_locale_template(locale, jinja_env, template):
+    locales = [locale, "root"]
+    templates = [template.format(locale=locale) for locale in locales]
+    t = jinja_env.select_template(templates)
+    return t
 
 def timed(f):
     def wrapped(*args, **kwargs):
@@ -147,6 +155,27 @@ def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
     final_fee = int(round(base_fee * user_factor / 100 / 10000))
     return {contract.denominated_contract.ticker: final_fee}
 
+def get_deposit_fees(user, contract, deposit_amount, trial_period=False):
+    if trial_period:
+        return {}
+
+    base_fee = contract.deposit_base_fee + float(deposit_amount * contract.deposit_bps_fee) / 10000
+    user_factor = float(user.fees.deposit_factor) / 100
+    final_fee = int(round(base_fee * user_factor))
+
+    return {contract.ticker: final_fee}
+
+def get_withdraw_fees(user, contract, withdraw_amount, trial_period=False):
+    if trial_period:
+        return {}
+
+    base_fee = contract.withdraw_base_fee + float(withdraw_amount * contract.withdraw_bps_fee) / 10000
+    user_factor = float(user.fees.withdraw_factor) / 100
+    final_fee = int(round(base_fee * user_factor))
+
+    return {contract.ticker: final_fee}
+
+
 def get_contract(session, ticker):
     """
     Return the Contract object corresponding to the ticker.
@@ -228,19 +257,47 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
 
-def getLoggers(prefix):
-    def debug(message):
-        log.msg(message, system=prefix, level=10)
+class SputnikObserver(log.FileLogObserver):
+    levels = {10: "DEBUG", 20:"INFO", 30:"WARN", 40:"ERROR", 50:"CRITICAL"}
 
-    def info(message):
-        log.msg(message, system=prefix, level=20)
+    def __init__(self, level=20):
+        self.level = level
+        log.FileLogObserver.__init__(self, sys.stdout)
 
-    def warn(message):
-        log.msg(message, system=prefix, level=30)
+    def emit(self, eventDict):
+        text = log.textFromEventDict(eventDict)
+        if text is None:
+            return
+        
+        level = eventDict.get("level", 20)
+        if level < self.level:
+            return
 
-    def error(message):
-        log.err(message, system=prefix, level=40)
+        timeStr = self.formatTime(eventDict['time'])
+        fmtDict = {'system': eventDict['system'],
+                   'text': text.replace("\n", "\n\t"),
+                   'level': self.levels[level]}
+        msgStr = log._safeFormat("%(level)s [%(system)s] %(text)s\n", fmtDict)
 
-    def critical(message):
-        log.err(message, system=prefix, level=50)
+        twisted.python.util.untilConcludes(self.write, timeStr + " " + msgStr)
+        twisted.python.util.untilConcludes(self.flush)
+
+class Logger:
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def debug(self, message=None):
+        log.msg(message, system=self.prefix, level=10)
+
+    def info(self, message=None):
+        log.msg(message, system=self.prefix, level=20)
+
+    def warn(self, message=None):
+        log.msg(message, system=self.prefix, level=30)
+
+    def error(self, message=None):
+        log.err(message, system=self.prefix, level=40)
+
+    def critical(self, message=None):
+        log.err(message, system=self.prefix, level=50)
 

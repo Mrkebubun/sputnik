@@ -21,3 +21,4 @@ testing/_trial_temp
 testing/.coverage*
 testing/htmlcov
 aux.ini
+tools/alembic/versions

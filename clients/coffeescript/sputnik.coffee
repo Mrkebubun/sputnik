@@ -43,11 +43,12 @@ class @Sputnik extends EventEmitter
         email: null
         nickname: null
         audit_secret: null
+        locale: null
     chat_messages: []
     connected: false
 
     constructor: (@uri) ->
-
+        # Initialize globalization settings
 
         ### Sputnik API  ###
 
@@ -80,7 +81,7 @@ class @Sputnik extends EventEmitter
 
     # authentication and account management
 
-    makeAccount: (username, secret, email, nickname) =>
+    makeAccount: (username, secret, email, nickname, locale) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
         @authextra =
@@ -88,7 +89,7 @@ class @Sputnik extends EventEmitter
             iterations: 1000
         password = ab.deriveKey secret, @authextra
 
-        @call("make_account", username, password, salt, email, nickname).then \
+        @call("make_account", username, password, salt, email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
@@ -98,8 +99,8 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (email, nickname) =>
-        @call("change_profile", email, nickname).then (@profile) =>
+    changeProfile: (email, nickname, locale) =>
+        @call("change_profile", email, nickname, locale).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
@@ -108,7 +109,6 @@ class @Sputnik extends EventEmitter
         @call("get_audit").then (wire_audit_details) =>
             @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
-            audit_details.timestamp = @dateTimeFormat(audit_details.timestamp)
             for side in [audit_details.liabilities, audit_details.assets]
                 for ticker, data of side
                     data.total = @quantityFromWire(ticker, data.total)
@@ -285,22 +285,10 @@ class @Sputnik extends EventEmitter
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[ticker]
         else
-            source = null
+            source = @markets[ticker]
             target = @markets[ticker]
 
         return [contract, source, target]
-
-    timeFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleTimeString()
-
-    dateTimeFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleString()
-
-    dateFormat: (timestamp) =>
-        dt = new Date(timestamp / 1000)
-        return dt.toLocaleDateString()
 
     copy: (object) =>
         new_object = {}
@@ -318,10 +306,8 @@ class @Sputnik extends EventEmitter
             close: @priceFromWire(ticker, wire_ohlcv['close'])
             volume: @quantityFromWire(ticker, wire_ohlcv['volume'])
             vwap: @priceFromWire(ticker, wire_ohlcv['vwap'])
-            open_timestamp: @timeFormat(wire_ohlcv['open_timestamp'])
-            wire_open_timestamp: wire_ohlcv['open_timestamp']
-            close_timestamp: @timeFormat(wire_ohlcv['close_timestamp'])
-            wire_close_timestamp: wire_ohlcv['close_timestamp']
+            open_timestamp: wire_ohlcv['open_timestamp']
+            close_timestamp: wire_ohlcv['close_timestamp']
             period: wire_ohlcv.period
         return ohlcv
 
@@ -347,7 +333,7 @@ class @Sputnik extends EventEmitter
         order.price = @priceFromWire(ticker, wire_order.price)
         order.quantity = @quantityFromWire(ticker, wire_order.quantity)
         order.quantity_left = @quantityFromWire(ticker, wire_order.quantity_left)
-        order.timestamp = @timeFormat(wire_order.timestamp)
+        order.timestamp = wire_order.timestamp
         return order
 
     bookRowFromWire: (ticker, wire_book_row) =>
@@ -361,8 +347,7 @@ class @Sputnik extends EventEmitter
         trade = @copy(wire_trade)
         trade.price = @priceFromWire(ticker, wire_trade.price)
         trade.quantity = @quantityFromWire(ticker, wire_trade.quantity)
-        trade.wire_timestamp = wire_trade.timestamp
-        trade.timestamp = @timeFormat(wire_trade.timestamp)
+        trade.timestamp = wire_trade.timestamp
         return trade
 
     fillFromWire: (wire_fill) =>
@@ -371,8 +356,7 @@ class @Sputnik extends EventEmitter
         fill.fees = @copy(wire_fill.fees)
         fill.price = @priceFromWire(ticker, wire_fill.price)
         fill.quantity = @quantityFromWire(ticker, wire_fill.quantity)
-        fill.wire_timestamp = wire_fill.timestamp
-        fill.timestamp = @timeFormat(wire_fill.timestamp)
+        fill.timestamp = wire_fill.timestamp
         for fee_ticker, fee of wire_fill.fees
             fill.fees[fee_ticker] = @quantityFromWire(fee_ticker, fee)
         return fill
@@ -381,7 +365,7 @@ class @Sputnik extends EventEmitter
         transaction = @copy(wire_transaction)
         ticker = wire_transaction.contract
         transaction.quantity = @quantityFromWire(ticker, wire_transaction.quantity)
-        transaction.timestamp = @dateTimeFormat(wire_transaction.timestamp)
+        transaction.timestamp = wire_transaction.timestamp
         if transaction.balance?
             transaction.balance = @quantityFromWire(ticker, wire_transaction.balance)
         return transaction
@@ -420,9 +404,9 @@ class @Sputnik extends EventEmitter
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type is "prediction"
-            price = price * contract.denominator
+            price = Math.round(price * contract.denominator)
         else
-            price = price * source.denominator * contract.denominator
+            price = Math.round(price * source.denominator * contract.denominator)
 
         price = price - price % contract.tick_size
         return price
@@ -501,6 +485,35 @@ class @Sputnik extends EventEmitter
                 @emit "place_order_success", res
             , (error) =>
                 @emit "place_order_fail", error
+
+    # Get the best price we think we can execute a given quantity
+    priceForQuantity: (ticker, quantity, side) =>
+        if side == 'BUY'
+            book = @markets[ticker].asks
+        else
+            book = @markets[ticker].bids
+
+        if isNaN quantity or quantity == 0
+            if book[0]?
+                return @priceFromWire(book[0].price)
+            else
+                if side == 'BUY'
+                    return Infinity
+                else
+                    return 0
+
+        quantity_wire = @quantityToWire(ticker, quantity)
+        sum = 0
+        for level in book
+            sum += level.quantity
+            if sum >= quantity_wire
+                return @priceFromWire(ticker, level.price)
+
+        if side == 'BUY'
+            return Infinity
+        else
+            return 0
+
 
     cancelOrder: (id) =>
         @log "cancelling: #{id}"
@@ -720,6 +733,8 @@ class @Sputnik extends EventEmitter
     # feeds
     onBook: (book) =>
         @log ["book received", book]
+        book.bids.sort (a, b) -> b.price - a.price
+        book.asks.sort (a, b) -> a.price - b.price
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
@@ -730,9 +745,6 @@ class @Sputnik extends EventEmitter
             bids: (@bookRowFromWire(ticker, order) for order in @markets[ticker].bids)
             asks: (@bookRowFromWire(ticker, order) for order in @markets[ticker].asks)
             contract: ticker
-
-        ui_book.bids.sort (a, b) -> b.price - a.price
-        ui_book.asks.sort (a, b) -> a.price - b.price
 
         @log ["ui_book", ui_book]
         @emit "book", ui_book
@@ -889,7 +901,7 @@ class @Sputnik extends EventEmitter
 
             if contract.contract_type is "futures"
                 # NOT IMPLEMENTED
-                @err "Futures not implemented"
+                @error "Futures not implemented"
             else if contract.contract_type == "prediction"
                 payoff = contract.lot_size
                 spending = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY")
@@ -942,6 +954,7 @@ class @Sputnik extends EventEmitter
         @log ["Margin:", low_margin, high_margin]
         @log ["cash_spent", max_cash_spent]
         return [low_margin, high_margin, max_cash_spent]
+
 
 if module?
     module.exports =

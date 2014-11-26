@@ -264,6 +264,14 @@ class Installer():
             self.make_template("bitcoin.conf", out)
             out.close()
 
+        # make alembic.ini
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open(os.path.join("config", "alembic.ini"), "w")
+        self.make_template("alembic.ini", out)
+        out.close()
+
         # make config.status
         if self.dry_run:
             out = cStringIO.StringIO()
@@ -470,6 +478,14 @@ class Installer():
        
         # touch up sputnik.ini
         ini_path = os.path.join(sputnik, "dist", "config", "sputnik.ini")
+        with open(ini_path, 'r') as ini_file:
+            lines = ini_file.readlines()
+        with open(ini_path, 'w') as ini_file:
+            for line in lines:
+                ini_file.write(re.sub(r"^(dbname = sputnik).*", r"\1", line))
+
+        # touch up alembic.ini
+        ini_path = os.path.join(sputnik, "dist", "config", "alembic.ini")
         with open(ini_path, 'r') as ini_file:
             lines = ini_file.readlines()
         with open(ini_path, 'w') as ini_file:

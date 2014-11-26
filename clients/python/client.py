@@ -488,12 +488,13 @@ class BasicBot(TradingBot):
 
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
-class BotFactory(ApplicationSessionFactory):
-    def __init__(self, url, username_password=(None, None), rate=10):
-        self.url = url
+class BotFactory(WampClientFactory):
+    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10, ignore_contracts=[]):
+        WampClientFactory.__init__(self, url, debugWamp=debugWamp)
         self.username_password = username_password
         self.rate = rate
         self.conn = None
+        self.ignore_contracts = ignore_contracts
 
     def make(self, config):
         session = self.session(config)
