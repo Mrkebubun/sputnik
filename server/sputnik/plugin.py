@@ -99,6 +99,7 @@ def run_with_plugins(plugin_paths, callback, *args, **kwargs):
         plugin_paths.reverse()
         for plugin_path in plugin_paths:
             plugin_manager.unload(plugin_path)
+        return _
     dl.addCallback(run_callback)
     dl.addBoth(cleanup)
 
