@@ -2,7 +2,7 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("permissions")
 
-from sputnik.webserver.plugins import AuthorizationPlugin
+from sputnik.webserver.plugin import AuthorizationPlugin
 from autobahn.wamp import types
 
 class BasicPermissions(AuthorizationPlugin):

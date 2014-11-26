@@ -1,4 +1,4 @@
-from sputnik.webserver.plugins import AuthenticationPlugin
+from sputnik.webserver.plugin import AuthenticationPlugin
 from autobahn.wamp import types, util
 
 class WAMPCRALogin(AuthenticationPlugin):

@@ -3,7 +3,7 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("db_postgres")
 
-from sputnik.webserver.plugins import DatabasePlugin
+from sputnik.webserver.plugin import DatabasePlugin
 from autobahn.wamp import types
 
 class PostgresDatabase(DatabasePlugin):
