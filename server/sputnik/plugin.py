@@ -1,5 +1,5 @@
 from collections import defaultdict
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 
 import observatory
 
@@ -11,6 +11,7 @@ class PluginException(Exception):
 class PluginManager:
     def __init__(self):
         self.plugins = {}
+        self.path_map = {}
         self.services = defaultdict(list)
 
     @inlineCallbacks
@@ -21,49 +22,56 @@ class PluginManager:
             mod = getattr(mod, component)
         klass = getattr(mod, class_name)
         plugin = klass()
+        self.path_map[path] = plugin.service + "." + plugin.name
         returnValue((yield self._load_plugin(plugin)))
+
+    def unload(self, path):
+        plugin = self.plugins[self.path_map[path]]
+        return self._unload_plugin(plugin)
 
     @inlineCallbacks
     def _load_plugin(self, plugin):
-        debug("Loading plugin %s..." % plugin.name)
-        if plugin.name in self.plugins:
-            warn("Plugin %s already loaded." % plugin.name)
+        name = plugin.service + "." + plugin.name
+        debug("Loading plugin %s..." % name)
+        if name in self.plugins:
+            warn("Plugin %s already loaded." % name)
             return
-        debug("Configuring plugin %s..." % plugin.name)
+        debug("Configuring plugin %s..." % name)
         try:
             plugin.configure(self)
             # wait until plugin is done
             yield plugin.init()
         except Exception, e:
-            error("Unable to load plugin %s." % plugin.name)
+            error("Unable to load plugin %s." % name)
             error()
-            raise PluginException("Unable to load plugin %s." % plugin.name)
-        debug("Plugin %s loaded." % plugin.name)
-        self.plugins[plugin.name] = plugin
+            raise PluginException("Unable to load plugin %s." % name)
+        debug("Plugin %s loaded." % name)
+        self.plugins[name] = plugin
         self.services[plugin.service].append(plugin)
         returnValue(plugin)
 
     @inlineCallbacks
     def _unload_plugin(self, plugin):
-        warn("Plugin unloading not officially supported.")
-        debug("Unloading plugin %s..." % plugin.name)
-        if plugin.name not in self.plugins:
-            warn("Plugin %s not loaded." % plugin.name)
+        warn("There is no guarantee module code is completely removed.")
+        name = plugin.service + "." + plugin.name
+        debug("Unloading plugin %s..." % name)
+        if name not in self.plugins:
+            warn("Plugin %s not loaded." % name)
             return
-        debug("Deconfiguring plugin %s..." % plugin.name)
+        debug("Deconfiguring plugin %s..." % name)
         # wait until plugin is done
         try:
             yield plugin.shutdown()
         except Exception, e:
-            error("Unable to unload plugin %s." % plugin.name)
+            error("Unable to unload plugin %s." % name)
             error()
-            raise PluginException("Unable to unload plugin %s." % plugin.name)
+            raise PluginException("Unable to unload plugin %s." % name)
         finally:
-            if plugin.name in self.plugins:
-                del self.plugins[plugin.name]
+            if name in self.plugins:
+                del self.plugins[name]
             if plugin in self.services[plugin.service]:
                 self.services[plugin.service].remove(plugin)
-        debug("Plugin %s unloaded." % plugin.name)
+        debug("Plugin %s unloaded." % name)
 
 class Plugin:
     def __init__(self, name, service):
@@ -78,4 +86,19 @@ class Plugin:
 
     def shutdown(self):
         pass
+
+def run_with_plugins(plugin_paths, callback, *args, **kwargs):
+    plugin_manager = PluginManager()
+    deferreds = []
+    for plugin_path in plugin_paths:
+        deferreds.append(plugin_manager.load(plugin_path))
+    dl = DeferredList(deferreds)
+    def run_callback(_):
+        callback(plugin_manager, *args, **kwargs)
+    def cleanup(_):
+        plugin_paths.reverse()
+        for plugin_path in plugin_paths:
+            plugin_manager.unload(plugin_path)
+    dl.addCallback(run_callback)
+    dl.addBoth(cleanup)
 
