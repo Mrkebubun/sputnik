@@ -2,7 +2,7 @@ from sputnik.plugin import Plugin
 
 class AuthenticationPlugin(Plugin):
     def __init__(self, name):
-        Plugin.__init__(name, "webserver.authentication")
+        Plugin.__init__(self, name, "webserver.authentication")
 
     def onHello(self, router_session, realm, details):
         pass
@@ -15,16 +15,16 @@ class AuthenticationPlugin(Plugin):
 
 class AuthorizationPlugin(Plugin):
     def __init__(self, name):
-        Plugin.__init__(name, "webserver.authorization")
+        Plugin.__init__(self, name, "webserver.authorization")
 
     def authorize(self, session, uri, action):
         pass
 
 class ServicePlugin(Plugin):
     def __init__(self, name):
-        Plugin.__init__(name, "webserver.service")
+        Plugin.__init__(self, name, "webserver.service")
 
 class DatabasePlugin(Plugin):
     def __init__(self, name):
-        Plugin.__init__(name, "webserver.database")
+        Plugin.__init__(self, name, "webserver.database")
 

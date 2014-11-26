@@ -4,6 +4,7 @@ debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import threads
 from autobahn import util
 from autobahn.wamp import types
 

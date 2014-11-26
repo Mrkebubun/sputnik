@@ -1,12 +1,5 @@
-import json
-import hashlib
-import datetime
-
-from twisted.internet import threads
 from twisted.internet.defer import inlineCallbacks, returnValue
-import twisted.enterprise.adbapi as adbapi
-from autobahn import util
-from autobahn.wamp import types, auth
+from autobahn.wamp import types
 from autobahn.twisted.wamp import ApplicationSession, RouterSession, Router
 
 import sys
@@ -99,6 +92,7 @@ class SputnikRouterSession(RouterSession):
 
 class TimeService(ApplicationSession):
     def onJoin(self, details):
+        import datetime
 
         def utcnow():
             now = datetime.datetime.utcnow()
@@ -106,16 +100,7 @@ class TimeService(ApplicationSession):
 
         self.register(utcnow, 'com.timeservice.now')
 
-def main():
-    observatory.start_logging(0)
-    pm = plugin.PluginManager()
-    pm.load("sputnik.webserver.plugins.authz_basic.BasicPermissions")
-    pm.load("sputnik.webserver.plugins.authn_anonymous.AnonymousLogin")
-    pm.load("sputnik.webserver.plugins.authn_cookie.CookieLogin")
-    pm.load("sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin")
-    pm.load("sputnik.webserver.plugins.authn_totp.TOTPVerification")
-    # TODO: wait for plugins to finish loading
-
+def main(pm):
     from autobahn.twisted.choosereactor import install_reactor
     reactor = install_reactor()
 
@@ -167,5 +152,11 @@ def main():
     reactor.run()
 
 if __name__ == "__main__":
-    main()
+    observatory.start_logging(0)
+    plugins = ["sputnik.webserver.plugins.authz_basic.BasicPermissions",
+               "sputnik.webserver.plugins.authn_anonymous.AnonymousLogin",
+               "sputnik.webserver.plugins.authn_cookie.CookieLogin",
+               "sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin",
+               "sputnik.webserver.plugins.authn_totp.TOTPVerification"]
+    plugin.run_with_plugins(plugins, main)
 
