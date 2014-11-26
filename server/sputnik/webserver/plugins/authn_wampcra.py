@@ -1,12 +1,15 @@
 from sputnik import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+debug, log, warn, error, critical = observatory.get_loggers("authn_wampcra")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import threads
 from autobahn import util
-from autobahn.wamp import types
+from autobahn.wamp import types, auth
+
+import hashlib
+import json
 
 class WAMPCRALogin(AuthenticationPlugin):
     def __init__(self):
@@ -17,6 +20,7 @@ class WAMPCRALogin(AuthenticationPlugin):
     def onHello(self, router_session, realm, details):
         for authmethod in details.authmethods:
             if authmethod == u"wampcra":
+                debug("Attemping wampcra login for %s..." % details.authid)
                 # Create and store a one time challenge.
                 challenge = {"authid": details.authid,
                              "authrole": u"user",
@@ -43,9 +47,10 @@ class WAMPCRALogin(AuthenticationPlugin):
                 
                 try:
                     router_session.exists = False
+                    result = None
 
                     databases = self.manager.services["webserver.database"]
-                    for db in database:
+                    for db in databases:
                         result = yield db.lookup(username)
                         if result:
                             break
@@ -54,7 +59,6 @@ class WAMPCRALogin(AuthenticationPlugin):
                         salt, secret = result[0].split(":")
                         router_session.totp = result[1]
                         router_session.exists = True
-
                     # We compute the signature even if there is no such user to
                     #   prevent timing attacks.
                     router_session.signature = (yield threads.deferToThread( \
@@ -72,6 +76,7 @@ class WAMPCRALogin(AuthenticationPlugin):
                          u"iterations": 1000,
                          u"keylen": 32}
 
+                debug("WAMP-CRA challenge issued for %s." % details.authid)
                 returnValue(types.Challenge(u"wampcra", extra))
 
     def onAuthenticate(self, router_session, signature, extra):
@@ -88,9 +93,11 @@ class WAMPCRALogin(AuthenticationPlugin):
                     return
 
             if not router_session.challenge or not router_session.signature:
+                log("Failed wampcra login for %s." % challenge["authid"])
                 return types.Deny(message=u"No pending authentication.")
 
             if len(signature) != len(router_session.signature):
+                log("Failed wampcra login for %s." % challenge["authid"])
                 return types.Deny(message=u"Invalid signature.")
 
             success = True
@@ -103,15 +110,17 @@ class WAMPCRALogin(AuthenticationPlugin):
                     success = False
 
             # Reject the user if we did not actually find them in the database.
-            if not router_session.exist:
+            if not router_session.exists:
                 success = False
 
             if success:
+                log("Successful wampcra login for %s." % challenge["authid"])
                 return types.Accept(authid = challenge["authid"],
                         authrole = challenge["authrole"],
                         authmethod = challenge["authmethod"],
                         authprovider = challenge["authprovider"])
 
+            log("Failed wampcra login for %s." % challenge["authid"])
             return types.Deny(u"Invalid signature.")
 
         except:

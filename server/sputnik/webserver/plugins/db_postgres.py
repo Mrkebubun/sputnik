@@ -5,6 +5,8 @@ debug, log, warn, error, critical = observatory.get_loggers("db_postgres")
 
 from sputnik.webserver.plugin import DatabasePlugin
 from autobahn.wamp import types
+from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.enterprise import adbapi
 
 class PostgresDatabase(DatabasePlugin):
     def __init__(self):
@@ -23,6 +25,7 @@ class PostgresDatabase(DatabasePlugin):
                     database=config.get("database", "dbname"))
         self.dbpool = dbpool
 
+    @inlineCallbacks
     def lookup(self, username):
         query = "SELECT password, totp FROM users WHERE username=%s LIMIT 1"
         try:
@@ -30,14 +33,13 @@ class PostgresDatabase(DatabasePlugin):
 
             # A hit and a miss both take approximately the same amount of time.
             #   We can probably not worry about timing attacks here.
-            result = self.dbpool.runQuery(query, (username,))
+            result = yield self.dbpool.runQuery(query, (username,))
             if result:
-                debug("User %s found.")
-                return result[0]
+                debug("User %s found." % username)
+                returnValue(result[0])
 
-            debug("User %s not found.")
-            return None
+            debug("User %s not found." % username)
         except Exception, e:
-            warn("Exception caught looking up user %s." % username)
-            warn()
+            error("Exception caught looking up user %s." % username)
+            error()
 

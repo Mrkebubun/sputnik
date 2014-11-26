@@ -28,7 +28,12 @@ class SputnikRouterSession(RouterSession):
     @inlineCallbacks
     def onHello(self, realm, details):
         for plugin, flag in self.factory.plugins:
-            result = yield plugin.onHello(realm, details)
+            result = types.Deny(u"Server error.")
+            try:
+                result = yield plugin.onHello(self, realm, details)
+            except Exception, e:
+                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error()
             if result == None:
                 continue
             else:
@@ -43,7 +48,12 @@ class SputnikRouterSession(RouterSession):
         optional_successes = []
         required_successes = []
         for plugin, flag in self.factory.plugins:
-            result = yield plugin.onAuthenticate(signature, extra)
+            result = types.Deny(u"Server error.")
+            try:
+                result = yield plugin.onAuthenticate(self, signature, extra)
+            except Exception, e:
+                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error()
             if isinstance(result, types.Accept):
                 if flag == "binding":
                     if len(required_failures) == 0:
@@ -75,8 +85,8 @@ class SputnikRouterSession(RouterSession):
                     critical("Invalid control flag %s." % flag)
                     raise Exception("Invalid control flag %s." % flag)
         
-        if len(required_failed) > 0:
-            returnValue(required_failed[0])
+        if len(required_failures) > 0:
+            returnValue(required_failures[0])
         
         if len(required_successes) > 0:
             returnValue(required_successes[0])
@@ -88,7 +98,11 @@ class SputnikRouterSession(RouterSession):
     @inlineCallbacks
     def onJoin(self, details):
         for plugin, flag in self.factory.plugins:
-            yield plugin.onJoin(details)
+            try:
+                yield plugin.onJoin(self, details)
+            except Exception, e:
+                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error()
 
 class TimeService(ApplicationSession):
     def onJoin(self, details):
@@ -157,6 +171,8 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.authn_anonymous.AnonymousLogin",
                "sputnik.webserver.plugins.authn_cookie.CookieLogin",
                "sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin",
-               "sputnik.webserver.plugins.authn_totp.TOTPVerification"]
+               "sputnik.webserver.plugins.authn_totp.TOTPVerification",
+               "sputnik.webserver.plugins.db_mem.InMemoryDatabase",
+               "sputnik.webserver.plugins.db_postgres.PostgresDatabase"]
     plugin.run_with_plugins(plugins, main)
 

@@ -1,6 +1,6 @@
 from sputnik import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+debug, log, warn, error, critical = observatory.get_loggers("authn_cookie")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
 from autobahn import util
@@ -14,6 +14,7 @@ class CookieLogin(AuthenticationPlugin):
     def onHello(self, router_session, realm, details):
         for authmethod in details.authmethods:
             if authmethod == u"cookie":
+                debug("Attemping cookie login for %s..." % details.authid)
                 # Ideally, we would just check the cookie here, however
                 #   the HELLO message does not have any extra fields to store
                 #   it.
@@ -36,6 +37,7 @@ class CookieLogin(AuthenticationPlugin):
                 challenge = json.dumps(challenge, ensure_ascii=False)
                 extra = {u"challenge": challenge}
 
+                debug("Cookie challenge issued for %s." % details.authid)
                 return types.Challenge(u"cookie", extra)
 
     def onAuthenticate(self, router_session, signature, extra):
@@ -56,13 +58,16 @@ class CookieLogin(AuthenticationPlugin):
 
         true_id = self.cookies.get(signature)
         if true_id == None:
+            log("Failed cookie login for %s." % challenge["authid"])
             return types.Deny(u"Invalid cookie.")
 
         if true_id != challenge.get("authid"):
             # user tried to authenticate with a cookie, but did not know
             #   the correct authid to go with it
+            log("Failed cookie login for %s." % challenge["authid"])
             return types.Deny(u"Invalid cookie.")
         
+        log("Successful cookie login for %s." % challenge["authid"])
         return types.Accept(authid = challenge["authid"],
                             authrole = challenge["authrole"],
                             authmethod = challenge["authmethod"],

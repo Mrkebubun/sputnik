@@ -27,8 +27,8 @@ class InMemoryDatabase(DatabasePlugin):
         debug("Looking up username %s..." % username)
         user = self.users.get(username)
         if user:
-            debug("User %s found.")
+            debug("User %s found." % username)
         else:
-            debug("User %s not found.")
+            debug("User %s not found." % username)
         return user
 
