@@ -15,8 +15,8 @@ echo ${HASH} >> /srv/autodeploy/demo/versions
 
 # Tag
 TAG_NAME=$1
-git tag -a demo-${TAG_NAME}
-git push -u origin demo-${TAG_NAME}
+git tag -a ${TAG_NAME}
+git push -u origin ${TAG_NAME}
 (cd /srv/autodeploy/demo; git add versions; git commit -m ${TAG_NAME}; git tag ${TAG_NAME})
 
 make clean
