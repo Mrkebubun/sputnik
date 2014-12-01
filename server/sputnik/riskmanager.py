@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import config
 
 from optparse import OptionParser
