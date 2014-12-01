@@ -190,7 +190,7 @@ class RandomBot(TradingBot):
             distance = float(random.randint(0,10))/100 + 0.95
 
             # Post something close to the bid or ask, depending on the size
-            if side is 'BUY':
+            if side == 'BUY':
                 best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
                 price = self.price_from_wire(ticker, best_ask) * distance
             else:
