@@ -65,8 +65,8 @@ class RiskManager():
         :param severe:
         :type severe: bool
         """
-        template_file = "margin_call.email" if severe else "low_margin.email"
-        t = self.jinja_env.get_template(template_file)
+        template_file = "margin_call.{locale}.email" if severe else "low_margin.{locale}.email"
+        t = util.get_locale_template(user.locale, self.jinja_env, template_file)
         content = t.render(cash_position=util.quantity_fmt(self.BTC, cash_position),
                            low_margin=util.quantity_fmt(self.BTC, low_margin),
                            high_margin=util.quantity_fmt(self.BTC, high_margin), user=user).encode('utf-8')
