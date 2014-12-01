@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for file in terms.html favicon.ico; do
+    if [ -e ${profile}/res/${file} ]; then
+        cp ${profile}/res/${file} ${profile_git_root}/dist/clients/www
+    else
+        cp ${base_profile}/res/${file} ${profile_git_root}/dist/clients/www
+    fi
+done
+
