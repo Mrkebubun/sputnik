@@ -372,7 +372,12 @@ class Accountant:
 
         def after_cancellations(results):
             # Wait until all pending postings have gone through
-            position = self.get_position(user, ticker)
+            try:
+                position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
+            except NoResultFound:
+                # There is no position, return None
+                return None
+
             if position.pending_postings > 0:
                 d = task.deferLater(reactor, 300, after_cancellations, results)
             else:
