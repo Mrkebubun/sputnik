@@ -9,6 +9,7 @@ import boto.ec2
 import boto.cloudformation
 import random
 import string
+import datetime
 import pty
 
 import fabric.api
@@ -416,27 +417,33 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
-    def run(self, command):
+    def run(self, cmd):
         self.check()
+
+        cmd = cmd[0] # nargs=1 produces a list
+
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.run(command)
+            result = fabric.api.run(cmd)
             if result.failed:
                 raise COMMAND_FAILED
 
         return result
 
-    def sudo(self, command):
+    def sudo(self, cmd):
         self.check()
+        
+        cmd = cmd[0] # nargs=1 produces a list
+
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.sudo(command)
+            result = fabric.api.sudo(cmd)
             if result.failed:
                 raise COMMAND_FAILED
 
@@ -542,45 +549,71 @@ class Instance:
         print "%s: %s" % (parser.get("version", "git_tag"), parser.get("version", "git_hash"))
 
     def login(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
+        self.check()
 
         fabric.api.open_shell()
 
     def backup(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
+        self.check()
 
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
-
-        backup_dir = join(self.prefix, "backups")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        backup_dir = join(self.prefix, "backups", timestamp)
         try:
             os.makedirs(backup_dir)
         except OSError:
             pass
+
+        print "Backing up %s to %s..." % (self.customer, backup_dir)
 
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
+            print "\tCopying wallet.dat..."
+            # use_sudo=True cannot cd into an inaccessible directory so we
+            # do it manually.
             fabric.api.sudo("cp /data/bitcoind/wallet.dat .")
             fabric.api.sudo("chown ubuntu wallet.dat")
             fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
             fabric.api.sudo("rm wallet.dat")
+            print "\tCopying config..."
+            fabric.api.get("/srv/sputnik/server/config", backup_dir)
+            sys.stdout.write("\tCopying logs (this may take a few minutes)... ")
+            if not self.verbose:
+                with Spinner():
+                    fabric.api.get("/data/logs", backup_dir, use_sudo=True)
+                print
+            else:
+                fabric.api.get("/data/logs", backup_dir, use_sudo=True)
+            print "\tCopying alembic..."
+            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic"))
+
+        print "Backup complete."
+
+    def get(self, source, dest):
+        self.check()
+        
+        source = source[0] # nargs=1 produces a list
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
 
         with context:
-            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic_versions"))
+            fabric.api.get(source, dest, use_sudo=True)
+
+    def put(self, source, dest):
+        self.check()
+
+        source = source[0] # nargs=1 produces a list
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            fabric.api.put(source, dest, use_sudo=True)
 
     @staticmethod
     def list(region=None):
@@ -644,30 +677,34 @@ def main():
     parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
                                                    help="Install python clients")
     parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
-    parser_run = parser_run.add_argument("args", nargs=argparse.REMAINDER,
-                                         help="what is the remote command to run")
+    parser_run = parser_run.add_argument("cmd", nargs=1, help="Remote command")
     parser_sudo = subparsers.add_parser("sudo", help="Run a command as root", parents=[customer])
-    parser_sudo = parser_sudo.add_argument("args", nargs=argparse.REMAINDER,
-                                         help="what is the remote command to run")
+    parser_sudo = parser_sudo.add_argument("cmd", nargs=1, help="Remote command")
+    parser_get = subparsers.add_parser("get", help="Get file from remote host", parents=[customer])
+    parser_get.add_argument("source", nargs=1, help="Remote path")
+    parser_get.add_argument("dest", nargs="?", help="Local path", default=".")
+    parser_put = subparsers.add_parser("put", help="Push file to remote host", parents=[customer])
+    parser_put.add_argument("source", nargs=1, help="Local path")
+    parser_put.add_argument("dest", nargs="?", help="Remote path", default=".")
     parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
     del kwargs["command"]
 
-    args = []
-    if "args" in kwargs:
-        args = kwargs["args"]
-        del kwargs["args"]
+    reserved = ["customer", "region", "profile", "key", "verbose",
+                "safety", "template"]
+    instance_args = {k: kwargs[k] for k in kwargs if k in reserved}
+    call_args = {k: kwargs[k] for k in kwargs if k not in reserved}
 
     if command == "list":
         return Instance.list(kwargs.get("region", None))
 
-    instance = Instance(**kwargs)
+    instance = Instance(**instance_args)
     method = getattr(instance, command)
 
     try:
-        result = method(*args)
+        result = method(**call_args)
         if result:
             print result
     except AutoDeployException, e:

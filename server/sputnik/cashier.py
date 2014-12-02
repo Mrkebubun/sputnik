@@ -555,18 +555,14 @@ class BitcoinNotify(Resource):
         """
         log.msg("Got a notification from bitcoind: %s" % request)
         d = self.cashier.check_for_crypto_deposits('BTC')
-        def _cb(result):
-            request.setResponseCode(200)
-            request.write("OK")
-            request.finish()
 
         def _err(failure):
-            request.setResponseCode(500)
-            request.write(failure.value)
-            request.finish()
+            # TODO: let someone know the bitcoind call timed out
+            log.err("Check for crypto deposits timed out.")
+            pass
 
-        d.addCallbacks(_cb, _err)
-        return NOT_DONE_YET
+        d.addErrback(_err)
+        return "OK"
 
 class WebserverExport(ComponentExport):
     def __init__(self, cashier):
@@ -630,7 +626,7 @@ if __name__ == '__main__':
 
     log.msg('connecting to bitcoin client')
 
-    bitcoinrpc = {'BTC': BitcoinRpc(bitcoin_conf)}
+    bitcoinrpc = {'BTC': BitcoinRpc(bitcoin_conf, 1)}
     compropago = Compropago(config.get("cashier", "compropago_key"))
     cold_wallet_period = config.getint("cashier", "cold_wallet_period")
     sendmail=Sendmail(config.get("administrator", "email"))

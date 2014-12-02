@@ -92,7 +92,8 @@
                 "recent_trades": "Recent Trades",
                 "order_book": "Order Book",
                 "time": "Time",
-                "fill": "Fill"
+                "fill": "Fill",
+                "safe": "Safe"
             },
             "fields": {
                 "BUY": "BUY",
