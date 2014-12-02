@@ -89,6 +89,9 @@ class MarketMakerBot(TradingBot):
             return
 
         for ticker, market in self.markets.iteritems():
+            new_ask = None
+            new_bid = None
+
             if ticker not in self.factory.ignore_contracts:
                 if market['contract_type'] == "cash_pair":
                     currency = market['denominated_contract_ticker']
@@ -108,6 +111,8 @@ class MarketMakerBot(TradingBot):
 
                     new_bid = btcusd_bid * bid
                     new_ask = btcusd_ask * ask
+
+                if new_ask is not None and new_bid is not None:
                     logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
 
                     # Make sure that the marketwe are making isn't crossed
@@ -135,8 +140,12 @@ class MarketMakerBot(TradingBot):
 
     def replaceBidAsk(self, ticker, new_ba, side):
         self.cancelOrders(ticker, side)
+        if self.markets[ticker]['contract_type'] == "futures":
+            quantity = 10
+        else:
+            quantity = 2.5
 
-        self.placeOrder(ticker, self.quantity_to_wire(ticker, 0.25), self.price_to_wire(ticker, new_ba), side)
+        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity), self.price_to_wire(ticker, new_ba), side)
 
     def monitorOrders(self):
         for ticker, market in self.external_markets.iteritems():
@@ -147,7 +156,11 @@ class MarketMakerBot(TradingBot):
                     if order['side'] == side and order['is_cancelled'] is False and order['contract'] == ticker:
                         total_qty += self.quantity_from_wire(ticker, order['quantity_left'])
 
-                qty_to_add = 0.25 - total_qty
+                if market['contract_type'] == "futures":
+                    qty_to_add = 10
+                else:
+                    qty_to_add = 2.5
+
                 if qty_to_add > 0:
                     if side == 'BUY':
                         price = market['bid']
