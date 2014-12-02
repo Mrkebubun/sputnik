@@ -130,6 +130,7 @@ $ ->
         port = 8443
 
     uri = ws_protocol + "//" + hostname + ":#{port}"
+    uri = "wss://demo.m2.io:8443"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
@@ -562,37 +563,46 @@ $ ->
         setWindowInfo()
         $(window).resize setWindowInfo
 
-        # Get location if possible
-        if navigator.geolocation
-            navigator.geolocation.getCurrentPosition (position) ->
-                sputnik.log ["current_position", position]
-                lat = position.coords.latitude
-                lng = position.coords.longitude
-                latlng = new google.maps.LatLng(lat, lng);
-                # For debugging
-                # Rio de Janerio, Brazil
-                #latlng = new google.maps.LatLng(-22.9027800, -43.2075000)
-                # San Pedro Sula, Honduras
-                #latlng = new google.maps.LatLng(15.503659,-88.00468)
-                # Berlin, Germany
-                #latlng = new google.maps.LatLng(52.5243700, 13.4105300)
-                geocoder = new google.maps.Geocoder();
-                geocoder.geocode {'latLng': latlng}, (results, status) ->
-                    # If we're already logged in by now, don't set the locale
-                    if not sputnik.authenticated
-                        if status == google.maps.GeocoderStatus.OK
-                            sputnik.log ["reverse geocode", results]
-                            # Find the result with types country and political
-                            useful_results = results.filter (r) -> "political" in r.types and "country" in r.types
-                            components = useful_results.map (r) -> r.address_components
-                            useful_components = components.map (c) -> c.filter (r) -> "political" in r.types and "country" in r.types
-                            short_names = useful_components.map (c) -> c.map (r) -> r.short_name
-                            short_names_flat = short_names.reduce (l,r)->l.concat(r)
-                            sputnik.log ["short_names", short_names_flat]
+        # Get location. Try geoip first,
+        # Then try geolocation
+        geoip2.country (result) ->
+            sputnik.log ["geoip", result]
+            if not sputnik.authenticated
+                country = result.country.iso_code
+                if locale.country_to_locale[country]?
+                    ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
+        , (error) ->
+            sputnik.error ["geoip error", error]
+            if navigator.geolocation
+                navigator.geolocation.getCurrentPosition (position) ->
+                    sputnik.log ["current_position", position]
+                    lat = position.coords.latitude
+                    lng = position.coords.longitude
+                    latlng = new google.maps.LatLng(lat, lng);
+                    # For debugging
+                    # Rio de Janerio, Brazil
+                    #latlng = new google.maps.LatLng(-22.9027800, -43.2075000)
+                    # San Pedro Sula, Honduras
+                    #latlng = new google.maps.LatLng(15.503659,-88.00468)
+                    # Berlin, Germany
+                    #latlng = new google.maps.LatLng(52.5243700, 13.4105300)
+                    geocoder = new google.maps.Geocoder();
+                    geocoder.geocode {'latLng': latlng}, (results, status) ->
+                        # If we're already logged in by now, don't set the locale
+                        if not sputnik.authenticated
+                            if status == google.maps.GeocoderStatus.OK
+                                sputnik.log ["reverse geocode", results]
+                                # Find the result with types country and political
+                                useful_results = results.filter (r) -> "political" in r.types and "country" in r.types
+                                components = useful_results.map (r) -> r.address_components
+                                useful_components = components.map (c) -> c.filter (r) -> "political" in r.types and "country" in r.types
+                                short_names = useful_components.map (c) -> c.map (r) -> r.short_name
+                                short_names_flat = short_names.reduce (l,r)->l.concat(r)
+                                sputnik.log ["short_names", short_names_flat]
 
-                            for country in short_names
-                                if locale.country_to_locale[country]?
-                                    ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
+                                for country in short_names
+                                    if locale.country_to_locale[country]?
+                                        ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
 
         tv = new window.TVFeed sputnik
         window.tv = tv
