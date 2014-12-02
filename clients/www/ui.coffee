@@ -707,13 +707,17 @@ $ ->
             nickname = $("#register_email").val()
             eula = $("#register_eula").is(":checked")
 
-            if username and password and email and nickname and eula
-                $('#register_error').hide()
-                ladda = Ladda.create $("#register_button")[0]
-                ladda.start()
-                sputnik.makeAccount username, password, email, nickname, navigator.language
+            re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+            if not re.test(email)
+                $('#register_error').text(locale.translate("alerts/invalid_email", ractive.get("sputnik.profile.locale"))).slideDown()
             else
-                $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
+                if username and password and email and nickname and eula
+                    $('#register_error').hide()
+                    ladda = Ladda.create $("#register_button")[0]
+                    ladda.start()
+                    sputnik.makeAccount username, password, email, nickname, ractive.get("sputnik.profile.locale")
+                else
+                    $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
 
         withinAnOrderOfMagnitude = (x, y) ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
