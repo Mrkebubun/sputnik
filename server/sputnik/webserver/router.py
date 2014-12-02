@@ -1,6 +1,7 @@
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.wamp import types
-from autobahn.twisted.wamp import ApplicationSession, RouterSession, Router
+from autobahn.twisted.wamp import RouterSession, Router
+from autobahn.wamp.exception import ApplicationError
 
 import sys
 sys.path.append("/home/yury/sputnik/server")
@@ -15,7 +16,7 @@ class SputnikRouter(Router):
     @inlineCallbacks
     def authorize(self, session, uri, action):
         results = []
-        for plugin in self.factory.plugins:
+        for plugin in self.factory.authz_plugins:
             result = yield plugin.authorize(self, session, uri, action)
             if result == None:
                 continue
@@ -23,6 +24,20 @@ class SputnikRouter(Router):
 
         # Require no False and at least one True.
         returnValue(all(results) and results)
+
+    @inlineCallbacks
+    def validate(self, type, uri, args, kwargs):
+        results = []
+        for plugin in self.factory.schema_plugins:
+            result = yield plugin.validate(self, type, uri, args, kwargs)
+            if result == None:
+                continue
+            results.append(result)
+
+        # Require no False
+        if not all(results):
+            raise ApplicationError(ApplicationError.INVALID_ARGUMENT,
+                    "Invalid message payload.")
 
 class SputnikRouterSession(RouterSession):
     @inlineCallbacks
@@ -104,16 +119,6 @@ class SputnikRouterSession(RouterSession):
                 error("Uncaught exception in plugin %s." % plugin.fullname)
                 error()
 
-class TimeService(ApplicationSession):
-    def onJoin(self, details):
-        import datetime
-
-        def utcnow():
-            now = datetime.datetime.utcnow()
-            return now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        self.register(utcnow, 'com.timeservice.now')
-
 def main(pm):
     from autobahn.twisted.choosereactor import install_reactor
     reactor = install_reactor()
@@ -122,26 +127,29 @@ def main(pm):
     router_factory = RouterFactory()
     router_factory.router = SputnikRouter
 
-    authz_plugins = ["webserver.authorization.basic"]
-    router_factory.plugins = []
-    for plugin_name in authz_plugins:
-        router_factory.plugins.append(pm.plugins[plugin_name])
+    router_factory.authz_plugins = \
+            pm.services.get("webserver.authorization", [])
+    router_factory.schema_plugins = \
+            pm.services.get("webserver.schema", [])
 
     from autobahn.twisted.wamp import RouterSessionFactory
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
 
-    authn_plugins = [("webserver.authentication.anonymous", "sufficient"),
-                     ("webserver.authentication.cookie", "sufficient"),
-                     ("webserver.authentication.wampcra", "requisite"),
-                     ("webserver.authentication.totp", "requisite")]
+    authn_stack = [("webserver.authentication.anonymous", "sufficient"),
+                   ("webserver.authentication.cookie", "sufficient"),
+                   ("webserver.authentication.wampcra", "requisite"),
+                   ("webserver.authentication.totp", "requisite")]
     session_factory.plugins = []
-    for plugin_name, flag in authn_plugins:
+    for plugin_name, flag in authn_stack:
         session_factory.plugins.append((pm.plugins[plugin_name], flag))
 
-    component_config = types.ComponentConfig(realm = "realm1")
-    component_session = TimeService(component_config)
-    session_factory.add(component_session, u"time_service", u"trusted")
+    svc_plugins = pm.services.get("webserver.service", [])
+    for plugin in svc_plugins:
+        component_session = plugin
+        component_session.config.realm = u"sputnik"
+        session_factory.add(component_session, plugin.fullname.decode("ascii"),
+                            u"trusted")
 
     from autobahn.twisted.websocket import WampWebSocketServerFactory
     transport_factory = WampWebSocketServerFactory(session_factory,
@@ -166,13 +174,16 @@ def main(pm):
     reactor.run()
 
 if __name__ == "__main__":
-    observatory.start_logging(0)
+    observatory.start_logging(20)
     plugins = ["sputnik.webserver.plugins.authz_basic.BasicPermissions",
                "sputnik.webserver.plugins.authn_anonymous.AnonymousLogin",
                "sputnik.webserver.plugins.authn_cookie.CookieLogin",
                "sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin",
                "sputnik.webserver.plugins.authn_totp.TOTPVerification",
                "sputnik.webserver.plugins.db_mem.InMemoryDatabase",
-               "sputnik.webserver.plugins.db_postgres.PostgresDatabase"]
+               "sputnik.webserver.plugins.db_postgres.PostgresDatabase",
+               "sputnik.webserver.plugins.schema_json.JSONSchema",
+               "sputnik.webserver.plugins.backend_administrator.AdministratorProxy",
+               "sputnik.webserver.plugins.svc_registrar.RegistrarService"]
     plugin.run_with_plugins(plugins, main)
 

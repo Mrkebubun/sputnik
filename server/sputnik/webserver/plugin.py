@@ -1,4 +1,5 @@
 from sputnik.plugin import Plugin
+from autobahn.twisted.wamp import ApplicationSession
 
 class AuthenticationPlugin(Plugin):
     def __init__(self, name):
@@ -20,11 +21,23 @@ class AuthorizationPlugin(Plugin):
     def authorize(self, session, uri, action):
         pass
 
-class ServicePlugin(Plugin):
+class SchemaPlugin(Plugin):
+    def __init__(self, name):
+        Plugin.__init__(self, name, "webserver.schema")
+
+    def validate(self, type, uri, args, kwargs):
+        pass
+
+class ServicePlugin(Plugin, ApplicationSession):
     def __init__(self, name):
         Plugin.__init__(self, name, "webserver.service")
+        ApplicationSession.__init__(self)
 
 class DatabasePlugin(Plugin):
     def __init__(self, name):
         Plugin.__init__(self, name, "webserver.database")
+
+class BackendPlugin(Plugin):
+    def __init__(self, name):
+        Plugin.__init__(self, name, "webserver.backend")
 
