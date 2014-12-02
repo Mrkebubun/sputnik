@@ -1300,7 +1300,11 @@ class AdminWebUI(Resource):
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        if 'price' in request.args:
+            d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        else:
+            d = self.administrator.clear_contract(request.args['ticker'][0])
+
         def clearing_done(result):
             request.write(redirectTo('/contracts', request).encode('utf-8'))
             request.finish()
