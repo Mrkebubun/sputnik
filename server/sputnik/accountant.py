@@ -608,16 +608,16 @@ class Accountant:
             payout_contract = contract
             position = self.get_position(user, contract, price)
             cash_spent = util.get_cash_spent(contract, price - position.reference_price, quantity)
+
+            # Make sure the position goes into the db with this reference price
+            try:
+                self.session.add(position)
+                self.session.commit()
+            except Exception as e:
+                log.err("Unable to add position %s to db" % position)
         else:
-            position = self.get_position(user, contract)
             cash_spent = util.get_cash_spent(contract, price, quantity)
 
-        # Make sure the position goes into the db with this reference price
-        try:
-            self.session.add(position)
-            self.session.commit()
-        except Exception as e:
-            log.err("Unable to add position %s to db" % position)
 
         user_denominated = create_posting("Trade", username,
                 denominated_contract.ticker, cash_spent, denominated_direction,
