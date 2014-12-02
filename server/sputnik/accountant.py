@@ -614,6 +614,7 @@ class Accountant:
                 self.session.add(position)
                 self.session.commit()
             except Exception as e:
+                self.session.rollback()
                 log.err("Unable to add position %s to db" % position)
         else:
             cash_spent = util.get_cash_spent(contract, price, quantity)
