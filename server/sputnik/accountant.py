@@ -602,15 +602,15 @@ class Accountant:
 
         # Initialize the position here if it doesn't exist already
         if contract.contract_type == "futures":
-            # We're not marking to market, we're keeping the same reference price
-            # and making a cashflow based on the reference price
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract
-            position = self.get_position(user, contract, price)
-            cash_spent = util.get_cash_spent(contract, price - position.reference_price, quantity)
-
-            # Make sure the position goes into the db with this reference price
             try:
+                # We're not marking to market, we're keeping the same reference price
+                # and making a cashflow based on the reference price
+                denominated_contract = contract.denominated_contract
+                payout_contract = contract
+                position = self.get_position(user, contract, price)
+                cash_spent = util.get_cash_spent(contract, price - position.reference_price, quantity)
+
+                # Make sure the position goes into the db with this reference price
                 self.session.add(position)
                 self.session.commit()
             except Exception as e:
