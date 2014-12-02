@@ -222,6 +222,10 @@ $ ->
                     showChart(ticker, t.node.id, transition=t)
                 show_feed: (t) ->
                     showFeed(t)
+                show_qr: (t, address) ->
+                    $('#qr_code').empty()
+                    $('#qr_code').qrcode("bitcoin:" + address)
+                    t.complete()
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true

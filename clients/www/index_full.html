@@ -631,8 +631,8 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12 spacer-bottom">
-                                            <div class="content-push-right" id="qr_code"></div>
                                             {{#if current_currency == "BTC"}}
+                                            <div intro="show_qr:{{sputnik.currencies[current_currency].address}}" class="content-push-right" id="qr_code"></div>
                                             <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
                                             {{else}}
                                             <p class="content-push6">{{sputnik.currencies[current_currency].address}}</p>
