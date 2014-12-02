@@ -39,6 +39,6 @@ tar: dist
 install: deps
 	install/install.py install
 
-upgrade:
+upgrade: deps 
 	install/install.py upgrade
 

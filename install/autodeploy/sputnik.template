@@ -34,7 +34,7 @@
         "RegionMap": {
             "us-west-1": {
                 "AMI": "ami-3d4d4478",
-                "DataVolume": "snap-0a6353ca"
+                "DataVolume": "snap-9f798a5c"
             }
         }
     },
@@ -137,20 +137,14 @@
                     },
                     {
                         "IpProtocol": "tcp",
-                        "FromPort": "8080",
-                        "ToPort": "8080",
+                        "FromPort": "2096",
+                        "ToPort": "2096",
                         "CidrIp": "0.0.0.0/0"
                     },
                     {
                         "IpProtocol": "tcp",
-                        "FromPort": "8000",
-                        "ToPort": "8000",
-                        "CidrIp": "0.0.0.0/0"
-                    },
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": "8888",
-                        "ToPort": "8888",
+                        "FromPort": "8443",
+                        "ToPort": "8443",
                         "CidrIp": "0.0.0.0/0"
                     }
                 ]

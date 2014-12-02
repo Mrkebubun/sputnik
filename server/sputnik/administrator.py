@@ -146,6 +146,7 @@ class Administrator:
             raise USERNAME_TAKEN
 
         user = models.User(username, password)
+        user.email = username
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
@@ -1261,14 +1262,18 @@ class AdminWebUI(Resource):
         name = request.args['name'][0]
         aggressive_factor = int(request.args['aggressive_factor'][0])
         passive_factor = int(request.args['passive_factor'][0])
-        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor)
+        withdraw_factor = int(request.args['withdraw_factor'][0])
+        deposit_factor = int(request.args['deposit_factor'][0])
+        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
         return redirectTo('/fee_groups', request)
 
     def new_fee_group(self, request):
         name = request.args['name'][0]
         aggressive_factor = int(request.args['aggressive_factor'][0])
         passive_factor = int(request.args['passive_factor'][0])
-        self.administrator.new_fee_group(name, aggressive_factor, passive_factor)
+        withdraw_factor = int(request.args['withdraw_factor'][0])
+        deposit_factor = int(request.args['deposit_factor'][0])
+        self.administrator.new_fee_group(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
         return redirectTo('/fee_groups', request)
 
     def contracts(self, request):

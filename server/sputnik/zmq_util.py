@@ -6,11 +6,18 @@ import time
 from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
+from txzmq import ZmqRequestTimeoutError
 from txzmq import ZmqSubConnection, ZmqPubConnection
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
-from twisted.python import log
-from functools import partial
+
+from util import Logger
+
+logger = Logger("zmq")
+debug = logger.debug
+log = logger.info
+warn = logger.warn
+error = logger.error
 
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass
@@ -43,7 +50,7 @@ class Export:
         :param message:
         :return: :raise RemoteCallException:
         """
-        log.msg("Decoding message...")
+        debug("Decoding message...")
 
         # deserialize
         try:
@@ -55,7 +62,7 @@ class Export:
         method_name = request.get("method", None)
         args = request.get("args", [])
         kwargs = request.get("kwargs", {})
-        log.msg("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
+        debug("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         # look up method
         method = self.mapper.get(method_name, None)
@@ -73,7 +80,7 @@ class Export:
         return method_name, args, kwargs
 
     def encode(self, success, value):
-        log.msg("Encoding message...")
+        debug("Encoding message...")
 
         # try to serialize Exception if there was a failure
         if not success:
@@ -86,7 +93,7 @@ class Export:
         try:
             json.dumps(value)
         except:
-            log.err("Message cannot be serialized. Converting to string.")
+            error("Message cannot be serialized. Converting to string.")
             # do our best to serialize
             try:
                 value = repr(value)
@@ -94,7 +101,7 @@ class Export:
                 success = False
                 value = "Result could not be serialized."
 
-        log.msg("success=%d, value=%s" % (success, json.dumps(value)))
+        debug("success=%d, value=%s" % (success, json.dumps(value)))
 
         if success:
             return json.dumps({"success":success, "result":value})
@@ -110,8 +117,8 @@ class AsyncExport(Export):
         :param kwargs:
         :returns: maybeDeferred
         """
-        log.msg("Dispatching %s..." % method_name)
-        log.msg("method_name=%s, args=%s, kwars=%s" %
+        log("Dispatching %s..." % method_name)
+        debug("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
         return maybeDeferred(method, self.wrapped, *args, **kwargs)
@@ -125,8 +132,8 @@ class SyncExport(Export):
         :param kwargs:
         :returns:
         """
-        log.msg("Dispatching %s..." % method_name)
-        log.msg("method_name=%s, args=%s, kwars=%s" %
+        log("Dispatching %s..." % method_name)
+        debug("method_name=%s, args=%s, kwars=%s" %
             (method_name, str(args), str(kwargs)))
         method = self.mapper[method_name]
         result = method(self.wrapped, *args, **kwargs)
@@ -152,27 +159,27 @@ class AsyncPullExport(AsyncExport):
         """
         self.counter += 1
         start = time.time()
-        log.msg("%s queue length: %s" % (self, self.counter))
+        debug("%s queue length: %s" % (self, self.counter))
 
         try:
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message[0])
         except Exception, e:
-            log.err("RPC Error: %s" % e)
-            log.err()
+            error("RPC Error: %s" % e)
+            error()
             return
 
         def result(value):
-            log.msg("Got result for method %s." % method_name)
+            log("Got result for method %s." % method_name)
 
         def exception(failure):
-            log.err("Caught exception in method %s." % method_name)
-            log.err(failure.value)
+            warn("Caught exception in method %s." % method_name)
+            warn(failure)
 
         def complete(result):
             self.counter -= 1
             elapsed = (time.time() - start) * 1000
-            log.msg("%s completed in %.3f ms." % (method_name, elapsed))
+            debug("%s completed in %.3f ms." % (method_name, elapsed))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
@@ -201,27 +208,27 @@ class AsyncRouterExport(AsyncExport):
         self.counter += 1
         start = time.time()
 
-        log.msg("%s queue length: %s" % (self, self.counter))
+        debug("%s queue length: %s" % (self, self.counter))
 
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            log.err("RPC Error: %s" % e)
+            error("RPC Error: %s" % e)
             return self.connection.reply(message_id, self.encode(False, e))
 
         def result(value):
-            log.msg("Got result for method %s." % method_name)
+            log("Got result for method %s." % method_name)
             self.connection.reply(message_id, self.encode(True, value))
 
         def exception(failure):
-            log.err("Caught exception in method %s." % method_name)
-            log.err(failure.value)
+            warn("Caught exception in method %s." % method_name)
+            warn(failure)
             self.connection.reply(message_id, self.encode(False, failure.value))
 
         def complete(result):
             self.counter -= 1
             elapsed = (time.time() - start) * 1000
-            log.msg("%s completed in %.3f ms." % (method_name, elapsed))
+            debug("%s completed in %.3f ms." % (method_name, elapsed))
 
         d = self.dispatch(method_name, args, kwargs)
         d.addCallbacks(result, exception)
@@ -247,16 +254,16 @@ class SyncPullExport(SyncExport):
             # take the first part of the multipart message
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            log.err("RPC Error: %s" % e)
-            log.err()
+            error("RPC Error: %s" % e)
+            error()
             return
 
         def result(value):
-            log.msg("Got result for method %s." % method_name)
+            log("Got result for method %s." % method_name)
 
         def exception(failure):
-            log.err("Caught exception in method %s." % method_name)
-            log.err(failure)
+            warn("Caught exception in method %s." % method_name)
+            warn(failure)
 
         try:
             result(self.dispatch(method_name, args, kwargs))
@@ -285,20 +292,20 @@ class SyncRouterExport(SyncExport):
         try:
             method_name, args, kwargs = self.decode(message)
         except Exception, e:
-            log.err("RPC Error: %s" % e)
-            log.err()
+            error("RPC Error: %s" % e)
+            error()
             return self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(False, e)])
 
         def result(value):
-            log.msg("Got result for method %s id: %s" %
+            log("Got result for method %s id: %s" %
                     (method_name, message_id))
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(True, value)])
 
         def exception(failure):
-            log.err("Caught exception in method %s." % method_name)
-            log.err(failure)
+            warn("Caught exception in method %s." % method_name)
+            warn(failure)
             self.connection.send_multipart(
                 [sender_id, message_id, "", self.encode(False, failure)])
 
@@ -384,7 +391,7 @@ class Proxy:
         :returns: tuple
         :raises: Exception
         """
-        log.msg("Decoding message... %s" % message)
+        debug("Decoding message...")
 
         # deserialize
         try:
@@ -398,7 +405,9 @@ class Proxy:
             raise Exception("Missing success status.")
 
         if success:
-            return success, response.get("result", None)
+            result = response.get("result", None)
+            debug("success=%s, result=%s" % (success, result))
+            return success, result
 
         # decode the exception
         exception = response.get("exception", None)
@@ -415,11 +424,13 @@ class Proxy:
                     klass = Exception
             args = exception.get("args", ())
             exception = klass(*args)
+
+        debug("success=%s, exception=%s" % (success, exception))
         return success, exception
 
     def encode(self, method_name, args, kwargs):
-        log.msg("Encoding message...")
-        log.msg("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
+        debug("Encoding message...")
+        debug("method=%s, args=%s, kwargs=%s" % (method_name, args, kwargs))
 
         return json.dumps({"method":method_name, "args":args, "kwargs":kwargs})
 
@@ -464,13 +475,11 @@ class Proxy:
         return remote_method
 
 class DealerProxyAsync(Proxy):
-    def __init__(self, connection, timeout=1):
+    def __init__(self, connection):
         """
 
         :param connection:
-        :param timeout:
         """
-        self._timeout = timeout
         Proxy.__init__(self, connection)
 
     def send(self, message):
@@ -480,15 +489,12 @@ class DealerProxyAsync(Proxy):
         :returns: Deferred
         """
         d = self._connection.sendMsg(message)
-        if self._timeout > 0:
-            timeout = reactor.callLater(self._timeout, d.errback,
-                RemoteCallTimedOut("Call timed out."))
-            def cancelTimeout(result):
-                if timeout.active():
-                    timeout.cancel()
-                return result
-            d.addBoth(cancelTimeout)
-        return d
+        
+        def convertTimeout(failure):
+            e = failure.trap(ZmqRequestTimeoutError)
+            raise RemoteCallTimedOut("Call timed out.")
+
+        return d.addErrback(convertTimeout)
 
 class PushProxyAsync(Proxy):
     def send(self, message):
@@ -546,7 +552,8 @@ def dealer_proxy_async(address, timeout=1):
     :returns: DealerProxyAsync
     """
     socket = ZmqREQConnection(ZmqFactory(), ZmqEndpoint("connect", address))
-    return DealerProxyAsync(socket, timeout=timeout)
+    socket.defaultRequestTimeout = timeout
+    return DealerProxyAsync(socket)
 
 def push_proxy_async(address):
     """

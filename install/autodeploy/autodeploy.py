@@ -256,6 +256,7 @@ class Instance:
                 elif self.stack.stack_status == "CREATE_IN_PROGRESS":
                     time.sleep(10)
                 else:
+                    print "stack status: %s" % self.stack.stack_status
                     raise INSTANCE_BROKEN
         print
         print "Instance for %s created." % self.customer
@@ -271,6 +272,7 @@ class Instance:
                 elif instance.state == "pending":
                     time.sleep(10)
                 else:
+                    print "instance state: %s" % instance.state
                     raise INSTANCE_BROKEN
         print
         print "Instance %s booted." % instance_id
@@ -292,6 +294,9 @@ class Instance:
                                    (instance.ip_address, ssh_host_ecdsa_key))
                 break
         else:
+            print "Unable to get server SSH host key"
+            if self.verbose:
+                print output
             raise INSTANCE_BROKEN
 
     def delete(self):
@@ -534,7 +539,7 @@ class Instance:
 
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
-        print "Git hash: %s" % parser.get("version", "git_hash")
+        print "%s: %s" % (parser.get("version", "git_tag"), parser.get("version", "git_hash"))
 
     def login(self):
         if self.broken:
@@ -569,8 +574,13 @@ class Instance:
             context = fabric.api.show("everything")
 
         with context:
-            with fabric.api.lcd(backup_dir):
-                fabric.api.get("/data/bitcoind/wallet.dat", use_sudo=True)
+            fabric.api.sudo("cp /data/bitcoind/wallet.dat .")
+            fabric.api.sudo("chown ubuntu wallet.dat")
+            fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
+            fabric.api.sudo("rm wallet.dat")
+
+        with context:
+            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic_versions"))
 
     @staticmethod
     def list(region=None):

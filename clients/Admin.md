@@ -108,7 +108,7 @@ On success:
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
-    https://demo.m2.io:8080/api/deposits
+    https://demo.m2.io:2096/api/deposits
 ```    
     
 > [
@@ -125,14 +125,14 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
     -d '{ "address": "0WkKCca341k=", "quantity": 324.43 }' \
-    https://demo.m2.io:8080/api/manual_deposit
+    https://demo.m2.io:2096/api/manual_deposit
 ```
     
 > { "result": true }
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
-    https://demo.m2.io:8080/api/withdrawals
+    https://demo.m2.io:2096/api/withdrawals
 ```    
 
 > [
@@ -149,7 +149,7 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 ```    
 curl --digest -u username:password -H "Content-Type: application/json" \
     -d '{ "id": 3 }' \
-    https://demo.m2.io:8080/api/process_withdrawal
+    https://demo.m2.io:2096/api/process_withdrawal
 ```
 
 > { "result": true }

@@ -8,6 +8,13 @@ class @Locale
             "pt-BR": {}
             "es-419": {}
 
+        @country_to_locale =
+            BR: "pt"
+            HN: "es"
+            US: "en"
+            CO: "es"
+            AR: "es"
+
     init: () =>
         this_object = this
         $.get( "locale/translations.json", (data) =>
@@ -117,10 +124,12 @@ $ ->
     protocol = location.protocol
     if protocol == 'http:'
         ws_protocol = "ws:"
+        port = 8880
     else
         ws_protocol = "wss:"
+        port = 8443
 
-    uri = ws_protocol + "//" + hostname + ":8000"
+    uri = ws_protocol + "//" + hostname + ":#{port}"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
@@ -128,9 +137,25 @@ $ ->
     locale = new Locale navigator.language, sputnik
     window.locale = locale
 
+    getQueryKey = (key) ->
+        query = window.location.search.substring(1);
+        pairs = query.split('&').map (p) -> p.split('=')
+        results = pairs.filter (p) -> (decodeURIComponent(p[0]) == key)
+        final = results.map (p) -> decodeURIComponent(p[1])
+        if final.length
+            return final[0]
+        else
+            return undefined
+
+    simple_contract = getQueryKey('contract')
+    if simple_contract?
+        url = 'index_simple.html'
+    else
+        url = 'index_full.html'
+
     locale.init().then( () ->
         $.ajax {
-                url: 'index_template.html'
+                url: url
                 success: (data, status, xhr) ->
                     start(data)
                 }
@@ -180,6 +205,11 @@ $ ->
 
                 translate: (path, locale_str) ->
                     locale.translate path, locale_str
+
+                price_for_quantity: (ticker, quantity_str, side, locale_str, book) ->
+                    price = sputnik.priceForQuantity(ticker, locale.parseNumber(quantity_str, locale_str), side)
+                    sputnik.log ["priceforQuantity", ticker, quantity_str, price]
+                    locale.priceFormat(ticker, price, locale_str)
 
                 clean_ticker: (ticker) ->
                     ticker.replace('/', '_')
@@ -287,27 +317,30 @@ $ ->
             buykey: (event) ->
                 buy_price_str = ractive.get("buy_price")
                 buy_quantity_str = ractive.get("buy_quantity")
-                if not buy_price_str
-                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
-                else
-                    buy_price = locale.parseNumber(buy_price_str, ractive.get("sputnik.profile.locale"))
 
                 if not buy_quantity_str
-                    buy_quantity_str = "0"
+                    buy_quantity = 0
                 buy_quantity = locale.parseNumber(buy_quantity_str, ractive.get("sputnik.profile.locale"))
+
+                if not buy_price_str? or not buy_price_str
+                    buy_price = sputnik.priceForQuantity(ractive.get("current_ticker"), buy_quantity, 'BUY')
+                else
+                    buy_price = locale.parseNumber(buy_price_str, ractive.get("sputnik.profile.locale"))
 
                 alerts = []
 
 
-                if isNaN buy_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
+                if isNaN(buy_price) or not sputnik.checkPriceValidity(ractive.get("current_ticker"), buy_price)
                     alerts.push locale.translate("trade/alerts/price_invalid", ractive.get("sputnik.profile.locale"))
 
-                if isNaN buy_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
-                    alerts.push locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
+                if isNaN(buy_quantity) or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), buy_quantity)
+                    if buy_quantity_str != ""
+                        alerts.push locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
 
                 if alerts.length == 0
-                    if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
-                        alerts.push locale.translate("trade/alerts/insufficient_funds", ractive.get("sputnik.profile.locale"))
+                    if sputnik.authenticated
+                        if not sputnik.canPlaceOrder(buy_quantity, buy_price, ractive.get("current_ticker"), 'BUY')
+                            alerts.push locale.translate("trade/alerts/insufficient_funds", ractive.get("sputnik.profile.locale"))
 
                 if alerts.length
                     $('#buy_alert').text alerts.join(', ')
@@ -321,25 +354,28 @@ $ ->
             sellkey: (event) ->
                 sell_price_str = ractive.get("sell_price")
                 sell_quantity_str = ractive.get("sell_quantity")
-                if not sell_price_str
-                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
-                else
-                    sell_price = locale.parseNumber(sell_price_str, ractive.get "sputnik.profile.locale")
 
                 if not sell_quantity_str == ''
-                    sell_quantity_str = "0"
-                sell_quantity = locale.parseNumber(sell_quantity_str, ractive.get "sputnik.profile.locale")
+                    sell_quantity = 0
+                sell_quantity = locale.parseNumber(sell_quantity_str, ractive.get("sputnik.profile.locale"))
+
+                if not sell_price_str? or not sell_price_str
+                    sell_price = sputnik.priceForQuantity(ractive.get("current_ticker"), sell_quantity, 'SELL')
+                else
+                    sell_price = locale.parseNumber(sell_price_str, ractive.get("sputnik.profile.locale"))
 
                 alerts = []
-                if isNaN sell_price or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
-                    alerts.push locale.translate("trade/alerts/price_invalid", ractive.get "sputnik.profile.locale")
+                if isNaN(sell_price) or not sputnik.checkPriceValidity(ractive.get("current_ticker"), sell_price)
+                    alerts.push locale.translate("trade/alerts/price_invalid", ractive.get("sputnik.profile.locale"))
 
-                if isNaN sell_quantity or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
-                    alerts.push locale.translate("trade/alerts/quantity_invalid", ractive.get "sputnik.profile.locale")
+                if isNaN(sell_quantity) or not sputnik.checkQuantityValidity(ractive.get("current_ticker"), sell_quantity)
+                    if sell_quantity_str != ""
+                        alerts.push locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
 
                 if alerts.length == 0
-                    if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
-                        alerts.push locale.translate("trade/alerts/insufficient_funds", ractive.get "sputnik.profile.locale")
+                    if sputnik.authenticated
+                        if not sputnik.canPlaceOrder(sell_quantity, sell_price, ractive.get("current_ticker"), 'SELL')
+                            alerts.push locale.translate("trade/alerts/insufficient_funds", ractive.get("sputnik.profile.locale"))
 
                 if alerts.length
                     $('#sell_alert').text alerts.join(', ')
@@ -352,15 +388,15 @@ $ ->
 
             buy: (event) ->
                 event.original.preventDefault()
-                buy_quantity = locale.parseNumber($('#buy_quantity').val(), ractive.get("sputnik.profile.locale"))
-                buy_price_str = $("#buy_price").val()
+                buy_quantity = locale.parseNumber(ractive.get("buy_quantity"), ractive.get("sputnik.profile.locale"))
+                buy_price_str = ractive.get("buy_price")
 
-                if buy_quantity <= 0 or isNaN buy_quantity
+                if buy_quantity <= 0 or isNaN(buy_quantity)
                     bootbox.alert locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
                     return true
 
-                if buy_price_str == ''
-                    buy_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_ask.price
+                if not buy_price_str? or buy_price_str == ''
+                    buy_price = sputnik.priceForQuantity(ractive.get("current_ticker"), buy_quantity, 'BUY')
                     bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
                                                      ractive.get("sputnik.profile.locale")) + " " +
                                     locale.priceFormat( ractive.get("current_ticker"), buy_price, ractive.get("sputnik.profile.locale")) + ". " +
@@ -370,7 +406,7 @@ $ ->
                     )
                 else
                     buy_price = locale.parseNumber(buy_price_str, ractive.get("sputnik.profile.locale"))
-                    if buy_price <= 0 or isNaN buy_price
+                    if buy_price <= 0 or isNaN(buy_price)
                         bootbox.alert locale.translate("trade/alerts/price_invalid", ractive.get("sputnik.profile.locale"))
                         return true
 
@@ -383,16 +419,16 @@ $ ->
 
             sell: (event) ->
                 event.original.preventDefault()
-                sell_quantity = locale.parseNumber($('#sell_quantity').val(), ractive.get("sputnik.profile.locale"))
-                sell_price_str = $("#sell_price").val()
+                sell_quantity = locale.parseNumber(ractive.get("sell_quantity"), ractive.get("sputnik.profile.locale"))
+                sell_price_str = ractive.get("sell_price")
 
 
-                if sell_quantity <= 0 or isNaN sell_quantity
+                if sell_quantity <= 0 or isNaN(sell_quantity)
                     bootbox.alert locale.translate("trade/alerts/quantity_invalid", ractive.get("sputnik.profile.locale"))
                     return true
 
-                if sell_price_str == ''
-                    sell_price = ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price
+                if not sell_price_str? or sell_price_str == ''
+                    sell_price = sputnik.priceForQuantity(ractive.get("current_ticker"), sell_quantity, 'SELL')
                     bootbox.confirm(locale.translate("trade/alerts/placing_order_with_price",
                                                      ractive.get("sputnik.profile.locale")) + " " +
                                     locale.priceFormat( ractive.get("current_ticker"), sell_price, ractive.get("sputnik.profile.locale")) + ". " +
@@ -402,7 +438,7 @@ $ ->
                     )
                 else
                     sell_price = locale.parseNumber(sell_price_str, ractive.get("sputnik.profile.locale"))
-                    if sell_price <= 0 or isNaN sell_price
+                    if sell_price <= 0 or isNaN(sell_price)
                         bootbox.alert locale.translate("trade/alerts/price_invalid", ractive.get("sputnik.profile.locale"))
 
                     if not withinAnOrderOfMagnitude(sell_price, ractive.get("sputnik.books")[ractive.get("current_ticker")].best_bid.price)
@@ -418,14 +454,14 @@ $ ->
                 start_timestamp = locale.parseDate($("#transactions_start_date").val(), ractive.get("sputnik.profile.locale"))
                 end_timestamp = locale.parseDate($("#transactions_end_date").val(), ractive.get("sputnik.profile.locale"))
                 now = new Date()
-                if isNaN start_timestamp
+                if isNaN(start_timestamp)
                     start = new Date()
                     start.setDate(now.getDate() - 7)
                     start_timestamp = start.getTime() * 1000
                     $('#transactions_start_date').val(locale.dateFormat(start_timestamp, ractive.get("sputnik.profile.locale")))
                     $("#transactions_start_date").fadeIn(100).fadeOut(100).fadeIn(100).fadeOut(100).fadeIn(100);
 
-                if isNaN end_timestamp
+                if isNaN(end_timestamp)
                     end = new Date()
                     end.setDate(now.getDate())
                     # Add a day because we want the end of the day not the beginning
@@ -507,8 +543,9 @@ $ ->
                 $("#sell_alert").hide()
                 $("#sellButton").show()
 
-                sputnik.openMarket new_ticker
-                showChart new_ticker
+                if not simple_contract?
+                    sputnik.openMarket new_ticker
+                    showChart new_ticker
 
         window.ractive = ractive
 
@@ -521,7 +558,35 @@ $ ->
         setWindowInfo()
         $(window).resize setWindowInfo
 
-        sputnik.connect()
+        # Get location if possible
+        if navigator.geolocation
+            navigator.geolocation.getCurrentPosition (position) ->
+                sputnik.log ["current_position", position]
+                lat = position.coords.latitude
+                lng = position.coords.longitude
+                latlng = new google.maps.LatLng(lat, lng);
+                # For debugging
+                # Rio de Janerio, Brazil
+                #latlng = new google.maps.LatLng(-22.9027800, -43.2075000)
+                # San Pedro Sula, Honduras
+                #latlng = new google.maps.LatLng(15.503659,-88.00468)
+                # Berlin, Germany
+                #latlng = new google.maps.LatLng(52.5243700, 13.4105300)
+                geocoder = new google.maps.Geocoder();
+                geocoder.geocode {'latLng': latlng}, (results, status) ->
+                    if status == google.maps.GeocoderStatus.OK
+                        sputnik.log ["reverse geocode", results]
+                        # Find the result with types country and political
+                        useful_results = results.filter (r) -> "political" in r.types and "country" in r.types
+                        components = useful_results.map (r) -> r.address_components
+                        useful_components = components.map (c) -> c.filter (r) -> "political" in r.types and "country" in r.types
+                        short_names = useful_components.map (c) -> c.map (r) -> r.short_name
+                        short_names_flat = short_names.reduce (l,r)->l.concat(r)
+                        sputnik.log ["short_names", short_names_flat]
+
+                        for country in short_names
+                            if locale.country_to_locale[country]?
+                                ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
 
         tv = new window.TVFeed sputnik
         window.tv = tv
@@ -555,6 +620,10 @@ $ ->
                         else
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
                             sputnik.restoreSession name_uid[1]
+
+            if simple_contract?
+                ractive.set "current_ticker", simple_contract
+                sputnik.openMarket simple_contract
 
         sputnik.on "auth_success", (username) ->
             ga('send', 'event', 'login', 'success')
@@ -835,9 +904,10 @@ $ ->
             bootbox.alert locale.translate("trade/alerts/place_order_success", ractive.get("sputnik.profile.locale"))
 
         sputnik.on "fill", (fill) ->
-            quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
-            price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
-            $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+            if not simple_contract?
+                quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
+                price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
+                $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')
@@ -898,3 +968,5 @@ $ ->
                         bootbox.alert locale.translate(error[1][0], ractive.get("sputnik.profile.locale"))
                         sputnik.log ["Error:", error]
 
+        # Now that everything is setup, let's connect
+        sputnik.connect()

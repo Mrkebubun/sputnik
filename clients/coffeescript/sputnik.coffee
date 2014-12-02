@@ -403,9 +403,9 @@ class @Sputnik extends EventEmitter
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
         if contract.contract_type in ["prediction", "futures"]
-            price = price * contract.denominator
+            price = Math.round(price * contract.denominator)
         else
-            price = price * source.denominator * contract.denominator
+            price = Math.round(price * source.denominator * contract.denominator)
 
         price = price - price % contract.tick_size
         return price
@@ -492,6 +492,35 @@ class @Sputnik extends EventEmitter
                 @emit "place_order_success", res
             , (error) =>
                 @emit "place_order_fail", error
+
+    # Get the best price we think we can execute a given quantity
+    priceForQuantity: (ticker, quantity, side) =>
+        if side == 'BUY'
+            book = @markets[ticker].asks
+        else
+            book = @markets[ticker].bids
+
+        if isNaN quantity or quantity == 0
+            if book[0]?
+                return @priceFromWire(book[0].price)
+            else
+                if side == 'BUY'
+                    return Infinity
+                else
+                    return 0
+
+        quantity_wire = @quantityToWire(ticker, quantity)
+        sum = 0
+        for level in book
+            sum += level.quantity
+            if sum >= quantity_wire
+                return @priceFromWire(ticker, level.price)
+
+        if side == 'BUY'
+            return Infinity
+        else
+            return 0
+
 
     cancelOrder: (id) =>
         @log "cancelling: #{id}"
@@ -729,6 +758,8 @@ class @Sputnik extends EventEmitter
     # feeds
     onBook: (book) =>
         @log ["book received", book]
+        book.bids.sort (a, b) -> b.price - a.price
+        book.asks.sort (a, b) -> a.price - b.price
 
         @markets[book.contract].bids = book.bids
         @markets[book.contract].asks = book.asks
@@ -739,9 +770,6 @@ class @Sputnik extends EventEmitter
             bids: (@bookRowFromWire(ticker, order) for order in @markets[ticker].bids)
             asks: (@bookRowFromWire(ticker, order) for order in @markets[ticker].asks)
             contract: ticker
-
-        ui_book.bids.sort (a, b) -> b.price - a.price
-        ui_book.asks.sort (a, b) -> a.price - b.price
 
         @log ["ui_book", ui_book]
         @emit "book", ui_book

@@ -1,0 +1,7 @@
+Hello {{user.nickname}} ({{user.username}}),
+
+We received your deposit, however {{amount_fmt}} {{contract.ticker}} was not
+credited to your account because you have exceeded your permitted deposit limit.
+
+Please contact support with any questions.
+
