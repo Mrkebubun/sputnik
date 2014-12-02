@@ -637,7 +637,7 @@ class Administrator:
         if not contract.active:
             return
 
-        d = self.accountant_slow.clear_contract(None, ticker, price, uid)
+        d = defer.DeferredList(self.accountant_slow.clear_contract(None, ticker, price, uid))
 
         # If the contract is expired, mark it inactive once clearing is done
         if contract.expired:
