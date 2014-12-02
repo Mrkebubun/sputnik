@@ -6,7 +6,7 @@ debug, log, warn, error, critical = observatory.get_loggers("svc_registrar")
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
 
 
@@ -20,8 +20,17 @@ class RegistrarService(ServicePlugin):
             raise PluginException("Missing dependency %s." % "webserver.backend.administrator")
     
     @wamp.register(u"service.registrar.create_account")
-    def make_account(self, username, password, salt, email, locale=None):
-        self.administrator.make_account(username, password, salt, email, locale)
+    @inlineCallbacks
+    def make_account(self, username, password, email, locale=None):
+        try:
+            result = yield self.administrator.make_account(username, password)
+            if result:
+                profile = {"email": email, "nickname": nickname,
+                           "locale": locale}
+                yield self.administrator.change_profile(username, profile)
+                returnValue(True, username)
+        except Exception, e:
+            returnValue(False, e.args)
 
     @inlineCallbacks
     def onJoin(self, details):
