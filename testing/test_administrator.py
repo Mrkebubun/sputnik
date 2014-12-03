@@ -81,6 +81,7 @@ class TestAdministrator(TestSputnik):
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
 
+
 class TestInternal(TestAdministrator):
     def setUp(self):
         TestAdministrator.setUp(self)
@@ -132,34 +133,34 @@ contracts set NETS2015 fees 350
 
         def success(order_book):
             self.assertTrue(FakeComponent.check(
-                                {'BUY': {'1': {'errors': '',
-                                               'id': 1,
-                                               'price': 100,
-                                               'quantity': 1,
-                                               'quantity_left': 1,
-                                               'username': None},
-                                         '3': {'errors': 'DB quantity_left: 0.00',
-                                               'id': 1,
-                                               'price': 95,
-                                               'quantity': 2,
-                                               'quantity_left': 1,
-                                               'username': None}},
-                                 'SELL': {'2': {'errors': 'Not in DB',
-                                                'id': 2,
-                                                'price': 105,
-                                                'quantity': 1,
-                                                'quantity_left': 1,
-                                                'username': None},
-                                          '4': {'contract': u'BTC/MXN',
-                                                'errors': 'Not In Book',
-                                                'id': 4,
-                                                'is_cancelled': False,
-                                                'price': 110,
-                                                'quantity': 1,
-                                                'quantity_left': 1,
-                                                'side': u'SELL',
-                                                'username': None
-                                          }}}, order_book))
+                {'BUY': {'1': {'errors': '',
+                               'id': 1,
+                               'price': 100,
+                               'quantity': 1,
+                               'quantity_left': 1,
+                               'username': None},
+                         '3': {'errors': 'DB quantity_left: 0.00',
+                               'id': 1,
+                               'price': 95,
+                               'quantity': 2,
+                               'quantity_left': 1,
+                               'username': None}},
+                 'SELL': {'2': {'errors': 'Not in DB',
+                                'id': 2,
+                                'price': 105,
+                                'quantity': 1,
+                                'quantity_left': 1,
+                                'username': None},
+                          '4': {'contract': u'BTC/MXN',
+                                'errors': 'Not In Book',
+                                'id': 4,
+                                'is_cancelled': False,
+                                'price': 110,
+                                'quantity': 1,
+                                'quantity_left': 1,
+                                'side': u'SELL',
+                                'username': None
+                          }}}, order_book))
 
         d.addCallback(success)
         return d
@@ -397,6 +398,7 @@ class TestTicketServerExport(TestAdministrator):
         self.assertEqual(ticket.type, 'Compliance')
         self.assertEqual(ticket.foreign_key, 'KEY')
 
+
 # Not quite a Dummy
 class StupidRequest(DummyRequest):
     clientproto = 'HTTP/1.1'
@@ -445,6 +447,311 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
+
+    def test_change_fee_group(self):
+        self.create_account('test')
+
+        request = StupidRequest([''], path='/change_fee_group',
+                                args={'username': ['test'],
+                                      'id': ['2']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
+            self.assertTrue(
+                self.administrator.accountant.component.check_for_calls([('change_fee_group', ('test', 2), {})]))
+
+        d.addCallback(rendered)
+        return d
+
+    def test_modify_fee_group(self):
+        request = StupidRequest([''], path='/modify_fee_group',
+                                args={'id': ['2'],
+                                      'name': ['NewName'],
+                                      'aggressive_factor': ['100'],
+                                      'passive_factor': ['50'],
+                                      'withdraw_factor': ['100'],
+                                      'deposit_factor': ['50']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'fee_groups')
+            from sputnik import models
+
+            group = self.session.query(models.FeeGroup).filter_by(id=2).one()
+            self.assertEqual(group.aggressive_factor, 100)
+            self.assertEqual(group.passive_factor, 50)
+            self.assertEqual(group.withdraw_factor, 100)
+            self.assertEqual(group.deposit_factor, 50)
+            self.assertEqual(group.name, 'NewName')
+            self.assertTrue(self.administrator.accountant.component.check_for_calls([('reload_fee_group', (2,), {})]))
+
+        d.addCallback(rendered)
+        return d
+
+    def test_new_fee_group(self):
+        request = StupidRequest([''], path='/new_fee_group',
+                                args={
+                                    'name': ['NewName'],
+                                    'aggressive_factor': ['100'],
+                                    'passive_factor': ['50'],
+                                    'withdraw_factor': ['100'],
+                                    'deposit_factor': ['50']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'fee_groups')
+            from sputnik import models
+
+            group = self.session.query(models.FeeGroup).filter_by(name='NewName').one()
+            self.assertEqual(group.aggressive_factor, 100)
+            self.assertEqual(group.passive_factor, 50)
+            self.assertEqual(group.withdraw_factor, 100)
+            self.assertEqual(group.deposit_factor, 50)
+            self.assertEqual(group.name, 'NewName')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_edit_contract_cash(self):
+        from sputnik import models
+
+        BTC_dict = self.session.query(models.Contract).filter_by(ticker='BTC').one().__dict__
+
+        request = StupidRequest([''], path='/edit_contract',
+                                args={'ticker': ['BTC'],
+                                      'description': ['New BTC desc'],
+                                      'deposit_base_fee': ['3000']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'contracts')
+            BTC_dict_new = self.session.query(models.Contract).filter_by(ticker='BTC').one().__dict__
+            self.assertEqual(BTC_dict_new['description'], 'New BTC desc')
+            self.assertEqual(BTC_dict_new['deposit_base_fee'], 3000)
+
+            # Reset the changed bits for the full comparison
+            BTC_dict_new['description'] = BTC_dict['description']
+            BTC_dict_new['deposit_base_fee'] = BTC_dict['deposit_base_fee']
+
+            # remove _keys
+            for key in BTC_dict.keys():
+                if key.startswith("_"):
+                    del BTC_dict[key]
+
+            for key in BTC_dict_new.keys():
+                if key.startswith("_"):
+                    del BTC_dict_new[key]
+
+            self.assertDictEqual(BTC_dict, BTC_dict_new)
+
+        d.addCallback(rendered)
+        return d
+
+    def test_cancel_order(self):
+        request = StupidRequest([''], path='/cancel_order',
+                                args={'id': ['42'],
+                                      'ticker': ['BTC/MXN'],
+                                      'username': ['test']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'order_book')
+            self.assertTrue(
+                self.administrator.accountant.component.check_for_calls([('cancel_order', ('test', 42), {})]))
+
+        d.addCallback(rendered)
+        return d
+
+    def test_adjust_position(self):
+        request = StupidRequest([''], path='/adjust_position',
+                                args={'username': ['test'],
+                                      'contract': ['BTC'],
+                                      'quantity': ['24']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
+            self.assertTrue(self.administrator.accountant.component.check_for_calls(
+                [('adjust_position', ('test', 'BTC', 2400000000, 'admin'), {})]))
+
+
+        d.addCallback(rendered)
+        return d
+
+    def test_manual_deposit(self):
+        self.create_account('test', address='test_address')
+        request = StupidRequest([''], path='/manual_deposit',
+                                args={'username': ['test'],
+                                      'address': ['test_address'],
+                                      'contract': ['BTC'],
+                                      'quantity': ['24.4']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
+            self.assertTrue(self.administrator.accountant.component.check_for_calls(
+                [('deposit_cash', ('test', 'test_address', 2440000000), {'total': False,
+                                                                         'admin_username': 'admin'})]))
+
+
+        d.addCallback(rendered)
+        return d
+
+    def test_clear_contract(self):
+        request = StupidRequest([''], path='/clear_contract',
+                                args={'ticker': ['NETS2015'],
+                                      'price': ['1.000']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'contracts')
+            self.assertTrue(self.administrator.accountant.component.check_for_calls([('clear_contract',
+                                                                                      (None, 'NETS2015', 1000,
+                                                                                       ),
+                                                                                      {})]))
+
+
+        d.addCallback(rendered)
+        return d
+
+    def test_withdrawals(self):
+        request = StupidRequest([''], path='/withdrawals')
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Withdrawals</title>')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_deposits(self):
+        request = StupidRequest([''], path='/deposits')
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Deposits</title>')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_fee_groups(self):
+        request = StupidRequest([''], path='/fee_groups')
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Fee Groups</title>')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_admin_list(self):
+        request = StupidRequest([''], path='/admin_list')
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Administrator List</title>')
+
+        d.addCallback(rendered)
+        return d
+
+    def test_new_admin_user(self):
+        request = StupidRequest([''], path='/new_admin_user',
+                                args={'username': ['new_user'],
+                                      'level': ['4'],
+                                      'password': ['test_pw']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'admin_list')
+            from sputnik import models
+            new_user = self.session.query(models.AdminUser).filter_by(username='new_user').one()
+            self.assertEqual(new_user.level, 4)
+            self.assertEqual(new_user.password_hash, admin_ui.calc_ha1('test_pw', 'new_user'))
+
+        d.addCallback(rendered)
+        return d
+
+    def test_set_admin_level(self):
+        request = StupidRequest([''], path='/set_admin_level',
+                                args={'username': ['admin'],
+                                      'level': ['2']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'admin_list')
+            from sputnik import models
+            new_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
+            self.assertEqual(new_user.level, 2)
+
+        d.addCallback(rendered)
+        return d
+
+    def test_force_reset_admin_password(self):
+        request = StupidRequest([''], path='/force_reset_admin_password',
+                                args={'username': ['admin'],
+                                      'password': ['test_pw']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'admin_list')
+            from sputnik import models
+            new_user = self.session.query(models.AdminUser).filter_by(username='admin').one()
+            self.assertEqual(new_user.password_hash, admin_ui.calc_ha1('test_pw', 'admin'))
+
+        d.addCallback(rendered)
+        return d
+
+
+    def test_transfer_position(self):
+        request = StupidRequest([''], path='/transfer_position',
+                                args={'from_user': ['test'],
+                                      'username': ['test'],
+                                      'to_user': ['to_user'],
+                                      'note': ['test note'],
+                                      'contract': ['BTC'],
+                                      'quantity': ['24']})
+        admin_ui = self.web_ui_factory(5)
+        d = self.render_test_helper(admin_ui, request)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, 'user_details')
+            self.assertTrue(self.administrator.accountant.component.check_for_calls([('transfer_position',
+                                                                                      ('test',
+                                                                                       'BTC',
+                                                                                       'debit',
+                                                                                       2400000000,
+                                                                                       'test note (admin)',
+                                                                                      ),
+                                                                                      {}),
+                                                                                     ('transfer_position',
+                                                                                      ('to_user',
+                                                                                       'BTC',
+                                                                                       'credit',
+                                                                                       2400000000,
+                                                                                       'test note (admin)',
+                                                                                      ),
+                                                                                      {})]
+            ))
+
+        d.addCallback(rendered)
+        return d
+
 
     def test_reset_admin_password_no_prev(self):
         request = StupidRequest([''],
@@ -693,33 +1000,6 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
-
-    def test_withdrawals(self):
-        pass
-
-    def test_deposits(self):
-        pass
-
-    def test_manual_deposit(self):
-        pass
-
-    def test_admin_list(self):
-        pass
-
-    def test_new_admin_user(self):
-        pass
-
-    def test_set_admin_level(self):
-        pass
-
-    def test_admin_password(self):
-        pass
-
-    def test_transfer_position(self):
-        pass
-
-    def test_adjust_position(self):
-        pass
 
     def test_balance_sheet(self):
         request = StupidRequest([''],
