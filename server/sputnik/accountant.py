@@ -1313,7 +1313,7 @@ class Accountant:
         self.session.expire(group)
 
     def reload_contract(self, ticker):
-        contract = self.session.query(models.Contract).filter_by(contract=ticker).one()
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
         self.session.expire(contract)
 
     def change_fee_group(self, username, id):
