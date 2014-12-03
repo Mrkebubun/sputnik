@@ -297,7 +297,8 @@ class Accountant:
             return 0
 
     def get_margin(self, username):
-        low_margin, high_margin, cash_spent = margin.calculate_margin(username, self.session, safe_prices=self.safe_prices)
+        user = self.get_user(username)
+        low_margin, high_margin, cash_spent = margin.calculate_margin(user, self.session, safe_prices=self.safe_prices)
         cash_position = self.get_position_value(username, 'BTC')
         return {
             'username': username,
