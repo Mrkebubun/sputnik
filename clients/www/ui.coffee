@@ -130,7 +130,6 @@ $ ->
         port = 8443
 
     uri = ws_protocol + "//" + hostname + ":#{port}"
-    uri = "wss://demo.m2.io:8443"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
