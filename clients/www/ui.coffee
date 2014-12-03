@@ -984,12 +984,12 @@ $ ->
                     type: 'POST',
                     success: (data) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'save')
+                        ga('send', 'event', 'compliance', 'save', 'number', data.result)
                         bootbox.alert locale.translate("account/compliance/alerts/request_success", ractive.get("sputnik.profile.locale"))
                     error: (error) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'failure', 'error', error[0])
-                        bootbox.alert locale.translate(error[1][0], ractive.get("sputnik.profile.locale"))
+                        ga('send', 'event', 'compliance', 'failure', 'error', error.responseJSON[0])
+                        bootbox.alert locale.translate(error.responseJSON[0], ractive.get("sputnik.profile.locale"))
                         sputnik.log ["Error:", error]
 
         # Now that everything is setup, let's connect
