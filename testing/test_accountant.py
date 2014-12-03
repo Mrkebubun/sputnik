@@ -383,6 +383,21 @@ class TestCashierExport(TestAccountant):
 
 
 class TestAdministratorExport(TestAccountant):
+    def test_change_fee_group(self):
+        self.create_account('test', '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        from sputnik import models
+        id = self.session.query(models.FeeGroup.id).filter_by(name='MarketMaker').one().id
+        self.administrator_export.change_fee_group('test', id)
+        test = self.get_user('test')
+        self.assertEqual(test.fees.id, id)
+
+    def test_reload_fee_group(self):
+        from sputnik import models
+        id = self.session.query(models.FeeGroup.id).filter_by(name='MarketMaker').one().id
+        self.administrator_export.reload_fee_group(None, id)
+
+        # TODO: What can we assert here?
+
     def test_clear_contract(self):
         self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')

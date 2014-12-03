@@ -1393,10 +1393,12 @@ class AdministratorExport(ComponentExport):
         return self.accountant.clear_contract(username, ticker, price, uid)
 
     @export
+    @schema("rpc/accountant.administrator.json#change_fee_group")
     def change_fee_group(self, username, id):
         return self.accountant.change_fee_group(username, id)
 
     @export
+    @schema("rpc/accountant.administrator.json#reload_fee_group")
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)
 
