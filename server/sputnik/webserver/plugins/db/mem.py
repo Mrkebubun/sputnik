@@ -7,7 +7,7 @@ from autobahn.wamp import types
 
 class InMemoryDatabase(DatabasePlugin):
     def __init__(self):
-        DatabasePlugin.__init__(self, "memdb")
+        DatabasePlugin.__init__(self)
         self.users = {}
 
     def add_user(self, username, line):

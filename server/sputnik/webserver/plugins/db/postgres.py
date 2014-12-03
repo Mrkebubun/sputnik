@@ -10,7 +10,7 @@ from twisted.enterprise import adbapi
 
 class PostgresDatabase(DatabasePlugin):
     def __init__(self):
-        DatabasePlugin.__init__(self, "postgres")
+        DatabasePlugin.__init__(self)
         dbpassword = config.get("database", "password")
         if dbpassword:
             dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),

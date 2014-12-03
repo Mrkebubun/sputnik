@@ -8,7 +8,7 @@ from autobahn.wamp import types
 
 class CookieLogin(AuthenticationPlugin):
     def __init__(self):
-        AuthenticationPlugin.__init__(self, u"cookie")
+        AuthenticationPlugin.__init__(self)
         self.cookies = {}
 
     def onHello(self, router_session, realm, details):

@@ -9,7 +9,7 @@ from autobahn.wamp import types, auth
 
 class TOTPVerification(AuthenticationPlugin):
     def __init__(self):
-        AuthenticationPlugin.__init__(self, u"totp")
+        AuthenticationPlugin.__init__(self)
 
     @inlineCallbacks
     def onHello(self, router_session, realm, details):

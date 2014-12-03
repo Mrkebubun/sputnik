@@ -11,7 +11,6 @@ class PluginException(Exception):
 class PluginManager:
     def __init__(self):
         self.plugins = {}
-        self.path_map = {}
         self.services = defaultdict(list)
 
     @inlineCallbacks
@@ -22,62 +21,62 @@ class PluginManager:
             mod = getattr(mod, component)
         klass = getattr(mod, class_name)
         plugin = klass()
-        self.path_map[path] = plugin.service + "." + plugin.name
+        plugin.module_name = module_name
+        plugin.service_name = module_name.rsplit(".", 1)[0]
+        plugin.class_name = class_name
+        plugin.plugin_path = path
         returnValue((yield self._load_plugin(plugin)))
 
     def unload(self, path):
-        plugin = self.plugins[self.path_map[path]]
-        return self._unload_plugin(plugin)
+        return self._unload_plugin(self.plugins[path])
 
     @inlineCallbacks
     def _load_plugin(self, plugin):
-        name = plugin.service + "." + plugin.name
-        debug("Loading plugin %s..." % name)
-        if name in self.plugins:
-            warn("Plugin %s already loaded." % name)
+        path = plugin.plugin_path
+        debug("Loading plugin %s..." % path)
+        if path in self.plugins:
+            warn("Plugin %s already loaded." % path)
             return
-        debug("Configuring plugin %s..." % name)
+        debug("Configuring plugin %s..." % path)
         try:
             plugin.configure(self)
             # wait until plugin is done
             yield plugin.init()
         except Exception, e:
-            error("Unable to load plugin %s." % name)
+            error("Unable to load plugin %s." % path)
             error()
-            raise PluginException("Unable to load plugin %s." % name)
-        debug("Plugin %s loaded." % name)
-        self.plugins[name] = plugin
-        self.services[plugin.service].append(plugin)
+            raise PluginException("Unable to load plugin %s." % path)
+        debug("Plugin %s loaded." % path)
+        self.plugins[path] = plugin
+        self.services[plugin.service_name].append(plugin)
         returnValue(plugin)
 
     @inlineCallbacks
     def _unload_plugin(self, plugin):
         warn("There is no guarantee module code is completely removed.")
-        name = plugin.service + "." + plugin.name
-        debug("Unloading plugin %s..." % name)
-        if name not in self.plugins:
-            warn("Plugin %s not loaded." % name)
+        path = plugin.plugin_path
+        debug("Unloading plugin %s..." % path)
+        if path not in self.plugins:
+            warn("Plugin %s not loaded." % path)
             return
-        debug("Deconfiguring plugin %s..." % name)
+        debug("Deconfiguring plugin %s..." % path)
         # wait until plugin is done
         try:
             yield plugin.shutdown()
         except Exception, e:
-            error("Unable to unload plugin %s." % name)
+            error("Unable to unload plugin %s." % path)
             error()
-            raise PluginException("Unable to unload plugin %s." % name)
+            raise PluginException("Unable to unload plugin %s." % path)
         finally:
-            if name in self.plugins:
-                del self.plugins[name]
-            if plugin in self.services[plugin.service]:
-                self.services[plugin.service].remove(plugin)
-        debug("Plugin %s unloaded." % name)
+            if path in self.plugins:
+                del self.plugins[path]
+            if plugin in self.services[plugin.service_name]:
+                self.services[plugin.service_name].remove(plugin)
+        debug("Plugin %s unloaded." % path)
 
 class Plugin:
-    def __init__(self, name, service):
-        self.name = name
-        self.service = service
-        self.fullname = service + "." + name
+    def __init__(self):
+        pass
 
     def configure(self, manager):
         self.manager = manager

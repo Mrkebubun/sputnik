@@ -8,7 +8,7 @@ from autobahn.wamp.interfaces import IRouter
 
 class BasicPermissions(AuthorizationPlugin):
     def __init__(self):
-        AuthorizationPlugin.__init__(self, u"basic")
+        AuthorizationPlugin.__init__(self)
 
     def authorize(self, router, session, uri, action):
         log("Authorizing %s(%s) to %s %s" % \

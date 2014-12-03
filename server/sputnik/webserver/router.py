@@ -47,7 +47,7 @@ class SputnikRouterSession(RouterSession):
             try:
                 result = yield plugin.onHello(self, realm, details)
             except Exception, e:
-                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error("Uncaught exception in plugin %s." % plugin.plugin_path)
                 error()
             if result == None:
                 continue
@@ -67,7 +67,7 @@ class SputnikRouterSession(RouterSession):
             try:
                 result = yield plugin.onAuthenticate(self, signature, extra)
             except Exception, e:
-                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error("Uncaught exception in plugin %s." % plugin.plugin_path)
                 error()
             if isinstance(result, types.Accept):
                 if flag == "binding":
@@ -116,7 +116,7 @@ class SputnikRouterSession(RouterSession):
             try:
                 yield plugin.onJoin(self, details)
             except Exception, e:
-                error("Uncaught exception in plugin %s." % plugin.fullname)
+                error("Uncaught exception in plugin %s." % plugin.plugin_path)
                 error()
 
 def main(pm):
@@ -128,28 +128,29 @@ def main(pm):
     router_factory.router = SputnikRouter
 
     router_factory.authz_plugins = \
-            pm.services.get("webserver.authorization", [])
+            pm.services.get("sputnik.webserver.plugins.authz", [])
     router_factory.schema_plugins = \
-            pm.services.get("webserver.schema", [])
+            pm.services.get("sputnik.webserver.plugins.schema", [])
 
     from autobahn.twisted.wamp import RouterSessionFactory
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
 
-    authn_stack = [("webserver.authentication.anonymous", "sufficient"),
-                   ("webserver.authentication.cookie", "sufficient"),
-                   ("webserver.authentication.wampcra", "requisite"),
-                   ("webserver.authentication.totp", "requisite")]
+    authn_stack = [("anonymous.AnonymousLogin", "sufficient"),
+                   ("cookie.CookieLogin", "sufficient"),
+                   ("wampcra.WAMPCRALogin", "requisite"),
+                   ("totp.TOTPVerification", "requisite")]
     session_factory.plugins = []
     for plugin_name, flag in authn_stack:
-        session_factory.plugins.append((pm.plugins[plugin_name], flag))
+        path = "sputnik.webserver.plugins.authn." + plugin_name
+        session_factory.plugins.append((pm.plugins[path], flag))
 
-    svc_plugins = pm.services.get("webserver.service", [])
+    svc_plugins = pm.services.get("sputnik.webserver.plugins.svc", [])
     for plugin in svc_plugins:
         component_session = plugin
         component_session.config.realm = u"sputnik"
-        session_factory.add(component_session, plugin.fullname.decode("ascii"),
-                            u"trusted")
+        session_factory.add(component_session,
+                plugin.plugin_path.decode("ascii"), u"trusted")
 
     from autobahn.twisted.websocket import WampWebSocketServerFactory
     transport_factory = WampWebSocketServerFactory(session_factory,
@@ -174,16 +175,16 @@ def main(pm):
     reactor.run()
 
 if __name__ == "__main__":
-    observatory.start_logging(20)
-    plugins = ["sputnik.webserver.plugins.authz_basic.BasicPermissions",
-               "sputnik.webserver.plugins.authn_anonymous.AnonymousLogin",
-               "sputnik.webserver.plugins.authn_cookie.CookieLogin",
-               "sputnik.webserver.plugins.authn_wampcra.WAMPCRALogin",
-               "sputnik.webserver.plugins.authn_totp.TOTPVerification",
-               "sputnik.webserver.plugins.db_mem.InMemoryDatabase",
-               "sputnik.webserver.plugins.db_postgres.PostgresDatabase",
-               "sputnik.webserver.plugins.schema_json.JSONSchema",
-               "sputnik.webserver.plugins.backend_administrator.AdministratorProxy",
-               "sputnik.webserver.plugins.svc_registrar.RegistrarService"]
+    observatory.start_logging(10)
+    plugins = ["sputnik.webserver.plugins.authz.basic.BasicPermissions",
+               "sputnik.webserver.plugins.authn.anonymous.AnonymousLogin",
+               "sputnik.webserver.plugins.authn.cookie.CookieLogin",
+               "sputnik.webserver.plugins.authn.wampcra.WAMPCRALogin",
+               "sputnik.webserver.plugins.authn.totp.TOTPVerification",
+               "sputnik.webserver.plugins.db.mem.InMemoryDatabase",
+               "sputnik.webserver.plugins.db.postgres.PostgresDatabase",
+               "sputnik.webserver.plugins.schema.json.JSONSchema",
+               "sputnik.webserver.plugins.backend.administrator.AdministratorProxy",
+               "sputnik.webserver.plugins.svc.registrar.RegistrarService"]
     plugin.run_with_plugins(plugins, main)
 

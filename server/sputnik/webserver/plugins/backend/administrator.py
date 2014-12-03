@@ -8,7 +8,7 @@ from sputnik.zmq_util import dealer_proxy_async
 
 class AdministratorProxy(BackendPlugin):
     def __init__(self):
-        BackendPlugin.__init__(self, "administrator")
+        BackendPlugin.__init__(self)
         self.proxy = dealer_proxy_async(
                 config.get("administrator", "webserver_export"))
 

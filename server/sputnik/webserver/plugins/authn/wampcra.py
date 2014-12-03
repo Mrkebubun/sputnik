@@ -13,8 +13,7 @@ import json
 
 class WAMPCRALogin(AuthenticationPlugin):
     def __init__(self):
-        AuthenticationPlugin.__init__(self, u"wampcra")
-        self.cookies = {}
+        AuthenticationPlugin.__init__(self)
 
     @inlineCallbacks
     def onHello(self, router_session, realm, details):

@@ -12,12 +12,13 @@ from autobahn import wamp
 
 class RegistrarService(ServicePlugin):
     def __init__(self):
-        ServicePlugin.__init__(self, "registrar")
+        ServicePlugin.__init__(self)
 
     def init(self):
-        self.administrator = self.manager.plugins.get("webserver.backend.administrator")
+        req_path = "sputnik.webserver.plugins.backend.administrator.AdministratorProxy"
+        self.administrator = self.manager.plugins.get(req_path)
         if not self.administrator:
-            raise PluginException("Missing dependency %s." % "webserver.backend.administrator")
+            raise PluginException("Missing dependency %s." % req_path)
     
     @wamp.register(u"service.registrar.create_account")
     @inlineCallbacks

@@ -7,7 +7,7 @@ from autobahn.wamp import types
 
 class AnonymousLogin(AuthenticationPlugin):
     def __init__(self):
-        AuthenticationPlugin.__init__(self, u"anonymous")
+        AuthenticationPlugin.__init__(self)
 
     def onHello(self, router_session, realm, details):
         for authmethod in details.authmethods:
