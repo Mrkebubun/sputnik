@@ -291,6 +291,7 @@ class TestSputnik(unittest.TestCase):
         if isinstance(result, str):
             request.write(result)
             request.finish()
+            request.responseCode = 200
             return defer.succeed(None)
         elif result is NOT_DONE_YET:
             if request.finished:
