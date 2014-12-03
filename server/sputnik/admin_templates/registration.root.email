@@ -1,0 +1,10 @@
+Hello {{user.username}},
+
+Thanks for joining us. In order to get permissions to deposit, withdraw, and trade,
+be sure to complete the compliance form.
+
+Account -> Compliance
+
+{{base_uri}}/
+
+If you have any questions, do not hesitate to contact support.
