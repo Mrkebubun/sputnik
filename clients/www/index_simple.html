@@ -113,7 +113,7 @@
                                 </form>
                             </div>
                         </div>
-                        {{#if sputnik.logged_in}}
+                        {{#if sputnik.logged_in && sputnik.permissions.trade}}
                         <div class="row spacer-top">
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
@@ -149,7 +149,7 @@
                                 </form>
                             </div>
                         </div>
-                        {{#if sputnik.logged_in}}
+                        {{#if sputnik.logged_in && sputnik.permissions.trade}}
                         <div class="row spacer-top">
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>

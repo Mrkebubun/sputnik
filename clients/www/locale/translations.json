@@ -281,10 +281,16 @@
                     "alerts": {
                         "insufficient_funds": "Insufficient Funds",
                         "request_placed": "Withdrawal Request Placed",
-                        "mismatched_address": "Addresses do not match"
+                        "mismatched_address": "Addresses do not match",
+                        "not_permitted": "Withdrawals not permitted. Please contact support."
                     },
                     "buttons": {
                         "withdraw": "Withdraw"
+                    }
+                },
+                "deposit": {
+                    "alerts": {
+                        "not_permitted": "Deposits not permitted. Please contact support."
                     }
                 }
             }

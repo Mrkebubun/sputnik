@@ -118,6 +118,11 @@ class @Sputnik extends EventEmitter
             @emit "audit_details", audit_details
             @emit "audit_hash", @getAuditHash(wire_audit_details.timestamp)
 
+    getPermissions: () =>
+        @call("get_permissions").then (permissions) =>
+            @log ["permissions", permissions]
+            @emit "permissions", permissions
+
     getAuditHash: (timestamp) =>
         secret = @profile.audit_secret
         username = @username
@@ -250,6 +255,7 @@ class @Sputnik extends EventEmitter
         @getSafePrices()
         @getOpenOrders()
         @getPositions()
+        @getPermissions()
 
         @username = permissions.username
         @emit "auth_success", @username
