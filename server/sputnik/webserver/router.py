@@ -185,6 +185,9 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.db.postgres.PostgresDatabase",
                "sputnik.webserver.plugins.schema.json.JSONSchema",
                "sputnik.webserver.plugins.backend.administrator.AdministratorProxy",
-               "sputnik.webserver.plugins.svc.registrar.RegistrarService"]
+               "sputnik.webserver.plugins.svc.registrar.RegistrarService",
+               "sputnik.webserver.plugins.svc.info.InfoService",
+               "sputnik.webserver.plugins.svc.market.MarketService",
+               "sputnik.webserver.plugins.svc.private.PrivateService"]
     plugin.run_with_plugins(plugins, main)
 
