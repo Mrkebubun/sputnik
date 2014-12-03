@@ -1662,7 +1662,7 @@ class TicketServer(Resource):
             input_data = json.loads(fields['data'].value)
 
             input_values = {'date_of_birth': input_data['date_of_birth'],
-                            'identification': {'passport': input_data['passport_number']},
+                            'identification': {input_data['id_type']: input_data['id_number']},
                             'name': {'first': input_data['first_name'],
                                      'middle': input_data['middle_name'],
                                      'last': input_data['last_name']},
@@ -1673,6 +1673,7 @@ class TicketServer(Resource):
                                         'postal_code': input_data['postal_code'],
                                         'country_code': input_data['country_code']}
             }
+            log.msg("Sending to blockscore: %s" % input_values)
             d = self.blockscore.verify(input_values)
             d.addBoth(onBlockScore)
         else:

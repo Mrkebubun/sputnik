@@ -57,6 +57,12 @@ class RactiveSputnikWrapper
 
         @sputnik.on "exchange_info", (exchange_info) =>
             @exchange_info = exchange_info
+            if @exchange_info.supported_ids?
+                @exchange_info.supported_ids = [id_type.trim() for id_type in @exchange_info.supported_ids.split(",")]
+            else
+                @exchange_info.supported_ids = ['passport', 'drivers_license', 'personal_identification']
+
+
             @notify "exchange_info"
 
             if @exchange_info.locale?

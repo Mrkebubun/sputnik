@@ -954,17 +954,22 @@ $ ->
             ladda.start()
             fd = new FormData()
             fd.append('username', ractive.get("sputnik.username"))
-            passports = form.find('input[name=passport]')[0].files
+            id_files = form.find('input[name=id_file]')[0].files
             residencies = form.find('input[name=residency]')[0].files
 
-            if not passports.length
-              bootbox.alert locale.translate("account/compliance/alerts/passport_required", ractive.get("sputnik.profile.locale"))
-              return
-            if not residencies.length
-              bootbox.alert locale.translate("account/compliance/alerts/residency_required", ractive.get("sputnik.profile.locale"))
-              return
+            if not id_files.length
+                bootbox.alert locale.translate("account/compliance/alerts/id_required", ractive.get("sputnik.profile.locale"))
+                ladda.stop()
+                ga('send', 'event', 'compliance', 'failure', 'error', 'id_required')
+                return
 
-            fd.append('file', passports[0])
+            if not residencies.length
+                bootbox.alert locale.translate("account/compliance/alerts/residency_required", ractive.get("sputnik.profile.locale"))
+                ladda.stop()
+                ga('send', 'event', 'compliance', 'failure', 'error', 'residency_required')
+                return
+
+            fd.append('file', id_files[0])
             fd.append('file', residencies[0])
             fd.append('data', JSON.stringify(form.serializeObject()))
 

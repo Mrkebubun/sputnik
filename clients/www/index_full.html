@@ -1079,22 +1079,21 @@
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>{{translate('account/compliance/titles/passport', sputnik.profile.locale)}}</p>
+                                                    <select value="{{id_type}}" name="id_type">
+                                                        {{#sputnik.exchange_info.supported_ids}}
+                                                        <option value="{{this}}">{{translate('account/compliance/titles/' + this, sputnik.profile.locale)}}</option>
+                                                        {{/sputnik.exchange_info.supported_ids}}
+                                                    </select>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control file" type="file" name="passport" required
-                                                           id="id_passport">
-                                                
+                                                    <input class="form-control file" type="file" name="id_file" required id="id_file">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5">
-                                                    
                                                 </div>
                                                 <div class="col-sm-7">
-                                            
-                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="{{translate('account/compliance/titles/passport_number', sputnik.profile.locale)}}">
-
+                                                    <input name="id_number" type="text" class="form-control" id="id_number" placeholder="{{translate('account/compliance/titles/' + id_type + '_number', sputnik.profile.locale)}}">
                                                 </div>
                                             </div>
                                             
