@@ -31,7 +31,7 @@ import random
 from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
 import json
 import collections
-from zmq_util import export, pull_share_async, dealer_proxy_async
+from zmq_util import export, pull_share_async, dealer_proxy_async, router_share_async
 from accountant import AccountantProxy
 from zendesk import Zendesk
 from watchdog import watchdog
@@ -128,84 +128,7 @@ class PublicInterface:
         """
         self.factory = factory
         self.factory.chats = []
-        self.init()
-
-    def init(self):
-        # TODO: clean this up
-        """Get markets, load trade history, compute OHLCV for trade history
-
-
-        """
-
-        def _cb(res):
-            """Deal with get markets SQL query results
-
-            :param res:
-            :type res: list
-            """
-            result = {}
-            for r in res:
-                result[r[0]] = {"ticker": r[0],
-                                "description": r[1],
-                                "denominator": r[2],
-                                "contract_type": r[3],
-                                "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
-                                                                                        "markdown.extensions.sane_lists",
-                                                                                        "markdown.extensions.nl2br"
-                                ]),
-                                "tick_size": r[5],
-                                "lot_size": r[6],
-                                "denominated_contract_ticker": r[9],
-                                "payout_contract_ticker": r[10]}
-
-                if result[r[0]]['contract_type'] == 'futures':
-                    result[r[0]]['margin_high'] = r[7]
-                    result[r[0]]['margin_low'] = r[8]
-
-                if result[r[0]]['contract_type'] in ['futures', 'prediction']:
-                    result[r[0]]['expiration'] = dt_to_timestamp(r[11])
-
-            self.factory.markets = result
-            # Update the cache with the last 60 days of trades
-            to_dt = datetime.datetime.utcnow()
-            from_dt = to_dt - datetime.timedelta(days=60)
-            start_dt_for_period = {
-                'minute': to_dt - datetime.timedelta(minutes=60),
-                'hour': to_dt - datetime.timedelta(hours=60),
-                'day': to_dt - datetime.timedelta(days=60)
-            }
-
-            for ticker in self.factory.markets.keys():
-                def _cb2(result, ticker):
-                    """Deal with trade history sql results
-
-                    :param result:
-                    :param ticker:
-                    """
-                    trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
-                                                           'timestamp': dt_to_timestamp(r[1])} for r in result]
-                    self.factory.trade_history[ticker] = trades
-                    for period in ["minute", "hour", "day"]:
-                        for trade in trades:
-                            if trade['timestamp'] > dt_to_timestamp(start_dt_for_period[period]):
-                                self.factory.update_ohlcv(trade, period=period)
-
-                    if len(trades) and ticker not in self.factory.safe_prices:
-                        last_trade = trades[-1]
-                        # Set safe price to last trade on startup if we don't have it, will get overwritten
-                        self.factory.safe_prices[ticker] = last_trade['price']
-                    else:
-                        self.factory.safe_prices[ticker] = 42
-
-                dbpool.runQuery(
-                    "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
-                    "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE "
-                    "ORDER BY trades.timestamp",
-                    (ticker, from_dt)).addCallback(_cb2, ticker)
-
-        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
-                               "tick_size, lot_size, margin_high, margin_low,"
-                               "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts").addCallback(_cb)
+        self.factory.init()
 
     @exportRpc("get_exchange_info")
     def get_exchange_info(self):
@@ -1487,6 +1410,13 @@ class AccountantExport:
         self.webserver.dispatch(
             self.webserver.base_uri + "/feeds/orders#%s" % username, order)
 
+class AdministratorExport():
+    def __init__(self, factory):
+        self.factory = factory
+
+    @export
+    def reload_contract(self, ticker):
+        self.factory.reload_contract(ticker)
 
 class PepsiColaServerFactory(WampServerFactory):
     """
@@ -1531,6 +1461,93 @@ class PepsiColaServerFactory(WampServerFactory):
         self.recaptcha = recaptcha
         self.exchange_info = exchange_info
 
+    def init(self):
+        """Get markets, load trade history, compute OHLCV for trade history
+
+
+        """
+
+        def _cb(res):
+            """Deal with get markets SQL query results
+
+            :param res:
+            :type res: list
+            """
+            result = {}
+            for r in res:
+                self.reload_contract(r[0])
+                self.load_trade_history(r[0])
+
+        return dbpool.runQuery("SELECT ticker FROM contracts").addCallback(_cb)
+
+    def load_trade_history(self, ticker):
+            # Update the cache with the last 60 days of trades
+            to_dt = datetime.datetime.utcnow()
+            from_dt = to_dt - datetime.timedelta(days=60)
+            start_dt_for_period = {
+                'minute': to_dt - datetime.timedelta(minutes=60),
+                'hour': to_dt - datetime.timedelta(hours=60),
+                'day': to_dt - datetime.timedelta(days=60)
+            }
+
+            def _cb2(result, ticker):
+                """Deal with trade history sql results
+
+                :param result:
+                :param ticker:
+                """
+                trades = [{'contract': r[0], 'price': r[2], 'quantity': r[3],
+                                                       'timestamp': dt_to_timestamp(r[1])} for r in result]
+                self.trade_history[ticker] = trades
+                for period in ["minute", "hour", "day"]:
+                    for trade in trades:
+                        if trade['timestamp'] > dt_to_timestamp(start_dt_for_period[period]):
+                            self.update_ohlcv(trade, period=period)
+
+                if len(trades) and ticker not in self.safe_prices:
+                    last_trade = trades[-1]
+                    # Set safe price to last trade on startup if we don't have it, will get overwritten
+                    self.safe_prices[ticker] = last_trade['price']
+                else:
+                    self.safe_prices[ticker] = 42
+
+            dbpool.runQuery(
+                "SELECT contracts.ticker, trades.timestamp, trades.price, trades.quantity FROM trades, contracts WHERE "
+                "trades.contract_id=contracts.id AND contracts.ticker=%s AND trades.timestamp >= %s AND trades.posted IS TRUE "
+                "ORDER BY trades.timestamp",
+                (ticker, from_dt)).addCallback(_cb2, ticker)
+
+    def reload_contract(self, ticker):
+        def _cb(res):
+            if len(res) < 1:
+                raise Exception("No such contract: %s" % ticker)
+            if len(res) > 1:
+                raise Exception("Contract %s not unique" % ticker)
+            r = res[0]
+
+            self.markets[r[0]] = {"ticker": r[0],
+                            "description": r[1],
+                            "denominator": r[2],
+                            "contract_type": r[3],
+                            "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
+                                                                                    "markdown.extensions.sane_lists",
+                                                                                    "markdown.extensions.nl2br"
+                            ]),
+                            "tick_size": r[5],
+                            "lot_size": r[6],
+                            "denominated_contract_ticker": r[9],
+                            "payout_contract_ticker": r[10]}
+
+            if self.markets[r[0]]['contract_type'] == 'futures':
+                self.markets[r[0]]['margin_high'] = r[7]
+                self.markets[r[0]]['margin_low'] = r[8]
+
+            if self.markets[r[0]]['contract_type'] in ['futures', 'prediction']:
+                self.markets[r[0]]['expiration'] = dt_to_timestamp(r[11])
+
+        return dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
+                       "tick_size, lot_size, margin_high, margin_low,"
+                        "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts WHERE ticker = %s", (ticker,)).addCallback(_cb)
 
     def update_ohlcv(self, trade, period="day", update_feed=False):
         """
@@ -1706,7 +1723,6 @@ class TicketServer(Resource):
         else:
             return None
 
-
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
     #chat_log = logging.getLogger('chat_log')
@@ -1759,11 +1775,14 @@ if __name__ == '__main__':
 
     engine_export = EngineExport(factory)
     accountant_export = AccountantExport(factory)
+    administrator_export = AdministratorExport(factory)
 
     pull_share_async(engine_export,
                          config.get("webserver", "engine_export"))
     pull_share_async(accountant_export,
                          config.get("webserver", "accountant_export"))
+    router_share_async(administrator_export,
+                       config.get("webserver", "administrator_export"))
 
 
     # prevent excessively large messages

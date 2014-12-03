@@ -3,7 +3,7 @@ __author__ = 'satosushi'
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Enum, DateTime
+from sqlalchemy.types import Enum, DateTime, Interval
 import database as db
 from datetime import datetime, date, timedelta
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
@@ -136,6 +136,8 @@ class Contract(db.Base):
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
+
+    period = Column(Interval, nullable=True)
 
     @property
     def expired(self):

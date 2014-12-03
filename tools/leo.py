@@ -15,6 +15,7 @@ from sputnik import config
 from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
+from datetime import timedelta
 import shlex
 
 class PermissionsManager:
@@ -213,9 +214,11 @@ class ContractManager:
             print "\t\tmargin_high:\t%s" % contract.margin_high
             print "\t\tmargin_low:\t%s" % contract.margin_low
             print "\t\texpiration:\t%s" % contract.expiration
+            print "\t\tperiod:\t%s" % contract.period
         elif contract.contract_type == "prediction":
             print "\tPrediction details:"
             print "\t\texpiration:\t%s" % contract.expiration
+            print "\t\tperiod:\t%s" % contract.period
         if contract.contract_type != "cash":
             print "\tFee:\t%s" % contract.fees
         if contract.contract_type == "cash":
@@ -290,6 +293,14 @@ class ContractManager:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         if field == 'expiration':
             value = parser.parse(value)
+        if field == 'period':
+            timedelta_map = {"week": timedelta(days=7),
+                             "month": timedelta(days=30),
+                             "day": timedelta(days=1)}
+            if value in timedelta_map:
+                value = timedelta_map[value]
+            else:
+                raise Exception("%s not in timedelta_map" % value)
 
         setattr(contract, field, value)
         self.session.merge(contract)

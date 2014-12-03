@@ -86,7 +86,7 @@ class Administrator:
     """
 
     def __init__(self, session, accountant, cashier, engines,
-                 zendesk_domain, accountant_slow,
+                 zendesk_domain, accountant_slow, webserver,
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
@@ -104,6 +104,7 @@ class Administrator:
         self.session = session
         self.accountant = accountant
         self.accountant_slow = accountant_slow
+        self.webserver = webserver
         self.cashier = cashier
         self.engines = engines
         self.zendesk_domain = zendesk_domain
@@ -639,17 +640,31 @@ class Administrator:
 
         d = defer.DeferredList(self.accountant_slow.clear_contract(None, ticker, price, uid))
 
-        # If the contract is expired, mark it inactive once clearing is done
+        # If the contract is expired, mark it inactive or reset it
         if contract.expired:
-            def mark_inactive(result):
-                try:
-                    contract.active = False
-                    self.session.commit()
-                except Exception as e:
-                    self.session.rollback()
-                    raise e
+            if contract.period is None:
+                def mark_inactive(result):
+                    try:
+                        contract.active = False
+                        self.session.commit()
+                    except Exception as e:
+                        self.session.rollback()
+                        raise e
 
-            d.addCallback(mark_inactive)
+                d.addCallback(mark_inactive)
+            else:
+                def adjust_expiration(result):
+                    try:
+                        contract.expiration += contract.period
+                        self.session.commit()
+                    except Exception as e:
+                        self.session.rollback()
+                        raise e
+
+                    self.accountant.reload_contract(None, ticker)
+                    self.webserver.reload_contract(ticker)
+
+                d.addCallback(adjust_expiration)
 
         return d
 
@@ -815,6 +830,8 @@ class Administrator:
             setattr(contract, key, value)
 
         self.session.commit()
+        self.webserver.reload_contract(ticker)
+        self.accountant.reload_contract(None, ticker)
 
     @util.timed
     def get_withdrawals(self):
@@ -1677,6 +1694,7 @@ if __name__ == "__main__":
 
     cashier = push_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
+    webserver = dealer_proxy_async(config.get("webserver", "administrator_export"))
 
     if config.getboolean("webserver", "ssl"):
         protocol = 'https'
@@ -1699,11 +1717,12 @@ if __name__ == "__main__":
 
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
-                                  accountant_slow,
+                                  accountant_slow, webserver,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
-                                  bs_cache_update_period=bs_cache_update)
+                                  bs_cache_update_period=bs_cache_update,
+                                  )
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)

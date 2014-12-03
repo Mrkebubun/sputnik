@@ -50,10 +50,12 @@ contracts set USDBTC0W denominator 1000
 contracts set USDBTC0W lot_size 100000
 contracts set USDBTC0W tick_size 1
 contracts set USDBTC0W expiration 2015-06-28
+contracts set USDBTC0W period week
 contracts set USDBTC0W denominated_contract_ticker BTC
 contracts set USDBTC0W payout_contract_ticker USDBTC0W
 contracts set USDBTC0W margin_low 25
 contracts set USDBTC0W margin_high 50
+contracts set USDBTC0W description USDBTC0W
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
@@ -61,21 +63,25 @@ contracts set BTC hot_wallet_limit 1000000000
 contracts set BTC cold_wallet_address XXX
 contracts set BTC deposit_instructions "Please deposit your crypto-currency to the below address"
 contracts set BTC lot_size 10000
+contracts set BTC description Bitcoin
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000
 contracts set MXN deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
 contracts set MXN lot_size 100
+contracts set MXN description Peso
 
 contracts set PLN contract_type cash
 contracts set PLN denominator 10000
 contracts set PLN deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
 contracts set PLN lot_size 100
+contracts set PLN description Zloty
 
 contracts set HUF contract_type cash
 contracts set HUF denominator 100
 contracts set HUF deposit_instructions "Please mail a check to us\n\n500 Westover Dr #4673\nSanford NC 22370\n\nAnd reference the address in the memo field"
 contracts set HUF lot_size 100
+contracts set HUF description Forint
 
 contracts set BTC/MXN contract_type cash_pair
 contracts set BTC/MXN tick_size 100
@@ -84,6 +90,7 @@ contracts set BTC/MXN denominator 1
 contracts set BTC/MXN denominated_contract_ticker MXN
 contracts set BTC/MXN payout_contract_ticker BTC
 contracts set BTC/MXN fees 100
+contracts set BTC/MXN description BTC/MXN
 
 contracts set BTC/PLN contract_type cash_pair
 contracts set BTC/PLN tick_size 100
@@ -92,6 +99,7 @@ contracts set BTC/PLN denominator 1
 contracts set BTC/PLN denominated_contract_ticker PLN
 contracts set BTC/PLN payout_contract_ticker BTC
 contracts set BTC/PLN fees 100
+contracts set BTC/PLN description BTC/PLN
 
 contracts set BTC/HUF contract_type cash_pair
 contracts set BTC/HUF tick_size 100
@@ -100,6 +108,7 @@ contracts set BTC/HUF denominator 1
 contracts set BTC/HUF denominated_contract_ticker HUF
 contracts set BTC/HUF payout_contract_ticker BTC
 contracts set BTC/HUF fees 100
+contracts set BTC/HUF description BTC/HUF
 
 permissions add Default login
 permissions add Full trade withdraw deposit login

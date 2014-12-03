@@ -1246,7 +1246,7 @@ class Accountant:
             # Admin intervention required. ABORT!
             return
 
-    def clear_contract(self, username, ticker, price, uid):
+    def clear_contract(self, ticker, price, uid):
         if ticker in self.clearing_contracts:
             raise CONTRACT_CLEARING
 
@@ -1265,8 +1265,14 @@ class Accountant:
         if contract.expiration < datetime.utcnow() and price is None:
             raise CONTRACT_EXPIRED
 
+        # If there is no price, this is a mark-to-market
+        # Clear to the safe price, and don't zero-out
+        # the positions
         if price is None:
             price = self.safe_prices[ticker]
+            zero_out = False
+        else:
+            zero_out = True
 
         # Mark contract as clearing
         self.clearing_contracts[ticker] = True
@@ -1290,7 +1296,7 @@ class Accountant:
                 all_positions = self.session.query(models.Position).filter_by(contract=contract)
                 position_count = all_positions.count()
                 my_positions = all_positions.filter(models.Position.username.in_(my_users))
-                results = [self.clear_position(position, price, position_count, uid) for position in my_positions]
+                results = [self.clear_position(position, price, position_count, uid, zero_out=zero_out) for position in my_positions]
                 d = defer.DeferredList(results)
                 def reactivate_contract(result):
                     del self.clearing_contracts[ticker]
@@ -1306,6 +1312,10 @@ class Accountant:
         group = self.session.query(models.FeeGroup).filter_by(id=id).one()
         self.session.expire(group)
 
+    def reload_contract(self, ticker):
+        contract = self.session.query(models.Contract).filter_by(contract=ticker).one()
+        self.session.expire(contract)
+
     def change_fee_group(self, username, id):
         try:
             user = self.get_user(username)
@@ -1314,13 +1324,15 @@ class Accountant:
         except Exception as e:
             self.session.rollback()
             raise e
-    def clear_position(self, position, price, position_count, uid):
+
+    def clear_position(self, position, price, position_count, uid, zero_out=True):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
         if position.contract.contract_type == "prediction":
 
             cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
-            note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
+            note = "Clearing transaction for %s at price: %s" % (position.contract.ticker,
+                                                                 util.price_fmt(position.contract, price))
             credit = create_posting("Clearing", position.username,
                     position.contract.denominated_contract.ticker, cash_spent, 'credit',
                     note)
@@ -1335,7 +1347,9 @@ class Accountant:
 
         elif position.contract.contract_type == "futures":
             cash_spent = util.get_cash_spent(position.contract, price - position.reference_price, position_calculated)
-            note = "Clearing transaction for %s at %d / %d" % (position.contract.ticker, price, position.reference_price)
+            note = "Clearing transaction for %s at price: %s / reference_price: %s" % (position.contract.ticker,
+                                                                                       util.price_fmt(position.contract, price),
+                                                                                       util.price_fmt(position.contract, position.reference_price))
             credit = create_posting("Clearing", position.username,
                                     position.contract.denominated_contract_ticker, cash_spent, 'credit',
                                     note)
@@ -1360,15 +1374,19 @@ class Accountant:
                     self.session.rollback()
                     raise e
 
-                debit = create_posting("Clearing", position.username,
-                                       position.contract.payout_contract_ticker, position_calculated, 'debit',
-                                       note)
+                # Zero out positions
+                if zero_out:
+                    debit = create_posting("Clearing", position.username,
+                                           position.contract.payout_contract_ticker, position_calculated, 'debit',
+                                           note)
 
-                # This one is big journal entry has to encompass everything
-                debit['count'] = position_count
-                debit['uid'] = uid
-                d = self.post_or_fail(debit)
-                return d
+                    # This one is big journal entry has to encompass everything
+                    debit['count'] = position_count
+                    debit['uid'] = uid
+                    d = self.post_or_fail(debit)
+                    return d
+                else:
+                    return result
 
             d.addCallback(set_reference_price).addErrback(log.err)
             return d
@@ -1503,7 +1521,7 @@ class AdministratorExport(ComponentExport):
     @export
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
-        return self.accountant.clear_contract(username, ticker, price, uid)
+        return self.accountant.clear_contract(ticker, price, uid)
 
     @export
     def change_fee_group(self, username, id):
@@ -1513,6 +1531,9 @@ class AdministratorExport(ComponentExport):
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)
 
+    @export
+    def reload_contract(self, username, ticker):
+        return self.accountant.reload_contract(ticker)
 
     @export
     @schema("rpc/accountant.administrator.json#get_margin")
