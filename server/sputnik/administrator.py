@@ -40,6 +40,7 @@ import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 from autobahn.wamp1.protocol import WampCraProtocol
 from dateutil import parser
+from datetime import timedelta
 
 import config
 import database
@@ -1312,6 +1313,12 @@ class AdminWebUI(Resource):
 
         if "expiration" in request.args:
             args['expiration'] = parser.parse(request.args['expiration'][0])
+
+        if "period" in request.args:
+            try:
+                args['period'] = timedelta(days=int(request.args['period'][0]))
+            except ValueError:
+                log.msg("%s not a valid period" % request.args['period'][0])
 
         self.administrator.edit_contract(ticker, args)
         return redirectTo('/contracts', request)

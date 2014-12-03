@@ -62,6 +62,7 @@
                 <th>Payout</th>
                 <th>Margin High</th>
                 <th>Margin Low</th>
+                <th>Period</th>
             </tr>
         </thead>
         <tbody>
@@ -105,6 +106,7 @@
                     <td>{% if contract.contract_type != "cash" %}{{contract.payout_contract_ticker}}{% endif %}</td>
                     <td>{% if contract.contract_type == "futures" %}{{contract.margin_high}}{% endif %}</td>
                     <td>{% if contract.contract_type == "futures" %}{{contract.margin_low}}{% endif %}</td>
+                    <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.period.days}}{% endif %}</td>
                 </tr>
                 <tr name="edit_{{contract.id}}" style="display:none;">
                     <td colspan="100">
@@ -118,7 +120,7 @@
                             </tr>
                             <tr>
                                 <td>Full Description</td>
-                                <td><textarea rows="20" cols="80" name="full_description">{{contract.full_description}}</textarea></td>
+                                <td colspan="100"><textarea rows="20" cols="80" name="full_description">{{contract.full_description}}</textarea></td>
                             </tr>
                             {% if contract.contract_type == "cash" %}
                                 {% if contract.ticker == "BTC" %}
@@ -158,6 +160,8 @@
                                 <tr>
                                     <td>Expiration</td>
                                     <td><input type="text" name="expiration" value="{{contract.expiration}}"></td>
+                                    <td>Period (Days)</td>
+                                    <td><input type="text" name="period" value="{{contract.period.days}}"></td>
                                 </tr>
                             {% endif %}
                             </table>
