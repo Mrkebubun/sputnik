@@ -84,5 +84,12 @@ user=${user}
 command=crashmail -a -m ${alert_email} -o ${webserver_address}
 events=PROCESS_STATE_EXITED
 
+[eventlistener:memmon]
+command=memmon -a ${memmon_size} -P bitcoind=${bitcoind_size} -m ${alert_email}
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
+events=TICK_60
+
 [group:engines]
 programs=${engines_clean}

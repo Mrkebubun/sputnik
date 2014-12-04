@@ -8,9 +8,7 @@ progressbar
 beautifulsoup4
 Jinja2
 treq
-superlance
 txJSON-RPC==0.3.1
-superlance
 pycrypto
 service_identity
 coverage

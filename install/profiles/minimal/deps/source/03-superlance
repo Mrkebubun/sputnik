@@ -1,0 +1,30 @@
+#!/bin/sh
+#!/bin/sh
+
+SOURCE=https://github.com/MimeticMarkets/superlance.git
+
+check()
+{
+    VERSION=`pip show superlance | grep 'Version' | awk '{ print $2 }'`
+    test ${VERSION} == '1.0.0-dev'
+}
+
+install()
+{
+    cd /usr/local/src
+    git clone $SOURCE
+    cd superlance
+    python setup.py install
+}
+
+case $1 in
+    check)
+        check
+        ;;
+    install)
+        install
+        ;;
+    *)
+        echo "usage: $0 check|install"
+        ;;
+esac
