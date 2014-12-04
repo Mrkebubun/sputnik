@@ -1,6 +1,7 @@
 txZMQ==0.7.3
 jsonschema>=2.3.0
 SQLAlchemy==0.7.8
+autobahn==0.8.5
 onetimepass==0.2.2
 setuptools>=2.1
 progressbar
