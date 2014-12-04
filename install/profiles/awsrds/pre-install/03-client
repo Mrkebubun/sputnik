@@ -3,5 +3,5 @@
 mkdir -p ${profile_git_root}/dist/clients/www
 cd ${profile_git_root}/clients/www
 
-cp -rH images js css charting_library cldr locale *.coffee *.html *.ico *.css ${profile_git_root}/dist/clients/www
+cp -rH images js css charting_library cldr locale *.coffee *.html *.css ${profile_git_root}/dist/clients/www
 
