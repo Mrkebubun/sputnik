@@ -38,7 +38,7 @@ class MyFrontendComponent(wamp.ApplicationSession):
             returnValue(self.leave())
 
         auth = True
-        result = yield self.call(u"com.timeservice.now")
+        result = yield self.call(u"service.private.foobar")
         print result
 
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     log.startLogging(sys.stdout)
 
     ## 1) create a WAMP application session factory
-    component_config = types.ComponentConfig(realm = "realm1")
+    component_config = types.ComponentConfig(realm = "sputnik")
     session_factory = wamp.ApplicationSessionFactory(config = component_config)
     session_factory.session = MyFrontendComponent
 

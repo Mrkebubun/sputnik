@@ -17,7 +17,7 @@ class AuthorizationPlugin(Plugin):
         pass
 
 class SchemaPlugin(Plugin):
-    def validate(self, type, uri, args, kwargs):
+    def validate(self, router, type, uri, args, kwargs):
         pass
 
 class ServicePlugin(Plugin, ApplicationSession):

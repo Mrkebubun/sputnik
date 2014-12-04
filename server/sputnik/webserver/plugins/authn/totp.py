@@ -22,7 +22,7 @@ class TOTPVerification(AuthenticationPlugin):
                 username = challenge["authid"].encode("utf8")
 
                 try:
-                    databases = self.manager.services["webserver.database"]
+                    databases = self.manager.services["sputnik.webserver.plugins.db"]
                     for db in databases:
                         result = yield db.lookup(username)
                         if result:

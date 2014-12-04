@@ -8,6 +8,6 @@ class JSONSchema(SchemaPlugin):
     def __init__(self):
         SchemaPlugin.__init__(self)
 
-    def validate(self, type, uri, args, kwargs):
+    def validate(self, router, type, uri, args, kwargs):
         return True
 

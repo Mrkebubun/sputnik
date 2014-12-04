@@ -26,8 +26,8 @@ class WAMPCRALogin(AuthenticationPlugin):
                              "authmethod": u"wampcra",
                              "authprovider": u"database",
                              "session": details.pending_session,
-                             "nonce": util.utcnow(),
-                             "timestamp": util.newid()}
+                             "nonce": util.newid(),
+                             "timestamp": util.utcnow()}
 
                 router_session.challenge = challenge
 
@@ -48,7 +48,7 @@ class WAMPCRALogin(AuthenticationPlugin):
                     router_session.exists = False
                     result = None
 
-                    databases = self.manager.services["webserver.database"]
+                    databases = self.manager.services["sputnik.webserver.plugins.db"]
                     for db in databases:
                         result = yield db.lookup(username)
                         if result:
@@ -110,6 +110,7 @@ class WAMPCRALogin(AuthenticationPlugin):
 
             # Reject the user if we did not actually find them in the database.
             if not router_session.exists:
+                log("User %s not found." % challenge["authid"])
                 success = False
 
             if success:
