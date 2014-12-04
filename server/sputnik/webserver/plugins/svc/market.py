@@ -1,5 +1,6 @@
 from sputnik import config
 from sputnik import observatory
+from sputnik import util
 
 debug, log, warn, error, critical = observatory.get_loggers("svc_market")
 
@@ -24,16 +25,35 @@ class MarketService(ServicePlugin):
     @wamp.register(u"service.market.get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None,
             end_timestamp=None):
-        pass
+        now = util.dt_to_timestamp(datetime.datetime.utcnow())
+        start = start or int(now - 5.184e12) # delta 60 days
+        end = end or now
+       
+        data = self.ohlcv.get(ticker, {}).get(period, {})
+        ohlcv = {key: value for key, value in data \
+                if value["open_timestamp"] <= end and \
+                start <= value["close_timestamp"]}
+
+        return [True, ohlcv]
+
 
     @wamp.register(u"service.market.get_trade_history")
-    def get_trade_history(self, ticker, start_timestamp=None,
-            end_timestamp=None):
-        pass
+    def get_trade_history(self, ticker, start=None, stop=None):
+        now = util.dt_to_timestamp(datetime.datetime.utcnow())
+        start = start or int(now - 3.6e9) # delta 1 hour
+        end = end or now
+        
+        history = [entry for entry in self.trades.get(ticker, []) \
+                if start <= entry["timestamp"]<= stop]
+        return [True, history]
 
     @wamp.register(u"service.market.get_order_book")
-    def get_trade_history(self, ticker):
-        pass
+    def get_order_book(self, ticker):
+        if ticker in self.markets:
+            return [True, self.books[ticker]]
+        else:
+            error("User requested book for invalid ticker %s." % ticker)
+            return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @inlineCallbacks
     def onJoin(self, details):
