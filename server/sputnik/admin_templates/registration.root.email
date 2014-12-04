@@ -1,10 +1,16 @@
-Hello {{user.username}},
+Hello {{user.username}}, I hope you are having a great day!
 
-Thanks for joining us. In order to get permissions to deposit, withdraw, and trade,
-be sure to complete the compliance form.
+To finish the registration process, please go to “Account”, “Compliance” and fill the fields with the data:
 
-Account -> Compliance
+Name
+Address
+Birthdate
+Scan of Identification & Residency Documents
+Id Document Number
 
+As soon as will go through this last step you will be ready to trade!
+
+Thank you very much,
+
+Compliance
 {{base_uri}}/
-
-If you have any questions, do not hesitate to contact support.
