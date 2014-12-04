@@ -25,9 +25,13 @@ class MarketService(ServicePlugin):
     @wamp.register(u"service.market.get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None,
             end_timestamp=None):
+        if ticker not in self.markets:
+            return [False, "No such ticker %s." % ticker]
+
         now = util.dt_to_timestamp(datetime.datetime.utcnow())
         start = start or int(now - 5.184e12) # delta 60 days
         end = end or now
+        period = period or "day"
        
         data = self.ohlcv.get(ticker, {}).get(period, {})
         ohlcv = {key: value for key, value in data \
@@ -36,9 +40,11 @@ class MarketService(ServicePlugin):
 
         return [True, ohlcv]
 
-
     @wamp.register(u"service.market.get_trade_history")
     def get_trade_history(self, ticker, start=None, stop=None):
+        if ticker not in self.markets:
+            return [False, "No such ticker %s." % ticker]
+
         now = util.dt_to_timestamp(datetime.datetime.utcnow())
         start = start or int(now - 3.6e9) # delta 1 hour
         end = end or now
@@ -49,11 +55,10 @@ class MarketService(ServicePlugin):
 
     @wamp.register(u"service.market.get_order_book")
     def get_order_book(self, ticker):
-        if ticker in self.markets:
-            return [True, self.books[ticker]]
-        else:
-            error("User requested book for invalid ticker %s." % ticker)
-            return [True, {'contract': ticker, 'bids': [], 'asks': []}]
+        if ticker not in self.markets:
+            return [False, "No such ticker %s." % ticker]
+
+        return [True, self.books[ticker]]
 
     @inlineCallbacks
     def onJoin(self, details):
