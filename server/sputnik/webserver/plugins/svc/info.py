@@ -21,3 +21,12 @@ class InfoService(ServicePlugin):
     def get_exchange_info(self):
         return [True, self.exchange_info]
 
+    @inlineCallbacks
+    def onJoin(self, details):
+        results = yield self.register(self)
+        for success, result in results:
+            if success:
+                log("Registered %s." % self._registrations[result.id].procedure)
+            else:
+                error("Error registering method: %s." % result.value.args[0])
+

@@ -35,4 +35,12 @@ class MarketService(ServicePlugin):
     def get_trade_history(self, ticker):
         pass
 
+    @inlineCallbacks
+    def onJoin(self, details):
+        results = yield self.register(self)
+        for success, result in results:
+            if success:
+                log("Registered %s." % self._registrations[result.id].procedure)
+            else:
+                error("Error registering method: %s." % result.value.args[0])
 
