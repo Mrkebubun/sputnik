@@ -15,6 +15,13 @@ class MarketService(ServicePlugin):
     def __init__(self):
         ServicePlugin.__init__(self)
 
+    def init(self):
+        self.receiver = self.require("sputnik.webserver.plugins.receiver.accountant.AccounantReceiver")
+        self.receiver.listeners.append(self)
+
+    def shutdown(self):
+        self.receiver.listeners.remove(self)
+
     def reload(self):
         pass
 
