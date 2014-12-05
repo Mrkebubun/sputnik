@@ -586,6 +586,14 @@ class Instance:
                 print
             else:
                 fabric.api.get("/data/logs", backup_dir, use_sudo=True)
+            sys.stdout.write("\tCompressing logs (this may take a few minutes)... ")
+            with fabric.api.lcd(join(backup_dir, "logs")):
+                if not self.verbose:
+                    with Spinner():
+                        fabric.api.local("gzip *")
+                    print
+                else:
+                    fabric.api.local("gzip *")
             print "\tCopying alembic..."
             fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic"))
 
