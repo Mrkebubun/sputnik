@@ -102,6 +102,13 @@ class Plugin:
     def shutdown(self):
         pass
 
+    def require(self, path):
+        plugin = self.manager.plugins.get(path)
+        if not plugin:
+            raise PluginException("Plugin %s requires %s." % \
+                    (self.plugin_path, path))
+        return plugin
+
 def run_with_plugins(plugin_paths, callback, *args, **kwargs):
     plugin_manager = PluginManager()
     plugins = [plugin_manager.load(plugin_path) for plugin_path in plugin_paths]
