@@ -34,7 +34,7 @@ if __name__ == "__main__":
         update = json.loads(args[0])
         log.msg("received update: %s" % update)
         safe_prices.update(update)
-        publisher.publish(json.dumps(safe_prices))
+        publisher.publish(json.dumps(safe_prices), tag=b'')
 
     subscriber.gotMessage = onPrice
     reactor.run()

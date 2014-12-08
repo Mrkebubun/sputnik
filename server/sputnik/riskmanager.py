@@ -85,6 +85,7 @@ class RiskManager():
     def on_safe_prices(self, *args):
         this_call_time = time.time()
         safe_prices = json.loads(args[0])
+        log.msg("Safe prices received: %s" % safe_prices)
         # Don't run more than once per minute
         if this_call_time - self.last_call_time > self.nap_time_seconds:
             self.last_call_time = this_call_time
@@ -92,7 +93,7 @@ class RiskManager():
 
             self.session.expire_all()
             for user in self.session.query(models.User).filter_by(active=True).filter_by(type='Liability'):
-                low_margin, high_margin, cash_spent = margin.calculate_margin(user.username, self.session, safe_prices)
+                low_margin, high_margin, cash_spent = margin.calculate_margin(user, self.session, safe_prices)
                 try:
                     cash_position_db = self.session.query(models.Position).filter_by(contract=self.BTC, user=user).one()
                 except NoResultFound:

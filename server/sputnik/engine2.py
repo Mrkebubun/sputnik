@@ -488,7 +488,7 @@ class SafePriceNotifier(EngineListener):
     def publish_safe_price(self):
         self.accountant.safe_prices(None, self.contract.ticker, self.safe_price)
         self.webserver.safe_prices(self.contract.ticker, self.safe_price)
-        self.forwarder.publish(json.dumps({self.contract.ticker: self.safe_price}))
+        self.forwarder.publish(json.dumps({self.contract.ticker: self.safe_price}), tag=b'')
 
 class AccountantExport(ComponentExport):
     def __init__(self, engine, safe_price_notifier):
