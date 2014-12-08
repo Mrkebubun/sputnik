@@ -115,7 +115,7 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
-            # The journal is created seperately from the postings but this is ok because
+            # The journal is created separately from the postings but this is ok because
             # all the postings are created at once. If the posting commit fails then we'll
             # just end up with an empty journal which won't break anything
             # TODO: Create the journal and postings together
@@ -160,7 +160,6 @@ class Ledger:
                 posting = {'username': username,
                            'contract_id': contract_id,
                            'quantity': sign * quantity,
-                           'direction': direction,
                            'note': note,
                            'timestamp': timestamp,
                            'journal_id': journal_id

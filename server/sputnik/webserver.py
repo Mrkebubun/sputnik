@@ -1645,8 +1645,11 @@ class TicketServer(Resource):
 
                 :param failure:
                 """
-                log.err("unable to create support ticket: %s" % str(failure.value.args))
-                request.write("Failure: %s" % str(failure.value.args))
+                log.err("unable to create support ticket")
+                log.err(failure)
+                request.setResponseCode(422)
+                request.setHeader("Content-Type", "application/json; charset=utf-8")
+                request.write(json.dumps(failure.value.args).encode('utf-8'))
                 request.finish()
 
             def onCheckSuccess(user):
@@ -1669,7 +1672,8 @@ class TicketServer(Resource):
                 def onCreateTicketSuccess(ticket_number):
                     def onRegisterTicketSuccess(result):
                         log.msg("Ticket registered successfully")
-                        request.write("OK")
+                        request.setHeader("Content-Type", "application/json; charset=utf-8")
+                        request.write(json.dumps({'result': ticket_number}).encode('utf-8'))
                         request.finish()
 
                     log.msg("Ticket created: %s" % ticket_number)
@@ -1693,7 +1697,7 @@ class TicketServer(Resource):
             input_data = json.loads(fields['data'].value)
 
             input_values = {'date_of_birth': input_data['date_of_birth'],
-                            'identification': {'passport': input_data['passport_number']},
+                            'identification': {input_data['id_type']: input_data['id_number']},
                             'name': {'first': input_data['first_name'],
                                      'middle': input_data['middle_name'],
                                      'last': input_data['last_name']},
@@ -1704,6 +1708,7 @@ class TicketServer(Resource):
                                         'postal_code': input_data['postal_code'],
                                         'country_code': input_data['country_code']}
             }
+            log.msg("Sending to blockscore: %s" % input_values)
             d = self.blockscore.verify(input_values)
             d.addBoth(onBlockScore)
         else:

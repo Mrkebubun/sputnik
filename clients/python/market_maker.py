@@ -94,19 +94,23 @@ class MarketMakerBot(TradingBot):
 
             if ticker not in self.factory.ignore_contracts:
                 if market['contract_type'] == "cash_pair":
-                    currency = market['denominated_contract_ticker']
+                    if ticker == "BTC/USD":
+                        new_bid = btcusd_bid
+                        new_ask = btcusd_ask
+                    else:
+                        currency = market['denominated_contract_ticker']
 
-                    try:
-                    # Get Yahoo quote
-                        url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
-                        file_handle = urllib2.urlopen(url)
-                        soup = BeautifulSoup(file_handle)
-                        bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text.replace(',', ''))
-                        ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
-                    except Exception as e:
-                        # Unable to get markets, just exit
-                        print "unable to get external market data: %s" % e
-                        continue
+                        try:
+                        # Get Yahoo quote
+                            url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
+                            file_handle = urllib2.urlopen(url)
+                            soup = BeautifulSoup(file_handle)
+                            bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                            ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                        except Exception as e:
+                            # Unable to get markets, just exit
+                            print "unable to get external market data: %s" % e
+                            continue
 
 
                     new_bid = btcusd_bid * bid

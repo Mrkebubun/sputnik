@@ -15,37 +15,46 @@ from sputnik import config
 from twisted.internet import defer, reactor, task
 
 db_session = database.make_session(username=getpass.getuser())
-print config.get("cashier", "bitcoin_conf")
+print config.get("cashier","bitcoin_conf")
 conn = txbitcoinrpc.BitcoinRpc(config.get("cashier", "bitcoin_conf"))
 
 #conn.walletpassphrase('pass',10, dont_raise=True)
+count = 0
+def go():
+    d = conn.keypoolrefill()
 
-def try_again(failure):
-    print "Failed to connect to bitcoind: %s" % failure
-    d = task.deferLater(reactor, 10, conn.keypoolrefill)
+    def get_addresses(result):
+        quantity = 100
+
+        dl = defer.DeferredList([conn.getnewaddress() for i in range(quantity)])
+
+        def add_addresses(results):
+            for r in results:
+                addr = r[1]['result']
+                BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
+                new_address = models.Addresses(None, BTC, addr)
+                db_session.add(new_address)
+                print 'adding: ', addr
+            db_session.commit()
+            print 'committed'
+            reactor.stop()
+
+        dl.addCallback(add_addresses)
+        return dl
+
+    def try_again(failure):
+        print "Error: %s" % str(failure.value)
+        global count
+        count += 1
+        if count > 10:
+            reactor.stop()
+            raise failure.value
+        else:
+            return task.deferLater(reactor, 30, go)
+
+    d.addCallback(get_addresses)
     d.addErrback(try_again)
     return d
 
-d = conn.keypoolrefill().addErrback(try_again)
-
-def do_add(result):
-    quantity = 100
-
-    dl = defer.DeferredList([conn.getnewaddress() for i in range(quantity)])
-
-    def add_addresses(results):
-        for r in results:
-            addr = r[1]['result']
-            BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
-            new_address = models.Addresses(None, BTC, addr)
-            db_session.add(new_address)
-            print 'adding: ', addr
-        db_session.commit()
-        print 'committed'
-        reactor.stop()
-
-    dl.addCallback(add_addresses)
-
-d.addCallback(do_add)
-
+go()
 reactor.run()

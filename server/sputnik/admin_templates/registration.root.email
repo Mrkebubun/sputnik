@@ -1,0 +1,16 @@
+Hello {{user.username}}, I hope you are having a great day!
+
+To finish the registration process, please go to “Account”, “Compliance” and fill the fields with the data:
+
+Name
+Address
+Birthdate
+Scan of Identification & Residency Documents
+Id Document Number
+
+As soon as will go through this last step you will be ready to trade!
+
+Thank you very much,
+
+Compliance
+{{base_uri}}/

@@ -223,5 +223,45 @@
         },
         "required": ["username"],
         "additionalProperties": false
+    },
+    "change_fee_group":
+    {
+        "type":"object",
+        "description": "Change a user's fee group",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "The username we are changing"
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "The id of the fee group this user will have now"
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
+    },
+    "reload_fee_group":
+    {
+        "type":"object",
+        "description": "Reload a fee group because it got changed in the administrator",
+        "properties":
+        {
+            "username":
+            {
+                "type": "null",
+                "description": "This should be null/None because it is for all users on this accountant"
+            },
+            "id":
+            {
+                "type": "integer",
+                "description": "The id of the fee group we are reloading"
+            }
+        },
+        "required": ["username", "id"],
+        "additionalProperties": false
     }
 }

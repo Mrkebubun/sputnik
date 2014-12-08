@@ -31,7 +31,8 @@
             "complete_registration": "Please complete the registration form and accept the terms of service to continue.",
             "enter_username": "Please enter a username to reset the password",
             "password_reset": "Password reset",
-            "profile_changed": "Profile changed"
+            "profile_changed": "Profile changed",
+            "invalid_email": "Invalid email address"
         },
         "buttons": {
             "buy": "Buy",
@@ -185,13 +186,31 @@
                     "documents": "Documents",
                     "passport": "Passport",
                     "passport_number": "Passport Number",
+                    "ssn": "Social Security Card",
+                    "ssn_number": "Social Security Number",
+                    "drivers_license": "Drivers License",
+                    "drivers_license_number": "Drivers License Number",
+                    "personal_identification": "Personal ID Card",
+                    "personal_identification_number": "PIN",
+                    "identity_card": "Identity Card",
+                    "identity_card_number": "Identity Card Number",
+                    "tax_id": "Tax ID Card",
+                    "tax_id_number": "Tax ID Number",
+                    "voter_id": "Voter ID Card",
+                    "voter_id_number": "Voter ID Number",
+                    "travel_document": "Travel Document",
+                    "travel_document_number": "Travel Document Number",
+                    "residence_permit": "Residence Permit",
+                    "residence_permit_number": "Residence Permit Number",
+                    "identity_certificate": "Identity Certificate",
+                    "identity_certificate_number": "Identity Certificate Number",
                     "residency": "Proof of Residency"
                 },
                 "buttons": {
                     "submit": "Submit"
                 },
                 "alerts": {
-                    "passport_required": "Must submit proof of identity",
+                    "id_required": "Must submit proof of identity",
                     "residency_required": "Must submit proof of residency",
                     "request_success": "Successful compliance submission"
 
@@ -262,10 +281,16 @@
                     "alerts": {
                         "insufficient_funds": "Insufficient Funds",
                         "request_placed": "Withdrawal Request Placed",
-                        "mismatched_address": "Addresses do not match"
+                        "mismatched_address": "Addresses do not match",
+                        "not_permitted": "Withdrawals not permitted. Please contact support."
                     },
                     "buttons": {
                         "withdraw": "Withdraw"
+                    }
+                },
+                "deposit": {
+                    "alerts": {
+                        "not_permitted": "Deposits not permitted. Please contact support."
                     }
                 }
             }

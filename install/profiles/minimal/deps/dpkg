@@ -2,6 +2,7 @@ build-essential
 python-dev
 python-pip
 python-psycopg2
+python-twisted
 sudo
 supervisor
 curl
@@ -16,3 +17,4 @@ openssl
 alembic
 python-dateutil
 python-markdown
+postfix

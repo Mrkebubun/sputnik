@@ -200,7 +200,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        {{#if sputnik.logged_in}}
+                                        {{#if sputnik.logged_in && sputnik.permissions.trade}}
                                         <div id="contract-balances" class="col-xs-6">
                                             <div class="row">
                                                 {{#if sputnik.markets[current_ticker].contract_type == "cash_pair"}}
@@ -256,7 +256,7 @@
                                         {{/if}}
                                     </div>
                                 </div>
-                                {{#if sputnik.logged_in}}
+                                {{#if sputnik.logged_in && sputnik.permissions.trade}}
                                 <div class="buy-sell-orders" id="buy-sell-orders">
                                     <div class="row">
                                         <div class="col-xs-6 col-sm-4 buy-box">
@@ -606,6 +606,7 @@
                                             <h2 class="dashboard-heading">{{translate("account/funding_history/titles/deposit_funds", sputnik.profile.locale)}}</h2>
                                         </div>
                                     </div>
+                                    {{#if sputnik.permissions.deposit}}
                                     <div class="row">
                                         <div class="col-sm-12 spacer-bottom">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-2" data-toggle="dropdown">
@@ -642,8 +643,8 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-sm-12 spacer-bottom">
-                                            <div class="content-push-right" id="qr_code"></div>
                                             {{#if current_currency == "BTC"}}
+                                            <div intro="show_qr:{{sputnik.currencies[current_currency].address}}" class="content-push-right" id="qr_code"></div>
                                             <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
                                             {{else}}
                                             <p class="content-push6">{{sputnik.currencies[current_currency].address}}</p>
@@ -652,6 +653,13 @@
                                         </div>
                                     </div>
                                     {{/current_currency}}
+                                    {{else}}
+                                    <div class="row">
+                                        <div class="col-sm-12 spacer-bottom text-center">
+                                            {{translate("account/funding_history/deposit/alerts/not_permitted", sputnik.profile.locale)}}
+                                        </div>
+                                    </div>
+                                    {{/if}}
                                 </div>
                                 {{/if}}
                                 {{#if fh_tab == "withdraw"}}
@@ -661,6 +669,7 @@
                                             <h2 class="dashboard-heading">{{translate("account/funding_history/titles/withdraw_funds", sputnik.profile.locale)}}</h2>
                                         </div>
                                     </div>
+                                    {{#if sputnik.permissions.withdraw}}
                                     <div class="row">
                                         <div class="col-sm-12 spacer-bottom">
                                             <button class="btn btn-default dropdown-toggle dropdown-left" type="button" id="currency-menu-3" data-toggle="dropdown">
@@ -864,6 +873,13 @@
                                     {{/if}}
                                     {{/if}}
                                     {{/current_currency}}
+                                    {{else}}
+                                    <div class="row">
+                                        <div class="col-sm-12 spacer-bottom text-center">
+                                            {{translate("account/funding_history/withdrawal/alerts/not_permitted", sputnik.profile.locale)}}
+                                        </div>
+                                    </div>
+                                    {{/if}}
                                 </div>
                                 {{/if}}
                                 {{#if fh_tab == "history"}}
@@ -1090,22 +1106,21 @@
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <p>{{translate('account/compliance/titles/passport', sputnik.profile.locale)}}</p>
+                                                    <select value="{{id_type}}" name="id_type">
+                                                        {{#sputnik.exchange_info.supported_ids}}
+                                                        <option value="{{this}}">{{translate('account/compliance/titles/' + this, sputnik.profile.locale)}}</option>
+                                                        {{/sputnik.exchange_info.supported_ids}}
+                                                    </select>
                                                 </div>
                                                 <div class="col-sm-7">
-                                                    <input class="form-control file" type="file" name="passport" required
-                                                           id="id_passport">
-                                                
+                                                    <input class="form-control file" type="file" name="id_file" required id="id_file">
                                                 </div>
                                             </div>
                                             <div class="row form-row">
                                                 <div class="col-sm-5">
-                                                    
                                                 </div>
                                                 <div class="col-sm-7">
-                                            
-                                                    <input name="passport_number" type="text" class="form-control" id="passport_number" placeholder="{{translate('account/compliance/titles/passport_number', sputnik.profile.locale)}}">
-
+                                                    <input name="id_number" type="text" class="form-control" id="id_number" placeholder="{{translate('account/compliance/titles/' + id_type + '_number', sputnik.profile.locale)}}">
                                                 </div>
                                             </div>
                                             

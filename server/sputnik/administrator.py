@@ -159,6 +159,15 @@ class Administrator:
 
         self.session.commit()
 
+        # Send registration mail
+        t = util.get_locale_template(user.locale, self.jinja_env, 'registration.{locale}.email')
+        content = t.render(user=user, base_uri=self.base_uri).encode('utf-8')
+
+        # Now email
+        log.msg("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address=user.email,
+                                    subject='Welcome!')
+
         log.msg("Account created for %s" % username)
         return True
 
