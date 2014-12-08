@@ -317,8 +317,19 @@ class Instance:
         print "Deleting instance %s..." % self.customer
 
         if self.stack_present:
-            print "\tremoving stack..."
-            self.cf.delete_stack(self.customer)
+            while self.stack.stack_status != "DELETE_COMPLETE":
+                sys.stdout.write("\tremoving stack...")
+                self.cf.delete_stack(self.customer)
+                with Spinner():
+                    while True:
+                        self.stack.update()
+                        if self.stack.stack_status in ["DELETE_COMPLETE", "DELETE_FAILED"]:
+                            break
+                        elif self.stack.stack_status == "DELETE_IN_PROGRESS":
+                            time.sleep(10)
+                        else:
+                            print "stack status: %s" % self.stack.stack_status
+                            raise INSTANCE_BROKEN
 
         if self.key_present:
             print "\tremoving key..."
