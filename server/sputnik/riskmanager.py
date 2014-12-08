@@ -143,6 +143,6 @@ if __name__ == "__main__":
                                  config.get("accountant", "riskmanager_export"),
                                  config.getint("accountant", "riskmanager_export_base_port"))
 
-    riskmanager = RiskManager(session, sendmail, safe_price_subscriber)
+    riskmanager = RiskManager(session, sendmail, safe_price_subscriber, accountant)
 
     reactor.run()

@@ -56,7 +56,7 @@ webserver_export_base_port = 4470
 cashier_export_base_port = 4410
 administrator_export_base_port = 4460
 accountant_export_base_port = 4440
-riskmanager_export_base_port = 4490
+riskmanager_export_base_port = 4480
 num_procs = ${accountant_count}
 debug = ${debug}
 trial_period = ${trial_period}
@@ -73,6 +73,7 @@ debug = ${debug}
 email = ${administrator_email}
 user_limit = 500
 bs_cache_update = ${bs_cache_update}
+mtm_period = ${mtm_period}
 
 [ticketserver]
 ticketserver_port = ${ticketserver_port}

@@ -91,7 +91,8 @@ class Administrator:
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
-                 bs_cache_update_period=86400):
+                 bs_cache_update_period=86400,
+                 mtm_period=None):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -124,6 +125,10 @@ class Administrator:
             self.bs_updater.start(bs_cache_update_period, now=True)
         else:
             self.update_bs_cache()
+
+        if mtm_period is not None:
+            self.mtm_process = LoopingCall(self.mtm_futures)
+            self.mtm_process.start(mtm_period, now=False)
 
     @session_aware
     def make_account(self, username, password):
@@ -633,6 +638,14 @@ class Administrator:
         uid = util.get_uid()
         self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+
+    def mtm_futures(self):
+        self.session.expire(self.session.query(models.Contract))
+        futures = self.session.query(models.Contract).filter_by(contract_type="futures",
+                                                                active=True,
+                                                                expired=False)
+        for contract in futures:
+            self.clear_contract(contract.ticker)
 
     def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)
@@ -1725,6 +1738,8 @@ if __name__ == "__main__":
 
     user_limit = config.getint("administrator", "user_limit")
     bs_cache_update = config.getint("administrator", "bs_cache_update")
+    mtm_period = config.getint("administrator", "mtm_period")
+
     engine_base_port = config.getint("engine", "administrator_base_port")
     engines = {}
     for contract in session.query(models.Contract).filter_by(active=True):
@@ -1738,6 +1753,7 @@ if __name__ == "__main__":
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update,
+                                  mtm_period=mtm_period,
                                   )
 
     webserver_export = WebserverExport(administrator)
