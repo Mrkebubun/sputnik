@@ -7,6 +7,7 @@ import time
 import argparse
 import boto.ec2
 import boto.cloudformation
+import boto.rds
 import random
 import string
 import datetime
@@ -141,6 +142,7 @@ class Instance:
     def _connect(self, region):
         self.ec2 = boto.ec2.connect_to_region(region)
         self.cf = boto.cloudformation.connect_to_region(region)
+        self.rds = boto.rds.connect_to_region(region)
 
     def _search(self, customer):
         try:
@@ -337,6 +339,12 @@ class Instance:
 
         return db_pass
 
+    def get_resources(self):
+        resources = {}
+        for resource in self.stack.describe_resources():
+            resources[resource.logical_resource_id] = resource.physical_resource_id
+        return resources
+
     def status(self):
         if not self.found:
             raise INSTANCE_NOT_FOUND
@@ -348,6 +356,7 @@ class Instance:
             print "Stack not found."
             return
         print "Stack Status: %s" % self.stack.stack_status
+
         if self.verbose:
             for event in self.stack.describe_events():
                 status = event.resource_status
@@ -357,6 +366,10 @@ class Instance:
                 print "{0:25} {1:}".format("\t" + status, reason[:50])
                 for i in range(50, len(reason), 50):
                     print " " * 26 + reason[i:i + 50]
+
+            resources = self.get_resources()
+            for logical_id, physical_id in resources.iteritems():
+                print "{0:25} {1:}".format(logical_id, physical_id)
 
         instance_id = None
         for output in self.stack.outputs:
@@ -450,7 +463,7 @@ class Instance:
         return result
 
     def start(self):
-        return self.sudo("service supervisor start")
+        return self.sudo(["service supervisor start"])
 
     def install(self, upgrade=False):
         self.check()
@@ -530,6 +543,21 @@ class Instance:
 
     def upgrade(self):
         self.install(True)
+
+    def snapshot(self, name):
+        name = name[0] # nargs=1 produces a list
+
+        self.check()
+        resources = self.get_resources()
+        db_instance_id = resources['DBInstance']
+        instances = self.rds.get_all_dbinstances(db_instance_id)
+        db = instances[0]
+        sys.stdout.write("Creating snapshot...")
+        snapshot = db.snapshot("%s-%s" % (db_instance_id, name))
+        with Spinner():
+            while snapshot.status != 'available':
+                snapshot.update()
+                time.sleep(10)
 
     def query(self):
         self.check()
@@ -695,6 +723,8 @@ def main():
     parser_put.add_argument("source", nargs=1, help="Local path")
     parser_put.add_argument("dest", nargs="?", help="Remote path", default=".")
     parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
+    parser_snapshot = subparsers.add_parser("snapshot", help="Snapshot database", parents=[customer])
+    parser_snapshot.add_argument("name", nargs=1, help="Name for the snapshot")
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
