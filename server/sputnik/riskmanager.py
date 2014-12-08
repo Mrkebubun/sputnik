@@ -43,7 +43,7 @@ class RiskManager():
         self.jinja_env = Environment(loader=FileSystemLoader(admin_templates))
         self.sendmail = sendmail
         self.safe_price_subscriber = safe_price_subscriber
-        self.accountant = self.accountant
+        self.accountant = accountant
         self.last_call_time = 0
         self.safe_price_subscriber.subscribe('')
         self.safe_price_subscriber.gotMessage = self.on_safe_prices

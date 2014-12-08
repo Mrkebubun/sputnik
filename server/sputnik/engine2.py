@@ -12,9 +12,9 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import sys
-import time
 import json
 import heapq
+import math
 
 import database
 import models
@@ -441,7 +441,8 @@ class SafePriceNotifier(EngineListener):
 
         self.ema_price_volume = 0
         self.ema_volume = 0
-        self.decay = 0.9
+        self.ema_timestamp = None
+        self.decay = 0.999
         self.safe_price = None
         # Publish every 10 min no matter what
         def regular_publish():
@@ -455,7 +456,7 @@ class SafePriceNotifier(EngineListener):
             models.Trade.timestamp)
 
         for trade in trades:
-            self.update_safe_price(trade.price, trade.quantity, publish=False)
+            self.update_safe_price(trade.price, trade.quantity, publish=False, timestamp=trade.timestamp)
         if self.safe_price is None:
             self.safe_price = 42
             log.msg(
@@ -466,9 +467,19 @@ class SafePriceNotifier(EngineListener):
     def on_trade_success(self, order, passive_order, price, quantity):
         self.update_safe_price(price, quantity)
 
-    def update_safe_price(self, price, quantity, publish=True):
-        self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * quantity
-        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * quantity * price
+    def update_safe_price(self, price, quantity, publish=True, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+
+        if self.ema_timestamp is None:
+            decay = self.decay
+        else:
+            seconds = (timestamp - self.ema_timestamp).total_seconds()
+            decay = math.pow(self.decay, seconds)
+
+        self.ema_timestamp = timestamp
+        self.ema_volume = decay * self.ema_volume + (1 - decay) * quantity
+        self.ema_price_volume = decay * self.ema_price_volume + (1 - decay) * quantity * price
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
         if publish:
