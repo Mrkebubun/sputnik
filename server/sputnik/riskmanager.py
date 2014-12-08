@@ -26,6 +26,7 @@ import database
 import margin
 import util
 from sendmail import Sendmail
+from accountant import AccountantProxy
 
 from twisted.python import log
 from twisted.internet import reactor
@@ -36,12 +37,13 @@ import time
 import sys
 
 class RiskManager():
-    def __init__(self, session, sendmail, safe_price_subscriber, admin_templates='admin_templates', nap_time_seconds=60):
+    def __init__(self, session, sendmail, safe_price_subscriber, accountant, admin_templates='admin_templates', nap_time_seconds=60):
         self.session = session
         self.nap_time_seconds = nap_time_seconds
         self.jinja_env = Environment(loader=FileSystemLoader(admin_templates))
         self.sendmail = sendmail
         self.safe_price_subscriber = safe_price_subscriber
+        self.accountant = self.accountant
         self.last_call_time = 0
         self.safe_price_subscriber.subscribe('')
         self.safe_price_subscriber.gotMessage = self.on_safe_prices
@@ -110,12 +112,14 @@ class RiskManager():
                     if user.username not in self.bad_margin_users:
                         self.bad_margin_users[user.username] = datetime.datetime.utcnow()
                         self.email_user(user, self.cash_positions[user.username], low_margin, high_margin, severe=True)
-                    result = "WARNING"
+
+                    self.accountant.liquidate_best(user.username)
+                    result = "CALL"
                 elif self.cash_positions[user.username] < high_margin:
                     if user.username not in self.low_margin_users:
                         self.low_margin_users[user.username] = datetime.datetime.utcnow()
                         self.email_user(user, self.cash_positions[user.username], low_margin, high_margin, severe=False)
-                    result = "CALL"
+                    result = "WARNING"
                 else:
                     if user.username in self.low_margin_users:
                         del self.low_margin_users[user.username] # resolved
@@ -135,6 +139,10 @@ if __name__ == "__main__":
     safe_price_subscriber = connect_subscriber(config.get("safe_price_forwarder", "zmq_backend_address"))
     safe_price_subscriber.subscribe('')
     sendmail = Sendmail(config.get("riskmanager", "from_email"))
+    accountant = AccountantProxy("dealer",
+                                 config.get("accountant", "riskmanager_export"),
+                                 config.getint("accountant", "riskmanager_export_base_port"))
+
     riskmanager = RiskManager(session, sendmail, safe_price_subscriber)
 
     reactor.run()

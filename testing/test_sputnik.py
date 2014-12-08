@@ -270,6 +270,45 @@ class TestSputnik(unittest.TestCase):
         self.leo = leo.LowEarthOrbit(self.session)
         self.run_leo(db_init)
 
+    def get_position(self, ticker):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
+        return position
+
+    def create_position(self, ticker, quantity, reference_price=None):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        from sqlalchemy.orm.exc import NoResultFound
+        try:
+            position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
+            position.position = quantity
+            if reference_price is not None:
+                position.reference_price = reference_price
+            self.session.commit()
+        except NoResultFound:
+            position = models.Position(self.user, contract, quantity)
+            if reference_price is not None:
+                position.reference_price = reference_price
+            self.session.add(position)
+
+        self.session.commit()
+
+    def create_order(self, ticker, quantity, price, side, accepted=True):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        order = models.Order(self.user, contract, quantity, price, side)
+        order.accepted = accepted
+        self.session.add(order)
+        self.session.commit()
+        return order.id
+
+    def cancel_order(self, id):
+        from sputnik import models
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        order.is_cancelled = True
+        self.session.commit()
+
     def run_leo(self, init):
         for line in init.split("\n"):
             self.leo.parse(line)

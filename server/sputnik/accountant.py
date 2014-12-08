@@ -41,6 +41,7 @@ from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
 from watchdog import watchdog
 from jinja2 import Environment, FileSystemLoader
 
@@ -348,13 +349,116 @@ class Accountant:
         else:
             return True
 
+    def liquidation_value(self, position, quantity=1):
+        sign = 1 if position.position < 0 else -1
+        quantity *= sign
+
+        position_override = {position.contract.ticker: { 'position': position.position + quantity,
+                                                    'reference_price': position.reference_price,
+                                                    'contract': position.contract } }
+
+        # Cash change if traded
+        # TODO: estimated trade price should not be safe price it should be something based on the orderbook
+        trade_price = self.safe_prices[position.contract.ticker]
+
+        if position.contract.contract_type == "futures":
+            cash_spent = util.get_cash_spent(position.contract, trade_price - position.reference_price, quantity)
+        else:
+            cash_spent = util.get_cash_spent(position.contract, trade_price, quantity)
+
+        cash_position = self.get_position_value(position.username, position.contract.denominated_contract)
+        cash_override = {position.contract.denominated_contract_ticker: cash_position - cash_spent}
+
+        margin_current = margin.calculate_margin(position.user, self.session, self.safe_prices)
+        margin_if = margin.calculate_margin(position.user, self.session, self.safe_prices,
+                                                                      position_overrides=position_override,
+                                                                      cash_overrides=cash_override)
+        return margin_current[0] - margin_if[0]
+
+
+
+    def liquidate_best(self, username):
+        # Find the position that has the biggest margin impact and sell one of those
+        user = self.get_user(username)
+
+        # Cancel all open orders
+        d = self.cancel_user_orders(user)
+
+        def after_cancellations(results):
+            # Wait for pending postings
+            total_pending = self.session.query(func.sum(models.Position.pending_postings).label("total_pending")).join(
+                models.Contract).filter(
+                models.Position.username==username).filter(
+                models.Contract.contract_type.in_(["futures", "prediction"])).one().total_pending
+            if total_pending > 0:
+                d = task.deferLater(reactor, 300, after_cancellations, results)
+                return d
+            else:
+                # Now figure out what order to place
+                quantity = 1
+                positions = self.session.query(models.Position).join(models.Contract).filter(models.Position.username==username).filter(
+                    models.Contract.contract_type.in_(["futures", "prediction"])).filter(models.Position.position != 0)
+                liquidation_values = [(position, self.liquidation_value(position, quantity=quantity)) for position in positions]
+                liquidation_values.sort(lambda x, y: y[1] - x[1])
+
+                # Best value
+                # TODO: Compare with cost (half bid-ask)
+                return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
+
+        d.addCallback(after_cancellations)
+        return d
+
     def liquidate_all(self, username):
         # Liquidate all positions for a user
+
+        # Disable the user while this is happening
+        self.disable_user(username)
+
         positions = self.session.query(models.Position).join(models.Contract).filter_by(username=username).filter(
             models.Contract.contract_type.in_(["futures", "prediction"]))
         deferreds = [self.liquidate_position(username, p.contract.ticker) for p in positions]
         dl = defer.DeferredList(deferreds)
+
+        def reenable(results):
+            self.enable_user(username)
+            return results
+
+        # Reenable the user once we are done
+        dl.addCallback(reenable)
         return dl
+
+    def place_liquidation_order(self, position, quantity=None):
+            if position.position == 0:
+                log.msg("Position is 0 not placing order")
+                return None
+
+            if position.position > 0:
+                side = 'SELL'
+                if quantity is None:
+                    quantity = position.position
+
+                price = 0
+            else:
+                side = 'BUY'
+                if quantity is None:
+                    quantity = -position.position
+
+                if position.contract.contract_type == "prediction":
+                    price = position.contract.denominator
+                else:
+                    # For futures just do reference price * 100
+                    price = position.reference_price * 100
+            order = {
+                'price': price,
+                'quantity': quantity,
+                'contract': position.contract.ticker,
+                'side': side,
+                'username': position.username,
+                'timestamp': util.dt_to_timestamp(datetime.utcnow())
+            }
+            log.msg("Placing liquidation order: %s" % order)
+            id = self.place_order(position.username, order, force=True)
+            return id
 
     def liquidate_position(self, username, ticker):
         # Cancel all orders for a user, and liquidate his position with extreme prejudice
@@ -383,33 +487,8 @@ class Accountant:
                 d = task.deferLater(reactor, 300, after_cancellations, results)
             else:
                 # Now place a closing out order
-                if position.position == 0:
-                    log.msg("Position is 0 not placing order")
-                    return None
+                return self.place_liquidation_order(position)
 
-                if position.position > 0:
-                    side = 'SELL'
-                    quantity = position.position
-                    price = 0
-                else:
-                    side = 'BUY'
-                    quantity = -position.position
-                    if contract.contract_type == "prediction":
-                        price = contract.denominator
-                    else:
-                        # For futures just do reference price * 100
-                        price = position.reference_price * 100
-                order = {
-                    'price': price,
-                    'quantity': quantity,
-                    'contract': contract.ticker,
-                    'side': side,
-                    'username': username,
-                    'timestamp': util.dt_to_timestamp(datetime.utcnow())
-                }
-                log.msg("Placing order: %s" % order)
-                id = self.place_order(username, order, force=True)
-                return id
 
         d.addCallback(after_cancellations)
         return d
@@ -1288,10 +1367,9 @@ class Accountant:
 
         def after_cancellations(results):
             # Wait until all pending postings have gone through
-            # TODO: use sql SUM here
-            pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
-                models.Position.username.in_(my_users))
-            if sum([row[0] for row in pending_postings]) > 0:
+            total_pending = self.session.query(func.sum(models.Position.pending_postings).label('total_pending')).filter_by(contract=contract).filter(
+                models.Position.username.in_(my_users)).one().total_pending
+            if total_pending > 0:
                 d = task.deferLater(reactor, 300, after_cancellations, results)
             else:
                 all_positions = self.session.query(models.Position).filter_by(contract=contract)
@@ -1485,6 +1563,15 @@ class AccountantExport(ComponentExport):
         # we do not want or need this to propogate back to the caller
         return None
 
+class RiskManagerExport(ComponentExport):
+    def __init__(self, accountant):
+        self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
+
+    @export
+    @schema("rpc/accountant.riskmanager.json#liquidate_best")
+    def liquidate_best(self, username):
+        return self.accountant.liquidate_best(username)
 
 class AdministratorExport(ComponentExport):
     """Accountant functions exposed to the administrator
@@ -1618,6 +1705,7 @@ if __name__ == "__main__":
     cashier_export = CashierExport(accountant)
     administrator_export = AdministratorExport(accountant)
     accountant_export = AccountantExport(accountant)
+    riskmanager_export = RiskManagerExport(accountant)
 
     watchdog(config.get("watchdog", "accountant") %
              (config.getint("watchdog", "accountant_base_port") + accountant_number))
@@ -1625,6 +1713,9 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
                        config.get("accountant", "webserver_export") %
                        (config.getint("accountant", "webserver_export_base_port") + accountant_number))
+    router_share_async(riskmanager_export,
+                       config.get("accountant", "riskmanager_export") %
+                       (config.getint("accountant", "riskmanager_export_base_port") + accountant_number))
     pull_share_async(engine_export,
                      config.get("accountant", "engine_export") %
                      (config.getint("accountant", "engine_export_base_port") + accountant_number))

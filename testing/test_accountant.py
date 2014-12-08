@@ -94,6 +94,7 @@ class TestAccountantBase(TestSputnik):
             self.administrator_export = accountant.AdministratorExport(self.accountant)
             self.webserver_export = accountant.WebserverExport(self.accountant)
             self.engine_export = accountant.EngineExport(self.accountant)
+            self.riskmanager_export = accountant.RiskManagerExport(self.accountant)
 
 
 class TestAccountantAudit(TestAccountantBase):
@@ -1347,4 +1348,26 @@ class TestWebserverExport(TestAccountant):
 
         self.assertEqual(self.cashier.component.log, [])
 
+class TestRiskManagerExport(TestAccountant):
+    def setUp(self):
+        TestAccountant.setUp(self)
+
+        self.create_account("test")
+        self.user = self.get_user("test")
+
+    def test_liquidate_best(self):
+        self.create_position('BTC', 4000)
+        self.create_position('USDBTC0W', 4, reference_price=4002)
+        self.create_position('NETS2015', -4)
+        self.accountant.safe_prices['USDBTC0W'] = 1202
+        self.accountant.safe_prices['NETS2015'] = 500
+
+        d = self.riskmanager_export.liquidate_best('test')
+        def onLiquidated(id):
+            from sputnik import models
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            pass
+
+        d.addCallback(onLiquidated)
+        return d
 

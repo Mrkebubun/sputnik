@@ -16,46 +16,6 @@ from sputnik import models, margin
 class TestMargin(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
-        self.create_account("test")
-        self.user = self.get_user("test")
-
-    def create_position(self, ticker, quantity, reference_price=None):
-        from sputnik import models
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        from sqlalchemy.orm.exc import NoResultFound
-        try:
-            position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
-            position.position = quantity
-            if reference_price is not None:
-                position.reference_price = reference_price
-            self.session.commit()
-        except NoResultFound:
-            position = models.Position(self.user, contract, quantity)
-            if reference_price is not None:
-                position.reference_price = reference_price
-            self.session.add(position)
-
-        self.session.commit()
-
-    def create_order(self, ticker, quantity, price, side, accepted=True):
-        from sputnik import models
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        order = models.Order(self.user, contract, quantity, price, side)
-        order.accepted = accepted
-        self.session.add(order)
-        self.session.commit()
-        return order.id
-
-    def cancel_order(self, id):
-        from sputnik import models
-        order = self.session.query(models.Order).filter_by(id=id).one()
-        order.is_cancelled = True
-        self.session.commit()
-
-    def get_position(self, ticker):
-        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
-        return position
 
     def test_cash_pairs_only(self):
 
@@ -250,6 +210,47 @@ class TestMargin(TestSputnik):
         self.assertEqual(low_margin, 1500 * 1 * 100000 / 1000 * 0.25 + 500 * 1 * 100000 / 1000)
         self.assertEqual(high_margin, 1500 * 1 * 100000 / 1000 * 0.50 + 500 * 1 * 100000 / 1000)
 
+    def test_margin_futures_overrides(self):
+        from sputnik import margin
+        test = self.get_user('test')
+        # Check short position
+        self.create_position('USDBTC0W', -2, reference_price=1000)
+        safe_prices = {'USDBTC0W': 1500}
+
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices)
+
+        # Margin should just be price x quantity x lot_size / denominator * low/high_margin plus the impact of the price move
+        self.assertEqual(low_margin, 1500 * 2 * 100000 / 1000 * 0.25 + 500 * 2 * 100000 / 1000)
+        self.assertEqual(high_margin, 1500 * 2 * 100000 / 1000 * 0.50 + 500 * 2 * 100000 / 1000)
+
+        # Try an override now
+        position_overrides = {'USDBTC0W': { 'position': -1, 'reference_price': 1000, 'contract': self.get_contract('USDBTC0W')}}
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, safe_prices=safe_prices, position_overrides=position_overrides)
+        self.assertEqual(low_margin, 1500 * 1 * 100000 / 1000 * 0.25 + 500 * 1 * 100000 / 1000)
+        self.assertEqual(high_margin, 1500 * 1 * 100000 / 1000 * 0.50 + 500 * 1 * 100000 / 1000)
+
+    def test_margin_cash_overrides(self):
+        # 1 Peso
+        self.create_position('MXN', 10000)
+
+        from sputnik import margin
+        test = self.get_user('test')
+
+        # With a BUY order
+        id = self.create_order('BTC/MXN', 50000000, 5000, 'BUY')
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session)
+        self.assertEqual(low_margin, 0)
+        self.assertEqual(high_margin, 0)
+        # 2500 for the trade, and 100bps for the fee
+        self.assertDictEqual(max_cash_spent, {'MXN': 2500 * 1.01, 'BTC': 0})
+
+        # Assume no cash
+        cash_overrides = {'MXN': 0}
+        low_margin, high_margin, max_cash_spent = margin.calculate_margin(test, self.session, cash_overrides=cash_overrides)
+        self.assertEqual(low_margin, 281474976710656)
+        self.assertEqual(high_margin, 281474976710656)
+
+        self.cancel_order(id)
 
     def test_sufficient_cash(self):
         self.create_position("BTC", 100000000)

@@ -10,7 +10,8 @@ class MarginException(Exception):
     pass
 
 
-def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
+def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False, position_overrides={},
+                     cash_overrides={}):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -25,11 +26,14 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     cash_position = collections.defaultdict(int)
 
     # let's start with positions
-    positions = {position.contract_id: { 'position': position.position,
+    positions = {position.contract.ticker: { 'position': position.position,
                                          'reference_price': position.reference_price,
                                          'contract': position.contract }
                  for position in
                  session.query(models.Position).filter_by(user=user)}
+
+    # Override some positions
+    positions.update(position_overrides)
 
     open_orders = session.query(models.Order).filter_by(user=user).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
@@ -40,14 +44,13 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     # Make a blank position for all contracts which have an open order but no position
     for order in open_orders:
         if order.contract.id not in positions:
-            positions[order.contract.id] = {
+            positions[order.contract.ticker] = {
                 'position': 0,
                 'reference_price': None,
                 'contract': order.contract
             }
 
     for position in positions.values():
-
         max_position = position['position'] + sum(
             order.quantity_left for order in open_orders if
             order.contract == position['contract'] and order.side == 'BUY')
@@ -116,6 +119,9 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
 
         if contract.contract_type == 'cash':
             cash_position[contract.ticker] = position['position']
+
+    # Override cash position
+    cash_position.update(cash_overrides)
 
     max_cash_spent = collections.defaultdict(int)
 
