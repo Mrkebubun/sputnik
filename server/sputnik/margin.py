@@ -43,7 +43,7 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
 
     # Make a blank position for all contracts which have an open order but no position
     for order in open_orders:
-        if order.contract.id not in positions:
+        if order.contract.ticker not in positions:
             positions[order.contract.ticker] = {
                 'position': 0,
                 'reference_price': None,
@@ -61,12 +61,12 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
         contract = position['contract']
 
         if contract.contract_type == 'futures':
-            if position['contract'].ticker not in safe_prices:
-                log.err("%s not in safe_prices, marking margin high" % position['contract'].ticker)
+            if contract.ticker not in safe_prices:
+                log.err("%s not in safe_prices, marking margin high" % contract.ticker)
                 high_margin += 2**48
                 low_margin += 2**48
             else:
-                SAFE_PRICE = safe_prices[position['contract'].ticker]
+                SAFE_PRICE = safe_prices[contract.ticker]
 
                 #log.msg(low_margin)
                 # print 'max position:', max_position
@@ -93,6 +93,7 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
                     reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
                 # log.msg(low_max)
                 # log.msg(low_min)
+                log.msg("%s" % ["Margin:", contract.ticker, max_position, min_position, low_max, low_min, high_max, high_min])
 
                 high_margin += max(high_max, high_min)
                 low_margin += max(low_max, low_min)

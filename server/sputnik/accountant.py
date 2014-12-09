@@ -385,6 +385,7 @@ class Accountant:
         d = self.cancel_user_orders(user)
 
         def after_cancellations(results):
+            log.msg("Cancels done for %s" % username)
             # Wait for pending postings
             total_pending = self.session.query(func.sum(models.Position.pending_postings).label("total_pending")).join(
                 models.Contract).filter(
@@ -400,10 +401,15 @@ class Accountant:
                     models.Contract.contract_type.in_(["futures", "prediction"])).filter(models.Position.position != 0)
                 liquidation_values = [(position, self.liquidation_value(position, quantity=quantity)) for position in positions]
                 liquidation_values.sort(lambda x, y: y[1] - x[1])
+                log.msg("liquidation values: %s" % liquidation_values)
 
                 # Best value
                 # TODO: Compare with cost (half bid-ask)
-                return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
+                if len(liquidation_values):
+                    return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
+                else:
+                    log.err("No positions to choose from!")
+                    return None
 
         d.addCallback(after_cancellations)
         return d
@@ -473,9 +479,11 @@ class Accountant:
             is_cancelled=False).filter_by(
             contract=contract
         )
+        log.msg("Cancelling orders for %s/%s" % (username, ticker))
         d = self.cancel_many_orders(orders)
 
         def after_cancellations(results):
+            log.msg("Cancels for %s / %s done" % (username, ticker))
             # Wait until all pending postings have gone through
             try:
                 position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
@@ -542,21 +550,6 @@ class Accountant:
                 finally:
                     self.session.rollback()
                 raise INSUFFICIENT_MARGIN
-        user = self.get_user(order.username)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-            user, self.session, self.safe_prices, order.id,
-            trial_period=self.trial_period)
-
-        if self.check_margin(order.username, low_margin, high_margin):
-            log.msg("Order accepted.")
-            order.accepted = True
-            try:
-                # self.session.merge(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
-            finally:
-                self.session.rollback()
         else:
             log.msg("Forcing order")
 
@@ -1355,17 +1348,20 @@ class Accountant:
             zero_out = True
 
         # Mark contract as clearing
+        log.msg("Marking %s as clearing" % ticker)
         self.clearing_contracts[ticker] = True
 
         my_users = [user.username for user in self.get_my_users()]
 
         # Cancel orders
+        log.msg("Cancelling orders for %s" % ticker)
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
             models.Order.quantity_left > 0).filter(
             models.Order.username.in_(my_users))
         d = self.cancel_many_orders(orders)
 
         def after_cancellations(results):
+            log.msg("Cancels done for %s" % ticker)
             # Wait until all pending postings have gone through
             total_pending = self.session.query(func.sum(models.Position.pending_postings).label('total_pending')).filter_by(contract=contract).filter(
                 models.Position.username.in_(my_users)).one().total_pending
@@ -1375,9 +1371,11 @@ class Accountant:
                 all_positions = self.session.query(models.Position).filter_by(contract=contract)
                 position_count = all_positions.count()
                 my_positions = all_positions.filter(models.Position.username.in_(my_users))
+                log.msg("clearing positions for %s" % ticker)
                 results = [self.clear_position(position, price, position_count, uid, zero_out=zero_out) for position in my_positions]
                 d = defer.DeferredList(results)
                 def reactivate_contract(result):
+                    log.msg("unmarking %s" % ticker)
                     del self.clearing_contracts[ticker]
 
                 d.addCallback(reactivate_contract)
@@ -1407,8 +1405,8 @@ class Accountant:
     def clear_position(self, position, price, position_count, uid, zero_out=True):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
+        log.msg("Clearing position %s at %d" % (position, price))
         if position.contract.contract_type == "prediction":
-
             cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
             note = "Clearing transaction for %s at price: %s" % (position.contract.ticker,
                                                                  util.price_fmt(position.contract, price))
@@ -1421,10 +1419,15 @@ class Accountant:
             for posting in credit, debit:
                 posting['count'] = position_count * 2
                 posting['uid'] = uid
+            log.msg("credit: %s, debit: %s" % (credit, debit))
 
             return self.post_or_fail(credit, debit).addErrback(log.err)
 
         elif position.contract.contract_type == "futures":
+            if position.reference_price is None:
+                log.err("Position %s has no reference price!")
+                return defer.succeed(None)
+
             cash_spent = util.get_cash_spent(position.contract, price - position.reference_price, position_calculated)
             note = "Clearing transaction for %s at price: %s / reference_price: %s" % (position.contract.ticker,
                                                                                        util.price_fmt(position.contract, price),
@@ -1441,11 +1444,14 @@ class Accountant:
             for posting in credit, clearing:
                 posting['count'] = 2
                 posting['uid'] = small_uid
+            log.msg("credit: %s, debit: %s" % (credit, clearing))
+
 
             self.accountant_proxy.remote_post(clearing['username'], clearing)
             d = self.post_or_fail(credit)
 
             def set_reference_price(result):
+                log.msg("Setting reference price for %s to %d" % (position, price))
                 try:
                     position.reference_price = price
                     self.session.commit()
@@ -1455,6 +1461,7 @@ class Accountant:
 
                 # Zero out positions
                 if zero_out:
+                    log.msg("Zeroing out position %s" % position)
                     debit = create_posting("Clearing", position.username,
                                            position.contract.payout_contract_ticker, position_calculated, 'debit',
                                            note)

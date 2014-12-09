@@ -76,11 +76,8 @@ class RiskManager():
 
         # Now send the mail
         log.msg("Sending mail: %s" % content)
-        d = self.sendmail.send_mail(content, to_address=user.email,
+        self.sendmail.send_mail(content, to_address=user.email,
                                     subject="Margin Call" if severe else "Margin Warning")
-        d.addErrback(log.err)
-
-        return d
 
     def on_safe_prices(self, *args):
         this_call_time = time.time()
@@ -114,7 +111,8 @@ class RiskManager():
                         self.bad_margin_users[user.username] = datetime.datetime.utcnow()
                         self.email_user(user, self.cash_positions[user.username], low_margin, high_margin, severe=True)
 
-                    self.accountant.liquidate_best(user.username)
+                    d = self.accountant.liquidate_best(user.username)
+                    d.addErrback(log.err)
                     result = "CALL"
                 elif self.cash_positions[user.username] < high_margin:
                     if user.username not in self.low_margin_users:

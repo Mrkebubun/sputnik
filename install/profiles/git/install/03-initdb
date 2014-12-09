@@ -47,7 +47,7 @@ contracts set BULLS2015 fees 200
 contracts add USDBTC0W
 contracts set USDBTC0W contract_type futures
 contracts set USDBTC0W denominator 1000
-contracts set USDBTC0W lot_size 100000
+contracts set USDBTC0W lot_size 100000000
 contracts set USDBTC0W tick_size 1
 contracts set USDBTC0W expiration 2015-06-28
 contracts set USDBTC0W period week
