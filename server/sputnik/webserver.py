@@ -365,7 +365,7 @@ class PublicInterface:
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
-    def make_account(self, username, password, salt, email, nickname, locale=None):
+    def make_account(self, username, password, salt, email, nickname, locale=None, phone=None):
         """Create a new account
 
         :param username:
@@ -386,11 +386,13 @@ class PublicInterface:
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
+        profile = {"email": email, "nickname": nickname}
 
         if locale is not None:
-            profile = {"email": email, "nickname": nickname, "locale": locale}
-        else:
-            profile = {"email": email, "nickname": nickname}
+            profile['locale'] = locale
+
+        if phone is not None:
+            profile['phone'] = phone
 
         self.factory.administrator.change_profile(username, profile)
 
@@ -1162,7 +1164,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             _cb)
 
     @exportRpc("change_profile")
-    def change_profile(self, email, nickname, locale=None):
+    def change_profile(self, profile):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
@@ -1174,16 +1176,26 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
-        validate(email, {"type": "string"})
-        validate(nickname, {"type": "string"})
+        validate(profile, {"type": "object",
+                           "properties": {
+                               "email": {
+                                   "type": "string"
+                               },
+                               "nickname": {
+                                   "type": "string"
+                               },
+                               "locale": {
+                                   "type": "string"
+                               },
+                               "phone": {
+                                   "type": "string"
+                               }
+                           },
+                           "additionalProperties": False
+        })
 
-        if malicious_looking(email) or malicious_looking(nickname):
+        if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
             return [False, "malicious looking input"]
-
-        if locale is not None:
-            profile =  {"email": email, "nickname": nickname, 'locale': locale}
-        else:
-            profile = {"email": email, "nickname": nickname}
 
         d = self.factory.administrator.change_profile(self.username, profile)
 

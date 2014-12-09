@@ -490,8 +490,7 @@ $ ->
 
             change_profile: (event) ->
                 event.original.preventDefault()
-                sputnik.changeProfile(ractive.get("sputnik.profile.email"), ractive.get("sputnik.profile.nickname"),
-                                      ractive.get("sputnik.profile.locale"))
+                sputnik.changeProfile(ractive.get("sputnik.profile"))
 
             change_password: (event) ->
                 event.original.preventDefault()

@@ -46,7 +46,7 @@ import database
 import models
 from util import ChainedOpenSSLContextFactory
 import util
-from sendmail import Sendmail
+from messenger import Messenger, Sendmail, Nexmo
 from watchdog import watchdog
 from accountant import AccountantProxy
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
@@ -87,7 +87,7 @@ class Administrator:
 
     def __init__(self, session, accountant, cashier, engines,
                  zendesk_domain,
-                 debug=False, base_uri=None, sendmail=None,
+                 debug=False, base_uri=None, messenger=None,
                  template_dir='admin_templates',
                  user_limit=500,
                  bs_cache_update_period=86400):
@@ -110,7 +110,7 @@ class Administrator:
         self.template_dir = template_dir
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.base_uri = base_uri
-        self.sendmail = sendmail
+        self.messenger = messenger
         self.user_limit = user_limit
         self.page_size = 10
 
@@ -157,13 +157,7 @@ class Administrator:
         self.session.commit()
 
         # Send registration mail
-        t = util.get_locale_template(user.locale, self.jinja_env, 'registration.{locale}.email')
-        content = t.render(user=user, base_uri=self.base_uri).encode('utf-8')
-
-        # Now email
-        log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address=user.email,
-                                    subject='Welcome!')
+        self.messenger.send_message(user, "Welcome!", 'registration.{locale}', base_uri=self.base_uri)
 
         log.msg("Account created for %s" % username)
         return True
@@ -188,6 +182,7 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
+        user.phone = profile.get("phone", user.phone)
         self.session.merge(user)
 
         self.session.commit()
@@ -306,15 +301,9 @@ class Administrator:
         self.session.commit()
 
         log.msg("Created token: %s" % token)
-        # Now email the token
-        t = util.get_locale_template(user.locale, self.jinja_env, 'reset_password.{locale}.email')
-        content = t.render(token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                           user=user, base_uri=self.base_uri).encode('utf-8')
-
-        # Now email the token
-        log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address=user.email,
-                                    subject='Reset password link enclosed')
+        self.messenger.send_message(user, 'Reset password link enclosed', 'reset_password',
+                                    token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                                    base_uri=self.base_uri)
 
         return True
 
@@ -1611,10 +1600,18 @@ if __name__ == "__main__":
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
+    sendmail = Sendmail(from_email)
+    if config.getboolean("administrator", "nexmo_enable"):
+        nexmo = Nexmo(config.get("administrator", "nexmo_api_key"),
+                    config.get("administrator", "nexmo_api_secret"))
+        messenger = Messenger(sendmail, nexmo)
+    else:
+        messenger = Messenger(sendmail)
+
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
-                                  sendmail=Sendmail(from_email),
+                                  messenger=messenger,
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update)
 

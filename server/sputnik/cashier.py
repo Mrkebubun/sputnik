@@ -16,7 +16,7 @@ import config
 from txbitcoinrpc import BitcoinRpc
 from compropago import Compropago
 from watchdog import watchdog
-from sendmail import Sendmail
+from messenger import Sendmail, Nexmo, Messenger
 from accountant import AccountantProxy
 import util
 
@@ -27,7 +27,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
 import base64
 from Crypto.Random.random import getrandbits
-from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
 
@@ -55,7 +54,7 @@ class Cashier():
     """
 
     def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
-                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6):
+                 messenger=None, minimum_confirmations=6):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -65,9 +64,8 @@ class Cashier():
         self.accountant = accountant
         self.bitcoinrpc = bitcoinrpc
         self.compropago = compropago
-        self.sendmail = sendmail
+        self.messenger = messenger
         self.minimum_confirmations = minimum_confirmations
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
                 looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
@@ -393,14 +391,8 @@ class Cashier():
         """
 
         # Now email the notification
-        t = util.get_locale_template(withdrawal.user.locale, self.jinja_env, 'pending_withdrawal.{locale}.email')
-        content = t.render(withdrawal=withdrawal).encode('utf-8')
-
-        # Now email the token
-        log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (withdrawal.user.email,
-                                                                     withdrawal.user.nickname),
-                          subject='Your withdrawal request is pending')
+        self.messenger.send_message(withdrawal.user, 'Your withdrawal request is pending', 'pending_withdrawal',
+                                    withdrawal=withdrawal)
 
 
     def get_new_address(self, username, ticker):
@@ -630,11 +622,19 @@ if __name__ == '__main__':
     compropago = Compropago(config.get("cashier", "compropago_key"))
     cold_wallet_period = config.getint("cashier", "cold_wallet_period")
     sendmail=Sendmail(config.get("administrator", "email"))
+
+    if config.getboolean("administrator", "nexmo_enable"):
+        nexmo=Nexmo(config.get("administrator", "nexmo_api_key"),
+                    config.get("administrator", "nexmo_api_secret"))
+        messenger=Messenger(sendmail, nexmo)
+    else:
+        messenger=Messenger(sendmail)
+
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago,
                       cold_wallet_period=cold_wallet_period,
-                      sendmail=sendmail,
+                      messenger=messenger,
                       minimum_confirmations=minimum_confirmations)
 
     administrator_export = AdministratorExport(cashier)

@@ -38,9 +38,12 @@
                     "locale": {
                         "type": "string",
                         "description": "locale code for the user"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "the user's phone number with country code"
                     }
                 },
-                "required": [ "email", "nickname" ],
                 "additionalProperties": false
             }
         },

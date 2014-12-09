@@ -365,7 +365,10 @@ class User(db.Base):
     password = Column(String, nullable=False)
     totp = Column(String)
     nickname = Column(String)
-    email = Column(String)
+    email = Column(String, unique=True, index=True)
+    phone = Column(String, unique=True, index=True)
+    preference = Column(Enum('email', 'sms'))
+
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")
     fee_group_id = Column(Integer, ForeignKey('fee_groups.id'), server_default="1")
@@ -395,7 +398,7 @@ class User(db.Base):
         user_hash = base64.b64encode(hashlib.md5(combined_string).digest())
         return user_hash
 
-    def __init__(self, username, password, email="", nickname="anonymous"):
+    def __init__(self, username, password, email="", nickname="anonymous", phone=""):
         """
 
         :param username:
@@ -411,11 +414,12 @@ class User(db.Base):
         self.password = password
         self.email = email
         self.nickname = nickname
+        self.phone = phone
         self.audit_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
 
     def __repr__(self):
-        return "<User('%s', '%s', '%s')>" \
-                % (self.username, self.email, self.nickname)
+        return "<User('%s', '%s', '%s', '%s')>" \
+                % (self.username, self.email, self.nickname, self.phone)
 
     def to_obj(self):
         """
