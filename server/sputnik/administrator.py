@@ -51,6 +51,7 @@ from watchdog import watchdog
 from accountant import AccountantProxy
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
+from dateutil import relativedelta
 
 
 class AdministratorException(Exception): pass
@@ -351,6 +352,107 @@ class Administrator:
         user = self.session.query(models.User).filter_by(username=username).one()
 
         return user
+
+    @util.timed
+    def mail_statement(self, username, from_timestamp=None, to_timestamp=None):
+        now = datetime.utcnow()
+        user = self.get_user(username)
+
+        if to_timestamp is None:
+            end = now
+        else:
+            end = util.timestamp_to_dt(to_timestamp)
+
+        if from_timestamp is None:
+            start = end + relativedelta.relativedelta(months=-1)
+        else:
+            start = util.timestamp_to_dt(from_timestamp)
+
+        # Get beginning balances
+        balances = self.session.query(func.sum(models.Posting.quantity).label("balance"),
+                                      func.max(models.Journal.timestamp).label("max_timestamp"),
+                                      models.Contract).filter(models.Posting.username == username).filter(
+                                        models.Journal.id==models.Posting.journal_id).filter(
+                                        models.Posting.contract_id==models.Contract.id).filter(
+                                        models.Journal.timestamp < start).group_by(models.Contract)
+
+
+        transaction_info = collections.defaultdict(list)
+        beginning_balance_info = collections.defaultdict(int)
+        totals_by_type = collections.defaultdict(lambda: collections.defaultdict(int))
+        totals_by_type_fmt = collections.defaultdict(dict)
+        details = {}
+
+        # get all positions
+        positions = self.session.query(models.Position).filter_by(username=username)
+        for position in positions:
+            contract = position.contract
+
+            # Find the balance in balances
+            running_balance = 0
+            for balance in balances:
+                if balance.Contract == contract:
+                    running_balance = balance.balance
+                    break
+
+            details[contract.ticker] = {
+                'transactions': [],
+                'totals_by_type': collections.defaultdict(int),
+                'totals_by_type_fmt': {},
+                'beginning_balance': running_balance,
+                'beginning_balance_fmt': util.quantity_fmt(contract, running_balance),
+                'ending_balance': running_balance,
+                'ending_balance_fmt': util.quantity_fmt(contract, running_balance)
+            }
+            # Get transactions during period
+            transactions = self.session.query(models.Posting, models.Journal).filter(
+                models.Journal.id==models.Posting.journal_id).filter(
+                models.Journal.timestamp >= start).filter(
+                models.Journal.timestamp <= end).filter(models.Posting.username==username).filter(
+                models.Posting.contract_id == contract.id).order_by(
+                models.Journal.timestamp)
+
+            for transaction in transactions:
+                running_balance += transaction.Posting.quantity
+                details[contract.ticker]['totals_by_type'][transaction.Journal.type] += transaction.Posting.quantity
+
+                if transaction.Posting.quantity < 0:
+                    if user.type == 'Asset':
+                        direction = 'credit'
+                    else:
+                        direction = 'debit'
+                else:
+                    if user.type == 'Asset':
+                        direction = 'debit'
+                    else:
+                        direction = 'credit'
+
+                details[contract.ticker]['transactions'].append({'contract': contract.ticker,
+                                                                         'timestamp': transaction.Journal.timestamp,
+                                                                         'quantity': abs(transaction.Posting.quantity),
+                                                                         'quantity_fmt': util.quantity_fmt(
+                                                                             contract,
+                                                                             abs(transaction.Posting.quantity)),
+                                                                         'direction': direction,
+                                                                         'balance': running_balance,
+                                                                         'balance_fmt': util.quantity_fmt(
+                                                                             contract, running_balance),
+                                                                         'note': transaction.Posting.note,
+                                                                         'type': transaction.Journal.type
+                })
+                details[contract.ticker]['ending_balance'] = running_balance
+                details[contract.ticker]['ending_balance_fmt'] = util.quantity_fmt(contract, running_balance)
+
+            for type, total in details[contract.ticker]['totals_by_type'].iteritems():
+                details[contract.ticker]['totals_by_type_fmt'][type] = util.quantity_fmt(contract, total)
+
+        t = self.jinja_env.get_template('transaction_statement.email')
+        content = t.render(user=user,
+                           start=start,
+                           end=end,
+                           details=details).encode('utf-8')
+        log.msg("Sending statement to user at %s" % user.email)
+        self.sendmail.send_mail(content, subject="Your statement", to_address=user.email)
 
     @session_aware
     def request_support_nonce(self, username, type):
@@ -1090,7 +1192,8 @@ class AdminWebUI(Resource):
                       '/user_postings': self.user_postings,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
-                      '/contracts': self.contracts
+                      '/contracts': self.contracts,
+                      '/mail_statement': self.mail_statement,
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
@@ -1150,6 +1253,12 @@ class AdminWebUI(Resource):
 
         self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
                                               admin_username=self.avatarId)
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+
+    def mail_statement(self, request):
+        self.administrator.expire_all()
+
+        self.administrator.mail_statement(request.args['username'][0])
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def permission_groups(self, request):
