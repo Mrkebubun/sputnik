@@ -122,7 +122,7 @@ class Messenger(object):
 
     def send_message(self, user, subject, template, **kwargs):
         deferreds = []
-        if user.preference in ["email", "both"] and self.sendmail is not None:
+        if user.contact_preference in ["email", "both"] and self.sendmail is not None:
             if user.email is not None:
                 try:
                     t = util.get_locale_template(user.locale, self.jinja_env, "%s.{locale}.email" % template)
@@ -134,7 +134,7 @@ class Messenger(object):
             else:
                 log.err("No email address for user %s" % user)
 
-        if user.preference in ["sms", "both"] and self.nexmo is not None:
+        if user.contact_preference in ["sms", "both"] and self.nexmo is not None:
             if user.phone is not None:
                 try:
                     t = util.get_locale_template(user.locale, self.jinja_env, "%s.{locale}.sms" % template)

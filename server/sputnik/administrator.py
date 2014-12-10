@@ -183,6 +183,7 @@ class Administrator:
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
         user.phone = profile.get("phone", user.phone)
+        user.contact_preference = profile.get("contact_preference", user.contact_preference)
         self.session.merge(user)
 
         self.session.commit()

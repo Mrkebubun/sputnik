@@ -28,7 +28,7 @@ class TestMessenger(TestSputnik):
         user = self.get_user('test')
         user.email = 'test@m2.io'
         user.phone = None
-        user.preference = 'email'
+        user.contact_preference = 'email'
         result = yield self.messenger.send_message(user, 'Reset password', 'reset_password',
                                                    token='test_token', base_uri='http://test.com',
                                                    expiration=datetime.utcnow())
@@ -45,7 +45,7 @@ class TestMessenger(TestSputnik):
         user = self.get_user('test')
         user.email = None
         user.phone = '1231'
-        user.preference = 'sms'
+        user.contact_preference = 'sms'
         result = yield self.messenger.send_message(user, 'Reset password', 'reset_password',
                                                    token='test_token', base_uri='http://test.com',
                                                    expiration=datetime.utcnow())
@@ -61,7 +61,7 @@ class TestMessenger(TestSputnik):
         user = self.get_user('test')
         user.email = 'test@m2.io'
         user.phone = '1231'
-        user.preference = 'both'
+        user.contact_preference = 'both'
         result = yield self.messenger.send_message(user, 'Reset password', 'reset_password',
                                                    token='test_token', base_uri='http://test.com',
                                                    expiration=datetime.utcnow())

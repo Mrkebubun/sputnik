@@ -1095,7 +1095,7 @@
                                         <div class="col-sm-5 deposit-content2">
                                             <div class="row form-row">
                                                 <div class="col-sm-5 form-label">
-                                                    <select value="{{id_type}}" name="id_type">
+                                                    <select class="form-control" value="{{id_type}}" name="id_type">
                                                         {{#sputnik.exchange_info.supported_ids}}
                                                         <option value="{{this}}">{{translate('account/compliance/titles/' + this, sputnik.profile.locale)}}</option>
                                                         {{/sputnik.exchange_info.supported_ids}}
@@ -1241,6 +1241,17 @@
                                         </div>
                                         <div class="col-sm-7">
                                             <input class="form-control" type="field" name="phone" value="{{sputnik.profile.phone}}">
+                                        </div>
+                                    </div>
+                                    <div class="row form-row">
+                                        <div class="col-sm-5 form-label">
+                                            <p>{{translate("account/profile/titles/contact_preference", sputnik.profile.locale)}}</p>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <select class="form-control" value="{{sputnik.profile.contact_preference}}">
+                                                <option value="sms">{{translate("account/profile/titles/sms", sputnik.profile.locale)}}</option>
+                                                <option value="email">{{translate("account/profile/titles/email", sputnik.profile.locale)}}</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="row form-row">

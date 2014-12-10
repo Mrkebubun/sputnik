@@ -1189,6 +1189,12 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                                },
                                "phone": {
                                    "type": "string"
+                               },
+                               "audit_secret": {
+                                   "type": "string"
+                               },
+                               "contact_preference": {
+                                   "type": "string"
                                }
                            },
                            "additionalProperties": False
