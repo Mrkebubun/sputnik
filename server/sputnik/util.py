@@ -228,7 +228,7 @@ def position_calculated(position, session, checkpoint=None, start=None, end=None
         last_posting_timestamp = grouped.last_timestamp
     except NoResultFound:
         calculated = 0
-        last_posting_timestamp = None
+        last_posting_timestamp = start
 
 
     return checkpoint + calculated, last_posting_timestamp
