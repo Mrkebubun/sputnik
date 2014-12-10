@@ -36,7 +36,7 @@ class AccountantReceiver(BackendPlugin):
         for listener in self.listeners:
             log("Got trade for %s: %s" % (ticker, trade))
             try:
-                listener.trade(tricker, trade)
+                listener.trade(ticker, trade)
             except Exception, e:
                 error("Error handling trade()) in %s." % listener)
                 error(e)

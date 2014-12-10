@@ -6,6 +6,7 @@ debug, log, warn, error, critical = observatory.get_loggers("svc_market")
 
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin
+from datetime import datetime
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
@@ -16,7 +17,7 @@ class MarketService(ServicePlugin):
         ServicePlugin.__init__(self)
 
     def init(self):
-        self.receiver = self.require("sputnik.webserver.plugins.receiver.accountant.AccounantReceiver")
+        self.receiver = self.require("sputnik.webserver.plugins.receiver.accountant.AccountantReceiver")
         self.receiver.listeners.append(self)
 
     def shutdown(self):
@@ -36,8 +37,8 @@ class MarketService(ServicePlugin):
             return [False, "No such ticker %s." % ticker]
 
         now = util.dt_to_timestamp(datetime.datetime.utcnow())
-        start = start or int(now - 5.184e12) # delta 60 days
-        end = end or now
+        start = start_timestamp or int(now - 5.184e12) # delta 60 days
+        end = end_timestamp or now
         period = period or "day"
        
         data = self.ohlcv.get(ticker, {}).get(period, {})
@@ -48,16 +49,16 @@ class MarketService(ServicePlugin):
         return [True, ohlcv]
 
     @wamp.register(u"service.market.get_trade_history")
-    def get_trade_history(self, ticker, start=None, stop=None):
+    def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
 
         now = util.dt_to_timestamp(datetime.datetime.utcnow())
-        start = start or int(now - 3.6e9) # delta 1 hour
-        end = end or now
+        start = from_timestamp or int(now - 3.6e9) # delta 1 hour
+        end = to_timestamp or now
         
         history = [entry for entry in self.trades.get(ticker, []) \
-                if start <= entry["timestamp"]<= stop]
+                if start <= entry["timestamp"]<= end]
         return [True, history]
 
     @wamp.register(u"service.market.get_order_book")

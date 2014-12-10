@@ -19,16 +19,16 @@ class RegistrarService(ServicePlugin):
         if not self.administrator:
             raise PluginException("Missing dependency %s." % req_path)
     
-    @wamp.register(u"service.registrar.create_account")
+    @wamp.register(u"service.registrar.make_account")
     @inlineCallbacks
-    def make_account(self, username, password, email, locale=None):
+    def make_account(self, username, password, email, nickname, locale=None):
         try:
             result = yield self.administrator.make_account(username, password)
             if result:
                 profile = {"email": email, "nickname": nickname,
                            "locale": locale}
                 yield self.administrator.change_profile(username, profile)
-                returnValue(True, username)
+                returnValue([True, username])
         except Exception, e:
             returnValue(False, e.args)
 
@@ -38,12 +38,12 @@ class RegistrarService(ServicePlugin):
         try:
             result = yield self.administrator.get_reset_token(username)
             log("Generated password reset token for user %s." % username)
-            returnValue(True, None)
+            returnValue([True, None])
         except Exception, e:
             error("Failed to generate password reset token for user %s." % \
                     username)
             error(e)
-            returnValue(False, e.args)
+            returnValue([False, e.args])
 
     @wamp.register(u"service.registrar.change_password_token")
     @inlineCallbacks
@@ -57,7 +57,7 @@ class RegistrarService(ServicePlugin):
             error("Failed to reset password using token for user %s." % \
                     username)
             error(e)
-            returnValue(False, e.args)
+            returnValue([False, e.args])
 
     @inlineCallbacks
     def onJoin(self, details):
