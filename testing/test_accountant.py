@@ -63,7 +63,6 @@ class TestAccountantBase(TestSputnik):
         self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
         self.alerts_proxy = FakeComponent("alerts")
         # self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
-        from test_sputnik import FakeSendmail
 
         self.accountant = accountant.Accountant(self.session, self.engines,
                                                 self.cashier,
@@ -73,9 +72,7 @@ class TestAccountantBase(TestSputnik):
                                                 self.alerts_proxy,
                                                 debug=True,
                                                 trial_period=False,
-                                                sendmail=FakeSendmail('test-email@m2.io'),
-                                                template_dir="../server/sputnik/admin_templates",
-        )
+                                                messenger=FakeComponent("messenger"))
         self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
         self.cashier_export = accountant.CashierExport(self.accountant)
         self.administrator_export = accountant.AdministratorExport(self.accountant)
@@ -236,12 +233,10 @@ class TestCashierExport(TestAccountant):
                                                                          'quantity': 900000000,
                                                                          'type': 'Deposit'}),
                                                                        {})]))
-            self.assertTrue(self.accountant.sendmail.component.check_for_calls([('send_mail',
-                                                                                 (
-                                                                                 'Hello anonymous (test),\n\nWe received your deposit, however 9.00 BTC was not\ncredited to your account because you have exceeded your permitted deposit limit.\n\nPlease contact support with any questions.\n',),
-                                                                                 {
-                                                                                 'subject': 'Your deposit was not fully processed',
-                                                                                 'to_address': u'<> anonymous'})]))
+            message = self.accountant.messenger.component.log[0]
+            self.assertEqual(message[0], 'send_message')
+            self.assertEqual(message[1][2], 'deposit_overflow')
+            self.assertEqual(message[2]['amount_fmt'], '9.00')
 
         d.addCallback(onSuccess)
         return d
@@ -293,12 +288,11 @@ class TestCashierExport(TestAccountant):
                                                                          'type': 'Deposit'}),
                                                                        {})]
             ))
-            self.assertTrue(self.accountant.sendmail.component.check_for_calls([('send_mail',
-                                                                                 (
-                                                                                 'Hello anonymous (test),\n\nWe received your deposit, however 0.00 BTC was not\ncredited to your account because you have exceeded your permitted deposit limit.\n\nPlease contact support with any questions.\n',),
-                                                                                 {
-                                                                                 'subject': 'Your deposit was not fully processed',
-                                                                                 'to_address': u'<> anonymous'})]))
+            message = self.accountant.messenger.component.log[0]
+            self.assertEqual(message[0], 'send_message')
+            self.assertEqual(message[1][2], 'deposit_overflow')
+            self.assertEqual(message[2]['amount_fmt'], '0.00')
+
 
         d.addCallback(onSuccess)
         return d

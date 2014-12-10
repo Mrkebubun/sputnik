@@ -1603,7 +1603,8 @@ if __name__ == "__main__":
     sendmail = Sendmail(from_email)
     if config.getboolean("administrator", "nexmo_enable"):
         nexmo = Nexmo(config.get("administrator", "nexmo_api_key"),
-                    config.get("administrator", "nexmo_api_secret"))
+                    config.get("administrator", "nexmo_api_secret"),
+                    config.get("exchange_info", "exchange_name"))
         messenger = Messenger(sendmail, nexmo)
     else:
         messenger = Messenger(sendmail)

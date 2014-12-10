@@ -365,9 +365,9 @@ class User(db.Base):
     password = Column(String, nullable=False)
     totp = Column(String)
     nickname = Column(String)
-    email = Column(String, unique=True, index=True)
-    phone = Column(String, unique=True, index=True)
-    preference = Column(Enum('email', 'sms'))
+    email = Column(String, index=True)
+    phone = Column(String, index=True)
+    preference = Column(Enum('email', 'sms', 'both'), server_default='email')
 
     active = Column(Boolean, server_default=sql.true())
     permission_group_id = Column(Integer, ForeignKey('permission_groups.id'), server_default="1")

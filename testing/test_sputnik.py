@@ -164,7 +164,7 @@ class FakeComponent:
         def proxy_method(*args, **kwargs):
             self._log_call(key, *args, **kwargs)
 
-            return None
+            return defer.succeed(None)
 
         return proxy_method
 
@@ -218,15 +218,6 @@ class FakeComponent:
 # TODO: Remove this once we've removed all FakeProxy
 class FakeProxy(FakeComponent):
     pass
-
-class FakeSendmail(FakeComponent):
-    def __init__(self, from_address):
-        """
-
-        :param from_address:
-        """
-        self.from_address = from_address
-        FakeComponent.__init__(self, "sendmail")
 
 def fix_config():
     spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
