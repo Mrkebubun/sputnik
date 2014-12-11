@@ -513,6 +513,12 @@ class BotFactory(wamp.ApplicationSessionFactory):
     def __init__(self, **kwargs):
         self.username = kwargs.pop('username')
         self.password = kwargs.pop('password')
+        if 'ignore_contracts' in kwargs:
+            self.ignore_contracts = kwargs.pop('ignore_contracts')
+
+        if 'rate' in kwargs:
+            self.rate = kwargs.pop('rate')
+
         wamp.ApplicationSessionFactory.__init__(self, **kwargs)
 
 

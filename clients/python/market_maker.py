@@ -28,19 +28,22 @@
 __author__ = 'sameer'
 
 import sys
-
-from twisted.python import log
-from twisted.internet import reactor, ssl, task
-
-from autobahn.twisted.websocket import connectWS
 from ConfigParser import ConfigParser
-
-from client import TradingBot, BotFactory
 import urllib2
 import json
-from bs4 import BeautifulSoup
 import logging
 from os import path
+
+from twisted.internet import task
+from twisted.python import log
+from twisted.internet import reactor
+from twisted.internet.endpoints import clientFromString
+from autobahn.twisted import websocket
+from autobahn.wamp import types
+from bs4 import BeautifulSoup
+
+from client import TradingBot, BotFactory
+
 
 class MarketMakerBot(TradingBot):
     external_markets = {}
@@ -171,22 +174,23 @@ if __name__ == '__main__':
             "./client.ini"))
     config.read(config_file)
 
-    uri = config.get("client", "uri")
+    base_uri = config.get("client", "uri")
     username = config.get("market_maker", "username")
     password = config.get("market_maker", "password")
     rate = config.getfloat("market_maker", "rate")
     ignore_contracts = [x.strip() for x in config.get("market_maker", "ignore_contracts").split(',')]
 
-    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), ignore_contracts=ignore_contracts,
+    component_config = types.ComponentConfig(realm = u"sputnik")
+    session_factory = BotFactory(config=component_config, username=username, password=password, ignore_contracts=ignore_contracts,
                          rate=rate)
-    factory.protocol = MarketMakerBot
+    session_factory.protocol = MarketMakerBot
 
-    # null -> ....
-    if factory.isSecure:
-        contextFactory = ssl.ClientContextFactory()
-    else:
-        contextFactory = None
+    transport_factory = websocket.WampWebSocketClientFactory(session_factory,
+                                                             url = "ws://127.0.0.1:8080/ws", debug=debug,
+                                                             debug_wamp=debug)
+    client = clientFromString(reactor, "tcp:127.0.0.1:8080")
+    client.connect(transport_factory)
 
-    factory.connect(contextFactory)
     reactor.run()
+
 

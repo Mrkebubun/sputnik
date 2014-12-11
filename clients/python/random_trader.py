@@ -27,18 +27,21 @@
 
 __author__ = 'sameer'
 
+from collections import deque
 import sys
-
-from twisted.python import log
-from twisted.internet import reactor, ssl, task
-
-from autobahn.twisted.websocket import connectWS
+import logging
 from ConfigParser import ConfigParser
+from os import path
+
+from twisted.internet import task
+from twisted.python import log
+from twisted.internet import reactor
+from twisted.internet.endpoints import clientFromString
+from autobahn.twisted import websocket
+from autobahn.wamp import types
 
 from client import TradingBot, BotFactory
-from collections import deque
-import logging
-from os import path
+
 
 # http://code.activestate.com/recipes/440546-chomsky-random-text-generator/
 """CHOMSKY is an aid to writing linguistic papers in the style
@@ -236,7 +239,7 @@ class RandomBot(TradingBot):
             self.cancelOrder(order_to_cancel)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True
@@ -249,21 +252,21 @@ if __name__ == '__main__':
             "./client.ini"))
     config.read(config_file)
 
-    uri = config.get("client", "uri")
+    base_uri = config.get("client", "uri")
     username = config.get("random_trader", "username")
     password = config.get("random_trader", "password")
     rate = config.getfloat("random_trader", "rate")
     ignore_contracts = [x.strip() for x in config.get("random_trader", "ignore_contracts").split(',')]
 
-    factory = BotFactory(uri, debugWamp=debug, username_password=(username, password), rate=rate,
-                         ignore_contracts=ignore_contracts)
-    factory.protocol = RandomBot
+    component_config = types.ComponentConfig(realm = u"sputnik")
+    session_factory = BotFactory(config=component_config, username=username, password=password, ignore_contracts=ignore_contracts,
+                         rate=rate)
+    session_factory.protocol = RandomBot
 
-    # null -> ....
-    if factory.isSecure:
-        contextFactory = ssl.ClientContextFactory()
-    else:
-        contextFactory = None
+    transport_factory = websocket.WampWebSocketClientFactory(session_factory,
+                                                             url = "ws://127.0.0.1:8080/ws", debug=debug,
+                                                             debug_wamp=debug)
+    client = clientFromString(reactor, "tcp:127.0.0.1:8080")
+    client.connect(transport_factory)
 
-    factory.connect(contextFactory)
     reactor.run()
