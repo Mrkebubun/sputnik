@@ -96,6 +96,16 @@ class Plugin:
     def configure(self):
         pass
 
+    def event(self, event_name, *args, **kwargs):
+        method = getattr(self, "on_%s" % event_name)
+        if callable(method):
+            try:
+                method(*args, **kwargs)
+            except Exception as e:
+                error("Exception in plugin %s event handler for %s." % \
+                        (self.plugin_name, event_name))
+                error(e)
+
     def init(self):
         pass
 
