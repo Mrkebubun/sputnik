@@ -16,7 +16,7 @@ class TraderService(ServicePlugin):
         ServicePlugin.__init__(self)
 
     def init(self):
-        self.accountant = self.require("sputnik.webserver.plugins.backend.accounant.AccounantProxy")
+        self.accountant = self.require("sputnik.webserver.plugins.backend.accountant.AccountantProxy")
 
     def place_order(self, ticker, price, quantity, details):
         log(details)
