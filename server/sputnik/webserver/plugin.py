@@ -28,9 +28,11 @@ class ServicePlugin(Plugin, ApplicationSession):
         ApplicationSession.__init__(self)
         Plugin.__init__(self)
         self.receivers = []
+        self.receiver_plugins = []
 
-    def init(self, receiver_plugins=[]):
-        for receiver_plugin in receiver_plugins:
+    @inlineCallbacks
+    def init(self):
+        for receiver_plugin in self.receiver_plugins:
             receiver = self.require(receiver_plugin)
             receiver.listeners.append(self)
             self.receivers.append(receiver)

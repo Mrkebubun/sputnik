@@ -20,11 +20,12 @@ class MarketService(ServicePlugin):
         self.trade_history = {}
         self.ohlcv_history = {}
         self.safe_prices = {}
+        self.receiver_plugins.append("sputnik.webserver.plugins.receiver.accountant.AccountantReceiver")
+        self.receiver_plugins.append("sputnik.webserver.plugins.receiver.engine.EngineReceiver")
 
     @inlineCallbacks
-    def init(self, receiver_plugins=[]):
-        ServicePlugin.init(self, receiver_plugins=["sputnik.webserver.plugins.receiver.accountant.AccountantReceiver",
-                                                   "sputnik.webserver.plugins.receiver.engine.EngineReceiver"])
+    def init(self):
+        yield ServicePlugin.init(self)
 
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
         self.markets = yield self.db.get_markets()
