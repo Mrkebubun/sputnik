@@ -15,11 +15,12 @@ class PrivateService(ServicePlugin):
     def __init__(self):
         ServicePlugin.__init__(self)
 
+    @wamp.register(u"service.private.foobar")
     def foobar(self, details):
         log(details)
 
     @inlineCallbacks
     def onJoin(self, details):
-        result = yield self.register(self.foobar, u"service.private.foobar", RegisterOptions(details_arg="details", discloseCaller=True))
+        result = yield self.register(self, options=RegisterOptions(details_arg="details", discloseCaller=True))
 
 
