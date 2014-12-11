@@ -14,7 +14,7 @@ class RegistrarService(ServicePlugin):
         ServicePlugin.__init__(self)
 
     def init(self):
-        self.administrator = self.receiver = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
+        self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
     
     @wamp.register(u"service.registrar.make_account")
     @inlineCallbacks
