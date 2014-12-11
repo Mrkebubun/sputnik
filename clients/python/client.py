@@ -74,7 +74,6 @@ class TradingBot(wamp.ApplicationSession):
     def onJoin(self, details):
         log.msg("Joined as %s" % details.authrole)
         self.getMarkets()
-        self.subChat()
         self.startAutomation()
 
         if details.authrole != u'anonymous':
@@ -122,28 +121,28 @@ class TradingBot(wamp.ApplicationSession):
     def startAutomationAfterAuth(self):
         pass
 
-    def my_call(self, method_name, *args):
+    def call(self, method_name, *args):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
-        d = self.call(unicode(method_name), *args)
+        d = wamp.ApplicationSession.call(self, unicode(method_name), *args)
         def onSuccess(result):
             if len(result) != 2:
                 log.msg("RPC Protocol error in %s" % method_name)
-                return defer.succeed(result)
+                return result
             if result[0]:
-                return defer.succeed(result[1])
+                return result[1]
             else:
                 return defer.fail(result[1])
 
         d.addCallbacks(onSuccess, self.onRpcFailure)
         return d
 
-    def subscribe(self, handler, topic):
+    def subscribe(self, handler, topic, **kwargs):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        wamp.ApplicationSession.subscribe(self, handler, unicode(topic))
+        wamp.ApplicationSession.subscribe(self, handler, unicode(topic), **kwargs)
 
-    def publish(self, topic, message):
+    def publish(self, topic, message, **kwargs):
         log.msg("publishing %s to %s" % (message, topic))
-        wamp.ApplicationSession.publish(self, unicode(topic), unicode(message))
+        wamp.ApplicationSession.publish(self, unicode(topic), unicode(message), **kwargs)
 
     """
     Utility functions
@@ -333,11 +332,6 @@ class TradingBot(wamp.ApplicationSession):
         self.subscribe(self.onSafePrice, uri)
         print 'subscribed to: ', uri
 
-    def subChat(self):
-        uri = "chat"
-        self.subscribe(self.onChat, uri)
-        print 'subscribe to: ', uri
-
     """
     Private Subscriptions
     """
@@ -362,23 +356,20 @@ class TradingBot(wamp.ApplicationSession):
 
 
     def getTradeHistory(self, ticker):
-        d = self.my_call(u"get_trade_history", ticker)
+        d = self.call(u"service.market.get_trade_history", ticker)
         d.addCallbacks(pprint, self.onError)
 
-    def getChatHistory(self):
-        d = self.my_call(u"get_chat_history")
-        d.addCallbacks(self.onChatHistory, self.onError)
 
     def getMarkets(self):
-        d = self.my_call(u"get_markets")
+        d = self.call(u"service.market.get_markets")
         d.addCallbacks(self.onMarkets, self.onError)
 
     def getOrderBook(self, ticker):
-        d = self.my_call(u"get_order_book", ticker)
-        d.addCallbacks(lambda x: self.onBook("get_order_book", x), self.onError)
+        d = self.call(u"service.market.get_order_book", ticker)
+        d.addCallbacks(lambda x: self.onBook(u"service.market.get_order_book", x), self.onError)
 
     def getAudit(self):
-        d = self.my_call(u"get_audit")
+        d = self.call(u"service.info.get_audit")
         d.addCallbacks(self.onAudit, self.onError)
 
     def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
@@ -393,7 +384,7 @@ class TradingBot(wamp.ApplicationSession):
         else:
             end_timestamp = None
 
-        d = self.my_call(u"get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
+        d = self.call(u"service.market.get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
         d.addCallbacks(self.onOHLCVHistory, self.onError)
 
     def makeAccount(self, username, password, email, nickname):
@@ -408,15 +399,15 @@ class TradingBot(wamp.ApplicationSession):
                                         extra['salt'].encode('utf-8'),
                                         extra['iterations'],
                                         extra['keylen'])
-        d = self.my_call(u"make_account", username, password_hash, salt, email, nickname)
+        d = self.call(u"service.registrar.make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onError)
 
     def getResetToken(self, username):
-        d = self.my_call(u"get_reset_token", username)
+        d = self.call(u"service.registrar.get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
     def getExchangeInfo(self):
-        d = self.my_call(u"get_exchange_info")
+        d = self.call(u"service.info.get_exchange_info")
         d.addCallbacks(pprint, self.onError)
 
     """
@@ -424,20 +415,20 @@ class TradingBot(wamp.ApplicationSession):
     """
 
     def getPositions(self):
-        d = self.my_call(u"get_positions")
+        d = self.call(u"service.private.get_positions")
         d.addCallbacks(pprint, self.onError)
 
     def getCurrentAddress(self):
-        d = self.my_call(u"get_current_address")
+        d = self.call(u"service.private.get_current_address")
         d.addCallbacks(pprint, self.onError)
 
     def getNewAddress(self):
-        d = self.my_call(u"get_new_address")
+        d = self.call(u"service.private.get_new_address")
         d.addCallbacks(pprint, self.onError)
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
-        d = self.my_call(u"get_open_orders")
+        d = self.call(u"service.private.get_open_orders")
         d.addCallbacks(self.onOpenOrders, self.onError)
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
@@ -445,11 +436,11 @@ class TradingBot(wamp.ApplicationSession):
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
-        d = self.my_call("get_transaction_history", start_timestamp, end_timestamp)
+        d = self.call("service.private.get_transaction_history", start_timestamp, end_timestamp)
         d.addCallbacks(self.onTransactionHistory, self.onError)
 
     def requestSupportNonce(self, type='Compliance'):
-        d = self.my_call(u"request_support_nonce", type)
+        d = self.call(u"service.private.request_support_nonce", type)
         d.addCallbacks(self.onSupportNonce, self.onError)
 
     def placeOrder(self, ticker, quantity, price, side):
@@ -458,7 +449,7 @@ class TradingBot(wamp.ApplicationSession):
         ord['quantity'] = quantity
         ord['price'] = price
         ord['side'] = side
-        d = self.my_call(u"place_order", ord)
+        d = self.call(u"service.private.place_order", ord)
 
         self.last_internal_id += 1
         ord['quantity_left'] = ord['quantity']
@@ -477,10 +468,6 @@ class TradingBot(wamp.ApplicationSession):
 
         d.addCallbacks(self.onPlaceOrder, onError)
 
-    def chat(self, message):
-        print "chatting: ", message
-        self.publish(self.factory.url + "/feeds/chat", message)
-
     def cancelOrder(self, id):
         """
         cancels an order by its id.
@@ -490,7 +477,7 @@ class TradingBot(wamp.ApplicationSession):
             print "can't cancel internal order: %s" % id
 
         print "cancel order: %s" % id
-        d = self.my_call(u"cancel_order", id)
+        d = self.call(u"service.private.cancel_order", id)
         d.addCallbacks(pprint, self.onError)
         del self.orders[id]
 

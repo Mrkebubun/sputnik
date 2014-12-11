@@ -19,6 +19,10 @@ class MarketService(ServicePlugin):
     def init(self):
         self.receiver = self.require("sputnik.webserver.plugins.receiver.accountant.AccountantReceiver")
         self.receiver.listeners.append(self)
+        self.markets = {}
+        self.books = {}
+        self.trades = {}
+        self.ohlcv = {}
 
     def shutdown(self):
         self.receiver.listeners.remove(self)
@@ -65,6 +69,9 @@ class MarketService(ServicePlugin):
     def get_order_book(self, ticker):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
+
+        if ticker not in self.books:
+            return [False, "No book for %s" % ticker]
 
         return [True, self.books[ticker]]
 
