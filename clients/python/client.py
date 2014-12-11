@@ -36,24 +36,80 @@ from os import path
 
 from twisted.python import log
 from twisted.internet import reactor, defer
-from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner, ApplicationSessionFactory
-from autobahn.wamp.auth import derive_key
+from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.endpoints import clientFromString
+from autobahn.twisted import wamp, websocket
+from autobahn.wamp import types
+from autobahn.wamp import auth
+
 import Crypto.Random.random
 
 
-class TradingBot(ApplicationSession):
+class TradingBot(wamp.ApplicationSession):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
    """
+    auth = False
 
-    def __init__(self, *args):
-        ApplicationSession.__init__(self, *args)
+    def __init__(self, *args, **kwargs):
+        wamp.ApplicationSession.__init__(self, *args, **kwargs)
         self.markets = {}
         self.orders = {}
         self.last_internal_id = 0
         self.chats = []
         self.username = None
+
+    """
+    Login / connect functions
+    """
+    def onConnect(self):
+        log.msg("connect")
+        if self.factory.username is not None:
+            log.msg("logging in as %s" % self.factory.username)
+            self.join(self.config.realm, [u'wampcra'], [self.factory.username])
+        else:
+            self.join(self.config.realm, [u'anonymous'])
+
+    @inlineCallbacks
+    def onJoin(self, details):
+        log.msg("Joined as %s" % details.authrole)
+        self.getMarkets()
+        self.subChat()
+        self.startAutomation()
+
+        if details.authrole != u'anonymous':
+            log.msg("Authenticated")
+            self.auth = True
+            self.username = details.authrole
+            self.subOrders()
+            self.subFills()
+            self.subTransactions()
+            self.getOpenOrders()
+
+            self.startAutomationAfterAuth()
+
+    def onChallenge(self, challenge):
+        print "got challenge: %s" % challenge
+        if challenge.method == u"wampcra":
+            if u'salt' in challenge.extra:
+                key = auth.derive_key(self.factory.password.encode('utf-8'),
+                    challenge.extra['salt'].encode('utf-8'),
+                    challenge.extra.get('iterations', None),
+                    challenge.extra.get('keylen', None))
+            else:
+                key = self.factory.password.encode('utf-8')
+
+            signature = auth.compute_wcs(key, challenge.extra['challenge'].encode('utf-8'))
+            return signature.decode('ascii')
+        else:
+            raise Exception("don't know how to compute challenge for authmethod {}".format(challenge.method))
+
+
+    def onDisconnect(self):
+        log.msg("Disconnected")
+        reactor.stop()
+
 
     def action(self):
         '''
@@ -72,7 +128,7 @@ class TradingBot(ApplicationSession):
         d = self.call(method_name, *args)
         def onSuccess(result):
             if len(result) != 2:
-                log.warn("RPC Protocol error in %s" % method_name)
+                log.msg("RPC Protocol error in %s" % method_name)
                 return defer.succeed(result)
             if result[0]:
                 return defer.succeed(result[1])
@@ -84,18 +140,7 @@ class TradingBot(ApplicationSession):
 
     def subscribe(self, topic, handler):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        ApplicationSession.subscribe(self, "%s" % topic, handler)
-    #
-    # def authenticate(self):
-    #     if self.username is None:
-    #         [self.username, self.password] = self.factory.username_password
-    #
-    #     d = WampCraClientProtocol.authenticate(self,
-    #                                            authKey=self.username,
-    #                                            authExtra=None,
-    #                                            authSecret=self.password)
-    #
-    #     d.addCallbacks(self.onAuthSuccess, self.onAuthError)
+        wamp.ApplicationSession.subscribe(self, "%s" % topic, handler)
 
     """
     Utility functions
@@ -139,26 +184,7 @@ class TradingBot(ApplicationSession):
     reactive events - on* 
     """
 
-    def onJoin(self, details):
-        self.getMarkets()
-        self.subChat()
-        self.startAutomation()
 
-    def onClose(self, wasClean):
-        reactor.stop()
-
-    def onAuthSuccess(self, permissions):
-        print "Authentication Success!", permissions
-        self.subOrders()
-        self.subFills()
-        self.subTransactions()
-        self.getOpenOrders()
-
-        self.startAutomationAfterAuth()
-
-    def onAuthError(self, e):
-        uri, desc, details = e.value.args
-        print "Authentication Error!", uri, desc, details
 
     def onMarkets(self, event):
         pprint(event)
@@ -373,7 +399,10 @@ class TradingBot(ApplicationSession):
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
         extra = {"salt":salt, "keylen":32, "iterations":1000}
-        password_hash = derive_key(password, extra)
+        password_hash = auth.derive_key(password.encode('utf-8'),
+                                        extra['salt'].encode('utf-8'),
+                                        extra.get('iterations', None),
+                                        extra.get('keylen', None))
         d = self.my_call("make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onError)
 
@@ -488,18 +517,12 @@ class BasicBot(TradingBot):
 
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
-class BotFactory(WampClientFactory):
-    def __init__(self, url, debugWamp=False, username_password=(None, None), rate=10, ignore_contracts=[]):
-        WampClientFactory.__init__(self, url, debugWamp=debugWamp)
-        self.username_password = username_password
-        self.rate = rate
-        self.conn = None
-        self.ignore_contracts = ignore_contracts
-
-    def make(self, config):
-        session = self.session(config)
-        session.factory = self
-        return session
+class BotFactory(wamp.ApplicationSessionFactory):
+    def __init__(self, username, password):
+        component_config = types.ComponentConfig(realm = u"sputnik")
+        wamp.ApplicationSessionFactory(self, config = component_config)
+        self.username = username
+        self.password = password
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -520,8 +543,12 @@ if __name__ == '__main__':
     username = config.get("client", "username")
     password = config.get("client", "password")
 
-    factory = BotFactory(base_uri, username_password=(username, password))
-    factory.session = BasicBot
+    session_factory = BotFactory(username=username, password=password)
+    session_factory.session = BasicBot
 
-    runner = ApplicationRunner(url=base_uri, realm='sputnik', debug_wamp=True)
-    runner.run(factory.make)
+    transport_factory = websocket.WampWebSocketClientFactory(session_factory,
+                                                             url = "ws://127.0.0.1:8080/ws", debug=debug,
+                                                             debug_wamp=debug)
+    client = clientFromString(reactor, "tcp:127.0.0.1:8080")
+    client.connect(transport_factory)
+
