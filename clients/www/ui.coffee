@@ -659,8 +659,8 @@ $ ->
                     ractive.set "current_ticker", widget_contract
                     sputnik.openMarket widget_contract
 
-                if simple_widget == "funding"
-                    ractive.set "current_currency", widget_contract
+            if simple_widget == "funding"
+                ractive.set "current_currency", widget_contract
 
         sputnik.on "auth_success", (username) ->
             ga('send', 'event', 'login', 'success')
@@ -671,6 +671,10 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
             sputnik.getCookie()
+
+            if simple_widget == "funding"
+                sputnik.getAddress(widget_contract)
+                sputnik.getDepositInstructions(widget_contract)
 
         sputnik.on "cookie", (uid) ->
             sputnik.log "got cookie: " + uid
