@@ -148,23 +148,36 @@ $ ->
         else
             return undefined
 
+    loadPartial = (name, url) ->
+        $.get( url ).then (data) ->
+            Ractive.partials[name] = data
+
+    loadAllPartials = () ->
+        partial_urls =
+            login_register: 'partials/login_register.html'
+            change_password_token: 'partials/change_password_token.html'
+        results = []
+        for name, url of partial_urls
+            results.push loadPartial(name, url)
+
+        $.when( results )
 
     simple_widget = getQueryKey('widget')
     if simple_widget?
         sputnik.log ["simple_widget", simple_widget]
-        url = "index_#{simple_widget}.html"
+        template_url = "templates/#{simple_widget}.html"
         widget_contract = getQueryKey('contract')
         sputnik.log ["widget_contract", widget_contract]
     else
-        url = 'index_full.html'
+        template_url = 'templates/full.html'
 
-    locale.init().then( () ->
-        $.ajax {
-                url: url
+    locale.init().then () ->
+        loadAllPartials().then () ->
+            $.ajax {
+                url: template_url
                 success: (data, status, xhr) ->
                    start(data)
                 }
-    )
 
     start = (template) ->
         ractive = new Ractive
@@ -1003,3 +1016,4 @@ $ ->
 
         # Now that everything is setup, let's connect
         sputnik.connect()
+
