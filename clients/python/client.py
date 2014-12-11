@@ -67,7 +67,7 @@ class TradingBot(wamp.ApplicationSession):
         log.msg("connect")
         if self.factory.username is not None:
             log.msg("logging in as %s" % self.factory.username)
-            self.join(self.config.realm, [u'wampcra'], self.factory.username)
+            self.join(self.config.realm, [u'wampcra'], unicode(self.factory.username))
         else:
             self.join(self.config.realm, [u'anonymous'])
 
@@ -124,7 +124,7 @@ class TradingBot(wamp.ApplicationSession):
 
     def my_call(self, method_name, *args):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
-        d = self.call(method_name, *args)
+        d = self.call(unicode(method_name), *args)
         def onSuccess(result):
             if len(result) != 2:
                 log.msg("RPC Protocol error in %s" % method_name)
@@ -139,7 +139,11 @@ class TradingBot(wamp.ApplicationSession):
 
     def subscribe(self, handler, topic):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        wamp.ApplicationSession.subscribe(self, handler, u"%s" % topic)
+        wamp.ApplicationSession.subscribe(self, handler, unicode(topic))
+
+    def publish(self, topic, message):
+        log.msg("publishing %s to %s" % (message, topic))
+        wamp.ApplicationSession.publish(self, unicode(topic), unicode(message))
 
     """
     Utility functions
@@ -402,17 +406,17 @@ class TradingBot(wamp.ApplicationSession):
         extra = {"salt":salt, "keylen":32, "iterations":1000}
         password_hash = auth.derive_key(password.encode('utf-8'),
                                         extra['salt'].encode('utf-8'),
-                                        extra.get('iterations', None),
-                                        extra.get('keylen', None))
-        d = self.my_call("make_account", username, password_hash, salt, email, nickname)
+                                        extra['iterations'],
+                                        extra['keylen'])
+        d = self.my_call(u"make_account", username, password_hash, salt, email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onError)
 
     def getResetToken(self, username):
-        d = self.my_call("get_reset_token", username)
+        d = self.my_call(u"get_reset_token", username)
         d.addCallbacks(pprint, self.onError)
 
     def getExchangeInfo(self):
-        d = self.my_call("get_exchange_info")
+        d = self.my_call(u"get_exchange_info")
         d.addCallbacks(pprint, self.onError)
 
     """
@@ -420,20 +424,20 @@ class TradingBot(wamp.ApplicationSession):
     """
 
     def getPositions(self):
-        d = self.my_call("get_positions")
+        d = self.my_call(u"get_positions")
         d.addCallbacks(pprint, self.onError)
 
     def getCurrentAddress(self):
-        d = self.my_call("get_current_address")
+        d = self.my_call(u"get_current_address")
         d.addCallbacks(pprint, self.onError)
 
     def getNewAddress(self):
-        d = self.my_call("get_new_address")
+        d = self.my_call(u"get_new_address")
         d.addCallbacks(pprint, self.onError)
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
-        d = self.my_call("get_open_orders")
+        d = self.my_call(u"get_open_orders")
         d.addCallbacks(self.onOpenOrders, self.onError)
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
@@ -445,7 +449,7 @@ class TradingBot(wamp.ApplicationSession):
         d.addCallbacks(self.onTransactionHistory, self.onError)
 
     def requestSupportNonce(self, type='Compliance'):
-        d = self.my_call("request_support_nonce", type)
+        d = self.my_call(u"request_support_nonce", type)
         d.addCallbacks(self.onSupportNonce, self.onError)
 
     def placeOrder(self, ticker, quantity, price, side):
@@ -454,7 +458,7 @@ class TradingBot(wamp.ApplicationSession):
         ord['quantity'] = quantity
         ord['price'] = price
         ord['side'] = side
-        d = self.my_call("place_order", ord)
+        d = self.my_call(u"place_order", ord)
 
         self.last_internal_id += 1
         ord['quantity_left'] = ord['quantity']
@@ -486,7 +490,7 @@ class TradingBot(wamp.ApplicationSession):
             print "can't cancel internal order: %s" % id
 
         print "cancel order: %s" % id
-        d = self.my_call("cancel_order", id)
+        d = self.my_call(u"cancel_order", id)
         d.addCallbacks(pprint, self.onError)
         del self.orders[id]
 
