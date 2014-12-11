@@ -130,6 +130,7 @@ $ ->
         port = 8443
 
     uri = ws_protocol + "//" + hostname + ":#{port}"
+    uri = "wss://demo.m2.io:8443"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
@@ -147,9 +148,13 @@ $ ->
         else
             return undefined
 
-    simple_contract = getQueryKey('contract')
-    if simple_contract?
-        url = 'index_simple.html'
+
+    simple_widget = getQueryKey('widget')
+    if simple_widget?
+        sputnik.log ["simple_widget", simple_widget]
+        url = "index_#{simple_widget}.html"
+        widget_contract = getQueryKey('contract')
+        sputnik.log ["widget_contract", widget_contract]
     else
         url = 'index_full.html'
 
@@ -157,7 +162,7 @@ $ ->
         $.ajax {
                 url: url
                 success: (data, status, xhr) ->
-                    start(data)
+                   start(data)
                 }
     )
 
@@ -547,7 +552,7 @@ $ ->
                 $("#sell_alert").hide()
                 $("#sellButton").show()
 
-                if not simple_contract?
+                if not simple_widget?
                     sputnik.openMarket new_ticker
                     showChart new_ticker
 
@@ -636,9 +641,13 @@ $ ->
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
                             sputnik.restoreSession name_uid[1]
 
-            if simple_contract?
-                ractive.set "current_ticker", simple_contract
-                sputnik.openMarket simple_contract
+            if simple_widget?
+                if simple_widget == "trade"
+                    ractive.set "current_ticker", widget_contract
+                    sputnik.openMarket widget_contract
+
+                if simple_widget == "funding"
+                    ractive.set "current_currency", widget_contract
 
         sputnik.on "auth_success", (username) ->
             ga('send', 'event', 'login', 'success')
@@ -923,7 +932,7 @@ $ ->
             bootbox.alert locale.translate("trade/alerts/place_order_success", ractive.get("sputnik.profile.locale"))
 
         sputnik.on "fill", (fill) ->
-            if not simple_contract?
+            if not simple_widget?
                 quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
                 price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
                 $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
