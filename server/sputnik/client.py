@@ -20,7 +20,7 @@ class MyFrontendComponent(wamp.ApplicationSession):
         print "got challenge: %s" % challenge
         if challenge.method == u"wampcra":
             if u'salt' in challenge.extra:
-                key = auth.derive_key(u"a".encode('utf8'),
+                key = auth.derive_key(u"marketmaker".encode('utf8'),
                     challenge.extra['salt'].encode('utf8'),
                     challenge.extra.get('iterations', None),
                     challenge.extra.get('keylen', None))
@@ -45,7 +45,7 @@ class MyFrontendComponent(wamp.ApplicationSession):
 
     def onLeave(self, details):
         if not self.auth:
-            self.join(self.config.realm, [u"wampcra"], u"a")
+            self.join(self.config.realm, [u"wampcra"], u"marketmaker")
 
 
     def onDisconnect(self):

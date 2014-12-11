@@ -67,11 +67,10 @@ class TradingBot(wamp.ApplicationSession):
         log.msg("connect")
         if self.factory.username is not None:
             log.msg("logging in as %s" % self.factory.username)
-            self.join(self.config.realm, [u'wampcra'], [self.factory.username])
+            self.join(self.config.realm, [u'wampcra'], self.factory.username)
         else:
             self.join(self.config.realm, [u'anonymous'])
 
-    @inlineCallbacks
     def onJoin(self, details):
         log.msg("Joined as %s" % details.authrole)
         self.getMarkets()
@@ -90,7 +89,7 @@ class TradingBot(wamp.ApplicationSession):
             self.startAutomationAfterAuth()
 
     def onChallenge(self, challenge):
-        print "got challenge: %s" % challenge
+        log.msg("got challenge: %s" % challenge)
         if challenge.method == u"wampcra":
             if u'salt' in challenge.extra:
                 key = auth.derive_key(self.factory.password.encode('utf-8'),
@@ -138,9 +137,9 @@ class TradingBot(wamp.ApplicationSession):
         d.addCallbacks(onSuccess, self.onRpcFailure)
         return d
 
-    def subscribe(self, topic, handler):
+    def subscribe(self, handler, topic):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        wamp.ApplicationSession.subscribe(self, "%s" % topic, handler)
+        wamp.ApplicationSession.subscribe(self, handler, u"%s" % topic)
 
     """
     Utility functions
@@ -189,19 +188,21 @@ class TradingBot(wamp.ApplicationSession):
     def onMarkets(self, event):
         pprint(event)
         self.markets = event
-        for ticker, contract in self.markets.iteritems():
-            if contract['contract_type'] != "cash":
-                self.getOrderBook(ticker)
-                self.subBook(ticker)
-                self.subTrades(ticker)
-                self.subSafePrices(ticker)
-                self.subOHLCV(ticker)
+        if self.markets is not None:
+            for ticker, contract in self.markets.iteritems():
+                if contract['contract_type'] != "cash":
+                    self.getOrderBook(ticker)
+                    self.subBook(ticker)
+                    self.subTrades(ticker)
+                    self.subSafePrices(ticker)
+                    self.subOHLCV(ticker)
         return event
 
     def onOpenOrders(self, event):
         pprint(event)
-        for id, order in event.iteritems():
-            self.orders[int(id)] = order
+        if event is not None:
+            for id, order in event.iteritems():
+                self.orders[int(id)] = order
 
     def onOrder(self, topicUri, order):
         """
@@ -337,17 +338,17 @@ class TradingBot(wamp.ApplicationSession):
     Private Subscriptions
     """
     def subOrders(self):
-        uri = "orders#%s" % self.username
+        uri = u"orders#%s" % self.username
         self.subscribe(uri, self.onOrder)
         print 'subscribed to: ', uri
 
     def subFills(self):
-        uri = "fills#%s" % self.username
+        uri = u"fills#%s" % self.username
         self.subscribe(uri, self.onFill)
         print 'subscribed to: ', uri
 
     def subTransactions(self):
-        uri = "transactions#%s" % self.username
+        uri = u"transactions#%s" % self.username
         self.subscribe(uri, self.onTransaction)
         print 'subscribed to: ', uri
 
@@ -518,11 +519,11 @@ class BasicBot(TradingBot):
         self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(wamp.ApplicationSessionFactory):
-    def __init__(self, username, password):
-        component_config = types.ComponentConfig(realm = u"sputnik")
-        wamp.ApplicationSessionFactory(self, config = component_config)
-        self.username = username
-        self.password = password
+    def __init__(self, **kwargs):
+        self.username = kwargs.pop('username')
+        self.password = kwargs.pop('password')
+        wamp.ApplicationSessionFactory.__init__(self, **kwargs)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -543,7 +544,8 @@ if __name__ == '__main__':
     username = config.get("client", "username")
     password = config.get("client", "password")
 
-    session_factory = BotFactory(username=username, password=password)
+    component_config = types.ComponentConfig(realm = u"sputnik")
+    session_factory = BotFactory(config=component_config, username=u'marketmaker', password=u'marketmaker')
     session_factory.session = BasicBot
 
     transport_factory = websocket.WampWebSocketClientFactory(session_factory,
@@ -551,4 +553,6 @@ if __name__ == '__main__':
                                                              debug_wamp=debug)
     client = clientFromString(reactor, "tcp:127.0.0.1:8080")
     client.connect(transport_factory)
+
+    reactor.run()
 
