@@ -5,6 +5,7 @@ debug, log, warn, error, critical = observatory.get_loggers("authn_cookie")
 from sputnik.webserver.plugin import AuthenticationPlugin
 from autobahn import util
 from autobahn.wamp import types
+import json
 
 class CookieLogin(AuthenticationPlugin):
     def __init__(self):
