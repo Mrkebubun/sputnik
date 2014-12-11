@@ -27,7 +27,7 @@ class RegistrarService(ServicePlugin):
                 yield self.administrator.change_profile(username, profile)
                 returnValue([True, username])
         except Exception, e:
-            returnValue(False, e.args)
+            returnValue([False, e.args])
 
     @wamp.register(u"service.registrar.get_reset_token")
     @inlineCallbacks
@@ -49,7 +49,7 @@ class RegistrarService(ServicePlugin):
             result = yield self.administrator.reset_password_hash(username,
                     None, hash, token=token)
             log("Reset password using token for user %s." % username)
-            returnValue(True, None)
+            returnValue([True, None])
         except Exception, e:
             error("Failed to reset password using token for user %s." % \
                     username)
