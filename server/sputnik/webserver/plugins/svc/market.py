@@ -8,7 +8,7 @@ from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin
 from datetime import datetime
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults
 from autobahn import wamp
 
 
@@ -29,14 +29,20 @@ class MarketService(ServicePlugin):
 
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
         self.markets = yield self.db.get_markets()
+        dl = []
         for ticker in self.markets.iterkeys():
-            self.trade_history[ticker] = yield self.db.get_trade_history(ticker)
+            def _cb(ticker, trade_history):
+                self.trade_history[ticker] = trade_history
 
-            # Clear ohlcv history
-            self.ohlcv_history[ticker] = {}
-            for period in ["minute", "hour", "day"]:
-                for trade in self.trade_history[ticker]:
-                    self.update_ohlcv(trade, period=period)
+                # Clear ohlcv history
+                self.ohlcv_history[ticker] = {}
+                for period in ["minute", "hour", "day"]:
+                    for trade in self.trade_history[ticker]:
+                        self.update_ohlcv(trade, period=period)
+
+            dl.append(self.db.get_trade_history(ticker).addCallback(_cb, ticker))
+
+        yield gatherResults(dl)
 
     def on_trade(self, ticker, trade):
         self.trade_history[ticker].append(trade)
