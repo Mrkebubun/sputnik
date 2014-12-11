@@ -15,14 +15,79 @@ from autobahn import wamp
 class MarketService(ServicePlugin):
     def __init__(self):
         ServicePlugin.__init__(self)
+        self.markets = {}
+        self.books = {}
+        self.trade_history = {}
+        self.ohlcv_history = {}
 
+    @inlineCallbacks
     def init(self):
         self.receiver = self.require("sputnik.webserver.plugins.receiver.accountant.AccountantReceiver")
         self.receiver.listeners.append(self)
-        self.markets = {}
-        self.books = {}
-        self.trades = {}
-        self.ohlcv = {}
+
+        self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
+        self.markets = yield self.db.get_markets()
+        for ticker in self.markets.iterkeys():
+            self.trade_history[ticker] = yield self.db.get_trade_history(ticker)
+
+            # Clear ohlcv history
+            self.ohlcv_history[ticker] = {}
+            for period in ["minute", "hour", "day"]:
+                for trade in self.trade_history[ticker]:
+                    self.update_ohlcv(trade, period=period)
+
+    def on_trade(self, ticker, trade):
+        self.trade_history[ticker].append(trade)
+        for period in ["day", "hour", "minute"]:
+            self.update_ohlcv(trade, period=period, update_feed=True)
+
+    def on_book(self, ticker, book):
+        self.books[ticker] = book
+
+    def update_ohlcv(self, trade, period="day", update_feed=False):
+        """
+
+        :param trade:
+        :param period:
+        """
+        period_map = {'minute': 60,
+                      'hour': 3600,
+                      'day': 3600 * 24}
+        period_seconds = int(period_map[period])
+        period_micros = int(period_seconds * 1000000)
+        ticker = trade['contract']
+        if period not in self.ohlcv_history[ticker]:
+            self.ohlcv_history[ticker][period] = {}
+
+        start_period = int(trade['timestamp'] / period_micros) * period_micros
+        if start_period not in self.ohlcv_history[ticker][period]:
+            # This is a new period, so send out the prior period
+            prior_period = start_period - period_micros
+            if update_feed and prior_period in self.ohlcv_history[ticker][period]:
+                prior_ohlcv = self.ohlcv_history[ticker][period][prior_period]
+                # TODO: Fix this publish bit
+                # self.dispatch(self.base_uri + "/feeds/ohlcv#%s" % ticker, prior_ohlcv)
+
+            self.ohlcv_history[ticker][period][start_period] = {'period': period,
+                                       'contract': ticker,
+                                       'open': trade['price'],
+                                       'low': trade['price'],
+                                       'high': trade['price'],
+                                       'close': trade['price'],
+                                       'volume': trade['quantity'],
+                                       'vwap': trade['price'],
+                                       'open_timestamp': start_period,
+                                       'close_timestamp': start_period + period_micros - 1}
+        else:
+            self.ohlcv_history[ticker][period][start_period]['low'] = min(trade['price'], self.ohlcv_history[ticker][period][start_period]['low'])
+            self.ohlcv_history[ticker][period][start_period]['high'] = max(trade['price'], self.ohlcv_history[ticker][period][start_period]['high'])
+            self.ohlcv_history[ticker][period][start_period]['close'] = trade['price']
+            self.ohlcv_history[ticker][period][start_period]['vwap'] = ( self.ohlcv_history[ticker][period][start_period]['vwap'] * \
+                                            self.ohlcv_history[ticker][period][start_period]['volume'] + trade['quantity'] * trade['price'] ) / \
+                                          ( self.ohlcv_history[ticker][period][start_period]['volume'] + trade['quantity'] )
+            self.ohlcv_history[ticker][period][start_period]['volume'] += trade['quantity']
+
+
 
     def shutdown(self):
         self.receiver.listeners.remove(self)
@@ -45,7 +110,7 @@ class MarketService(ServicePlugin):
         end = end_timestamp or now
         period = period or "day"
        
-        data = self.ohlcv.get(ticker, {}).get(period, {})
+        data = self.ohlcv_history.get(ticker, {}).get(period, {})
         ohlcv = {key: value for key, value in data \
                 if value["open_timestamp"] <= end and \
                 start <= value["close_timestamp"]}
@@ -61,8 +126,8 @@ class MarketService(ServicePlugin):
         start = from_timestamp or int(now - 3.6e9) # delta 1 hour
         end = to_timestamp or now
         
-        history = [entry for entry in self.trades.get(ticker, []) \
-                if start <= entry["timestamp"]<= end]
+        history = [entry for entry in self.trade_history.get(ticker, []) \
+                if start <= entry["timestamp"] <= end]
         return [True, history]
 
     @wamp.register(u"service.market.get_order_book")
