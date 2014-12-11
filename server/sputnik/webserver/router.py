@@ -188,6 +188,7 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.svc.registrar.RegistrarService",
                "sputnik.webserver.plugins.svc.info.InfoService",
                "sputnik.webserver.plugins.svc.market.MarketService",
-               "sputnik.webserver.plugins.svc.private.PrivateService"]
+               "sputnik.webserver.plugins.svc.private.PrivateService",
+               "sputnik.webserver.plugins.svc.receiver.AccountantReceiver"]
     plugin.run_with_plugins(plugins, main)
 
