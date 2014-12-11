@@ -19,6 +19,7 @@ class MarketService(ServicePlugin):
         self.books = {}
         self.trade_history = {}
         self.ohlcv_history = {}
+        self.safe_prices = {}
 
     @inlineCallbacks
     def init(self, receiver_plugins=[]):
@@ -43,6 +44,9 @@ class MarketService(ServicePlugin):
 
     def on_book(self, ticker, book):
         self.books[ticker] = book
+
+    def on_safe_prices(self, ticker, price):
+        self.safe_prices[ticker] = price
 
     def update_ohlcv(self, trade, period="day", update_feed=False):
         """
@@ -135,6 +139,13 @@ class MarketService(ServicePlugin):
             return [False, "No book for %s" % ticker]
 
         return [True, self.books[ticker]]
+
+    @wamp.register(u'service.market.get_safe_prices')
+    def get_safe_prices(self, array_of_tickers=None):
+        if array_of_tickers is not None:
+            return {ticker: self.safe_prices[ticker] for ticker in array_of_tickers}
+
+        return self.safe_prices
 
     @inlineCallbacks
     def onJoin(self, details):

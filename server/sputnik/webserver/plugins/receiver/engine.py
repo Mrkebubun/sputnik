@@ -15,6 +15,11 @@ class EngineReceiver(ReceiverPlugin):
         log("Got 'book' for %s / %s" % (ticker, book))
         self.send_to_listeners("book", ticker, book)
 
+    @export
+    def safe_prices(self, ticker, price):
+        log("Got safe price for %s: %s" % (ticker, price))
+        self.send_to_listeners("safe_prices", ticker, price)
+
     def init(self):
         self.share = pull_share_async(self,
                 config.get("webserver", "engine_export"))
