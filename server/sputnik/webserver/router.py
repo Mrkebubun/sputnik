@@ -4,7 +4,10 @@ from autobahn.twisted.wamp import RouterSession, Router
 from autobahn.wamp.exception import ApplicationError
 
 import sys
-sys.path.append("/home/yury/sputnik/server")
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             ".."))
+
 
 from sputnik import config
 from sputnik import observatory
