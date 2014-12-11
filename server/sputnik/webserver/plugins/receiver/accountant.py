@@ -3,53 +3,32 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("accountant")
 
-from sputnik.webserver.plugin import BackendPlugin
+from sputnik.webserver.plugin import ReceiverPlugin
 from sputnik.zmq_util import export, pull_share_async, dealer_proxy_async
 
-class AccountantReceiver(BackendPlugin):
+class AccountantReceiver(ReceiverPlugin):
     def __init__(self):
-        BackendPlugin.__init__(self)
-        self.listeners = []
+        ReceiverPlugin.__init__(self)
 
     @export
-    def fill(self, username, trade):
-        log("Got fill for %s: %s" % (username, trade))
-        for listener in self.listeners:
-            try:
-                listener.fill(username, trade)
-            except Exception, e:
-                error("Error handling fill() in %s." % listener)
-                error(e)
+    def fill(self, username, fill):
+        log("Got 'fill' for %s / %s" % (username, fill))
+        self.send_to_listeners("fill", username, fill)
 
     @export
     def transaction(self, username, transaction):
-        for listener in self.listeners:
-            log("Got transaction for %s: %s" % (username, transaction))
-            try:
-                listener.transaction(username, transaction)
-            except Exception, e:
-                error("Error handling transaction() in %s." % listener)
-                error(e)
+        log("Got transaction for %s: %s" % (username, transaction))
+        self.send_to_listeners("transaction", username, transaction)
 
     @export
     def trade(self, ticker, trade):
-        for listener in self.listeners:
-            log("Got trade for %s: %s" % (ticker, trade))
-            try:
-                listener.trade(ticker, trade)
-            except Exception, e:
-                error("Error handling trade()) in %s." % listener)
-                error(e)
+        log("Got trade for %s: %s" % (ticker, trade))
+        self.send_to_listeners("trade", ticker, trade)
 
     @export
     def order(self, username, order):
-        for listener in self.listeners:
-            log("Got order for %s: %s" % (username, order))
-            try:
-                listener.order(username, order)
-            except Exception, e:
-                error("Error handling order() in %s." % listener)
-                error(e)
+        log("Got order for %s: %s" % (username, order))
+        self.send_to_listeners("order", username, order)
 
     def init(self):
         self.share = pull_share_async(self,
