@@ -20,7 +20,7 @@ class RegistrarService(ServicePlugin):
     @inlineCallbacks
     def make_account(self, username, password, email, nickname, locale=None):
         try:
-            result = yield self.administrator.make_account(username, password)
+            result = yield self.administrator.proxy.make_account(username, password)
             if result:
                 profile = {"email": email, "nickname": nickname,
                            "locale": locale}
@@ -33,7 +33,7 @@ class RegistrarService(ServicePlugin):
     @inlineCallbacks
     def get_reset_token(self, username):
         try:
-            result = yield self.administrator.get_reset_token(username)
+            result = yield self.administrator.proxy.get_reset_token(username)
             log("Generated password reset token for user %s." % username)
             returnValue([True, None])
         except Exception, e:
@@ -46,7 +46,7 @@ class RegistrarService(ServicePlugin):
     @inlineCallbacks
     def get_reset_token(self, username, hash, token):
         try:
-            result = yield self.administrator.reset_password_hash(username,
+            result = yield self.administrator.proxy.reset_password_hash(username,
                     None, hash, token=token)
             log("Reset password using token for user %s." % username)
             returnValue([True, None])

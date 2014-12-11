@@ -28,6 +28,8 @@ class MarketService(ServicePlugin):
         yield ServicePlugin.init(self)
 
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
+        self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
+
         self.markets = yield self.db.get_markets()
         dl = []
         for ticker in self.markets.iterkeys():
@@ -101,6 +103,16 @@ class MarketService(ServicePlugin):
 
     def reload(self):
         pass
+
+    @wamp.register(u'service.market.get_audit')
+    def get_audit(self):
+        try:
+            result = yield self.administrator.proxy.get_audit()
+            returnValue([True, result])
+        except Exception as e:
+            error("Unable to get audit")
+            error(e)
+            returnValue([False, e.args])
 
     @wamp.register(u"service.market.get_markets")
     def get_markets(self):
