@@ -123,9 +123,6 @@ class SputnikRouterSession(RouterSession):
                 error()
 
 def main(pm):
-    from autobahn.twisted.choosereactor import install_reactor
-    reactor = install_reactor()
-
     from autobahn.twisted.wamp import RouterFactory
     router_factory = RouterFactory()
     router_factory.router = SputnikRouter
@@ -177,9 +174,10 @@ def main(pm):
     server = serverFromString(reactor, "tcp:8080")
     server.listen(site)
 
-    reactor.run()
-
 if __name__ == "__main__":
+    from autobahn.twisted.choosereactor import install_reactor
+    reactor = install_reactor()
+
     observatory.start_logging(10)
     plugins = ["sputnik.webserver.plugins.authz.basic.BasicPermissions",
                "sputnik.webserver.plugins.authn.anonymous.AnonymousLogin",
@@ -197,5 +195,6 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.feeds.market.MarketAnnouncer",
                "sputnik.webserver.plugins.feeds.user.UserAnnouncer",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver"]
-    plugin.run_with_plugins(plugins, main)
+    reactor.callWhenRunning(plugin.run_with_plugins, plugins, main)
+    reactor.run()
 
