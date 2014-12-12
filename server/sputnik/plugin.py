@@ -52,19 +52,24 @@ class PluginManager:
         plugin.plugin_path = path
         plugin.handlers = defaultdict(list)
         plugin.manager = self
-        # register on_ handlers
-        for name, method in inspect.getmembers(plugin, inspect.ismethod):
-            if name.startswith("on_"):
-                plugin.on(name.split("_", 1)[1], method)
         return self._load_plugin(plugin)
 
     @inlineCallbacks
     def init(self, plugin):
+        # register on_ handlers
+        for name, method in inspect.getmembers(plugin, inspect.ismethod):
+            if name.startswith("on_"):
+                plugin.on(name.split("_", 1)[1], method)
+
         plugin = yield self._init_plugin(plugin)
         returnValue(plugin)
 
     @inlineCallbacks
     def shutdown(self, plugin):
+        # unregister handlers
+        for event in self.events:
+            self.events[event] = filter(lambda (p, h): p != plugin,
+                    self.events[event])
         plugin = yield self._shutdown_plugin(plugin)
         returnValue(plugin)
 
@@ -116,6 +121,7 @@ class PluginManager:
         if path not in self.plugins:
             warn("Plugin %s not loaded." % path)
             return
+        del self.plugins[path]
         if plugin in self.services[plugin.service_name]:
             self.services[plugin.service_name].remove(plugin)
         debug("Plugin %s unloaded." % path)
