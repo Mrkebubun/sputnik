@@ -30,17 +30,18 @@ class MarketService(ServicePlugin):
 
         self.markets = yield self.db.get_markets()
         dl = []
+
+        def get_ohlcv(ticker, trade_history):
+            self.trade_history[ticker] = trade_history
+
+            # Clear ohlcv history
+            self.ohlcv_history[ticker] = {}
+            for period in ["minute", "hour", "day"]:
+                for trade in self.trade_history[ticker]:
+                    self.update_ohlcv(trade, period=period)
+
         for ticker in self.markets.iterkeys():
-            def _cb(ticker, trade_history):
-                self.trade_history[ticker] = trade_history
-
-                # Clear ohlcv history
-                self.ohlcv_history[ticker] = {}
-                for period in ["minute", "hour", "day"]:
-                    for trade in self.trade_history[ticker]:
-                        self.update_ohlcv(trade, period=period)
-
-            dl.append(self.db.get_trade_history(ticker).addCallback(_cb, ticker))
+            dl.append(self.db.get_trade_history(ticker).addCallback(get_ohlcv, ticker))
 
         yield gatherResults(dl)
 

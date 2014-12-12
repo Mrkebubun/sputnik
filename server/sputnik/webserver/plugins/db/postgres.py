@@ -50,7 +50,7 @@ class PostgresDatabase(DatabasePlugin):
     def get_markets(self):
         results = yield self.dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
                                "tick_size, lot_size, margin_high, margin_low,"
-                               "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts").addCallback(_cb)
+                               "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts")
         markets = {}
         for r in results:
             markets[r[0]] = {"ticker": r[0],
