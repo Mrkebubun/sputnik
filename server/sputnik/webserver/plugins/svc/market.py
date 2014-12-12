@@ -20,8 +20,6 @@ class MarketService(ServicePlugin):
         self.trade_history = {}
         self.ohlcv_history = {}
         self.safe_prices = {}
-        self.receiver_plugins.append("sputnik.webserver.plugins.receiver.accountant.AccountantReceiver")
-        self.receiver_plugins.append("sputnik.webserver.plugins.receiver.engine.EngineReceiver")
 
     @inlineCallbacks
     def init(self):

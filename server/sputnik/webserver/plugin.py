@@ -27,20 +27,6 @@ class ServicePlugin(Plugin, ApplicationSession):
     def __init__(self):
         ApplicationSession.__init__(self)
         Plugin.__init__(self)
-        self.receivers = []
-        self.receiver_plugins = []
-
-    @inlineCallbacks
-    def init(self):
-        for receiver_plugin in self.receiver_plugins:
-            receiver = self.require(receiver_plugin)
-            receiver.listeners.append(self)
-            self.receivers.append(receiver)
-
-    def shutdown(self):
-        for receiver in self.receivers:
-            receiver.listeners.remove(self)
-
 
 class DatabasePlugin(Plugin):
     pass
@@ -49,14 +35,4 @@ class BackendPlugin(Plugin):
     pass
 
 class ReceiverPlugin(Plugin):
-    def __init__(self):
-        self.listeners = []
-        Plugin.__init__(self)
-
-    def send_to_listeners(self, event, *args, **kwargs):
-        for listener in self.listeners:
-            try:
-                listener.event(event, *args, **kwargs)
-            except Exception, e:
-                error("Error handling %s in %s." % (event, listener))
-                error(e)
+    pass
