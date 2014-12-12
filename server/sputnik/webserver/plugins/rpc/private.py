@@ -15,7 +15,7 @@ class PrivateService(ServicePlugin):
     def __init__(self):
         ServicePlugin.__init__(self)
 
-    @wamp.register(u"service.private.foobar")
+    @wamp.register(u"rpc.private.foobar")
     def foobar(self, details):
         log(details)
 

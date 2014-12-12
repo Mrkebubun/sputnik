@@ -101,7 +101,7 @@ class MarketService(ServicePlugin):
     def reload(self):
         pass
 
-    @wamp.register(u'service.market.get_audit')
+    @wamp.register(u'rpc.market.get_audit')
     def get_audit(self):
         try:
             result = yield self.administrator.proxy.get_audit()
@@ -111,11 +111,11 @@ class MarketService(ServicePlugin):
             error(e)
             returnValue([False, e.args])
 
-    @wamp.register(u"service.market.get_markets")
+    @wamp.register(u"rpc.market.get_markets")
     def get_markets(self):
         return [True, self.markets]
 
-    @wamp.register(u"service.market.get_ohlcv_history")
+    @wamp.register(u"rpc.market.get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None,
             end_timestamp=None):
         if ticker not in self.markets:
@@ -133,7 +133,7 @@ class MarketService(ServicePlugin):
 
         return [True, ohlcv]
 
-    @wamp.register(u"service.market.get_trade_history")
+    @wamp.register(u"rpc.market.get_trade_history")
     def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
@@ -146,7 +146,7 @@ class MarketService(ServicePlugin):
                 if start <= entry["timestamp"] <= end]
         return [True, history]
 
-    @wamp.register(u"service.market.get_order_book")
+    @wamp.register(u"rpc.market.get_order_book")
     def get_order_book(self, ticker):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
@@ -156,7 +156,7 @@ class MarketService(ServicePlugin):
 
         return [True, self.books[ticker]]
 
-    @wamp.register(u'service.market.get_safe_prices')
+    @wamp.register(u'rpc.market.get_safe_prices')
     def get_safe_prices(self, array_of_tickers=None):
         if array_of_tickers is not None:
             return {ticker: self.safe_prices[ticker] for ticker in array_of_tickers}

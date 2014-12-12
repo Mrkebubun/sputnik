@@ -16,7 +16,7 @@ class RegistrarService(ServicePlugin):
     def init(self):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
     
-    @wamp.register(u"service.registrar.make_account")
+    @wamp.register(u"rpc.registrar.make_account")
     @inlineCallbacks
     def make_account(self, username, password, email, nickname, locale=None):
         try:
@@ -29,7 +29,7 @@ class RegistrarService(ServicePlugin):
         except Exception, e:
             returnValue([False, e.args])
 
-    @wamp.register(u"service.registrar.get_reset_token")
+    @wamp.register(u"rpc.registrar.get_reset_token")
     @inlineCallbacks
     def get_reset_token(self, username):
         try:
@@ -42,7 +42,7 @@ class RegistrarService(ServicePlugin):
             error(e)
             returnValue([False, e.args])
 
-    @wamp.register(u"service.registrar.change_password_token")
+    @wamp.register(u"rpc.registrar.change_password_token")
     @inlineCallbacks
     def get_reset_token(self, username, hash, token):
         try:

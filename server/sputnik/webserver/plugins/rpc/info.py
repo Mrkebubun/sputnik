@@ -17,7 +17,7 @@ class InfoService(ServicePlugin):
     def init(self):
         self.exchange_info = dict(config.items("exchange_info"))
 
-    @wamp.register(u"service.info.get_exchange_info")
+    @wamp.register(u"rpc.info.get_exchange_info")
     def get_exchange_info(self):
         return [True, self.exchange_info]
 
