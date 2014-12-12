@@ -57,9 +57,6 @@ class MarketMakerBot(TradingBot):
 
         return True
 
-    def startAutomation(self):
-        self.authenticate()
-
     # See if we have any orders on a given side
     def cancelOrders(self, currency, side):
         for id, order in self.orders.items():
