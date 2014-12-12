@@ -1,4 +1,5 @@
 from collections import defaultdict
+import inspect
 from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 
 import observatory
@@ -12,6 +13,31 @@ class PluginManager:
     def __init__(self):
         self.plugins = {}
         self.services = defaultdict(list)
+        self.events = defaultdict(list)
+
+    def register(self, plugin, event, handler):
+        if not callable(handler):
+            raise PluginException("Handler %s is not callable." % handler)
+        self.events[event].append((plugin, handler))
+
+    def unregister(self, plugin, event, handler):
+        for i in range(len(self.events[event])):
+            p, h = self.events[event][i]
+            if plugin == p and handler == h:
+                del self.events[event][i]
+                break
+        else:
+            raise PluginException("Handler %s not registered for event %s." % \
+                    (handler, event))
+
+    def emit(self, plugin, event, *args, **kwargs):
+        for p, h in self.events[event]:
+            try:
+                h(*args, **kwargs)
+            except Exception as e:
+                error("Caught exception handling event %s in %s." % \
+                        (event, p.plugin_path))
+                error(e)
 
     def load(self, path):
         module_name, class_name = path.rsplit(".", 1)
@@ -24,7 +50,12 @@ class PluginManager:
         plugin.service_name = module_name.rsplit(".", 1)[0]
         plugin.class_name = class_name
         plugin.plugin_path = path
+        plugin.handlers = defaultdict(list)
         plugin.manager = self
+        # register on_ handlers
+        for name, method in inspect.getmembers(plugin, inspect.ismethod):
+            if name.startswith("on_"):
+                plugin.on(name.split("_", 1)[1], method)
         return self._load_plugin(plugin)
 
     @inlineCallbacks
@@ -96,15 +127,14 @@ class Plugin:
     def configure(self):
         pass
 
-    def event(self, event_name, *args, **kwargs):
-        method = getattr(self, "on_%s" % event_name)
-        if callable(method):
-            try:
-                method(*args, **kwargs)
-            except Exception as e:
-                error("Exception in plugin %s event handler for %s." % \
-                        (self.plugin_name, event_name))
-                error(e)
+    def emit(self, event, *args, **kwargs):
+        self.manager.emit(self, event, *args, **kwargs)
+
+    def on(self, event, handler):
+        self.manager.register(self, event, handler)
+
+    def off(self, event, handler):
+        self.manager.unregister(self, event, handler)
 
     def init(self):
         pass
