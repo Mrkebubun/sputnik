@@ -17,6 +17,9 @@ import json
 import copy
 import string
 import pickle
+import Crypto.Random.random
+import Crypto.Random.random
+from dateutil import parser
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -33,13 +36,11 @@ from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 from autobahn.wamp1.protocol import WampCraProtocol
-from dateutil import parser
+from twisted.web.static import File
 
 import config
 import database
@@ -51,6 +52,9 @@ from watchdog import watchdog
 from accountant import AccountantProxy
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
+from zendesk import Zendesk
+from blockscore import BlockScore
+from ticketserver import TicketServer
 
 
 class AdministratorException(Exception): pass
@@ -1630,6 +1634,37 @@ if __name__ == "__main__":
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+    # Ticketserver
+
+    administrator_for_ticketserver =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+    if config.getboolean("ticketserver", "enable_blockscore"):
+        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
+    else:
+        blockscore = None
+
+    ticketserver =  TicketServer(administrator_for_ticketserver, zendesk, blockscore=blockscore)
+
+    interface = config.get("webserver", "interface")
+    if config.getboolean("webserver", "www"):
+        web_dir = File(config.get("webserver", "www_root"))
+        web_dir.putChild('ticket_server', ticketserver)
+        web = Site(web_dir)
+        port = config.getint("webserver", "www_port")
+        if config.getboolean("webserver", "ssl"):
+            reactor.listenSSL(port, web, contextFactory, interface=interface)
+        else:
+            reactor.listenTCP(port, web, interface=interface)
+    else:
+        base_resource = Resource()
+        base_resource.putChild('ticket_server', ticketserver)
+        reactor.listenTCP(config.getint("ticketserver", "ticketserver_port"), Site(base_resource),
+                                        interface="127.0.0.1")
+
 
     reactor.run()
 
