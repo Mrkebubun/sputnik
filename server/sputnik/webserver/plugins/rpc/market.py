@@ -76,8 +76,7 @@ class MarketService(ServicePlugin):
             prior_period = start_period - period_micros
             if update_feed and prior_period in self.ohlcv_history[ticker][period]:
                 prior_ohlcv = self.ohlcv_history[ticker][period][prior_period]
-                # TODO: Fix this publish bit
-                # self.dispatch(self.base_uri + "/feeds/ohlcv#%s" % ticker, prior_ohlcv)
+                self.emit("ohlcv", ticker, prior_ohlcv)
 
             self.ohlcv_history[ticker][period][start_period] = {'period': period,
                                        'contract': ticker,

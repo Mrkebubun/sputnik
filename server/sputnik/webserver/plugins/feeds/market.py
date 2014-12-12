@@ -28,3 +28,7 @@ class MarketAnnouncer(ServicePlugin):
         ticker = self.encode_ticker(ticker)
         self.publish(u"feeds.market.safe_prices.%s" % ticker, price)
 
+    def on_ohlcv(self, ticker, ohlcv):
+        ticker = self.encode_ticker(ticker)
+        self.publish(u"feeds.market.ohlcv.%s" % ticker, ohlcv)
+

@@ -10,6 +10,7 @@ from datetime import datetime
 
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults
 from autobahn import wamp
+import hashlib
 
 
 class UserAnnouncer(ServicePlugin):
