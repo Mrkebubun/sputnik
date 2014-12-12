@@ -148,7 +148,9 @@ def main(pm):
         path = "sputnik.webserver.plugins.authn." + plugin_name
         session_factory.plugins.append((pm.plugins[path], flag))
 
-    svc_plugins = pm.services.get("sputnik.webserver.plugins.svc", [])
+    rpc_plugins = pm.services.get("sputnik.webserver.plugins.rpc", [])
+    feeds_plugins = pm.services.get("sputnik.webserver.plugins.feeds", [])
+    svc_plugins = rpc_plugins + feeds_plugins
     for plugin in svc_plugins:
         component_session = plugin
         component_session.config.realm = u"sputnik"
@@ -188,10 +190,10 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.db.postgres.PostgresDatabase",
                "sputnik.webserver.plugins.schema.json.JSONSchema",
                "sputnik.webserver.plugins.backend.administrator.AdministratorProxy",
-               "sputnik.webserver.plugins.svc.registrar.RegistrarService",
-               "sputnik.webserver.plugins.svc.info.InfoService",
-               "sputnik.webserver.plugins.svc.market.MarketService",
-               "sputnik.webserver.plugins.svc.private.PrivateService",
+               "sputnik.webserver.plugins.rpc.registrar.RegistrarService",
+               "sputnik.webserver.plugins.rpc.info.InfoService",
+               "sputnik.webserver.plugins.rpc.market.MarketService",
+               "sputnik.webserver.plugins.rpc.private.PrivateService",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver"]
     plugin.run_with_plugins(plugins, main)
 

@@ -1,7 +1,7 @@
 from sputnik import config
 from sputnik import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("svc_info")
+debug, log, warn, error, critical = observatory.get_loggers("rpc_info")
 
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin

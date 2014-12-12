@@ -2,7 +2,7 @@ from sputnik import config
 from sputnik import observatory
 from sputnik import util
 
-debug, log, warn, error, critical = observatory.get_loggers("svc_market")
+debug, log, warn, error, critical = observatory.get_loggers("rpc_market")
 
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin
