@@ -38,7 +38,7 @@ class MyFrontendComponent(wamp.ApplicationSession):
             returnValue(self.leave())
 
         auth = True
-        result = yield self.call(u"service.private.foobar")
+        result = yield self.call(u"rpc.private.foobar")
         print result
 
 

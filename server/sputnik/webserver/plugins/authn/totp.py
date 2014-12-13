@@ -19,7 +19,7 @@ class TOTPVerification(AuthenticationPlugin):
                 log("Checking for TOTP for username %s..." % details.authid)
                 # We can accept unicode usernames, but convert them before
                 # anything hits the database
-                username = challenge["authid"].encode("utf8")
+                username = router_session.challenge["authid"].encode("utf8")
 
                 try:
                     databases = self.manager.services["sputnik.webserver.plugins.db"]
