@@ -1,7 +1,4 @@
-from twisted.internet.defer import inlineCallbacks, returnValue
-from autobahn.wamp import types
-from autobahn.twisted.wamp import RouterSession, Router
-from autobahn.wamp.exception import ApplicationError
+#!/usr/bin/env python
 
 import sys
 import os
@@ -10,6 +7,24 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 from sputnik import config
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option("-c", "--config", dest="filename",
+                  help="config file")
+(options, args) = parser.parse_args()
+
+if options.filename:
+    # noinspection PyUnresolvedReferences
+    config.reconfigure(options.filename)
+
+from twisted.internet.defer import inlineCallbacks, returnValue
+from autobahn.wamp import types
+from autobahn.twisted.wamp import RouterSession, Router
+from autobahn.wamp.exception import ApplicationError
+
+
+
 from sputnik import observatory
 from sputnik import plugin
 

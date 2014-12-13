@@ -8,8 +8,7 @@ facilitating all communications between the client, the database and the matchin
 from optparse import OptionParser
 
 import config
-import compropago
-import recaptcha
+
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -20,6 +19,8 @@ if options.filename:
     # noinspection PyUnresolvedReferences
     config.reconfigure(options.filename)
 
+import compropago
+import recaptcha
 import cgi
 import sys
 import datetime
