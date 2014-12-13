@@ -31,7 +31,7 @@ class MarketService(ServicePlugin):
         self.markets = yield self.db.get_markets()
         dl = []
 
-        def get_ohlcv(ticker, trade_history):
+        def get_ohlcv(trade_history, ticker):
             self.trade_history[ticker] = trade_history
 
             # Clear ohlcv history
