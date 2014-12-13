@@ -155,21 +155,22 @@ class Plugin:
                     (self.plugin_path, path))
         return plugin
 
-def run_with_plugins(plugin_paths, callback, *args, **kwargs):
+def run_with_plugins(reactor, plugin_paths, callback, *args, **kwargs):
     plugin_manager = PluginManager()
     plugins = [plugin_manager.load(plugin_path) for plugin_path in plugin_paths]
-    deferreds = []
-    for plugin in plugins:
-        deferreds.append(plugin_manager.init(plugin))
-    dl = DeferredList(deferreds)
-    def run_callback(result):
-        for success, value in result:
-            if not success:
-                error("Not all plugins loaded. Aborting.")
+
+    @inlineCallbacks
+    def init_and_run():
+        for plugin in plugins:
+            try:
+                result = yield plugin_manager.init(plugin)
+            except Exception as e:
+                error("Not all plugins initialized. Aborting.")
                 return
         callback(plugin_manager, *args, **kwargs)
+
     @inlineCallbacks
-    def cleanup(_):
+    def cleanup():
         plugins.reverse()
         plugin_paths.reverse()
         for plugin in plugins:
@@ -179,8 +180,8 @@ def run_with_plugins(plugin_paths, callback, *args, **kwargs):
                 pass
         for plugin_path in plugin_paths:
             plugin_manager.unload(plugin_path)
-        returnValue(_)
-    dl.addCallback(run_callback)
-    dl.addBoth(cleanup)
-    dl.addErrback(error)
+
+    reactor.callWhenRunning(init_and_run)
+    reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
+    reactor.run()
 

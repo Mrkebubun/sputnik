@@ -6,7 +6,7 @@ from autobahn.wamp.exception import ApplicationError
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             ".."))
+                             "..", ".."))
 
 
 from sputnik import config
@@ -195,6 +195,5 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.feeds.market.MarketAnnouncer",
                "sputnik.webserver.plugins.feeds.user.UserAnnouncer",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver"]
-    reactor.callWhenRunning(plugin.run_with_plugins, plugins, main)
-    reactor.run()
+    plugin.run_with_plugins(reactor, plugins, main)
 
