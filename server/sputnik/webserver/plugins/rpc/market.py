@@ -102,16 +102,6 @@ class MarketService(ServicePlugin):
     def reload(self):
         pass
 
-    @wamp.register(u'rpc.market.get_audit')
-    def get_audit(self):
-        try:
-            result = yield self.administrator.proxy.get_audit()
-            returnValue([True, result])
-        except Exception as e:
-            error("Unable to get audit")
-            error(e)
-            returnValue([False, e.args])
-
     @wamp.register(u"rpc.market.get_markets")
     def get_markets(self):
         return [True, self.markets]

@@ -16,8 +16,18 @@ class InfoService(ServicePlugin):
 
     def init(self):
         self.exchange_info = dict(config.items("exchange_info"))
+        self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
 
     @wamp.register(u"rpc.info.get_exchange_info")
     def get_exchange_info(self):
         return [True, self.exchange_info]
 
+    @wamp.register(u'rpc.info.get_audit')
+    def get_audit(self):
+        try:
+            result = yield self.administrator.proxy.get_audit()
+            returnValue([True, result])
+        except Exception as e:
+            error("Unable to get audit")
+            error(e)
+            returnValue([False, e.args])
