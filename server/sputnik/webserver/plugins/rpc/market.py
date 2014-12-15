@@ -164,12 +164,4 @@ class MarketService(ServicePlugin):
 
         return self.safe_prices
 
-    @inlineCallbacks
-    def onJoin(self, details):
-        results = yield self.register(self)
-        for success, result in results:
-            if success:
-                log("Registered %s." % self._registrations[result.id].procedure)
-            else:
-                error("Error registering method: %s." % result.value.args[0])
 

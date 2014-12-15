@@ -19,8 +19,8 @@ class PrivateService(ServicePlugin):
     def foobar(self, details):
         log(details)
 
+
     @inlineCallbacks
-    def onJoin(self, details):
-        result = yield self.register(self, options=RegisterOptions(details_arg="details", discloseCaller=True))
-
-
+    def register(self, endpoint, procedure = None, options = None):
+        results = yield ServicePlugin.register(self, endpoint, procedure, options=RegisterOptions(details_arg="details", discloseCaller=True))
+        returnValue(results)

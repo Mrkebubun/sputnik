@@ -165,7 +165,7 @@ def run_with_plugins(reactor, plugin_paths, callback, *args, **kwargs):
             try:
                 result = yield plugin_manager.init(plugin)
             except Exception as e:
-                error("Not all plugins initialized. Aborting.")
+                error("Not all plugins initialized. Aborting for plugin: %s." % plugin)
                 return
         callback(plugin_manager, *args, **kwargs)
 

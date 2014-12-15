@@ -415,4 +415,7 @@ class TraderService(ServicePlugin):
         result = yield self.accountant.proxy.cancel_order(username, order_id)
         returnValue([True, result])
 
-
+    @inlineCallbacks
+    def register(self, endpoint, procedure = None, options = None):
+        results = yield ServicePlugin.register(self, endpoint, procedure, options=RegisterOptions(details_arg="details", discloseCaller=True))
+        returnValue(results)
