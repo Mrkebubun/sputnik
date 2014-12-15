@@ -11,6 +11,7 @@ import uuid
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+import hashlib
 
 def get_locale_template(locale, jinja_env, template):
     locales = [locale, "root"]
@@ -37,6 +38,9 @@ def malicious_looking(w):
     :returns: bool
     """
     return any(x in w for x in '<>&')
+
+def encode_username(username):
+    return hashlib.sha256(username).hexdigest()
 
 def price_to_wire(contract, price):
     if contract.contract_type == "prediction":

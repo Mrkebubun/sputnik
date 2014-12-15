@@ -194,7 +194,7 @@ if __name__ == "__main__":
     reactor = install_reactor()
 
     observatory.start_logging(10)
-    plugins = ["sputnik.webserver.plugins.authz.basic.BasicPermissions",
+    plugins = ["sputnik.webserver.plugins.authz.default.DefaultPermissions",
                "sputnik.webserver.plugins.authn.anonymous.AnonymousLogin",
                "sputnik.webserver.plugins.authn.cookie.CookieLogin",
                "sputnik.webserver.plugins.authn.wampcra.WAMPCRALogin",

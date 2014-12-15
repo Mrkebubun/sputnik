@@ -8,6 +8,7 @@ from twisted.internet.endpoints import clientFromString
 from autobahn.twisted import wamp, websocket
 from autobahn.wamp import types
 from autobahn.wamp import auth
+import util
 
 class MyFrontendComponent(wamp.ApplicationSession):
     auth = False
@@ -41,12 +42,12 @@ class MyFrontendComponent(wamp.ApplicationSession):
         result = yield self.call(u"rpc.private.foobar")
         print result
 
-
+        result = yield self.subscribe(u'feeds.user.orders.%s' % util.encode_username(u'marketmaker'))
+        print result
 
     def onLeave(self, details):
         if not self.auth:
             self.join(self.config.realm, [u"wampcra"], u"marketmaker")
-
 
     def onDisconnect(self):
         print "disconnected"
