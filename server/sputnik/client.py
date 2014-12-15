@@ -42,7 +42,10 @@ class MyFrontendComponent(wamp.ApplicationSession):
         result = yield self.call(u"rpc.private.foobar")
         print result
 
-        result = yield self.subscribe(u'feeds.user.orders.%s' % util.encode_username(u'marketmaker'))
+        def handle(result):
+            print result
+
+        result = yield self.subscribe(handle, u'feeds.user.orders.%s' % util.encode_username(u'marketmaker'))
         print result
 
     def onLeave(self, details):

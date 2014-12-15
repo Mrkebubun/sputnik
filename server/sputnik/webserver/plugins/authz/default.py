@@ -29,7 +29,7 @@ class DefaultPermissions(AuthorizationPlugin):
             return False
 
         # Rpc calls
-        rpc_match = re.compile("^rpc\.([a-z_.]*)\.")
+        rpc_match = re.compile("^rpc\.([a-z_.]+)\.")
         match = rpc_match.match(uri)
         if match is not None:
             section = match.groups(1)[0]
@@ -46,7 +46,7 @@ class DefaultPermissions(AuthorizationPlugin):
                 return True
             return False
 
-        feed_match = re.compile("^feeds\.([a-z_]*)\.")
+        feed_match = re.compile("^feeds\.([a-z_]+)\.")
         match = feed_match.match(uri)
         if match is not None:
             section = match.groups(1)[0]
@@ -55,7 +55,7 @@ class DefaultPermissions(AuthorizationPlugin):
             if section in ["user"] and session._authrole == u"user":
                 # Make sure we can read this feed
                 # Check for sha256
-                user_match = re.compile("\.([0-9a-f])$")
+                user_match = re.compile("^feeds\.%s\.[a-z_]+\.([0-9a-f]+)$" % section)
                 match = user_match.match(uri)
                 if match is not None:
                     hash = match.groups(1)[0]
