@@ -32,7 +32,7 @@ def trader_wrapper(func):
             r = yield func(*args, **kwargs)
             returnValue([True, r])
         except Exception as e:
-            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, username, args, kwargs))
+            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwargs))
             error(e)
             returnValue([False, e.args])
 
