@@ -10,6 +10,7 @@ from twisted.enterprise import adbapi
 from sputnik import util
 import markdown
 import datetime
+import collections
 
 
 class PostgresDatabase(DatabasePlugin):
@@ -94,5 +95,97 @@ class PostgresDatabase(DatabasePlugin):
                    'timestamp': util.dt_to_timestamp(r[1])} for r in results]
         returnValue(trades)
 
+    @inlineCallbacks
+    def get_permissions(self, username):
+        result = yield self.dbpool.runQuery(
+            "SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade "
+            "FROM permission_groups, users WHERE "
+            "users.permission_group_id=permission_groups.id AND users.username=%s",
+            (username,))
+
+        permissions = {'name': result[0][0],
+                       'login': result[0][1],
+                       'deposit': result[0][2],
+                       'withdraw': result[0][3],
+                       'trade': result[0][4]}
+        returnValue(permissions)
+
+    @inlineCallbacks
+    def get_transaction_history(self, from_timestamp, to_timestamp, username):
+        result = yield self.dbpool.runQuery(
+            "SELECT contracts.ticker, SUM(posting.quantity) FROM posting, journal, contracts "
+            "WHERE posting.journal_id=journal.id AND posting.username=%s AND journal.timestamp<%s "
+            "AND posting.contract_id=contracts.id GROUP BY contracts.ticker",
+            (username, util.timestamp_to_dt(from_timestamp)))
+
+        balances = collections.defaultdict(int)
+        for row in result:
+            balances[row[0]] = int(row[1])
+
+        result = yield self.dbpool.runQuery(
+            "SELECT contracts.ticker, journal.timestamp, posting.quantity, journal.type, posting.note "
+            "FROM posting, journal, contracts WHERE posting.journal_id=journal.id AND "
+            "posting.username=%s AND journal.timestamp>=%s AND journal.timestamp<=%s "
+            "AND posting.contract_id=contracts.id ORDER BY journal.timestamp",
+            (username, util.timestamp_to_dt(from_timestamp), util.timestamp_to_dt(to_timestamp)))
+
+        transactions = []
+        for row in result:
+            balances[row[0]] += row[2]
+            quantity = abs(row[2])
+
+            # Here we assume that the user is a Liability user
+            if row[2] < 0:
+                direction = 'debit'
+            else:
+                direction = 'credit'
+
+            transactions.append({'contract': row[0],
+                                 'timestamp': util.dt_to_timestamp(row[1]),
+                                 'quantity': quantity,
+                                 'type': row[3],
+                                 'direction': direction,
+                                 'balance': balances[row[0]],
+                                 'note': row[4]})
+
+        returnValue(transactions)
+
+    @inlineCallbacks
+    def get_positions(self, username):
+
+        result = yield self.dbpool.runQuery(
+            "SELECT contracts.id, contracts.ticker, positions.position, positions.reference_price "
+            "FROM positions, contracts WHERE positions.contract_id = contracts.id AND positions.username=%s",
+            (username,))
+
+        returnValue({x[1]: {"contract": x[1],
+                            "position": x[2],
+                            "reference_price": x[3]
+                            }
+                            for x in result})
+
+    @inlineCallbacks
+    def get_profile(self, username):
+        result = yield self.dbpool.runQuery("SELECT nickname, email, audit_secret, locale FROM users WHERE username=%s", (username,))
+        if not result:
+            raise Exception("exceptions/webserver/get_profile_failed")
+
+        returnValue({'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2], 'locale': result[0][3]})
+
+    @inlineCallbacks
+    def get_open_orders(self, username):
+        def _cb(result):
+            """
+
+            :param result:
+            :returns: list - [True, dict of orders, indexed by id]
+            """
 
 
+        results = yield self.dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
+                               'orders.timestamp, orders.side, orders.id FROM orders, contracts '
+                               'WHERE orders.contract_id=contracts.id AND orders.username=%s '
+                               'AND orders.quantity_left > 0 '
+                               'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (username,))
+        returnValue({r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
+                       'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in results})

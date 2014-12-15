@@ -30,6 +30,14 @@ def timed(f):
 def get_uid():
     return uuid.uuid4().get_hex()
 
+def malicious_looking(w):
+    """
+
+    :param w:
+    :returns: bool
+    """
+    return any(x in w for x in '<>&')
+
 def price_to_wire(contract, price):
     if contract.contract_type == "prediction":
         price = price * contract.denominator
