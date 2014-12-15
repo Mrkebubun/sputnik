@@ -12,18 +12,29 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 
+def trader_wrapper(func):
+    fn_name = func.__name__
+    rpc_call = u"rpc.trader.%s" % fn_name
 
-# The schema verify needs to ensure that "username" is not passed in to these
-# calls
-
-def check_details(func):
+    @wamp.register(rpc_call)
+    @inlineCallbacks
     def wrapper(*args, **kwargs):
+        # Make sure username is not passed in
+        if 'username' in kwargs:
+            raise Exception("'username' passed in over RPC")
+
         details = kwargs.pop('details')
         username = details.authid
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
-        func(*args, **kwargs)
+        try:
+            r = yield func(*args, **kwargs)
+            returnValue([True, r])
+        except Exception as e:
+            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, username, args, kwargs))
+            error(e)
+            returnValue([False, e.args])
 
     return wrapper
 
@@ -38,10 +49,7 @@ class TraderService(ServicePlugin):
         self.cashier = self.require("sputnik.webserver.plugins.backend.cashier.CashierProxy")
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
 
-
-    @wamp.register(u"rpc.trader.place_order")
-    @inlineCallbacks
-    @check_details
+    @trader_wrapper
     def place_order(self, order, username=None):
         order["timestamp"] = util.dt_to_timestamp(datetime.datetime.utcnow())
         order['username'] = username
@@ -52,49 +60,32 @@ class TraderService(ServicePlugin):
 
         # check tick size and lot size in the accountant, not here
 
-        try:
-            result = yield self.accountant.proxy.place_order(username, order)
-            returnValue([True, result])
-        except Exception as e:
-            returnValue([False, e.args])
+        result = yield self.accountant.proxy.place_order(username, order)
+        returnValue([True, result])
 
-    @inlineCallbacks
-    @wamp.register(u"rpc.trader.request_support_nonce")
-    @check_details
+    @trader_wrapper
     def request_support_nonce(self, type, username=None):
         """Get a support nonce so this user can submit a support ticket
 
         :param type: the type of support ticket to get the nonce for
         :returns: Deferred
         """
-        try:
-            result = yield self.administrator.proxy.request_support_nonce(username, type)
-            returnValue([True, result])
-        except Exception as e:
-            error("exception in request_support_nonce")
-            error(e)
-            returnValue([False, e.args])
+        result = yield self.administrator.proxy.request_support_nonce(username, type)
+        returnValue([True, result])
 
-    @inlineCallbacks
-    @wamp.register(u"rpc.trader.get_permissions")
-    @check_details
+
+    @trader_wrapper
     def get_permissions(self, username=None):
         """Get this user's permissions
 
 
         :returns: Deferred
         """
-        try:
-            permissions = yield self.db.get_permissions(username)
-            returnValue([True, permissions])
-        except Exception as e:
-            error("Unable to get permissions")
-            error(e)
-            returnValue([False, e.args])
+        permissions = yield self.db.get_permissions(username)
+        returnValue([True, permissions])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_cookie")
+
+    @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def get_cookie(self, username=None):
         """
@@ -104,9 +95,7 @@ class TraderService(ServicePlugin):
         """
         return [True, self.cookie]
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.logout")
+    @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def logout(self):
         """Removes the cookie from the cache, disconnects the user
@@ -117,9 +106,7 @@ class TraderService(ServicePlugin):
             del self.factory.cookies[self.cookie]
         self.dropConnection()
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_new_two_factor")
+    @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def get_new_two_factor(self, username=None):
         """prepares new two factor authentication for an account
@@ -131,9 +118,7 @@ class TraderService(ServicePlugin):
         #return new
         raise NotImplementedError()
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.disable_two_factor")
+    @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def disable_two_factor(self, confirmation, username=None):
         """
@@ -159,9 +144,7 @@ class TraderService(ServicePlugin):
         raise NotImplementedError()
 
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.register_two_factor")
+    @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def register_two_factor(self, confirmation):
         """
@@ -281,9 +264,7 @@ class TraderService(ServicePlugin):
     #     d.addErrback(error)
     #     return d
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_transaction_history")
+    @trader_wrapper
     def get_transaction_history(self, from_timestamp=None, to_timestamp=None, username=None):
 
         """
@@ -300,17 +281,11 @@ class TraderService(ServicePlugin):
         if to_timestamp is None:
             to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
 
-        try:
-            history = yield self.db.get_transaction_history(from_timestamp, to_timestamp, username)
-            returnValue([True, history])
-        except Exception as e:
-            error("Unable to get history for %s" % username)
-            error(e)
-            returnValue([False, e.args])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_new_address")
+        history = yield self.db.get_transaction_history(from_timestamp, to_timestamp, username)
+        returnValue([True, history])
+
+    @trader_wrapper
     def get_new_address(self, ticker, username=None):
         """
         assigns a new deposit address to a user and returns the address
@@ -318,46 +293,27 @@ class TraderService(ServicePlugin):
         :type ticker: str
         :returns: Deferred
         """
-        try:
-            address = yield self.cashier.proxy.get_new_address(username, ticker)
-            returnValue([True, address])
-        except Exception as e:
-            error("Unable to get new address for %s:%s" % (username, ticker))
-            error(e)
-            returnValue([False, e.args])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_current_address")
+        address = yield self.cashier.proxy.get_new_address(username, ticker)
+        returnValue([True, address])
+
+    @trader_wrapper
     def get_current_address(self, ticker, username=None):
         """
         RPC call to obtain the current address associated with a particular user
         :param ticker:
         :returns: Deferred
         """
-        try:
-            address = yield self.cashier.proxy.get_current_address(username, ticker)
-            returnValue([True, address])
-        except Exception as e:
-            error("Unable to get current address for %s:%s" % (username, ticker))
-            error(e)
-            returnValue([False, e.args])
+        address = yield self.cashier.proxy.get_current_address(username, ticker)
+        returnValue([True, address])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_deposit_instructions")
+
+    @trader_wrapper
     def get_deposit_instructions(self, ticker, username=None):
-        try:
-            instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
-            returnValue([True, instructions])
-        except Exception as e:
-            error("Unable to get deposit instructions for %s" % (ticker))
-            error(e)
-            returnValue([False, e.args])
+        instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
+        returnValue([True, instructions])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.request_withdrawal")
+    @trader_wrapper
     def request_withdrawal(self, ticker, amount, address, username=None):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -369,52 +325,31 @@ class TraderService(ServicePlugin):
         if amount <= 0:
             returnValue([False, ("exceptions/webserver/invalid-withdrawal-amount")])
 
-        try:
-            result = yield self.accountant.proxy.request_withdrawal(username, ticker, amount, address)
-            returnValue([True, result])
-        except Exception as e:
-            error("Unable to request withdrawal for %s" % username)
-            error(e)
-            returnValue([False, e.args])
+        result = yield self.accountant.proxy.request_withdrawal(username, ticker, amount, address)
+        returnValue([True, result])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_positions")
+
+    @trader_wrapper
     def get_positions(self, username=None):
         """
         Returns the user's positions
         :returns: Deferred
         """
-        try:
-            positions = yield self.db.get_positions(username)
-            returnValue([True, positions])
-        except Exception as e:
-            error("Unable to get positions for %s" % username)
-            error(e)
-            returnValue([False, e.args])
+        positions = yield self.db.get_positions(username)
+        returnValue([True, positions])
 
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_profile")
+    @trader_wrapper
     def get_profile(self, username=None):
         """
 
 
         :returns: Deferred
         """
-        try:
-            profile = yield self.db.get_profile(username)
-            returnValue([True, profile])
-        except Exception as e:
-            error("Unable to get profile for %s" % username)
-            error(e)
-            returnValue([False, e.args])
+        profile = yield self.db.get_profile(username)
+        returnValue([True, profile])
 
-
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.change_profile")
+    @trader_wrapper
     def change_profile(self, email, nickname, locale=None, username=None):
         """
         Updates a user's nickname and email. Can't change
@@ -423,10 +358,9 @@ class TraderService(ServicePlugin):
         :param nickname:
         :returns: Deferred
         """
-
-        # sanitize
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
+        # (These checks should be in administrator?)
         if util.malicious_looking(email) or util.malicious_looking(nickname):
             returnValue([False, ("malicious looking input")])
 
@@ -435,18 +369,11 @@ class TraderService(ServicePlugin):
         else:
             profile = {"email": email, "nickname": nickname}
 
-        try:
-            result = yield self.administrator.proxy.change_profile(username, profile)
-            profile = yield self.get_profile
-            returnValue(profile)
-        except Exception as e:
-            error("Unable to change profile: %s" % username)
-            error(e)
-            returnValue([False, e.args])
+        result = yield self.administrator.proxy.change_profile(username, profile)
+        profile = yield self.get_profile
+        returnValue(profile)
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.change_password")
+    @trader_wrapper
     def change_password(self, old_password_hash, new_password_hash, username=None):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -455,122 +382,29 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
 
-        try:
-            result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
-            returnValue([True, None])
-        except Exception as e:
-            error("Unable to change_password")
-            error(e)
-            returnValue([False, e.args])
 
-    @inlineCallbacks
-    @check_details
-    @wamp.register(u"rpc.trader.get_open_orders")
+        result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
+        returnValue([True, None])
+
+
+    @trader_wrapper
     def get_open_orders(self, username=None):
         """gets open orders
 
         :returns: Deferred
         """
-        try:
-            orders = yield self.db.get_open_orders(username)
-            returnValue([True, orders])
-        except Exception as e:
-            error("Unable to get open orders for %s" % username)
-            error(e)
-            returnValue([False, e.args])
-
-    @exportRpc("place_order")
-    def place_order(self, order):
-        """
-        Places an order on the engine
-        :param order: the order to be placed
-        :type order: dict
-        :returns: Deferred
-        """
-        # sanitize inputs:
-        try:
-            validate(order,
-                     {"type": "object", "properties": {
-                         "contract": {"type": "string"},
-                         "price": {"type": "number"},
-                         "quantity": {"type": "number"},
-                         "side": {"type": "string"},
-                         "quantity_left": {"type": ["number", "null"]},
-                         "id": {"type": "number"},
-                         "timestamp": {"type": "number"}
-                     },
-                        "required": ["contract", "price", "quantity", "side"],
-                        "additionalProperties": False})
-        except Exception as e:
-            log.err("Schema validation error: %s" % e)
-            raise e
-        order['contract'] = order['contract'][:MAX_TICKER_LENGTH]
-        order["timestamp"] = dt_to_timestamp(datetime.datetime.utcnow())
-        # enforce minimum tick_size for prices:
-
-        def _cb(result):
-            """
+        orders = yield self.db.get_open_orders(username)
+        returnValue([True, orders])
 
 
-            :param result: result of checking for the contract
-            :returns: Deferred
-            :raises: Exception
-            """
-            if not result:
-                raise Exception("Invalid contract ticker.")
-            tick_size = result[0][0]
-            lot_size = result[0][1]
-
-            order["price"] = int(order["price"])
-            order["quantity"] = int(order["quantity"])
-
-
-            # Check for zero price or quantity
-            if order["price"] == 0 or order["quantity"] == 0:
-                return [False, "exceptions/webserver/invalid_price_quantity"]
-
-            # check tick size and lot size in the accountant, not here
-
-            order['username'] = self.username
-
-            def onSuccess(result):
-                return [True, result]
-
-            def onFail(failure):
-                return [False, failure.value.args]
-
-            d = self.factory.accountant.place_order(self.username, order)
-            d.addCallbacks(onSuccess, onFail)
-            return d
-
-        return dbpool.runQuery("SELECT tick_size, lot_size FROM contracts WHERE ticker=%s",
-                               (order['contract'],)).addCallback(_cb)
-
-    @exportRpc("get_safe_prices")
-    def get_safe_prices(self, array_of_tickers):
-        """
-
-        :param array_of_tickers:
-        :returns: dict
-        """
-        validate(array_of_tickers, {"type": "array", "items": {"type": "string"}})
-        if array_of_tickers:
-            return {ticker: self.factory.safe_prices[ticker] for ticker in array_of_tickers}
-        return self.factory.safe_prices
-
-    @exportRpc("cancel_order")
-    def cancel_order(self, order_id):
+    @trader_wrapper
+    def cancel_order(self, order_id, username=None):
         """
         Cancels a specific order
         :returns: Deferred
         :param order_id: order_id of the order
         """
-        # sanitize inputs:
-        validate(order_id, {"type": "number"})
-        print 'received order_id', order_id
-        order_id = int(order_id)
-        print 'formatted order_id', order_id
-        print 'output from server', str({'cancel_order': {'id': order_id, 'username': self.username}})
+
 
         def onSuccess(result):
             return [True, result]
@@ -578,84 +412,7 @@ class TraderService(ServicePlugin):
         def onFail(failure):
             return [False, failure.value.args]
 
-        d = self.factory.accountant.cancel_order(self.username, order_id)
-        d.addCallbacks(onSuccess, onFail)
-        return d
+        result = yield self.accountant.proxy.cancel_order(username, order_id)
+        returnValue([True, result])
 
-    # so we actually never need to call a "verify captcha" function, the captcha parameters are just passed
-    # as part as any other rpc that wants to be captcha protected. Leaving this code as an example though
-    # @exportRpc("verify_captcha")
-    # def verify_captcha(self, challenge, response):
-    #     validate(challenge, {"type": "string"})
-    #     validate(response, {"type": "string"})
-    #     return self.factory.recaptacha.verify(self.getClientIP(), challenge, response)
-
-
-    @exportSub("chat")
-    def subscribe(self, topic_uri_prefix, topic_uri_suffix):
-        """
-        Custom topic subscription handler
-        :returns: bool
-        :param topic_uri_prefix: prefix of the URI
-        :param topic_uri_suffix:suffix part, in this case always "chat"
-        """
-        log.msg("client wants to subscribe to %s%s" % (topic_uri_prefix, topic_uri_suffix))
-        if self.username:
-            log.msg("he's logged in as %s so we'll let him" % self.username)
-            return True
-        else:
-            log.msg("but he's not logged in, so we won't let him")
-            return False
-
-    @exportPub("chat")
-    def publish(self, topic_uri_prefix, topic_uri_suffix, event):
-        """
-        Custom topic publication handler
-        :returns: list, None - the message published, if any
-        :param topic_uri_prefix: prefix of the URI
-        :param topic_uri_suffix: suffix part, in this case always "general"
-        :param event: event being published, a json object
-        """
-        print 'string?', event
-        log.msg("client wants to publish to %s%s" % (topic_uri_prefix, topic_uri_suffix))
-        if not self.username:
-            log.msg("he's not logged in though, so no")
-            return None
-        else:
-            log.msg("he's logged as %s in so that's cool" % self.username)
-            if type(event) not in [str, unicode]:
-                log.err("but the event type isn't a string, that's way uncool so no")
-                return None
-            elif len(event) > 0:
-                message = cgi.escape(event)
-                if len(message) > 128:
-                    message = message[:128] + u"[\u2026]"
-                # TODO: enable this
-                # chat_log.info('%s:%s' % (self.nickname, message))
-
-                #pause message rate if necessary
-                time_span = time.time() - self.troll_throttle
-                print time_span
-                if time_span < 3:
-                    time.sleep(time_span)
-                    print 'sleeping'
-                self.troll_throttle = time.time()
-                print self.troll_throttle
-                msg = [cgi.escape(self.nickname), message]
-                self.factory.chats.append(msg)
-                if len(self.factory.chats) > 50:
-                    self.factory.chats = self.factory.chats[-50:]
-                log.msg(self.factory.chats)
-                return msg
-
-
-
-    @inlineCallbacks
-    def onJoin(self, details):
-        results = yield self.register(self, options=RegisterOptions(details_arg="details", discloseCaller=True))
-        for success, result in results:
-            if success:
-                log("Registered %s." % self._registrations[result.id].procedure)
-            else:
-                error("Error registering method: %s." % result.value.args[0])
 
