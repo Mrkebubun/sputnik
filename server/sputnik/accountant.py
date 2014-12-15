@@ -748,8 +748,8 @@ class Accountant:
         if order.is_cancelled:
             raise ORDER_CANCELLED
 
-        order.is_cancelled = True
         try:
+            order.is_cancelled = True
             # self.session.add(order)
             self.session.commit()
         except:
