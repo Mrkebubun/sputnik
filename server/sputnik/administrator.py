@@ -1472,6 +1472,10 @@ class PasswordChecker(object):
             admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
         except NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such administrator"))
+        except Exception as e:
+            log.err(e)
+            self.session.rollback()
+            raise e
 
         # Allow login if there is no password. Use this for
         # setup only
@@ -1502,6 +1506,7 @@ class SimpleRealm(object):
                 else:
                     avatarLevel = user.level
             except Exception as e:
+                self.session.rollback()
                 print "Exception: %s" % e
 
             ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
