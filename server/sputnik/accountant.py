@@ -275,7 +275,13 @@ class Accountant:
         debit["count"] = 2
         credit["uid"] = uid
         debit["uid"] = uid
-        return self.post_or_fail(credit, debit).addErrback(log.err)
+
+        # The administrator should know if there is an error
+        def postFailure(failure):
+            log.err(failure)
+            return failure
+
+        return self.post_or_fail(credit, debit).addErrback(postFailure)
 
     def get_position_value(self, username, ticker):
         """Return the numeric value of a user's position for a contact. If it does not exist, return 0.
@@ -686,6 +692,7 @@ class Accountant:
         if aggressive:
             d.addCallback(publish_trade)
 
+        # The engine doesn't care to receive errors
         return d.addErrback(log.err)
 
     def raiseException(self, failure):
@@ -843,7 +850,12 @@ class Accountant:
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
-        return self.post_or_fail(posting).addErrback(log.err)
+
+        def transferFailure(failure):
+            log.err(failure)
+            return failure
+
+        return self.post_or_fail(posting).addErrback(transferFailure)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -1061,11 +1073,16 @@ class Accountant:
             for posting in remote_postings:
                 self.accountant_proxy.remote_post(posting['username'], posting)
 
-            return d.addErrback(log.err)
+            def postingFailure(failure):
+                log.err(failure)
+                return failure
+
+            return d.addErrback(postingFailure)
         except Exception as e:
             self.session.rollback()
             log.err(
                 "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
+            raise e
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
@@ -1259,6 +1276,7 @@ class Accountant:
             posting['count'] = position_count * 2
             posting['uid'] = uid
 
+        # TODO: Determine what the caller needs - do they want to know about errors?
         return self.post_or_fail(credit, debit).addErrback(log.err)
 
     def reload_fee_group(self, id):
@@ -1356,7 +1374,7 @@ class AccountantExport(ComponentExport):
     @schema("rpc/accountant.accountant.json#remote_post")
     def remote_post(self, username, *postings):
         self.accountant.post_or_fail(*postings).addErrback(log.err)
-        # we do not want or need this to propogate back to the caller
+        # we do not want or need this to propagate back to the caller
         return None
 
 
@@ -1386,7 +1404,7 @@ class AdministratorExport(ComponentExport):
     @export
     @schema("rpc/accountant.administrator.json#deposit_cash")
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
-        self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
+        return self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
 
     @export
     @schema("rpc/accountant.administrator.json#cancel_order")
