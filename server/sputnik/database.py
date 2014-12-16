@@ -40,7 +40,7 @@ def get_session_maker(**kwargs):
 
 def make_engine(**kwargs):
     uri = get_uri(**kwargs)
-    engine = sqlalchemy.create_engine(uri, echo=False)
+    engine = sqlalchemy.create_engine(uri, echo=True)
     return engine
 
 def make_session(**kwargs):
