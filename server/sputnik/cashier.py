@@ -202,8 +202,8 @@ class Cashier():
             d.addCallback(onSuccess)
             return d
 
-        def fail(message):
-            log.msg("Safety check failed: %s" % message)
+        def fail(failure):
+            log.msg("Safety check failed: %s" % str(failure.value.args))
             self.notify_pending_withdrawal(withdrawal)
             return defer.succeed(withdrawal.id)
 
@@ -222,7 +222,8 @@ class Cashier():
         if withdrawal_request.contract.ticker not in self.bitcoinrpc:
             message = "Withdrawal request for fiat: %s" % withdrawal_request
             log.err(message)
-            return defer.fail(message)
+
+            return defer.fail(Exception(message))
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # (what does this mean)
@@ -232,7 +233,7 @@ class Cashier():
         if withdrawal_request.amount >= 100000000:
             message = "withdrawal too large: %s" % withdrawal_request
             log.err(message)
-            return defer.fail(message)
+            return defer.fail(Exception(message))
 
         d = self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance()
 
@@ -250,7 +251,7 @@ class Cashier():
 
         def error(failure):
             log.err("unable to get balance from wallet: %s" % failure)
-            return defer.fail(failure)
+            return failure
 
         d.addCallbacks(gotBalance, error)
         return d
