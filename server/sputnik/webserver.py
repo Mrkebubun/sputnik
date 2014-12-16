@@ -63,18 +63,43 @@ zf = ZmqFactory()
 #else:
 # noinspection PyPep8Naming
 import twisted.enterprise.adbapi as adbapi
+from psycopg2 import OperationalError
+from twisted.internet.defer import inlineCallbacks, returnValue
+
+class MyConnectionPool():
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.pool = adbapi.ConnectionPool(*args, **kwargs)
+
+    @inlineCallbacks
+    def runQuery(self, *args, **kwargs):
+        count = 0
+        while count < 10:
+            try:
+                result = yield self.pool.runQuery(*args, **kwargs)
+                returnValue(result)
+            except OperationalError as e:
+                log.err("Operational Error! Trying again - %s" % str(e))
+                self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
+                count += 1
+            except Exception as e:
+                raise e
+
+        log.err("Tried to reconnect 10 times, no joy")
+        raise Exception("database-error")
 
 # noinspection PyUnresolvedReferences
 dbpassword = config.get("database", "password")
 if dbpassword:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                password=dbpassword,
                                host=config.get("database", "host"),
                                port=config.get("database", "port"),
                                database=config.get("database", "dbname"))
 else:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
