@@ -920,8 +920,14 @@ class Accountant:
                     self.cashier.request_withdrawal(username, ticker, address, amount)
                     return True
 
+                def onError(failure):
+                    log.err(failure)
+                    return failure
+
                 d.addCallback(onSuccess)
-                return d.addErrback(log.err)
+                d.addErrback(onError)
+
+                return d
         except Exception as e:
             self.session.rollback()
             log.err("Exception received while attempting withdrawal: %s" % e)
