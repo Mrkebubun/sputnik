@@ -34,10 +34,13 @@ class Logger:
 
 logger = Logger("util")
 debug = logger.debug
-log = logger.info
+info = logger.info
 warn = logger.warn
 error = logger.error
 
+#
+# This doesn't work properly
+#
 def except_trace_alert(func):
     def wrapped(self, *args, **kwargs):
         try:
@@ -52,7 +55,6 @@ def except_trace_alert(func):
     return wrapped
 
 def session_aware(func):
-    @except_trace_alert
     def wrapped(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
@@ -71,7 +73,7 @@ def timed(f):
         start = time.time()
         result = f(*args, **kwargs)
         stop = time.time()
-        log("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
+        info("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
         return result
     return wrapped
 
