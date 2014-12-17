@@ -426,7 +426,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(self.administrator, 'admin', level, digest_factory)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory)
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')
@@ -772,7 +772,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d.addCallback(rendered)
         return d
 
-    def test_reset_admin_password_no_prev(self):
+    def test_reset_admin_password_with_prev(self):
         request = StupidRequest([''],
                                 path='/reset_admin_password',
                                 args={'username': ['admin'],

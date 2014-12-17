@@ -38,6 +38,8 @@ info = logger.info
 warn = logger.warn
 error = logger.error
 
+from zmq_util import ComponentExport
+
 #
 # This doesn't work properly
 #
@@ -59,7 +61,12 @@ def session_aware(func):
         try:
             return func(self, *args, **kwargs)
         finally:
-            self.session.rollback()
+            if isinstance(self, ComponentExport):
+                session = self.component.session
+            else:
+                session = self.session
+
+            session.rollback()
     return wrapped
 
 def get_locale_template(locale, jinja_env, template):
