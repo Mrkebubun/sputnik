@@ -68,7 +68,16 @@ INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
 
-from util import session_aware
+
+def session_aware(func):
+    def new_func(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception, e:
+            self.session.rollback()
+            raise e
+
+    return new_func
 
 
 class Administrator:
