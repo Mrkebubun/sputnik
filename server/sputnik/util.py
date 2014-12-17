@@ -13,6 +13,55 @@ from sqlalchemy import func
 from twisted.python import log
 import twisted.python.util
 
+class Logger:
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def debug(self, message=None):
+        log.msg(message, system=self.prefix, level=10)
+
+    def info(self, message=None):
+        log.msg(message, system=self.prefix, level=20)
+
+    def warn(self, message=None):
+        log.msg(message, system=self.prefix, level=30)
+
+    def error(self, message=None):
+        log.err(message, system=self.prefix, level=40)
+
+    def critical(self, message=None):
+        log.err(message, system=self.prefix, level=50)
+
+logger = Logger("util")
+debug = logger.debug
+info = logger.info
+warn = logger.warn
+error = logger.error
+
+#
+# This doesn't work properly
+#
+def except_trace_alert(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            error("Unhandled exception in %s" % func.__name__)
+            error(e)
+            if hasattr(self, 'alerts_proxy') and self.alerts_proxy is not None:
+                self.alerts_proxy.send_alert(str(e), "Unhandled exception in %s" % func.__name__)
+            raise e
+
+    return wrapped
+
+def session_aware(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        finally:
+            self.session.rollback()
+    return wrapped
+
 def get_locale_template(locale, jinja_env, template):
     locales = [locale, "root"]
     templates = [template.format(locale=locale) for locale in locales]
@@ -24,7 +73,7 @@ def timed(f):
         start = time.time()
         result = f(*args, **kwargs)
         stop = time.time()
-        log.msg("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
+        info("%s completed in %dms." % (f.__name__, (stop - start) * 1000))
         return result
     return wrapped
 
@@ -281,23 +330,3 @@ class SputnikObserver(log.FileLogObserver):
 
         twisted.python.util.untilConcludes(self.write, timeStr + " " + msgStr)
         twisted.python.util.untilConcludes(self.flush)
-
-class Logger:
-    def __init__(self, prefix):
-        self.prefix = prefix
-
-    def debug(self, message=None):
-        log.msg(message, system=self.prefix, level=10)
-
-    def info(self, message=None):
-        log.msg(message, system=self.prefix, level=20)
-
-    def warn(self, message=None):
-        log.msg(message, system=self.prefix, level=30)
-
-    def error(self, message=None):
-        log.err(message, system=self.prefix, level=40)
-
-    def critical(self, message=None):
-        log.err(message, system=self.prefix, level=50)
-
