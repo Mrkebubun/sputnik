@@ -7,7 +7,6 @@ import config
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import OperationalError
 import getpass
 
 # hack to make sure sqlite honors foriegn keys
@@ -44,17 +43,6 @@ def make_engine(**kwargs):
     engine = sqlalchemy.create_engine(uri, echo=False)
     return engine
 
-class MySession():
-    def __init__(self, session):
-        self.session = session
-
-    def query(self, *args, **kwargs):
-        try:
-            query = self.session.query(*args, **kwargs)
-            return query
-        except OperationalError as e:
-            self.session.rollback()
-            raise e
 
 def make_session(**kwargs):
     """
@@ -63,7 +51,5 @@ def make_session(**kwargs):
     :returns: Session
     """
     Session = get_session_maker(**kwargs)
-    session = Session()
-    my_session = MySession(session)
-    return my_session
+    return Session()
 
