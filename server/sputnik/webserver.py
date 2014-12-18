@@ -63,18 +63,50 @@ zf = ZmqFactory()
 #else:
 # noinspection PyPep8Naming
 import twisted.enterprise.adbapi as adbapi
+from psycopg2 import OperationalError
+from twisted.internet.defer import inlineCallbacks, returnValue
+
+class MyConnectionPool():
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.pool = adbapi.ConnectionPool(*args, **kwargs)
+        self.backoff = 1
+
+    @inlineCallbacks
+    def runQuery(self, *args, **kwargs):
+        try:
+            result = yield self.pool.runQuery(*args, **kwargs)
+            self.backoff = 1
+            returnValue(result)
+        except OperationalError as e:
+            log.err("Operational Error! %s" % str(e))
+            self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
+            self.backoff *= 2
+            if self.backoff == 2**4:
+                log.err("Tried to reconnect 3 times, no luck")
+
+            if self.backoff > 2**7:
+                log.err("Tried 7 times, giving up")
+                raise Exception("exceptions/webserver/database-error")
+
+            log.err("Trying again in %d" % self.backoff)
+            result = yield task.deferLater(reactor, self.backoff, self.runQuery, *args, **kwargs)
+            log.msg("Got result this time")
+            returnValue(result)
+
 
 # noinspection PyUnresolvedReferences
 dbpassword = config.get("database", "password")
 if dbpassword:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                password=dbpassword,
                                host=config.get("database", "host"),
                                port=config.get("database", "port"),
                                database=config.get("database", "dbname"))
 else:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
