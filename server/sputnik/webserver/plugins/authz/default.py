@@ -28,6 +28,13 @@ class DefaultPermissions(AuthorizationPlugin):
         if action not in [IRouter.ACTION_CALL, IRouter.ACTION_SUBSCRIBE]:
             return False
 
+        # TODO: We should use URI Patterns instead.
+        # p = Pattern(u"rpc.<service:string>.<method:suffix>",
+        #             Pattern.URI_TARGET_ENDPOINT)
+        # p.match(uti) 
+        # Currently there is a bug that prevents this from working. A pull
+        #   request with a patch has been sent.
+
         # Rpc calls
         rpc_match = re.compile("^rpc\.([a-z_.]+)\.")
         match = rpc_match.match(uri)
