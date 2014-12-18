@@ -147,19 +147,36 @@ $ ->
         else
             return undefined
 
-    simple_contract = getQueryKey('contract')
-    if simple_contract?
-        url = 'index_simple.html'
-    else
-        url = 'index_full.html'
+    loadPartial = (name, url) ->
+        $.get( url ).then (data) ->
+            Ractive.partials[name] = data
 
-    locale.init().then( () ->
-        $.ajax {
-                url: url
+    loadAllPartials = () ->
+        partial_urls =
+            login_register: 'partials/login_register.html'
+            change_password_token: 'partials/change_password_token.html'
+        results = []
+        for name, url of partial_urls
+            results.push loadPartial(name, url)
+
+        $.when( results )
+
+    simple_widget = getQueryKey('widget')
+    if simple_widget?
+        sputnik.log ["simple_widget", simple_widget]
+        template_url = "templates/#{simple_widget}.html"
+        widget_contract = getQueryKey('contract')
+        sputnik.log ["widget_contract", widget_contract]
+    else
+        template_url = 'templates/full.html'
+
+    locale.init().then () ->
+        loadAllPartials().then () ->
+            $.ajax {
+                url: template_url
                 success: (data, status, xhr) ->
-                    start(data)
+                   start(data)
                 }
-    )
 
     start = (template) ->
         ractive = new Ractive
@@ -546,7 +563,7 @@ $ ->
                 $("#sell_alert").hide()
                 $("#sellButton").show()
 
-                if not simple_contract?
+                if not simple_widget?
                     sputnik.openMarket new_ticker
                     showChart new_ticker
 
@@ -635,9 +652,13 @@ $ ->
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
                             sputnik.restoreSession name_uid[1]
 
-            if simple_contract?
-                ractive.set "current_ticker", simple_contract
-                sputnik.openMarket simple_contract
+            if simple_widget?
+                if simple_widget == "trade"
+                    ractive.set "current_ticker", widget_contract
+                    sputnik.openMarket widget_contract
+
+            if simple_widget == "funding"
+                ractive.set "current_currency", widget_contract
 
         sputnik.on "auth_success", (username) ->
             ga('send', 'event', 'login', 'success')
@@ -648,6 +669,10 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
             sputnik.getCookie()
+
+            if simple_widget == "funding"
+                sputnik.getAddress(widget_contract)
+                sputnik.getDepositInstructions(widget_contract)
 
         sputnik.on "cookie", (uid) ->
             sputnik.log "got cookie: " + uid
@@ -922,7 +947,7 @@ $ ->
             bootbox.alert locale.translate("trade/alerts/place_order_success", ractive.get("sputnik.profile.locale"))
 
         sputnik.on "fill", (fill) ->
-            if not simple_contract?
+            if not simple_widget?
                 quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
                 price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
                 $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
@@ -993,3 +1018,4 @@ $ ->
 
         # Now that everything is setup, let's connect
         sputnik.connect()
+

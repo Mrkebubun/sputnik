@@ -2,78 +2,8 @@
     {{translate("alerts/connecting", sputnik.profile.locale)}}.
 </div>
 <div class="container-fluid" id="main_page" style="">
-    <div class="modal fade" id="login_modal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <ul class="nav nav-tabs">
-                        <li class="active login-tab"><a href="#login_tab" data-toggle="tab">{{translate("tabs/login", sputnik.profile.locale)}}</a></li>
-                        <li class="login-tab"><a href="#register_tab" data-toggle="tab">{{translate("tabs/register", sputnik.profile.locale)}}</a></li>
-                    </ul>
-                </div>
-                <div class="modal-body form-horizontal">
-                    <div class="tab-content">
-                        <div class="tab-pane active" id="login_tab">
-                            <form class="form-signin content-push4" role="form">
-                                <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required
-                                       autofocus><br>
-                                <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
-                                required><br>
-                                <a href="#" id="get_reset_token">{{translate("buttons/reset_password", sputnik.profile.locale)}}</a>
-                            </form>
-                            <div class="alert alert-warning" style="display:none" id="login_error">
-                                {{translate("alerts/bad_username_pw", sputnik.profile.locale)}}
-                            </div>
-                            <div id="reset_token_sent" class="alert alert-info" style="display:none">
-                                {{translate("alerts/reset_sent", sputnik.profile.locale)}}
-                            </div>
-                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="login_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/login", sputnik.profile.locale)}}</a>
-                        </div>
-                        <div class="tab-pane" id="register_tab">
-                            <form class="form-signin form-horizontal" role="form">
-                                <input type="email" class="form-control" id="register_email" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required><br>
-                                <input type="password" class="form-control" id="register_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
-                                       required><br>
-                                <div class="form-group">
-                                    <div class="col-xs-9 content-push5">
-                                        <label> <input type="checkbox" id="register_eula" value="1">
-                                            <span class="terms">{{translate("register_modal/agree", sputnik.profile.locale)}} <a href="terms.html" target="_blank">{{translate("register_modal/terms", sputnik.profile.locale)}}</a> </span><br>
-                                        </label>
-                                    </div>
-                                </div>
-                            </form>
-                            <div class="alert alert-warning" style="display:none" id="register_error">
-                            </div>
-                            <a data-color="blue" data-size="s" data-style="zoom-out" href="#" id="register_button" class="ladda-button button-place2 button-link-box3">{{translate("buttons/register", sputnik.profile.locale)}}</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="change_password_token_modal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">{{translate("titles/reset_password", sputnik.profile.locale)}}</h4>
-                </div>
-                <div class="modal-body">
-                    <form class="form-signin" role="form">
-                        <input type="password" class="form-control field-space" id="new_password_token" placeholder="{{translate('fields/new_password', sputnik.profile.locale)}}" required>
-                        <input type="password" class="form-control field-space" id="new_password_token_confirm" placeholder="{{translate('fields/confirm_new_password', sputnik.profile.locale)}}" required>
-                    </form>
-                    <div class="alert alert-info alert-reset">{{translate("alerts/enter_new_password", sputnik.profile.locale)}}</div>
-                </div>
-                <div class="modal-footer reset-footer">
-                    <a data-color="blue" data-size="s" data-style="zoom-out" href="#" class="ladda-button button-link-box3 button-place3" on-click="change_password_token"><span class="ladda-label">{{translate("buttons/change_password", sputnik.profile.locale)}}</span></a>
-                </div>
-            </div>
-        </div>
-    </div>
+    {{>login_register}}
+    {{>change_password_token}}
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar navbar2">
