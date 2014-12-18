@@ -90,11 +90,11 @@ class Ledger:
             except DBAPIError as e:
                 if e.connection_invalidated:
                     log.err("Connection invalidated! Trying again - %s" % str(e))
-                    conn = self.engine.connect()
-                    count += 1
                 else:
-                    log.err("Unable to execute query: %s %s: %s" % (args, kwargs, str(e)))
-                    raise e
+                    log.err("Unable to execute query: %s %s: %s - trying again" % (args, kwargs, str(e)))
+
+                conn = self.engine.connect()
+                count += 1
 
         log.err("Tried to reconnect 10 times, no joy")
         raise DATABASE_ERROR
