@@ -71,30 +71,23 @@ class MyConnectionPool():
         self.args = args
         self.kwargs = kwargs
         self.pool = adbapi.ConnectionPool(*args, **kwargs)
-        self.backoff = 1
 
     @inlineCallbacks
     def runQuery(self, *args, **kwargs):
-        try:
-            result = yield self.pool.runQuery(*args, **kwargs)
-            self.backoff = 1
-            returnValue(result)
-        except OperationalError as e:
-            log.err("Operational Error! %s" % str(e))
-            self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
-            self.backoff *= 2
-            if self.backoff == 2**4:
-                log.err("Tried to reconnect 3 times, no luck")
+        count = 0
+        while count < 10:
+            try:
+                result = yield self.pool.runQuery(*args, **kwargs)
+                returnValue(result)
+            except OperationalError as e:
+                log.err("Operational Error! Trying again - %s" % str(e))
+                self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
+                count += 1
+            except Exception as e:
+                raise e
 
-            if self.backoff > 2**7:
-                log.err("Tried 7 times, giving up")
-                raise Exception("exceptions/webserver/database-error")
-
-            log.err("Trying again in %d" % self.backoff)
-            result = yield task.deferLater(reactor, self.backoff, self.runQuery, *args, **kwargs)
-            log.msg("Got result this time")
-            returnValue(result)
-
+        log.err("Tried to reconnect 10 times, no joy")
+        raise Exception("database-error")
 
 # noinspection PyUnresolvedReferences
 dbpassword = config.get("database", "password")
