@@ -13,9 +13,9 @@ class DefaultPermissions(AuthorizationPlugin):
         AuthorizationPlugin.__init__(self)
 
     def authorize(self, router, session, uri, action):
-        log("Attempting %s(%s) to %s %s" % \
-                (session._authid, session._authrole, \
-                 IRouter.ACTION_TO_STRING[action], uri))
+        debug("Checking permissions for %s(%s) to %s %s" % \
+              (session._authid, session._authrole, \
+               IRouter.ACTION_TO_STRING[action], uri))
         
         # allow trusted roles to do everything
         if session._authrole == u"trusted":
