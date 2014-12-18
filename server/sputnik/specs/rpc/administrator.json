@@ -15,6 +15,18 @@
         "required": [ "username", "password" ],
         "additionalProperties": false
     },
+    "get_profile": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get someone's profile",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            }
+        },
+        "required": [ "username" ],
+        "additionalProperties": false
+    },
     "change_profile": {
         "type": "object",
         "description": "webserver -> administrator RPC call to edit a user's profile",
@@ -24,24 +36,7 @@
                 "description": "the username we are modifying"
             },
             "profile": {
-                "type": "object",
-                "description": "the new user's password salt:hash",
-                "properties": {
-                    "email": {
-                        "type": "string",
-                        "description": "the user's contact email address"
-                    },
-                    "nickname": {
-                        "type": "string",
-                        "description": "the nickname the user goes by"
-                    },
-                    "locale": {
-                        "type": "string",
-                        "description": "locale code for the user"
-                    }
-                },
-                "required": [ "email", "nickname" ],
-                "additionalProperties": false
+                "$ref": "objects/profile.json"
             }
         },
         "required": [ "username", "profile" ],

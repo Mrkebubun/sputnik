@@ -183,16 +183,15 @@ class Administrator:
             # Remove notifications not in profile from db
             for notification in user.notifications:
                 if notification.type in profile['notifications']:
-                    if not profile['notifications'][type].get(notification.method, False):
+                    if notification.method not in profile['notifications'][notification.type]:
                             self.session.delete(notification)
 
-            # Add notifications not in db
+            # Add notifications in the profile that are not in db
             for type, methods in profile['notifications'].iteritems():
                 notifications = [n.method for n in user.notifications if n.type == type]
-                for method in methods.keys():
-                    if methods[method] and method not in notifications:
-                        new_notification = models.Notification(username, type, method)
-                        self.session.add(new_notification)
+                for method in [m for m in methods if m not in notifications]:
+                    new_notification = models.Notification(username, type, method)
+                    self.session.add(new_notification)
 
         self.session.commit()
         log.msg("Profile changed for %s to %s/%s - %s" % (user.username, user.email, user.nickname, user.notifications))
@@ -203,9 +202,12 @@ class Administrator:
         if not user:
             raise NO_SUCH_USER
 
-        notifications = collections.defaultdict(dict)
+        notifications = {}
         for notification in user.notifications:
-            notifications[notification.type][notification.method] = True
+            if notification.type not in notifications:
+                notifications[notification.type] = [notification.method]
+            else:
+                notifications[notification.type].append(notification.method)
 
         profile = {'email': user.email,
                    'nickname': user.nickname,

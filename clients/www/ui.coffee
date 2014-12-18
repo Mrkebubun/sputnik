@@ -948,9 +948,11 @@ $ ->
 
         sputnik.on "fill", (fill) ->
             if not simple_widget?
-                quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
-                price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
-                $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+                fill_notifications = ractive.get("sputnik.profile.notifications.fill")
+                if fill_notifications? and "growl" in fill_notifications
+                    quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
+                    price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
+                    $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')

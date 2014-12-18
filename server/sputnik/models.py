@@ -362,9 +362,10 @@ class Notification(db.Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True)
-    username = Column(String, ForeignKey('users.username'), Index=True)
-    type = Column(Enum('fill'), name='notification_types', nullable=False, default='fill', server_default='fill')
-    method = Column(Enum('email'), name='notification_methods', nullable=False, default='email', server_default='email')
+    username = Column(String, ForeignKey('users.username'), index=True)
+    user = relationship("User", back_populates="notifications")
+    type = Column(Enum('fill', 'order', 'transaction', 'daily', 'monthly', 'weekly', name='notification_types'), nullable=False, default='fill', server_default='fill')
+    method = Column(Enum('email', 'voice', 'sms', 'growl', name='notification_methods'), nullable=False, default='email', server_default='email')
 
     def __init__(self, username, type, method):
         self.username = username

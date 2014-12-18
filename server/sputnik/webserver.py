@@ -1207,40 +1207,6 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
-        validate(profile, {"type": "object",
-                           "properties": {
-                               "email": {
-                                   "type": "string"
-                               },
-                               "nickname": {
-                                   "type": "string"
-                               },
-                               "locale": {
-                                   "type": "string"
-                               },
-                               "phone": {
-                                   "type": "string"
-                               },
-                               "audit_secret": {
-                                   "type": "string"
-                               },
-                               "notifications": {
-                                   "type": "object",
-                                   "properties": {
-                                       "fill": {
-                                           "type": "object",
-                                           "properties": {
-                                               "email": {
-                                                   "type": "boolean"
-                                               }
-                                           }
-                                       },
-                                   "additionalProperties": False
-                                   }
-                               }
-                           },
-                           "additionalProperties": False
-        })
 
         if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
             return [False, "malicious looking input"]

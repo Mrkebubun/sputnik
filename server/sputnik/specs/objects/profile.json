@@ -1,0 +1,47 @@
+{
+    "description": "the profile details",
+    "properties": {
+        "email": {
+            "type": "string",
+            "description": "the user's contact email address"
+        },
+        "nickname": {
+            "type": "string",
+            "description": "the nickname the user goes by"
+        },
+        "locale": {
+            "type": "string",
+            "description": "locale code for the user"
+        },
+        "audit_secret": {
+            "type": "string",
+            "description": "the audit secret. We ignore it"
+        },
+        "notifications": {
+            "type": "object",
+            "description": "each array is the list of notification methods for that type. Can be email/voice/sms",
+            "properties": {
+                "fill": {
+                    "type": "array"
+                },
+                "order": {
+                    "type": "array"
+                },
+                "transaction": {
+                    "type": "array"
+                },
+                "daily": {
+                    "type": "array"
+                },
+                "weekly": {
+                    "type": "array"
+                },
+                "monthly": {
+                    "type": "array"
+                },
+                "additionalProperties": false
+            }
+        }
+    },
+    "additionalProperties": false
+}
