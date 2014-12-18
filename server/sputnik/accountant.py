@@ -673,6 +673,20 @@ class Accountant:
             elapsed = (next - last) * 1000
             log.msg("post_transaction: notify_fill: %.3f ms." % elapsed)
 
+            # Now email the notification
+            notifications = [n for n in user.notifications if n.type == "fill"]
+            for notification in notifications:
+                if notification.method == 'email':
+                    t = util.get_locale_template(user.locale, self.jinja_env, 'fill.{locale}.email')
+                    content = t.render(user=user, contract=contract, id=order, quantity=quantity, quantity_fmt=util.quantity_fmt(contract, quantity),
+                                       price=price, price_fmt=util.price_fmt(contract, price), side=side, timestamp=util.timestamp_to_dt(timestamp)).encode('utf-8')
+
+                    # Now email the token
+                    log.msg("Sending mail: %s" % content)
+                    s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email,
+                                                                                 user.nickname),
+                                      subject='Order fill notification')
+
         def publish_trade(result):
             try:
                 trade.posted = True

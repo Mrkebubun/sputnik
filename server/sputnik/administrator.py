@@ -177,11 +177,43 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
-        self.session.merge(user)
+
+        # User notifications
+        if 'notifications' in profile:
+            # Remove notifications not in profile from db
+            for notification in user.notifications:
+                if notification.type in profile['notifications']:
+                    if not profile['notifications'][type].get(notification.method, False):
+                            self.session.delete(notification)
+
+            # Add notifications not in db
+            for type, methods in profile['notifications'].iteritems():
+                notifications = [n.method for n in user.notifications if n.type == type]
+                for method in methods.keys():
+                    if methods[method] and method not in notifications:
+                        new_notification = models.Notification(username, type, method)
+                        self.session.add(new_notification)
 
         self.session.commit()
-        log.msg("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
+        log.msg("Profile changed for %s to %s/%s - %s" % (user.username, user.email, user.nickname, user.notifications))
         return True
+
+    def get_profile(self, username):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        notifications = collections.defaultdict(dict)
+        for notification in user.notifications:
+            notifications[notification.type][notification.method] = True
+
+        profile = {'email': user.email,
+                   'nickname': user.nickname,
+                   'locale': user.locale,
+                   'audit_secret': user.audit_secret,
+                   'notifications': notifications
+        }
+        return profile
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -1697,6 +1729,12 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_audit")
     def get_audit(self):
         return self.administrator.get_audit()
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_profile")
+    def get_profile(self, username):
+        return self.administrator.get_profile(username)
 
 
 class TicketServerExport(ComponentExport):

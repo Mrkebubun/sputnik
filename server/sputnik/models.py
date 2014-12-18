@@ -357,6 +357,23 @@ class AdminUser(db.Base):
     def __repr__(self):
         return "<AdminUser('%s', %d)>" % (self.username, self.level)
 
+class Notification(db.Base):
+    __tablename__ = 'notifications'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String, ForeignKey('users.username'), Index=True)
+    type = Column(Enum('fill'), name='notification_types', nullable=False, default='fill', server_default='fill')
+    method = Column(Enum('email'), name='notification_methods', nullable=False, default='email', server_default='email')
+
+    def __init__(self, username, type, method):
+        self.username = username
+        self.type = type
+        self.method = method
+
+    def __repr__(self):
+        return "<Notification('%s', '%s', '%s')" % (self.username, self.type, self.method)
+
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}
@@ -382,6 +399,7 @@ class User(db.Base):
     permissions = relationship("PermissionGroup")
     fees = relationship("FeeGroup")
     postings = relationship("Posting", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
     def user_hash(self, timestamp):
         """
