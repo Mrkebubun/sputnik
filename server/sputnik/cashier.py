@@ -31,6 +31,7 @@ from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
+from util import session_aware
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -598,16 +599,19 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_new_address")
     def get_new_address(self, username, ticker):
         return self.cashier.get_new_address(username, ticker)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_current_address")
     def get_current_address(self, username, ticker):
         return self.cashier.get_current_address(username, ticker)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_deposit_instructions")
     def get_deposit_instructions(self, ticker):
         return self.cashier.get_deposit_instructions(ticker)
@@ -623,11 +627,13 @@ class AdministratorExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#rescan_address")
     def rescan_address(self, address):
         return self.cashier.rescan_address(address)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#process_withdrawal")
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
@@ -638,6 +644,7 @@ class AccountantExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#request_withdrawal")
     def request_withdrawal(self, username, ticker, address, amount):
         return self.cashier.request_withdrawal(username, ticker, address, amount)

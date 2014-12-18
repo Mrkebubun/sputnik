@@ -46,6 +46,7 @@ from jinja2 import Environment, FileSystemLoader
 
 import time
 from datetime import datetime
+from util import session_aware
 
 class AccountantException(Exception):
     pass
@@ -1301,16 +1302,19 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#place_order")
     def place_order(self, username, order):
         return self.accountant.place_order(username, order)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#request_withdrawal")
     def request_withdrawal(self, username, ticker, quantity, address):
         return self.accountant.request_withdrawal(username, ticker, quantity, address)
@@ -1325,15 +1329,18 @@ class EngineExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     def safe_prices(self, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export
+    @session_aware
     @schema("rpc/accountant.engine.json#post_transaction")
     def post_transaction(self, username, transaction):
         return self.accountant.post_transaction(username, transaction)
 
     @export
+    @session_aware
     @schema("rpc/accountant.engine.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order_engine(username, id)
@@ -1348,16 +1355,19 @@ class CashierExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#deposit_cash")
     def deposit_cash(self, username, address, received, total=True):
         return self.accountant.deposit_cash(username, address, received, total=total)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#transfer_position")
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#get_position")
     def get_position(self, username, ticker):
         return self.accountant.get_position_value(username, ticker)
@@ -1371,6 +1381,7 @@ class AccountantExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.accountant.json#remote_post")
     def remote_post(self, username, *postings):
         self.accountant.post_or_fail(*postings).addErrback(log.err)
@@ -1387,41 +1398,49 @@ class AdministratorExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#adjust_position")
     def adjust_position(self, username, ticker, quantity, admin_username):
         return self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#transfer_position")
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#change_permission_group")
     def change_permission_group(self, username, id):
         self.accountant.change_permission_group(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#deposit_cash")
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
         return self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
         return self.accountant.clear_contract(username, ticker, price, uid)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#change_fee_group")
     def change_fee_group(self, username, id):
         return self.accountant.change_fee_group(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#reload_fee_group")
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)

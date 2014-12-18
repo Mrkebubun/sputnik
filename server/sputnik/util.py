@@ -39,6 +39,7 @@ warn = logger.warn
 error = logger.error
 
 from zmq_util import ComponentExport
+from sqlalchemy.orm.session import Session
 
 #
 # This doesn't work properly
@@ -66,7 +67,8 @@ def session_aware(func):
             else:
                 session = self.session
 
-            session.rollback()
+            if isinstance(session, Session):
+                session.rollback()
     return wrapped
 
 def get_locale_template(locale, jinja_env, template):
