@@ -164,7 +164,7 @@ class FakeComponent:
         def proxy_method(*args, **kwargs):
             self._log_call(key, *args, **kwargs)
 
-            return None
+            return defer.succeed(None)
 
         return proxy_method
 

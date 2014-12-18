@@ -84,7 +84,8 @@ class TestCashier(TestSputnik):
                                        cold_wallet_period=None,
                                        sendmail=self.sendmail,
                                        template_dir="../server/sputnik/admin_templates",
-                                       minimum_confirmations=6)
+                                       minimum_confirmations=6,
+                                       alerts=FakeComponent("alerts"))
 
         self.administrator_export = cashier.AdministratorExport(self.cashier)
         self.webserver_export = cashier.WebserverExport(self.cashier)
