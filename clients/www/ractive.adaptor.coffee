@@ -46,6 +46,7 @@ class RactiveSputnikWrapper
             locale: navigator.language
         @cash_spent = {}
         @position_contracts = {}
+        @permissions = {}
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -57,11 +58,21 @@ class RactiveSputnikWrapper
 
         @sputnik.on "exchange_info", (exchange_info) =>
             @exchange_info = exchange_info
+            if @exchange_info.supported_ids?
+                @exchange_info.supported_ids = [id_type.trim() for id_type in @exchange_info.supported_ids.split(",")]
+            else
+                @exchange_info.supported_ids = ['passport', 'drivers_license', 'personal_identification']
+
+
             @notify "exchange_info"
 
             if @exchange_info.locale?
                 @profile.locale = @exchange_info.locale
                 @notify "profile"
+
+        @sputnik.on "permissions", (permissions) =>
+            @permissions = permissions
+            @notify "permissions"
 
         @sputnik.on "audit_hash", (audit_hash) =>
             @audit_hash = audit_hash
@@ -250,6 +261,7 @@ class RactiveSputnikWrapper
         profile: @profile
         cash_spent: @cash_spent
         position_contracts: @position_contracts
+        permissions: @permissions
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

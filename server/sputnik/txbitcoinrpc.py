@@ -1,8 +1,13 @@
 __author__ = 'sameer'
 from txjsonrpc.web.jsonrpc import Proxy
+from twisted.internet import reactor
+
+class BitcoinRpcTimeout(Exception):
+    pass
 
 class BitcoinRpc(object):
-    def __init__(self, config_file):
+    def __init__(self, config_file, timeout=None):
+        self.timeout = timeout
         with open(config_file) as f:
             content = f.read().splitlines()
 
@@ -21,6 +26,19 @@ class BitcoinRpc(object):
             raise AttributeError
 
         def proxy_method(*args, **kwargs):
-            return self.proxy.callRemote(key, *args, **kwargs)
+            d = self.proxy.callRemote(key, *args, **kwargs)
+
+            if self.timeout is not None:
+                timeout = reactor.callLater(self.timeout, d.errback,
+                    BitcoinRpcTimeout("Bitcoin call timed out: %s" % key))
+
+                def cancelTimeout(result):
+                    if timeout.active():
+                        timeout.cancel()
+                    return result
+
+                d.addBoth(cancelTimeout)
+
+            return d
 
         return proxy_method

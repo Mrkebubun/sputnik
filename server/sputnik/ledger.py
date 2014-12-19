@@ -11,7 +11,7 @@ from twisted.internet.defer import Deferred
 from twisted.protocols.policies import TimeoutMixin
 from twisted.python import log
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, DBAPIError
 from sqlalchemy.sql import select
 
 import config
@@ -77,8 +77,27 @@ class PostingGroup(TimeoutMixin):
 class Ledger:
     def __init__(self, engine, timeout=None):
         self.engine = engine
-        self.conn = engine.connect()
         self.pending = defaultdict(lambda: PostingGroup(timeout))
+
+    def execute(self, *args, **kwargs):
+        conn = self.engine.connect()
+        count = 0
+        while count < 10:
+            try:
+                result = conn.execute(*args, **kwargs)
+                conn.close()
+                return result
+            except DBAPIError as e:
+                if e.connection_invalidated:
+                    log.err("Connection invalidated! Trying again - %s" % str(e))
+                else:
+                    log.err("Unable to execute query: %s %s: %s - trying again" % (args, kwargs, str(e)))
+
+                conn = self.engine.connect()
+                count += 1
+
+        log.err("Tried to reconnect 10 times, no joy")
+        raise DATABASE_ERROR
 
     @timed
     def atomic_commit(self, postings):
@@ -115,13 +134,15 @@ class Ledger:
                     raise QUANTITY_MISMATCH
 
             # create the journal and postings
-            # The journal is created seperately from the postings but this is ok because
+            # The journal is created separately from the postings but this is ok because
             # all the postings are created at once. If the posting commit fails then we'll
             # just end up with an empty journal which won't break anything
             # TODO: Create the journal and postings together
             log.msg("creating the journal at %f" % (time.time() - start))
             ins = Journal.__table__.insert()
-            result = self.conn.execute(ins, type=types[0], timestamp=datetime.datetime.utcnow())
+
+            result = self.execute(ins, type=types[0], timestamp=datetime.datetime.utcnow())
+
             journal_id = result.inserted_primary_key[0]
 
             log.msg("creating the db postings at %f" % (time.time() - start))
@@ -129,12 +150,12 @@ class Ledger:
             for posting in postings:
                 contract_table = Contract.__table__
                 s = select([contract_table.c.id], contract_table.c.ticker==posting["contract"])
-                result = self.conn.execute(s)
+                result = self.execute(s)
                 contract_id = result.first()[0]
 
                 user_table = User.__table__
                 s = select([user_table.c.type], user_table.c.username==posting["username"])
-                result = self.conn.execute(s)
+                result = self.execute(s)
                 user_type = result.first()[0]
 
                 username = posting["username"]
@@ -160,7 +181,6 @@ class Ledger:
                 posting = {'username': username,
                            'contract_id': contract_id,
                            'quantity': sign * quantity,
-                           'direction': direction,
                            'note': note,
                            'timestamp': timestamp,
                            'journal_id': journal_id
@@ -170,7 +190,7 @@ class Ledger:
 
 
             ins = Posting.__table__.insert()
-            result = self.conn.execute(ins, db_postings)
+            result = self.execute(ins, db_postings)
             log.msg("Inserted %d rows of %d postings" % (result.rowcount, len(db_postings)))
             log.msg("Done committing postings at %f" % (time.time() - start))
 

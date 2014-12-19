@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ -f $profile_keys/keyless_server.crt ]; then
+    # Install the server key
+    ln -sf $profile_keys/server.key /etc/keyless/keys
+
+    # Install the keyless server key and cert
+    ln -sf $profile_keys/keyless_server.key /etc/keyless/server_cert.key
+    ln -sf $profile_keys/keyless_server.crt /etc/keyless/server_cert.crt
+fi

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+for file in terms.html icons; do
+    if [ -e ${profile}/res/${file} ]; then
+        cp -rH ${profile}/res/${file} ${profile_git_root}/dist/clients/www
+    else
+        if [ -e ${base_profile}/res/${file} ]; then
+            cp -rH ${base_profile}/res/${file} ${profile_git_root}/dist/clients/www
+        fi
+    fi
+done
+

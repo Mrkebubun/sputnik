@@ -147,19 +147,36 @@ $ ->
         else
             return undefined
 
-    simple_contract = getQueryKey('contract')
-    if simple_contract?
-        url = 'index_simple.html'
-    else
-        url = 'index_full.html'
+    loadPartial = (name, url) ->
+        $.get( url ).then (data) ->
+            Ractive.partials[name] = data
 
-    locale.init().then( () ->
-        $.ajax {
-                url: url
+    loadAllPartials = () ->
+        partial_urls =
+            login_register: 'partials/login_register.html'
+            change_password_token: 'partials/change_password_token.html'
+        results = []
+        for name, url of partial_urls
+            results.push loadPartial(name, url)
+
+        $.when( results )
+
+    simple_widget = getQueryKey('widget')
+    if simple_widget?
+        sputnik.log ["simple_widget", simple_widget]
+        template_url = "templates/#{simple_widget}.html"
+        widget_contract = getQueryKey('contract')
+        sputnik.log ["widget_contract", widget_contract]
+    else
+        template_url = 'templates/full.html'
+
+    locale.init().then () ->
+        loadAllPartials().then () ->
+            $.ajax {
+                url: template_url
                 success: (data, status, xhr) ->
-                    start(data)
+                   start(data)
                 }
-    )
 
     start = (template) ->
         ractive = new Ractive
@@ -222,6 +239,10 @@ $ ->
                     showChart(ticker, t.node.id, transition=t)
                 show_feed: (t) ->
                     showFeed(t)
+                show_qr: (t, address) ->
+                    $('#qr_code').empty()
+                    $('#qr_code').qrcode("bitcoin:" + address)
+                    t.complete()
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -486,8 +507,7 @@ $ ->
 
             change_profile: (event) ->
                 event.original.preventDefault()
-                sputnik.changeProfile(ractive.get("sputnik.profile.email"), ractive.get("sputnik.profile.nickname"),
-                                      ractive.get("sputnik.profile.locale"))
+                sputnik.changeProfile(ractive.get("sputnik.profile"))
 
             change_password: (event) ->
                 event.original.preventDefault()
@@ -543,7 +563,7 @@ $ ->
                 $("#sell_alert").hide()
                 $("#sellButton").show()
 
-                if not simple_contract?
+                if not simple_widget?
                     sputnik.openMarket new_ticker
                     showChart new_ticker
 
@@ -558,35 +578,46 @@ $ ->
         setWindowInfo()
         $(window).resize setWindowInfo
 
-        # Get location if possible
-        if navigator.geolocation
-            navigator.geolocation.getCurrentPosition (position) ->
-                sputnik.log ["current_position", position]
-                lat = position.coords.latitude
-                lng = position.coords.longitude
-                latlng = new google.maps.LatLng(lat, lng);
-                # For debugging
-                # Rio de Janerio, Brazil
-                #latlng = new google.maps.LatLng(-22.9027800, -43.2075000)
-                # San Pedro Sula, Honduras
-                #latlng = new google.maps.LatLng(15.503659,-88.00468)
-                # Berlin, Germany
-                #latlng = new google.maps.LatLng(52.5243700, 13.4105300)
-                geocoder = new google.maps.Geocoder();
-                geocoder.geocode {'latLng': latlng}, (results, status) ->
-                    if status == google.maps.GeocoderStatus.OK
-                        sputnik.log ["reverse geocode", results]
-                        # Find the result with types country and political
-                        useful_results = results.filter (r) -> "political" in r.types and "country" in r.types
-                        components = useful_results.map (r) -> r.address_components
-                        useful_components = components.map (c) -> c.filter (r) -> "political" in r.types and "country" in r.types
-                        short_names = useful_components.map (c) -> c.map (r) -> r.short_name
-                        short_names_flat = short_names.reduce (l,r)->l.concat(r)
-                        sputnik.log ["short_names", short_names_flat]
+        # Get location. Try geoip first,
+        # Then try geolocation
+        geoip2.country (result) ->
+            sputnik.log ["geoip", result]
+            if not sputnik.authenticated
+                country = result.country.iso_code
+                if locale.country_to_locale[country]?
+                    ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
+        , (error) ->
+            sputnik.error ["geoip error", error]
+            if navigator.geolocation
+                navigator.geolocation.getCurrentPosition (position) ->
+                    sputnik.log ["current_position", position]
+                    lat = position.coords.latitude
+                    lng = position.coords.longitude
+                    latlng = new google.maps.LatLng(lat, lng);
+                    # For debugging
+                    # Rio de Janerio, Brazil
+                    #latlng = new google.maps.LatLng(-22.9027800, -43.2075000)
+                    # San Pedro Sula, Honduras
+                    #latlng = new google.maps.LatLng(15.503659,-88.00468)
+                    # Berlin, Germany
+                    #latlng = new google.maps.LatLng(52.5243700, 13.4105300)
+                    geocoder = new google.maps.Geocoder();
+                    geocoder.geocode {'latLng': latlng}, (results, status) ->
+                        # If we're already logged in by now, don't set the locale
+                        if not sputnik.authenticated
+                            if status == google.maps.GeocoderStatus.OK
+                                sputnik.log ["reverse geocode", results]
+                                # Find the result with types country and political
+                                useful_results = results.filter (r) -> "political" in r.types and "country" in r.types
+                                components = useful_results.map (r) -> r.address_components
+                                useful_components = components.map (c) -> c.filter (r) -> "political" in r.types and "country" in r.types
+                                short_names = useful_components.map (c) -> c.map (r) -> r.short_name
+                                short_names_flat = short_names.reduce (l,r)->l.concat(r)
+                                sputnik.log ["short_names", short_names_flat]
 
-                        for country in short_names
-                            if locale.country_to_locale[country]?
-                                ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
+                                for country in short_names
+                                    if locale.country_to_locale[country]?
+                                        ractive.set("sputnik.profile.locale", locale.country_to_locale[country])
 
         tv = new window.TVFeed sputnik
         window.tv = tv
@@ -621,9 +652,13 @@ $ ->
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
                             sputnik.restoreSession name_uid[1]
 
-            if simple_contract?
-                ractive.set "current_ticker", simple_contract
-                sputnik.openMarket simple_contract
+            if simple_widget?
+                if simple_widget == "trade"
+                    ractive.set "current_ticker", widget_contract
+                    sputnik.openMarket widget_contract
+
+            if simple_widget == "funding"
+                ractive.set "current_currency", widget_contract
 
         sputnik.on "auth_success", (username) ->
             ga('send', 'event', 'login', 'success')
@@ -634,6 +669,10 @@ $ ->
             ladda.stop()
             $("#register_modal").modal "hide"
             sputnik.getCookie()
+
+            if simple_widget == "funding"
+                sputnik.getAddress(widget_contract)
+                sputnik.getDepositInstructions(widget_contract)
 
         sputnik.on "cookie", (uid) ->
             sputnik.log "got cookie: " + uid
@@ -707,13 +746,17 @@ $ ->
             nickname = $("#register_email").val()
             eula = $("#register_eula").is(":checked")
 
-            if username and password and email and nickname and eula
-                $('#register_error').hide()
-                ladda = Ladda.create $("#register_button")[0]
-                ladda.start()
-                sputnik.makeAccount username, password, email, nickname, navigator.language
+            re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+            if not re.test(email)
+                $('#register_error').text(locale.translate("alerts/invalid_email", ractive.get("sputnik.profile.locale"))).slideDown()
             else
-                $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
+                if username and password and email and nickname and eula
+                    $('#register_error').hide()
+                    ladda = Ladda.create $("#register_button")[0]
+                    ladda.start()
+                    sputnik.makeAccount username, password, email, nickname, ractive.get("sputnik.profile.locale")
+                else
+                    $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
 
         withinAnOrderOfMagnitude = (x, y) ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
@@ -904,10 +947,12 @@ $ ->
             bootbox.alert locale.translate("trade/alerts/place_order_success", ractive.get("sputnik.profile.locale"))
 
         sputnik.on "fill", (fill) ->
-            if not simple_contract?
-                quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
-                price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
-                $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
+            if not simple_widget?
+                fill_notifications = ractive.get("sputnik.profile.notifications.fill")
+                if fill_notifications? and "growl" in fill_notifications
+                    quantity_fmt = locale.quantityFormat(fill.contract, fill.quantity, ractive.get("sputnik.profile.locale"))
+                    price_fmt = locale.priceFormat(fill.contract, fill.price, ractive.get("sputnik.profile.locale"))
+                    $.growl.notice { title: locale.translate("trade/titles/fill", ractive.get("sputnik.profile.locale")), message: "#{fill.contract}:#{fill.side}:#{quantity_fmt}@#{price_fmt}" }
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')
@@ -935,17 +980,22 @@ $ ->
             ladda.start()
             fd = new FormData()
             fd.append('username', ractive.get("sputnik.username"))
-            passports = form.find('input[name=passport]')[0].files
+            id_files = form.find('input[name=id_file]')[0].files
             residencies = form.find('input[name=residency]')[0].files
 
-            if not passports.length
-              bootbox.alert locale.translate("account/compliance/alerts/passport_required", ractive.get("sputnik.profile.locale"))
-              return
-            if not residencies.length
-              bootbox.alert locale.translate("account/compliance/alerts/residency_required", ractive.get("sputnik.profile.locale"))
-              return
+            if not id_files.length
+                bootbox.alert locale.translate("account/compliance/alerts/id_required", ractive.get("sputnik.profile.locale"))
+                ladda.stop()
+                ga('send', 'event', 'compliance', 'failure', 'error', 'id_required')
+                return
 
-            fd.append('file', passports[0])
+            if not residencies.length
+                bootbox.alert locale.translate("account/compliance/alerts/residency_required", ractive.get("sputnik.profile.locale"))
+                ladda.stop()
+                ga('send', 'event', 'compliance', 'failure', 'error', 'residency_required')
+                return
+
+            fd.append('file', id_files[0])
             fd.append('file', residencies[0])
             fd.append('data', JSON.stringify(form.serializeObject()))
 
@@ -960,13 +1010,14 @@ $ ->
                     type: 'POST',
                     success: (data) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'save')
+                        ga('send', 'event', 'compliance', 'save', 'number', data.result)
                         bootbox.alert locale.translate("account/compliance/alerts/request_success", ractive.get("sputnik.profile.locale"))
                     error: (error) ->
                         ladda.stop()
-                        ga('send', 'event', 'compliance', 'failure', 'error', error[0])
-                        bootbox.alert locale.translate(error[1][0], ractive.get("sputnik.profile.locale"))
+                        ga('send', 'event', 'compliance', 'failure', 'error', error.responseJSON[0])
+                        bootbox.alert locale.translate(error.responseJSON[0], ractive.get("sputnik.profile.locale"))
                         sputnik.log ["Error:", error]
 
         # Now that everything is setup, let's connect
         sputnik.connect()
+

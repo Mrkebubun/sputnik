@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# If we have keyless keys, copy them over from the actual profile, not this higher-level profile
+if [ -d $PROFILE/keyless_keys ]; then
+    mkdir -p $profile_git_root/dist/keys
+    cd $PROFILE/keyless_keys
+    cp keyless_server.key keyless_server.crt $profile_git_root/dist/keys
+fi

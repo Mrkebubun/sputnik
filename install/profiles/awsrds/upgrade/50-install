@@ -22,7 +22,7 @@ fi
 
 # Copy over alembic into tools
 cp -r $profile_git_root/dist/alembic $profile_root/tools
-ln -s $profile_conf/alembic.ini $profile_root/tools
+ln -sf $profile_conf/alembic.ini $profile_root/tools
 mkdir -p $profile_root/tools/alembic/versions
 chown -R $profile_user $profile_root/tools/alembic/versions
 

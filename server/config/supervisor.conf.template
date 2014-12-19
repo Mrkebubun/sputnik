@@ -82,10 +82,16 @@ user=${user}
 
 [eventlistener:process_exited]
 command=crashmail -a -m ${alert_email} -o ${webserver_address}
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 events=PROCESS_STATE_EXITED
 
 [eventlistener:memmon]
-command=memmon -p bitcoind=2GB -a ${memmon_size} -m ${alert_email}
+command=memmon -a ${memmon_size} -P bitcoind=${bitcoind_size} -m ${alert_email}
+redirect_stderr = true
+stdout_logfile = ${logs}/%(program_name)s.log
+stdout_logfile_backups = 3
 events=TICK_60
 
 [group:engines]

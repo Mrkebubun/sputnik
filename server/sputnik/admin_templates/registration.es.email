@@ -1,0 +1,15 @@
+Hola {{user.username}}, ¡espero que estes teniendo un buen día!
+Para finalizar el proceso de registo por favor ve a: "Mi Cuenta", luego: “Complimentos" y llena los campos con la siguiente información:
+
+Nombre
+Dirección
+Fecha de Nacimiento
+Scan de Documento Identificación
+Número de Identificación
+
+¡Apenas termines este último paso, estarás listo para intercambiar!
+
+Muchas gracias,
+
+Complimentos
+{{base_uri}}/

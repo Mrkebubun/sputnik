@@ -29,6 +29,7 @@ import margin
 import util
 import ledger
 from alerts import AlertsProxy
+from sendmail import Sendmail
 
 from ledger import create_posting
 
@@ -41,9 +42,11 @@ from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import SQLAlchemyError
 from watchdog import watchdog
+from jinja2 import Environment, FileSystemLoader
 
 import time
 from datetime import datetime
+from util import session_aware
 
 class AccountantException(Exception):
     pass
@@ -68,7 +71,7 @@ class Accountant:
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
                  alerts_proxy, accountant_number=0, debug=False, trial_period=False,
-                 mimetic_share=0.5):
+                 mimetic_share=0.5, sendmail=None, template_dir='admin_templates'):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -107,6 +110,8 @@ class Accountant:
         self.webserver = webserver
         self.disabled_users = {}
         self.accountant_number = accountant_number
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self.sendmail = sendmail
 
     def post_or_fail(self, *postings):
         # This is the core ledger communication method.
@@ -271,7 +276,13 @@ class Accountant:
         debit["count"] = 2
         credit["uid"] = uid
         debit["uid"] = uid
-        return self.post_or_fail(credit, debit).addErrback(log.err)
+
+        # The administrator should know if there is an error
+        def postFailure(failure):
+            log.err(failure)
+            return failure
+
+        return self.post_or_fail(credit, debit).addErrback(postFailure)
 
     def get_position_value(self, username, ticker):
         """Return the numeric value of a user's position for a contact. If it does not exist, return 0.
@@ -662,6 +673,20 @@ class Accountant:
             elapsed = (next - last) * 1000
             log.msg("post_transaction: notify_fill: %.3f ms." % elapsed)
 
+            # Now email the notification
+            notifications = [n for n in user.notifications if n.type == "fill"]
+            for notification in notifications:
+                if notification.method == 'email':
+                    t = util.get_locale_template(user.locale, self.jinja_env, 'fill.{locale}.email')
+                    content = t.render(user=user, contract=contract, id=order, quantity=quantity, quantity_fmt=util.quantity_fmt(contract, quantity),
+                                       price=price, price_fmt=util.price_fmt(contract, price), side=side, timestamp=util.timestamp_to_dt(timestamp)).encode('utf-8')
+
+                    # Now email the token
+                    log.msg("Sending mail: %s" % content)
+                    s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email,
+                                                                                 user.nickname),
+                                      subject='Order fill notification')
+
         def publish_trade(result):
             try:
                 trade.posted = True
@@ -682,6 +707,7 @@ class Accountant:
         if aggressive:
             d.addCallback(publish_trade)
 
+        # The engine doesn't care to receive errors
         return d.addErrback(log.err)
 
     def raiseException(self, failure):
@@ -744,8 +770,8 @@ class Accountant:
         if order.is_cancelled:
             raise ORDER_CANCELLED
 
-        order.is_cancelled = True
         try:
+            order.is_cancelled = True
             # self.session.add(order)
             self.session.commit()
         except:
@@ -839,7 +865,12 @@ class Accountant:
                 direction, note)
         posting['count'] = 2
         posting['uid'] = uid
-        return self.post_or_fail(posting).addErrback(log.err)
+
+        def transferFailure(failure):
+            log.err(failure)
+            return failure
+
+        return self.post_or_fail(posting).addErrback(transferFailure)
 
     def request_withdrawal(self, username, ticker, amount, address):
         """See if we can withdraw, if so reduce from the position and create a withdrawal entry
@@ -916,12 +947,33 @@ class Accountant:
                     self.cashier.request_withdrawal(username, ticker, address, amount)
                     return True
 
+                def onError(failure):
+                    log.err(failure)
+                    return failure
+
                 d.addCallback(onSuccess)
-                return d.addErrback(log.err)
+                d.addErrback(onError)
+
+                return d
         except Exception as e:
             self.session.rollback()
             log.err("Exception received while attempting withdrawal: %s" % e)
             raise e
+
+    def notify_deposit_overflow(self, user, contract, amount):
+        """
+        email notification of withdrawal pending to the user.
+        """
+
+        # Now email the notification
+        t = util.get_locale_template(user.locale, self.jinja_env, 'deposit_overflow.{locale}.email')
+        content = t.render(user=user, contract=contract, amount_fmt=util.quantity_fmt(contract, amount)).encode('utf-8')
+
+        # Now email the token
+        log.msg("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email,
+                                                                     user.nickname),
+                          subject='Your deposit was not fully processed')
 
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
         """Deposits cash
@@ -962,10 +1014,12 @@ class Accountant:
             remote_postings = []
             if admin_username is not None:
                 note = "%s (%s)" % (address, admin_username)
+                cash_account = 'offlinecash'
             else:
                 note = address
+                cash_account = 'onlinecash'
 
-            debit_posting = create_posting("Deposit", 'onlinecash',
+            debit_posting = create_posting("Deposit", cash_account,
                                                   contract.ticker,
                                                   deposit,
                                                   'debit',
@@ -1014,6 +1068,8 @@ class Accountant:
                 my_postings.append(excess_debit_posting)
                 remote_postings.append(excess_credit_posting)
 
+                self.notify_deposit_overflow(user, contract, excess_deposit)
+
             # Deposit Fees
             fees = util.get_deposit_fees(user, contract, deposit, trial_period=self.trial_period)
             user_postings, vendor_postings, remainder_postings = self.charge_fees(fees, user, type="Deposit")
@@ -1032,11 +1088,16 @@ class Accountant:
             for posting in remote_postings:
                 self.accountant_proxy.remote_post(posting['username'], posting)
 
-            return d.addErrback(log.err)
+            def postingFailure(failure):
+                log.err(failure)
+                return failure
+
+            return d.addErrback(postingFailure)
         except Exception as e:
             self.session.rollback()
             log.err(
                 "Updating user position failed for address=%s and received=%d: %s" % (address, received, e))
+            raise e
 
     def change_permission_group(self, username, id):
         """Changes a user's permission group to something different
@@ -1230,6 +1291,7 @@ class Accountant:
             posting['count'] = position_count * 2
             posting['uid'] = uid
 
+        # TODO: Determine what the caller needs - do they want to know about errors?
         return self.post_or_fail(credit, debit).addErrback(log.err)
 
     def reload_fee_group(self, id):
@@ -1254,16 +1316,19 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#place_order")
     def place_order(self, username, order):
         return self.accountant.place_order(username, order)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.webserver.json#request_withdrawal")
     def request_withdrawal(self, username, ticker, quantity, address):
         return self.accountant.request_withdrawal(username, ticker, quantity, address)
@@ -1278,15 +1343,18 @@ class EngineExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     def safe_prices(self, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export
+    @session_aware
     @schema("rpc/accountant.engine.json#post_transaction")
     def post_transaction(self, username, transaction):
         return self.accountant.post_transaction(username, transaction)
 
     @export
+    @session_aware
     @schema("rpc/accountant.engine.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order_engine(username, id)
@@ -1301,16 +1369,19 @@ class CashierExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#deposit_cash")
     def deposit_cash(self, username, address, received, total=True):
         return self.accountant.deposit_cash(username, address, received, total=total)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#transfer_position")
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
+    @session_aware
     @schema("rpc/accountant.cashier.json#get_position")
     def get_position(self, username, ticker):
         return self.accountant.get_position_value(username, ticker)
@@ -1324,10 +1395,11 @@ class AccountantExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.accountant.json#remote_post")
     def remote_post(self, username, *postings):
         self.accountant.post_or_fail(*postings).addErrback(log.err)
-        # we do not want or need this to propogate back to the caller
+        # we do not want or need this to propagate back to the caller
         return None
 
 
@@ -1340,40 +1412,50 @@ class AdministratorExport(ComponentExport):
         ComponentExport.__init__(self, accountant)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#adjust_position")
     def adjust_position(self, username, ticker, quantity, admin_username):
         return self.accountant.adjust_position(username, ticker, quantity, admin_username)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#transfer_position")
     def transfer_position(self, username, ticker, direction, quantity, note, uid):
         return self.accountant.transfer_position(username, ticker, direction, quantity, note, uid)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#change_permission_group")
     def change_permission_group(self, username, id):
         self.accountant.change_permission_group(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#deposit_cash")
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
-        self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
+        return self.accountant.deposit_cash(username, address, received, total=total, admin_username=admin_username)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#cancel_order")
     def cancel_order(self, username, id):
         return self.accountant.cancel_order(username, id)
 
     @export
+    @session_aware
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
         return self.accountant.clear_contract(username, ticker, price, uid)
 
     @export
+    @session_aware
+    @schema("rpc/accountant.administrator.json#change_fee_group")
     def change_fee_group(self, username, id):
         return self.accountant.change_fee_group(username, id)
 
     @export
+    @session_aware
+    @schema("rpc/accountant.administrator.json#reload_fee_group")
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)
 
@@ -1429,12 +1511,14 @@ if __name__ == "__main__":
     debug = config.getboolean("accountant", "debug")
     trial_period = config.getboolean("accountant", "trial_period")
     mimetic_share = config.getfloat("accountant", "mimetic_share")
+    sendmail = Sendmail(config.get("administrator", "email"))
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             accountant_number=accountant_number,
                             debug=debug,
                             trial_period=trial_period,
-                            mimetic_share=mimetic_share)
+                            mimetic_share=mimetic_share,
+                            sendmail=sendmail)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)

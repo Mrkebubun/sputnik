@@ -1,0 +1,4 @@
+Hello {{user.nickname}} ({{user.username}}),
+
+Your order #{{id}} for {{contract.ticker}} to {{side}} has been filled in the amount of {{contract.payout_contract_ticker}} {{quantity_fmt}}
+for a price of {{contract.denominated_contract_ticker}} {{price_fmt}} at {{timestamp}}

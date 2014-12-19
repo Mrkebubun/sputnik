@@ -7,8 +7,10 @@ import time
 import argparse
 import boto.ec2
 import boto.cloudformation
+import boto.rds
 import random
 import string
+import datetime
 import pty
 
 import fabric.api
@@ -140,6 +142,7 @@ class Instance:
     def _connect(self, region):
         self.ec2 = boto.ec2.connect_to_region(region)
         self.cf = boto.cloudformation.connect_to_region(region)
+        self.rds = boto.rds.connect_to_region(region)
 
     def _search(self, customer):
         try:
@@ -314,8 +317,19 @@ class Instance:
         print "Deleting instance %s..." % self.customer
 
         if self.stack_present:
-            print "\tremoving stack..."
-            self.cf.delete_stack(self.customer)
+            while self.stack.stack_status != "DELETE_COMPLETE":
+                sys.stdout.write("\tremoving stack...")
+                self.cf.delete_stack(self.customer)
+                with Spinner():
+                    while True:
+                        self.stack.update()
+                        if self.stack.stack_status in ["DELETE_COMPLETE", "DELETE_FAILED"]:
+                            break
+                        elif self.stack.stack_status == "DELETE_IN_PROGRESS":
+                            time.sleep(10)
+                        else:
+                            print "stack status: %s" % self.stack.stack_status
+                            raise INSTANCE_BROKEN
 
         if self.key_present:
             print "\tremoving key..."
@@ -336,6 +350,12 @@ class Instance:
 
         return db_pass
 
+    def get_resources(self):
+        resources = {}
+        for resource in self.stack.describe_resources():
+            resources[resource.logical_resource_id] = resource.physical_resource_id
+        return resources
+
     def status(self):
         if not self.found:
             raise INSTANCE_NOT_FOUND
@@ -347,6 +367,7 @@ class Instance:
             print "Stack not found."
             return
         print "Stack Status: %s" % self.stack.stack_status
+
         if self.verbose:
             for event in self.stack.describe_events():
                 status = event.resource_status
@@ -356,6 +377,10 @@ class Instance:
                 print "{0:25} {1:}".format("\t" + status, reason[:50])
                 for i in range(50, len(reason), 50):
                     print " " * 26 + reason[i:i + 50]
+
+            resources = self.get_resources()
+            for logical_id, physical_id in resources.iteritems():
+                print "{0:25} {1:}".format(logical_id, physical_id)
 
         instance_id = None
         for output in self.stack.outputs:
@@ -416,34 +441,40 @@ class Instance:
                 if result.failed:
                     raise COMMAND_FAILED
 
-    def run(self, command):
+    def run(self, cmd):
         self.check()
+
+        cmd = cmd[0] # nargs=1 produces a list
+
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.run(command)
+            result = fabric.api.run(cmd)
             if result.failed:
                 raise COMMAND_FAILED
 
         return result
 
-    def sudo(self, command):
+    def sudo(self, cmd):
         self.check()
+        
+        cmd = cmd[0] # nargs=1 produces a list
+
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
-            result = fabric.api.sudo(command)
+            result = fabric.api.sudo(cmd)
             if result.failed:
                 raise COMMAND_FAILED
 
         return result
 
     def start(self):
-        return self.sudo("service supervisor start")
+        return self.sudo(["service supervisor start"])
 
     def install(self, upgrade=False):
         self.check()
@@ -524,6 +555,21 @@ class Instance:
     def upgrade(self):
         self.install(True)
 
+    def snapshot(self, name):
+        name = name[0] # nargs=1 produces a list
+
+        self.check()
+        resources = self.get_resources()
+        db_instance_id = resources['DBInstance']
+        instances = self.rds.get_all_dbinstances(db_instance_id)
+        db = instances[0]
+        sys.stdout.write("Creating snapshot...")
+        snapshot = db.snapshot("%s-%s" % (db_instance_id, name))
+        with Spinner():
+            while snapshot.status != 'available':
+                snapshot.update()
+                time.sleep(10)
+
     def query(self):
         self.check()
 
@@ -539,48 +585,82 @@ class Instance:
 
         parser = ConfigParser.SafeConfigParser()
         parser.readfp(cStringIO.StringIO(result))
-        print "Git hash: %s" % parser.get("version", "git_hash")
+        print "%s: %s" % (parser.get("version", "git_tag"), parser.get("version", "git_hash"))
 
     def login(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
-
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
+        self.check()
 
         fabric.api.open_shell()
 
     def backup(self):
-        if self.broken:
-            raise INSTANCE_BROKEN
+        self.check()
 
-        if not self.deployed:
-            raise INSTANCE_NOT_FOUND
-
-        if not self.ready:
-            raise INSTANCE_NOT_READY
-
-        backup_dir = join(self.prefix, "backups")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        backup_dir = join(self.prefix, "backups", timestamp)
         try:
             os.makedirs(backup_dir)
         except OSError:
             pass
+
+        print "Backing up %s to %s..." % (self.customer, backup_dir)
 
         context = fabric.api.hide("everything")
         if self.verbose:
             context = fabric.api.show("everything")
 
         with context:
+            print "\tCopying wallet.dat..."
+            # use_sudo=True cannot cd into an inaccessible directory so we
+            # do it manually.
             fabric.api.sudo("cp /data/bitcoind/wallet.dat .")
             fabric.api.sudo("chown ubuntu wallet.dat")
             fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
             fabric.api.sudo("rm wallet.dat")
+            print "\tCopying config..."
+            fabric.api.get("/srv/sputnik/server/config", backup_dir)
+            sys.stdout.write("\tCopying logs (this may take a few minutes)... ")
+            if not self.verbose:
+                with Spinner():
+                    fabric.api.get("/data/logs", backup_dir, use_sudo=True)
+                print
+            else:
+                fabric.api.get("/data/logs", backup_dir, use_sudo=True)
+            sys.stdout.write("\tCompressing logs (this may take a few minutes)... ")
+            with fabric.api.lcd(join(backup_dir, "logs")):
+                if not self.verbose:
+                    with Spinner():
+                        fabric.api.local("gzip *")
+                    print
+                else:
+                    fabric.api.local("gzip *")
+            print "\tCopying alembic..."
+            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic"))
+
+        print "Backup complete."
+
+    def get(self, source, dest):
+        self.check()
+        
+        source = source[0] # nargs=1 produces a list
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
 
         with context:
-            fabric.api.get("/srv/sputnik/tools/alembic/versions", join(backup_dir, "alembic_versions"))
+            fabric.api.get(source, dest, use_sudo=True)
+
+    def put(self, source, dest):
+        self.check()
+
+        source = source[0] # nargs=1 produces a list
+
+        context = fabric.api.hide("everything")
+        if self.verbose:
+            context = fabric.api.show("everything")
+
+        with context:
+            fabric.api.put(source, dest, use_sudo=True)
 
     @staticmethod
     def list(region=None):
@@ -644,30 +724,36 @@ def main():
     parser_install_clients = subparsers.add_parser("install_clients", parents=[customer],
                                                    help="Install python clients")
     parser_run = subparsers.add_parser("run", help="Run a command", parents=[customer])
-    parser_run = parser_run.add_argument("args", nargs=argparse.REMAINDER,
-                                         help="what is the remote command to run")
+    parser_run = parser_run.add_argument("cmd", nargs=1, help="Remote command")
     parser_sudo = subparsers.add_parser("sudo", help="Run a command as root", parents=[customer])
-    parser_sudo = parser_sudo.add_argument("args", nargs=argparse.REMAINDER,
-                                         help="what is the remote command to run")
+    parser_sudo = parser_sudo.add_argument("cmd", nargs=1, help="Remote command")
+    parser_get = subparsers.add_parser("get", help="Get file from remote host", parents=[customer])
+    parser_get.add_argument("source", nargs=1, help="Remote path")
+    parser_get.add_argument("dest", nargs="?", help="Local path", default=".")
+    parser_put = subparsers.add_parser("put", help="Push file to remote host", parents=[customer])
+    parser_put.add_argument("source", nargs=1, help="Local path")
+    parser_put.add_argument("dest", nargs="?", help="Remote path", default=".")
     parser_start = subparsers.add_parser("start", help="Start supervisor", parents=[customer])
+    parser_snapshot = subparsers.add_parser("snapshot", help="Snapshot database", parents=[customer])
+    parser_snapshot.add_argument("name", nargs=1, help="Name for the snapshot")
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
     del kwargs["command"]
 
-    args = []
-    if "args" in kwargs:
-        args = kwargs["args"]
-        del kwargs["args"]
+    reserved = ["customer", "region", "profile", "key", "verbose",
+                "safety", "template"]
+    instance_args = {k: kwargs[k] for k in kwargs if k in reserved}
+    call_args = {k: kwargs[k] for k in kwargs if k not in reserved}
 
     if command == "list":
         return Instance.list(kwargs.get("region", None))
 
-    instance = Instance(**kwargs)
+    instance = Instance(**instance_args)
     method = getattr(instance, command)
 
     try:
-        result = method(*args)
+        result = method(**call_args)
         if result:
             print result
     except AutoDeployException, e:

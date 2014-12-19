@@ -72,16 +72,7 @@ INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
 
-
-def session_aware(func):
-    def new_func(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except Exception, e:
-            self.session.rollback()
-            raise e
-
-    return new_func
+from util import session_aware
 
 
 class Administrator:
@@ -126,7 +117,6 @@ class Administrator:
         else:
             self.update_bs_cache()
 
-    @session_aware
     def make_account(self, username, password):
         """Makes a user account with the given password
 
@@ -149,6 +139,7 @@ class Administrator:
             raise USERNAME_TAKEN
 
         user = models.User(username, password)
+        user.email = username
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
@@ -159,10 +150,18 @@ class Administrator:
 
         self.session.commit()
 
+        # Send registration mail
+        t = util.get_locale_template(user.locale, self.jinja_env, 'registration.{locale}.email')
+        content = t.render(user=user, base_uri=self.base_uri).encode('utf-8')
+
+        # Now email
+        log.msg("Sending mail: %s" % content)
+        s = self.sendmail.send_mail(content, to_address=user.email,
+                                    subject='Welcome!')
+
         log.msg("Account created for %s" % username)
         return True
 
-    @session_aware
     def change_profile(self, username, profile):
         """Changes the profile of a user
 
@@ -182,11 +181,45 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
-        self.session.merge(user)
+
+        # User notifications
+        if 'notifications' in profile:
+            # Remove notifications not in profile from db
+            for notification in user.notifications:
+                if notification.type in profile['notifications']:
+                    if notification.method not in profile['notifications'][notification.type]:
+                            self.session.delete(notification)
+
+            # Add notifications in the profile that are not in db
+            for type, methods in profile['notifications'].iteritems():
+                notifications = [n.method for n in user.notifications if n.type == type]
+                for method in [m for m in methods if m not in notifications]:
+                    new_notification = models.Notification(username, type, method)
+                    self.session.add(new_notification)
 
         self.session.commit()
-        log.msg("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
+        log.msg("Profile changed for %s to %s/%s - %s" % (user.username, user.email, user.nickname, user.notifications))
         return True
+
+    def get_profile(self, username):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        notifications = {}
+        for notification in user.notifications:
+            if notification.type not in notifications:
+                notifications[notification.type] = [notification.method]
+            else:
+                notifications[notification.type].append(notification.method)
+
+        profile = {'email': user.email,
+                   'nickname': user.nickname,
+                   'locale': user.locale,
+                   'audit_secret': user.audit_secret,
+                   'notifications': notifications
+        }
+        return profile
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -212,7 +245,6 @@ class Administrator:
 
         return token
 
-    @session_aware
     def reset_password_plaintext(self, username, new_password):
         """Reset's a user's password to the given plaintext
 
@@ -240,7 +272,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         """Reset a user's password, make sure the old password or the token gets checked
 
@@ -276,7 +307,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def get_reset_token(self, username, hours_to_expiry=2):
         """Get a reset token for a user, send him a mail with the token
 
@@ -346,7 +376,6 @@ class Administrator:
 
         return user
 
-    @session_aware
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket
 
@@ -407,7 +436,6 @@ class Administrator:
             log.msg("Registered foreign key: %s for %s" % (foreign_key, username))
             return True
 
-    @session_aware
     def set_admin_level(self, username, level):
         """Sets the level of control that the admin user has
 
@@ -423,7 +451,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def new_admin_user(self, username, password_hash, level):
         """Create a new admin user with a certain password_hash
 
@@ -445,7 +472,6 @@ class Administrator:
         log.msg("Admin user %s created" % username)
         return True
 
-    @session_aware
     def reset_admin_password(self, username, old_password_hash, new_password_hash):
         """Reset the admin password ensuring we knew the old password
 
@@ -474,7 +500,6 @@ class Administrator:
         log.msg("Admin user %s has password reset" % username)
         return True
 
-    @session_aware
     def force_reset_admin_password(self, username, new_password_hash):
         """Change an admin password even if we don't know the old password
 
@@ -964,7 +989,7 @@ class AdminAPI(Resource):
         return [d.dict for d in deposits]
 
     def rescan_address(self, request, data):
-        self.administrator.cashier.rescan_address(data['address'])
+        self.administrator.rescan_address(data['address'])
         return {'result': True}
 
     def process_withdrawal(self, request, data):
@@ -1003,7 +1028,6 @@ class AdminAPI(Resource):
         return json.dumps(result, sort_keys=True,
                           indent=4, separators=(',', ': '))
 
-
 class AdminWebUI(Resource):
     isLeaf = False
 
@@ -1022,7 +1046,7 @@ class AdminWebUI(Resource):
         self.administrator = administrator
         self.avatarId = avatarId
         self.avatarLevel = avatarLevel
-        self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.template_dir),
+        self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.component.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
         Resource.__init__(self)
@@ -1193,14 +1217,18 @@ class AdminWebUI(Resource):
         name = request.args['name'][0]
         aggressive_factor = int(request.args['aggressive_factor'][0])
         passive_factor = int(request.args['passive_factor'][0])
-        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor)
+        withdraw_factor = int(request.args['withdraw_factor'][0])
+        deposit_factor = int(request.args['deposit_factor'][0])
+        self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
         return redirectTo('/fee_groups', request)
 
     def new_fee_group(self, request):
         name = request.args['name'][0]
         aggressive_factor = int(request.args['aggressive_factor'][0])
         passive_factor = int(request.args['passive_factor'][0])
-        self.administrator.new_fee_group(name, aggressive_factor, passive_factor)
+        withdraw_factor = int(request.args['withdraw_factor'][0])
+        deposit_factor = int(request.args['deposit_factor'][0])
+        self.administrator.new_fee_group(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
         return redirectTo('/fee_groups', request)
 
     def contracts(self, request):
@@ -1350,7 +1378,7 @@ class AdminWebUI(Resource):
 
         user = self.administrator.get_user(request.args['username'][0])
         permission_groups = self.administrator.get_permission_groups()
-        zendesk_domain = self.administrator.zendesk_domain
+        zendesk_domain = self.administrator.component.zendesk_domain
 
         if 'orders_page' in request.args:
             orders_page = int(request.args['orders_page'][0])
@@ -1364,7 +1392,7 @@ class AdminWebUI(Resource):
         rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
                             fee_groups=fee_groups,
-                            debug=self.administrator.debug, permission_groups=permission_groups,
+                            debug=self.administrator.component.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
                             min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
         return rendered.encode('utf-8')
@@ -1391,7 +1419,7 @@ class AdminWebUI(Resource):
         """Send a message to the cashier to rescan an address
 
         """
-        self.administrator.cashier.rescan_address(request.args['address'][0])
+        self.administrator.rescan_address(request.args['address'][0])
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def manual_deposit(self, request):
@@ -1438,6 +1466,154 @@ class AdminWebUI(Resource):
         return rendered.encode('utf-8')
 
 
+class AdminWebExport(ComponentExport):
+    def __init__(self, administrator):
+        self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
+
+    @session_aware
+    def get_withdrawals(self):
+        return self.administrator.get_withdrawals()
+
+    @session_aware
+    def get_deposits(self):
+        return self.administrator.get_deposits()
+
+    @session_aware
+    def rescan_address(self, address):
+        return self.administrator.cashier.rescan_address(address)
+
+    @session_aware
+    def process_withdrawal(self, id, online, cancel, admin_username):
+        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username)
+
+    @session_aware
+    def expire_all(self):
+        return self.administrator.expire_all()
+
+    @session_aware
+    def new_permission_group(self, name, permissions):
+        return self.administrator.new_permission_group(name, permissions)
+
+    @session_aware
+    def change_permission_group(self, username, id):
+        return self.administrator.change_permission_group(username, id)
+
+    @session_aware
+    def get_fee_groups(self):
+        return self.administrator.get_fee_groups()
+
+    @session_aware
+    def check_fee_groups(self, fee_groups):
+        return self.administrator.check_fee_groups(fee_groups)
+
+    @session_aware
+    def change_fee_group(self, username, id):
+        return self.administrator.change_fee_group(username, id)
+
+    @session_aware
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
+        return self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
+
+    @session_aware
+    def new_fee_group(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
+        return self.administrator.new_fee_group(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
+
+    @session_aware
+    def get_contracts(self):
+        return self.administrator.get_contracts()
+
+    @session_aware
+    def edit_contract(self, ticker, args):
+        return self.administrator.edit_contract(ticker, args)
+
+    @session_aware
+    def clear_contract(self, ticker, price):
+        return self.administrator.clear_contract(ticker, price)
+
+    @session_aware
+    def get_order_book(self, ticker):
+        return self.administrator.get_order_book(ticker)
+
+    @session_aware
+    def cancel_order(self, username, id):
+        return self.administrator.cancel_order(username, id)
+
+    @session_aware
+    def get_journal(self, id):
+        return self.administrator.get_journal(id)
+
+    @session_aware
+    def get_users(self):
+        return self.administrator.get_users()
+
+    @session_aware
+    def reset_password_plaintext(self, username, new_password):
+        return self.administrator.reset_password_plaintext(username, new_password)
+
+    @session_aware
+    def reset_admin_password(self, username, old_password_hash, new_password_hash):
+        return self.administrator.reset_admin_password(username, old_password_hash=old_password_hash,
+                                                       new_password_hash=new_password_hash)
+
+    @session_aware
+    def get_user(self, username):
+        return self.administrator.get_user(username)
+
+    @session_aware
+    def new_admin_user(self, username, password_hash, level):
+        return self.administrator.new_admin_user(username, password_hash, level)
+
+    @session_aware
+    def set_admin_level(self, username, level):
+        return self.administrator.set_admin_level(username, level)
+
+    @session_aware
+    def get_permission_groups(self):
+        return self.administrator.get_permission_groups()
+
+    @session_aware
+    def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
+        return self.administrator.transfer_position(ticker, from_user, to_user, quantity_ui, note)
+
+    @session_aware
+    def adjust_position(self, username, ticker, quantity, admin_username):
+        return self.administrator.adjust_position(username, ticker, quantity, admin_username=admin_username)
+
+    @session_aware
+    def get_contract(self, ticker):
+        return self.administrator.get_contract(ticker)
+
+    @session_aware
+    def get_orders(self, user, page):
+        return self.administrator.get_orders(user, page)
+
+    @session_aware
+    def manual_deposit(self, address, quantity, admin_username):
+        return self.administrator.manual_deposit(address, quantity, admin_username=admin_username)
+
+    @session_aware
+    def force_reset_admin_password(self, username, password_hash):
+        return self.administrator.force_reset_admin_password(username, password_hash)
+
+    @session_aware
+    def get_balance_sheet(self):
+        return self.administrator.get_balance_sheet()
+
+    @session_aware
+    def get_admin_users(self):
+        return self.administrator.get_admin_users()
+
+    @session_aware
+    def get_position(self, user, contract):
+        return self.administrator.get_position(user, contract)
+
+    @session_aware
+    def get_postings(self, user, contract, page):
+        return self.administrator.get_postings(user, contract, page)
+
+
+
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
 
@@ -1462,6 +1638,10 @@ class PasswordChecker(object):
             admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
         except NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such administrator"))
+        except Exception as e:
+            log.err(e)
+            self.session.rollback()
+            raise e
 
         # Allow login if there is no password. Use this for
         # setup only
@@ -1492,6 +1672,7 @@ class SimpleRealm(object):
                 else:
                     avatarLevel = user.level
             except Exception as e:
+                self.session.rollback()
                 print "Exception: %s" % e
 
             ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
@@ -1514,39 +1695,52 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#make_account")
     def make_account(self, username, password):
         return self.administrator.make_account(username, password)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#change_profile")
     def change_profile(self, username, profile):
         return self.administrator.change_profile(username, profile)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#reset_password_hash")
     def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash, token=token)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#request_support_nonce")
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#get_audit")
     def get_audit(self):
         return self.administrator.get_audit()
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_profile")
+    def get_profile(self, username):
+        return self.administrator.get_profile(username)
 
 
 class TicketServerExport(ComponentExport):
@@ -1559,11 +1753,13 @@ class TicketServerExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#check_support_nonce")
     def check_support_nonce(self, username, nonce, type):
         return self.administrator.check_support_nonce(username, nonce, type)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
@@ -1618,7 +1814,7 @@ if __name__ == "__main__":
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory),
                                             checkers),
                                      [digest_factory])
 

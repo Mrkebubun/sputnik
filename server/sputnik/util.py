@@ -11,7 +11,39 @@ import uuid
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+from zmq_util import ComponentExport
+from sqlalchemy.orm.session import Session
 import hashlib
+
+#
+# This doesn't work properly
+#
+def except_trace_alert(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            log.err("Unhandled exception in %s" % func.__name__)
+            log.err(e)
+            if hasattr(self, 'alerts_proxy') and self.alerts_proxy is not None:
+                self.alerts_proxy.send_alert(str(e), "Unhandled exception in %s" % func.__name__)
+            raise e
+
+    return wrapped
+
+def session_aware(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        finally:
+            if isinstance(self, ComponentExport):
+                session = self.component.session
+            else:
+                session = self.session
+
+            if isinstance(session, Session):
+                session.rollback()
+    return wrapped
 
 def get_locale_template(locale, jinja_env, template):
     locales = [locale, "root"]
@@ -267,4 +299,48 @@ class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         ctx.use_certificate_chain_file(self.certificateChainFileName)
         ctx.use_privatekey_file(self.privateKeyFileName)
         self._context = ctx
+
+class SputnikObserver(log.FileLogObserver):
+    levels = {10: "DEBUG", 20:"INFO", 30:"WARN", 40:"ERROR", 50:"CRITICAL"}
+
+    def __init__(self, level=20):
+        self.level = level
+        log.FileLogObserver.__init__(self, sys.stdout)
+
+    def emit(self, eventDict):
+        text = log.textFromEventDict(eventDict)
+        if text is None:
+            return
+        
+        level = eventDict.get("level", 20)
+        if level < self.level:
+            return
+
+        timeStr = self.formatTime(eventDict['time'])
+        fmtDict = {'system': eventDict['system'],
+                   'text': text.replace("\n", "\n\t"),
+                   'level': self.levels[level]}
+        msgStr = log._safeFormat("%(level)s [%(system)s] %(text)s\n", fmtDict)
+
+        twisted.python.util.untilConcludes(self.write, timeStr + " " + msgStr)
+        twisted.python.util.untilConcludes(self.flush)
+
+class Logger:
+    def __init__(self, prefix):
+        self.prefix = prefix
+
+    def debug(self, message=None):
+        log.msg(message, system=self.prefix, level=10)
+
+    def info(self, message=None):
+        log.msg(message, system=self.prefix, level=20)
+
+    def warn(self, message=None):
+        log.msg(message, system=self.prefix, level=30)
+
+    def error(self, message=None):
+        log.err(message, system=self.prefix, level=40)
+
+    def critical(self, message=None):
+        log.err(message, system=self.prefix, level=50)
 

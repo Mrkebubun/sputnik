@@ -90,6 +90,7 @@ permissions add Full trade withdraw deposit login
 permissions add NoTrade withdraw deposit login
 
 fees add Default 100 100 100 100
+fees add MarketMaker 100 0 0 0
 
 accounts add customer
 accounts add m2
@@ -163,7 +164,7 @@ class FakeComponent:
         def proxy_method(*args, **kwargs):
             self._log_call(key, *args, **kwargs)
 
-            return None
+            return defer.succeed(None)
 
         return proxy_method
 
@@ -291,6 +292,7 @@ class TestSputnik(unittest.TestCase):
         if isinstance(result, str):
             request.write(result)
             request.finish()
+            request.responseCode = 200
             return defer.succeed(None)
         elif result is NOT_DONE_YET:
             if request.finished:

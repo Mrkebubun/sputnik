@@ -99,8 +99,8 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (email, nickname, locale) =>
-        @call("change_profile", email, nickname, locale).then (@profile) =>
+    changeProfile: (profile) =>
+        @call("change_profile", profile).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
@@ -117,6 +117,11 @@ class @Sputnik extends EventEmitter
 
             @emit "audit_details", audit_details
             @emit "audit_hash", @getAuditHash(wire_audit_details.timestamp)
+
+    getPermissions: () =>
+        @call("get_permissions").then (permissions) =>
+            @log ["permissions", permissions]
+            @emit "permissions", permissions
 
     getAuditHash: (timestamp) =>
         secret = @profile.audit_secret
@@ -250,6 +255,7 @@ class @Sputnik extends EventEmitter
         @getSafePrices()
         @getOpenOrders()
         @getPositions()
+        @getPermissions()
 
         @username = permissions.username
         @emit "auth_success", @username

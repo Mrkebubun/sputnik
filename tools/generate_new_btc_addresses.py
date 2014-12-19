@@ -12,29 +12,49 @@ from sputnik import database, models
 from sputnik import txbitcoinrpc
 import getpass
 from sputnik import config
-from twisted.internet import defer, reactor
+from twisted.internet import defer, reactor, task
 
 db_session = database.make_session(username=getpass.getuser())
 print config.get("cashier","bitcoin_conf")
 conn = txbitcoinrpc.BitcoinRpc(config.get("cashier", "bitcoin_conf"))
 
 #conn.walletpassphrase('pass',10, dont_raise=True)
-conn.keypoolrefill()
+count = 0
+def go():
+    d = conn.keypoolrefill()
 
-quantity = 100
+    def get_addresses(result):
+        quantity = 100
 
-dl = defer.DeferredList([conn.getnewaddress() for i in range(quantity)])
+        dl = defer.DeferredList([conn.getnewaddress() for i in range(quantity)])
 
-def add_addresses(results):
-    for r in results:
-        addr = r[1]['result']
-        BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
-        new_address = models.Addresses(None, BTC, addr)
-        db_session.add(new_address)
-        print 'adding: ', addr
-    db_session.commit()
-    print 'committed'
-    reactor.stop()
+        def add_addresses(results):
+            for r in results:
+                addr = r[1]['result']
+                BTC = db_session.query(models.Contract).filter_by(ticker='BTC').one()
+                new_address = models.Addresses(None, BTC, addr)
+                db_session.add(new_address)
+                print 'adding: ', addr
+            db_session.commit()
+            print 'committed'
+            reactor.stop()
 
-dl.addCallback(add_addresses)
+        dl.addCallback(add_addresses)
+        return dl
+
+    def try_again(failure):
+        print "Error: %s" % str(failure.value)
+        global count
+        count += 1
+        if count > 10:
+            reactor.stop()
+            raise failure.value
+        else:
+            return task.deferLater(reactor, 30, go)
+
+    d.addCallback(get_addresses)
+    d.addErrback(try_again)
+    return d
+
+go()
 reactor.run()

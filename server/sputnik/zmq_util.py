@@ -12,7 +12,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 
 import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("plugin_manager")
+debug, log, warn, error, critical = observatory.get_loggers("zmq")
 
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass

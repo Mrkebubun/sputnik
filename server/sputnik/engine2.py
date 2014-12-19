@@ -440,6 +440,9 @@ class SafePriceNotifier(EngineListener):
             self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
         except IndexError:
             self.safe_price = 42
+        except Exception as e:
+            self.engine.session.rollback()
+            raise e
 
         self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
         self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
@@ -491,6 +494,7 @@ if __name__ == "__main__":
     try:
         contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
+        session.rollback()
         log.err("Cannot determine ticker id. %s" % e)
         log.err()
         raise e
@@ -522,13 +526,17 @@ if __name__ == "__main__":
     #engine.add_listener(safe_price_notifier)
 
     # Cancel all orders with some quantity_left that have been dispatched but not cancelled
-    for order in session.query(models.Order).filter_by(
-            is_cancelled=False).filter_by(
-            dispatched=True).filter_by(
-            contract_id=contract.id).filter(
-                    models.Order.quantity_left > 0):
-        log.msg("Cancelling order %d" % order.id)
-        accountant.cancel_order(order.username, order.id)
+    try:
+        for order in session.query(models.Order).filter_by(
+                is_cancelled=False).filter_by(
+                dispatched=True).filter_by(
+                contract_id=contract.id).filter(
+                        models.Order.quantity_left > 0):
+            log.msg("Cancelling order %d" % order.id)
+            accountant.cancel_order(order.username, order.id)
+    except Exception as e:
+        session.rollback()
+        raise e
 
     engine.notify_init()
 

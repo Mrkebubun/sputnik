@@ -1,0 +1,16 @@
+Ola, {{user.username}}, boa tarde!
+
+Para finalizar o seu processo de inscrição, por favor acesse “Conta”, “Compliance” e preencha os campos com os dados solicitados
+
+Nome
+Endereço
+Data de nascimento
+Scan de Documento de Identificação
+Documento de Identificação
+
+Assim que houver preenchido essas informações estará disponível para negociar!
+
+Muito obrigado,
+
+Compliance
+{{base_uri}}/
