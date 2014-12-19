@@ -11,23 +11,52 @@ from sputnik import util
 import markdown
 import datetime
 import collections
+from psycopg2 import OperationalError
+from twisted.internet.defer import inlineCallbacks, returnValue
 
+class PostgresException(Exception):
+    pass
+
+class MyConnectionPool():
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.pool = adbapi.ConnectionPool(*args, **kwargs)
+
+    @inlineCallbacks
+    def runQuery(self, *args, **kwargs):
+        count = 0
+        while count < 10:
+            try:
+                result = yield self.pool.runQuery(*args, **kwargs)
+                returnValue(result)
+            except OperationalError as e:
+                log.err("Operational Error! Trying again - %s" % str(e))
+                self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
+                count += 1
+            except Exception as e:
+                raise e
+
+        log.err("Tried to reconnect 10 times, no joy")
+        raise PostgresException("exceptions/webserver/database-error")
 
 class PostgresDatabase(DatabasePlugin):
     def __init__(self):
         DatabasePlugin.__init__(self)
+
+        # noinspection PyUnresolvedReferences
         dbpassword = config.get("database", "password")
         if dbpassword:
-            dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
-                                           user=config.get("database", "username"),
-                                           password=dbpassword,
-                                           host=config.get("database", "host"),
-                                           port=config.get("database", "port"),
-                                           database=config.get("database", "dbname"))
+            dbpool = MyConnectionPool(config.get("database", "adapter"),
+                                       user=config.get("database", "username"),
+                                       password=dbpassword,
+                                       host=config.get("database", "host"),
+                                       port=config.get("database", "port"),
+                                       database=config.get("database", "dbname"))
         else:
-            dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
-                                           user=config.get("database", "username"),
-                                           database=config.get("database", "dbname"))
+            dbpool = MyConnectionPool(config.get("database", "adapter"),
+                                       user=config.get("database", "username"),
+                                       database=config.get("database", "dbname"))
         self.dbpool = dbpool
 
     @inlineCallbacks
@@ -163,14 +192,6 @@ class PostgresDatabase(DatabasePlugin):
                             "reference_price": x[3]
                             }
                             for x in result})
-
-    @inlineCallbacks
-    def get_profile(self, username):
-        result = yield self.dbpool.runQuery("SELECT nickname, email, audit_secret, locale FROM users WHERE username=%s", (username,))
-        if not result:
-            raise Exception("exceptions/webserver/get_profile_failed")
-
-        returnValue({'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2], 'locale': result[0][3]})
 
     @inlineCallbacks
     def get_open_orders(self, username):

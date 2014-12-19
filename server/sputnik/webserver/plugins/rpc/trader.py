@@ -346,7 +346,7 @@ class TraderService(ServicePlugin):
 
         :returns: Deferred
         """
-        profile = yield self.db.get_profile(username)
+        profile = yield self.administrator.proxy.get_profile(username)
         returnValue([True, profile])
 
     @trader_wrapper
