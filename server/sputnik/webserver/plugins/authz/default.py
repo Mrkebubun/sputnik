@@ -13,9 +13,9 @@ class DefaultPermissions(AuthorizationPlugin):
         AuthorizationPlugin.__init__(self)
 
     def authorize(self, router, session, uri, action):
-        log("Attempting %s(%s) to %s %s" % \
-                (session._authid, session._authrole, \
-                 IRouter.ACTION_TO_STRING[action], uri))
+        debug("Checking permissions for %s(%s) to %s %s" % \
+              (session._authid, session._authrole, \
+               IRouter.ACTION_TO_STRING[action], uri))
         
         # allow trusted roles to do everything
         if session._authrole == u"trusted":
@@ -27,6 +27,13 @@ class DefaultPermissions(AuthorizationPlugin):
         # allow others to only call and subscribe
         if action not in [IRouter.ACTION_CALL, IRouter.ACTION_SUBSCRIBE]:
             return False
+
+        # TODO: We should use URI Patterns instead.
+        # p = Pattern(u"rpc.<service:string>.<method:suffix>",
+        #             Pattern.URI_TARGET_ENDPOINT)
+        # p.match(uti) 
+        # Currently there is a bug that prevents this from working. A pull
+        #   request with a patch has been sent.
 
         # Rpc calls
         rpc_match = re.compile("^rpc\.([a-z_.]+)\.")
