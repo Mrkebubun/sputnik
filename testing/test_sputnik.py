@@ -219,15 +219,6 @@ class FakeComponent:
 class FakeProxy(FakeComponent):
     pass
 
-class FakeSendmail(FakeComponent):
-    def __init__(self, from_address):
-        """
-
-        :param from_address:
-        """
-        self.from_address = from_address
-        FakeComponent.__init__(self, "sendmail")
-
 def fix_config():
     spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
     test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \

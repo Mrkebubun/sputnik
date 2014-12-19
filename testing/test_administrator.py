@@ -2,7 +2,7 @@ __author__ = 'sameer'
 
 import sys
 import os
-from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
@@ -73,7 +73,7 @@ class TestAdministrator(TestSputnik):
                                                          engines,
                                                          zendesk_domain,
                                                          debug=True,
-                                                         sendmail=FakeSendmail('test-email@m2.io'),
+                                                         messenger=FakeComponent('messenger'),
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates",
                                                          user_limit=50,
@@ -338,10 +338,10 @@ class TestWebserverExport(TestAdministrator):
         self.assertTrue(self.webserver_export.get_reset_token('test'))
 
         # Look for the email
-        message = self.administrator.sendmail.log[0][1][0]
-        match = re.search('#function=change_password_token&username=test&token=(.*)$', message)
-        self.assertIsNotNone(match)
-        token_str = match.group(1)
+        message = self.administrator.messenger.log[0]
+        self.assertEqual(message[0], 'send_message')
+        self.assertEqual(message[1][2], 'reset_password')
+        token_str = message[2]['token']
 
         # A token was created
         from sputnik import models
@@ -355,10 +355,10 @@ class TestWebserverExport(TestAdministrator):
         self.assertTrue(self.webserver_export.get_reset_token('test'))
 
         # Look for the email
-        message = self.administrator.sendmail.log[0][1][0]
-        match = re.search('#function=change_password_token&username=test&token=(.*)$', message)
-        self.assertIsNotNone(match)
-        token_str = match.group(1)
+        message = self.administrator.messenger.log[0]
+        self.assertEqual(message[0], 'send_message')
+        self.assertEqual(message[1][2], 'reset_password')
+        token_str = message[2]['token']
 
         # A token was created
         from sputnik import models
@@ -385,7 +385,7 @@ class TestWebserverExport(TestAdministrator):
         self.assertTrue(self.webserver_export.get_reset_token('test'))
 
         # No mail should have been sent
-        self.assertEqual(len(self.administrator.sendmail.log), 0)
+        self.assertEqual(len(self.administrator.messenger.log), 0)
 
         # No reset tokens should be created
         from sputnik import models

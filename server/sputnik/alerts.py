@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from sendmail import Sendmail
+from messenger import Sendmail
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.python import log

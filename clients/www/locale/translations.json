@@ -46,6 +46,7 @@
             "username": "Username",
             "password": "Password",
             "email": "Email",
+            "phone": "Phone Number",
             "nickname": "Nickname",
             "new_password": "New Password",
             "confirm_new_password": "Confirm New Password"
@@ -146,6 +147,7 @@
                     "details": "Profile Details",
                     "username": "Username",
                     "email": "Email",
+                    "phone": "Phone Number",
                     "growl": "Growl",
                     "nickname": "Nickname",
                     "locale": "Locale",
@@ -153,7 +155,9 @@
                     "old_password": "Old Password",
                     "new_password": "New Password",
                     "confirm_password": "Confirm Password",
-                    "notifications": "Notifications"
+                    "notifications": "Notifications",
+                    "contact_preference": "Preference",
+                    "sms": "SMS"
                 },
                 "notifications": {
                     "fill": "Fill"

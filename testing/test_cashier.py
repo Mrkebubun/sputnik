@@ -1,7 +1,7 @@
 import sys
 import os
 from twisted.internet import defer
-from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
 
@@ -77,13 +77,12 @@ class TestCashier(TestSputnik):
         self.accountant = accountant.CashierExport(FakeComponent("accountant"))
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
         self.compropago = FakeComponent()
-        self.sendmail = FakeSendmail('test-email@m2.io')
+        self.messenger = FakeComponent("messenger")
         self.cashier = cashier.Cashier(self.session, self.accountant,
                                        self.bitcoinrpc,
                                        self.compropago,
                                        cold_wallet_period=None,
-                                       sendmail=self.sendmail,
-                                       template_dir="../server/sputnik/admin_templates",
+                                       messenger=self.messenger,
                                        minimum_confirmations=6,
                                        alerts=FakeComponent("alerts"))
 
@@ -486,11 +485,10 @@ class TestAccountantExport(TestCashier):
 
             self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (1.0,), {}), ('getbalance', (), {})]))
             self.assertEqual(self.cashier.accountant.component.log, [])
-            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
-                                                                    (
-                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 0.50 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
-                                                                    {'subject': 'Your withdrawal request is pending',
-                                                                     'to_address': u'<> anonymous'})]))
+            message = self.cashier.messenger.component.log[0]
+            self.assertEqual(message[0], 'send_message')
+            self.assertEqual(message[1][2], 'pending_withdrawal')
+            self.assertEqual(message[2]['withdrawal'].amount, 50000000)
 
         def onFail(failure):
             self.assertTrue(False)
@@ -511,11 +509,11 @@ class TestAccountantExport(TestCashier):
 
             self.assertTrue(self.cashier.bitcoinrpc['BTC'].component.check_for_calls([('set_balance', (100.0,), {})]))
             self.assertEqual(self.cashier.accountant.component.log, [])
-            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
-                                                                    (
-                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 1.20 BTC\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
-                                                                    {'subject': 'Your withdrawal request is pending',
-                                                                     'to_address': u'<> anonymous'})]))
+            message = self.cashier.messenger.component.log[0]
+            self.assertEqual(message[0], 'send_message')
+            self.assertEqual(message[1][2], 'pending_withdrawal')
+            self.assertEqual(message[2]['withdrawal'].amount, 120000000)
+
 
         def onFail(failure):
             self.assertFalse(True)
@@ -535,11 +533,10 @@ class TestAccountantExport(TestCashier):
 
             self.assertEqual(self.cashier.bitcoinrpc['BTC'].component.log, [])
             self.assertEqual(self.cashier.accountant.component.log, [])
-            self.assertTrue(self.cashier.sendmail.component.check_for_calls([('send_mail',
-                                                                    (
-                                                                        'Hello anonymous (test),\n\nYour withdrawal request of 120.00 MXN\nhas been submitted for manual processing. It may take up to 24 hours to be processed.\nPlease contact support with any questions, and reference: 1\n',),
-                                                                    {'subject': 'Your withdrawal request is pending',
-                                                                     'to_address': u'<> anonymous'})]))
+            message = self.cashier.messenger.component.log[0]
+            self.assertEqual(message[0], 'send_message')
+            self.assertEqual(message[1][2], 'pending_withdrawal')
+            self.assertEqual(message[2]['withdrawal'].amount, 1200000)
 
         def onFail(failure):
             self.assertFalse(True)

@@ -70,6 +70,9 @@ debug = ${debug}
 email = ${administrator_email}
 user_limit = 500
 bs_cache_update = ${bs_cache_update}
+nexmo_enable = ${nexmo_enable}
+nexmo_api_key = ${nexmo_api_key}
+nexmo_api_secret = ${nexmo_api_secret}
 
 [ticketserver]
 ticketserver_port = ${ticketserver_port}

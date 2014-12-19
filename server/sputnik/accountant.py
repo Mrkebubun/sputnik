@@ -29,7 +29,7 @@ import margin
 import util
 import ledger
 from alerts import AlertsProxy
-from sendmail import Sendmail
+from messenger import Sendmail, Nexmo, Messenger
 
 from ledger import create_posting
 
@@ -71,7 +71,7 @@ class Accountant:
     """
     def __init__(self, session, engines, cashier, ledger, webserver, accountant_proxy,
                  alerts_proxy, accountant_number=0, debug=False, trial_period=False,
-                 mimetic_share=0.5, sendmail=None, template_dir='admin_templates'):
+                 mimetic_share=0.5, messenger=None):
         """Initialize the Accountant
 
         :param session: The SQL Alchemy session
@@ -110,8 +110,7 @@ class Accountant:
         self.webserver = webserver
         self.disabled_users = {}
         self.accountant_number = accountant_number
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
-        self.sendmail = sendmail
+        self.messenger = messenger
 
     def post_or_fail(self, *postings):
         # This is the core ledger communication method.
@@ -966,14 +965,9 @@ class Accountant:
         """
 
         # Now email the notification
-        t = util.get_locale_template(user.locale, self.jinja_env, 'deposit_overflow.{locale}.email')
-        content = t.render(user=user, contract=contract, amount_fmt=util.quantity_fmt(contract, amount)).encode('utf-8')
+        self.messenger.send_message(user, 'Your deposit was not fully processed', 'deposit_overflow',
+                                    contract=contract, amount_fmt=util.quantity_fmt(contract, amount))
 
-        # Now email the token
-        log.msg("Sending mail: %s" % content)
-        s = self.sendmail.send_mail(content, to_address='<%s> %s' % (user.email,
-                                                                     user.nickname),
-                          subject='Your deposit was not fully processed')
 
     def deposit_cash(self, username, address, received, total=True, admin_username=None):
         """Deposits cash
@@ -1512,13 +1506,20 @@ if __name__ == "__main__":
     trial_period = config.getboolean("accountant", "trial_period")
     mimetic_share = config.getfloat("accountant", "mimetic_share")
     sendmail = Sendmail(config.get("administrator", "email"))
+    if config.getboolean("administrator", "nexmo_enable"):
+        nexmo = Nexmo(config.get("administrator", "nexmo_api_key"),
+                    config.get("administrator", "nexmo_api_secret"),
+                    config.get("exchange_info", "exchange_name"))
+        messenger = Messenger(sendmail, nexmo)
+    else:
+        messenger = Messenger(sendmail)
 
     accountant = Accountant(session, engines, cashier, ledger, webserver, accountant_proxy, alerts_proxy,
                             accountant_number=accountant_number,
                             debug=debug,
                             trial_period=trial_period,
                             mimetic_share=mimetic_share,
-                            sendmail=sendmail)
+                            messenger=messenger)
 
     webserver_export = WebserverExport(accountant)
     engine_export = EngineExport(accountant)

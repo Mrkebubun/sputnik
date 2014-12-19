@@ -390,7 +390,7 @@ class PublicInterface:
             return [True, {'contract': ticker, 'bids': [], 'asks': []}]
 
     @exportRpc
-    def make_account(self, username, password, salt, email, nickname, locale=None):
+    def make_account(self, username, password, salt, email, nickname, locale=None, phone=None):
         """Create a new account
 
         :param username:
@@ -411,11 +411,13 @@ class PublicInterface:
 
         password = salt + ":" + password
         d = self.factory.administrator.make_account(username, password)
+        profile = {"email": email, "nickname": nickname}
 
         if locale is not None:
-            profile = {"email": email, "nickname": nickname, "locale": locale}
-        else:
-            profile = {"email": email, "nickname": nickname}
+            profile['locale'] = locale
+
+        if phone is not None:
+            profile['phone'] = phone
 
         self.factory.administrator.change_profile(username, profile)
 
@@ -1200,6 +1202,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
+
 
         if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
             return [False, "malicious looking input"]
