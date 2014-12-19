@@ -146,12 +146,17 @@
                     "details": "Profile Details",
                     "username": "Username",
                     "email": "Email",
+                    "growl": "Growl",
                     "nickname": "Nickname",
                     "locale": "Locale",
                     "change_password": "Change Password",
                     "old_password": "Old Password",
                     "new_password": "New Password",
-                    "confirm_password": "Confirm Password"
+                    "confirm_password": "Confirm Password",
+                    "notifications": "Notifications"
+                },
+                "notifications": {
+                    "fill": "Fill"
                 },
                 "buttons": {
                     "update": "Update Profile",
@@ -256,7 +261,8 @@
                 },
                 "alerts": {
                     "no_transactions": "No transactions downloaded for",
-                    "select_currency": "Select a currency"
+                    "select_currency": "Select a currency",
+                    "please_login": "Please login"
                 },
                 "withdrawal": {
                     "titles": {

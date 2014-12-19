@@ -1001,6 +1001,10 @@ h6.sell {
     margin-bottom: 20px;
 }
 
+td.notifications {
+    padding: 10px;
+}
+
 /*-- Account - Funding - Withdraw --*/
 
 .deposit-content2 {
