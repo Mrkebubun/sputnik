@@ -789,7 +789,7 @@ $ ->
             options =
                 fullscreen: false
                 symbol: contract
-                interval: "D"
+                interval: "60"
                 toolbar_bg: '#f4f7f9'
                 allow_symbol_change: false
                 container_id: target
