@@ -85,7 +85,7 @@ zmq_backend_address = tcp://127.0.0.1:4520
 
 [ledger]
 accountant_export = tcp://127.0.0.1:4340
-timeout = 3000
+timeout = 300
 
 [alerts]
 from = ${user}@${webserver_address}
