@@ -13,6 +13,38 @@ from sqlalchemy import func
 from twisted.python import log
 import twisted.python.util
 import models
+from zmq_util import ComponentExport
+from sqlalchemy.orm.session import Session
+
+#
+# This doesn't work properly
+#
+def except_trace_alert(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            log.err("Unhandled exception in %s" % func.__name__)
+            log.err(e)
+            if hasattr(self, 'alerts_proxy') and self.alerts_proxy is not None:
+                self.alerts_proxy.send_alert(str(e), "Unhandled exception in %s" % func.__name__)
+            raise e
+
+    return wrapped
+
+def session_aware(func):
+    def wrapped(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        finally:
+            if isinstance(self, ComponentExport):
+                session = self.component.session
+            else:
+                session = self.session
+
+            if isinstance(session, Session):
+                session.rollback()
+    return wrapped
 
 def get_locale_template(locale, jinja_env, template):
     locales = [locale, "root"]

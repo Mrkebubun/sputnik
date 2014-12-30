@@ -132,6 +132,24 @@ corresponding server objects. Each is encoded in JSON.
 }
 ```
 
+### profile
+```json
+{
+    email: "email@domain.com"
+    nickname: "user nickname"
+    audit_secret: "SECRET_USED_FOR_AUDITING"
+    locale: "en"
+    notifications: {
+        fill: ["email", "sms"]
+        order: ["sms"]
+        transaction: ["growl"]
+    }
+}
+```
+
+In the profile object, the notifications is an object which contains elements that configure what notifications
+the user would like to receive, and how.
+
 ## Public methods
 
 ### get_markets()
@@ -266,11 +284,11 @@ Returns a dict with keys that are the user's permissions and values True or Fals
 
 ### get_profile()
 
-Returns the nickname, email, and audit secret for the user
+Returns the profile for the user as a ```profile``` object
 
-### change_profile(email, nickname)
+### change_profile(profile)
 
-Change the email and nickname for the user
+Change the profile for the user, pass in a ```profile``` object
 
 ### request_support_nonce(type)
 

@@ -63,18 +63,43 @@ zf = ZmqFactory()
 #else:
 # noinspection PyPep8Naming
 import twisted.enterprise.adbapi as adbapi
+from psycopg2 import OperationalError
+from twisted.internet.defer import inlineCallbacks, returnValue
+
+class MyConnectionPool():
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.pool = adbapi.ConnectionPool(*args, **kwargs)
+
+    @inlineCallbacks
+    def runQuery(self, *args, **kwargs):
+        count = 0
+        while count < 10:
+            try:
+                result = yield self.pool.runQuery(*args, **kwargs)
+                returnValue(result)
+            except OperationalError as e:
+                log.err("Operational Error! Trying again - %s" % str(e))
+                self.pool = adbapi.ConnectionPool(*self.args, **self.kwargs)
+                count += 1
+            except Exception as e:
+                raise e
+
+        log.err("Tried to reconnect 10 times, no joy")
+        raise Exception("database-error")
 
 # noinspection PyUnresolvedReferences
 dbpassword = config.get("database", "password")
 if dbpassword:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                password=dbpassword,
                                host=config.get("database", "host"),
                                port=config.get("database", "port"),
                                database=config.get("database", "dbname"))
 else:
-    dbpool = adbapi.ConnectionPool(config.get("database", "adapter"),
+    dbpool = MyConnectionPool(config.get("database", "adapter"),
                                user=config.get("database", "username"),
                                database=config.get("database", "dbname"))
 
@@ -1102,16 +1127,17 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
             :param result:
             :returns: list - [success, dict or message]
             """
-            if not result:
-                return [False, "exceptions/webserver/get_profile_failed"]
+            return [True, result]
 
-            return [True, {'nickname': result[0][0], 'email': result[0][1], 'audit_secret': result[0][2], 'locale': result[0][3]}]
+        def _error(failure):
+            log.err("get_profile failed")
+            log.err(failure)
+            return [False, "exceptions/webserver/get_profile_failed"]
 
-        return dbpool.runQuery("SELECT nickname, email, audit_secret, locale FROM users WHERE username=%s", (self.username,)).addCallback(
-            _cb)
+        return self.factory.administrator.get_profile(self.username).addCallbacks(_cb, _error)
 
     @exportRpc("change_profile")
-    def change_profile(self, email, nickname, locale=None):
+    def change_profile(self, profile):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
@@ -1123,16 +1149,9 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
         # sanitize
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
-        validate(email, {"type": "string"})
-        validate(nickname, {"type": "string"})
 
-        if malicious_looking(email) or malicious_looking(nickname):
+        if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
             return [False, "malicious looking input"]
-
-        if locale is not None:
-            profile =  {"email": email, "nickname": nickname, 'locale': locale}
-        else:
-            profile = {"email": email, "nickname": nickname}
 
         d = self.factory.administrator.change_profile(self.username, profile)
 

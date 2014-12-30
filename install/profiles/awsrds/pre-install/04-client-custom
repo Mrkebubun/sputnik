@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Copy everything in res/www -- base_profile first, then profile
+for directory in ${base_profile} ${profile}; do
+    if [ -d ${directory}/res/www ]; then
+       cp -rH ${directory}/res/www ${profile_git_root}/dist/clients
+    fi
+done
+
+# Copy specific files from res
 for file in terms.html icons; do
     if [ -e ${profile}/res/${file} ]; then
         cp -rH ${profile}/res/${file} ${profile_git_root}/dist/clients/www
@@ -9,4 +17,3 @@ for file in terms.html icons; do
         fi
     fi
 done
-

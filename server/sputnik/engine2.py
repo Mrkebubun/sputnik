@@ -452,15 +452,19 @@ class SafePriceNotifier(EngineListener):
         reactor.callLater(600, regular_publish)
 
     def on_init(self):
-        trades = self.session.query(models.Trade).filter_by(contract=contract).order_by(
-            models.Trade.timestamp)
-
-        for trade in trades:
-            self.update_safe_price(trade.price, trade.quantity, publish=False, timestamp=trade.timestamp)
-        if self.safe_price is None:
-            self.safe_price = 42
-            log.msg(
-                    "warning, missing last trade for contract: %s. Using 42 as a stupid default" % self.contract.ticker)
+        try:
+            trades = self.session.query(models.Trade).filter_by(contract=contract).order_by(
+                models.Trade.timestamp)
+    
+            for trade in trades:
+                self.update_safe_price(trade.price, trade.quantity, publish=False, timestamp=trade.timestamp)
+            if self.safe_price is None:
+                self.safe_price = 42
+                log.msg(
+                        "warning, missing last trade for contract: %s. Using 42 as a stupid default" % self.contract.ticker)
+        except Exception as e:
+            self.session.rollback()
+            raise e
 
         self.publish_safe_price()
 
@@ -533,6 +537,7 @@ if __name__ == "__main__":
     try:
         contract = session.query(models.Contract).filter_by(ticker=ticker).one()
     except Exception, e:
+        session.rollback()
         log.err("Cannot determine ticker id. %s" % e)
         log.err()
         raise e
@@ -568,13 +573,17 @@ if __name__ == "__main__":
     engine.add_listener(safe_price_notifier)
 
     # Cancel all orders with some quantity_left that have been dispatched but not cancelled
-    for order in session.query(models.Order).filter_by(
-            is_cancelled=False).filter_by(
-            dispatched=True).filter_by(
-            contract_id=contract.id).filter(
-                    models.Order.quantity_left > 0):
-        log.msg("Cancelling order %d" % order.id)
-        accountant.cancel_order(order.username, order.id)
+    try:
+        for order in session.query(models.Order).filter_by(
+                is_cancelled=False).filter_by(
+                dispatched=True).filter_by(
+                contract_id=contract.id).filter(
+                        models.Order.quantity_left > 0):
+            log.msg("Cancelling order %d" % order.id)
+            accountant.cancel_order(order.username, order.id)
+    except Exception as e:
+        session.rollback()
+        raise e
 
     engine.notify_init()
 

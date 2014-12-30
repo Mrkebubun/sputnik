@@ -11,13 +11,9 @@ from txzmq import ZmqSubConnection, ZmqPubConnection
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 
-from util import Logger
+import observatory
 
-logger = Logger("zmq")
-debug = logger.debug
-log = logger.info
-warn = logger.warn
-error = logger.error
+debug, log, warn, error, critical = observatory.get_loggers("zmq")
 
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(RemoteCallException): pass

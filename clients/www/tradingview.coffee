@@ -84,7 +84,7 @@ class @TVFeed
                     intraday_multipliers: [1]
                     has_daily: true
                     has_weekly_and_monthly: false
-                    has_empty_bars: true
+                    has_empty_bars: false
                     force_session_rebuild: false
                     has_no_volume: false
                     volume_precision: @sputnik.getQuantityPrecision(symbolName)

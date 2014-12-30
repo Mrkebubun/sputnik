@@ -229,13 +229,56 @@ class TestWebserverExport(TestAdministrator):
     def test_change_profile(self):
         self.create_account('test')
         self.webserver_export.change_profile('test', {'nickname': 'user_nickname',
-                                                      'email': 'email@m2.io'})
+                                                      'email': 'email@m2.io',
+                                                      'notifications': {'fill': ['email', 'sms'],
+                                                                        'transaction': ['email']}})
         from sputnik import models
 
         user = self.session.query(models.User).filter_by(username='test').one()
         self.assertEqual(user.nickname, 'user_nickname')
         # Email can't be changed
         self.assertEqual(user.email, '')
+        for n in user.notifications:
+            if n.type == 'fill':
+                self.assertIn(n.method, ["email", "sms"])
+            elif n.type == "transaction":
+                self.assertIn(n.method, ["email"])
+            else:
+                self.assertFalse(True)
+
+        self.webserver_export.change_profile('test', {'nickname': 'user_nickname',
+                                                      'email': 'email@m2.io',
+                                                      'notifications': {'order': ['sms'],
+                                                                        'transaction': ['sms'],
+                                                                        'fill': ['voice', 'sms']}})
+        for n in user.notifications:
+            if n.type == 'fill':
+                self.assertIn(n.method, ["voice", "sms"])
+            elif n.type == "transaction":
+                self.assertIn(n.method, ["sms"])
+            elif n.type == "order":
+                self.assertIn(n.method, ['sms'])
+            else:
+                self.assertFalse(True)
+
+    def test_get_profile(self):
+        from sputnik import models
+        user = models.User('testuser', 'no_pass')
+        n1 = models.Notification(user.username, 'fill', 'email')
+        n2 = models.Notification(user.username, 'order', 'sms')
+        n3 = models.Notification(user.username, 'fill', 'sms')
+
+        user.notifications = [n1, n2, n3]
+        self.session.add(user)
+        self.session.commit()
+
+        profile = self.administrator.get_profile('testuser')
+        self.assertEquals(profile['email'], '')
+        self.assertEquals(profile['locale'], 'en')
+        self.assertEquals(profile['nickname'], 'anonymous')
+        self.assertIn('email', profile['notifications']['fill'])
+        self.assertIn('sms', profile['notifications']['fill'])
+        self.assertIn('sms', profile['notifications']['order'])
 
     def test_reset_password_hash(self):
         self.create_account('test', password='null')
@@ -427,7 +470,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(self.administrator, 'admin', level, digest_factory)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory)
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')
@@ -773,7 +816,7 @@ class TestAdministratorWebUI(TestAdministrator):
         d.addCallback(rendered)
         return d
 
-    def test_reset_admin_password_no_prev(self):
+    def test_reset_admin_password_with_prev(self):
         request = StupidRequest([''],
                                 path='/reset_admin_password',
                                 args={'username': ['admin'],

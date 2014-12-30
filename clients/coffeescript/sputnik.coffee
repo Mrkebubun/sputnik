@@ -98,8 +98,8 @@ class @Sputnik extends EventEmitter
         @call("get_profile").then (@profile) =>
             @emit "profile", @profile
 
-    changeProfile: (email, nickname, locale) =>
-        @call("change_profile", email, nickname, locale).then (@profile) =>
+    changeProfile: (profile) =>
+        @call("change_profile", profile).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
