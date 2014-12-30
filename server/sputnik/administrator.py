@@ -53,7 +53,7 @@ from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_
 from rpc_schema import schema
 
 
-class AdministratorException(Exception): pass
+class AdministratorException(util.SputnikException): pass
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -67,6 +67,10 @@ ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_us
 INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
+INVALID_REQUEST = AdministratorException("exceptions/administrator/invalid-request")
+INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insufficient-permissions")
+NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no-username-specified")
+INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid-quantity")
 
 from util import session_aware
 
@@ -614,8 +618,12 @@ class Administrator:
         log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
-        self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
-        self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        if not from_user or not to_user:
+            raise NO_USERNAME_SPECIFIED
+
+        d1 = self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
+        d2 = self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(log.err)
 
     def clear_contract(self, ticker, price_ui):
         contract = util.get_contract(self.session, ticker)
@@ -962,7 +970,7 @@ class AdminAPI(Resource):
 
     def process_request(self, request, data=None):
         if self.avatarLevel < 4:
-            raise Exception("Insufficient privileges to run Admin API")
+            raise INSUFFICIENT_PERMISSIONS
 
         resources = {'/api/withdrawals': self.withdrawals,
                      '/api/deposits': self.deposits,
@@ -973,20 +981,19 @@ class AdminAPI(Resource):
         if request.path in resources:
             return resources[request.path](request, data)
         else:
-            raise Exception("Invalid request")
-
+            raise INVALID_REQUEST
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
-        return [w.dict for w in withdrawals if w.pending]
+        return [True, [w.dict for w in withdrawals if w.pending]]
 
     def deposits(self, request, data):
         deposits = self.administrator.get_deposits()
-        return [d.dict for d in deposits]
+        return [True, [d.dict for d in deposits]]
 
     def rescan_address(self, request, data):
         self.administrator.rescan_address(data['address'])
-        return {'result': True}
+        return [True, None]
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
@@ -1002,11 +1009,11 @@ class AdminAPI(Resource):
 
         self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
                                               admin_username=self.avatarId)
-        return {'result': True}
+        return [True, None]
 
     def manual_deposit(self, request, data):
         self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
-        return {'result': True}
+        return [True, None]
 
     def render(self, request):
         data = request.content.read()
@@ -1018,8 +1025,8 @@ class AdminAPI(Resource):
             else:
                 parsed_data = json.loads(data)
                 result = self.process_request(request, data=parsed_data)
-        except Exception as e:
-            result = {"error": str(e)}
+        except AdministratorException as e:
+            result = [False, e.args]
 
         return json.dumps(result, sort_keys=True,
                           indent=4, separators=(',', ': '))
@@ -1142,14 +1149,38 @@ class AdminWebUI(Resource):
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
         try:
-            resource = resource_list[request.path]
-            return resource(request)
-        except KeyError:
-            return self.invalid_request(request)
+
+            try:
+                resource = resource_list[request.path]
+            except KeyError:
+                return self.invalid_request(request)
+
+            try:
+                return resource(request)
+            except ValueError:
+                raise INVALID_QUANTITY
+
+        except util.SputnikException as e:
+            return self.error_request(request, e.args)
 
     def invalid_request(self, request):
+        log.err("Invalid request received: %s" % request)
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
+
+    def error_callback(self, failure, request):
+        log.err(failure)
+        failure.trap(util.SputnikException)
+        log.err("SputnikException in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, failure.value.args)
+        request.write(msg)
+        request.finish()
+
+    def error_request(self, request, error):
+        log.err("Error %s received for request %s" % (error, request))
+        t = self.jinja_env.get_template("error.html")
+        return t.render(error=error).encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1274,7 +1305,7 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book)
+        d.addCallback(got_order_book).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
@@ -1406,10 +1437,15 @@ class AdminWebUI(Resource):
 
         """
 
-        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+        d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address

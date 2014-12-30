@@ -48,7 +48,7 @@ import time
 from datetime import datetime
 from util import session_aware
 
-class AccountantException(Exception):
+class AccountantException(util.SputnikException):
     pass
 
 INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
@@ -64,6 +64,7 @@ NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
 USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
 ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
+NO_SUCH_USER = AccountantException("exceptions/accountant/no_such_user")
 
 class Accountant:
     """The Accountant primary class
@@ -238,7 +239,7 @@ class Accountant:
             return self.session.query(models.User).filter_by(
                 username=username).one()
         except NoResultFound:
-            raise AccountantException("No such user: '%s'." % username)
+            raise NO_SUCH_USER
 
     def get_contract(self, ticker):
         """
