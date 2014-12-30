@@ -55,10 +55,17 @@ class @Sputnik extends EventEmitter
         # network control
 
     connect: () =>
-        ab.connect @uri, @onOpen, @onClose
+        @connection = new autobahn.Connection
+            url: @uri
+            realm: "sputnik"
+        @connection.onopen = @onOpen
+        @connection.onclose = @onClose
+
+        @connection.connect()
+
         setTimeout () =>
             if not @connected
-                @connect()
+                @connection.connect()
         , 30000
 
     close: () =>
@@ -67,17 +74,22 @@ class @Sputnik extends EventEmitter
 
     # market selection
 
+    encode_market: (market) =>
+        market.replace '/', '_'
+
     follow: (market) =>
-        @subscribe "book##{market}", @onBook
-        @subscribe "trades##{market}", @onTrade
-        @subscribe "safe_prices##{market}", @onSafePrice
-        @subscribe "ohlcv##{market}", @onOHLCV
+        market_encoded = @encode_market market
+        @subscribe "feeds.market.book.#{market_encoded}", @onBook
+        @subscribe "feeds.market.trades.#{market_encoded}", @onTrade
+        @subscribe "feeds.market.safe_prices.##{market_encoded}", @onSafePrice
+        @subscribe "feeds.market.ohlcv.#{market_encoded}", @onOHLCV
 
     unfollow: (market) =>
-        @unsubscribe "book##{market}"
-        @unsubscribe "trades##{market}"
-        @unsubscribe "safe_prices##{market}"
-        @unsubscribe "ohlcv##{market}", @onOHLCV
+        market_encoded = @encode_market market
+        @unsubscribe "feeds.market.book.#{market_encoded}"
+        @unsubscribe "feeds.market.trades.#{market_encoded}"
+        @unsubscribe "feeds.market.safe_prices.##{market_encoded}"
+        @unsubscribe "feeds.market.ohlcv.#{market_encoded}"
 
     # authentication and account management
 
@@ -89,24 +101,24 @@ class @Sputnik extends EventEmitter
             iterations: 1000
         password = ab.deriveKey secret, @authextra
 
-        @call("make_account", username, password, salt, email, nickname, locale).then \
+        @call("rpc.registrar.make_account", username, password, salt, email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
                 @emit "make_account_fail", error
 
     getProfile: () =>
-        @call("get_profile").then (@profile) =>
+        @call("rpc.trader.get_profile").then (@profile) =>
             @emit "profile", @profile
 
     changeProfile: (profile) =>
-        @call("change_profile", profile).then (@profile) =>
+        @call("rpc.trader.change_profile", profile).then (@profile) =>
             @log ["profile_changed", @profile]
             @emit "profile", @profile
             @emit "change_profile_success", @profile
 
     getAudit: () =>
-        @call("get_audit").then (wire_audit_details) =>
+        @call("rpc.info.get_audit").then (wire_audit_details) =>
             @log ["audit_details", wire_audit_details]
             audit_details = @copy(wire_audit_details)
             for side in [audit_details.liabilities, audit_details.assets]
@@ -119,7 +131,7 @@ class @Sputnik extends EventEmitter
             @emit "audit_hash", @getAuditHash(wire_audit_details.timestamp)
 
     getPermissions: () =>
-        @call("get_permissions").then (permissions) =>
+        @call("rpc.trader.get_permissions").then (permissions) =>
             @log ["permissions", permissions]
             @emit "permissions", permissions
 
@@ -132,7 +144,7 @@ class @Sputnik extends EventEmitter
         return CryptoJS.MD5(string).toString(CryptoJS.enc.Base64)
 
     getTransactionHistory: (start_timestamp, end_timestamp) =>
-        @call("get_transaction_history", start_timestamp, end_timestamp).then (wire_transaction_history) =>
+        @call("rpc.trader.get_transaction_history", start_timestamp, end_timestamp).then (wire_transaction_history) =>
             @log ["Transaction history", wire_transaction_history]
             transaction_history = []
             for transaction in wire_transaction_history
@@ -181,7 +193,7 @@ class @Sputnik extends EventEmitter
                 @authextra = JSON.parse(challenge).authextra
                 secret = ab.deriveKey(new_password, @authextra)
 
-                @call("change_password_token", @username, secret, @token).then \
+                @call("rpc.registrar.change_password_token", @username, secret, @token).then \
                     (message) =>
                         @log "password change successfully"
                         @emit "change_password_token_success", message
@@ -199,7 +211,7 @@ class @Sputnik extends EventEmitter
 
         old_secret = ab.deriveKey(old_password, @authextra)
         new_secret = ab.deriveKey(new_password, @authextra)
-        @call("change_password", old_secret, new_secret).then \
+        @call("rpc.trader.change_password", old_secret, new_secret).then \
             (message) =>
                 @log "password changed successfully"
                 @emit "change_password_success", message
@@ -208,14 +220,14 @@ class @Sputnik extends EventEmitter
                 @emit "change_password_fail", error
 
     getResetToken: (username) =>
-        @call("get_reset_token", username).then \
+        @call("rpc.registrar.get_reset_token", username).then \
             (success) =>
                 @emit "get_reset_token_success", success
             , (error) =>
                 @emit "get_reset_token_fail", error
 
     getRequestSupportNonce: (type, success, error) =>
-        @call("request_support_nonce", type).then success, error
+        @call("rpc.trader.request_support_nonce", type).then success, error
 
     restoreSession: (uid) =>
         if not @session?
@@ -235,17 +247,20 @@ class @Sputnik extends EventEmitter
 
     logout: () =>
         @authenticated = false
-        @call "logout"
+        @call "rpc.trader.logout"
         @close()
         @emit "logout"
         # Reconnect after logout
         @connect()
 
     getCookie: () =>
-        @call("get_cookie").then \
+        @call("rpc.regstrar.get_cookie").then \
             (uid) =>
                 @log "cookie: " + uid
                 @emit "cookie", uid
+
+    encode_username: (username) =>
+        CryptoJS.SHA256(username).toString(CryptoJS.enc.Hex)
 
     onAuthSuccess: (permissions) =>
         @log ["authenticated", permissions]
@@ -259,11 +274,12 @@ class @Sputnik extends EventEmitter
 
         @username = permissions.username
         @emit "auth_success", @username
+        username_encoded = @encode_username @username
 
         try
-            @subscribe "orders#" + @username, @onOrder
-            @subscribe "fills#" + @username, @onFill
-            @subscribe "transactions#" + @username, @onTransaction
+            @subscribe "feeds.user.orders.#{username_encoded}", @onOrder
+            @subscribe "feeds.user.fills.#{username_encoded}", @onFill
+            @subscribe "feeds.user.transactions.#{username_encoded}", @onTransaction
         catch error
             @log error
 
@@ -486,7 +502,7 @@ class @Sputnik extends EventEmitter
             contract: ticker
             side: side
         @log ["placing order", order]
-        @call("place_order", @orderToWire(order)).then \
+        @call("rpc.trader.place_order", @orderToWire(order)).then \
             (res) =>
                 @emit "place_order_success", res
             , (error) =>
@@ -523,7 +539,7 @@ class @Sputnik extends EventEmitter
 
     cancelOrder: (id) =>
         @log "cancelling: #{id}"
-        @call("cancel_order", id).then \
+        @call("rpc.trader.cancel_order", id).then \
             (res) =>
                 @emit "cancel_order_success", res
             , (error) =>
@@ -541,7 +557,7 @@ class @Sputnik extends EventEmitter
           customer_phone_company: customer_phone_company
           currency: "MXN"
         @log ["compropago charge",charge]
-        @call("make_compropago_deposit", charge).then \
+        @call("rpc.trader.make_compropago_deposit", charge).then \
             (@ticket) =>
                 @log ["compropago deposit ticket", ticket]
                 @emit "compropago_deposit_success", ticket
@@ -550,7 +566,7 @@ class @Sputnik extends EventEmitter
                 @emit "compropago_deposit_fail", error
 
     getAddress: (contract) =>
-        @call("get_current_address", contract).then \
+        @call("rpc.trader.get_current_address", contract).then \
             (address) =>
                 @log "address for #{contract}: #{address}"
                 @emit "address", [contract, address]
@@ -559,7 +575,7 @@ class @Sputnik extends EventEmitter
                 @emit "address_fail", error
 
     newAddress: (contract) =>
-        @call("get_new_address", contract).then \
+        @call("rpc.trader.get_new_address", contract).then \
             (address) =>
                 @log "new address for #{contract}: #{address}"
                 @emit "address", [contract, address]
@@ -568,13 +584,13 @@ class @Sputnik extends EventEmitter
                 @emit "address_fail", error
 
     getDepositInstructions: (contract) =>
-        @call("get_deposit_instructions", contract).then \
+        @call("rpc.trader.get_deposit_instructions", contract).then \
             (instructions) =>
                 @log "Deposit instructions for #{contract}: #{instructions}"
                 @emit "deposit_instructions", [contract, instructions]
 
     requestWithdrawal: (ticker, amount, address) =>
-        @call("request_withdrawal", ticker, @quantityToWire(ticker, amount), address).then \
+        @call("rpc.trader.request_withdrawal", ticker, @quantityToWire(ticker, amount), address).then \
         (result) =>
             @log ["request_withdrawal succeeded", result]
             @emit "request_withdrawal_success", result
@@ -585,7 +601,7 @@ class @Sputnik extends EventEmitter
     # account/position information
     getSafePrices: () =>
     getOpenOrders: () =>
-        @call("get_open_orders").then \
+        @call("rpc.trader.get_open_orders").then \
             (@orders) =>
                 @log ["orders received", orders]
                 orders = {}
@@ -599,7 +615,7 @@ class @Sputnik extends EventEmitter
                 @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     getPositions: () =>
-        @call("get_positions").then \
+        @call("rpc.trader.get_positions").then \
             (@positions) =>
                 @log ["positions received", @positions]
                 positions = {}
@@ -624,13 +640,13 @@ class @Sputnik extends EventEmitter
         @follow ticker
 
     getOrderBook: (ticker) =>
-        @call("get_order_book", ticker).then @onBook
+        @call("rpc.market.get_order_book", ticker).then @onBook
 
     getTradeHistory: (ticker) =>
-        @call("get_trade_history", ticker).then @onTradeHistory
+        @call("rpc.market.get_trade_history", ticker).then @onTradeHistory
 
     getOHLCVHistory: (ticker, period) =>
-        @call("get_ohlcv_history", ticker, period).then @onOHLCVHistory
+        @call("rpc.market.get_ohlcv_history", ticker, period).then @onOHLCVHistory
 
     # miscelaneous methods
 
@@ -648,8 +664,8 @@ class @Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log ["RPC #{method}",params]
-        d = ab.Deferred()
-        @session.call("#{@uri}/rpc/#{method}", params...).then \
+        d = autobahn.Deferred()
+        @session.call(method, params...).then \
             (result) =>
                 if result.length != 2
                     @warn "RPC Warning: sputnik protocol violation in #{method}"
@@ -667,14 +683,14 @@ class @Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log "subscribing: #{topic}"
-        @session.subscribe "#{@uri}/feeds/#{topic}", (topic, event) ->
+        @session.subscribe topic, (topic, event) ->
             callback event
 
     unsubscribe: (topic) =>
         if not @session?
             return @wtf "Not connected."
         @log "unsubscribing: #{topic}"
-        @session.unsubscribe "#{@uri}/feeds/#{topic}"
+        @session.unsubscribe topic
 
     publish: (topic, message) =>
         if not @session?
@@ -699,17 +715,16 @@ class @Sputnik extends EventEmitter
         @log "Connected to #{@uri}."
         @processHash()
 
-        @call("get_markets").then @onMarkets, @wtf
-        @call("get_exchange_info").then @onExchangeInfo, @wtf
-        @subscribe "chat", @onChat
-        # TODO: Are chats private? Do we want them for authenticated users only?
-        @call("get_chat_history").then \
-            (chats) =>
-                for chat in chats
-                    user = chat[0]
-                    msg = chat[1]
-                    @chat_messages.push "#{user}: #{msg}"
-                @emit "chat_history", @chat_messages
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+#        @subscribe "chat", @onChat
+#        @call("get_chat_history").then \
+#            (chats) =>
+#                for chat in chats
+#                    user = chat[0]
+#                    msg = chat[1]
+#                    @chat_messages.push "#{user}: #{msg}"
+#                @emit "chat_history", @chat_messages
 
         @emit "open"
 
