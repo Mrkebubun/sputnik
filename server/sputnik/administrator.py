@@ -44,16 +44,16 @@ from dateutil import parser
 import config
 import database
 import models
-from util import ChainedOpenSSLContextFactory
+from util import ChainedOpenSSLContextFactory, SputnikException
 import util
 from sendmail import Sendmail
 from watchdog import watchdog
-from accountant import AccountantProxy
+from accountant import AccountantProxy, AccountantException
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 
 
-class AdministratorException(util.SputnikException): pass
+class AdministratorException(SputnikException): pass
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -623,7 +623,7 @@ class Administrator:
 
         d1 = self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
         d2 = self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
-        return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(log.err)
+        return defer.gatherResults([d1, d2], consumeErrors=True)
 
     def clear_contract(self, ticker, price_ui):
         contract = util.get_contract(self.session, ticker)
@@ -1160,7 +1160,7 @@ class AdminWebUI(Resource):
             except ValueError:
                 raise INVALID_QUANTITY
 
-        except util.SputnikException as e:
+        except SputnikException as e:
             return self.error_request(request, e.args)
 
     def invalid_request(self, request):
@@ -1169,13 +1169,15 @@ class AdminWebUI(Resource):
         return t.render().encode('utf-8')
 
     def error_callback(self, failure, request):
-        log.err(failure)
-        failure.trap(util.SputnikException)
-        log.err("SputnikException in deferred for request: %s" % request)
-        log.err(failure)
-        msg = self.error_request(request, failure.value.args)
-        request.write(msg)
-        request.finish()
+        if failure.type is defer.FirstError:
+            self.error_callback(failure.value.args[0], request)
+        else:
+            failure.trap(SputnikException)
+            log.err("SputnikException in deferred for request: %s" % request)
+            log.err(failure)
+            msg = self.error_request(request, failure.value.args)
+            request.write(msg)
+            request.finish()
 
     def error_request(self, request, error):
         log.err("Error %s received for request %s" % (error, request))
