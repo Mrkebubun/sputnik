@@ -679,7 +679,7 @@ if __name__ == '__main__':
     webserver_export = WebserverExport(cashier)
 
     watchdog(config.get("watchdog", "cashier"))
-    pull_share_async(administrator_export,
+    router_share_async(administrator_export,
                      config.get("cashier", "administrator_export"))
     pull_share_async(accountant_export,
                     config.get("cashier", "accountant_export"))

@@ -1036,23 +1036,23 @@ class AdminAPI(Resource):
                 d = self.process_request(request, data=parsed_data)
 
             def process_result(result):
-                final_result = [True, result]
+                final_result = {'success': True, 'result': result}
                 return final_result
 
             def process_error(failure):
                 failure.trap(SputnikException)
                 log.err(failure)
-                return [False, failure.value.args]
+                return {'success': False, 'error': failure.value.args}
 
             def deliver_result(result, request):
-                request.write(json.dumps(result, sort_keys=True, indent=4, seperators=(',', ': ')))
+                request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
                 request.finish()
 
-            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result)
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
             return NOT_DONE_YET
         except AdministratorException as e:
             log.err(e)
-            result = [False, e.args]
+            result = {'success': False, 'error': e.args}
             return json.dumps(result, sort_keys=True,
                               indent=4, separators=(',', ': '))
 
@@ -1866,7 +1866,7 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
-    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
 
     if config.getboolean("webserver", "ssl"):

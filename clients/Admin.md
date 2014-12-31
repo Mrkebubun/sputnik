@@ -14,9 +14,9 @@ header to `application/json`
 
 Price and quantity values are in user-friendly formats, not internal wire representations.
 
-The return value is a json list, where the first element is a boolean indicating
-success or failure, while the second element is the result or the failure message.
-This echoes the behavior of the WAMP RPC.
+The return value is json, where the `success` element says if the call was a success or failure.
+If a success, the result is in the `result` element, while if an error the error message
+is in the `error` element.
 
 ## Calls
 
@@ -97,15 +97,15 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/deposits
 ```    
     
-> [
->    {
+> { "success": true,
+>   "result": [ {
 >        "accounted_for": "0.0000",
 >        "active": true,
 >        "address": "0WkKCca341k=",
 >        "contract": "PLN",
 >        "id": 102,
 >        "username": "marketmaker"
->    }
+>    } ]
 > ]    
 
 ```
@@ -114,15 +114,15 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/manual_deposit
 ```
     
-> [ True, null ]
+> { 'success': true, 'result': null }
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/withdrawals
 ```    
 
-> [ True, [
->     {
+> { "success": true,
+>   "result": [ {
 >         "address": "23",
 >         "amount": "23.00000000",
 >         "contract": "BTC",
@@ -130,7 +130,7 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 >         "id": 3,
 >         "username": "marketmaker"
 >     } ]
-> ]
+> }
 
 ```    
 curl --digest -u username:password -H "Content-Type: application/json" \
@@ -138,5 +138,5 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/process_withdrawal
 ```
 
-> [ True, 'txid' ]
+> { 'success': true, 'result': 'txid' }
     
