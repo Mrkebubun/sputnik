@@ -1115,9 +1115,11 @@ class Accountant:
             user.permission_group_id = id
             # self.session.add(user)
             self.session.commit()
+            return None
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
    
     def disable_user(self, user):
         user = self.get_user(user)
@@ -1304,6 +1306,7 @@ class Accountant:
             user = self.get_user(username)
             user.fee_group_id = id
             self.session.commit()
+            return None
         except Exception as e:
             self.session.rollback()
             raise e
@@ -1428,7 +1431,7 @@ class AdministratorExport(ComponentExport):
     @session_aware
     @schema("rpc/accountant.administrator.json#change_permission_group")
     def change_permission_group(self, username, id):
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     @export
     @session_aware

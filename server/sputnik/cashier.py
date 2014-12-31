@@ -31,7 +31,7 @@ from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
-from util import session_aware
+from util import session_aware, SputnikException
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -39,7 +39,7 @@ parser.add_option("-c", "--config", dest="filename", help="config file")
 if options.filename:
     config.reconfigure(options.filename)
 
-class CashierException(Exception):
+class CashierException(SputnikException):
     pass
 
 WITHDRAWAL_NOT_FOUND = CashierException("exceptions/cashier/withdrawal_not_found")
@@ -335,7 +335,7 @@ class Cashier():
                 withdrawal.completed = datetime.utcnow()
                 self.session.add(withdrawal)
                 self.session.commit()
-                d = defer.gatherResults([d1, d2])
+                d = defer.gatherResults([d1, d2], consumeErrors=True)
 
                 def send_alert_failure(failure):
                     log.err(failure)

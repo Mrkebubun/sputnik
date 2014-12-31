@@ -14,13 +14,9 @@ header to `application/json`
 
 Price and quantity values are in user-friendly formats, not internal wire representations.
 
-If an error occurs, the following is returned:
-
-```json
-{
-    error: "message"
-}
-```
+The return value is a json list, where the first element is a boolean indicating
+success or failure, while the second element is the result or the failure message.
+This echoes the behavior of the WAMP RPC.
 
 ## Calls
 
@@ -75,13 +71,9 @@ via wire transfer/check/etc.
 If `cancel` is true, then the withdrawal request is cancelled and funds are returned to the requesting
 user's account.
 
-On success:
+On success, the result is the transaction id, or 'cancel' if the withdrawal was cancelled, or 'offline'
+if the withdrawal was processed offline.
 
-```json
-{
-    result: true
-}
-```
 
 ### POST /api/manual_deposit
 
@@ -96,13 +88,7 @@ Data submitted is of the form:
 }
 ```
 
-On success:
-
-```json
-{
-    result: true
-}
-```
+On success the result is 'null'
 
 ## Examples
 
@@ -128,14 +114,14 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/manual_deposit
 ```
     
-> { "result": true }
+> [ True, null ]
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/withdrawals
 ```    
 
-> [
+> [ True, [
 >     {
 >         "address": "23",
 >         "amount": "23.00000000",
@@ -143,7 +129,7 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 >         "entered": 1412298366466533,
 >         "id": 3,
 >         "username": "marketmaker"
->     }
+>     } ]
 > ]
 
 ```    
@@ -152,5 +138,5 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/process_withdrawal
 ```
 
-> { "result": true }
+> [ True, 'txid' ]
     
