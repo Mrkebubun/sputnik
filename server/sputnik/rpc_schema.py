@@ -21,7 +21,6 @@ def validate(x, full_uri):
     validator = jsonschema.Draft4Validator(schema, resolver=resolver)
     validator.validate(x)
 
-
 def validator(full_uri):
     uri, fragment = jsonschema.compat.urldefrag(full_uri)
     schema_root = config.get("specs", "schema_root")
@@ -31,6 +30,26 @@ def validator(full_uri):
     schema = resolver.resolve_fragment(top_schema, fragment)
     jsonschema.Draft4Validator.check_schema(schema)
     return jsonschema.Draft4Validator(schema, resolver=resolver)
+
+def build_call_validate(full_uri):
+    v = validator(full_uri)
+
+    def validate_call(*args, **kwargs):
+        callargs = inspect.getcallargs(f, *args, **kwargs)
+        
+        # hack to handle methods
+        if "self" in callargs:
+            del callargs["self"]
+
+        # json only accepts lists as arrays, not tuples
+        for key in callargs:
+            if type(callargs[key]) == tuple:
+                callargs[key] = list(callargs[key])
+
+        # validate
+        v.validate(callargs)
+
+    return validate_call
 
 def schema(path):
     def wrap(f):
