@@ -1,7 +1,9 @@
+{{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
     {{translate("alerts/connecting", sputnik.profile.locale)}}.
 </div>
-<div class="container-fluid" id="main_page" style="">
+{{else}}
+<div class="container-fluid" id="main_page">
     {{>login_register}}
     {{>change_password_token}}
     <div id="nav-bar">
@@ -40,6 +42,11 @@
             </div>
         </div>
     </div>
+    {{#if sputnik.exchange_info.restrict_full_ui && !sputnik.permissions.full_ui}}
+    <div class="alert alert-warning">
+        {{translate("alerts/full_ui_restricted", sputnik.profile.locale)}}.
+    </div>
+    {{else}}
     {{#if current_page == "trade"}}
     <div id="page-trade">
         <div class="row">
@@ -1254,6 +1261,7 @@
         </div>
     </div>
     {{/if}}
+    {{/if}}
     <div class="links_footer">
         <div class="row">
             <div class="col-xs-4 text-left">
@@ -1268,4 +1276,4 @@
         </div>
     </div>
 </div>
-
+{{/if}}

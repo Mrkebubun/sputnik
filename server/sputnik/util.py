@@ -15,6 +15,8 @@ from zmq_util import ComponentExport
 from sqlalchemy.orm.session import Session
 import hashlib
 
+class SputnikException(Exception): pass
+
 #
 # This doesn't work properly
 #

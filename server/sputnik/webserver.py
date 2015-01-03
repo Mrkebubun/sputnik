@@ -769,7 +769,7 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
 
         :returns: Deferred
         """
-        d = dbpool.runQuery("SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade "
+        d = dbpool.runQuery("SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade, permission_groups.full_ui "
                             "FROM permission_groups, users WHERE "
                             "users.permission_group_id=permission_groups.id AND users.username=%s",
                             (self.username,))
@@ -785,7 +785,8 @@ class PepsiColaServerProtocol(WampCraServerProtocol):
                             'login': result[0][1],
                             'deposit': result[0][2],
                             'withdraw': result[0][3],
-                            'trade': result[0][4]}
+                            'trade': result[0][4],
+                            'full_ui': result[0][5]}
             return [True, permissions]
 
         def onGetPermsFail(failure):
