@@ -30,7 +30,7 @@ class JSONSchema(SchemaPlugin):
             warn("Malicious uri found checking schema: %s." % uri)
             return False
 
-        path = "export/%s#%s" % tuple(tokens[1:])
+        path = "public/%s#%s" % tuple(tokens[1:])
 
         validate = self.validators.get(path)
         if validate is None:
