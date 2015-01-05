@@ -22,6 +22,7 @@ __all__ = ('Dealer',)
 
 from autobahn import util
 from autobahn.wamp import types
+from sputnik.webserver.router.wamp.types import RouterOptions
 from autobahn.wamp import role
 from autobahn.wamp import message
 from autobahn.wamp.exception import ProtocolError, ApplicationError
@@ -45,7 +46,7 @@ class Dealer:
       :type options: Instance of :class:`autobahn.wamp.types.RouterOptions`.
       """
       self._router = router
-      self._options = options or types.RouterOptions()
+      self._options = options or RouterOptions()
 
       ## map: session -> set(registration)
       ## needed for removeSession
@@ -65,7 +66,7 @@ class Dealer:
       self._invocations = {}
 
       ## check all procedure URIs with strict rules
-      self._option_uri_strict = self._options.uri_check == types.RouterOptions.URI_CHECK_STRICT
+      self._option_uri_strict = self._options.uri_check == RouterOptions.URI_CHECK_STRICT
 
       ## supported features from "WAMP Advanced Profile"
       self._role_features = role.RoleDealerFeatures(caller_identification = True, progressive_call_results = True)

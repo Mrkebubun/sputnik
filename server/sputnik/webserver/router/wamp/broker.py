@@ -22,6 +22,7 @@ __all__ = ('Broker',)
 
 from autobahn import util
 from autobahn.wamp import types
+from sputnik.webserver.router.wamp.types import RouterOptions
 from autobahn.wamp import role
 from autobahn.wamp import message
 from autobahn.wamp.exception import ApplicationError
@@ -45,7 +46,7 @@ class Broker:
       :type options: Instance of :class:`autobahn.wamp.types.RouterOptions`.
       """
       self._router = router
-      self._options = options or types.RouterOptions()
+      self._options = options or RouterOptions()
 
       ## map: session -> set(subscription)
       ## needed for removeSession
@@ -64,7 +65,7 @@ class Broker:
       self._subscription_to_sessions = {}
 
       ## check all topic URIs with strict rules
-      self._option_uri_strict = self._options.uri_check == types.RouterOptions.URI_CHECK_STRICT
+      self._option_uri_strict = self._options.uri_check == RouterOptions.URI_CHECK_STRICT
 
       ## supported features from "WAMP Advanced Profile"
       self._role_features = role.RoleBrokerFeatures(publisher_identification = True, subscriber_blackwhite_listing = True, publisher_exclusion = True)
