@@ -4,7 +4,7 @@ debug, log, warn, error, critical = observatory.get_loggers("permissions")
 
 from sputnik.webserver.plugin import AuthorizationPlugin
 from autobahn.wamp import types
-from autobahn.wamp.interfaces import IRouter
+from sputnik.webserver.router.wamp.interfaces import IRouter
 import re
 from sputnik import util
 

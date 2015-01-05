@@ -20,7 +20,7 @@ if options.filename:
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.wamp import types
-from autobahn.twisted.wamp import RouterSession, Router
+from sputnik.webserver.router.twisted.wamp import RouterSession, Router
 from autobahn.wamp.exception import ApplicationError
 
 
@@ -138,7 +138,7 @@ class SputnikRouterSession(RouterSession):
                 error()
 
 def main(pm):
-    from autobahn.twisted.wamp import RouterFactory
+    from sputnik.webserver.router.twisted.wamp import RouterFactory
     router_factory = RouterFactory()
     router_factory.router = SputnikRouter
 
@@ -147,7 +147,7 @@ def main(pm):
     router_factory.schema_plugins = \
             pm.services.get("sputnik.webserver.plugins.schema", [])
 
-    from autobahn.twisted.wamp import RouterSessionFactory
+    from sputnik.webserver.router.twisted.wamp import RouterSessionFactory
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
 
