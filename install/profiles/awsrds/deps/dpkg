@@ -1,3 +1,7 @@
 apache2
 binfmt-support
 postgresql-client
+libtool
+unzip
+automake
+ruby-dev

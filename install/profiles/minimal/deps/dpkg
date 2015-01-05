@@ -18,6 +18,3 @@ alembic
 python-dateutil
 python-markdown
 postfix
-libtool
-unzip
-automake
