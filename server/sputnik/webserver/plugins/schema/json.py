@@ -1,6 +1,8 @@
 from sputnik import observatory
 from sputnik import rpc_schema
 
+import re
+
 debug, log, warn, error, critical = observatory.get_loggers("schema")
 
 from sputnik.webserver.plugin import SchemaPlugin
