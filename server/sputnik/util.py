@@ -14,6 +14,8 @@ from twisted.python import log
 from zmq_util import ComponentExport
 from sqlalchemy.orm.session import Session
 
+class SputnikException(Exception): pass
+
 #
 # This doesn't work properly
 #

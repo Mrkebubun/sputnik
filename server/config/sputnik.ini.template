@@ -42,6 +42,7 @@ corporate_name = ${corporate_name}
 exchange_rss_feed = ${exchange_rss_feed}
 exchange_name = ${exchange_name}
 support_email = ${support_email}
+restrict_full_ui = ${restrict_full_ui}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d

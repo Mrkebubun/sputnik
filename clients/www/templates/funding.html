@@ -1,6 +1,8 @@
+{{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
     {{translate("alerts/connecting", sputnik.profile.locale)}}
 </div>
+{{else}}
 <div class="container-fluid simple" id="main_page" style="">
     {{>login_register}}
     {{>change_password_token}}
@@ -292,3 +294,4 @@
         {{/if}}
     </div>
 </div>
+{{/if}}

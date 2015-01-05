@@ -44,16 +44,22 @@ from dateutil import parser
 import config
 import database
 import models
-from util import ChainedOpenSSLContextFactory
+from util import ChainedOpenSSLContextFactory, SputnikException
 import util
 from sendmail import Sendmail
 from watchdog import watchdog
-from accountant import AccountantProxy
+
+# noinspection PyUnresolvedReferences
+from accountant import AccountantProxy, AccountantException
+
+# noinspection PyUnresolvedReferences
+from cashier import CashierException
+
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 
 
-class AdministratorException(Exception): pass
+class AdministratorException(SputnikException): pass
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -67,6 +73,11 @@ ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_us
 INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
+INVALID_REQUEST = AdministratorException("exceptions/administrator/invalid_request")
+INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insufficient_permissions")
+NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
+INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
+CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 
 from util import session_aware
 
@@ -360,7 +371,6 @@ class Administrator:
         admin_users = self.session.query(models.AdminUser).all()
         return admin_users
 
-    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -568,7 +578,7 @@ class Administrator:
         return d
 
     def cancel_order(self, username, id):
-        self.accountant.cancel_order(username, id)
+        return self.accountant.cancel_order(username, id)
 
     def get_journal(self, journal_id):
         """Get a journal given its id
@@ -594,7 +604,11 @@ class Administrator:
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
         log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
-        self.accountant.adjust_position(username, ticker, quantity, admin_username)
+        return self.accountant.adjust_position(username, ticker, quantity, admin_username)
+
+    def clear_first_error(self, failure):
+        failure.trap(defer.FirstError)
+        return failure.value.args[0]
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -614,8 +628,12 @@ class Administrator:
         log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
-        self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
-        self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        if not from_user or not to_user:
+            raise NO_USERNAME_SPECIFIED
+
+        d1 = self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
+        d2 = self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(self.clear_first_error)
 
     def clear_contract(self, ticker, price_ui):
         contract = util.get_contract(self.session, ticker)
@@ -624,7 +642,7 @@ class Administrator:
 
         # Don't try to clear if the contract is not active
         if not contract.active:
-            return
+            raise CONTRACT_NOT_ACTIVE
 
         # Mark contract inactive
         try:
@@ -633,6 +651,7 @@ class Administrator:
             self.session.commit()
         except Exception as e:
             log.err("Unable to mark contract inactive %s" % e)
+            raise e
         else:
             d = self.accountant.clear_contract(None, ticker, price, uid)
             # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
@@ -641,6 +660,7 @@ class Administrator:
             #
             # How do we ensure that the accountants know that it is reactivated?
             # send a ZMQ message to them all?
+            return d
 
 
     def manual_deposit(self, address, quantity_ui, admin_username):
@@ -651,7 +671,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         log.msg("Manual deposit of %d to %s" % (quantity, address))
-        self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
+        return self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
@@ -767,7 +787,6 @@ class Administrator:
 
         return balance_sheet
 
-    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
@@ -806,12 +825,10 @@ class Administrator:
 
         self.session.commit()
 
-    @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
 
-    @util.timed
     def get_deposits(self):
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
@@ -867,7 +884,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing permission group for %s to %d" % (username, id))
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     def change_fee_group(self, username, id):
         """Change the permission group for a user
@@ -878,7 +895,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing fee group for %s to %d" % (username, id))
-        self.accountant.change_fee_group(username, id)
+        return self.accountant.change_fee_group(username, id)
 
     def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         """Change the permission group for a user
@@ -913,6 +930,7 @@ class Administrator:
         except Exception as e:
             self.session.rollback()
             log.err("Error: %s" % e)
+            raise e
 
     def new_permission_group(self, name, permissions):
         """Create a new permission group
@@ -929,9 +947,10 @@ class Administrator:
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
 
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
 class AdminAPI(Resource):
@@ -962,7 +981,7 @@ class AdminAPI(Resource):
 
     def process_request(self, request, data=None):
         if self.avatarLevel < 4:
-            raise Exception("Insufficient privileges to run Admin API")
+            raise INSUFFICIENT_PERMISSIONS
 
         resources = {'/api/withdrawals': self.withdrawals,
                      '/api/deposits': self.deposits,
@@ -973,20 +992,19 @@ class AdminAPI(Resource):
         if request.path in resources:
             return resources[request.path](request, data)
         else:
-            raise Exception("Invalid request")
-
+            raise INVALID_REQUEST
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
-        return [w.dict for w in withdrawals if w.pending]
+        return defer.succeed([w.dict for w in withdrawals if w.pending])
 
     def deposits(self, request, data):
         deposits = self.administrator.get_deposits()
-        return [d.dict for d in deposits]
+        return defer.succeed([d.dict for d in deposits])
 
     def rescan_address(self, request, data):
         self.administrator.rescan_address(data['address'])
-        return {'result': True}
+        return defer.succeed(None)
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
@@ -1000,13 +1018,11 @@ class AdminAPI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+        return self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
                                               admin_username=self.avatarId)
-        return {'result': True}
 
     def manual_deposit(self, request, data):
-        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
-        return {'result': True}
+        return self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
 
     def render(self, request):
         data = request.content.read()
@@ -1014,15 +1030,31 @@ class AdminAPI(Resource):
         request.setHeader('content-type', 'application/json')
         try:
             if request.method == "GET":
-                result = self.process_request(request)
+                d = self.process_request(request)
             else:
                 parsed_data = json.loads(data)
-                result = self.process_request(request, data=parsed_data)
-        except Exception as e:
-            result = {"error": str(e)}
+                d = self.process_request(request, data=parsed_data)
 
-        return json.dumps(result, sort_keys=True,
-                          indent=4, separators=(',', ': '))
+            def process_result(result):
+                final_result = {'success': True, 'result': result}
+                return final_result
+
+            def process_error(failure):
+                failure.trap(SputnikException)
+                log.err(failure)
+                return {'success': False, 'error': failure.value.args}
+
+            def deliver_result(result, request):
+                request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
+                request.finish()
+
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
+            return NOT_DONE_YET
+        except AdministratorException as e:
+            log.err(e)
+            result = {'success': False, 'error': e.args}
+            return json.dumps(result, sort_keys=True,
+                              indent=4, separators=(',', ': '))
 
 class AdminWebUI(Resource):
     isLeaf = False
@@ -1142,14 +1174,37 @@ class AdminWebUI(Resource):
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
         try:
-            resource = resource_list[request.path]
-            return resource(request)
-        except KeyError:
-            return self.invalid_request(request)
+
+            try:
+                resource = resource_list[request.path]
+            except KeyError:
+                return self.invalid_request(request)
+
+            try:
+                return resource(request)
+            except ValueError:
+                raise INVALID_QUANTITY
+
+        except SputnikException as e:
+            return self.error_request(request, e.args)
 
     def invalid_request(self, request):
+        log.err("Invalid request received: %s" % request)
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
+
+    def error_callback(self, failure, request):
+        failure.trap(SputnikException)
+        log.err("SputnikException in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, failure.value.args)
+        request.write(msg)
+        request.finish()
+
+    def error_request(self, request, error):
+        log.err("Error %s received for request %s" % (error, request))
+        t = self.jinja_env.get_template("error.html")
+        return t.render(error=error).encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1162,9 +1217,14 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
+                                                  admin_username=self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def permission_groups(self, request):
         """Get the permission groups page
@@ -1193,8 +1253,13 @@ class AdminWebUI(Resource):
         """
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_permission_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_permission_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def fee_groups(self, request):
         fee_groups = self.administrator.get_fee_groups()
@@ -1205,8 +1270,13 @@ class AdminWebUI(Resource):
     def change_fee_group(self, request):
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_fee_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_fee_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def modify_fee_group(self, request):
         id = int(request.args['id'][0])
@@ -1251,8 +1321,13 @@ class AdminWebUI(Resource):
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
-        return redirectTo("/contracts", request)
+        d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        def _cb(result, request):
+            request.write(redirectTo("/contracts", request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()
@@ -1274,15 +1349,20 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book)
+        d.addCallback(got_order_book).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
         id = int(request.args['id'][0])
         username = request.args['username'][0]
-        self.administrator.cancel_order(username, id)
+        d = self.administrator.cancel_order(username, id)
 
-        return redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1397,19 +1477,29 @@ class AdminWebUI(Resource):
         """Adjust a user's position then go back to his detail page
 
         """
-        self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
+        d = self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
                                            float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def transfer_position(self, request):
         """Transfer a position from a user and go back to his details page
 
         """
 
-        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+        d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address
@@ -1422,8 +1512,13 @@ class AdminWebUI(Resource):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def admin_list(self, request):
         """List all the admin users
@@ -1771,7 +1866,7 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
-    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
 
     if config.getboolean("webserver", "ssl"):

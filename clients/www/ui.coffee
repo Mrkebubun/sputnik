@@ -187,6 +187,7 @@ $ ->
             template: template
             data:
                 sputnik: sputnik
+                connected: false
                 current_ticker: null
                 current_type: null
                 current_currency: null
@@ -534,6 +535,61 @@ $ ->
                     $('#login_error').hide()
                     $('#reset_token_sent').hide()
 
+            login: (event) ->
+                event.original.preventDefault()
+
+                username = $("#login_username").val()
+                password = $("#login_password").val()
+
+                if username is ''
+                    $("#login_error").text(locale.translate("alerts/invalid_username", ractive.get("sputnik.profile.locale"))).show()
+                else
+                    $("#login_error").hide()
+                    ladda = Ladda.create $("#login_button")[0]
+                    ladda.start()
+                    sputnik.authenticate username, password
+                    $('#login_modal .alert:visible').hide()
+
+            register: (event) ->
+                event.original.preventDefault()
+
+                username = $("#register_email").val()
+                password = $("#register_password").val()
+                email = $("#register_email").val()
+                nickname = $("#register_email").val()
+                eula = $("#register_eula").is(":checked")
+
+                re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+                if not re.test(email)
+                    $('#register_error').text(locale.translate("alerts/invalid_email", ractive.get("sputnik.profile.locale"))).slideDown()
+                else
+                    if username and password and email and nickname and eula
+                        $('#register_error').hide()
+                        ladda = Ladda.create $("#register_button")[0]
+                        ladda.start()
+                        sputnik.makeAccount username, password, email, nickname, ractive.get("sputnik.profile.locale")
+                    else
+                        $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
+
+            get_reset_token: (event) ->
+                event.original.preventDefault()
+                username = $("#login_username").val()
+                $('#login_modal .alert:visible').hide()
+
+                if not username.length
+                    $('#login_error').text(locale.translate("alerts/enter_username", ractive.get("sputnik.profile.locale"))).slideDown()
+                    return
+
+                sputnik.getResetToken(username)
+                $('#reset_token_sent').show()
+                setTimeout(
+                    ->
+                        $('#login_modal .alert:visible').hide()
+                        $("#login_modal").modal "hide"
+                ,
+                5000)
+                ga('send', 'event', 'password', 'get_reset_token')
+
             logout: (event) ->
                 event.original.preventDefault()
                 document.cookie = ''
@@ -631,12 +687,7 @@ $ ->
 
         sputnik.on "open", () ->
             sputnik.log "open"
-            $('#main_page').show()
-            $('#not_connected').hide()
-
-            # Hide stuff by default
-            for page in ['trade', 'account']
-                $("#page-#{page}").hide()
+            ractive.set("connected", true)
 
             # Attempt a cookie login
             full_cookie = document.cookie
@@ -723,62 +774,24 @@ $ ->
           $('#compropago_error').text(event[0])
           $('#compropago_error').show()
 
-        $("#login_modal").keypress (e) -> $("#login_button").click() if e.which is 13
-
-        $("#login_button").click (event) ->
-            event.preventDefault()
-
-            username = $("#login_username").val()
-            password = $("#login_password").val()
-
-            if username is ''
-                $("#login_error").text(locale.translate("alerts/invalid_username", ractive.get("sputnik.profile.locale"))).show()
-            else
-                $("#login_error").hide()
-                ladda = Ladda.create $("#login_button")[0]
-                ladda.start()
-                sputnik.authenticate username, password
-                $('#login_modal .alert:visible').hide()
-
-        $("#register_button").click (event) ->
-            event.preventDefault()
-
-            username = $("#register_email").val()
-            password = $("#register_password").val()
-            email = $("#register_email").val()
-            nickname = $("#register_email").val()
-            eula = $("#register_eula").is(":checked")
-
-            re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-            if not re.test(email)
-                $('#register_error').text(locale.translate("alerts/invalid_email", ractive.get("sputnik.profile.locale"))).slideDown()
-            else
-                if username and password and email and nickname and eula
-                    $('#register_error').hide()
-                    ladda = Ladda.create $("#register_button")[0]
-                    ladda.start()
-                    sputnik.makeAccount username, password, email, nickname, ractive.get("sputnik.profile.locale")
-                else
-                    $('#register_error').text(locale.translate("alerts/complete_registration", ractive.get("sputnik.profile.locale"))).slideDown()
-
         withinAnOrderOfMagnitude = (x, y) ->
             sign = (number) -> if number then (if number < 0 then -1 else 1) else 0
             orderOfMag = (w) ->  sign(w) * Math.ceil(Math.log(Math.abs(w) + 1) / Math.log(10))
             orderOfMag(x) == orderOfMag(y)
 
-        $("#compropago_pay_button").click (event) ->
-            event.preventDefault()
-            ladda = Ladda.create $("#compropago_pay_button")[0]
-            ladda.start()
-            store = $("#compropago_store").val()
-            amount = $("#compropago_amount").val()
-            send_sms = $("#compropago_send_sms").is(":checked")
-            customer_email = $('#compropago_email').val()
-            customer_phone = $('#compropago_phone').val()
-            customer_phone_company = $('#compropago_phone_company').val()
-
-            if (locale.parseNumber(amount, ractive.get("sputnik.profile.locale")) < 6000)
-              sputnik.makeCompropagoDeposit store, locale.parseNumber(amount, ractive.get("sputnik.profile.locale")), customer_email, send_sms, customer_phone, customer_phone_company
+#        $("#compropago_pay_button").click (event) ->
+#            event.preventDefault()
+#            ladda = Ladda.create $("#compropago_pay_button")[0]
+#            ladda.start()
+#            store = $("#compropago_store").val()
+#            amount = $("#compropago_amount").val()
+#            send_sms = $("#compropago_send_sms").is(":checked")
+#            customer_email = $('#compropago_email').val()
+#            customer_phone = $('#compropago_phone').val()
+#            customer_phone_company = $('#compropago_phone_company').val()
+#
+#            if (locale.parseNumber(amount, ractive.get("sputnik.profile.locale")) < 6000)
+#              sputnik.makeCompropagoDeposit store, locale.parseNumber(amount, ractive.get("sputnik.profile.locale")), customer_email, send_sms, customer_phone, customer_phone_company
 
 #        $('#chatButton').click ->
 #            chat_return = sputnik.chat chatBox.value
@@ -858,24 +871,6 @@ $ ->
                     feed.items.push item
 
                 t.root.set "feed", feed
-
-        $('#get_reset_token').click ->
-            username = $("#login_username").val()
-            $('#login_modal .alert:visible').hide()
-
-            if not username.length
-                $('#login_error').text(locale.translate("alerts/enter_username", ractive.get("sputnik.profile.locale"))).slideDown()
-                return
-
-            sputnik.getResetToken(username)
-            $('#reset_token_sent').show()
-            setTimeout(
-                ->
-                    $('#login_modal .alert:visible').hide()
-                    $("#login_modal").modal "hide"
-            ,
-            5000)
-            ga('send', 'event', 'password', 'get_reset_token')
 
         sputnik.on "change_password_token", (args) ->
             $('#change_password_token_modal').modal "show"
@@ -959,8 +954,7 @@ $ ->
 
         sputnik.on "close", (message) ->
             ga('send', 'event', 'close', 'close')
-            $('#main_page').hide()
-            $('#not_connected').show()
+            ractive.set("connected", false)
 
         jQuery.fn.serializeObject = ->
             arrayData = @serializeArray()

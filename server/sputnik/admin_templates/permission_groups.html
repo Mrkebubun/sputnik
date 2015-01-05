@@ -8,7 +8,7 @@
     <div class="panel-body">
         <table id="permission_groups" class="table table-striped table-hover">
             <thead>
-                <tr><th>Name</th><th>Trade</th><th>Withdraw</th><th>Deposit</th><th>Login</th></tr>
+                <tr><th>Name</th><th>Trade</th><th>Withdraw</th><th>Deposit</th><th>Login</th><th>Full UI</th></tr>
             </thead>
             <tbody>
                 <tr>
@@ -26,6 +26,9 @@
                         </td>
                         <td>
                             <input type="checkbox" name="permissions" value="login">
+                        </td>
+                        <td>
+                            <input type="checkbox" name="permissions" value="full_ui">
                         </td>
                         <td>
                             <button type="submit">Create</button>
@@ -48,6 +51,9 @@
                     </td>
                     <td>
                         {{permission_group.login}}
+                    </td>
+                    <td>
+                        {{permission_group.full_ui}}
                     </td>
                 </tr>
                 {% endfor %}
