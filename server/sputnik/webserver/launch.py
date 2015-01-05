@@ -45,6 +45,9 @@ class SputnikRouter(Router):
 
     @inlineCallbacks
     def validate(self, type, uri, args, kwargs):
+        # TODO: THIS IS BROKEN!!!
+        # validate cannot return a deferred
+
         results = []
         for plugin in self.factory.schema_plugins:
             result = yield plugin.validate(self, type, uri, args, kwargs)
