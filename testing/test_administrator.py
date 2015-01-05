@@ -469,7 +469,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, None)
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')
