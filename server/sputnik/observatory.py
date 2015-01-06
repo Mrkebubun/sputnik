@@ -23,7 +23,7 @@ class SputnikObserver(log.FileLogObserver):
         fmtDict = {'system': eventDict['system'],
                    'text': text.replace("\n", "\n\t"),
                    'level': self.levels[level]}
-        msgStr = log._safeFormat("%(level)s [%(system)s] %(text)s\n", fmtDict)
+        msgStr = log._safeFormat("%(level)s [%(system)s] %(text)s\n".encode('utf-8'), fmtDict)
 
         twisted.python.util.untilConcludes(self.write, timeStr + " " + msgStr)
         twisted.python.util.untilConcludes(self.flush)
@@ -33,19 +33,19 @@ class Logger:
         self.prefix = prefix
 
     def debug(self, message=None):
-        log.msg(message, system=self.prefix, level=10)
+        log.msg(message.encode('utf-8'), system=self.prefix, level=10)
 
     def info(self, message=None):
-        log.msg(message, system=self.prefix, level=20)
+        log.msg(message.encode('utf-8'), system=self.prefix, level=20)
 
     def warn(self, message=None):
-        log.msg(message, system=self.prefix, level=30)
+        log.msg(message.encode('utf-8'), system=self.prefix, level=30)
 
     def error(self, message=None):
-        log.err(message, system=self.prefix, level=40)
+        log.err(message.encode('utf-8'), system=self.prefix, level=40)
 
     def critical(self, message=None):
-        log.err(message, system=self.prefix, level=50)
+        log.err(message.encode('utf-8'), system=self.prefix, level=50)
 
 def start_logging(level=20):
     log.startLoggingWithObserver(SputnikObserver(level).emit)
