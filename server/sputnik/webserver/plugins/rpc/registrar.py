@@ -15,7 +15,6 @@ class RegistrarService(ServicePlugin):
 
     def init(self):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
-        self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieAuth")
     
     @wamp.register(u"rpc.registrar.make_account")
     @inlineCallbacks
