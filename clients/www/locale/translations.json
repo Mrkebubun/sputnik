@@ -157,7 +157,10 @@
                     "notifications": "Notifications"
                 },
                 "notifications": {
-                    "fill": "Fill"
+                    "fill": "Fill",
+                    "daily": "Daily",
+                    "weekly": "Weekly",
+                    "monthly": "Monthly"
                 },
                 "buttons": {
                     "update": "Update Profile",

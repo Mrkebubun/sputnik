@@ -272,6 +272,14 @@ class Installer():
         self.make_template("alembic.ini", out)
         out.close()
 
+        # make crontab
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open(os.path.join("config", "crontab"), "w")
+        self.make_template("crontab", out)
+        out.close()
+
         # make config.status
         if self.dry_run:
             out = cStringIO.StringIO()

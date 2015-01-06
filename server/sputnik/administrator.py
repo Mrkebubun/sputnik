@@ -40,6 +40,7 @@ import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
 from autobahn.wamp1.protocol import WampCraProtocol
 from dateutil import parser
+from datetime import timedelta
 
 import config
 import database
@@ -383,6 +384,50 @@ class Administrator:
 
         return user
 
+    def mail_statements(self, period, now=None):
+        self.expire_all()
+
+        if now is None:
+            now = datetime.utcnow()
+
+        if period == "daily":
+            yesterday = now - timedelta(days=1)
+            yesterday_bod = datetime(yesterday.year, yesterday.month, yesterday.day)
+            today_bod = datetime(now.year, now.month, now.day)
+            yesterday_eod = today_bod - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(yesterday_bod)
+            to_timestamp = util.dt_to_timestamp(yesterday_eod)
+        elif period == "weekly":
+            recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-1))
+            second_recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-2))
+            last_week_start = datetime(second_recent_sunday.year, second_recent_sunday.month, second_recent_sunday.day)
+            this_week_start = datetime(recent_sunday.year, recent_sunday.month, recent_sunday.day)
+            last_week_end = this_week_start - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_week_start)
+            to_timestamp = util.dt_to_timestamp(last_week_end)
+        elif period == "monthly":
+            last_month = now + relativedelta.relativedelta(months=-1)
+            last_month_bom = datetime(last_month.year, last_month.month, 1)
+            this_month_bom = datetime(now.year, now.month, 1)
+            last_month_eom = this_month_bom - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_month_bom)
+            to_timestamp = util.dt_to_timestamp(last_month_eom)
+        else:
+            raise AdministratorException("Period not supported: %s" % period)
+
+        users = self.session.query(models.User)
+        user_list = []
+
+        for user in users:
+            if period in [notification.type for notification in user.notifications if notification.method == "email"]:
+                self.mail_statement(user.username, from_timestamp, to_timestamp)
+                user_list.append(user.username)
+
+        return user_list
+
     @util.timed
     def mail_statement(self, username, from_timestamp=None, to_timestamp=None):
         now = datetime.utcnow()
@@ -397,6 +442,8 @@ class Administrator:
             start = end + relativedelta.relativedelta(months=-1)
         else:
             start = util.timestamp_to_dt(from_timestamp)
+
+        log.msg("mailing statement for %s from %s to %s" % (username, start, end))
 
         # Get beginning balances
         balances = self.session.query(func.sum(models.Posting.quantity).label("balance"),
@@ -1959,6 +2006,17 @@ class WebserverExport(ComponentExport):
     def get_profile(self, username):
         return self.administrator.get_profile(username)
 
+class CronExport(ComponentExport):
+    def __init__(self, administrator):
+        self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#mail_statements")
+    def mail_statements(self, period):
+        return self.administrator.mail_statements(period)
+
 
 class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer
@@ -2023,11 +2081,14 @@ if __name__ == "__main__":
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
+    cron_export = CronExport(administrator)
 
     router_share_async(webserver_export,
                        config.get("administrator", "webserver_export"))
     router_share_async(ticketserver_export,
                        config.get("administrator", "ticketserver_export"))
+    router_share_async(cron_export,
+                       config.get("administrator", "cron_export"))
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')

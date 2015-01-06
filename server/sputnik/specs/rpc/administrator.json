@@ -142,6 +142,17 @@
         "type": "object",
         "description": "webserver -> administrator RPC call to get the balance sheet audit",
         "additionalProperties": false
+    },
+    "mail_statements": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to mail out statements to users who want them",
+        "properties": {
+            "period": {
+                "enum": ["daily", "weekly", "monthly"]
+            }
+        },
+        "required": ["period"],
+        "additionalProperties": false
     }
 }
 
