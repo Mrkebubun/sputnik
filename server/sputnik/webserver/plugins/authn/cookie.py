@@ -12,6 +12,19 @@ class CookieLogin(AuthenticationPlugin):
         AuthenticationPlugin.__init__(self)
         self.cookies = {}
 
+    def new_cookie(self, username):
+        self.cookies[username] = util.newid()
+
+    def set_cookie(self, username, cookie):
+        self.cookies[username] = cookie
+
+    def get_cookie(self, username):
+        return self.cookies.get(username)
+
+    def delete_cookie(self, username):
+        if username in self.cookies:
+            del self.cookies[username]
+
     def onHello(self, router_session, realm, details):
         for authmethod in details.authmethods:
             if authmethod == u"cookie":
@@ -44,30 +57,25 @@ class CookieLogin(AuthenticationPlugin):
     def onAuthenticate(self, router_session, signature, extra):
         try:
             challenge = router_session.challenge
+            authid = challenge["authid"]
             if challenge == None:
                 return
             if router_session.challenge.get("authmethod") != u"cookie":
                 return
-            for field in ["authid", "authrole", "authmethod", "authprovider"]:
+            for field in ["authrole", "authmethod", "authprovider"]:
                 if field not in challenge:
                     # Challenge not in expected format. It was probably
                     #   created by another plugin.
                     return
-        except:
+        except Exception as e:
             # let another plugin handle this
             return
 
-        true_id = self.cookies.get(signature)
-        if true_id == None:
+        cookie = self.cookies.get(authid)
+        if cookie != signature:
             log("Failed cookie login for %s." % challenge["authid"])
             return types.Deny(u"Invalid cookie.")
 
-        if true_id != challenge.get("authid"):
-            # user tried to authenticate with a cookie, but did not know
-            #   the correct authid to go with it
-            log("Failed cookie login for %s." % challenge["authid"])
-            return types.Deny(u"Invalid cookie.")
-        
         log("Successful cookie login for %s." % challenge["authid"])
         return types.Accept(authid = challenge["authid"],
                             authrole = challenge["authrole"],

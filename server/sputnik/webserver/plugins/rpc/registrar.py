@@ -3,7 +3,7 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("rpc_registrar")
 
-from sputnik.plugin import PluginException
+from sputnik.plugin import PluginException, authenticated
 from sputnik.webserver.plugin import ServicePlugin
 
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -15,6 +15,7 @@ class RegistrarService(ServicePlugin):
 
     def init(self):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
+        self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieAuth")
     
     @wamp.register(u"rpc.registrar.make_account")
     @inlineCallbacks
@@ -56,4 +57,17 @@ class RegistrarService(ServicePlugin):
             error(e)
             returnValue([False, e.args])
 
+    @wamp.register(u"rpc.registrar.get_cookie")
+    @authenticated
+    def get_cookie(self, username):
+        cookie = self.cookie_jar.get_cookie(username)
+        if cookie is None:
+            return self.cookie_jar.new_cookie(username)
+        return cookie
+
+    @wamp.register(u"rpc.registrar.logout")
+    @authenticated
+    def logout(self, username):
+        self.cookie_jar.delete_cookie(username)
+        # TODO: disconnect here
 

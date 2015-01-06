@@ -84,28 +84,6 @@ class TraderService(ServicePlugin):
         permissions = yield self.db.get_permissions(username)
         returnValue([True, permissions])
 
-
-    @trader_wrapper
-    # TODO: This should be in the auth? Dunno what to do here - help!
-    def get_cookie(self, username=None):
-        """
-
-
-        :returns: list - [True, cookie]
-        """
-        return [True, self.cookie]
-
-    @trader_wrapper
-    # TODO: This should be in the auth? Dunno what to do here - help!
-    def logout(self):
-        """Removes the cookie from the cache, disconnects the user
-
-
-        """
-        if self.cookie in self.factory.cookies:
-            del self.factory.cookies[self.cookie]
-        self.dropConnection()
-
     @trader_wrapper
     # TODO: This should be in the auth? Dunno what to do here - help!
     def get_new_two_factor(self, username=None):

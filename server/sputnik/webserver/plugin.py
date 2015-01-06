@@ -5,6 +5,36 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("plugin")
 
+def authenticated()
+
+from twisted.internet.defer import inlineCallbacks, returnValue
+from autobahn import wamp
+from autobahn.wamp.types import RegisterOptions
+
+def authenticated(func):
+    @inlineCallbacks
+    def wrapper(*args, **kwargs):
+        # Make sure username is not passed in
+        if 'username' in kwargs:
+            raise Exception("'username' passed in over RPC")
+
+        details = kwargs.pop('details')
+        username = details.authid
+        if username is None:
+            raise Exception("details.authid is None")
+        kwargs['username'] = username
+        try:
+            r = yield func(*args, **kwargs)
+            returnValue([True, r])
+        except Exception as e:
+            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwar
+gs))
+            error(e)
+            returnValue([False, e.args])
+
+    return wrapper
+
+
 class AuthenticationPlugin(Plugin):
     def onHello(self, router_session, realm, details):
         pass
