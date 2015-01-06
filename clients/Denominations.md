@@ -158,13 +158,13 @@ This order is transmitted to the webserver, which reject it if it does not match
 
 # Predictions
 
-Predictions only have two contracts involved, the denomination contract (usually BTC) and the prediction contract itself. The fields are very similar with cash, except that denominator is always 1.
+Predictions only have two contracts involved, the denomination contract (usually BTC) and the prediction contract itself. 
+The fields are very similar with cash, except that denominator is always 1.
 
 | | denominator | tick size | lot size |
 |-------------|-----------|----------|-----|
-| USD         | 1e2       | n/a      | n/a |
-| EUR         | 1e2       | n/a      | n/a |
-| EUR/USD     | 10        | 1        | 1e3 |
+| BTC         | 1e8       | n/a      | n/a |
+| US_PRESIDENT    | 1e3        | 1        | 1e5 |
 
 * Denominator tells us that the price can go from 0 to 1000, which means that when the probability is 1, the price is 1000.
 * Tick size tells us the granularity of allowed price changes. There's no reason this should be anything other than 1
@@ -172,15 +172,18 @@ Predictions only have two contracts involved, the denomination contract (usually
 
 contract.lot_size * contract.tick_size / contract.denominator must be an integer
 
-Note that in cash_pair, the price is the price in from_currency, per 'contract.denominator' of to_currency. However, in prediction markets, the price is in probability space, it doesn't reflect an actual currency value.
+Note that in cash_pair, the price is the price in from_currency, per 'contract.denominator' of to_currency. However, 
+in prediction markets, the price is in probability space, it doesn't reflect an actual currency value.
 
 You can only buy integer qty of contracts. You can't buy/sell a fractional contract.
 
 Price must be an integer between 0 and denominator
 
+
 # Cost calculations
 
-When someone purchases a single contract for 0.454 (454 if the denominator is 1000) then the amount spent (in satoshi, because BTC.denominator is 1e8) is
+When someone purchases a single contract for 0.454 (454 if the denominator is 1000) then the amount spent (in satoshi,
+because BTC.denominator is 1e8) is
 
 ```
     price * contract.lot_size / contract.denominator = 454 * 1e5 / 1e3

@@ -78,14 +78,14 @@ class MarketMakerBot(TradingBot):
 
     def getExternalMarket(self):
         try:
-            url = "https://www.bitstamp.net/api/ticker/"
+            url = "https://btc-e.com/api/3/ticker/btc_usd"
             file_handle = urllib2.urlopen(url)
             json_data = json.load(file_handle)
-            btcusd_bid = float(json_data['bid'])
-            btcusd_ask = float(json_data['ask'])
+            btcusd_bid = float(json_data['btc_usd']['buy'])
+            btcusd_ask = float(json_data['btc_usd']['sell'])
         except Exception as e:
             # Unable to get markets, just exit
-            print "unable to get external market data: %s" % e
+            print "unable to get external market data from btc-e: %s" % e
             return
 
         for ticker, market in self.markets.iteritems():
@@ -109,7 +109,7 @@ class MarketMakerBot(TradingBot):
                             ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
                         except Exception as e:
                             # Unable to get markets, just exit
-                            print "unable to get external market data: %s" % e
+                            print "unable to get external market data from Yahoo: %s/%s" % (url, e)
                             continue
 
 
