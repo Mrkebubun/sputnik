@@ -42,6 +42,7 @@ corporate_name = ${corporate_name}
 exchange_rss_feed = ${exchange_rss_feed}
 exchange_name = ${exchange_name}
 support_email = ${support_email}
+restrict_full_ui = ${restrict_full_ui}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d
@@ -85,7 +86,7 @@ zmq_backend_address = tcp://127.0.0.1:4520
 
 [ledger]
 accountant_export = tcp://127.0.0.1:4340
-timeout = 3000
+timeout = 300
 
 [alerts]
 from = ${user}@${webserver_address}

@@ -63,6 +63,10 @@ class RactiveSputnikWrapper
             else
                 @exchange_info.supported_ids = ['passport', 'drivers_license', 'personal_identification']
 
+            if @exchange_info.restrict_full_ui? and @exchange_info.restrict_full_ui.toLowerCase() == "true"
+                @exchange_info.restrict_full_ui = true
+            else
+                @exchange_info.restrict_full_ui = false
 
             @notify "exchange_info"
 

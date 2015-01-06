@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if [ -f /etc/keyless/server_cert.crt ]; then
+   service keyless restart
+fi

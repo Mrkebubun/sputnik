@@ -1,0 +1,30 @@
+#!/bin/bash
+
+SOURCE=https://github.com/cloudflare/keyless.git
+
+check()
+{
+    dpkg -l keyless
+}
+
+install()
+{
+    cd /usr/local/src
+    git clone $SOURCE
+    cd keyless
+    gem install fpm
+    make package
+    dpkg -i keyless*.deb
+}
+
+case $1 in
+    check)
+        check
+        ;;
+    install)
+        install
+        ;;
+    *)
+        echo "usage: $0 check|install"
+        ;;
+esac

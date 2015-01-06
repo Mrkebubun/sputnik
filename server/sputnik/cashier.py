@@ -18,6 +18,7 @@ from compropago import Compropago
 from watchdog import watchdog
 from sendmail import Sendmail
 from accountant import AccountantProxy
+from alerts import AlertsProxy
 import util
 
 from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export, ComponentExport
@@ -30,6 +31,7 @@ from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
+from util import session_aware, SputnikException
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -37,7 +39,7 @@ parser.add_option("-c", "--config", dest="filename", help="config file")
 if options.filename:
     config.reconfigure(options.filename)
 
-class CashierException(Exception):
+class CashierException(SputnikException):
     pass
 
 WITHDRAWAL_NOT_FOUND = CashierException("exceptions/cashier/withdrawal_not_found")
@@ -55,7 +57,7 @@ class Cashier():
     """
 
     def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
-                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6):
+                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6, alerts=None):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -68,6 +70,7 @@ class Cashier():
         self.sendmail = sendmail
         self.minimum_confirmations = minimum_confirmations
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
+        self.alerts = alerts
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
                 looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
@@ -92,7 +95,16 @@ class Cashier():
         # the position is an atomic transaction. Cashier is *only telling* the accountant
         # what the state of the bitcoin client is.
 
-        self.accountant.deposit_cash(address.username, address.address, total_received)
+        d = self.accountant.deposit_cash(address.username, address.address, total_received)
+        # If this didn't work, we need to do a send_alert
+        def send_alert_failure(failure):
+            log.err(failure)
+            self.alerts.send_alert(str(failure), "Deposit cash failed!")
+            # We don't need to continue to propagate this error, so don't return failure
+
+        d.addErrback(send_alert_failure)
+
+        return d
 
     def rescan_address(self, address_str):
         """Check an address to see if deposits have been made against it
@@ -191,8 +203,8 @@ class Cashier():
             d.addCallback(onSuccess)
             return d
 
-        def fail(message):
-            log.msg("Safety check failed: %s" % message)
+        def fail(failure):
+            log.msg("Safety check failed: %s" % str(failure.value.args))
             self.notify_pending_withdrawal(withdrawal)
             return defer.succeed(withdrawal.id)
 
@@ -211,7 +223,8 @@ class Cashier():
         if withdrawal_request.contract.ticker not in self.bitcoinrpc:
             message = "Withdrawal request for fiat: %s" % withdrawal_request
             log.err(message)
-            return defer.fail(message)
+
+            return defer.fail(Exception(message))
 
         # 1) do a query for the last 24 hours of the 'orders submitted for cancellation'  keep it under 5bt
         # (what does this mean)
@@ -221,7 +234,7 @@ class Cashier():
         if withdrawal_request.amount >= 100000000:
             message = "withdrawal too large: %s" % withdrawal_request
             log.err(message)
-            return defer.fail(message)
+            return defer.fail(Exception(message))
 
         d = self.bitcoinrpc[withdrawal_request.contract.ticker].getbalance()
 
@@ -239,7 +252,7 @@ class Cashier():
 
         def error(failure):
             log.err("unable to get balance from wallet: %s" % failure)
-            return defer.fail(failure)
+            return failure
 
         d.addCallbacks(gotBalance, error)
         return d
@@ -254,6 +267,12 @@ class Cashier():
             online_cash = long(round(balance * contract.denominator))
             log.msg("Online cash for %s is %d" % (ticker, online_cash))
             # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
+
+            def send_alert_failure(failure):
+                log.err(failure)
+                self.alerts.send_alert(str(failure), "Failure in transfer_to_cold_wallet")
+                # We don't need this failure to propagate so don't return failure
+
             if online_cash > contract.hot_wallet_limit * 1.1:
                 amount = online_cash - contract.hot_wallet_limit
                 log.msg("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
@@ -263,20 +282,23 @@ class Cashier():
                     txid = result['result']
                     uid = util.get_uid()
                     note = "%s: %s" % (contract.cold_wallet_address, txid)
-                    self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
+                    d1=self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
                                                       note, uid)
-                    self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, note, uid)
+                    d2=self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, note, uid)
+                    d = defer.gatherResults([d1, d2])
 
-                def error(failure):
-                    log.err("Unable to send to address: %s" % failure)
+                    return d
 
-                d.addCallbacks(onSendSuccess, error)
+
+                d.addCallback(onSendSuccess).addErrback(send_alert_failure)
+                return d
 
         def error(failure):
             log.err("Unable to get wallet balance: %s" % failure)
             raise failure.value
 
         d.addCallbacks(gotBalance, error)
+        return d
 
     def process_withdrawal(self, withdrawal_id, online=False, cancel=False, admin_username=None):
         # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
@@ -303,16 +325,23 @@ class Cashier():
                 else:
                     note = "%s: %s" % (withdrawal.address, txid)
 
-                self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
+                d1 = self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
                                                   withdrawal.amount,
                                                   note, uid)
-                self.accountant.transfer_position(to_user, withdrawal.contract.ticker, 'credit', withdrawal.amount,
+                d2 = self.accountant.transfer_position(to_user, withdrawal.contract.ticker, 'credit', withdrawal.amount,
                                                   note, uid)
 
                 withdrawal.pending = False
                 withdrawal.completed = datetime.utcnow()
                 self.session.add(withdrawal)
                 self.session.commit()
+                d = defer.gatherResults([d1, d2], consumeErrors=True)
+
+                def send_alert_failure(failure):
+                    log.err(failure)
+                    self.alerts.send_alert(str(failure), "Transfer position failed in finish_withdrawal")
+
+                d.addErrback(send_alert_failure)
                 return defer.succeed(txid)
             except Exception as e:
                 log.err("Exception when trying to process withdrawal: %s" % e)
@@ -570,16 +599,19 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_new_address")
     def get_new_address(self, username, ticker):
         return self.cashier.get_new_address(username, ticker)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_current_address")
     def get_current_address(self, username, ticker):
         return self.cashier.get_current_address(username, ticker)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#get_deposit_instructions")
     def get_deposit_instructions(self, ticker):
         return self.cashier.get_deposit_instructions(ticker)
@@ -595,11 +627,13 @@ class AdministratorExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#rescan_address")
     def rescan_address(self, address):
         return self.cashier.rescan_address(address)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#process_withdrawal")
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
@@ -610,6 +644,7 @@ class AccountantExport(ComponentExport):
         ComponentExport.__init__(self, cashier)
 
     @export
+    @session_aware
     @schema("rpc/cashier.json#request_withdrawal")
     def request_withdrawal(self, username, ticker, address, amount):
         return self.cashier.request_withdrawal(username, ticker, address, amount)
@@ -631,18 +666,20 @@ if __name__ == '__main__':
     cold_wallet_period = config.getint("cashier", "cold_wallet_period")
     sendmail=Sendmail(config.get("administrator", "email"))
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
+    alerts_proxy = AlertsProxy(config.get("alerts", "export"))
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago,
                       cold_wallet_period=cold_wallet_period,
                       sendmail=sendmail,
-                      minimum_confirmations=minimum_confirmations)
+                      minimum_confirmations=minimum_confirmations,
+                      alerts=alerts_proxy)
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)
     webserver_export = WebserverExport(cashier)
 
     watchdog(config.get("watchdog", "cashier"))
-    pull_share_async(administrator_export,
+    router_share_async(administrator_export,
                      config.get("cashier", "administrator_export"))
     pull_share_async(accountant_export,
                     config.get("cashier", "accountant_export"))

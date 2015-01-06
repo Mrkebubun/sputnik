@@ -306,6 +306,7 @@ class PermissionGroup(db.Base):
     deposit = Column(Boolean, server_default=sql.false())
     withdraw = Column(Boolean, server_default=sql.false())
     login = Column(Boolean, server_default=sql.true())
+    full_ui = Column(Boolean, server_default=sql.false())
 
     def __init__(self, name, permissions):
         """
@@ -318,6 +319,7 @@ class PermissionGroup(db.Base):
         self.withdraw = 'withdraw' in permissions
         self.deposit = 'deposit' in permissions
         self.login = 'login' in permissions
+        self.full_ui = 'full_ui' in permissions
 
     @property
     def dict(self):
@@ -325,7 +327,8 @@ class PermissionGroup(db.Base):
                 'trade': self.trade,
                 'deposit': self.deposit,
                 'withdraw': self.withdraw,
-                'login': self.login
+                'login': self.login,
+                'full_ui': self.full_ui
         }
 
     def __repr__(self):
@@ -357,6 +360,24 @@ class AdminUser(db.Base):
     def __repr__(self):
         return "<AdminUser('%s', %d)>" % (self.username, self.level)
 
+class Notification(db.Base):
+    __tablename__ = 'notifications'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String, ForeignKey('users.username'), index=True)
+    user = relationship("User", back_populates="notifications")
+    type = Column(Enum('fill', 'order', 'transaction', 'daily', 'monthly', 'weekly', name='notification_types'), nullable=False, default='fill', server_default='fill')
+    method = Column(Enum('email', 'voice', 'sms', 'growl', name='notification_methods'), nullable=False, default='email', server_default='email')
+
+    def __init__(self, username, type, method):
+        self.username = username
+        self.type = type
+        self.method = method
+
+    def __repr__(self):
+        return "<Notification('%s', '%s', '%s')" % (self.username, self.type, self.method)
+
 class User(db.Base):
     __tablename__ = 'users'
     __table_args__ = {'extend_existing': True}
@@ -382,6 +403,7 @@ class User(db.Base):
     permissions = relationship("PermissionGroup")
     fees = relationship("FeeGroup")
     postings = relationship("Posting", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
     def user_hash(self, timestamp):
         """

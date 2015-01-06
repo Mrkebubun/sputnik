@@ -44,17 +44,23 @@ from dateutil import parser
 import config
 import database
 import models
-from util import ChainedOpenSSLContextFactory
+from util import ChainedOpenSSLContextFactory, SputnikException
 import util
 from sendmail import Sendmail
 from watchdog import watchdog
-from accountant import AccountantProxy
+
+# noinspection PyUnresolvedReferences
+from accountant import AccountantProxy, AccountantException
+
+# noinspection PyUnresolvedReferences
+from cashier import CashierException
+
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 from dateutil import relativedelta
 
 
-class AdministratorException(Exception): pass
+class AdministratorException(SputnikException): pass
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -68,17 +74,13 @@ ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_us
 INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
+INVALID_REQUEST = AdministratorException("exceptions/administrator/invalid_request")
+INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insufficient_permissions")
+NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
+INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
+CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 
-
-def session_aware(func):
-    def new_func(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except Exception, e:
-            self.session.rollback()
-            raise e
-
-    return new_func
+from util import session_aware
 
 
 class Administrator:
@@ -123,7 +125,6 @@ class Administrator:
         else:
             self.update_bs_cache()
 
-    @session_aware
     def make_account(self, username, password):
         """Makes a user account with the given password
 
@@ -169,7 +170,6 @@ class Administrator:
         log.msg("Account created for %s" % username)
         return True
 
-    @session_aware
     def change_profile(self, username, profile):
         """Changes the profile of a user
 
@@ -189,11 +189,45 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
-        self.session.merge(user)
+
+        # User notifications
+        if 'notifications' in profile:
+            # Remove notifications not in profile from db
+            for notification in user.notifications:
+                if notification.type in profile['notifications']:
+                    if notification.method not in profile['notifications'][notification.type]:
+                            self.session.delete(notification)
+
+            # Add notifications in the profile that are not in db
+            for type, methods in profile['notifications'].iteritems():
+                notifications = [n.method for n in user.notifications if n.type == type]
+                for method in [m for m in methods if m not in notifications]:
+                    new_notification = models.Notification(username, type, method)
+                    self.session.add(new_notification)
 
         self.session.commit()
-        log.msg("Profile changed for %s to %s/%s" % (user.username, user.email, user.nickname))
+        log.msg("Profile changed for %s to %s/%s - %s" % (user.username, user.email, user.nickname, user.notifications))
         return True
+
+    def get_profile(self, username):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        notifications = {}
+        for notification in user.notifications:
+            if notification.type not in notifications:
+                notifications[notification.type] = [notification.method]
+            else:
+                notifications[notification.type].append(notification.method)
+
+        profile = {'email': user.email,
+                   'nickname': user.nickname,
+                   'locale': user.locale,
+                   'audit_secret': user.audit_secret,
+                   'notifications': notifications
+        }
+        return profile
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -219,7 +253,6 @@ class Administrator:
 
         return token
 
-    @session_aware
     def reset_password_plaintext(self, username, new_password):
         """Reset's a user's password to the given plaintext
 
@@ -247,7 +280,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         """Reset a user's password, make sure the old password or the token gets checked
 
@@ -283,7 +315,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def get_reset_token(self, username, hours_to_expiry=2):
         """Get a reset token for a user, send him a mail with the token
 
@@ -341,7 +372,6 @@ class Administrator:
         admin_users = self.session.query(models.AdminUser).all()
         return admin_users
 
-    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -454,7 +484,6 @@ class Administrator:
         log.msg("Sending statement to user at %s" % user.email)
         self.sendmail.send_mail(content, subject="Your statement", to_address=user.email)
 
-    @session_aware
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket
 
@@ -515,7 +544,6 @@ class Administrator:
             log.msg("Registered foreign key: %s for %s" % (foreign_key, username))
             return True
 
-    @session_aware
     def set_admin_level(self, username, level):
         """Sets the level of control that the admin user has
 
@@ -531,7 +559,6 @@ class Administrator:
         self.session.commit()
         return True
 
-    @session_aware
     def new_admin_user(self, username, password_hash, level):
         """Create a new admin user with a certain password_hash
 
@@ -553,7 +580,6 @@ class Administrator:
         log.msg("Admin user %s created" % username)
         return True
 
-    @session_aware
     def reset_admin_password(self, username, old_password_hash, new_password_hash):
         """Reset the admin password ensuring we knew the old password
 
@@ -582,7 +608,6 @@ class Administrator:
         log.msg("Admin user %s has password reset" % username)
         return True
 
-    @session_aware
     def force_reset_admin_password(self, username, new_password_hash):
         """Change an admin password even if we don't know the old password
 
@@ -655,7 +680,7 @@ class Administrator:
         return d
 
     def cancel_order(self, username, id):
-        self.accountant.cancel_order(username, id)
+        return self.accountant.cancel_order(username, id)
 
     def get_journal(self, journal_id):
         """Get a journal given its id
@@ -681,7 +706,11 @@ class Administrator:
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
         log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
-        self.accountant.adjust_position(username, ticker, quantity, admin_username)
+        return self.accountant.adjust_position(username, ticker, quantity, admin_username)
+
+    def clear_first_error(self, failure):
+        failure.trap(defer.FirstError)
+        return failure.value.args[0]
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -701,8 +730,12 @@ class Administrator:
         log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
-        self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
-        self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        if not from_user or not to_user:
+            raise NO_USERNAME_SPECIFIED
+
+        d1 = self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
+        d2 = self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(self.clear_first_error)
 
     def clear_contract(self, ticker, price_ui):
         contract = util.get_contract(self.session, ticker)
@@ -711,7 +744,7 @@ class Administrator:
 
         # Don't try to clear if the contract is not active
         if not contract.active:
-            return
+            raise CONTRACT_NOT_ACTIVE
 
         # Mark contract inactive
         try:
@@ -720,6 +753,7 @@ class Administrator:
             self.session.commit()
         except Exception as e:
             log.err("Unable to mark contract inactive %s" % e)
+            raise e
         else:
             d = self.accountant.clear_contract(None, ticker, price, uid)
             # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
@@ -728,6 +762,7 @@ class Administrator:
             #
             # How do we ensure that the accountants know that it is reactivated?
             # send a ZMQ message to them all?
+            return d
 
 
     def manual_deposit(self, address, quantity_ui, admin_username):
@@ -738,7 +773,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         log.msg("Manual deposit of %d to %s" % (quantity, address))
-        self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
+        return self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
@@ -854,7 +889,6 @@ class Administrator:
 
         return balance_sheet
 
-    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
@@ -893,12 +927,10 @@ class Administrator:
 
         self.session.commit()
 
-    @util.timed
     def get_withdrawals(self):
         withdrawals = self.session.query(models.Withdrawal).all()
         return withdrawals
 
-    @util.timed
     def get_deposits(self):
         addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
         return addresses
@@ -954,7 +986,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing permission group for %s to %d" % (username, id))
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     def change_fee_group(self, username, id):
         """Change the permission group for a user
@@ -965,7 +997,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing fee group for %s to %d" % (username, id))
-        self.accountant.change_fee_group(username, id)
+        return self.accountant.change_fee_group(username, id)
 
     def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         """Change the permission group for a user
@@ -1000,6 +1032,7 @@ class Administrator:
         except Exception as e:
             self.session.rollback()
             log.err("Error: %s" % e)
+            raise e
 
     def new_permission_group(self, name, permissions):
         """Create a new permission group
@@ -1016,9 +1049,10 @@ class Administrator:
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
 
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
 
 
 class AdminAPI(Resource):
@@ -1049,7 +1083,7 @@ class AdminAPI(Resource):
 
     def process_request(self, request, data=None):
         if self.avatarLevel < 4:
-            raise Exception("Insufficient privileges to run Admin API")
+            raise INSUFFICIENT_PERMISSIONS
 
         resources = {'/api/withdrawals': self.withdrawals,
                      '/api/deposits': self.deposits,
@@ -1060,20 +1094,19 @@ class AdminAPI(Resource):
         if request.path in resources:
             return resources[request.path](request, data)
         else:
-            raise Exception("Invalid request")
-
+            raise INVALID_REQUEST
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
-        return [w.dict for w in withdrawals if w.pending]
+        return defer.succeed([w.dict for w in withdrawals if w.pending])
 
     def deposits(self, request, data):
         deposits = self.administrator.get_deposits()
-        return [d.dict for d in deposits]
+        return defer.succeed([d.dict for d in deposits])
 
     def rescan_address(self, request, data):
-        self.administrator.cashier.rescan_address(data['address'])
-        return {'result': True}
+        self.administrator.rescan_address(data['address'])
+        return defer.succeed(None)
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
@@ -1087,13 +1120,11 @@ class AdminAPI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+        return self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
                                               admin_username=self.avatarId)
-        return {'result': True}
 
     def manual_deposit(self, request, data):
-        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
-        return {'result': True}
+        return self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
 
     def render(self, request):
         data = request.content.read()
@@ -1101,21 +1132,36 @@ class AdminAPI(Resource):
         request.setHeader('content-type', 'application/json')
         try:
             if request.method == "GET":
-                result = self.process_request(request)
+                d = self.process_request(request)
             else:
                 parsed_data = json.loads(data)
-                result = self.process_request(request, data=parsed_data)
-        except Exception as e:
-            result = {"error": str(e)}
+                d = self.process_request(request, data=parsed_data)
 
-        return json.dumps(result, sort_keys=True,
-                          indent=4, separators=(',', ': '))
+            def process_result(result):
+                final_result = {'success': True, 'result': result}
+                return final_result
 
+            def process_error(failure):
+                failure.trap(SputnikException)
+                log.err(failure)
+                return {'success': False, 'error': failure.value.args}
+
+            def deliver_result(result, request):
+                request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
+                request.finish()
+
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
+            return NOT_DONE_YET
+        except AdministratorException as e:
+            log.err(e)
+            result = {'success': False, 'error': e.args}
+            return json.dumps(result, sort_keys=True,
+                              indent=4, separators=(',', ': '))
 
 class AdminWebUI(Resource):
     isLeaf = False
 
-    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory, base_uri):
         """The web Resource that front-ends the administrator
 
         :param administrator: the actual administrator
@@ -1130,10 +1176,22 @@ class AdminWebUI(Resource):
         self.administrator = administrator
         self.avatarId = avatarId
         self.avatarLevel = avatarLevel
-        self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.template_dir),
+        self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.component.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
+        self.base_uri = base_uri
         Resource.__init__(self)
+
+    def check_referer(self, request):
+        if self.base_uri is not None:
+            referer = request.getHeader("referer")
+            if referer is None or not referer.startswith(self.base_uri):
+                log.err("Referer check failed: %s" % referer)
+                return False
+            else:
+                return True
+        else:
+            return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1180,6 +1238,10 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
+        if request.path != '/':
+            if not self.check_referer(request):
+                return redirectTo('/', request)
+
         resources = [
                     # Level 0
                     { '/': self.admin,
@@ -1231,14 +1293,37 @@ class AdminWebUI(Resource):
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
         try:
-            resource = resource_list[request.path]
-            return resource(request)
-        except KeyError:
-            return self.invalid_request(request)
+
+            try:
+                resource = resource_list[request.path]
+            except KeyError:
+                return self.invalid_request(request)
+
+            try:
+                return resource(request)
+            except ValueError:
+                raise INVALID_QUANTITY
+
+        except SputnikException as e:
+            return self.error_request(request, e.args)
 
     def invalid_request(self, request):
+        log.err("Invalid request received: %s" % request)
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
+
+    def error_callback(self, failure, request):
+        failure.trap(SputnikException)
+        log.err("SputnikException in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, failure.value.args)
+        request.write(msg)
+        request.finish()
+
+    def error_request(self, request, error):
+        log.err("Error %s received for request %s" % (error, request))
+        t = self.jinja_env.get_template("error.html")
+        return t.render(error=error).encode('utf-8')
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1251,16 +1336,21 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
+                                                  admin_username=self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def mail_statement(self, request):
         self.administrator.expire_all()
 
         self.administrator.mail_statement(request.args['username'][0])
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
-
+    
     def permission_groups(self, request):
         """Get the permission groups page
 
@@ -1288,8 +1378,13 @@ class AdminWebUI(Resource):
         """
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_permission_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_permission_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def fee_groups(self, request):
         fee_groups = self.administrator.get_fee_groups()
@@ -1300,8 +1395,13 @@ class AdminWebUI(Resource):
     def change_fee_group(self, request):
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_fee_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_fee_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def modify_fee_group(self, request):
         id = int(request.args['id'][0])
@@ -1346,8 +1446,13 @@ class AdminWebUI(Resource):
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
-        return redirectTo("/contracts", request)
+        d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        def _cb(result, request):
+            request.write(redirectTo("/contracts", request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()
@@ -1369,15 +1474,20 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book)
+        d.addCallback(got_order_book).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
         id = int(request.args['id'][0])
         username = request.args['username'][0]
-        self.administrator.cancel_order(username, id)
+        d = self.administrator.cancel_order(username, id)
 
-        return redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1469,7 +1579,7 @@ class AdminWebUI(Resource):
 
         user = self.administrator.get_user(request.args['username'][0])
         permission_groups = self.administrator.get_permission_groups()
-        zendesk_domain = self.administrator.zendesk_domain
+        zendesk_domain = self.administrator.component.zendesk_domain
 
         if 'orders_page' in request.args:
             orders_page = int(request.args['orders_page'][0])
@@ -1483,7 +1593,7 @@ class AdminWebUI(Resource):
         rendered = t.render(user=user,
                             zendesk_domain=zendesk_domain,
                             fee_groups=fee_groups,
-                            debug=self.administrator.debug, permission_groups=permission_groups,
+                            debug=self.administrator.component.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
                             min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
         return rendered.encode('utf-8')
@@ -1492,33 +1602,48 @@ class AdminWebUI(Resource):
         """Adjust a user's position then go back to his detail page
 
         """
-        self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
+        d = self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
                                            float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def transfer_position(self, request):
         """Transfer a position from a user and go back to his details page
 
         """
 
-        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+        d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
                                              request.args['to_user'][0], float(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address
 
         """
-        self.administrator.cashier.rescan_address(request.args['address'][0])
+        self.administrator.rescan_address(request.args['address'][0])
         return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
 
     def manual_deposit(self, request):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        return NOT_DONE_YET
 
     def admin_list(self, request):
         """List all the admin users
@@ -1557,6 +1682,154 @@ class AdminWebUI(Resource):
         return rendered.encode('utf-8')
 
 
+class AdminWebExport(ComponentExport):
+    def __init__(self, administrator):
+        self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
+
+    @session_aware
+    def get_withdrawals(self):
+        return self.administrator.get_withdrawals()
+
+    @session_aware
+    def get_deposits(self):
+        return self.administrator.get_deposits()
+
+    @session_aware
+    def rescan_address(self, address):
+        return self.administrator.cashier.rescan_address(address)
+
+    @session_aware
+    def process_withdrawal(self, id, online, cancel, admin_username):
+        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username)
+
+    @session_aware
+    def expire_all(self):
+        return self.administrator.expire_all()
+
+    @session_aware
+    def new_permission_group(self, name, permissions):
+        return self.administrator.new_permission_group(name, permissions)
+
+    @session_aware
+    def change_permission_group(self, username, id):
+        return self.administrator.change_permission_group(username, id)
+
+    @session_aware
+    def get_fee_groups(self):
+        return self.administrator.get_fee_groups()
+
+    @session_aware
+    def check_fee_groups(self, fee_groups):
+        return self.administrator.check_fee_groups(fee_groups)
+
+    @session_aware
+    def change_fee_group(self, username, id):
+        return self.administrator.change_fee_group(username, id)
+
+    @session_aware
+    def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
+        return self.administrator.modify_fee_group(id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
+
+    @session_aware
+    def new_fee_group(self, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
+        return self.administrator.new_fee_group(name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor)
+
+    @session_aware
+    def get_contracts(self):
+        return self.administrator.get_contracts()
+
+    @session_aware
+    def edit_contract(self, ticker, args):
+        return self.administrator.edit_contract(ticker, args)
+
+    @session_aware
+    def clear_contract(self, ticker, price):
+        return self.administrator.clear_contract(ticker, price)
+
+    @session_aware
+    def get_order_book(self, ticker):
+        return self.administrator.get_order_book(ticker)
+
+    @session_aware
+    def cancel_order(self, username, id):
+        return self.administrator.cancel_order(username, id)
+
+    @session_aware
+    def get_journal(self, id):
+        return self.administrator.get_journal(id)
+
+    @session_aware
+    def get_users(self):
+        return self.administrator.get_users()
+
+    @session_aware
+    def reset_password_plaintext(self, username, new_password):
+        return self.administrator.reset_password_plaintext(username, new_password)
+
+    @session_aware
+    def reset_admin_password(self, username, old_password_hash, new_password_hash):
+        return self.administrator.reset_admin_password(username, old_password_hash=old_password_hash,
+                                                       new_password_hash=new_password_hash)
+
+    @session_aware
+    def get_user(self, username):
+        return self.administrator.get_user(username)
+
+    @session_aware
+    def new_admin_user(self, username, password_hash, level):
+        return self.administrator.new_admin_user(username, password_hash, level)
+
+    @session_aware
+    def set_admin_level(self, username, level):
+        return self.administrator.set_admin_level(username, level)
+
+    @session_aware
+    def get_permission_groups(self):
+        return self.administrator.get_permission_groups()
+
+    @session_aware
+    def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
+        return self.administrator.transfer_position(ticker, from_user, to_user, quantity_ui, note)
+
+    @session_aware
+    def adjust_position(self, username, ticker, quantity, admin_username):
+        return self.administrator.adjust_position(username, ticker, quantity, admin_username=admin_username)
+
+    @session_aware
+    def get_contract(self, ticker):
+        return self.administrator.get_contract(ticker)
+
+    @session_aware
+    def get_orders(self, user, page):
+        return self.administrator.get_orders(user, page)
+
+    @session_aware
+    def manual_deposit(self, address, quantity, admin_username):
+        return self.administrator.manual_deposit(address, quantity, admin_username=admin_username)
+
+    @session_aware
+    def force_reset_admin_password(self, username, password_hash):
+        return self.administrator.force_reset_admin_password(username, password_hash)
+
+    @session_aware
+    def get_balance_sheet(self):
+        return self.administrator.get_balance_sheet()
+
+    @session_aware
+    def get_admin_users(self):
+        return self.administrator.get_admin_users()
+
+    @session_aware
+    def get_position(self, user, contract):
+        return self.administrator.get_position(user, contract)
+
+    @session_aware
+    def get_postings(self, user, contract, page):
+        return self.administrator.get_postings(user, contract, page)
+
+
+
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
 
@@ -1581,6 +1854,10 @@ class PasswordChecker(object):
             admin_user = self.session.query(models.AdminUser).filter_by(username=username).one()
         except NoResultFound as e:
             return defer.fail(credError.UnauthorizedLogin("No such administrator"))
+        except Exception as e:
+            log.err(e)
+            self.session.rollback()
+            raise e
 
         # Allow login if there is no password. Use this for
         # setup only
@@ -1596,10 +1873,11 @@ class PasswordChecker(object):
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator, session, digest_factory):
+    def __init__(self, administrator, session, digest_factory, admin_base_uri):
         self.administrator = administrator
         self.session = session
         self.digest_factory = digest_factory
+        self.admin_base_uri = admin_base_uri
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
@@ -1611,9 +1889,10 @@ class SimpleRealm(object):
                 else:
                     avatarLevel = user.level
             except Exception as e:
+                self.session.rollback()
                 print "Exception: %s" % e
 
-            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory, self.admin_base_uri)
             api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
             ui_resource.putChild('api', api_resource)
 
@@ -1633,39 +1912,52 @@ class WebserverExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#make_account")
     def make_account(self, username, password):
         return self.administrator.make_account(username, password)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#change_profile")
     def change_profile(self, username, profile):
         return self.administrator.change_profile(username, profile)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#reset_password_hash")
     def reset_password_hash(self, username, old_password_hash, new_password_hash, token=None):
         return self.administrator.reset_password_hash(username, old_password_hash, new_password_hash, token=token)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#request_support_nonce")
     def request_support_nonce(self, username, type):
         return self.administrator.request_support_nonce(username, type)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#get_audit")
     def get_audit(self):
         return self.administrator.get_audit()
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_profile")
+    def get_profile(self, username):
+        return self.administrator.get_profile(username)
 
 
 class TicketServerExport(ComponentExport):
@@ -1678,11 +1970,13 @@ class TicketServerExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#check_support_nonce")
     def check_support_nonce(self, username, nonce, type):
         return self.administrator.check_support_nonce(username, nonce, type)
 
     @export
+    @session_aware
     @schema("rpc/administrator.json#register_support_ticket")
     def register_support_ticket(self, username, nonce, type, foreign_key):
         return self.administrator.register_support_ticket(username, nonce, type, foreign_key)
@@ -1698,7 +1992,7 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
-    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
 
     if config.getboolean("webserver", "ssl"):
@@ -1737,7 +2031,12 @@ if __name__ == "__main__":
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(administrator, session, digest_factory),
+    admin_base_uri = "%s://%s:%d" % (protocol,
+                                     config.get("webserver", "www_address"),
+                                     config.getint("administrator", "UI_port"))
+
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory,
+                                                        admin_base_uri),
                                             checkers),
                                      [digest_factory])
 
