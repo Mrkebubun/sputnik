@@ -11,14 +11,13 @@ from autobahn.wamp import auth
 import util
 
 class MyFrontendComponent(wamp.ApplicationSession):
-    auth = False
+    methods = [u"anonymous", u"wampcra", u"cookie"]
+    index = 0
 
     def onConnect(self):
-        print "connect"
         self.join(self.config.realm, [u"anonymous"])
 
     def onChallenge(self, challenge):
-        print "got challenge: %s" % challenge
         if challenge.method == u"wampcra":
             if u'salt' in challenge.extra:
                 key = auth.derive_key(u"marketmaker".encode('utf8'),
@@ -29,31 +28,54 @@ class MyFrontendComponent(wamp.ApplicationSession):
                 key = u"a".encode('utf8')
             signature = auth.compute_wcs(key, challenge.extra['challenge'].encode('utf8'))
             return signature.decode('ascii')
+        elif challenge.method == u"cookie":
+            return self.cookie
         else:
             raise Exception("don't know how to compute challenge for authmethod {}".format(challenge.method))
 
 
     @inlineCallbacks
     def onJoin(self, details):
-        if details.authrole == u"anonymous":
+        self.index += 1
+
+        if details.authmethod == u"anonymous":
+            print "Connected anonymously."
+            try:
+                result = yield self.call(u"rpc.info.get_exchange_info")
+                print "Exchange info: %s" % str(result)
+            except Exception as e:
+                print e
             returnValue(self.leave())
 
-        auth = True
-        result = yield self.call(u"rpc.private.foobar")
-        print result
+        if details.authmethod == u"wampcra":
+            print "Logged in using WAMP-CRA."
+            try:
+                self.cookie = (yield self.call(u"rpc.token.get_cookie"))[1]
+                print "Got a cookie: %s" % self.cookie
+                def on_event(event):
+                    pass
+                result = yield self.subscribe(on_event,
+                        u'feeds.user.orders.%s' % \
+                                util.encode_username(u'marketmaker'))
+                print "Subscribed to a feed."
+            except Exception as e:
+                print e
+            returnValue(self.leave())
 
-        def handle(result):
-            print result
-
-        result = yield self.subscribe(handle, u'feeds.user.orders.%s' % util.encode_username(u'marketmaker'))
-        print result
+        if details.authmethod == u"cookie":
+            print "Logged in using a cookie."
+            try:
+                result = yield self.call(u"rpc.token.logout")
+                print "Logged out."
+            except Exception as e:
+                print e
+            returnValue(self.leave())
 
     def onLeave(self, details):
-        if not self.auth:
-            self.join(self.config.realm, [u"wampcra"], u"marketmaker")
+        print "Left realm."
+        self.join(self.config.realm, [self.methods[self.index]], u"marketmaker")
 
     def onDisconnect(self):
-        print "disconnected"
         reactor.stop()
 
 
