@@ -43,14 +43,10 @@ class SputnikRouter(Router):
         # Require no False and at least one True.
         returnValue(all(results) and results)
 
-    @inlineCallbacks
     def validate(self, type, uri, args, kwargs):
-        # TODO: THIS IS BROKEN!!!
-        # validate cannot return a deferred
-
         results = []
         for plugin in self.factory.schema_plugins:
-            result = yield plugin.validate(self, type, uri, args, kwargs)
+            result = plugin.validate(self, type, uri, args, kwargs)
             if result == None:
                 continue
             results.append(result)
@@ -204,7 +200,6 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.authn.totp.TOTPVerification",
                "sputnik.webserver.plugins.db.mem.InMemoryDatabase",
                "sputnik.webserver.plugins.db.postgres.PostgresDatabase",
-               "sputnik.webserver.plugins.schema.json.JSONSchema",
                "sputnik.webserver.plugins.backend.administrator.AdministratorProxy",
                "sputnik.webserver.plugins.rpc.registrar.RegistrarService",
                "sputnik.webserver.plugins.rpc.info.InfoService",

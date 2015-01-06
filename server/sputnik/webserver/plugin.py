@@ -1,11 +1,9 @@
 from sputnik.plugin import Plugin
 from autobahn.twisted.wamp import ApplicationSession
 from twisted.internet.defer import inlineCallbacks, returnValue
-from sputnik import observatory
+from sputnik import observatory, rpc_schema
 
 debug, log, warn, error, critical = observatory.get_loggers("plugin")
-
-def authenticated()
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
@@ -27,12 +25,22 @@ def authenticated(func):
             r = yield func(*args, **kwargs)
             returnValue([True, r])
         except Exception as e:
-            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwar
-gs))
+            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwargs))
             error(e)
             returnValue([False, e.args])
-
+    
     return wrapper
+
+def schema(path):
+    def wrap(f):
+        def wrapped_f(*args, **kwargs):
+            f = rpc_schema.schema(path)(f)
+            try:
+                return f(*args, **kwargs)
+            except ValidationError as e:
+                return [False, "Invalid message arguments."]
+        return wrapped_f
+    return wrap
 
 
 class AuthenticationPlugin(Plugin):
