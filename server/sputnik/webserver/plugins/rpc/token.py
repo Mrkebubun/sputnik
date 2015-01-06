@@ -8,6 +8,7 @@ from sputnik.webserver.plugin import ServicePlugin, authenticated
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
+from autobahn.wamp.types import RegisterOptions
 
 class TokenService(ServicePlugin):
     def __init__(self):
