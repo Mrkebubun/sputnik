@@ -3,8 +3,8 @@ from sputnik import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("rpc_token")
 
-from sputnik.plugin import PluginException, authenticated
-from sputnik.webserver.plugin import ServicePlugin
+from sputnik.plugin import PluginException
+from sputnik.webserver.plugin import ServicePlugin, authenticated
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
@@ -15,7 +15,7 @@ class TokenService(ServicePlugin):
 
     def init(self):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
-        self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieAuth")
+        self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieLogin")
     
     @wamp.register(u"rpc.registrar.get_cookie")
     @authenticated

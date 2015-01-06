@@ -202,6 +202,7 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.db.postgres.PostgresDatabase",
                "sputnik.webserver.plugins.backend.administrator.AdministratorProxy",
                "sputnik.webserver.plugins.rpc.registrar.RegistrarService",
+               "sputnik.webserver.plugins.rpc.token.TokenService",
                "sputnik.webserver.plugins.rpc.info.InfoService",
                "sputnik.webserver.plugins.rpc.market.MarketService",
                "sputnik.webserver.plugins.rpc.private.PrivateService",
