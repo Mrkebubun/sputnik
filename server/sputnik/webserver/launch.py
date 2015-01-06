@@ -150,7 +150,8 @@ def main(pm):
     session_factory = RouterSessionFactory(router_factory)
     session_factory.session = SputnikRouterSession
 
-    authn_stack = [("anonymous.AnonymousLogin", "sufficient"),
+    authn_stack = [("ip.IPFilter", "requisite"),
+                   ("anonymous.AnonymousLogin", "sufficient"),
                    ("cookie.CookieLogin", "sufficient"),
                    ("wampcra.WAMPCRALogin", "requisite"),
                    ("totp.TOTPVerification", "requisite")]
@@ -195,6 +196,7 @@ if __name__ == "__main__":
     observatory.start_logging(10)
     plugins = ["sputnik.webserver.plugins.authz.default.DefaultPermissions",
                "sputnik.webserver.plugins.authn.anonymous.AnonymousLogin",
+               "sputnik.webserver.plugins.authn.ip.IPFilter",
                "sputnik.webserver.plugins.authn.cookie.CookieLogin",
                "sputnik.webserver.plugins.authn.wampcra.WAMPCRALogin",
                "sputnik.webserver.plugins.authn.totp.TOTPVerification",

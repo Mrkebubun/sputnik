@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     ## 2) create a WAMP-over-WebSocket transport client factory
     transport_factory = websocket.WampWebSocketClientFactory(session_factory,
-        url = "ws://127.0.0.1:8080/ws", debug = False, debug_wamp = False)
+            url = "ws://127.0.0.1:8080/ws", debug = False, debug_wamp = False, headers={"X-Forwarded-For":"10.0.0.1"})
 
     ## 3) start the client from a Twisted endpoint
     client = clientFromString(reactor, "tcp:127.0.0.1:8080")
