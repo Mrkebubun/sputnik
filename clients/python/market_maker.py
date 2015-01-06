@@ -85,7 +85,7 @@ class MarketMakerBot(TradingBot):
             btcusd_ask = float(json_data['btc_usd']['sell'])
         except Exception as e:
             # Unable to get markets, just exit
-            print "unable to get external market data from bitstamp: %s" % e
+            print "unable to get external market data from btc-e: %s" % e
             return
 
         for ticker, market in self.markets.iteritems():
