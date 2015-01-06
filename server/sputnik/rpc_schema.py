@@ -56,7 +56,10 @@ def schema(path):
         f.schema = path
         f.validator = validator(path)
         def wrapped_f(*args, **kwargs):
-            callargs = inspect.getcallargs(f, *args, **kwargs)
+            try:
+                callargs = inspect.getcallargs(f, *args, **kwargs)
+            except TypeError:
+                raise jsonschema.ValidationError("Invalid number of arguments.")
 
             # hack to handle methods
             if "self" in callargs:

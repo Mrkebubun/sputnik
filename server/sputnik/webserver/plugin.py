@@ -9,6 +9,8 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 
+from jsonschema import ValidationError
+
 def authenticated(func):
     @inlineCallbacks
     def wrapper(*args, **kwargs):
@@ -33,12 +35,12 @@ def authenticated(func):
 
 def schema(path):
     def wrap(f):
+        func = rpc_schema.schema(path)(f)
         def wrapped_f(*args, **kwargs):
-            f = rpc_schema.schema(path)(f)
             try:
-                return f(*args, **kwargs)
-            except ValidationError as e:
-                return [False, "Invalid message arguments."]
+                return func(*args, **kwargs)
+            except ValidationError:
+                return [False, "Invalid message arguments. Schema: %s" % f.validator.schema]
         return wrapped_f
     return wrap
 
