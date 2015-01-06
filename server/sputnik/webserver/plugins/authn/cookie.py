@@ -14,6 +14,7 @@ class CookieLogin(AuthenticationPlugin):
 
     def new_cookie(self, username):
         self.cookies[username] = util.newid()
+        return self.cookies[username]
 
     def set_cookie(self, username, cookie):
         self.cookies[username] = cookie
