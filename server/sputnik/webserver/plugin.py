@@ -11,7 +11,7 @@ from autobahn.wamp.types import RegisterOptions
 from jsonschema import ValidationError
 
 def authenticated(func):
-    def wrapper(self, *args, **kwargs):
+    def wrapper(*args, **kwargs):
         # Make sure username is not passed in
         if 'username' in kwargs:
             error("someone tried to pass 'username' in over RPC")
