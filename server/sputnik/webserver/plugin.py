@@ -35,7 +35,7 @@ def authenticated(func):
 
 def schema(path):
     def wrap(f):
-        func = rpc_schema.schema(path, drop_args=["details"])(f)
+        func = rpc_schema.schema(path, drop_args=["username"])(f)
         def wrapped_f(*args, **kwargs):
             try:
                 return func(*args, **kwargs)

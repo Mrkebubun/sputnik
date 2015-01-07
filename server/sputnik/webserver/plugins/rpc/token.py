@@ -19,8 +19,8 @@ class TokenService(ServicePlugin):
         self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieLogin")
     
     @wamp.register(u"rpc.token.get_cookie")
-    @schema(u"public/token.json#get_cookie")
     @authenticated
+    @schema(u"public/token.json#get_cookie")
     def get_cookie(self, username):
         cookie = self.cookie_jar.get_cookie(username)
         if cookie is None:
