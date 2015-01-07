@@ -32,11 +32,11 @@
         "description": "get transaction history for the user",
         "properties": {
             "start_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "start of the period, microseconds since epoch"
             },
             "end_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "end of the period, microseconds since epoch"
             }
         },
