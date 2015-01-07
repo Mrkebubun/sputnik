@@ -1,6 +1,6 @@
 from sputnik.plugin import Plugin
 from autobahn.twisted.wamp import ApplicationSession
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, maybeDeferred
 from sputnik import observatory, rpc_schema
 
 debug, log, warn, error, critical = observatory.get_loggers("plugin")
@@ -15,7 +15,8 @@ def authenticated(func):
     def wrapper(*args, **kwargs):
         # Make sure username is not passed in
         if 'username' in kwargs:
-            raise Exception("'username' passed in over RPC")
+            error("someone tried to pass 'username' in over RPC")
+            return [False, "denied"]
 
         details = kwargs.pop('details')
         username = details.authid
