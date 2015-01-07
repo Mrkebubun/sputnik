@@ -170,14 +170,9 @@ class @Sputnik extends EventEmitter
                 @token = args.token
                 @emit args['function'], args
 
-    onChallenge: ()
-
     authenticate: (login, password) =>
         if not @session?
             @wtf "Not connected."
-
-        if @cookie?
-            @session.join('sputnik', 'cookie', login)
 
         @session.authreq(login).then \
             (challenge) =>
@@ -259,7 +254,7 @@ class @Sputnik extends EventEmitter
         @connect()
 
     getCookie: () =>
-        @call("rpc.token.get_cookie").then \
+        @call("rpc.regstrar.get_cookie").then \
             (uid) =>
                 @log "cookie: " + uid
                 @emit "cookie", uid
@@ -730,7 +725,7 @@ class @Sputnik extends EventEmitter
 #                    msg = chat[1]
 #                    @chat_messages.push "#{user}: #{msg}"
 #                @emit "chat_history", @chat_messages
-        @session.onchallenge = @onChallenge
+
         @emit "open"
 
     onClose: (code, reason, details) =>
