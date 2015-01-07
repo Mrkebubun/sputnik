@@ -16,7 +16,7 @@
         "properties": {
             "type": {
                 "enum": ["Compliance"],
-                "description": "the type of ticket (make this an enum?)"
+                "description": "the type of ticket"
             }
         },
         "required": ["type"],
@@ -24,7 +24,7 @@
     },
     "get_permissions": {
         "type": "object",
-        "description": "get an object containing the user's permissions"
+        "description": "get an object containing the user's permissions",
         "additionalProperties": false
     },
     "get_transaction_history": {
