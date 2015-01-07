@@ -37,7 +37,7 @@ exitcodes = 0
 redirect_stderr = true
 stdout_logfile = ${logs}/%(program_name)s.log
 stdout_logfile_backups = 3
-directory = ${root}/server
+directory = ${root}/server/sputnik/webserver
 user=${user}
 
 [program:safe_price_forwarder]

@@ -69,7 +69,6 @@
                 "description": "array of tickers we want safe prices for"
             }
         },
-        "required": [],
         "additionalProperties": false
     }
 }
