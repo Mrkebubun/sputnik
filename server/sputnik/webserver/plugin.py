@@ -22,7 +22,7 @@ def authenticated(func):
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
-        d = maybeDeferred(func, self, *args, **kwargs)
+        d = maybeDeferred(func, *args, **kwargs)
 
         def _error(failure):
             error("Error calling %s - args=%s, kwargs=%s" % (func.__name__, args, kwargs))
@@ -35,10 +35,10 @@ def authenticated(func):
 
 def schema(path):
     def wrap(f):
-        func = rpc_schema.schema(path, drop_kwargs=["details"])(f)
-        def wrapped_f(self, *args, **kwargs):
+        func = rpc_schema.schema(path, drop_args=["details"])(f)
+        def wrapped_f(*args, **kwargs):
             try:
-                return func(self, *args, **kwargs)
+                return func(*args, **kwargs)
             except ValidationError:
                 return [False, "Invalid message arguments. Schema: %s" % f.validator.schema]
         return wrapped_f
