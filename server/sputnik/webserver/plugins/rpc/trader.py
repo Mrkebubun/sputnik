@@ -328,7 +328,7 @@ class TraderService(ServicePlugin):
         returnValue([True, profile])
 
     @trader_wrapper
-    def change_profile(self, email, nickname, locale=None, username=None):
+    def change_profile(self, profile, username=None):
         """
         Updates a user's nickname and email. Can't change
         the user's login, that is fixed.
@@ -339,13 +339,9 @@ class TraderService(ServicePlugin):
         # TODO: make sure email is an actual email
         # TODO: make sure nickname is appropriate
         # (These checks should be in administrator?)
-        if util.malicious_looking(email) or util.malicious_looking(nickname):
-            returnValue([False, ("malicious looking input")])
 
-        if locale is not None:
-            profile =  {"email": email, "nickname": nickname, 'locale': locale}
-        else:
-            profile = {"email": email, "nickname": nickname}
+        if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
+            returnValue([False, "malicious looking input"])
 
         result = yield self.administrator.proxy.change_profile(username, profile)
         profile = yield self.get_profile

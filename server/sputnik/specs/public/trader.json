@@ -21,5 +21,136 @@
         },
         "required": ["type"],
         "additionalProperties": false
+    },
+    "get_permissions": {
+        "type": "object",
+        "description": "get an object containing the user's permissions"
+        "additionalProperties": false
+    },
+    "get_transaction_history": {
+        "type": "object",
+        "description": "get transaction history for the user",
+        "properties": {
+            "start_timestamp": {
+                "type": "integer",
+                "description": "start of the period, microseconds since epoch"
+            },
+            "end_timestamp": {
+                "type": "integer",
+                "description": "end of the period, microseconds since epoch"
+            }
+        },
+        "required": ["start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "get_new_address": {
+        "type": "object",
+        "description": "get a new deposit address for a contract",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            }
+        },
+        "required": ["ticker"],
+        "additionalProperties": false
+    },
+    "get_current_address": {
+        "type": "object",
+        "description": "get the currently active deposit address for a contract",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            }
+        },
+        "required": ["ticker"],
+        "additionalProperties": false
+    },
+    "get_deposit_instructions": {
+        "type": "object",
+        "description": "get the deposit instructions for a contract",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            }
+        },
+        "required": ["ticker"],
+        "additionalProperties": false
+    },
+    "request_withdrawal": {
+        "type": "object",
+        "description": "request a withdrawal of funds",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            },
+            "amount": {
+                "type": "integer",
+                "description": "how much to withdraw"
+            },
+            "address": {
+                "type": "string",
+                "description": "the destination of the withdrawal"
+            }
+        },
+        "required": ["ticker", "amount", "address"],
+        "additionalProperties": false
+    },
+    "get_positions": {
+        "type": "object",
+        "description": "get all of a user's positions",
+        "additionalProperties": false
+    },
+    "get_profile": {
+        "type": "object",
+        "description": "get a user's profile",
+        "additionalProperties": false
+    },
+    "change_profile": {
+        "type": "object",
+        "description": "change a user's profile",
+        "properties": {
+            "profile": {
+                "$ref": "objects/profile.json"
+            }
+        },
+        "required": ["profile"],
+        "additionalProperties": false
+    },
+    "change_password": {
+        "type": "object",
+        "description": "change a user's password assuming we know the previous one",
+        "properties": {
+            "old_password_hash": {
+                "type": "string",
+                "description": "the old hash"
+            },
+            "new_password_hash": {
+                "type": "string",
+                "description": "the new hash"
+            }
+        },
+        "required": ["old_password_hash", "new_password_hash"],
+        "additionalProperties": false
+    },
+    "get_open_orders": {
+        "type": "object",
+        "description": "get all a user's open orders",
+        "additionalProperties": false
+    },
+    "cancel_order": {
+        "type": "object",
+        "description": "cancel an order by order id",
+        "properties": {
+            "order_id": {
+                "type": "integer",
+                "description": "the id of the order to cancel"
+            }
+        },
+        "required": ["order_id"],
+        "additionalProperties": false
     }
 }
