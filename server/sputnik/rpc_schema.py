@@ -56,11 +56,10 @@ def schema(path, drop_args=[]):
     def wrap(f):
         f.schema = path
         f.validator = validator(path)
+        @inlineCallbacks
         def wrapped_f(*args, **kwargs):
             try:
                 callargs = inspect.getcallargs(f, *args, **kwargs)
-                if 'args' in callargs and 'kwargs' in callargs:
-                    callargs = inspect.getcallargs(f, *callargs['args'], **callargs['kwargs'])
             except TypeError:
                 raise jsonschema.ValidationError("Invalid number of arguments.")
 
