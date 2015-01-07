@@ -1,0 +1,6 @@
+{
+    "foobar": {
+        "type": "object",
+        "description": "does nothing!"
+    }
+}

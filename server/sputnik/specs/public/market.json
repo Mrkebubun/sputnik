@@ -1,0 +1,75 @@
+{
+    "get_markets": {
+        "type": "object",
+        "description": "get information about all the markets traded on the exchange",
+        "additionalProperties": false
+    },
+    "get_ohlcv_history": {
+        "type": "object",
+        "description": "get historical bars",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            },
+            "period": {
+                "enum": ["minute", "hour", "day"],
+                "description": "which type of bar"
+            },
+            "start_timestamp": {
+                "type": "integer",
+                "description": "start of the period, microseconds since epoch"
+            },
+            "end_timestamp": {
+                "type": "integer",
+                "description": "end of the period, microseconds since epoch"
+            }
+        },
+        "required": ["ticker", "period", "start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "get_trade_history": {
+        "type": "object",
+        "description": "get every trade for the given time frame",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            },
+            "start_timestamp": {
+                "type": "integer",
+                "description": "start of the period, microseconds since epoch"
+            },
+            "end_timestamp": {
+                "type": "integer",
+                "description": "end of the period, microseconds since epoch"
+            }
+        },
+        "required": ["ticker", "start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "get_order_book": {
+        "type": "object",
+        "description": "get the orderbook for a contract",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the relevant contract"
+            }
+        },
+        "required": ["ticker", "start_timestamp", "end_timestamp"],
+        "additionalProperties": false
+    },
+    "get_safe_prices": {
+        "type": "object",
+        "description": "get the safe prices for all or a list of contracts",
+        "properties": {
+            "array_of_tickers": {
+                "type": "array",
+                "description": "array of tickers we want safe prices for"
+            }
+        },
+        "required": [],
+        "additionalProperties": false
+    }
+}

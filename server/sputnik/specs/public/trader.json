@@ -1,0 +1,25 @@
+{
+    "place_order": {
+        "type": "object",
+        "description": "place an order",
+        "properties": {
+            "order": {
+                "$ref": "objects/order.public.json"
+            }
+        },
+        "required": ["order"],
+        "additionalProperties": false
+    },
+    "request_support_nonce": {
+        "type": "object",
+        "description": "request a nonce to submit a support ticket to the ticketserver",
+        "properties": {
+            "type": {
+                "enum": ["kyc"],
+                "description": "the type of ticket (make this an enum?)"
+            }
+        },
+        "required": ["type"],
+        "additionalProperties": false
+    }
+}

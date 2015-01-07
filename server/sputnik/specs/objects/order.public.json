@@ -1,0 +1,30 @@
+{
+    "type": "object",
+    "description": "Sputnik order object as sent by the trading platform.",
+    "properties":
+    {
+        "contract":
+         {
+            "type": "number",
+            "description": "Contract id of the order contract"
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Order price."
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Order volume."
+        },
+        "side":
+        {
+            "type": "number",
+            "description": "The order side on the books. -1 is BUY, 1 is SELL"
+        }
+    },
+    "required": ["contract", "price", "quantity", "side", "timestamp"],
+    "additionalProperties": false
+}
+
