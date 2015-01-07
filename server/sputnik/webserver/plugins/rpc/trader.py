@@ -25,8 +25,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.place_order")
     @authenticated
-    @schema(u"public/trader.json#place_order")
     @inlineCallbacks
+    @schema(u"public/trader.json#place_order")
     def place_order(self, order, username=None):
         order["timestamp"] = util.dt_to_timestamp(datetime.datetime.utcnow())
         order['username'] = username
@@ -42,8 +42,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.request_support_nonce")
     @authenticated
-    @schema(u"public/trader.json#request_support_nonce")
     @inlineCallbacks
+    @schema(u"public/trader.json#request_support_nonce")
     def request_support_nonce(self, type, username=None):
         """Get a support nonce so this user can submit a support ticket
 
@@ -56,8 +56,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_permissions")
     @authenticated
-    @schema(u"public/trader.json#get_permissions")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_permissions")
     def get_permissions(self, username=None):
         """Get this user's permissions
 
@@ -158,8 +158,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_transaction_history")
     @authenticated
-    @schema(u"public/trader.json#get_transaction_history")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_transaction_history")
     def get_transaction_history(self, from_timestamp=None, to_timestamp=None, username=None):
 
         """
@@ -182,8 +182,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_new_address")
     @schema(u"public/trader.json#get_new_address")
-    @authenticated
     @inlineCallbacks
+    @authenticated
     def get_new_address(self, ticker, username=None):
         """
         assigns a new deposit address to a user and returns the address
@@ -197,8 +197,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_current_address")
     @authenticated
-    @schema(u"public/trader.json#get_current_address")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_current_address")
     def get_current_address(self, ticker, username=None):
         """
         RPC call to obtain the current address associated with a particular user
@@ -211,16 +211,16 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_deposit_instructions")
     @authenticated
-    @schema(u"public/trader.json#get_deposit_instructions")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_deposit_instructions")
     def get_deposit_instructions(self, ticker, username=None):
         instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
         returnValue([True, instructions])
 
     @wamp.register(u"rpc.trader.request_withdrawal")
     @authenticated
-    @schema(u"public/trader.json#request_withdrawal")
     @inlineCallbacks
+    @schema(u"public/trader.json#request_withdrawal")
     def request_withdrawal(self, ticker, amount, address, username=None):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -238,8 +238,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_positions")
     @authenticated
-    @schema(u"public/trader.json#get_positions")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_positions")
     def get_positions(self, username=None):
         """
         Returns the user's positions
@@ -251,8 +251,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_profile")
     @authenticated
-    @schema(u"public/trader.json#get_profile")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_profile")
     def get_profile(self, username=None):
         """
 
@@ -264,8 +264,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.change_profile")
     @authenticated
-    @schema(u"public/trader.json#change_profile")
     @inlineCallbacks
+    @schema(u"public/trader.json#change_profile")
     def change_profile(self, profile, username=None):
         """
         Updates a user's nickname and email. Can't change
@@ -287,8 +287,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.change_password")
     @authenticated
-    @schema(u"public/trader.json#change_password")
     @inlineCallbacks
+    @schema(u"public/trader.json#change_password")
     def change_password(self, old_password_hash, new_password_hash, username=None):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -304,8 +304,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.get_open_orders")
     @authenticated
-    @schema(u"public/trader.json#get_open_orders")
     @inlineCallbacks
+    @schema(u"public/trader.json#get_open_orders")
     def get_open_orders(self, username=None):
         """gets open orders
 
@@ -317,8 +317,8 @@ class TraderService(ServicePlugin):
 
     @wamp.register(u"rpc.trader.cancel_order")
     @authenticated
-    @schema(u"public/trader.json#cancel_order")
     @inlineCallbacks
+    @schema(u"public/trader.json#cancel_order")
     def cancel_order(self, order_id, username=None):
         """
         Cancels a specific order
