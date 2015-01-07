@@ -22,12 +22,14 @@ def authenticated(func):
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwargs))
-            error(e)
-            return [False, e.args]
+        d = maybeDeferred(func, *args, **kwargs)
+
+        def _error(failure):
+            error("Error calling %s - args=%s, kwargs=%s" % (func.__name__, args, kwargs))
+            error(failure)
+            return [False, failure.value.args]
+
+        return d.addErrback(_error)
     
     return wrapper
 
