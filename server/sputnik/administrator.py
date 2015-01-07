@@ -1063,7 +1063,7 @@ class AdminAPI(Resource):
 class AdminWebUI(Resource):
     isLeaf = False
 
-    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory, base_uri):
         """The web Resource that front-ends the administrator
 
         :param administrator: the actual administrator
@@ -1081,7 +1081,19 @@ class AdminWebUI(Resource):
         self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.component.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
+        self.base_uri = base_uri
         Resource.__init__(self)
+
+    def check_referer(self, request):
+        if self.base_uri is not None:
+            referer = request.getHeader("referer")
+            if referer is None or not referer.startswith(self.base_uri):
+                log.err("Referer check failed: %s" % referer)
+                return False
+            else:
+                return True
+        else:
+            return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1128,6 +1140,10 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
+        if request.path != '/':
+            if not self.check_referer(request):
+                return redirectTo('/', request)
+
         resources = [
                     # Level 0
                     { '/': self.admin,
@@ -1752,10 +1768,11 @@ class PasswordChecker(object):
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator, session, digest_factory):
+    def __init__(self, administrator, session, digest_factory, admin_base_uri):
         self.administrator = administrator
         self.session = session
         self.digest_factory = digest_factory
+        self.admin_base_uri = admin_base_uri
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
@@ -1770,7 +1787,7 @@ class SimpleRealm(object):
                 self.session.rollback()
                 print "Exception: %s" % e
 
-            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory, self.admin_base_uri)
             api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
             ui_resource.putChild('api', api_resource)
 
@@ -1909,7 +1926,12 @@ if __name__ == "__main__":
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory),
+    admin_base_uri = "%s://%s:%d" % (protocol,
+                                     config.get("webserver", "www_address"),
+                                     config.getint("administrator", "UI_port"))
+
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory,
+                                                        admin_base_uri),
                                             checkers),
                                      [digest_factory])
 
