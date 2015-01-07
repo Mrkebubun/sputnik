@@ -1,6 +1,12 @@
 {
     "foobar": {
         "type": "object",
-        "description": "does nothing!"
+        "description": "does nothing!",
+        "properties":{
+                "x":{
+                        "type": "string",
+                        "description": "x"
+                }
+        }
     }
 }

@@ -4,7 +4,7 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("private")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin, schema
+from sputnik.webserver.plugin import ServicePlugin, schema, authenticated
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
@@ -18,8 +18,8 @@ class PrivateService(ServicePlugin):
     @wamp.register(u"rpc.private.foobar")
     @schema("public/private.json#foobar")
     @authenticated
-    def foobar(self, username=None):
-        log(details)
+    def foobar(self, username, x):
+        log(x)
 
 
     @inlineCallbacks
