@@ -11,7 +11,7 @@ from autobahn.wamp.types import RegisterOptions
 from jsonschema import ValidationError
 
 def authenticated(func):
-    def wrapper(*args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         # Make sure username is not passed in
         if 'username' in kwargs:
             error("someone tried to pass 'username' in over RPC")
@@ -22,7 +22,7 @@ def authenticated(func):
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
-        d = maybeDeferred(func, *args, **kwargs)
+        d = maybeDeferred(func, self, *args, **kwargs)
 
         def _error(failure):
             error("Error calling %s - args=%s, kwargs=%s" % (func.__name__, args, kwargs))
@@ -35,10 +35,10 @@ def authenticated(func):
 
 def schema(path):
     def wrap(f):
-        func = rpc_schema.schema(path)(f)
-        def wrapped_f(*args, **kwargs):
+        func = rpc_schema.schema(path, drop_kwargs=["details"])(f)
+        def wrapped_f(self, *args, **kwargs):
             try:
-                return func(*args, **kwargs)
+                return func(self, *args, **kwargs)
             except ValidationError:
                 return [False, "Invalid message arguments. Schema: %s" % f.validator.schema]
         return wrapped_f

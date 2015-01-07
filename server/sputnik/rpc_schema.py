@@ -51,7 +51,7 @@ def build_call_validate(full_uri):
 
     return validate_call
 
-def schema(path):
+def schema(path, drop_kwargs=[]):
     def wrap(f):
         f.schema = path
         f.validator = validator(path)
@@ -64,6 +64,13 @@ def schema(path):
             # hack to handle methods
             if "self" in callargs:
                 del callargs["self"]
+
+            # We might want to remove things like 'details' for authenticated
+            # WAMPv2 calls
+            if 'kwargs' in callargs:
+                for kwarg in drop_kwargs:
+                    if kwarg in callargs['kwargs']:
+                        del callargs['kwargs'][kwarg]
 
             # json only accepts lists as arrays, not tuples
             for key in callargs:
