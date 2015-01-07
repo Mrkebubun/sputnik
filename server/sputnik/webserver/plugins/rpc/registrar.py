@@ -24,7 +24,7 @@ class RegistrarService(ServicePlugin):
             if result:
                 profile = {"email": email, "nickname": nickname,
                            "locale": locale}
-                yield self.administrator.change_profile(username, profile)
+                yield self.administrator.proxy.change_profile(username, profile)
                 returnValue([True, username])
         except Exception, e:
             returnValue([False, e.args])
