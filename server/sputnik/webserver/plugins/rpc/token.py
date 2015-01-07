@@ -28,8 +28,8 @@ class TokenService(ServicePlugin):
         return [True, cookie]
 
     @wamp.register(u"rpc.token.logout")
-    @schema(u"public/token.json#logout")
     @authenticated
+    @schema(u"public/token.json#logout")
     def logout(self, username):
         self.cookie_jar.delete_cookie(username)
         # TODO: disconnect here

@@ -16,8 +16,8 @@ class PrivateService(ServicePlugin):
         ServicePlugin.__init__(self)
 
     @wamp.register(u"rpc.private.foobar")
-    @schema("public/private.json#foobar")
     @authenticated
+    @schema("public/private.json#foobar")
     def foobar(self, username, x):
         log(x)
 
