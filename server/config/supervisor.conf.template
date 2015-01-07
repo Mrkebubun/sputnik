@@ -31,7 +31,7 @@ directory = ${root}/server/sputnik/
 user=${user}
 
 [program:router]
-command = ${root}/server/sputnik/webserver/%(program_name)s.py${pycompiled} -c ${conf}/sputnik.ini
+command = ${root}/server/sputnik/webserver/launch.py${pycompiled} -c ${conf}/sputnik.ini
 autorestart = true
 exitcodes = 0
 redirect_stderr = true
