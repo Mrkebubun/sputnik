@@ -115,7 +115,7 @@ class MarketService(ServicePlugin):
         if ticker not in self.markets:
             returnValue([False, "No such ticker %s." % ticker])
 
-        now = util.dt_to_timestamp(datetime.datetime.utcnow())
+        now = util.dt_to_timestamp(datetime.utcnow())
         start = start_timestamp or int(now - 5.184e12) # delta 60 days
         end = end_timestamp or now
         period = period or "day"
@@ -133,7 +133,7 @@ class MarketService(ServicePlugin):
         if ticker not in self.markets:
             returnValue([False, "No such ticker %s." % ticker])
 
-        now = util.dt_to_timestamp(datetime.datetime.utcnow())
+        now = util.dt_to_timestamp(datetime.utcnow())
         start = from_timestamp or int(now - 3.6e9) # delta 1 hour
         end = to_timestamp or now
         

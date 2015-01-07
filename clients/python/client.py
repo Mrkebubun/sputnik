@@ -406,7 +406,7 @@ class TradingBot(wamp.ApplicationSession):
                                         extra['salt'].encode('utf-8'),
                                         extra['iterations'],
                                         extra['keylen'])
-        d = self.call(u"rpc.registrar.make_account", username, password_hash, salt, email, nickname)
+        d = self.call(u"rpc.registrar.make_account", username, "%s:%s" % (salt, password_hash), email, nickname)
         d.addCallbacks(self.onMakeAccount, self.onError)
 
     def getResetToken(self, username):
@@ -422,20 +422,20 @@ class TradingBot(wamp.ApplicationSession):
     """
 
     def getPositions(self):
-        d = self.call(u"rpc.private.get_positions")
+        d = self.call(u"rpc.trader.get_positions")
         d.addCallbacks(pprint, self.onError)
 
     def getCurrentAddress(self):
-        d = self.call(u"rpc.private.get_current_address")
+        d = self.call(u"rpc.trader.get_current_address")
         d.addCallbacks(pprint, self.onError)
 
     def getNewAddress(self):
-        d = self.call(u"rpc.private.get_new_address")
+        d = self.call(u"rpc.trader.get_new_address")
         d.addCallbacks(pprint, self.onError)
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
-        d = self.call(u"rpc.private.get_open_orders")
+        d = self.call(u"rpc.trader.get_open_orders")
         d.addCallbacks(self.onOpenOrders, self.onError)
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
@@ -443,11 +443,11 @@ class TradingBot(wamp.ApplicationSession):
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
-        d = self.call("rpc.private.get_transaction_history", start_timestamp, end_timestamp)
+        d = self.call("rpc.trader.get_transaction_history", start_timestamp, end_timestamp)
         d.addCallbacks(self.onTransactionHistory, self.onError)
 
     def requestSupportNonce(self, type='Compliance'):
-        d = self.call(u"rpc.private.request_support_nonce", type)
+        d = self.call(u"rpc.trader.request_support_nonce", type)
         d.addCallbacks(self.onSupportNonce, self.onError)
 
     def placeOrder(self, ticker, quantity, price, side):
@@ -456,7 +456,7 @@ class TradingBot(wamp.ApplicationSession):
         ord['quantity'] = quantity
         ord['price'] = price
         ord['side'] = side
-        d = self.call(u"rpc.private.place_order", ord)
+        d = self.call(u"rpc.trader.place_order", ord)
 
         self.last_internal_id += 1
         ord['quantity_left'] = ord['quantity']
@@ -484,7 +484,7 @@ class TradingBot(wamp.ApplicationSession):
             print "can't cancel internal order: %s" % id
 
         print "cancel order: %s" % id
-        d = self.call(u"rpc.private.cancel_order", id)
+        d = self.call(u"rpc.trader.cancel_order", id)
         d.addCallbacks(pprint, self.onError)
         del self.orders[id]
 

@@ -17,11 +17,11 @@
                 "description": "which type of bar"
             },
             "start_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "start of the period, microseconds since epoch"
             },
             "end_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "end of the period, microseconds since epoch"
             }
         },
@@ -37,11 +37,11 @@
                 "description": "the relevant contract"
             },
             "start_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "start of the period, microseconds since epoch"
             },
             "end_timestamp": {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "end of the period, microseconds since epoch"
             }
         },
@@ -57,7 +57,7 @@
                 "description": "the relevant contract"
             }
         },
-        "required": ["ticker", "start_timestamp", "end_timestamp"],
+        "required": ["ticker"],
         "additionalProperties": false
     },
     "get_safe_prices": {
