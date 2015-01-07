@@ -41,12 +41,12 @@ class DefaultPermissions(AuthorizationPlugin):
         if match is not None:
             section = match.groups(1)[0]
             # Some sections give to everyone
-            if section in ["info", "market", "registrar", "token"]:
+            if section in ["info", "market", "registrar"]:
                 log("Authorizing %s(%s) to %s %s" % \
                     (session._authid, session._authrole, \
                      IRouter.ACTION_TO_STRING[action], uri))
                 return True
-            if section in ["trader", "private"] and session._authrole == u"user":
+            if section in ["trader", "private", "token"] and session._authrole == u"user":
                 log("Authorizing %s(%s) to %s %s" % \
                     (session._authid, session._authrole, \
                      IRouter.ACTION_TO_STRING[action], uri))
