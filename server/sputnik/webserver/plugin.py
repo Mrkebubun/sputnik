@@ -5,7 +5,6 @@ from sputnik import observatory, rpc_schema
 
 debug, log, warn, error, critical = observatory.get_loggers("plugin")
 
-from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 
