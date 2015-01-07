@@ -56,7 +56,6 @@ def schema(path, drop_args=[]):
     def wrap(f):
         f.schema = path
         f.validator = validator(path)
-        @inlineCallbacks
         def wrapped_f(*args, **kwargs):
             try:
                 callargs = inspect.getcallargs(f, *args, **kwargs)

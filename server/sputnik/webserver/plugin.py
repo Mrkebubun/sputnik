@@ -35,14 +35,13 @@ def authenticated(func):
 
 def schema(path, drop_args=["username"]):
     def wrap(f):
-        func = rpc_schema.schema(path, drop_args=drop_args)(f)
-        @inlineCallbacks
+        func = inlineCallbacks(rpc_schema.schema(path, drop_args=drop_args)(f))
         def wrapped_f(*args, **kwargs):
             try:
-                result = yield func(*args, **kwargs)
-                returnValue(result)
+                result = func(*args, **kwargs)
+                return result
             except ValidationError:
-                returnValue([False, "Invalid message arguments. Schema: %s" % f.validator.schema])
+                return [False, "Invalid message arguments. Schema: %s" % f.validator.schema]
         return wrapped_f
     return wrap
 
