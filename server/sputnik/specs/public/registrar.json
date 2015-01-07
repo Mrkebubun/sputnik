@@ -20,7 +20,7 @@
                 "description": "nickname"
             },
             "locale": {
-                "type": "string",
+                "type": ["string", "null"],
                 "description": "ISO locale"
             }
         },
