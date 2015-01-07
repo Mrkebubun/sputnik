@@ -25,6 +25,7 @@ class InfoService(ServicePlugin):
 
     @wamp.register(u'rpc.info.get_audit')
     @schema("public/info.json#get_audit")
+    @inlineCallbacks
     def get_audit(self):
         try:
             result = yield self.administrator.proxy.get_audit()

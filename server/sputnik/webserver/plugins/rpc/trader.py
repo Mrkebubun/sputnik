@@ -4,39 +4,13 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("trader")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin
+from sputnik.webserver.plugin import ServicePlugin, authenticated
 from sputnik import util
 import datetime
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
-
-def trader_wrapper(func):
-    fn_name = func.__name__
-    rpc_call = u"rpc.trader.%s" % fn_name
-
-    @wamp.register(rpc_call)
-    @inlineCallbacks
-    def wrapper(*args, **kwargs):
-        # Make sure username is not passed in
-        if 'username' in kwargs:
-            raise Exception("'username' passed in over RPC")
-
-        details = kwargs.pop('details')
-        username = details.authid
-        if username is None:
-            raise Exception("details.authid is None")
-        kwargs['username'] = username
-        try:
-            r = yield func(*args, **kwargs)
-            returnValue([True, r])
-        except Exception as e:
-            error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwargs))
-            error(e)
-            returnValue([False, e.args])
-
-    return wrapper
 
 class TraderService(ServicePlugin):
     def __init__(self):
@@ -49,7 +23,10 @@ class TraderService(ServicePlugin):
         self.cashier = self.require("sputnik.webserver.plugins.backend.cashier.CashierProxy")
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.place_order")
+    @schema(u"public/trader.json#place_order")
+    @authenticated
+    @inlineCallbacks
     def place_order(self, order, username=None):
         order["timestamp"] = util.dt_to_timestamp(datetime.datetime.utcnow())
         order['username'] = username
@@ -63,7 +40,10 @@ class TraderService(ServicePlugin):
         result = yield self.accountant.proxy.place_order(username, order)
         returnValue([True, result])
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.request_support_nonce")
+    @schema(u"public/trader.json#request_support_nonce")
+    @authenticated
+    @inlineCallbacks
     def request_support_nonce(self, type, username=None):
         """Get a support nonce so this user can submit a support ticket
 
@@ -74,7 +54,10 @@ class TraderService(ServicePlugin):
         returnValue([True, result])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_permissions")
+    @schema(u"public/trader.json#get_permissions")
+    @authenticated
+    @inlineCallbacks
     def get_permissions(self, username=None):
         """Get this user's permissions
 
@@ -173,7 +156,10 @@ class TraderService(ServicePlugin):
     #     d.addErrback(error)
     #     return d
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_transaction_history")
+    @schema(u"public/trader.json#get_transaction_history")
+    @authenticated
+    @inlineCallbacks
     def get_transaction_history(self, from_timestamp=None, to_timestamp=None, username=None):
 
         """
@@ -194,7 +180,10 @@ class TraderService(ServicePlugin):
         history = yield self.db.get_transaction_history(from_timestamp, to_timestamp, username)
         returnValue([True, history])
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_new_address")
+    @schema(u"public/trader.json#get_new_address")
+    @authenticated
+    @inlineCallbacks
     def get_new_address(self, ticker, username=None):
         """
         assigns a new deposit address to a user and returns the address
@@ -206,7 +195,10 @@ class TraderService(ServicePlugin):
         address = yield self.cashier.proxy.get_new_address(username, ticker)
         returnValue([True, address])
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_current_address")
+    @schema(u"public/trader.json#get_current_address")
+    @authenticated
+    @inlineCallbacks
     def get_current_address(self, ticker, username=None):
         """
         RPC call to obtain the current address associated with a particular user
@@ -217,12 +209,18 @@ class TraderService(ServicePlugin):
         returnValue([True, address])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_deposit_instructions")
+    @schema(u"public/trader.json#get_deposit_instructions")
+    @authenticated
+    @inlineCallbacks
     def get_deposit_instructions(self, ticker, username=None):
         instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
         returnValue([True, instructions])
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.request_withdrawal")
+    @schema(u"public/trader.json#request_withdrawal")
+    @authenticated
+    @inlineCallbacks
     def request_withdrawal(self, ticker, amount, address, username=None):
         """
         Makes a note in the database that a withdrawal needs to be processed
@@ -238,7 +236,10 @@ class TraderService(ServicePlugin):
         returnValue([True, result])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_positions")
+    @schema(u"public/trader.json#get_positions")
+    @authenticated
+    @inlineCallbacks
     def get_positions(self, username=None):
         """
         Returns the user's positions
@@ -248,7 +249,10 @@ class TraderService(ServicePlugin):
         returnValue([True, positions])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_profile")
+    @schema(u"public/trader.json#get_profile")
+    @authenticated
+    @inlineCallbacks
     def get_profile(self, username=None):
         """
 
@@ -258,7 +262,10 @@ class TraderService(ServicePlugin):
         profile = yield self.administrator.proxy.get_profile(username)
         returnValue([True, profile])
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.change_profile")
+    @schema(u"public/trader.json#change_profile")
+    @authenticated
+    @inlineCallbacks
     def change_profile(self, profile, username=None):
         """
         Updates a user's nickname and email. Can't change
@@ -278,7 +285,10 @@ class TraderService(ServicePlugin):
         profile = yield self.get_profile
         returnValue(profile)
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.change_password")
+    @schema(u"public/trader.json#change_password")
+    @authenticated
+    @inlineCallbacks
     def change_password(self, old_password_hash, new_password_hash, username=None):
         """
         Changes a users password.  Leaves salt and two factor untouched.
@@ -292,7 +302,10 @@ class TraderService(ServicePlugin):
         returnValue([True, None])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.get_open_orders")
+    @schema(u"public/trader.json#get_open_orders")
+    @authenticated
+    @inlineCallbacks
     def get_open_orders(self, username=None):
         """gets open orders
 
@@ -302,7 +315,10 @@ class TraderService(ServicePlugin):
         returnValue([True, orders])
 
 
-    @trader_wrapper
+    @wamp.register(u"rpc.trader.cancel_order")
+    @schema(u"public/trader.json#cancel_order")
+    @authenticated
+    @inlineCallbacks
     def cancel_order(self, order_id, username=None):
         """
         Cancels a specific order

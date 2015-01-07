@@ -12,7 +12,6 @@ from autobahn.wamp.types import RegisterOptions
 from jsonschema import ValidationError
 
 def authenticated(func):
-    @inlineCallbacks
     def wrapper(*args, **kwargs):
         # Make sure username is not passed in
         if 'username' in kwargs:
@@ -24,12 +23,11 @@ def authenticated(func):
             raise Exception("details.authid is None")
         kwargs['username'] = username
         try:
-            r = yield func(*args, **kwargs)
-            returnValue([True, r])
+            return func(*args, **kwargs)
         except Exception as e:
             error("Error calling %s - args=%s, kwargs=%s" % (fn_name, args, kwargs))
             error(e)
-            returnValue([False, e.args])
+            return [False, e.args]
     
     return wrapper
 

@@ -19,20 +19,23 @@ class TokenService(ServicePlugin):
         self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieLogin")
     
     @wamp.register(u"rpc.token.get_cookie")
+    @schema(u"public/token.json#get_cookie")
     @authenticated
     def get_cookie(self, username):
         cookie = self.cookie_jar.get_cookie(username)
         if cookie is None:
             return self.cookie_jar.new_cookie(username)
-        return cookie
+        return [True, cookie]
 
     @wamp.register(u"rpc.token.logout")
+    @schema(u"public/token.json#logout")
     @authenticated
     def logout(self, username):
         self.cookie_jar.delete_cookie(username)
         # TODO: disconnect here
 
     @wamp.register(u"rpc.token.get_new_two_factor")
+    @schema(u"public/token.json#get_new_two_factor")
     @authenticated
     def get_new_two_factor(self, username=None):
         """prepares new two factor authentication for an account
@@ -45,6 +48,7 @@ class TokenService(ServicePlugin):
         raise NotImplementedError()
 
     @wamp.register(u"rpc.token.disable_two_factor")
+    @schema(u"public/token.json#disable_two_factor")
     @authenticated
     def disable_two_factor(self, confirmation, username=None):
         """
@@ -71,6 +75,7 @@ class TokenService(ServicePlugin):
 
 
     @wamp.register(u"rpc.token.register_two_factor")
+    @schema("public/token.json#register_two_factor")
     @authenticated
     def register_two_factor(self, confirmation):
         """

@@ -103,10 +103,12 @@ class MarketService(ServicePlugin):
         pass
 
     @wamp.register(u"rpc.market.get_markets")
+    @schema("public/market.json#get_markets")
     def get_markets(self):
         return [True, self.markets]
 
     @wamp.register(u"rpc.market.get_ohlcv_history")
+    @schema("public/market.json#get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None,
             end_timestamp=None):
         if ticker not in self.markets:
@@ -125,6 +127,7 @@ class MarketService(ServicePlugin):
         return [True, ohlcv]
 
     @wamp.register(u"rpc.market.get_trade_history")
+    @schema("public/market.json#get_trade_history")
     def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
@@ -138,6 +141,7 @@ class MarketService(ServicePlugin):
         return [True, history]
 
     @wamp.register(u"rpc.market.get_order_book")
+    @schema("public/market.json#get_order_book")
     def get_order_book(self, ticker):
         if ticker not in self.markets:
             return [False, "No such ticker %s." % ticker]
@@ -148,6 +152,7 @@ class MarketService(ServicePlugin):
         return [True, self.books[ticker]]
 
     @wamp.register(u'rpc.market.get_safe_prices')
+    @schema("public/market.json#get_safe_prices")
     def get_safe_prices(self, array_of_tickers=None):
         if array_of_tickers is not None:
             return {ticker: self.safe_prices[ticker] for ticker in array_of_tickers}
