@@ -210,6 +210,7 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.rpc.info.InfoService",
                "sputnik.webserver.plugins.rpc.market.MarketService",
                "sputnik.webserver.plugins.rpc.private.PrivateService",
+               "sputnik.webserver.plugins.rpc.trader.TraderService",
                "sputnik.webserver.plugins.feeds.market.MarketAnnouncer",
                "sputnik.webserver.plugins.feeds.user.UserAnnouncer",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver"]
