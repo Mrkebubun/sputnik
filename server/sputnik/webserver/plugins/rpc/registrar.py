@@ -27,7 +27,7 @@ class RegistrarService(ServicePlugin):
                 yield self.administrator.proxy.change_profile(username, profile)
                 returnValue([True, username])
         except Exception, e:
-            error("make account failed for %s")
+            error("make account failed for %s" % username)
             error(e)
             returnValue([False, e.args])
 
