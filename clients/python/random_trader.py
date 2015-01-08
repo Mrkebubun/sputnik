@@ -65,6 +65,9 @@ class RandomBot(TradingBot):
                 random_markets.append(ticker)
 
         # Pick a market at random
+        if len(random_markets) == 0:
+            return
+
         ticker = random.choice(random_markets)
         side = random.choice(["BUY", "SELL"])
         contract = self.markets[ticker]
