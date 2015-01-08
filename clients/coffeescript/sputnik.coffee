@@ -74,7 +74,7 @@ class @Sputnik extends EventEmitter
     # market selection
 
     encode_market: (market) =>
-        market.replace '/', '_'
+        market.replace('/', '_').toLowerCase()
 
     follow: (market) =>
         market_encoded = @encode_market market
