@@ -267,8 +267,8 @@ class TradingBot(wamp.ApplicationSession):
     def onOHLCVHistory(self, event):
         pprint(event)
 
-    def onError(self, message):
-        pprint(["Error", message.value])
+    def onError(self, message, call=None):
+        pprint(["Error", message.value, call])
 
     def onRpcFailure(self, event):
         pprint(["RpcFailure", event.value.args])
@@ -364,20 +364,20 @@ class TradingBot(wamp.ApplicationSession):
 
     def getTradeHistory(self, ticker):
         d = self.call(u"rpc.market.get_trade_history", ticker)
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getTradeHistory")
 
 
     def getMarkets(self):
         d = self.call(u"rpc.market.get_markets")
-        d.addCallbacks(self.onMarkets, self.onError)
+        d.addCallback(self.onMarkets).addErrback(self.onError, "getMarkets")
 
     def getOrderBook(self, ticker):
         d = self.call(u"rpc.market.get_order_book", ticker)
-        d.addCallbacks(lambda x: self.onBook(u"rpc.market.get_order_book", x), self.onError)
+        d.addCallback(lambda x: self.onBook(u"rpc.market.get_order_book", x)).addErrback(self.onError, "getOrderBook")
 
     def getAudit(self):
         d = self.call(u"rpc.info.get_audit")
-        d.addCallbacks(self.onAudit, self.onError)
+        d.addCallback(self.onAudit).addErrback(self.onError, "getAudit")
 
     def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
         epoch = datetime.utcfromtimestamp(0)
@@ -392,7 +392,7 @@ class TradingBot(wamp.ApplicationSession):
             end_timestamp = None
 
         d = self.call(u"rpc.market.get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
-        d.addCallbacks(self.onOHLCVHistory, self.onError)
+        d.addCallback(self.onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
 
     def makeAccount(self, username, password, email, nickname):
         alphabet = string.digits + string.lowercase
@@ -407,15 +407,15 @@ class TradingBot(wamp.ApplicationSession):
                                         extra['iterations'],
                                         extra['keylen'])
         d = self.call(u"rpc.registrar.make_account", username, "%s:%s" % (salt, password_hash), email, nickname)
-        d.addCallbacks(self.onMakeAccount, self.onError)
+        d.addCallback(self.onMakeAccount).addErrback(self.onError, "makeAccount")
 
     def getResetToken(self, username):
         d = self.call(u"rpc.registrar.get_reset_token", username)
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getResetToken")
 
     def getExchangeInfo(self):
         d = self.call(u"rpc.info.get_exchange_info")
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getExchangeInfo")
 
     """
     Private RPC Calls
@@ -423,20 +423,20 @@ class TradingBot(wamp.ApplicationSession):
 
     def getPositions(self):
         d = self.call(u"rpc.trader.get_positions")
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getPositions")
 
     def getCurrentAddress(self):
         d = self.call(u"rpc.trader.get_current_address")
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getCurrentAddress")
 
     def getNewAddress(self):
         d = self.call(u"rpc.trader.get_new_address")
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "getNewAddress")
 
     def getOpenOrders(self):
         # store cache of open orders update asynchronously
         d = self.call(u"rpc.trader.get_open_orders")
-        d.addCallbacks(self.onOpenOrders, self.onError)
+        d.addCallback(self.onOpenOrders).addErrback(self.onError, "getOpenOrders")
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
@@ -444,11 +444,11 @@ class TradingBot(wamp.ApplicationSession):
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
         d = self.call("rpc.trader.get_transaction_history", start_timestamp, end_timestamp)
-        d.addCallbacks(self.onTransactionHistory, self.onError)
+        d.addCallback(self.onTransactionHistory).addErrback(self.onError, "getTransactionHistory")
 
     def requestSupportNonce(self, type='Compliance'):
         d = self.call(u"rpc.trader.request_support_nonce", type)
-        d.addCallbacks(self.onSupportNonce, self.onError)
+        d.addCallback(self.onSupportNonce).addErrback(self.onError, "requestSupportNonce")
 
     def placeOrder(self, ticker, quantity, price, side):
         ord= {}
@@ -485,14 +485,13 @@ class TradingBot(wamp.ApplicationSession):
 
         print "cancel order: %s" % id
         d = self.call(u"rpc.trader.cancel_order", id)
-        d.addCallbacks(pprint, self.onError)
+        d.addCallback(pprint).addErrback(self.onError, "cancelOrder")
         del self.orders[id]
 
 class BasicBot(TradingBot):
     def onMakeAccount(self, event):
         TradingBot.onMakeAccount(self, event)
         #self.authenticate()
-
 
     def startAutomation(self):
         # Test the audit
@@ -544,6 +543,14 @@ if __name__ == '__main__':
             "./client.ini"))
     config.read(config_file)
 
+    username = config.get("client", "username")
+    password = config.get("client", "password")
+
+    component_config = types.ComponentConfig(realm = u"sputnik")
+    session_factory = BotFactory(config=component_config, username=username, password=password)
+    session_factory.session = BasicBot
+
+    # The below should be the same for all clients
     ssl = config.getboolean("client", "ssl")
     port = config.getint("client", "port")
     hostname = config.get("client", "hostname")
@@ -557,13 +564,6 @@ if __name__ == '__main__':
         connection_string = "tcp:%s:%d" % (hostname, port)
 
     base_uri += "%s:%d/ws" % (hostname, port)
-    print (base_uri, connection_string)
-    username = config.get("client", "username")
-    password = config.get("client", "password")
-
-    component_config = types.ComponentConfig(realm = u"sputnik")
-    session_factory = BotFactory(config=component_config, username=u'marketmaker', password=u'marketmaker')
-    session_factory.session = BasicBot
 
     transport_factory = websocket.WampWebSocketClientFactory(session_factory,
                                                              url = base_uri, debug=debug,
