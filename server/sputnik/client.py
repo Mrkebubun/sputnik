@@ -43,6 +43,11 @@ class MyFrontendComponent(wamp.ApplicationSession):
             try:
                 result = yield self.call(u"rpc.info.get_exchange_info")
                 print "Exchange info: %s" % str(result)
+                def on_event(event):
+                    pass
+                result = yield self.subscribe(on_event,
+                        u'feeds.market.ohlcv.nets2014')
+                print "Subscribed to a ohlcv feed."
             except Exception as e:
                 print e
             returnValue(self.leave())

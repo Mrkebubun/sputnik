@@ -14,7 +14,7 @@ from autobahn import wamp
 
 class MarketAnnouncer(ServicePlugin):
     def encode_ticker(self, ticker):
-        return ticker.replace("/", "_")
+        return ticker.replace("/", "_").lower()
 
     def on_trade(self, ticker, trade):
         ticker = self.encode_ticker(ticker)

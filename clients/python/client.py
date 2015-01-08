@@ -314,7 +314,7 @@ class TradingBot(wamp.ApplicationSession):
     Public Subscriptions
     """
     def encode_ticker(self, ticker):
-        return ticker.replace("/", "_")
+        return ticker.replace("/", "_").lower()
 
     def subOHLCV(self, ticker):
         uri = u"feeds.market.ohlcv.%s" % self.encode_ticker(ticker)
