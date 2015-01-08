@@ -173,15 +173,16 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
-        @session.authreq(login).then \
-            (challenge) =>
-                @authextra = JSON.parse(challenge).authextra
-                secret = ab.deriveKey(password, @authextra)
-                signature = @session.authsign(challenge, secret)
-                @session.auth(signature).then @onAuthSuccess, @onAuthFail
-            , (error) =>
-                @onAuthFail error
-                @wtf ["Failed login: Could not authenticate", error]
+        @username = login
+
+        @session.onjoin = @onJoin
+
+        @session._onchallenge = (session, method, extra) =>
+            if method == "wampcra"
+                key = autobahn.auth_cra.derive_key password, extra.salt
+                autobahn.auth_cra.sign key, extra.challenge
+
+        @session.leave "sputnik.internal.rejoin"
 
     changePasswordToken: (new_password) =>
         if not @session?
@@ -709,7 +710,9 @@ class @Sputnik extends EventEmitter
         @emit "wtf", obj
 
     # connection events
-    onOpen: (@session) =>
+    onOpen: (@session, details) =>
+        @session.onleave = @onLeave
+        console.log details
         @connected = true
         @log "Connected to #{@uri}."
         #@processHash()
@@ -731,6 +734,15 @@ class @Sputnik extends EventEmitter
         @log "Connection lost."
         @connected = false
         @emit "close", [code, reason, details]
+
+    onJoin: =>
+        @emit "auth_success"
+
+    onLeave: (reason, message) =>
+        if reason == "wamp.error.not_authorized"
+            @emit "auth_fail", message
+        else
+            @session.join "sputnik", ["wampcra"], @username
 
     # authentication internals
 

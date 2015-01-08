@@ -39,8 +39,8 @@ class TOTPVerification(AuthenticationPlugin):
         totp = router_session.totp
         if totp:
             if "totp" not in extra:
-                return types.Deny(u"Missing TOTP.")
+                return types.Deny(message=u"Missing TOTP.")
             codes = [auth.compute_totp(totp, i) for i in range(-1, 2)]
             if extra["totp"].encode("utf8") not in codes:
-                return types.Deny(u"Invalid TOTP.")
+                return types.Deny(message=u"Invalid TOTP.")
 

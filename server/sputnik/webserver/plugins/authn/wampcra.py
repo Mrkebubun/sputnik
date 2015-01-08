@@ -121,7 +121,7 @@ class WAMPCRALogin(AuthenticationPlugin):
                         authprovider = challenge["authprovider"])
 
             log("Failed wampcra login for %s." % challenge["authid"])
-            return types.Deny(u"Invalid signature.")
+            return types.Deny(message=u"Invalid signature.")
 
         except:
             # let another plugin handle this

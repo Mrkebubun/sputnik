@@ -75,7 +75,7 @@ class CookieLogin(AuthenticationPlugin):
         cookie = self.cookies.get(authid)
         if cookie != signature:
             log("Failed cookie login for %s." % challenge["authid"])
-            return types.Deny(u"Invalid cookie.")
+            return types.Deny(message=u"Invalid cookie.")
 
         log("Successful cookie login for %s." % challenge["authid"])
         return types.Accept(authid = challenge["authid"],
