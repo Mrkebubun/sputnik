@@ -14,7 +14,7 @@ import collections
 from psycopg2 import OperationalError
 from twisted.internet.defer import inlineCallbacks, returnValue
 
-class PostgresException(Exception):
+class PostgresException(util.SputnikException):
     pass
 
 class MyConnectionPool():
