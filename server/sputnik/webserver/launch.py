@@ -171,9 +171,22 @@ def main(pm):
         session_factory.add(component_session,
                 plugin.plugin_path.decode("ascii"), u"trusted")
 
+    # IP address to listen on for all publicly visible services
+    interface = config.get("webserver", "interface")
+
+    base_uri = config.get("webserver", "base_uri")
+
+    uri = "ws://"
+    if config.getboolean("webserver", "ssl"):
+        uri = "wss://"
+
+    address = config.get("webserver", "ws_address")
+    port = config.getint("webserver", "ws_port")
+    uri += "%s:%s/" % (address, port)
+
     from autobahn.twisted.websocket import WampWebSocketServerFactory
     transport_factory = WampWebSocketServerFactory(session_factory,
-            "ws://localhost:8080", debug = False, debug_wamp = False)
+            uri, debug = False, debug_wamp = False)
     transport_factory.setProtocolOptions(failByDrop = False)
 
     from twisted.web.server import Site
@@ -187,8 +200,21 @@ def main(pm):
     site.noisy = False
     site.log = lambda _: None
 
-    from twisted.internet.endpoints import serverFromString
-    server = serverFromString(reactor, "tcp:8080")
+    from twisted.internet.endpoints import serverFromString, quoteStringArgument
+    if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        # TODO: Add dhparameters
+        # See https://twistedmatrix.com/documents/14.0.0/core/howto/endpoints.html
+        server = serverFromString(reactor, b"ssl:%d:privateKey=%s:certKey=%s:extraCertChain=%s:sslmethod=TLSv1_METHOD"
+                                  % (port,
+                                     quoteStringArgument(key),
+                                     quoteStringArgument(cert),
+                                     quoteStringArgument(cert_chain)))
+    else:
+        server = serverFromString(reactor, b"tcp:%d" % port)
+
     server.listen(site)
 
 if __name__ == "__main__":
