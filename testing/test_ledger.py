@@ -17,7 +17,7 @@ fix_config()
 from sputnik import ledger
 from sputnik import models
 from sputnik import util
-from sputnik.exceptions import *
+from sputnik.exceptions import LedgerException
 
 class TestLedger(TestSputnik):
     def setUp(self):

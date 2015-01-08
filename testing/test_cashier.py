@@ -4,7 +4,7 @@ from twisted.internet import defer
 from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
-from sputnik.exceptions import *
+from sputnik.exceptions import CashierException
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))

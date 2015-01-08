@@ -4,8 +4,8 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("trader")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin, authenticated, schema, error_handler, WebserverException
-from sputnik.accountant import AccountantException
+from sputnik.webserver.plugin import ServicePlugin, authenticated, schema, error_handler
+from sputnik.exceptions import WebserverException
 from sputnik import util
 import datetime
 
