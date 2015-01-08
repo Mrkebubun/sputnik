@@ -667,14 +667,15 @@ class @Sputnik extends EventEmitter
         d = @connection.defer()
         @session.call(method, params...).then \
             (result) =>
-                if result.length != 2
+                if not result.success?
                     @warn "RPC Warning: sputnik protocol violation in #{method}"
                     return d.resolve result
-                if result[0]
-                    return d.resolve result[1]
+                if result.success
+                    return d.resolve result.result
                 else
-                    @warn ["RPC call failed", result[1]]
-                    return d.reject [0, result[1]]
+                    @warn ["RPC call failed", result.error]
+                    # TODO: Remove this 0, in the array and correct error handlers appropriately
+                    return d.reject [0, result.error]
             , (error) =>
                 @wtf "RPC Error: #{error.desc} in #{method}"
         d.promise

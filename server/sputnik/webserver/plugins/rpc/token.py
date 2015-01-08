@@ -4,7 +4,7 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("rpc_token")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin, authenticated, schema
+from sputnik.webserver.plugin import ServicePlugin, authenticated, schema, error_handler, WebserverException
 
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from autobahn import wamp
@@ -19,6 +19,7 @@ class TokenService(ServicePlugin):
         self.cookie_jar = self.require("sputnik.webserver.plugins.authn.cookie.CookieLogin")
     
     @wamp.register(u"rpc.token.get_cookie")
+    @error_handler
     @authenticated
     @schema(u"public/token.json#get_cookie")
     def get_cookie(self, username):
@@ -26,9 +27,10 @@ class TokenService(ServicePlugin):
         if cookie is None:
             cookie = self.cookie_jar.new_cookie(username)
         r = yield succeed(cookie)
-        returnValue([True, r])
+        returnValue(r)
 
     @wamp.register(u"rpc.token.logout")
+    @error_handler
     @authenticated
     @schema(u"public/token.json#logout")
     def logout(self, username):
@@ -36,7 +38,7 @@ class TokenService(ServicePlugin):
         # TODO: disconnect here
 
         r = yield succeed(None)
-        returnValue([True, r])
+        returnValue(r)
 
     # @wamp.register(u"rpc.token.get_new_two_factor")
     # @schema(u"public/token.json#get_new_two_factor")

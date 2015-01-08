@@ -5,7 +5,7 @@ from sputnik import util
 debug, log, warn, error, critical = observatory.get_loggers("rpc_market")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin, schema
+from sputnik.webserver.plugin import ServicePlugin, schema, error_handler, WebserverException
 from datetime import datetime
 
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
@@ -103,17 +103,19 @@ class MarketService(ServicePlugin):
         pass
 
     @wamp.register(u"rpc.market.get_markets")
+    @error_handler
     @schema("public/market.json#get_markets")
     def get_markets(self):
         result = yield succeed(self.markets)
-        returnValue([True, result])
+        returnValue(result)
 
     @wamp.register(u"rpc.market.get_ohlcv_history")
+    @error_handler
     @schema("public/market.json#get_ohlcv_history")
     def get_ohlcv_history(self, ticker, period=None, start_timestamp=None,
             end_timestamp=None):
         if ticker not in self.markets:
-            returnValue([False, "No such ticker %s." % ticker])
+            raise WebserverException("exceptions/webserver/no-such-ticker", ticker)
 
         now = util.dt_to_timestamp(datetime.utcnow())
         start = start_timestamp or int(now - 5.184e12) # delta 60 days
@@ -121,17 +123,18 @@ class MarketService(ServicePlugin):
         period = period or "day"
        
         data = self.ohlcv_history.get(ticker, {}).get(period, {})
-        ohlcv = yield succeed({key: value for key, value in data \
+        ohlcv = yield succeed({key: value for key, value in data.iteritems() \
                 if value["open_timestamp"] <= end and \
                 start <= value["close_timestamp"]})
 
-        returnValue([True, ohlcv])
+        returnValue(ohlcv)
 
     @wamp.register(u"rpc.market.get_trade_history")
+    @error_handler
     @schema("public/market.json#get_trade_history")
     def get_trade_history(self, ticker, from_timestamp=None, to_timestamp=None):
         if ticker not in self.markets:
-            returnValue([False, "No such ticker %s." % ticker])
+            raise WebserverException("exceptions/webserver/no-such-ticker", ticker)
 
         now = util.dt_to_timestamp(datetime.utcnow())
         start = from_timestamp or int(now - 3.6e9) # delta 1 hour
@@ -142,18 +145,22 @@ class MarketService(ServicePlugin):
         returnValue([True, history])
 
     @wamp.register(u"rpc.market.get_order_book")
+    @error_handler
     @schema("public/market.json#get_order_book")
     def get_order_book(self, ticker):
         if ticker not in self.markets:
-            returnValue([False, "No such ticker %s." % ticker])
+            raise WebserverException("exceptions/webserver/no-such-ticker", ticker)
 
         if ticker not in self.books:
-            returnValue([False, "No book for %s" % ticker])
+            log("Warning: %s not in books" % ticker)
+            # TODO: Get book from engine
+            self.books[ticker] = {'contract': ticker, 'bids': {}, 'asks': {}}
 
         result = yield succeed(self.books[ticker])
-        returnValue([True, result])
+        returnValue(result)
 
     @wamp.register(u'rpc.market.get_safe_prices')
+    @error_handler
     @schema("public/market.json#get_safe_prices")
     def get_safe_prices(self, array_of_tickers=None):
         if array_of_tickers is not None:
@@ -162,6 +169,6 @@ class MarketService(ServicePlugin):
             result = self.safe_prices
 
         r = yield succeed(result)
-        returnValue([True, r])
+        returnValue(r)
 
 

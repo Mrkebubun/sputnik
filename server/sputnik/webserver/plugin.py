@@ -9,29 +9,44 @@ from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 
 from jsonschema import ValidationError
+from sputnik.util import SputnikException
+from sputnik.accountant import AccountantException
+
+class WebserverException(SputnikException):
+    pass
+
+def error_handler(func):
+    @inlineCallbacks
+    def wrapped_f(*args, **kwargs):
+        try:
+            result = yield maybeDeferred(func, *args, **kwargs)
+            returnValue({'success': True, 'result': result})
+        except SputnikException as e:
+            error("SputnikException received: %s" % e.args)
+            returnValue({'success': False, 'error': e.args})
+        except Exception as e:
+            error("UNHANDLED EXCEPTION RECEIVED: %s" % e.args)
+            error(e)
+            returnValue({'success': False, 'error': ("exceptions/sputnik/generic-exception",)})
+
+    return wrapped_f
 
 def authenticated(func):
     def wrapper(*args, **kwargs):
         # Make sure username is not passed in
         if 'username' in kwargs:
             error("someone tried to pass 'username' in over RPC")
-            return [False, "denied"]
+            raise WebserverException("exceptions/webserver/denied")
 
         details = kwargs.pop('details')
         username = details.authid
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
-        d = maybeDeferred(func, *args, **kwargs)
+        return maybeDeferred(func, *args, **kwargs)
 
-        def _error(failure):
-            error("Error calling %s - args=%s, kwargs=%s" % (func.__name__, args, kwargs))
-            error(failure)
-            return [False, failure.value.args]
-
-        return d.addErrback(_error)
-    
     return wrapper
+
 
 def schema(path, drop_args=["username"]):
     def wrap(f):
@@ -41,7 +56,7 @@ def schema(path, drop_args=["username"]):
                 result = func(*args, **kwargs)
                 return result
             except ValidationError:
-                return [False, "Invalid message arguments. Schema: %s" % f.validator.schema]
+                raise WebserverException("exceptions/webserver/schema-exception", str(f.validator.schema))
         return wrapped_f
     return wrap
 

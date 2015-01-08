@@ -126,13 +126,13 @@ class TradingBot(wamp.ApplicationSession):
         log.msg("Calling %s with args=%s" % (method_name, args), logLevel=logging.DEBUG)
         d = wamp.ApplicationSession.call(self, unicode(method_name), *args)
         def onSuccess(result):
-            if len(result) != 2:
+            if 'success' not in result:
                 log.msg("RPC Protocol error in %s" % method_name)
                 return result
-            if result[0]:
-                return result[1]
+            if result['success']:
+                return result['result']
             else:
-                return defer.fail(result[1])
+                return defer.fail(result['error'])
 
         d.addCallbacks(onSuccess, self.onRpcFailure)
         return d

@@ -4,7 +4,8 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("trader")
 
 from sputnik.plugin import PluginException
-from sputnik.webserver.plugin import ServicePlugin, authenticated, schema
+from sputnik.webserver.plugin import ServicePlugin, authenticated, schema, error_handler, WebserverException
+from sputnik.accountant import AccountantException
 from sputnik import util
 import datetime
 
@@ -24,6 +25,7 @@ class TraderService(ServicePlugin):
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
 
     @wamp.register(u"rpc.trader.place_order")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#place_order")
     def place_order(self, order, username=None):
@@ -32,14 +34,15 @@ class TraderService(ServicePlugin):
 
         # Check for zero price or quantity
         if order["price"] == 0 or order["quantity"] == 0:
-            returnValue([False, "exceptions/webserver/invalid_price_quantity"])
+            raise WebserverException("exceptions/webserver/invalid_price_quantity")
 
         # check tick size and lot size in the accountant, not here
 
         result = yield self.accountant.proxy.place_order(username, order)
-        returnValue([True, result])
+        returnValue(result)
 
     @wamp.register(u"rpc.trader.request_support_nonce")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#request_support_nonce")
     def request_support_nonce(self, type, username=None):
@@ -49,10 +52,11 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         result = yield self.administrator.proxy.request_support_nonce(username, type)
-        returnValue([True, result])
+        returnValue(result)
 
 
     @wamp.register(u"rpc.trader.get_permissions")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_permissions")
     def get_permissions(self, username=None):
@@ -62,7 +66,7 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         permissions = yield self.db.get_permissions(username)
-        returnValue([True, permissions])
+        returnValue(permissions)
 
 
     #
@@ -154,6 +158,7 @@ class TraderService(ServicePlugin):
     #     return d
 
     @wamp.register(u"rpc.trader.get_transaction_history")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_transaction_history")
     def get_transaction_history(self, start_timestamp=None, end_timestamp=None, username=None):
@@ -174,11 +179,12 @@ class TraderService(ServicePlugin):
 
 
         history = yield self.db.get_transaction_history(start_timestamp, end_timestamp, username)
-        returnValue([True, history])
+        returnValue(history)
 
     @wamp.register(u"rpc.trader.get_new_address")
-    @schema(u"public/trader.json#get_new_address")
+    @error_handler
     @authenticated
+    @schema(u"public/trader.json#get_new_address")
     def get_new_address(self, ticker, username=None):
         """
         assigns a new deposit address to a user and returns the address
@@ -188,9 +194,10 @@ class TraderService(ServicePlugin):
         """
 
         address = yield self.cashier.proxy.get_new_address(username, ticker)
-        returnValue([True, address])
+        returnValue(address)
 
     @wamp.register(u"rpc.trader.get_current_address")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_current_address")
     def get_current_address(self, ticker, username=None):
@@ -200,17 +207,19 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         address = yield self.cashier.proxy.get_current_address(username, ticker)
-        returnValue([True, address])
+        returnValue(address)
 
 
     @wamp.register(u"rpc.trader.get_deposit_instructions")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_deposit_instructions")
     def get_deposit_instructions(self, ticker, username=None):
         instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
-        returnValue([True, instructions])
+        returnValue(instructions)
 
     @wamp.register(u"rpc.trader.request_withdrawal")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#request_withdrawal")
     def request_withdrawal(self, ticker, amount, address, username=None):
@@ -222,13 +231,13 @@ class TraderService(ServicePlugin):
         :returns: bool, Deferred - if an invalid amount, just return False, otherwise return a deferred
         """
         if amount <= 0:
-            returnValue([False, ("exceptions/webserver/invalid-withdrawal-amount")])
+            raise WebserverException("exceptions/webserver/invalid-withdrawal-amount")
 
         result = yield self.accountant.proxy.request_withdrawal(username, ticker, amount, address)
-        returnValue([True, result])
-
+        returnValue(result)
 
     @wamp.register(u"rpc.trader.get_positions")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_positions")
     def get_positions(self, username=None):
@@ -237,10 +246,11 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         positions = yield self.db.get_positions(username)
-        returnValue([True, positions])
+        returnValue(positions)
 
 
     @wamp.register(u"rpc.trader.get_profile")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_profile")
     def get_profile(self, username=None):
@@ -250,9 +260,10 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         profile = yield self.administrator.proxy.get_profile(username)
-        returnValue([True, profile])
+        returnValue(profile)
 
     @wamp.register(u"rpc.trader.change_profile")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#change_profile")
     def change_profile(self, profile, username=None):
@@ -268,13 +279,14 @@ class TraderService(ServicePlugin):
         # (These checks should be in administrator?)
 
         if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
-            returnValue([False, "malicious looking input"])
+            raise WebserverException("exceptions/webserver/malicious-looking-input")
 
         result = yield self.administrator.proxy.change_profile(username, profile)
         profile = yield self.get_profile(username=username)
         returnValue(profile)
 
     @wamp.register(u"rpc.trader.change_password")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#change_password")
     def change_password(self, old_password_hash, new_password_hash, username=None):
@@ -287,10 +299,11 @@ class TraderService(ServicePlugin):
 
 
         result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
-        returnValue([True, None])
+        returnValue(None)
 
 
     @wamp.register(u"rpc.trader.get_open_orders")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#get_open_orders")
     def get_open_orders(self, username=None):
@@ -299,10 +312,11 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
         orders = yield self.db.get_open_orders(username)
-        returnValue([True, orders])
+        returnValue(orders)
 
 
     @wamp.register(u"rpc.trader.cancel_order")
+    @error_handler
     @authenticated
     @schema(u"public/trader.json#cancel_order")
     def cancel_order(self, order_id, username=None):
@@ -312,15 +326,8 @@ class TraderService(ServicePlugin):
         :param order_id: order_id of the order
         """
 
-
-        def onSuccess(result):
-            return [True, result]
-
-        def onFail(failure):
-            return [False, failure.value.args]
-
         result = yield self.accountant.proxy.cancel_order(username, order_id)
-        returnValue([True, result])
+        returnValue(result)
 
     @inlineCallbacks
     def register(self, endpoint, procedure = None, options = None):
