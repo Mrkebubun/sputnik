@@ -27,13 +27,15 @@
 
 Sputnik = require("./sputnik").Sputnik
 
-sputnik = new Sputnik "wss://demo.m2.io:8443"
+sputnik = new Sputnik "ws://127.0.0.1:8080/ws"
 sputnik.connect()
+sputnik.on "log", console.log
+sputnik.on "warn", console.log
+sputnik.on "error", console.log
 sputnik.on "open", ->
     console.log "Sputnik session open."
-    sputnik.getOrderBook "BTC/MXN"
-    sputnik.follow "BTC/MXN"
-    sputnik.authenticate "a", "a"
+    sputnik.call("rpc.info.get_exchange_info").then console.log
+#    sputnik.authenticate "marketmaker", "marketmaker"
 
 sputnik.on "auth_success", ->
     console.log "Authenticated"

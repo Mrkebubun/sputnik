@@ -24,12 +24,10 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-if module?
-    global.window = require "./window.js"
-    global.ab = global.window.ab
-    global.EventEmitter = require("./events").EventEmitter
-
 ### UI API ###
+
+autobahn = require "autobahn"
+EventEmitter = require("./events").EventEmitter
 
 class @Sputnik extends EventEmitter
 
@@ -58,10 +56,11 @@ class @Sputnik extends EventEmitter
         @connection = new autobahn.Connection
             url: @uri
             realm: "sputnik"
+            authmethods: ["anonymous"]
         @connection.onopen = @onOpen
         @connection.onclose = @onClose
 
-        @connection.connect()
+        @connection.open()
 
         setTimeout () =>
             if not @connected
@@ -181,7 +180,7 @@ class @Sputnik extends EventEmitter
                 signature = @session.authsign(challenge, secret)
                 @session.auth(signature).then @onAuthSuccess, @onAuthFail
             , (error) =>
-                @onAuthFail error            
+                @onAuthFail error
                 @wtf ["Failed login: Could not authenticate", error]
 
     changePasswordToken: (new_password) =>
@@ -664,7 +663,7 @@ class @Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log ["RPC #{method}",params]
-        d = autobahn.Deferred()
+        d = @connection.defer()
         @session.call(method, params...).then \
             (result) =>
                 if result.length != 2
@@ -677,7 +676,7 @@ class @Sputnik extends EventEmitter
                     return d.reject [0, result[1]]
             , (error) =>
                 @wtf "RPC Error: #{error.desc} in #{method}"
-
+        d.promise
 
     subscribe: (topic, callback) =>
         if not @session?
@@ -713,10 +712,10 @@ class @Sputnik extends EventEmitter
     onOpen: (@session) =>
         @connected = true
         @log "Connected to #{@uri}."
-        @processHash()
+        #@processHash()
 
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+        #@call("rpc.market.get_markets").then @onMarkets, @wtf
+        #@call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 #        @subscribe "chat", @onChat
 #        @call("get_chat_history").then \
 #            (chats) =>
@@ -980,3 +979,4 @@ class @Sputnik extends EventEmitter
 if module?
     module.exports =
         Sputnik: @Sputnik
+
