@@ -173,15 +173,20 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
-        @session.authreq(login).then \
-            (challenge) =>
-                @authextra = JSON.parse(challenge).authextra
-                secret = ab.deriveKey(password, @authextra)
-                signature = @session.authsign(challenge, secret)
-                @session.auth(signature).then @onAuthSuccess, @onAuthFail
-            , (error) =>
-                @onAuthFail error
-                @wtf ["Failed login: Could not authenticate", error]
+        # swap session onleave
+        @saved_onleave = @session.onleave
+        @session.onleave = () =>
+            @session.onleave = @saved_onleave
+            @session.join("sputnik", ["wampcra"], login)
+
+        @session.onjoin = () -> console.log "auth'ed"
+
+        @session._onchallenge = (session, method, extra) =>
+            if method == "wampcra"
+                key = autobahn.auth_cra.derive_key password, extra.salt
+                autobahn.auth_cra.sign key, extra.challenge
+
+        @session.leave()
 
     changePasswordToken: (new_password) =>
         if not @session?
@@ -709,7 +714,8 @@ class @Sputnik extends EventEmitter
         @emit "wtf", obj
 
     # connection events
-    onOpen: (@session) =>
+    onOpen: (@session, details) =>
+        console.log details
         @connected = true
         @log "Connected to #{@uri}."
         #@processHash()
