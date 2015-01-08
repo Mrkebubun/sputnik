@@ -15,8 +15,26 @@ The default port for websockets is 8443. A typical session runs as follows:
 
 ## RPC Response Format
 
-RPC responses are tuples of two elements. The first element any non-zero value if the RPC call succeeded. It is zero
-otherwise. The second element is call specific.
+RPC responses are json objects with two elements. In the case of a successful call:
+
+```json
+{
+    success: true
+    result: result
+}
+```
+
+In the case of a failure
+
+```json
+{
+    success:false
+    error: ['error-message', arguments]
+}
+```
+
+Error is a list where the first argument is a string specifying the error. Subsequent elements are particular
+details about that specific error, for example the invalid data passed to the function.
 
 ## Denominations
 
