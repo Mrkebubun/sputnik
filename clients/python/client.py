@@ -471,7 +471,7 @@ class TradingBot(wamp.ApplicationSession):
             except KeyError as e:
                 logging.error("Unable to remove order: %s" % e)
 
-            self.onError(error)
+            self.onError(error, "placeOrder")
 
         d.addCallbacks(self.onPlaceOrder, onError)
 
