@@ -53,7 +53,7 @@ from watchdog import watchdog
 # noinspection PyUnresolvedReferences
 from accountant import AccountantProxy
 
-from exceptions import *
+from exception import *
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema

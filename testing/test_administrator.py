@@ -8,7 +8,7 @@ import re
 from twisted.web.test.test_web import DummyRequest
 from twisted.internet import defer
 from datetime import datetime
-from sputnik.exceptions import AdministratorException
+from sputnik.exception import AdministratorException
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))

@@ -32,7 +32,7 @@ from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
 from util import session_aware
-from exceptions import *
+from exception import *
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")

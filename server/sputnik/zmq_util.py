@@ -13,8 +13,8 @@ from twisted.internet.defer import Deferred, maybeDeferred
 import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("zmq")
-from exceptions import *
-from exceptions import SputnikException
+from exception import *
+from exception import SputnikException
 
 class ComponentExport():
     def __init__(self, component):

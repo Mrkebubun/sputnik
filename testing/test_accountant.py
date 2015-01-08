@@ -17,7 +17,7 @@ permissions add Trade trade login
 permissions add Withdraw withdraw login
 """
 
-from sputnik.exceptions import AccountantException
+from sputnik.exception import AccountantException
 
 
 class FakeEngine(FakeComponent):

@@ -5,7 +5,7 @@ debug, log, warn, error, critical = observatory.get_loggers("rpc_registrar")
 
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin, schema, error_handler
-from sputnik.exceptions import WebserverException
+from sputnik.exception import WebserverException
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn import wamp

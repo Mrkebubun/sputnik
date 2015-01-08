@@ -9,7 +9,7 @@ from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 
 from jsonschema import ValidationError
-from sputnik.exceptions import *
+from sputnik.exception import *
 
 def error_handler(func):
     @inlineCallbacks

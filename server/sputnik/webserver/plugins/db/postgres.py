@@ -13,7 +13,7 @@ import datetime
 import collections
 from psycopg2 import OperationalError
 from twisted.internet.defer import inlineCallbacks, returnValue
-from sputnik.exceptions import *
+from sputnik.exception import *
 
 class MyConnectionPool():
     def __init__(self, *args, **kwargs):
