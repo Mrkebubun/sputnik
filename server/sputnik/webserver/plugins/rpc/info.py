@@ -6,7 +6,7 @@ debug, log, warn, error, critical = observatory.get_loggers("rpc_info")
 from sputnik.plugin import PluginException
 from sputnik.webserver.plugin import ServicePlugin, schema
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from autobahn import wamp
 
 
@@ -21,11 +21,11 @@ class InfoService(ServicePlugin):
     @wamp.register(u"rpc.info.get_exchange_info")
     @schema("public/info.json#get_exchange_info")
     def get_exchange_info(self):
-        return [True, self.exchange_info]
+        result = yield succeed(self.exchange_info)
+        returnValue([True, result])
 
     @wamp.register(u'rpc.info.get_audit')
     @schema("public/info.json#get_audit")
-    @inlineCallbacks
     def get_audit(self):
         try:
             result = yield self.administrator.proxy.get_audit()
