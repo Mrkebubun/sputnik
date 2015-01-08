@@ -10,7 +10,7 @@
             "description": "the nickname the user goes by"
         },
         "locale": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "locale code for the user"
         },
         "audit_secret": {
