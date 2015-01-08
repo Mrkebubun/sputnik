@@ -4,6 +4,7 @@ from twisted.internet import defer
 from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
+from sputnik.exceptions import *
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -331,7 +332,7 @@ class TestAdministratorExport(TestCashier):
         def onSuccess(withdrawal_id):
             from sputnik import cashier
 
-            with self.assertRaisesRegexp(cashier.CashierException, ""):
+            with self.assertRaisesRegexp(CashierException, ""):
                 d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
                 def onFail(failure):

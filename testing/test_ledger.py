@@ -17,6 +17,7 @@ fix_config()
 from sputnik import ledger
 from sputnik import models
 from sputnik import util
+from sputnik.exceptions import *
 
 class TestLedger(TestSputnik):
     def setUp(self):
@@ -90,7 +91,7 @@ class TestLedger(TestSputnik):
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
-                ledger.LedgerException)
+                LedgerException)
         self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.COUNT_MISMATCH)
@@ -105,7 +106,7 @@ class TestLedger(TestSputnik):
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
-                ledger.LedgerException)
+                LedgerException)
         self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.TYPE_MISMATCH)
@@ -120,7 +121,7 @@ class TestLedger(TestSputnik):
         d1 = self.export.post(post1)
         d1.addErrback(lambda x: None)
         d2 = self.assertFailure(self.export.post(post2),
-                ledger.LedgerException)
+                LedgerException)
         self.flushLoggedErrors()
         return self.assertEqual(self.successResultOf(d2),
                 ledger.QUANTITY_MISMATCH)
@@ -130,7 +131,7 @@ class TestLedger(TestSputnik):
                  "contract":"MXN", "quantity":5, "direction":"debit", "note": 'debit',
                  "timestamp": util.dt_to_timestamp(datetime.datetime.utcnow())}
         d1 = self.assertFailure(self.export.post(post1),
-                ledger.LedgerException)
+                LedgerException)
         group = self.ledger.pending["foo"]
         group.callLater = self.clock.callLater
         group.setTimeout(1)

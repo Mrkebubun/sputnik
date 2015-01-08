@@ -13,9 +13,7 @@ import datetime
 import collections
 from psycopg2 import OperationalError
 from twisted.internet.defer import inlineCallbacks, returnValue
-
-class PostgresException(util.SputnikException):
-    pass
+from sputnik.exceptions import *
 
 class MyConnectionPool():
     def __init__(self, *args, **kwargs):

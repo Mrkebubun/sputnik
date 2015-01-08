@@ -47,9 +47,7 @@ from jinja2 import Environment, FileSystemLoader
 import time
 from datetime import datetime
 from util import session_aware
-
-class AccountantException(util.SputnikException):
-    pass
+from exceptions import *
 
 INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
 TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")

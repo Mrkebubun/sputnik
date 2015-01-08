@@ -154,7 +154,7 @@ class MarketService(ServicePlugin):
         if ticker not in self.books:
             log("Warning: %s not in books" % ticker)
             # TODO: Get book from engine
-            self.books[ticker] = {'contract': ticker, 'bids': {}, 'asks': {}}
+            self.books[ticker] = {'contract': ticker, 'bids': [], 'asks': []}
 
         result = yield succeed(self.books[ticker])
         returnValue(result)

@@ -22,8 +22,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.wamp import types
 from sputnik.webserver.router.twisted.wamp import RouterSession, Router
 from autobahn.wamp.exception import ApplicationError
-from sputnik.accountant import AccountantException
-
+from sputnik.exceptions import *
 
 from sputnik import observatory
 from sputnik import plugin

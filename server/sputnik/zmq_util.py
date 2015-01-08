@@ -13,9 +13,8 @@ from twisted.internet.defer import Deferred, maybeDeferred
 import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("zmq")
-
-class RemoteCallException(Exception): pass
-class RemoteCallTimedOut(RemoteCallException): pass
+from exceptions import *
+from exceptions import SputnikException
 
 class ComponentExport():
     def __init__(self, component):
@@ -472,7 +471,7 @@ class DealerProxyAsync(Proxy):
         
         def convertTimeout(failure):
             e = failure.trap(ZmqRequestTimeoutError)
-            raise RemoteCallTimedOut("Call timed out.")
+            raise RemoteCallTimedOut("exceptions/zmq/call-timed-out")
 
         return d.addErrback(convertTimeout)
 
@@ -503,7 +502,7 @@ class DealerProxySync(Proxy):
             data = self._connection.recv_multipart()
         except zmq.ZMQError, e:
             if str(e) == "Resource temporarily unavailable":
-                raise RemoteCallTimedOut()
+                raise RemoteCallTimedOut("exceptions/zmq/resource-unavailable")
             raise e
         if data[0] != self._id:
             raise RemoteCallException("Invalid return ID.")
