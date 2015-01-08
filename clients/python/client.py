@@ -340,21 +340,21 @@ class TradingBot(wamp.ApplicationSession):
     Private Subscriptions
     """
     def encode_username(self, username):
-        return hashlib.sha256(username)
+        return hashlib.sha256(username).hexdigest()
 
     def subOrders(self):
         uri = u"feeds.users.orders.%s" % self.encode_username(self.username)
-        self.subscribe(uri, self.onOrder)
+        self.subscribe(self.onOrder, uri)
         print 'subscribed to: ', uri
 
     def subFills(self):
         uri = u"feeds.user.fills.%s" % self.encode_username(self.username)
-        self.subscribe(uri, self.onFill)
+        self.subscribe(self.onFill, uri)
         print 'subscribed to: ', uri
 
     def subTransactions(self):
         uri = u"feeds.user.transactions.%s" % self.encode_username(self.username)
-        self.subscribe(uri, self.onTransaction)
+        self.subscribe(self.onTransaction, uri)
         print 'subscribed to: ', uri
 
     """
