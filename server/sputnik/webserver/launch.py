@@ -62,7 +62,7 @@ class SputnikRouterSession(RouterSession):
         if details.authmethods == None:
             details.authmethods = []
         for plugin, flag in self.factory.plugins:
-            result = types.Deny(u"Server error.")
+            result = types.Deny(message=u"Server error.")
             try:
                 result = yield plugin.onHello(self, realm, details)
             except Exception, e:
@@ -73,7 +73,7 @@ class SputnikRouterSession(RouterSession):
             else:
                 returnValue(result)
 
-        returnValue(types.Deny("No authentication methods found."))
+        returnValue(types.Deny(message="No authentication methods found."))
 
     @inlineCallbacks
     def onAuthenticate(self, signature, extra):
