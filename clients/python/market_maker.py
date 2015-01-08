@@ -160,7 +160,7 @@ class MarketMakerBot(TradingBot):
                     if order['side'] == side and order['is_cancelled'] is False and order['contract'] == ticker:
                         total_qty += self.quantity_from_wire(ticker, order['quantity_left'])
 
-                if market['contract_type'] == "futures":
+                if self.markets[ticker]['contract_type'] == "futures":
                     qty_to_add = 10
                 else:
                     qty_to_add = 2.5
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         debug = True
     else:
-        debug = True
+        debug = False
 
     log.startLogging(sys.stdout)
     config = ConfigParser()
@@ -196,7 +196,7 @@ if __name__ == '__main__':
     component_config = types.ComponentConfig(realm = u"sputnik")
     session_factory = BotFactory(config=component_config, username=username, password=password, ignore_contracts=ignore_contracts,
                          rate=rate)
-    session_factory.protocol = MarketMakerBot
+    session_factory.session = MarketMakerBot
 
     # The below should be the same for all clients
     ssl = config.getboolean("client", "ssl")

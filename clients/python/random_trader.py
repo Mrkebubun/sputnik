@@ -136,7 +136,7 @@ if __name__ == '__main__':
     component_config = types.ComponentConfig(realm = u"sputnik")
     session_factory = BotFactory(config=component_config, username=username, password=password, ignore_contracts=ignore_contracts,
                          rate=rate)
-    session_factory.protocol = RandomBot
+    session_factory.session = RandomBot
 
     # The below should be the same for all clients
     ssl = config.getboolean("client", "ssl")
