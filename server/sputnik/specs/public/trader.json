@@ -40,7 +40,6 @@
                 "description": "end of the period, microseconds since epoch"
             }
         },
-        "required": ["start_timestamp", "end_timestamp"],
         "additionalProperties": false
     },
     "get_new_address": {

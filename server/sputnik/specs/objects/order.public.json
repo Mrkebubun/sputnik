@@ -1,12 +1,12 @@
 {
     "type": "object",
-    "description": "Sputnik order object as sent by the trading platform.",
+    "description": "Sputnik order object as sent by the user.",
     "properties":
     {
         "contract":
          {
-            "type": "number",
-            "description": "Contract id of the order contract"
+            "type": "string",
+            "description": "ticker of the contract"
         },
         "price":
         {
@@ -20,11 +20,11 @@
         },
         "side":
         {
-            "type": "number",
-            "description": "The order side on the books. -1 is BUY, 1 is SELL"
+            "enum": ["BUY", "SELL"],
+            "description": "The order side"
         }
     },
-    "required": ["contract", "price", "quantity", "side", "timestamp"],
+    "required": ["contract", "price", "quantity", "side"],
     "additionalProperties": false
 }
 

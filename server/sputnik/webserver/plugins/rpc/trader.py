@@ -156,7 +156,7 @@ class TraderService(ServicePlugin):
     @wamp.register(u"rpc.trader.get_transaction_history")
     @authenticated
     @schema(u"public/trader.json#get_transaction_history")
-    def get_transaction_history(self, from_timestamp=None, to_timestamp=None, username=None):
+    def get_transaction_history(self, start_timestamp=None, end_timestamp=None, username=None):
 
         """
 
@@ -165,15 +165,15 @@ class TraderService(ServicePlugin):
         :returns: Deferred
         """
 
-        if from_timestamp is None:
-            from_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() -
+        if start_timestamp is None:
+            start_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow() -
                                                              datetime.timedelta(days=30))
 
-        if to_timestamp is None:
-            to_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
+        if end_timestamp is None:
+            end_timestamp = util.dt_to_timestamp(datetime.datetime.utcnow())
 
 
-        history = yield self.db.get_transaction_history(from_timestamp, to_timestamp, username)
+        history = yield self.db.get_transaction_history(start_timestamp, end_timestamp, username)
         returnValue([True, history])
 
     @wamp.register(u"rpc.trader.get_new_address")

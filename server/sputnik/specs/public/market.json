@@ -25,7 +25,7 @@
                 "description": "end of the period, microseconds since epoch"
             }
         },
-        "required": ["ticker", "period", "start_timestamp", "end_timestamp"],
+        "required": ["ticker", "period"],
         "additionalProperties": false
     },
     "get_trade_history": {
@@ -45,7 +45,7 @@
                 "description": "end of the period, microseconds since epoch"
             }
         },
-        "required": ["ticker", "start_timestamp", "end_timestamp"],
+        "required": ["ticker"],
         "additionalProperties": false
     },
     "get_order_book": {
