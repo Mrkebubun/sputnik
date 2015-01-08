@@ -27,6 +27,8 @@ class RegistrarService(ServicePlugin):
                 yield self.administrator.proxy.change_profile(username, profile)
                 returnValue([True, username])
         except Exception, e:
+            error("make account failed for %s")
+            error(e)
             returnValue([False, e.args])
 
     @wamp.register(u"rpc.registrar.get_reset_token")
