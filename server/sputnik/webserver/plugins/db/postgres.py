@@ -127,7 +127,8 @@ class PostgresDatabase(DatabasePlugin):
     @inlineCallbacks
     def get_permissions(self, username):
         result = yield self.dbpool.runQuery(
-            "SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, permission_groups.trade "
+            "SELECT permission_groups.name, permission_groups.login, permission_groups.deposit, permission_groups.withdraw, "
+            "permission_groups.trade, permission_groups.full_ui "
             "FROM permission_groups, users WHERE "
             "users.permission_group_id=permission_groups.id AND users.username=%s",
             (username,))
@@ -136,7 +137,8 @@ class PostgresDatabase(DatabasePlugin):
                        'login': result[0][1],
                        'deposit': result[0][2],
                        'withdraw': result[0][3],
-                       'trade': result[0][4]}
+                       'trade': result[0][4],
+                       'full_ui': result[0][5]}
         returnValue(permissions)
 
     @inlineCallbacks
