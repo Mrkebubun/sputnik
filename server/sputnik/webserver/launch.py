@@ -82,7 +82,7 @@ class SputnikRouterSession(RouterSession):
         optional_successes = []
         required_successes = []
         for plugin, flag in self.factory.plugins:
-            result = types.Deny(u"Server error.")
+            result = types.Deny(message=u"Server error.")
             try:
                 result = yield plugin.onAuthenticate(self, signature, extra)
             except Exception, e:
@@ -127,7 +127,7 @@ class SputnikRouterSession(RouterSession):
         elif len(optional_successes) > 0:
             returnValue(optional_successes[0])
 
-        returnValue(types.Deny(u"No suitable authentication methods found."))
+        returnValue(types.Deny(message=u"No suitable authentication methods found."))
 
     @inlineCallbacks
     def onJoin(self, details):
