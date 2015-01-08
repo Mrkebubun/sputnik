@@ -544,7 +544,20 @@ if __name__ == '__main__':
             "./client.ini"))
     config.read(config_file)
 
-    base_uri = config.get("client", "uri")
+    ssl = config.getboolean("client", "ssl")
+    port = config.getint("client", "port")
+    hostname = config.get("client", "hostname")
+    ca_certs_dir = config.get("client", "ca_certs_dir")
+
+    if ssl:
+        base_uri = "wss://"
+        connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
+    else:
+        base_uri = "ws://"
+        connection_string = "tcp:%s:%d" % (hostname, port)
+
+    base_uri += "%s:%d/ws" % (hostname, port)
+    print (base_uri, connection_string)
     username = config.get("client", "username")
     password = config.get("client", "password")
 
@@ -553,9 +566,9 @@ if __name__ == '__main__':
     session_factory.session = BasicBot
 
     transport_factory = websocket.WampWebSocketClientFactory(session_factory,
-                                                             url = "ws://127.0.0.1:8080/ws", debug=debug,
+                                                             url = base_uri, debug=debug,
                                                              debug_wamp=debug)
-    client = clientFromString(reactor, "tcp:127.0.0.1:8080")
+    client = clientFromString(reactor, connection_string)
     client.connect(transport_factory)
 
     reactor.run()
