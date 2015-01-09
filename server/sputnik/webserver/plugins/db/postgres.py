@@ -195,13 +195,6 @@ class PostgresDatabase(DatabasePlugin):
 
     @inlineCallbacks
     def get_open_orders(self, username):
-        def _cb(result):
-            """
-
-            :param result:
-            :returns: list - [True, dict of orders, indexed by id]
-            """
-
 
         results = yield self.dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
                                'orders.timestamp, orders.side, orders.id FROM orders, contracts '

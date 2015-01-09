@@ -23,7 +23,7 @@ def error_handler(func):
         except Exception as e:
             error("UNHANDLED EXCEPTION RECEIVED: %s" % str(e.args))
             error(e)
-            returnValue({'success': False, 'error': ("exceptions/sputnik/generic-exception",)})
+            returnValue({'success': False, 'error': ("exceptions/sputnik/generic_exception",)})
 
     return wrapped_f
 
@@ -53,7 +53,7 @@ def schema(path, drop_args=["username"]):
                 return result
             except ValidationError as e:
                 error(e)
-                raise WebserverException("exceptions/webserver/schema-exception", str(f.validator.schema), e.args)
+                raise WebserverException("exceptions/webserver/schema_exception", str(f.validator.schema), e.args)
         return wrapped_f
     return wrap
 
