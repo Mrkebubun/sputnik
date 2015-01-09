@@ -13,16 +13,6 @@ from autobahn import wamp
 
 
 class MarketAnnouncer(ServicePlugin):
-    def init(self):
-        self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
-
-    @inlineCallbacks
-    def onJoin(self, session):
-        for market in (yield self.db.get_markets()):
-            for feed in ["trade", "book", "safe_prices", "ohlcv"]:
-                yield self.subscribe(lambda x: None, u"feeds.market.%s.%s" % \
-                        (feed, self.encode_ticker(market)))
-
     def encode_ticker(self, ticker):
         return ticker.replace("/", "_").lower()
 
