@@ -6,6 +6,6 @@ class LedgerException(SputnikException): pass
 class WebserverException(SputnikException): pass
 class ZendeskException(SputnikException): pass
 class PostgresException(SputnikException): pass
-
+class RestException(SputnikException): pass
 class RemoteCallException(Exception): pass
 class RemoteCallTimedOut(SputnikException, RemoteCallException): pass

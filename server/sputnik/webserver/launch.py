@@ -147,7 +147,7 @@ class Root(Resource):
             return self
 
     def render(self, request):
-        request.setResponseCode(404, "No Access")
+        request.setResponseCode(403, "No Access")
         return "Forbidden".encode('utf-8')
 
 def main(pm):
@@ -203,10 +203,13 @@ def main(pm):
 
     from twisted.web.server import Site
     from autobahn.twisted.resource import WebSocketResource
+    from rest import RESTProxy
 
     root = Root()
     ws_resource = WebSocketResource(transport_factory)
+    rest_resource = pm.plugins['sputnik.webserver.rest.RESTProxy']
     root.putChild("ws", ws_resource)
+    root.putChild("api", rest_resource)
     site = Site(root)
     site.noisy = False
     site.log = lambda _: None
@@ -254,6 +257,7 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.feeds.market.MarketAnnouncer",
                "sputnik.webserver.plugins.feeds.user.UserAnnouncer",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver",
-               "sputnik.webserver.plugins.receiver.engine.EngineReceiver"]
+               "sputnik.webserver.plugins.receiver.engine.EngineReceiver",
+               "sputnik.webserver.rest.RESTProxy"]
     plugin.run_with_plugins(reactor, plugins, main)
 
