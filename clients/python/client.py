@@ -487,6 +487,8 @@ class TradingBot(wamp.ApplicationSession):
         """
         if isinstance(id, basestring) and id.startswith('internal_'):
             print "can't cancel internal order: %s" % id
+            del self.orders[id]
+            return
 
         print "cancel order: %s" % id
         d = self.call(u"rpc.trader.cancel_order", id)
