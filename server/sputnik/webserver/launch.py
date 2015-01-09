@@ -137,6 +137,19 @@ class SputnikRouterSession(RouterSession):
                 error("Uncaught exception in plugin %s." % plugin.plugin_path)
                 error()
 
+from twisted.web.resource import Resource, NoResource
+class Root(Resource):
+    def getChild(self, name, request):
+        if name == '':
+            return self
+        child = Resource.getChild(self, name, request)
+        if isinstance(child, NoResource):
+            return self
+
+    def render(self, request):
+        request.setResponseCode(404, "No Access")
+        return "Forbidden".encode('utf-8')
+
 def main(pm):
     from sputnik.webserver.router.twisted.wamp import RouterFactory
     router_factory = RouterFactory()
@@ -189,12 +202,11 @@ def main(pm):
     transport_factory.setProtocolOptions(failByDrop = False)
 
     from twisted.web.server import Site
-    from twisted.web.static import File
     from autobahn.twisted.resource import WebSocketResource
 
-    root = File(".")
-    resource = WebSocketResource(transport_factory)
-    root.putChild("ws", resource)
+    root = Root()
+    ws_resource = WebSocketResource(transport_factory)
+    root.putChild("ws", ws_resource)
     site = Site(root)
     site.noisy = False
     site.log = lambda _: None
