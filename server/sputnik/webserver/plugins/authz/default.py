@@ -66,7 +66,8 @@ class DefaultPermissions(AuthorizationPlugin):
                 match = user_match.match(uri)
                 if match is not None:
                     hash = match.groups(1)[0]
-                    if hash == util.encode_username(session._authid):
+                    hashed_username = util.encode_username(session._authid)
+                    if hash == hashed_username:
                         log("Authorizing %s(%s) to %s %s" % \
                             (session._authid, session._authrole, \
                              IRouter.ACTION_TO_STRING[action], uri))

@@ -15,13 +15,13 @@ from autobahn import wamp
 class UserAnnouncer(ServicePlugin):
     def on_fill(self, username, fill):
         username = util.encode_username(username)
-        self.publish(u"feeds.fills.%s" % username, fill)
+        self.publish(u"feeds.user.fills.%s" % username, fill)
 
     def on_transaction(self, username, transaction):
         username = util.encode_username(username)
-        self.publish(u"feeds.transactions.%s" % username, transaction)
+        self.publish(u"feeds.user.transactions.%s" % username, transaction)
 
     def on_order(self, username, order):
         username = util.encode_username(username)
-        self.publish(u"feeds.orders.%s" % username, order)
+        self.publish(u"feeds.user.orders.%s" % username, order)
 

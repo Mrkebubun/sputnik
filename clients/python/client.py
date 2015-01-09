@@ -80,7 +80,7 @@ class TradingBot(wamp.ApplicationSession):
         if details.authrole != u'anonymous':
             log.msg("Authenticated")
             self.auth = True
-            self.username = details.authrole
+            self.username = details.authid
             self.subOrders()
             self.subFills()
             self.subTransactions()
@@ -348,7 +348,7 @@ class TradingBot(wamp.ApplicationSession):
         return hashlib.sha256(username).hexdigest()
 
     def subOrders(self):
-        uri = u"feeds.users.orders.%s" % self.encode_username(self.username)
+        uri = u"feeds.user.orders.%s" % self.encode_username(self.username)
         self.subscribe(self.onOrder, uri)
         print 'subscribed to: ', uri
 
