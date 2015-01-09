@@ -14,7 +14,6 @@ import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("zmq")
 from exception import *
-from exception import SputnikException
 
 class ComponentExport():
     def __init__(self, component):
@@ -390,17 +389,31 @@ class Proxy:
 
         # decode the exception
         exception = response.get("exception", None)
+        def get_class(path):
+            module_name, class_name = path.rsplit(".", 1)
+            mod = __import__(module_name)
+            for component in module_name.split(".")[1:]:
+                mod = getattr(mod, component)
+            klass = getattr(mod, class_name)
+            return klass
+
         if isinstance(exception, dict):
             cname = exception.get("class", None)
             mname = exception.get("module", None)
             if not cname or not mname:
                 klass = Exception
             else:
+                path = "%s.%s" % (mname, cname)
                 try:
-                    module = __import__(mname)
-                    klass = getattr(module, cname)
-                except:
-                    klass = Exception
+                    klass = get_class(path)
+                except Exception as e:
+                    try:
+                        new_path = 'sputnik.%s' % path
+                        debug("Unable to load exception class %s (%s) -- trying %s'" % (path, str(e.args), new_path))
+                        klass = get_class(new_path)
+                    except Exception as e:
+                        debug("Unable to load exception class %s from %s (%s) -- using 'Exception'" % (new_cname, new_mname, str(e.args)))
+                        klass = Exception
             args = exception.get("args", ())
             exception = klass(*args)
 
