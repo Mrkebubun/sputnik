@@ -18,10 +18,10 @@ def error_handler(func):
             result = yield maybeDeferred(func, *args, **kwargs)
             returnValue({'success': True, 'result': result})
         except SputnikException as e:
-            error("SputnikException received: %s" % e.args)
+            error("SputnikException received: %s" % str(e.args))
             returnValue({'success': False, 'error': e.args})
         except Exception as e:
-            error("UNHANDLED EXCEPTION RECEIVED: %s" % e.args)
+            error("UNHANDLED EXCEPTION RECEIVED: %s" % str(e.args))
             error(e)
             returnValue({'success': False, 'error': ("exceptions/sputnik/generic-exception",)})
 
@@ -51,8 +51,9 @@ def schema(path, drop_args=["username"]):
             try:
                 result = func(*args, **kwargs)
                 return result
-            except ValidationError:
-                raise WebserverException("exceptions/webserver/schema-exception", str(f.validator.schema))
+            except ValidationError as e:
+                error(e)
+                raise WebserverException("exceptions/webserver/schema-exception", str(f.validator.schema), e.args)
         return wrapped_f
     return wrap
 
