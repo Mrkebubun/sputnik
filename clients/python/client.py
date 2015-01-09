@@ -146,10 +146,6 @@ class TradingBot(wamp.ApplicationSession):
 
         wamp.ApplicationSession.subscribe(self, wrapped_handler, unicode(topic), **kwargs)
 
-    def publish(self, topic, message, **kwargs):
-        log.msg("publishing %s to %s" % (message, topic))
-        wamp.ApplicationSession.publish(self, unicode(topic), unicode(message), **kwargs)
-
     """
     Utility functions
     """
@@ -192,10 +188,9 @@ class TradingBot(wamp.ApplicationSession):
     reactive events - on* 
     """
 
-
-
+    # RPC Results
     def onMarkets(self, event):
-        pprint(event)
+        pprint(["onMarkets", event])
         self.markets = event
         if self.markets is not None:
             for ticker, contract in self.markets.iteritems():
@@ -208,10 +203,60 @@ class TradingBot(wamp.ApplicationSession):
         return event
 
     def onOpenOrders(self, event):
-        pprint(event)
+        pprint(["onOpenOrders", event])
         if event is not None:
             for id, order in event.iteritems():
                 self.orders[int(id)] = order
+
+    def onPlaceOrder(self, event):
+        """
+        overwrite me
+        """
+        pprint(["onPlaceOrder", event])
+
+    def onOHLCVHistory(self, event):
+        pprint(event)
+
+    def onError(self, message, call=None):
+        pprint(["Error", message.value, call])
+
+    def onRpcFailure(self, event):
+        pprint(["RpcFailure", event.value.args])
+
+    def onAudit(self, event):
+        pprint(["onAudit", event])
+
+    def onMakeAccount(self, event):
+        pprint(["onMakeAccount", event])
+
+    def onSupportNonce(self, event):
+        pprint(["onSupportNonce", event])
+
+    def onTransactionHistory(self, event):
+        pprint(["onTransactionHistory", event])
+
+    """
+    Feed handlers
+    """
+    def onBook(self, topicUri, event):
+        """
+        overwrite me
+        """
+        pprint(["onBook", topicUri, event])
+        self.markets[event['contract']]['bids'] = event['bids']
+        self.markets[event['contract']]['asks'] = event['asks']
+
+    def onTrade(self, topicUri, event):
+        """
+        overwrite me
+        """
+        pprint(["onTrade", topicUri, event])
+
+    def onSafePrice(self, topicUri, event):
+        """
+        overwrite me
+        """
+        pprint(["onSafePrice", topicUri, event])
 
     def onOrder(self, topicUri, order):
         """
@@ -235,85 +280,22 @@ class TradingBot(wamp.ApplicationSession):
             if not order['is_cancelled'] and order['quantity_left'] > 0:
                 self.orders[id] = order
 
-        pprint(["Order", topicUri, order])
+        pprint(["onOrder", topicUri, order])
 
     def onFill(self, topicUri, event):
         """
         overwrite me
         """
-        pprint(["Fill", topicUri, event])
+        pprint(["onFill", topicUri, event])
 
     def onTransaction(self, topicUri, event):
         """
         overwrite me
         """
-        pprint(["Transaction", topicUri, event])
-
-    def onChat(self, topicUri, event):
-        """
-        overwrite me
-        """
-        self.chats.append(event)
-        pprint(["Chat", topicUri, event])
-
-    def onChatHistory(self, event):
-        self.chats = event
-        pprint(["Chat History", event])
-
-    def onPlaceOrder(self, event):
-        """
-        overwrite me
-        """
-        pprint(event)
+        pprint(["onTransaction", topicUri, event])
 
     def onOHLCV(self, topicUri, event):
-        pprint(event)
-
-    def onOHLCVHistory(self, event):
-        pprint(event)
-
-    def onError(self, message, call=None):
-        pprint(["Error", message.value, call])
-
-    def onRpcFailure(self, event):
-        pprint(["RpcFailure", event.value.args])
-
-    def onAudit(self, event):
-        pprint(event)
-
-    def onMakeAccount(self, event):
-        pprint(event)
-
-    def onSupportNonce(self, event):
-        pprint(event)
-
-    def onTransactionHistory(self, event):
-        pprint(event)
-
-    """
-    Feed handlers
-    """
-
-    def onBook(self, topicUri, event):
-        """
-        overwrite me
-        """
-        pprint(["Book: ", topicUri, event])
-        self.markets[event['contract']]['bids'] = event['bids']
-        self.markets[event['contract']]['asks'] = event['asks']
-
-    def onTrade(self, topicUri, event):
-        """
-        overwrite me
-        """
-        pprint(["Trade: ", topicUri, event])
-
-    def onSafePrice(self, topicUri, event):
-        """
-        overwrite me
-        """
-        pprint(["SafePrice", topicUri, event])
-
+        pprint(["onOHLCV", topicUri, event])
 
     """
     Public Subscriptions
@@ -365,7 +347,6 @@ class TradingBot(wamp.ApplicationSession):
     """
     Public RPC Calls
     """
-
 
     def getTradeHistory(self, ticker):
         d = self.call(u"rpc.market.get_trade_history", ticker)
