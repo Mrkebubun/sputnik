@@ -139,7 +139,12 @@ class TradingBot(wamp.ApplicationSession):
 
     def subscribe(self, handler, topic, **kwargs):
         log.msg("subscribing to %s" % topic, logLevel=logging.DEBUG)
-        wamp.ApplicationSession.subscribe(self, handler, unicode(topic), **kwargs)
+
+        # Wampv2 doesn't pass the topic to the handler, so wrap the topic here
+        def wrapped_handler(*args, **kwargs):
+            handler(topic, *args, **kwargs)
+
+        wamp.ApplicationSession.subscribe(self, wrapped_handler, unicode(topic), **kwargs)
 
     def publish(self, topic, message, **kwargs):
         log.msg("publishing %s to %s" % (message, topic))
