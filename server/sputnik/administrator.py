@@ -50,7 +50,6 @@ import util
 from sendmail import Sendmail
 from watchdog import watchdog
 
-# noinspection PyUnresolvedReferences
 from accountant import AccountantProxy
 
 from exception import *
@@ -60,6 +59,8 @@ from rpc_schema import schema
 from zendesk import Zendesk
 from blockscore import BlockScore
 from ticketserver import TicketServer
+import base64
+from Crypto.Random.random import getrandbits
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -227,6 +228,16 @@ class Administrator:
                    'notifications': notifications
         }
         return profile
+
+    def get_new_api_token(self, username, expiration):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        user.api_token = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+        user.api_token_expiration = util.timestamp_to_dt(expiration)
+        self.session.commit()
+        return user.api_token
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -1801,6 +1812,12 @@ class WebserverExport(ComponentExport):
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_new_api_token")
+    def get_new_api_token(self, username, expiration):
+        return self.administrator.get_new_api_token(username, expiration)
 
     @export
     @session_aware

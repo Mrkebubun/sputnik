@@ -2,7 +2,7 @@
 
 ## Overview
 
-The server and client communicate using [​WAMP] (http://wamp.ws/).
+The server and client communicate using [​WAMPv2] (http://wamp.ws/).
 This is a derivative of a websocket connection with an additional layer supporting RPC and PubSub.
 
 The default port for websockets is 8443. A typical session runs as follows:
@@ -12,6 +12,12 @@ The default port for websockets is 8443. A typical session runs as follows:
 3. The client authenticates to the server via challenge response.
 4. The client is now authenticated and may make private calls.
 5. The client is automatically subscribed to several feeds relating to their account.
+
+The websockets endpoint is:
+
+wss://hostname:8443/ws
+
+For information on the REST api, see REST.md
 
 ## RPC Response Format
 
@@ -278,7 +284,7 @@ Each event is an ```ohlcv``` object
 order must be an ```order``` object, however the timestamp, id, and quantity_left
 are ignored. This returns the order id on success.
 
-### rpc.trader.cancel_order(id)
+### rpc.trader.cancel_order(order_id)
 
 order id must be an integer. It is the id of the order as returned by place_order().
 
@@ -322,29 +328,35 @@ Request a new address for sending deposits
 
 Return the currently active address for sending deposits
 
-### rpc.trader.get_cookie()
+### rpc.token.get_cookie()
 
 Return the authentication cookie for the user
-
-### rpc.trader.logout()
-
-Logout
-
-### rpc.trader.get_new_two_factor()
-
-Prepares two factor authentication for an account. Returns the shared secret.
-
-### rpc.trader.disable_two_factor(confirmation)
-
-Disables two factor auth for an account. Requires 'confirmation', which is the OTP
-
-### rpc.trader.register_two_factor(confirmation)
-
-Enables two factor authentication. The confirmation must be the OTP
 
 ### rpc.trader.change_password(old_hash, new_hash)
 
 Change the password, confirming that the old_hash matches the current password hash
+
+### rpc.token.logout()
+
+Logout
+
+### rpc.token.get_new_api_token(expiration)
+
+Get a new API token and invalidate the old one. If expiration is passed in, then the token will expire at
+the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days.
+
+### rpc.token.get_new_two_factor()
+
+Prepares two factor authentication for an account. Returns the shared secret.
+
+### rpc.token.disable_two_factor(confirmation)
+
+Disables two factor auth for an account. Requires 'confirmation', which is the OTP
+
+### rpc.token.register_two_factor(confirmation)
+
+Enables two factor authentication. The confirmation must be the OTP
+
 
 ## Private feeds
 

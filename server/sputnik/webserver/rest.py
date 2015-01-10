@@ -5,13 +5,16 @@ debug, log, warn, error, critical = observatory.get_loggers("rest")
 import json
 
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.resource import Resource
 from twisted.web.server import Site, NOT_DONE_YET
 from twisted.web.http import Request
 from plugin import Plugin
 import inspect
 from sputnik.exception import *
+from datetime import datetime
+from autobahn.wamp import types, auth
+
 
 class RESTProxy(Resource, Plugin):
     isLeaf = True
@@ -38,19 +41,70 @@ class RESTProxy(Resource, Plugin):
                         uri = pat.uri()
                         self.procs[uri] = proc
 
+        self.auth_required = ["trader", "private", "token"]
+
+    @inlineCallbacks
+    def check_auth(self, data):
+        auth = data.get('auth')
+        if auth is not None:
+            if 'username' not in auth or 'api_token' not in auth:
+                raise RestException('exceptions/rest/invalid_rest_request')
+
+            databases = self.manager.services["sputnik.webserver.plugins.db"]
+            result = None
+            now = datetime.utcnow()
+
+            for db in databases:
+                result = yield db.lookup(auth['username'])
+                if result is not None:
+                    break
+
+            if result is not None:
+                if result['api_token'] is not None and result['api_token_expiration'] > now and result['api_token'] == auth['api_token']:
+                    if result['totp'] is None:
+                        returnValue({'authid': result['username']})
+                    else:
+                        codes = [auth.compute_totp(result['totp'], i) for i in range(-1, 2)]
+                        if auth["totp"].encode("utf-8") in codes:
+                            returnValue({'authid': result['username']})
+
+        returnValue(None)
+
+    @inlineCallbacks
     def process_request(self, request, data):
         uri = '.'.join(request.postpath)
         if uri not in self.procs:
             raise RestException("exceptions/rest/no_such_function", uri)
 
-        # TODO: Check for auth if needed
-        # TODO: Add 'details' if authentication is received
-        fn = self.procs[uri]
+        if 'payload' not in data:
+            raise RestException('exceptions/rest/invalid_rest_request')
 
-        return fn(**data)
+        if request.postpath[1] in self.auth_required:
+            auth = yield self.check_auth(data)
+            if auth is not None:
+                data['payload']['details'] = auth
+            else:
+                raise RestException("exceptions/rest/not_authorized")
+
+        fn = self.procs[uri]
+        result = yield fn(**data['payload'])
+        returnValue(result)
 
     def log(self, request, data):
-        log("PUT LOGGING HERE: %s/%s" % (request, data))
+        """Log the request
+
+        """
+        log((request.getClientIP(),
+            request.getUser(),
+            request.method,
+            request.uri,
+            request.clientproto,
+            request.code,
+            request.sentLength or "-",
+            request.getHeader("referer") or "-",
+            request.getHeader("user-agent") or "-",
+            json.dumps(request.args),
+            data))
 
     def render(self, request):
         request.setHeader('content-type', 'application/json')
@@ -62,14 +116,30 @@ class RESTProxy(Resource, Plugin):
             if request.method != "POST":
                 raise RestException("exceptions/rest/unsupported_method")
             else:
-                parsed_data = json.loads(data)
+                try:
+                    parsed_data = json.loads(data)
+                except ValueError as e:
+                    raise RestException("exceptions/rest/invalid_json", *e.args)
+
                 d = self.process_request(request, data=parsed_data)
 
             def deliver_result(result, request):
+                if not result['success']:
+                    error("request %s returned error %s" % (request, result['error']))
                 request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
                 request.finish()
 
-            d.addCallback(deliver_result, request)
+            def sputnik_failure(failure):
+                failure.trap(SputnikException)
+                error(failure)
+                return {'success': False, 'error': failure.value.args}
+
+            def generic_failure(failure):
+                error("UNHANDLED ERROR: %s" % failure.value)
+                error(failure)
+                return {'success': False, 'error': ("exceptions/rest/generic_error",)}
+
+            d.addErrback(sputnik_failure).addErrback(generic_failure).addCallback(deliver_result, request)
             return NOT_DONE_YET
 
 

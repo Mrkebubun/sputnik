@@ -28,7 +28,13 @@ class InMemoryDatabase(DatabasePlugin):
         user = self.users.get(username)
         if user:
             debug("User %s found." % username)
+            return {'password': user,
+                    'totp': None,
+                    'api_token': None,
+                    'api_token_expiration': None,
+                    'username': username}
         else:
             debug("User %s not found." % username)
-        return user
+            return None
+
 

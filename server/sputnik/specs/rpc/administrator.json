@@ -15,6 +15,22 @@
         "required": [ "username", "password" ],
         "additionalProperties": false
     },
+    "get_new_api_token": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get a new REST api token",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "expiration": {
+                "type": ["integer", "null"],
+                "description": "microseconds since epoch for when the token should stop working"
+            }
+        },
+        "required": [ "username", "expiration" ],
+        "additionalProperties": false
+    },
     "get_profile": {
         "type": "object",
         "description": "webserver -> administrator RPC call to get someone's profile",

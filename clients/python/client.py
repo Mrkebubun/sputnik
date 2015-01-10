@@ -235,6 +235,9 @@ class TradingBot(wamp.ApplicationSession):
     def onTransactionHistory(self, event):
         pprint(["onTransactionHistory", event])
 
+    def onNewAPIToken(self, event):
+        pprint(["onNewAPIToken", event])
+
     """
     Feed handlers
     """
@@ -406,6 +409,9 @@ class TradingBot(wamp.ApplicationSession):
     """
     Private RPC Calls
     """
+    def getNewAPIToken(self):
+        d = self.call(u"rpc.token.get_new_api_token")
+        d.addCallback(self.onNewAPIToken).addErrback(self.onError, "getNewAPIToken")
 
     def getPositions(self):
         d = self.call(u"rpc.trader.get_positions")
@@ -498,10 +504,11 @@ class BasicBot(TradingBot):
         self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
-        self.getTransactionHistory()
-        self.requestSupportNonce()
-
-        self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
+        self.getNewAPIToken()
+        # self.getTransactionHistory()
+        # self.requestSupportNonce()
+        #
+        # self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
 
 class BotFactory(wamp.ApplicationSessionFactory):
     def __init__(self, **kwargs):

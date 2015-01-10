@@ -25,8 +25,8 @@ class TOTPVerification(AuthenticationPlugin):
                     databases = self.manager.services["sputnik.webserver.plugins.db"]
                     for db in databases:
                         result = yield db.lookup(username)
-                        if result:
-                            router_session.totp = result[1]
+                        if result is not None:
+                            router_session.totp = result['totp']
                             break
                 except Exception, e:
                     error("Caught exception looking up user.")

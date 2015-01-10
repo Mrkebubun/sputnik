@@ -10,6 +10,9 @@ from sputnik.exception import WebserverException
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
+from datetime import datetime, timedelta
+from sputnik import util
+
 
 class TokenService(ServicePlugin):
     def __init__(self):
@@ -23,11 +26,23 @@ class TokenService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/token.json#get_cookie")
-    def get_cookie(self, username):
+    def get_cookie(self, username=None):
         cookie = self.cookie_jar.get_cookie(username)
         if cookie is None:
             cookie = self.cookie_jar.new_cookie(username)
         r = yield succeed(cookie)
+        returnValue(r)
+
+    @wamp.register(u"rpc.token.get_new_api_token")
+    @error_handler
+    @authenticated
+    @schema(u"public/token.json#get_new_api_token")
+    def get_new_api_token(self, expiration=None, username=None):
+        if expiration is None:
+            now = datetime.utcnow()
+            expiration = util.dt_to_timestamp(now + timedelta(days=7))
+
+        r = yield self.administrator.proxy.get_new_api_token(username, expiration)
         returnValue(r)
 
     @wamp.register(u"rpc.token.logout")

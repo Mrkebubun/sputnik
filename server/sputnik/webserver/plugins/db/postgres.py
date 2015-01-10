@@ -59,7 +59,7 @@ class PostgresDatabase(DatabasePlugin):
 
     @inlineCallbacks
     def lookup(self, username):
-        query = "SELECT password, totp FROM users WHERE username=%s LIMIT 1"
+        query = "SELECT password, totp, api_token, api_token_expiration, username FROM users WHERE username=%s LIMIT 1"
         try:
             debug("Looking up username %s..." % username)
 
@@ -67,13 +67,22 @@ class PostgresDatabase(DatabasePlugin):
             # We can probably not worry about timing attacks here.
             result = yield self.dbpool.runQuery(query, (username,))
             if result:
+                # We return username because later we might query on email address or phone
+                # which might be different from username
+                r = result[0]
                 debug("User %s found." % username)
-                returnValue(result[0])
+                returnValue({'password': r[0],
+                             'totp': r[1],
+                             'api_token': r[2],
+                             'api_token_expiration': r[3],
+                             'username': r[4]})
 
             debug("User %s not found." % username)
+            returnValue(None)
         except Exception, e:
             error("Exception caught looking up user %s." % username)
             error()
+            returnValue(None)
 
     @inlineCallbacks
     def get_markets(self):

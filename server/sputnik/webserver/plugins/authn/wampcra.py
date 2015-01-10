@@ -51,12 +51,12 @@ class WAMPCRALogin(AuthenticationPlugin):
                     databases = self.manager.services["sputnik.webserver.plugins.db"]
                     for db in databases:
                         result = yield db.lookup(username)
-                        if result:
+                        if result is not None:
                             break
 
-                    if result:
-                        salt, secret = result[0].split(":")
-                        router_session.totp = result[1]
+                    if result is not None:
+                        salt, secret = result['password'].split(":")
+                        router_session.totp = result['totp']
                         router_session.exists = True
                     # We compute the signature even if there is no such user to
                     #   prevent timing attacks.

@@ -35,7 +35,12 @@ def authenticated(func):
             raise WebserverException("exceptions/webserver/denied")
 
         details = kwargs.pop('details')
-        username = details.authid
+        # Authid can be a class attribute or a dict member
+        try:
+            username = getattr(details, 'authid')
+        except AttributeError:
+            username = details.get('authid')
+
         if username is None:
             raise Exception("details.authid is None")
         kwargs['username'] = username
