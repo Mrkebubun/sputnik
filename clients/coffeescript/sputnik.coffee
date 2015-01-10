@@ -173,12 +173,25 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
-        @rejoin = login
+        @rejoin = [login, ["wampcra"]]
 
         @session._onchallenge = (session, method, extra) =>
             if method == "wampcra"
                 key = autobahn.auth_cra.derive_key password, extra.salt
                 autobahn.auth_cra.sign key, extra.challenge
+
+        @session.leave "sputnik.internal.rejoin"
+
+    restoreSession: (login, uid) =>
+        if not @session?
+            @wtf "Not connected."
+
+        @log "Attempting cookie login"
+        @rejoin = [login, ["cookie"]]
+
+        @session._onchallenge = (session, method, extra) =>
+            if method == "cookie"
+                uid
 
         @session.leave "sputnik.internal.rejoin"
 
@@ -226,22 +239,6 @@ class @Sputnik extends EventEmitter
 
     getRequestSupportNonce: (type, success, error) =>
         @call("rpc.trader.request_support_nonce", type).then success, error
-
-    restoreSession: (uid) =>
-        if not @session?
-            @wtf "Not connected."
-
-        @log "Attempting cookie login"
-
-        @session.authreq(uid).then \
-            (challenge) =>
-                # TODO: Why is this secret hardcoded?
-                @log "Got challenge: #{challenge}"
-                secret = "EOcGpbPeYMMpL5hQH/fI5lb4Pn2vePsOddtY5xM+Zxs="
-                signature = @session.authsign(challenge, secret)
-                @session.auth(signature).then @onAuthSuccess, @onSessionExpired
-            , (error) =>
-                @wtf "RPC Error: Could not authenticate: #{error}."
 
     logout: () =>
         @authenticated = false
@@ -734,7 +731,7 @@ class @Sputnik extends EventEmitter
             @emit "auth_fail", message
         else
             if @rejoin?
-                @session.join "sputnik", ["wampcra"], @rejoin
+                @session.join "sputnik", @rejoin[1], @rejoin[0]
 
     # authentication internals
 

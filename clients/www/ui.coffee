@@ -701,7 +701,7 @@ $ ->
                             document.cookie = ''
                         else
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
-                            sputnik.restoreSession name_uid[1]
+                            sputnik.restoreSession name_uid[0], name_uid[1]
 
             if simple_widget?
                 if simple_widget == "trade"

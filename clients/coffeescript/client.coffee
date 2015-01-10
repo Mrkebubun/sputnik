@@ -37,6 +37,8 @@ sputnik.on "open", (session, details) ->
     console.log "Sputnik session open."
     sputnik.follow "NETS2014"
     sputnik.authenticate "marketmaker", "marketmaker"
+    cookie = sputnik.getCookie()
+    sputnik.restoreSession "marketmaker", cookie
 
 sputnik.on "auth_success", ->
     console.log "Authenticated"
