@@ -40,7 +40,7 @@ from twisted.internet.endpoints import clientFromString
 from autobahn.twisted import websocket
 from autobahn.wamp import types
 
-from client import TradingBot, BotFactory
+from sputnik import TradingBot, BotFactory
 
 import random
 
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     log.startLogging(sys.stdout)
     config = ConfigParser()
     config_file = path.abspath(path.join(path.dirname(__file__),
-            "./client.ini"))
+            "./sputnik.ini"))
     config.read(config_file)
 
     username = config.get("random_trader", "username")
