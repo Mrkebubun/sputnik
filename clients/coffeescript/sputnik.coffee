@@ -48,9 +48,9 @@ class @Sputnik extends EventEmitter
     constructor: (@uri) ->
         # Initialize globalization settings
 
-        ### Sputnik API  ###
+    ### Sputnik API  ###
 
-        # network control
+    # network control
 
     connect: () =>
         @connection = new autobahn.Connection
@@ -98,9 +98,9 @@ class @Sputnik extends EventEmitter
         @authextra =
             salt: salt
             iterations: 1000
-        password = ab.deriveKey secret, @authextra
+        key = autobahn.auth_cra.derive_key password, @authextra.salt
 
-        @call("rpc.registrar.make_account", username, password, salt, email, nickname, locale).then \
+        @call("rpc.registrar.make_account", username, "#{salt}:#{key}", email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
@@ -169,28 +169,30 @@ class @Sputnik extends EventEmitter
                 @token = args.token
                 @emit args['function'], args
 
-    authenticate: (login, password) =>
+    authenticate: (@username, password) =>
         if not @session?
             @wtf "Not connected."
 
-        @rejoin = [login, ["wampcra"]]
+        @rejoin = [@username, ["wampcra"]]
 
         @session._onchallenge = (session, method, extra) =>
             if method == "wampcra"
+                @authextra = extra
                 key = autobahn.auth_cra.derive_key password, extra.salt
                 autobahn.auth_cra.sign key, extra.challenge
 
         @session.leave "sputnik.internal.rejoin"
 
-    restoreSession: (login, uid) =>
+    restoreSession: (@username, uid) =>
         if not @session?
             @wtf "Not connected."
 
         @log "Attempting cookie login"
-        @rejoin = [login, ["cookie"]]
+        @rejoin = [@username, ["cookie"]]
 
         @session._onchallenge = (session, method, extra) =>
             if method == "cookie"
+                @authextra = extra
                 uid
 
         @session.leave "sputnik.internal.rejoin"
@@ -199,29 +201,34 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
-        @session.authreq(@username).then \
-            (challenge) =>
-                @authextra = JSON.parse(challenge).authextra
-                secret = ab.deriveKey(new_password, @authextra)
+        @log "Changing password with token"
+        @rejoin = [@username, ["wampcra"]]
 
-                @call("rpc.registrar.change_password_token", @username, secret, @token).then \
+        @session._onchallenge = (session, method, extra) =>
+            if method == "wampcra"
+                @authextra = extra
+                key = autobahn.auth_cra.derive_key password, @authextra.salt
+
+                @call("rpc.registrar.change_password_token", @username, key, @token).then \
                     (message) =>
                         @log "password change successfully"
                         @emit "change_password_token_success", message
 
                         # Log me in
-                        signature = @session.authsign(challenge, secret)
-                        @session.auth(signature).then @onAuthSuccess, @onAuthFail
+                        @authenticate @username, new_password
                     , (error) =>
                         @error "password change error", error
                         @emit "change_password_token_fail", error
+
+        @session.leave "sputnik.internal.rejoin"
 
     changePassword: (old_password, new_password) =>
         if not @authenticated
             @wtf "Not logged in."
 
-        old_secret = ab.deriveKey(old_password, @authextra)
-        new_secret = ab.deriveKey(new_password, @authextra)
+        old_secret = autobahn.auth_cra.derive_key old_password, @authextra.salt
+        new_secret = autobahn.auth_cra.derive_key new_password, @authextra.salt
+
         @call("rpc.trader.change_password", old_secret, new_secret).then \
             (message) =>
                 @log "password changed successfully"
@@ -249,39 +256,13 @@ class @Sputnik extends EventEmitter
         @connect()
 
     getCookie: () =>
-        @call("rpc.regstrar.get_cookie").then \
+        @call("rpc.registrar.get_cookie").then \
             (uid) =>
                 @log "cookie: " + uid
                 @emit "cookie", uid
 
     encode_username: (username) =>
         CryptoJS.SHA256(username).toString(CryptoJS.enc.Hex)
-
-    onAuthSuccess: (permissions) =>
-        @log ["authenticated", permissions]
-        @authenticated = true
-
-        @getProfile()
-        @getSafePrices()
-        @getOpenOrders()
-        @getPositions()
-        @getPermissions()
-
-        @username = permissions.username
-        @emit "auth_success", @username
-        username_encoded = @encode_username @username
-
-        try
-            @subscribe "feeds.user.orders.#{username_encoded}", @onOrder
-            @subscribe "feeds.user.fills.#{username_encoded}", @onFill
-            @subscribe "feeds.user.transactions.#{username_encoded}", @onTransaction
-        catch error
-            @log error
-
-    onAuthFail: (error) =>
-        @username = null
-        [code, reason] = error
-        @emit "auth_fail", error
 
     onSessionExpired: (error) =>
         @emit "session_expired"
@@ -724,16 +705,36 @@ class @Sputnik extends EventEmitter
         @emit "close", [code, reason, details]
 
     onJoin: =>
-        @emit "auth_success"
+        if @username? and @username is not null
+            @log ["authenticated"]
+            @authenticated = true
+
+            @getProfile()
+            @getSafePrices()
+            @getOpenOrders()
+            @getPositions()
+            @getPermissions()
+
+            @emit "auth_success", @username
+            username_encoded = @encode_username @username
+
+            try
+                @subscribe "feeds.user.orders.#{username_encoded}", @onOrder
+                @subscribe "feeds.user.fills.#{username_encoded}", @onFill
+                @subscribe "feeds.user.transactions.#{username_encoded}", @onTransaction
+            catch error
+                @log error
+        else
+            @log ["joined anonymously"]
 
     onLeave: (reason, message) =>
         if reason == "wamp.error.not_authorized"
-            @emit "auth_fail", message
+            @username = null
+            @error ["auth_fail", message]
+            @emit "auth_fail", [0, message]
         else
             if @rejoin?
                 @session.join "sputnik", @rejoin[1], @rejoin[0]
-
-    # authentication internals
 
     # default RPC callbacks
 

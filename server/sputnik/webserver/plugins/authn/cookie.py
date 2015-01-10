@@ -5,6 +5,7 @@ debug, log, warn, error, critical = observatory.get_loggers("authn_cookie")
 from sputnik.webserver.plugin import AuthenticationPlugin
 from autobahn import util
 from autobahn.wamp import types
+from twisted.internet.defer import inlineCallbacks, returnValue
 import json
 
 class CookieLogin(AuthenticationPlugin):
@@ -26,6 +27,7 @@ class CookieLogin(AuthenticationPlugin):
         if username in self.cookies:
             del self.cookies[username]
 
+    @inlineCallbacks
     def onHello(self, router_session, realm, details):
         for authmethod in details.authmethods:
             if authmethod == u"cookie":
@@ -48,12 +50,29 @@ class CookieLogin(AuthenticationPlugin):
                              "timestamp": util.newid()}
                 router_session.challenge = challenge
 
+
+                # If the user does not exist, we should still return a
+                #   consistent salt. This prevents the auth system from
+                #   becoming a username oracle.
+                noise = hashlib.md5("super secret" + username + "more secret")
+                salt = noise.hexdigest()[:8]
+
+                databases = self.manager.services["sputnik.webserver.plugins.db"]
+                for db in databases:
+                    result = yield db.lookup(details.authid)
+                    if result is not None:
+                        break
+
+                if result is not None:
+                    salt = result['password'].split(":")[0]
+
                 # The client expects a unicode challenge string.
                 challenge = json.dumps(challenge, ensure_ascii=False)
-                extra = {u"challenge": challenge}
+                extra = {u"challenge": challenge,
+                         u"salt": salt}
 
                 debug("Cookie challenge issued for %s." % details.authid)
-                return types.Challenge(u"cookie", extra)
+                returnValue(types.Challenge(u"cookie", extra))
 
     def onAuthenticate(self, router_session, signature, extra):
         try:
