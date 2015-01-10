@@ -58,6 +58,7 @@ class TradingBot(wamp.ApplicationSession):
         wamp.ApplicationSession.__init__(self, *args, **kwargs)
         self.markets = {}
         self.wire_orders = {}
+        self.wire_positions = {}
         self.last_internal_id = 0
         self.chats = []
         self.username = None
@@ -88,6 +89,7 @@ class TradingBot(wamp.ApplicationSession):
             self.subFills()
             self.subTransactions()
             self.getOpenOrders()
+            self.getPositions()
 
             self.startAutomationAfterAuth()
 
@@ -206,7 +208,7 @@ class TradingBot(wamp.ApplicationSession):
         return ohlcv
 
     def position_from_wire(self, wire_position):
-        ticker = position['contract']
+        ticker = wire_position['contract']
         position = copy(wire_position)
         position['position'] = self.quantity_from_wire(ticker, wire_position['position'])
         if self.markets[ticker]['contract_type'] == "futures":
@@ -268,6 +270,10 @@ class TradingBot(wamp.ApplicationSession):
     def orders(self):
         return {id: self.order_from_wire(wire_order) for id, wire_order in self.wire_orders.iteritems()}
 
+    @property
+    def positions(self):
+        return {ticker: self.position_from_wire(wire_position) for ticker, wire_position in self.wire_positions.iteritems()}
+
     """
     reactive events - on* 
     """
@@ -325,6 +331,10 @@ class TradingBot(wamp.ApplicationSession):
     def onNewAPIToken(self, token):
         pprint(["onNewAPIToken", token])
         return token
+
+    def onPositions(self, positions):
+        pprint(["onPositions", positions])
+        return positions
 
     """
     Feed handlers
@@ -463,8 +473,21 @@ class TradingBot(wamp.ApplicationSession):
 
     def subTransactions(self):
         uri = u"feeds.user.transactions.%s" % self.encode_username(self.username)
-        def _onTransaction(uri, transaction):
-            return self.onTransaction(uri, self.transaction_from_wire(transaction))
+        def _onTransaction(uri, wire_transaction):
+            ticker = wire_transaction['contract']
+
+            if wire_transaction['direction'] == 'credit':
+                sign = 1
+            else:
+                sign = -1
+
+            if ticker in self.wire_positions:
+                self.wire_positions[ticker]['position'] += sign * transaction['quantity']
+            else:
+                self.wire_positions[ticker] = { 'position': sign * transaction['quantity'],
+                                                'contract': ticker }
+
+            return self.onTransaction(uri, self.transaction_from_wire(wire_transaction))
 
         self.subscribe(_onTransaction, uri)
         print 'subscribed to: ', uri
@@ -518,7 +541,8 @@ class TradingBot(wamp.ApplicationSession):
             end_timestamp = None
 
         def _onOHLCVHistory(wire_ohlcv_history):
-            return self.onOHLCVHistory([self.ohlcv_from_wire(wire_ohlcv) for wire_ohlcv in wire_ohlcv_history])
+            return self.onOHLCVHistory({timestamp: self.ohlcv_from_wire(wire_ohlcv)
+                                        for timestamp, wire_ohlcv in wire_ohlcv_history.iteritems()})
 
         d = self.call(u"rpc.market.get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
         return d.addCallback(_onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
@@ -551,32 +575,31 @@ class TradingBot(wamp.ApplicationSession):
     """
     def getNewAPIToken(self):
         d = self.call(u"rpc.token.get_new_api_token")
-        d.addCallback(self.onNewAPIToken).addErrback(self.onError, "getNewAPIToken")
+        return d.addCallback(self.onNewAPIToken).addErrback(self.onError, "getNewAPIToken")
 
     def getPositions(self):
         d = self.call(u"rpc.trader.get_positions")
-        d.addCallback(pprint).addErrback(self.onError, "getPositions")
+        def _onPositions(wire_positions):
+            self.wire_positions = wire_positions
+            self.onPositions(self.positions)
+
+        return d.addCallback(_onPositions).addErrback(self.onError, "getPositions")
 
     def getCurrentAddress(self):
         d = self.call(u"rpc.trader.get_current_address")
-        d.addCallback(pprint).addErrback(self.onError, "getCurrentAddress")
+        return d.addCallback(self.onGetCurrentAddress).addErrback(self.onError, "getCurrentAddress")
 
     def getNewAddress(self):
         d = self.call(u"rpc.trader.get_new_address")
-        d.addCallback(pprint).addErrback(self.onError, "getNewAddress")
+        return d.addCallback(self.onGetNewAddress).addErrback(self.onError, "getNewAddress")
 
     def getOpenOrders(self):
         d = self.call(u"rpc.trader.get_open_orders")
         def _onOpenOrders(wire_orders):
-            if wire_orders is not None:
-                for id, wire_order in wire_orders.iteritems():
-                    self.wire_orders[int(id)] = wire_order
+            self.wire_orders = wire_orders
+            return self.onOpenOrders(self.orders)
 
-            orders = {id: self.order_from_wire(wire_order) for id, wire_order in wire_orders.iteritems()}
-
-            self.onOpenOrders(orders)
-
-        d.addCallback(_onOpenOrders).addErrback(self.onError, "getOpenOrders")
+        return d.addCallback(_onOpenOrders).addErrback(self.onError, "getOpenOrders")
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
@@ -618,7 +641,8 @@ class TradingBot(wamp.ApplicationSession):
             self.onError(error, "placeOrder")
 
         def _onPlaceOrder(new_id):
-            del self.wire_orders[order_id]
+            if order_id in self.wire_orders:
+                del self.wire_orders[order_id]
 
         return d.addCallbacks(_onPlaceOrder, onError)
 
@@ -628,11 +652,11 @@ class TradingBot(wamp.ApplicationSession):
         :param id: order id
         """
         if isinstance(id, basestring) and id.startswith('internal_'):
-            log.er("can't cancel internal order: %s" % id)
+            logging.error("can't cancel internal order: %s" % id)
             return
 
         print "cancel order: %s" % id
-        d = self.call(u"rpc.trader.cancel_order", id)
+        d = self.call(u"rpc.trader.cancel_order", int(id))
         def _onCancelOrder(success):
             if success and id in self.wire_orders:
                 del self.wire_orders[id]
