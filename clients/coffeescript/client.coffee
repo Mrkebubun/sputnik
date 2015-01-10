@@ -27,7 +27,7 @@
 
 Sputnik = require("./sputnik").Sputnik
 
-sputnik = new Sputnik "ws://127.0.0.1:8080/ws"
+sputnik = new Sputnik "ws://127.0.0.1:8880/ws"
 sputnik.connect()
 sputnik.on "log", console.log
 sputnik.on "warn", console.log

@@ -173,9 +173,7 @@ class @Sputnik extends EventEmitter
         if not @session?
             @wtf "Not connected."
 
-        @username = login
-
-        @session.onjoin = @onJoin
+        @rejoin = login
 
         @session._onchallenge = (session, method, extra) =>
             if method == "wampcra"
@@ -712,22 +710,14 @@ class @Sputnik extends EventEmitter
 
     # connection events
     onOpen: (@session, details) =>
+        @session.onjoin = @onJoin
         @session.onleave = @onLeave
-        console.log details
         @connected = true
         @log "Connected to #{@uri}."
         #@processHash()
 
-        #@call("rpc.market.get_markets").then @onMarkets, @wtf
-        #@call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
-#        @subscribe "chat", @onChat
-#        @call("get_chat_history").then \
-#            (chats) =>
-#                for chat in chats
-#                    user = chat[0]
-#                    msg = chat[1]
-#                    @chat_messages.push "#{user}: #{msg}"
-#                @emit "chat_history", @chat_messages
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         @emit "open"
 
@@ -743,7 +733,8 @@ class @Sputnik extends EventEmitter
         if reason == "wamp.error.not_authorized"
             @emit "auth_fail", message
         else
-            @session.join "sputnik", ["wampcra"], @username
+            if @rejoin?
+                @session.join "sputnik", ["wampcra"], @rejoin
 
     # authentication internals
 
