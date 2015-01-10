@@ -80,7 +80,7 @@ class @Sputnik extends EventEmitter
         market_encoded = @encode_market market
         @subscribe "feeds.market.book.#{market_encoded}", @onBook
         @subscribe "feeds.market.trades.#{market_encoded}", @onTrade
-        @subscribe "feeds.market.safe_prices.##{market_encoded}", @onSafePrice
+        @subscribe "feeds.market.safe_prices.#{market_encoded}", @onSafePrice
         @subscribe "feeds.market.ohlcv.#{market_encoded}", @onOHLCV
 
     unfollow: (market) =>
@@ -682,7 +682,7 @@ class @Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log "subscribing: #{topic}"
-        @session.subscribe topic, (topic, event) ->
+        @session.subscribe topic, (event) ->
             callback event
 
     unsubscribe: (topic) =>

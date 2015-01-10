@@ -34,11 +34,8 @@ sputnik.on "warn", console.log
 sputnik.on "error", console.log
 authing = false
 sputnik.on "open", (session, details) ->
-    if authing
-        return
-    authing = true
     console.log "Sputnik session open."
-    #sputnik.call("rpc.info.get_exchange_info").then console.log
+    sputnik.follow "NETS2014"
     sputnik.authenticate "marketmaker", "marketmaker"
 
 sputnik.on "auth_success", ->
