@@ -284,9 +284,9 @@ Each event is an ```ohlcv``` object
 order must be an ```order``` object, however the timestamp, id, and quantity_left
 are ignored. This returns the order id on success.
 
-### rpc.trader.cancel_order(order_id)
+### rpc.trader.cancel_order(id)
 
-order id must be an integer. It is the id of the order as returned by place_order().
+id must be an integer. It is the id of the order as returned by place_order().
 
 ### rpc.trader.get_positions()
 

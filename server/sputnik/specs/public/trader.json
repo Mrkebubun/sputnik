@@ -144,7 +144,7 @@
         "type": "object",
         "description": "cancel an order by order id",
         "properties": {
-            "order_id": {
+            "id": {
                 "type": "integer",
                 "description": "the id of the order to cancel"
             }

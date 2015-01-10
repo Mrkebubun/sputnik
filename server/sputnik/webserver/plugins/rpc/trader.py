@@ -319,14 +319,14 @@ class TraderService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/trader.json#cancel_order")
-    def cancel_order(self, order_id, username=None):
+    def cancel_order(self, id, username=None):
         """
         Cancels a specific order
         :returns: Deferred
         :param order_id: order_id of the order
         """
 
-        result = yield self.accountant.proxy.cancel_order(username, order_id)
+        result = yield self.accountant.proxy.cancel_order(username, id)
         returnValue(result)
 
     @inlineCallbacks
