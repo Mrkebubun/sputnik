@@ -236,8 +236,22 @@ class Administrator:
 
         user.api_token = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
         user.api_token_expiration = util.timestamp_to_dt(expiration)
+        user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+
         self.session.commit()
-        return user.api_token
+        return user.api_token, user.api_secret
+
+    def check_and_update_api_nonce(self, username, nonce):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if nonce <= user.api_nonce:
+            return False
+        else:
+            user.api_nonce = nonce
+            self.session.commit()
+            return True
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -1818,6 +1832,12 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_new_api_token")
     def get_new_api_token(self, username, expiration):
         return self.administrator.get_new_api_token(username, expiration)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_and_update_api_nonce")
+    def check_and_update_api_nonce(self, username, nonce):
+        return self.administrator.check_and_update_api_nonce(username, nonce)
 
     @export
     @session_aware

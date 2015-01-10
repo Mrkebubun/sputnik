@@ -21,11 +21,27 @@
         "properties": {
             "username": {
                 "type": "string",
-                "description": "the new username"
+                "description": "the username"
             },
             "expiration": {
                 "type": ["integer", "null"],
                 "description": "microseconds since epoch for when the token should stop working"
+            }
+        },
+        "required": [ "username", "expiration" ],
+        "additionalProperties": false
+    },
+    "check_and_update_api_nonce": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to check a nonce and update if ok",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "nonce": {
+                "type": "integer",
+                "description": "single-use nonce to check"
             }
         },
         "required": [ "username", "expiration" ],

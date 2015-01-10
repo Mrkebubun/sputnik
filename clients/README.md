@@ -344,6 +344,7 @@ Logout
 
 Get a new API token and invalidate the old one. If expiration is passed in, then the token will expire at
 the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days.
+Returns (api_token, api_secret)
 
 ### rpc.token.get_new_two_factor()
 

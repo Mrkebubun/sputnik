@@ -14,6 +14,8 @@ import inspect
 from sputnik.exception import *
 from datetime import datetime
 from autobahn.wamp import types, auth
+import hmac
+import hashlib
 
 
 class RESTProxy(Resource, Plugin):
@@ -42,12 +44,14 @@ class RESTProxy(Resource, Plugin):
                         self.procs[uri] = proc
 
         self.auth_required = ["trader", "private", "token"]
+        self.blocked_procs = []
+        self.administrator = self.require("sputnik.webserver.plugins.backend.AdministratorProxy")
 
     @inlineCallbacks
     def check_auth(self, data):
         auth = data.get('auth')
         if auth is not None:
-            if 'username' not in auth or 'api_token' not in auth:
+            if 'username' not in auth or 'api_token' not in auth or 'nonce' not in auth or 'hmac' not in auth:
                 raise RestException('exceptions/rest/invalid_rest_request')
 
             databases = self.manager.services["sputnik.webserver.plugins.db"]
@@ -59,21 +63,29 @@ class RESTProxy(Resource, Plugin):
                 if result is not None:
                     break
 
+            # TODO: Edit for timing attacks
             if result is not None:
-                if result['api_token'] is not None and result['api_token_expiration'] > now and result['api_token'] == auth['api_token']:
-                    if result['totp'] is None:
-                        returnValue({'authid': result['username']})
-                    else:
-                        codes = [auth.compute_totp(result['totp'], i) for i in range(-1, 2)]
-                        if auth["totp"].encode("utf-8") in codes:
-                            returnValue({'authid': result['username']})
+                # Check the token and expiration
+                if result['api_token'] is not None and result['api_token_expiration'] > now and result['api_token'].upper() == auth['api_token'].upper():
+                    # Check the HMAC
+                    message = "%d:%s:%s" % (nonce, auth['username'], auth['api_token'])
+                    signature = hmac.new(result['api_secret'], msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+                    if auth['hmac'].upper() != signature:
+                        raise RestException('exceptions/rest/invalid_rest_request')
+
+                    # Check the nonce
+                    nonce_check = yield self.administrator.proxy.check_and_update_api_nonce(auth['username'], auth['nonce'])
+                    if not nonce_check:
+                        raise RestException('exceptions/rest/invalid_rest_request')
+
+                    returnValue({'authid': result['username']})
 
         returnValue(None)
 
     @inlineCallbacks
     def process_request(self, request, data):
         uri = '.'.join(request.postpath)
-        if uri not in self.procs:
+        if uri not in self.procs or uri in self.blocked_procs:
             raise RestException("exceptions/rest/no_such_function", uri)
 
         if 'payload' not in data:

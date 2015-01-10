@@ -395,7 +395,9 @@ class User(db.Base):
     audit_secret = Column(String)
     locale = Column(String, server_default="en")
     api_token = Column(String)
+    api_secret = Column(String)
     api_token_expiration = Column(DateTime)
+    api_nonce = Column(BigInteger, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

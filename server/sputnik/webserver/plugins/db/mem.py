@@ -31,6 +31,7 @@ class InMemoryDatabase(DatabasePlugin):
             return {'password': user,
                     'totp': None,
                     'api_token': None,
+                    'api_secret': None,
                     'api_token_expiration': None,
                     'username': username}
         else:
