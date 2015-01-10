@@ -44,6 +44,7 @@ from autobahn.wamp import auth
 import hashlib
 
 import Crypto.Random.random
+from copy import copy
 
 
 class TradingBot(wamp.ApplicationSession):
@@ -56,7 +57,7 @@ class TradingBot(wamp.ApplicationSession):
     def __init__(self, *args, **kwargs):
         wamp.ApplicationSession.__init__(self, *args, **kwargs)
         self.markets = {}
-        self.orders = {}
+        self.wire_orders = {}
         self.last_internal_id = 0
         self.chats = []
         self.username = None
@@ -74,7 +75,9 @@ class TradingBot(wamp.ApplicationSession):
 
     def onJoin(self, details):
         log.msg("Joined as %s" % details.authrole)
-        self.getMarkets()
+        d = self.getMarkets()
+        d.addCallback(lambda x: self.startAutomationAfterMarkets())
+
         self.startAutomation()
 
         if details.authrole != u'anonymous':
@@ -120,6 +123,9 @@ class TradingBot(wamp.ApplicationSession):
         pass
 
     def startAutomationAfterAuth(self):
+        pass
+
+    def startAutomationAfterMarkets(self):
         pass
 
     def call(self, method_name, *args):
@@ -183,39 +189,112 @@ class TradingBot(wamp.ApplicationSession):
             quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
             return int(quantity - quantity % self.markets[ticker]['lot_size'])
 
+    def ohlcv_from_wire(self, wire_ohlcv):
+        ticker = wire_ohlcv['contract']
+        ohlcv = {
+            'contract': ticker,
+            'open': self.price_from_wire(ticker, wire_ohlcv['open']),
+            'high': self.price_from_wire(ticker, wire_ohlcv['high']),
+            'low': self.price_from_wire(ticker, wire_ohlcv['low']),
+            'close': self.price_from_wire(ticker, wire_ohlcv['close']),
+            'volume': self.quantity_from_wire(ticker, wire_ohlcv['volume']),
+            'vwap': self.price_from_wire(ticker, wire_ohlcv['vwap']),
+            'open_timestamp': wire_ohlcv['open_timestamp'],
+            'close_timestamp': wire_ohlcv['close_timestamp'],
+            'period': wire_ohlcv['period']
+        }
+        return ohlcv
+
+    def position_from_wire(self, wire_position):
+        ticker = position['contract']
+        position = copy(wire_position)
+        position['position'] = self.quantity_from_wire(ticker, wire_position['position'])
+        if self.markets[ticker]['contract_type'] == "futures":
+            position['reference_price'] = self.price_from_wire(ticker, wire_position['reference_price'])
+        return position
+
+    def order_to_wire(self, order):
+        ticker = order['contract']
+        wire_order = copy(order)
+        wire_order['price'] = self.price_to_wire(ticker, order['price'])
+        wire_order['quantity'] = self.quantity_to_wire(ticker, order['quantity'])
+        if 'quantity_left' in order:
+            wire_order['quantity_left'] = self.quantity_to_wire(ticker, order['quantity_left'])
+
+        return wire_order
+
+    def order_from_wire(self, wire_order):
+        ticker = wire_order['contract']
+        order = copy(wire_order)
+        order['price'] = self.price_from_wire(ticker, wire_order['price'])
+        order['quantity'] = self.quantity_from_wire(ticker, wire_order['quantity'])
+        order['quantity_left'] = self.quantity_from_wire(ticker, wire_order['quantity_left'])
+        return order
+
+    def book_row_from_wire(self, ticker, wire_book_row):
+        book_row = copy(wire_book_row)
+        book_row['price'] = self.price_from_wire(ticker, wire_book_row['price'])
+        book_row['quantity'] = self.price_from_wire(ticker, wire_book_row['quantity'])
+        return book_row
+
+    def trade_from_wire(self, wire_trade):
+        ticker = wire_trade['contract']
+        trade = copy(wire_trade)
+        trade['price'] = self.price_from_wire(ticker, wire_trade['price'])
+        trade['quantity'] = self.quantity_from_wire(ticker, wire_trade['quantity'])
+        return trade
+
+    def fill_from_wire(self, wire_fill):
+        ticker = wire_fill['contract']
+        fill = copy(wire_fill)
+        fill['fees'] = copy(wire_fill['fees'])
+        fill['price'] = self.price_from_wire(ticker, wire_fill['price'])
+        fill['quantity'] = self.quantity_from_wire(ticker, wire_fill['quantity'])
+        for fee_ticker, fee in wire_fill['fees'].iteritems():
+            fill['fees'][fee_ticker] = self.quantity_from_wire(fee_ticker, fee)
+
+        return fill
+
+    def transaction_from_wire(self, wire_transaction):
+        transaction = copy(wire_transaction)
+        ticker = wire_transaction['contract']
+        transaction['quantity'] = self.quantity_from_wire(ticker, wire_transaction['quantity'])
+        if 'balance' in wire_transaction:
+            transaction['balance'] = self.quantity_from_wire(ticker, wire_transaction['balance'])
+
+        return transaction
+
+    @property
+    def orders(self):
+        return {id: self.order_from_wire(wire_order) for id, wire_order in self.wire_orders.iteritems()}
 
     """
     reactive events - on* 
     """
 
     # RPC Results
-    def onMarkets(self, event):
-        pprint(["onMarkets", event])
-        self.markets = event
-        if self.markets is not None:
-            for ticker, contract in self.markets.iteritems():
-                if contract['contract_type'] != "cash":
-                    self.getOrderBook(ticker)
-                    self.subBook(ticker)
-                    self.subTrades(ticker)
-                    self.subSafePrices(ticker)
-                    self.subOHLCV(ticker)
-        return event
+    def onMarkets(self, markets):
+        pprint(["onMarkets", markets])
+        return markets
 
-    def onOpenOrders(self, event):
-        pprint(["onOpenOrders", event])
-        if event is not None:
-            for id, order in event.iteritems():
-                self.orders[int(id)] = order
+    def onOpenOrders(self, orders):
+        pprint(["onOpenOrders", orders])
+        return orders
 
-    def onPlaceOrder(self, event):
+    def onPlaceOrder(self, id):
         """
         overwrite me
         """
-        pprint(["onPlaceOrder", event])
+        pprint(["onPlaceOrder", id])
+        return id
 
-    def onOHLCVHistory(self, event):
-        pprint(event)
+    def onCancelOrder(self, success):
+        pprint(["onCancelOrder", success])
+        return success
+
+    def onOHLCVHistory(self, ohlcv_history):
+        pprint(["onOHLCVHistory", ohlcv_history])
+        return ohlcv_history
 
     def onError(self, message, call=None):
         pprint(["Error", message.value, call])
@@ -223,82 +302,81 @@ class TradingBot(wamp.ApplicationSession):
     def onRpcFailure(self, event):
         pprint(["RpcFailure", event.value.args])
 
-    def onAudit(self, event):
-        pprint(["onAudit", event])
+    def onAudit(self, audit):
+        pprint(["onAudit", audit])
+        return audit
 
     def onMakeAccount(self, event):
         pprint(["onMakeAccount", event])
+        return event
 
     def onSupportNonce(self, event):
         pprint(["onSupportNonce", event])
+        return event
 
-    def onTransactionHistory(self, event):
-        pprint(["onTransactionHistory", event])
+    def onTransactionHistory(self, transaction_history):
+        pprint(["onTransactionHistory", transaction_history])
+        return transaction_history
 
-    def onNewAPIToken(self, event):
-        pprint(["onNewAPIToken", event])
+    def onTradeHistory(self, trade_history):
+        pprint(["onTradeHistory", trade_history])
+        return trade_history
+
+    def onNewAPIToken(self, token):
+        pprint(["onNewAPIToken", token])
+        return token
 
     """
     Feed handlers
     """
-    def onBook(self, topicUri, event):
+    def onBook(self, topicUri, book):
         """
         overwrite me
         """
-        pprint(["onBook", topicUri, event])
-        self.markets[event['contract']]['bids'] = event['bids']
-        self.markets[event['contract']]['asks'] = event['asks']
+        pprint(["onBook", topicUri, book])
+        return (topicUri, book)
 
-    def onTrade(self, topicUri, event):
-        """
-        overwrite me
-        """
-        pprint(["onTrade", topicUri, event])
 
-    def onSafePrice(self, topicUri, event):
+    def onTrade(self, topicUri, trade):
         """
         overwrite me
         """
-        pprint(["onSafePrice", topicUri, event])
+        pprint(["onTrade", topicUri, trade])
+        return topicUri, trade
+
+    def onSafePrice(self, topicUri, safe_price):
+        """
+        overwrite me
+        """
+        pprint(["onSafePrice", topicUri, safe_price])
+        return topicUri, safe_price
 
     def onOrder(self, topicUri, order):
         """
         overwrite me
         """
-        id = order['id']
-        if id in self.orders and (order['is_cancelled'] or order['quantity_left'] == 0):
-            del self.orders[id]
-        else:
-            if 'quantity' in order:
-                # Try to find it in internal orders, if found, delete it
-                for search_id, search_order in self.orders.items():
-                    if isinstance(search_id, basestring) and search_id.startswith('internal_'):
-                        if (order['quantity'] == search_order['quantity'] and
-                            order['side'] == search_order['side'] and
-                            order['contract'] == search_order['contract'] and
-                            order['price'] == search_order['price']):
-                            del self.orders[search_id]
 
-            # Add or update, if not cancelled and quantity_left > 0
-            if not order['is_cancelled'] and order['quantity_left'] > 0:
-                self.orders[id] = order
 
         pprint(["onOrder", topicUri, order])
+        return topicUri, order
 
-    def onFill(self, topicUri, event):
+    def onFill(self, topicUri, fill):
         """
         overwrite me
         """
-        pprint(["onFill", topicUri, event])
+        pprint(["onFill", topicUri, fill])
+        return topicUri, fill
 
-    def onTransaction(self, topicUri, event):
+    def onTransaction(self, topicUri, transaction):
         """
         overwrite me
         """
-        pprint(["onTransaction", topicUri, event])
+        pprint(["onTransaction", topicUri, transaction])
+        return topicUri, transaction
 
-    def onOHLCV(self, topicUri, event):
-        pprint(["onOHLCV", topicUri, event])
+    def onOHLCV(self, topicUri, ohlcv):
+        pprint(["onOHLCV", topicUri, ohlcv])
+        return topicUri, ohlcv
 
     """
     Public Subscriptions
@@ -308,22 +386,44 @@ class TradingBot(wamp.ApplicationSession):
 
     def subOHLCV(self, ticker):
         uri = u"feeds.market.ohlcv.%s" % self.encode_ticker(ticker)
-        self.subscribe(self.onOHLCV, uri)
+        def _onOHLCV(uri, wire_ohlcv):
+            return self.onOHLCV(uri, self.ohlcv_from_wire(wire_ohlcv))
+
+        self.subscribe(_onOHLCV, uri)
         print "subscribed to: ", uri
+
+    def _onBook(self, uri, wire_book):
+        ticker = wire_book['contract']
+        self.markets[ticker]['wire_book'] = wire_book
+
+        book = copy(wire_book)
+        book['bids'] = [self.book_row_from_wire(ticker, row) for row in wire_book['bids']]
+        book['asks'] = [self.book_row_from_wire(ticker, row) for row in wire_book['asks']]
+
+        self.markets[ticker]['book'] = book
+        return self.onBook(uri, book)
 
     def subBook(self, ticker):
         uri = u"feeds.market.book.%s" % self.encode_ticker(ticker)
-        self.subscribe(self.onBook, uri)
+
+        self.subscribe(self._onBook, uri)
         print 'subscribed to: ', uri
 
     def subTrades(self, ticker):
         uri = u"feeds.market.trades.%s" % self.encode_ticker(ticker)
-        self.subscribe(self.onTrade, uri)
+        def _onTrade(uri, wire_trade):
+            return self.onTrade(uri, self.trade_from_wire(wire_trade))
+
+        self.subscribe(_onTrade, uri)
         print 'subscribed to: ', uri
 
     def subSafePrices(self, ticker):
         uri = u"feeds.market.safe_prices.%s" % self.encode_ticker(ticker)
-        self.subscribe(self.onSafePrice, uri)
+        def _onSafePrice(uri, wire_safe_prices):
+            return self.onSafePrice(uri, {ticker: self.price_from_wire(ticker, price)
+                                          for ticker, price in wire_safe_prices.iteritems()})
+
+        self.subscribe(_onSafePrice, uri)
         print 'subscribed to: ', uri
 
     """
@@ -334,17 +434,39 @@ class TradingBot(wamp.ApplicationSession):
 
     def subOrders(self):
         uri = u"feeds.user.orders.%s" % self.encode_username(self.username)
-        self.subscribe(self.onOrder, uri)
+
+        def _onOrder(uri, wire_order):
+            id = wire_order['id']
+            if id in self.wire_orders and (wire_order['is_cancelled'] or wire_order['quantity_left'] == 0):
+                del self.wire_orders[id]
+            else:
+                # onPlaceOrder will delete the internal order so we don't need to find it here
+                # and delete it
+
+                # Add or update, if not cancelled and quantity_left > 0
+                if not wire_order['is_cancelled'] and wire_order['quantity_left'] > 0:
+                    self.wire_orders[id] = wire_order
+
+            return self.onOrder(uri, self.order_from_wire(wire_order))
+
+        self.subscribe(_onOrder, uri)
         print 'subscribed to: ', uri
 
     def subFills(self):
         uri = u"feeds.user.fills.%s" % self.encode_username(self.username)
-        self.subscribe(self.onFill, uri)
+
+        def _onFill(topicUri, fill):
+            return self.onFill(topicUri, self.fill_from_wire(fill))
+
+        self.subscribe(_onFill, uri)
         print 'subscribed to: ', uri
 
     def subTransactions(self):
         uri = u"feeds.user.transactions.%s" % self.encode_username(self.username)
-        self.subscribe(self.onTransaction, uri)
+        def _onTransaction(uri, transaction):
+            return self.onTransaction(uri, self.transaction_from_wire(transaction))
+
+        self.subscribe(_onTransaction, uri)
         print 'subscribed to: ', uri
 
     """
@@ -353,20 +475,35 @@ class TradingBot(wamp.ApplicationSession):
 
     def getTradeHistory(self, ticker):
         d = self.call(u"rpc.market.get_trade_history", ticker)
-        d.addCallback(pprint).addErrback(self.onError, "getTradeHistory")
+        def _onTradeHistory(wire_trade_history):
+            return self.onTradeHistory([self.trade_from_wire(wire_trade) for wire_trade in wire_trade_history])
 
+        return d.addCallback(_onTradeHistory).addErrback(self.onError, "getTradeHistory")
 
     def getMarkets(self):
         d = self.call(u"rpc.market.get_markets")
-        d.addCallback(self.onMarkets).addErrback(self.onError, "getMarkets")
+        def _onMarkets(event):
+            self.markets = event
+            if self.markets is not None:
+                for ticker, contract in self.markets.iteritems():
+                    if contract['contract_type'] != "cash":
+                        self.getOrderBook(ticker)
+                        self.subBook(ticker)
+                        self.subTrades(ticker)
+                        self.subSafePrices(ticker)
+                        self.subOHLCV(ticker)
+
+            return self.onMarkets(event)
+
+        return d.addCallback(_onMarkets).addErrback(self.onError, "getMarkets")
 
     def getOrderBook(self, ticker):
         d = self.call(u"rpc.market.get_order_book", ticker)
-        d.addCallback(lambda x: self.onBook(u"rpc.market.get_order_book", x)).addErrback(self.onError, "getOrderBook")
+        return d.addCallback(lambda x: self._onBook(u"rpc.market.get_order_book", x)).addErrback(self.onError, "getOrderBook")
 
     def getAudit(self):
         d = self.call(u"rpc.info.get_audit")
-        d.addCallback(self.onAudit).addErrback(self.onError, "getAudit")
+        return d.addCallback(self.onAudit).addErrback(self.onError, "getAudit")
 
     def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
         epoch = datetime.utcfromtimestamp(0)
@@ -380,8 +517,11 @@ class TradingBot(wamp.ApplicationSession):
         else:
             end_timestamp = None
 
+        def _onOHLCVHistory(wire_ohlcv_history):
+            return self.onOHLCVHistory([self.ohlcv_from_wire(wire_ohlcv) for wire_ohlcv in wire_ohlcv_history])
+
         d = self.call(u"rpc.market.get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
-        d.addCallback(self.onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
+        return d.addCallback(_onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
 
     def makeAccount(self, username, password, email, nickname):
         alphabet = string.digits + string.lowercase
@@ -426,27 +566,39 @@ class TradingBot(wamp.ApplicationSession):
         d.addCallback(pprint).addErrback(self.onError, "getNewAddress")
 
     def getOpenOrders(self):
-        # store cache of open orders update asynchronously
         d = self.call(u"rpc.trader.get_open_orders")
-        d.addCallback(self.onOpenOrders).addErrback(self.onError, "getOpenOrders")
+        def _onOpenOrders(wire_orders):
+            if wire_orders is not None:
+                for id, wire_order in wire_orders.iteritems():
+                    self.wire_orders[int(id)] = wire_order
+
+            orders = {id: self.order_from_wire(wire_order) for id, wire_order in wire_orders.iteritems()}
+
+            self.onOpenOrders(orders)
+
+        d.addCallback(_onOpenOrders).addErrback(self.onError, "getOpenOrders")
 
     def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
+        def _onTransactionHistory(wire_transaction_history):
+            return self.onTransactionHistory([self.transaction_from_wire(wire_transaction)
+                                              for wire_transaction in wire_transaction_history])
+
         d = self.call("rpc.trader.get_transaction_history", start_timestamp, end_timestamp)
-        d.addCallback(self.onTransactionHistory).addErrback(self.onError, "getTransactionHistory")
+        return d.addCallback(_onTransactionHistory).addErrback(self.onError, "getTransactionHistory")
 
     def requestSupportNonce(self, type='Compliance'):
         d = self.call(u"rpc.trader.request_support_nonce", type)
-        d.addCallback(self.onSupportNonce).addErrback(self.onError, "requestSupportNonce")
+        return d.addCallback(self.onSupportNonce).addErrback(self.onError, "requestSupportNonce")
 
     def placeOrder(self, ticker, quantity, price, side):
-        ord= {}
+        ord = {}
         ord['contract'] = ticker
-        ord['quantity'] = quantity
-        ord['price'] = price
+        ord['quantity'] = self.quantity_to_wire(ticker, quantity)
+        ord['price'] = self.price_to_wire(ticker, price)
         ord['side'] = side
         d = self.call(u"rpc.trader.place_order", ord)
 
@@ -454,7 +606,7 @@ class TradingBot(wamp.ApplicationSession):
         ord['quantity_left'] = ord['quantity']
         ord['is_cancelled'] = False
         order_id = 'internal_%d' % self.last_internal_id
-        self.orders[order_id] = ord
+        self.wire_orders[order_id] = ord
 
         def onError(error):
             logging.info("removing internal order %s" % order_id)
@@ -465,7 +617,10 @@ class TradingBot(wamp.ApplicationSession):
 
             self.onError(error, "placeOrder")
 
-        d.addCallbacks(self.onPlaceOrder, onError)
+        def _onPlaceOrder(new_id):
+            del self.wire_orders[order_id]
+
+        return d.addCallbacks(_onPlaceOrder, onError)
 
     def cancelOrder(self, id):
         """
@@ -473,14 +628,19 @@ class TradingBot(wamp.ApplicationSession):
         :param id: order id
         """
         if isinstance(id, basestring) and id.startswith('internal_'):
-            print "can't cancel internal order: %s" % id
-            del self.orders[id]
+            log.er("can't cancel internal order: %s" % id)
             return
 
         print "cancel order: %s" % id
         d = self.call(u"rpc.trader.cancel_order", id)
-        d.addCallback(pprint).addErrback(self.onError, "cancelOrder")
-        del self.orders[id]
+        def _onCancelOrder(success):
+            if success and id in self.wire_orders:
+                del self.wire_orders[id]
+
+            return self.onCancelOrder(success)
+
+        return d.addCallback(_onCancelOrder).addErrback(self.onError, "cancelOrder")
+
 
 class BasicBot(TradingBot):
     def onMakeAccount(self, event):
@@ -504,11 +664,13 @@ class BasicBot(TradingBot):
         self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
 
     def startAutomationAfterAuth(self):
-        self.getNewAPIToken()
+        # self.getNewAPIToken()
         # self.getTransactionHistory()
         # self.requestSupportNonce()
-        #
-        # self.placeOrder('BTC/HUF', 100000000, 5000000, 'BUY')
+        pass
+
+    def startAutomationAfterMarkets(self):
+        self.placeOrder('BTC/HUF', 1, 5000, 'BUY')
 
 class BotFactory(wamp.ApplicationSessionFactory):
     def __init__(self, **kwargs):

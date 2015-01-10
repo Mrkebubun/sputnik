@@ -48,7 +48,7 @@ from sputnik import TradingBot, BotFactory
 class MarketMakerBot(TradingBot):
     external_markets = {}
 
-    def startAutomationAfterAuth(self):
+    def startAutomationAfterMarkets(self):
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
         self.get_external_market.start(self.factory.rate * 6)
 
@@ -67,7 +67,7 @@ class MarketMakerBot(TradingBot):
                 self.cancelOrder(id)
 
     def checkOrders(self, side):
-        for id, order in self.orders.iteritems():
+        for id, order in self.orders.items():
             if order['is_cancelled'] or order['quantity_left'] <= 0:
                 continue
 
@@ -125,10 +125,10 @@ class MarketMakerBot(TradingBot):
                         new_bid = new_ask
                         new_ask = tmp
 
-                    # If it's matched, make a spread just because
-                    if self.price_to_wire(ticker, new_bid) == self.price_to_wire(ticker, new_ask):
-                        new_bid -= self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
-                        new_ask += self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                    # If it's matched or crossed make a spread just because
+                    if self.price_to_wire(ticker, new_bid) >= self.price_to_wire(ticker, new_ask):
+                        new_bid = min(new_bid, new_ask) - self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
+                        new_ask = max(new_bid, new_ask) + self.price_from_wire(ticker, self.markets[ticker]['tick_size'])
 
                     if ticker in self.external_markets:
                         if new_bid != self.external_markets[ticker]['bid']:
@@ -149,16 +149,16 @@ class MarketMakerBot(TradingBot):
         else:
             quantity = 2.5
 
-        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity), self.price_to_wire(ticker, new_ba), side)
+        self.placeOrder(ticker, quantity, new_ba, side)
 
     def monitorOrders(self):
         for ticker, market in self.external_markets.iteritems():
             # Make sure we have orders open for both bid and ask
             for side in ['BUY', 'SELL']:
                 total_qty = 0
-                for id, order in self.orders.iteritems():
+                for id, order in self.orders.items():
                     if order['side'] == side and order['is_cancelled'] is False and order['contract'] == ticker:
-                        total_qty += self.quantity_from_wire(ticker, order['quantity_left'])
+                        total_qty += order['quantity_left']
 
                 if self.markets[ticker]['contract_type'] == "futures":
                     qty_to_add = 10
@@ -171,8 +171,7 @@ class MarketMakerBot(TradingBot):
                     else:
                         price = market['ask']
 
-                    self.placeOrder(ticker, self.quantity_to_wire(ticker, qty_to_add),
-                                       self.price_to_wire(ticker, price), side)
+                    self.placeOrder(ticker, qty_to_add, price, side)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)

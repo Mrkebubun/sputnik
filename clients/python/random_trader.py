@@ -49,7 +49,7 @@ import random
 class RandomBot(TradingBot):
     place_all_random = False
 
-    def startAutomationAfterAuth(self):
+    def startAutomationAfterMarkets(self):
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
         self.place_orders.start(1 * self.factory.rate)
 
@@ -79,11 +79,11 @@ class RandomBot(TradingBot):
 
             # Post something close to the bid or ask, depending on the size
             if side == 'BUY':
-                best_ask = min([order['price'] for order in self.markets[ticker]['asks']])
-                price = self.price_from_wire(ticker, best_ask) * distance
+                best_ask = min([row['price'] for row in self.markets[ticker]['book']['asks']])
+                price = best_ask * distance
             else:
-                best_bid = max([order['price'] for order in self.markets[ticker]['bids']])
-                price = self.price_from_wire(ticker, best_bid) * distance
+                best_bid = max([row['price'] for row in self.markets[ticker]['book']['bids']])
+                price = best_bid * distance
 
         except (ValueError, KeyError):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price
@@ -103,8 +103,7 @@ class RandomBot(TradingBot):
         else:
             quantity = float(random.randint(50, 200))/100
 
-        self.placeOrder(ticker, self.quantity_to_wire(ticker, quantity),
-                        self.price_to_wire(ticker, price), side)
+        self.placeOrder(ticker, quantity, price, side)
 
 
     def cancelRandomOrder(self):
