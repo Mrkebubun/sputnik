@@ -1239,6 +1239,16 @@ h4.bid {
 }
 
 
+/*-- Embeddable Module Extra CSS --*/
+
+.login-left {
+    float: left;
+}
+
+.login-right {
+    float: right;
+}
+
 
 /*-- Media Queries --*/
 
