@@ -394,9 +394,9 @@ class User(db.Base):
                                    default='Liability', server_default="Liability")
     audit_secret = Column(String)
     locale = Column(String, server_default="en")
-    api_token = Column(String)
+    api_key = Column(String)
     api_secret = Column(String)
-    api_token_expiration = Column(DateTime)
+    api_expiration = Column(DateTime)
     api_nonce = Column(BigInteger, server_default="0")
 
     positions = relationship("Position", back_populates="user")

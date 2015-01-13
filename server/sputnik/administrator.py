@@ -229,17 +229,17 @@ class Administrator:
         }
         return profile
 
-    def get_new_api_token(self, username, expiration):
+    def get_new_api_credentials(self, username, expiration):
         user = self.session.query(models.User).filter_by(username=username).one()
         if not user:
             raise NO_SUCH_USER
 
-        user.api_token = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
-        user.api_token_expiration = util.timestamp_to_dt(expiration)
+        user.api_key = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+        user.api_expiration = util.timestamp_to_dt(expiration)
         user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
 
         self.session.commit()
-        return user.api_token, user.api_secret
+        return {'key': user.api_key, 'secret': user.api_secret}
 
     def check_and_update_api_nonce(self, username, nonce):
         user = self.session.query(models.User).filter_by(username=username).one()
@@ -1829,9 +1829,9 @@ class WebserverExport(ComponentExport):
 
     @export
     @session_aware
-    @schema("rpc/administrator.json#get_new_api_token")
-    def get_new_api_token(self, username, expiration):
-        return self.administrator.get_new_api_token(username, expiration)
+    @schema("rpc/administrator.json#get_new_api_credentials")
+    def get_new_api_credentials(self, username, expiration):
+        return self.administrator.get_new_api_credentials(username, expiration)
 
     @export
     @session_aware

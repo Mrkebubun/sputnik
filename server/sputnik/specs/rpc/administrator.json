@@ -15,9 +15,9 @@
         "required": [ "username", "password" ],
         "additionalProperties": false
     },
-    "get_new_api_token": {
+    "get_new_api_credentials": {
         "type": "object",
-        "description": "webserver -> administrator RPC call to get a new REST api token",
+        "description": "webserver -> administrator RPC call to get a new REST api key and secret",
         "properties": {
             "username": {
                 "type": "string",

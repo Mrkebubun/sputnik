@@ -33,16 +33,16 @@ class TokenService(ServicePlugin):
         r = yield succeed(cookie)
         returnValue(r)
 
-    @wamp.register(u"rpc.token.get_new_api_token")
+    @wamp.register(u"rpc.token.get_new_api_credentials")
     @error_handler
     @authenticated
-    @schema(u"public/token.json#get_new_api_token")
-    def get_new_api_token(self, expiration=None, username=None):
+    @schema(u"public/token.json#get_new_api_credentials")
+    def get_new_api_credentials(self, expiration=None, username=None):
         if expiration is None:
             now = datetime.utcnow()
             expiration = util.dt_to_timestamp(now + timedelta(days=7))
 
-        r = yield self.administrator.proxy.get_new_api_token(username, expiration)
+        r = yield self.administrator.proxy.get_new_api_credentials(username, expiration)
         returnValue(r)
 
     @wamp.register(u"rpc.token.logout")

@@ -50,37 +50,38 @@ class RESTProxy(Resource, Plugin):
     @inlineCallbacks
     def check_auth(self, data):
         auth = data.get('auth')
-        if auth is not None:
-            if 'username' not in auth or 'api_token' not in auth or 'nonce' not in auth or 'hmac' not in auth:
-                raise RestException('exceptions/rest/invalid_rest_request')
-
+        if auth is not None and 'username' in auth and 'key' in auth and 'nonce' in auth and 'signature' in auth:
             databases = self.manager.services["sputnik.webserver.plugins.db"]
-            result = None
-            now = datetime.utcnow()
+            user = None
 
             for db in databases:
-                result = yield db.lookup(auth['username'])
-                if result is not None:
+                user = yield db.lookup(auth['username'])
+                if user is not None:
                     break
 
-            # TODO: Edit for timing attacks
-            if result is not None:
+            # Check the nonce
+            if user is not None:
                 # Check the token and expiration
-                if result['api_token'] is not None and result['api_token_expiration'] > now and result['api_token'].upper() == auth['api_token'].upper():
-                    # Check the HMAC
-                    message = "%d:%s:%s" % (nonce, auth['username'], auth['api_token'])
-                    signature = hmac.new(result['api_secret'], msg=message, digestmod=hashlib.sha256).hexdigest().upper()
-                    if auth['hmac'].upper() != signature:
-                        raise RestException('exceptions/rest/invalid_rest_request')
+                now = datetime.utcnow()
+                if user['api_key'] is None or user['api_expiration'] <= now or user['api_key'] != auth['key']:
+                    raise RestException("exceptions/rest/not_authorized")
 
-                    # Check the nonce
-                    nonce_check = yield self.administrator.proxy.check_and_update_api_nonce(auth['username'], auth['nonce'])
-                    if not nonce_check:
-                        raise RestException('exceptions/rest/invalid_rest_request')
+                # Check the HMAC
+                message = "%d:%s:%s" % (nonce, auth['username'], auth['key'])
+                signature = hmac.new(user['api_secret'], msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+                if auth['signature'].upper() != signature:
+                    raise RestException("exceptions/rest/not_authorized")
 
-                    returnValue({'authid': result['username']})
+                nonce_check = yield self.administrator.proxy.check_and_update_api_nonce(user['username'],
+                                                                                        auth['nonce'])
+                if not nonce_check:
+                    raise RestException("exceptions/rest/not_authorized")
 
-        returnValue(None)
+                returnValue({'authid': user['username']})
+            else:
+                raise RestException("exceptions/rest/not_authorized")
+        else:
+            raise RestException('exceptions/rest/invalid_rest_request')
 
     @inlineCallbacks
     def process_request(self, request, data):

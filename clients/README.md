@@ -340,11 +340,18 @@ Change the password, confirming that the old_hash matches the current password h
 
 Logout
 
-### rpc.token.get_new_api_token(expiration)
+### rpc.token.get_new_api_credentials(expiration)
 
-Get a new API token and invalidate the old one. If expiration is passed in, then the token will expire at
+Get a new set of API credentials and invalidate the old one. If expiration is passed in, then the token will expire at
 the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days.
-Returns (api_token, api_secret)
+Returns
+
+```json
+{
+   key: "sdf98sca"
+   secret: "ac09dancakl"
+}
+```
 
 ### rpc.token.get_new_two_factor()
 
@@ -357,7 +364,6 @@ Disables two factor auth for an account. Requires 'confirmation', which is the O
 ### rpc.token.register_two_factor(confirmation)
 
 Enables two factor authentication. The confirmation must be the OTP
-
 
 ## Private feeds
 

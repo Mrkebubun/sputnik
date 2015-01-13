@@ -30,9 +30,9 @@ class InMemoryDatabase(DatabasePlugin):
             debug("User %s found." % username)
             return {'password': user,
                     'totp': None,
-                    'api_token': None,
+                    'api_key': None,
                     'api_secret': None,
-                    'api_token_expiration': None,
+                    'api_expiration': None,
                     'username': username}
         else:
             debug("User %s not found." % username)

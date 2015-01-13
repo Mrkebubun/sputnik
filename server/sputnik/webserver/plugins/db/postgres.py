@@ -59,7 +59,7 @@ class PostgresDatabase(DatabasePlugin):
 
     @inlineCallbacks
     def lookup(self, username):
-        query = "SELECT password, totp, api_token, api_secret, api_token_expiration, username FROM users WHERE username=%s LIMIT 1"
+        query = "SELECT password, totp, api_key, api_secret, api_expiration, username FROM users WHERE username=%s LIMIT 1"
         try:
             debug("Looking up username %s..." % username)
 
@@ -73,9 +73,9 @@ class PostgresDatabase(DatabasePlugin):
                 debug("User %s found." % username)
                 returnValue({'password': r[0],
                              'totp': r[1],
-                             'api_token': r[2],
+                             'api_key': r[2],
                              'api_secret': r[3],
-                             'api_token_expiration': r[4],
+                             'api_expiration': r[4],
                              'username': r[5]})
 
             debug("User %s not found." % username)
