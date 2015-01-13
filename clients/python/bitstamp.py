@@ -5,7 +5,7 @@ import treq
 import json
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import reactor
-from twisted.python import log
+from twisted.python import log, failure
 import string
 import hmac
 import hashlib
@@ -134,6 +134,56 @@ class BitStamp():
             return d.addCallback(_onBook).addErrback(self.onError, "getOrderBook")
         else:
             raise NotImplementedError
+
+    @inlineCallbacks
+    def getTransactionHistory(self, start_datetime, end_datetime):
+        url = self.endpoint + "user_transactions/"
+        transaction_history = []
+
+        params = self.generate_auth()
+        offset = 0
+        limit = 100
+        finished = False
+        type_map = {0: 'Deposit',
+                    1: 'Withdrawal',
+                    2: 'Trade'}
+
+        try:
+            while not finished:
+                params.update({'offset': offset, 'limit': limit, 'sort': 'desc'})
+                history = yield self.post(url, data=params)
+                count = 0
+                for transaction in history:
+                    count += 1
+                    timestamp = datetime.fromtimestamp(transaction['datetime'])
+                    if timestamp > end_datetime:
+                        finished = True
+                        break
+                    if timestamp >= start_datetime:
+                        transaction_usd = { 'timestamp': int(timestamp * 1e6),
+                                            'type': type_map[transaction['type']],
+                                            'contract': 'USD',
+                                            'quantity': Decimal(transaction['usd']),
+                                            'direction': 'debit',
+                                            'note': transaction['order_id'] }
+                        transaction_btc = { 'timestamp': int(timestamp * 1e6),
+                                            'type': type_map[transaction['type']],
+                                            'contract': 'BTC',
+                                            'quantity': Decimal(transaction['btc']),
+                                            'direction': 'debit',
+                                            'note': transaction['order_id'] }
+
+                        transaction_history.append(transaction_usd)
+                        transaction_history.append(transaction_btc)
+
+                if count < limit:
+                    finished = True
+                else:
+                    offset += limit
+
+            returnValue(transaction_history)
+        except Exception as e:
+            self.onError(failure.Failure(), "getTransactionHistory")
 
 
 if __name__ == "__main__":
