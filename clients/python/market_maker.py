@@ -42,10 +42,10 @@ from autobahn.twisted import websocket
 from autobahn.wamp import types
 from bs4 import BeautifulSoup
 
-from sputnik import TradingBot, BotFactory
+from sputnik import SputnikSession, BotFactory, Sputnik
 
 
-class MarketMakerBot(TradingBot):
+class MarketMakerBot(SputnikSession):
     external_markets = {}
 
     def startAutomationAfterMarkets(self):
@@ -187,40 +187,17 @@ if __name__ == '__main__':
             "./sputnik.ini"))
     config.read(config_file)
 
-    username = config.get("market_maker", "username")
-    password = config.get("market_maker", "password")
-    rate = config.getfloat("market_maker", "rate")
-    ignore_contracts = [x.strip() for x in config.get("market_maker", "ignore_contracts").split(',')]
+    bot_params = { 'username': config.get("market_maker", "username"),
+                   'password': config.get("market_maker", "password"),
+                   'rate': config.getfloat("market_maker", "rate"),
+                   'ignore_contracts': [x.strip() for x in config.get("market_maker", "ignore_contracts").split(',')]}
 
-    component_config = types.ComponentConfig(realm = u"sputnik")
-    session_factory = BotFactory(config=component_config, username=username, password=password, ignore_contracts=ignore_contracts,
-                         rate=rate)
-    session_factory.session = MarketMakerBot
+    connection = { 'ssl': config.getboolean("client", "ssl"),
+                   'port': config.getint("client", "port"),
+                   'hostname': config.get("client", "hostname"),
+                   'ca_certs_dir': config.get("client", "ca_certs_dir") }
 
-    # The below should be the same for all clients
-    ssl = config.getboolean("client", "ssl")
-    port = config.getint("client", "port")
-    hostname = config.get("client", "hostname")
-    ca_certs_dir = config.get("client", "ca_certs_dir")
-
-    if ssl:
-        base_uri = "wss://"
-        connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
-    else:
-        base_uri = "ws://"
-        connection_string = "tcp:%s:%d" % (hostname, port)
-
-    base_uri += "%s:%d/ws" % (hostname, port)
-
-    transport_factory = websocket.WampWebSocketClientFactory(session_factory,
-                                                             url = base_uri, debug=debug,
-                                                             debug_wamp=debug)
-    client = clientFromString(reactor, connection_string)
-    def _connectError(failure):
-        log.err(failure)
-        reactor.stop()
-
-    client.connect(transport_factory).addErrback(_connectError)
+    sputnik = Sputnik(connection, bot_params, debug, bot=MarketMakerBot)
+    sputnik.connect()
 
     reactor.run()
-

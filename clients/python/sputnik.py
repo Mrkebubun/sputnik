@@ -48,7 +48,7 @@ import Crypto.Random.random
 from copy import copy
 
 
-class TradingBot(wamp.ApplicationSession):
+class SputnikSession(wamp.ApplicationSession):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
@@ -75,7 +75,10 @@ class TradingBot(wamp.ApplicationSession):
         else:
             self.join(self.config.realm, [u'anonymous'])
 
+        self.factory.onConnect(self)
+
     def onJoin(self, details):
+
         log.msg("Joined as %s" % details.authrole)
         d = self.getMarkets()
         d.addCallback(lambda x: self.startAutomationAfterMarkets())
@@ -676,9 +679,9 @@ class TradingBot(wamp.ApplicationSession):
         return d.addCallback(_onCancelOrder).addErrback(self.onError, "cancelOrder")
 
 
-class BasicBot(TradingBot):
+class BasicBot(SputnikSession):
     def onMakeAccount(self, event):
-        TradingBot.onMakeAccount(self, event)
+        SputnikSession.onMakeAccount(self, event)
         #self.authenticate()
 
     def startAutomation(self):
@@ -708,16 +711,66 @@ class BasicBot(TradingBot):
 
 class BotFactory(wamp.ApplicationSessionFactory):
     def __init__(self, **kwargs):
-        self.username = kwargs.pop('username')
-        self.password = kwargs.pop('password')
-        if 'ignore_contracts' in kwargs:
-            self.ignore_contracts = kwargs.pop('ignore_contracts')
+        self.username = kwargs.get('username')
+        self.password = kwargs.get('password')
+        self.ignore_contracts = kwargs.get('ignore_contracts')
+        self.rate = kwargs.get('rate')
+        self.onConnect = kwargs.get('onConnect')
 
-        if 'rate' in kwargs:
-            self.rate = kwargs.pop('rate')
+        component_config = types.ComponentConfig(realm = u"sputnik")
+        wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
-        wamp.ApplicationSessionFactory.__init__(self, **kwargs)
+class Sputnik():
+    def __init__(self, connection, bot_params, debug, bot=SputnikSession):
+        self.debug = debug
+        self.session_factory = BotFactory(onConnect=self.onConnect, **bot_params)
+        self.session_factory.session = bot
 
+        if connection['ssl']:
+            self.base_uri = "wss://%s:%d/ws" % (connection['hostname'], connection['port'])
+            self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (connection['hostname'],
+                                                                       connection['port'],
+                                                                       connection['ca_certs_dir'])
+        else:
+            self.base_uri = "ws://%s:%d/ws" % (connection['hostname'], connection['port'])
+            self.connection_string = "tcp:%s:%d" % (connection['hostname'], connection['port'])
+
+        self.session = None
+        self.transport_factory = websocket.WampWebSocketClientFactory(self.session_factory,
+                                                                 url = self.base_uri, debug=self.debug,
+                                                                 debug_wamp=self.debug)
+
+    def connect(self):
+        client = clientFromString(reactor, self.connection_string)
+        def _connectError(failure):
+            log.err(failure)
+            reactor.stop()
+
+        return client.connect(self.transport_factory).addErrback(_connectError)
+
+    def onConnect(self, session):
+        self.session = session
+
+    def getPositions(self):
+        return defer.succeed(self.session.positions)
+
+    def getCurrentAddress(self, ticker):
+        return self.session.getCurrentAddress(ticker)
+
+    def requestWithdrawal(self, ticker, amount, address):
+        return self.session.requestWithdrawal(ticker, amount, address)
+
+    def placeOrder(self, ticker, quantity, price, side):
+        return self.session.placeOrder(ticker, quantity, price, side)
+
+    def cancelOrder(self, id):
+        return self.session.cancelOrder(id)
+
+    def getOpenOrders(self):
+        return defer.succeed(self.session.orders)
+
+    def getOrderBook(self, ticker):
+        return defer.suceed(self.session.markets[ticker]['book'])
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -734,37 +787,16 @@ if __name__ == '__main__':
             "./sputnik.ini"))
     config.read(config_file)
 
-    username = config.get("client", "username")
-    password = config.get("client", "password")
+    bot_params = { 'username': config.get("client", "username"),
+                   'password': config.get("client", "password") }
 
-    component_config = types.ComponentConfig(realm = u"sputnik")
-    session_factory = BotFactory(config=component_config, username=username, password=password)
-    session_factory.session = BasicBot
+    connection = { 'ssl': config.getboolean("client", "ssl"),
+                   'port': config.getint("client", "port"),
+                   'hostname': config.get("client", "hostname"),
+                   'ca_certs_dir': config.get("client", "ca_certs_dir") }
 
-    # The below should be the same for all clients
-    ssl = config.getboolean("client", "ssl")
-    port = config.getint("client", "port")
-    hostname = config.get("client", "hostname")
-    ca_certs_dir = config.get("client", "ca_certs_dir")
-
-    if ssl:
-        base_uri = "wss://"
-        connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
-    else:
-        base_uri = "ws://"
-        connection_string = "tcp:%s:%d" % (hostname, port)
-
-    base_uri += "%s:%d/ws" % (hostname, port)
-
-    transport_factory = websocket.WampWebSocketClientFactory(session_factory,
-                                                             url = base_uri, debug=debug,
-                                                             debug_wamp=debug)
-    client = clientFromString(reactor, connection_string)
-    def _connectError(failure):
-        log.err(failure)
-        reactor.stop()
-
-    client.connect(transport_factory).addErrback(_connectError)
+    sputnik = Sputnik(connection, bot_params, debug, bot=BasicBot)
+    sputnik.connect()
 
     reactor.run()
 
