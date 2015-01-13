@@ -45,7 +45,7 @@ class RESTProxy(Resource, Plugin):
 
         self.auth_required = ["trader", "private", "token"]
         self.blocked_procs = []
-        self.administrator = self.require("sputnik.webserver.plugins.backend.AdministratorProxy")
+        self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
 
     @inlineCallbacks
     def check_auth(self, data):
