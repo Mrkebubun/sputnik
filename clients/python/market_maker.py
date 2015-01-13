@@ -38,19 +38,23 @@ from twisted.internet import task
 from twisted.python import log
 from twisted.internet import reactor
 from twisted.internet.endpoints import clientFromString
+from twisted.internet.defer import inlineCallbacks, returnValue
 from autobahn.twisted import websocket
 from autobahn.wamp import types
 from bs4 import BeautifulSoup
 
 from sputnik import SputnikSession, BotFactory, Sputnik
-
+from yahoo import Yahoo
+from bitstamp import BitStamp
 
 class MarketMakerBot(SputnikSession):
     external_markets = {}
+    yahoo = Yahoo()
+    bitstamp = BitStamp()
 
     def startAutomationAfterMarkets(self):
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(self.factory.rate * 6)
+        self.get_external_market.start(self.factory.rate / 10)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
         self.monitor_orders.start(self.factory.rate * 1)
@@ -76,17 +80,16 @@ class MarketMakerBot(SputnikSession):
 
         return False
 
+    @inlineCallbacks
     def getExternalMarket(self):
         try:
-            url = "https://btc-e.com/api/3/ticker/btc_usd"
-            file_handle = urllib2.urlopen(url)
-            json_data = json.load(file_handle)
-            btcusd_bid = float(json_data['btc_usd']['buy'])
-            btcusd_ask = float(json_data['btc_usd']['sell'])
+            bitstamp_book = yield self.bitstamp.getOrderBook('BTC/USD')
+            btcusd_bid = bitstamp_book['bids'][0]['price']
+            btcusd_ask = bitstamp_book['asks'][0]['price']
         except Exception as e:
             # Unable to get markets, just exit
-            print "unable to get external market data from btc-e: %s" % e
-            return
+            print "unable to get external market data from bitstamp: %s" % e
+            raise e
 
         for ticker, market in self.markets.iteritems():
             new_ask = None
@@ -102,16 +105,13 @@ class MarketMakerBot(SputnikSession):
 
                         try:
                         # Get Yahoo quote
-                            url = "http://finance.yahoo.com/q?s=USD%s=X" % currency
-                            file_handle = urllib2.urlopen(url)
-                            soup = BeautifulSoup(file_handle)
-                            bid = float(soup.find(id="yfs_b00_usd%s=x" % currency.lower()).text.replace(',', ''))
-                            ask = float(soup.find(id="yfs_a00_usd%s=x" % currency.lower()).text.replace(',', ''))
+                            yahoo_book = yield self.yahoo.getOrderBook('USD/%s' % currency)
+                            bid = yahoo_book['bids'][0]['price']
+                            ask = yahoo_book['asks'][0]['price']
                         except Exception as e:
                             # Unable to get markets, just exit
-                            print "unable to get external market data from Yahoo: %s/%s" % (url, e)
+                            print "unable to get external market data from Yahoo: %s" % e
                             continue
-
 
                         new_bid = btcusd_bid * bid
                         new_ask = btcusd_ask * ask

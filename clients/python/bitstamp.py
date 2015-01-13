@@ -14,7 +14,7 @@ from decimal import Decimal
 from pprint import pprint
 
 class BitStamp():
-    def __init__(self, client_id, api_key, api_secret, endpoint="https://www.bitstamp.net/api/"):
+    def __init__(self, client_id=None, api_key=None, api_secret=None, endpoint="https://www.bitstamp.net/api/"):
         self.client_id = client_id
         self.api_key = api_key
         self.api_secret = api_secret
@@ -137,7 +137,7 @@ class BitStamp():
 
 
 if __name__ == "__main__":
-    bitstamp = BitStamp('BLANK', 'BLANK', 'BLANK')
+    bitstamp = BitStamp()
     d = bitstamp.getOrderBook('BTC/USD').addCallback(pprint)
     reactor.run()
 
