@@ -149,7 +149,7 @@
                 "description": "the id of the order to cancel"
             }
         },
-        "required": ["order_id"],
+        "required": ["id"],
         "additionalProperties": false
     }
 }
