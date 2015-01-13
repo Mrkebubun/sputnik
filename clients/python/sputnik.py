@@ -336,6 +336,10 @@ class TradingBot(wamp.ApplicationSession):
         pprint(["onPositions", positions])
         return positions
 
+    def onRequestWithdrawal(self, result):
+        pprint(["onRequestWithdrawal", result])
+        return result
+
     """
     Feed handlers
     """
@@ -560,15 +564,15 @@ class TradingBot(wamp.ApplicationSession):
                                         extra['iterations'],
                                         extra['keylen'])
         d = self.call(u"rpc.registrar.make_account", username, "%s:%s" % (salt, password_hash), email, nickname)
-        d.addCallback(self.onMakeAccount).addErrback(self.onError, "makeAccount")
+        return d.addCallback(self.onMakeAccount).addErrback(self.onError, "makeAccount")
 
     def getResetToken(self, username):
         d = self.call(u"rpc.registrar.get_reset_token", username)
-        d.addCallback(pprint).addErrback(self.onError, "getResetToken")
+        return d.addCallback(pprint).addErrback(self.onError, "getResetToken")
 
     def getExchangeInfo(self):
         d = self.call(u"rpc.info.get_exchange_info")
-        d.addCallback(pprint).addErrback(self.onError, "getExchangeInfo")
+        return d.addCallback(pprint).addErrback(self.onError, "getExchangeInfo")
 
     """
     Private RPC Calls
@@ -645,6 +649,11 @@ class TradingBot(wamp.ApplicationSession):
                 del self.wire_orders[order_id]
 
         return d.addCallbacks(_onPlaceOrder, onError)
+
+    def requestWithdrawal(self, ticker, amount, address):
+        amount_wire = self.quantity_to_wire(ticker, amount)
+        d = self.call(u"rpc.trader.request_withdrawal", ticker, amount_wire, address)
+        return d.addCallback(self.onRequestWithdrawal).addErrback(self.onError, "requestWithdrawal")
 
     def cancelOrder(self, id):
         """
