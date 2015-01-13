@@ -216,7 +216,11 @@ if __name__ == '__main__':
                                                              url = base_uri, debug=debug,
                                                              debug_wamp=debug)
     client = clientFromString(reactor, connection_string)
-    client.connect(transport_factory)
+    def _connectError(failure):
+        log.err(failure)
+        reactor.stop()
+
+    client.connect(transport_factory).addErrback(_connectError)
 
     reactor.run()
 

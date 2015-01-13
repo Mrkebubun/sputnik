@@ -33,6 +33,7 @@ import random
 import string
 from ConfigParser import ConfigParser
 from os import path
+from decimal import Decimal
 
 from twisted.python import log
 from twisted.internet import reactor, defer
@@ -169,18 +170,18 @@ class TradingBot(wamp.ApplicationSession):
 
     def price_from_wire(self, ticker, price):
         if self.markets[ticker]['contract_type'] == "prediction":
-            return float(price) / self.markets[ticker]['denominator']
+            return Decimal(price) / self.markets[ticker]['denominator']
         else:
-            return float(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
+            return Decimal(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
                             self.markets[ticker]['denominator'])
 
     def quantity_from_wire(self, ticker, quantity):
         if self.markets[ticker]['contract_type'] == "prediction":
             return quantity
         elif self.markets[ticker]['contract_type'] == "cash":
-            return float(quantity) / self.markets[ticker]['denominator']
+            return Decimal(quantity) / self.markets[ticker]['denominator']
         else:
-            return float(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
+            return Decimal(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
 
     def quantity_to_wire(self, ticker, quantity):
         if self.markets[ticker]['contract_type'] == "prediction":
@@ -759,7 +760,11 @@ if __name__ == '__main__':
                                                              url = base_uri, debug=debug,
                                                              debug_wamp=debug)
     client = clientFromString(reactor, connection_string)
-    client.connect(transport_factory)
+    def _connectError(failure):
+        log.err(failure)
+        reactor.stop()
+
+    client.connect(transport_factory).addErrback(_connectError)
 
     reactor.run()
 
