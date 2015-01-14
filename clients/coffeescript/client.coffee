@@ -29,22 +29,26 @@ Sputnik = require("./sputnik").Sputnik
 
 sputnik = new Sputnik "ws://127.0.0.1:8880/ws"
 sputnik.connect()
+got_cookie = false
 sputnik.on "log", console.log
 sputnik.on "warn", console.log
 sputnik.on "error", console.log
-authing = false
 sputnik.on "open", (session, details) ->
     console.log "Sputnik session open."
-    sputnik.follow "NETS2014"
+    #sputnik.follow "NETS2014"
     sputnik.authenticate "marketmaker", "marketmaker"
 
 sputnik.on "auth_success", ->
     console.log "Authenticated"
-    sputnik.getCookie()
+    if not got_cookie
+        sputnik.getCookie()
+    else
+        sputnik.changePassword "marketmaker", "marketmaker"
 
 sputnik.on "auth_fail", ->
     console.log "Cannot login"
 
 sputnik.on "cookie", (cookie) ->
-    console.log "Cookie: #{cookie}"
+    got_cookie = true
+    sputnik.restoreSession "marketmaker", cookie
 

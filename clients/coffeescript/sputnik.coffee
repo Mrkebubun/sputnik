@@ -26,8 +26,10 @@
 
 ### UI API ###
 
-autobahn = require "autobahn"
-EventEmitter = require("./events").EventEmitter
+if module?
+    autobahn = require "autobahn"
+    EventEmitter = require("./events").EventEmitter
+    CryptoJS = require "crypto-js"
 
 class @Sputnik extends EventEmitter
 
@@ -174,8 +176,10 @@ class @Sputnik extends EventEmitter
             @wtf "Not connected."
 
         @rejoin = [@username, ["wampcra"]]
+        @log ["rejoin", @rejoin]
 
         @session._onchallenge = (session, method, extra) =>
+            @log ["challenge", method, extra]
             if method == "wampcra"
                 @authextra = extra
                 key = autobahn.auth_cra.derive_key password, extra.salt
@@ -274,6 +278,7 @@ class @Sputnik extends EventEmitter
             # Spit out some debugging, this should not happen
             @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
+        @log @markets[ticker]
         if not contract?
             @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
@@ -624,15 +629,6 @@ class @Sputnik extends EventEmitter
     getOHLCVHistory: (ticker, period) =>
         @call("rpc.market.get_ohlcv_history", ticker, period).then @onOHLCVHistory
 
-    # miscelaneous methods
-
-    chat: (message) =>
-        if @authenticated
-            @publish "chat", message
-            return [true, null]
-        else
-            return [false, "Not logged in"]
-
     ### internal methods ###
 
     # RPC wrapper
@@ -705,7 +701,8 @@ class @Sputnik extends EventEmitter
         @emit "close", [code, reason, details]
 
     onJoin: =>
-        if @username? and @username is not null
+        @log ["onJoin", @username]
+        if @username? and @username != null
             @log ["authenticated"]
             @authenticated = true
 

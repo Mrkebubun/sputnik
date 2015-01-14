@@ -7,6 +7,7 @@ from autobahn import util
 from autobahn.wamp import types
 from twisted.internet.defer import inlineCallbacks, returnValue
 import json
+import hashlib
 
 class CookieLogin(AuthenticationPlugin):
     def __init__(self):
@@ -54,7 +55,7 @@ class CookieLogin(AuthenticationPlugin):
                 # If the user does not exist, we should still return a
                 #   consistent salt. This prevents the auth system from
                 #   becoming a username oracle.
-                noise = hashlib.md5("super secret" + username + "more secret")
+                noise = hashlib.md5("super secret" + details.authid + "more secret")
                 salt = noise.hexdigest()[:8]
 
                 databases = self.manager.services["sputnik.webserver.plugins.db"]
