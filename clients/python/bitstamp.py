@@ -21,7 +21,7 @@ class BitStamp():
         self.endpoint = endpoint
 
     def generate_auth(self):
-        nonce = str(time.time())
+        nonce = str(int(time.time() * 1e6))
         message = nonce + self.client_id + self.api_key
         signature = hmac.new(
             self.api_secret, msg=message, digestmod=hashlib.sha256)
@@ -40,11 +40,11 @@ class BitStamp():
         result = json.loads(content)
         returnValue(result)
 
-    def post(self, *args, **kwargs):
-        return treq.post(*args, **kwargs).addCallback(self.handle_response)
+    def post(self, url, data={}):
+        return treq.post(url, data=json.dumps(data)).addCallback(self.handle_response)
 
-    def get(self, *args, **kwargs):
-        return treq.get(*args, **kwargs).addCallback(self.handle_response)
+    def get(self, url, params={}):
+        return treq.get(url, params=params).addCallback(self.handle_response)
 
     def getPositions(self):
         url = self.endpoint + "balance/"

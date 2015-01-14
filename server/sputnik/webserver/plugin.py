@@ -21,7 +21,7 @@ def error_handler(func):
             error("SputnikException received: %s" % str(e.args))
             returnValue({'success': False, 'error': e.args})
         except Exception as e:
-            error("UNHANDLED EXCEPTION RECEIVED: %s" % str(e.args))
+            error("UNHANDLED EXCEPTION: %s" % str(e.args))
             error(e)
             returnValue({'success': False, 'error': ("exceptions/sputnik/generic_exception",)})
 

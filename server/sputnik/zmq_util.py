@@ -415,6 +415,8 @@ class Proxy:
                         debug("Unable to load exception class %s from %s (%s) -- using 'Exception'" % (new_cname, new_mname, str(e.args)))
                         klass = Exception
             args = exception.get("args", ())
+            if len(args) == 0:
+                args = ("exceptions/sputnik/undefined", klass.__name__)
             exception = klass(*args)
 
         debug("success=%s, exception=%s" % (success, exception))

@@ -44,7 +44,7 @@
                 "description": "single-use nonce to check"
             }
         },
-        "required": [ "username", "expiration" ],
+        "required": [ "username", "nonce" ],
         "additionalProperties": false
     },
     "get_profile": {

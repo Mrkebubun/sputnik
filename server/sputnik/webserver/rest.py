@@ -67,8 +67,8 @@ class RESTProxy(Resource, Plugin):
                     raise RestException("exceptions/rest/not_authorized")
 
                 # Check the HMAC
-                message = "%d:%s:%s" % (nonce, auth['username'], auth['key'])
-                signature = hmac.new(user['api_secret'], msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+                message = "%d:%s:%s" % (auth['nonce'], auth['username'], auth['key'])
+                signature = hmac.new(user['api_secret'].encode('utf-8'), msg=message.encode('utf-8'), digestmod=hashlib.sha256).hexdigest().upper()
                 if auth['signature'].upper() != signature:
                     raise RestException("exceptions/rest/not_authorized")
 
@@ -116,6 +116,7 @@ class RESTProxy(Resource, Plugin):
             request.sentLength or "-",
             request.getHeader("referer") or "-",
             request.getHeader("user-agent") or "-",
+            request.getHeader("content-type") or "-",
             json.dumps(request.args),
             data))
 
@@ -148,7 +149,7 @@ class RESTProxy(Resource, Plugin):
                 return {'success': False, 'error': failure.value.args}
 
             def generic_failure(failure):
-                error("UNHANDLED ERROR: %s" % failure.value)
+                error("UNHANDLED EXCEPTION: %s" % failure.value)
                 error(failure)
                 return {'success': False, 'error': ("exceptions/rest/generic_error",)}
 

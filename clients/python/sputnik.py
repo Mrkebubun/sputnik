@@ -43,12 +43,153 @@ from autobahn.twisted import wamp, websocket
 from autobahn.wamp import types
 from autobahn.wamp import auth
 import hashlib
+import hmac
+import treq
+import json
+import time
 
 import Crypto.Random.random
 from copy import copy
 
+class SputnikMixin():
+    """
+    Utility functions
+    """
 
-class SputnikSession(wamp.ApplicationSession):
+    def price_to_wire(self, ticker, price):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            price = price * self.markets[ticker]['denominator']
+        else:
+            price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
+                    self.markets[ticker]['denominator']
+
+        return int(price - price % self.markets[ticker]['tick_size'])
+
+    def price_from_wire(self, ticker, price):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return Decimal(price) / self.markets[ticker]['denominator']
+        else:
+            return Decimal(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
+                            self.markets[ticker]['denominator'])
+
+    def quantity_from_wire(self, ticker, quantity):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return quantity
+        elif self.markets[ticker]['contract_type'] == "cash":
+            return Decimal(quantity) / self.markets[ticker]['denominator']
+        else:
+            return Decimal(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
+
+    def quantity_to_wire(self, ticker, quantity):
+        if self.markets[ticker]['contract_type'] == "prediction":
+            return int(quantity)
+        elif self.markets[ticker]['contract_type'] == "cash":
+            return int(quantity * self.markets[ticker]['denominator'])
+        else:
+            quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
+            return int(quantity - quantity % self.markets[ticker]['lot_size'])
+
+    def ohlcv_from_wire(self, wire_ohlcv):
+        ticker = wire_ohlcv['contract']
+        ohlcv = {
+            'contract': ticker,
+            'open': self.price_from_wire(ticker, wire_ohlcv['open']),
+            'high': self.price_from_wire(ticker, wire_ohlcv['high']),
+            'low': self.price_from_wire(ticker, wire_ohlcv['low']),
+            'close': self.price_from_wire(ticker, wire_ohlcv['close']),
+            'volume': self.quantity_from_wire(ticker, wire_ohlcv['volume']),
+            'vwap': self.price_from_wire(ticker, wire_ohlcv['vwap']),
+            'open_timestamp': wire_ohlcv['open_timestamp'],
+            'close_timestamp': wire_ohlcv['close_timestamp'],
+            'period': wire_ohlcv['period']
+        }
+        return ohlcv
+
+    def ohlcv_history_from_wire(self, wire_ohlcv_history):
+        return {timestamp: self.ohlcv_from_wire(wire_ohlcv)
+                           for timestamp, wire_ohlcv in wire_ohlcv_history.iteritems()}
+
+    def position_from_wire(self, wire_position):
+        ticker = wire_position['contract']
+        position = copy(wire_position)
+        position['position'] = self.quantity_from_wire(ticker, wire_position['position'])
+        if self.markets[ticker]['contract_type'] == "futures":
+            position['reference_price'] = self.price_from_wire(ticker, wire_position['reference_price'])
+        return position
+
+    def order_to_wire(self, order):
+        ticker = order['contract']
+        wire_order = copy(order)
+        wire_order['price'] = self.price_to_wire(ticker, order['price'])
+        wire_order['quantity'] = self.quantity_to_wire(ticker, order['quantity'])
+        if 'quantity_left' in order:
+            wire_order['quantity_left'] = self.quantity_to_wire(ticker, order['quantity_left'])
+
+        return wire_order
+
+    def order_from_wire(self, wire_order):
+        ticker = wire_order['contract']
+        order = copy(wire_order)
+        order['price'] = self.price_from_wire(ticker, wire_order['price'])
+        order['quantity'] = self.quantity_from_wire(ticker, wire_order['quantity'])
+        order['quantity_left'] = self.quantity_from_wire(ticker, wire_order['quantity_left'])
+        return order
+
+    def book_row_from_wire(self, ticker, wire_book_row):
+        book_row = copy(wire_book_row)
+        book_row['price'] = self.price_from_wire(ticker, wire_book_row['price'])
+        book_row['quantity'] = self.price_from_wire(ticker, wire_book_row['quantity'])
+        return book_row
+
+    def trade_from_wire(self, wire_trade):
+        ticker = wire_trade['contract']
+        trade = copy(wire_trade)
+        trade['price'] = self.price_from_wire(ticker, wire_trade['price'])
+        trade['quantity'] = self.quantity_from_wire(ticker, wire_trade['quantity'])
+        return trade
+
+    def fill_from_wire(self, wire_fill):
+        ticker = wire_fill['contract']
+        fill = copy(wire_fill)
+        fill['fees'] = copy(wire_fill['fees'])
+        fill['price'] = self.price_from_wire(ticker, wire_fill['price'])
+        fill['quantity'] = self.quantity_from_wire(ticker, wire_fill['quantity'])
+        for fee_ticker, fee in wire_fill['fees'].iteritems():
+            fill['fees'][fee_ticker] = self.quantity_from_wire(fee_ticker, fee)
+
+        return fill
+
+    def transaction_from_wire(self, wire_transaction):
+        transaction = copy(wire_transaction)
+        ticker = wire_transaction['contract']
+        transaction['quantity'] = self.quantity_from_wire(ticker, wire_transaction['quantity'])
+        if 'balance' in wire_transaction:
+            transaction['balance'] = self.quantity_from_wire(ticker, wire_transaction['balance'])
+
+        return transaction
+
+    def transaction_history_from_wire(self, wire_transaction_history):
+        return [self.transaction_from_wire(wire_transaction)
+                                              for wire_transaction in wire_transaction_history]
+
+    def book_from_wire(self, wire_book):
+        ticker = wire_book['contract']
+        book = copy(wire_book)
+        book['bids'] = [self.book_row_from_wire(ticker, row) for row in wire_book['bids']]
+        book['asks'] = [self.book_row_from_wire(ticker, row) for row in wire_book['asks']]
+        return book
+
+    def safe_prices_from_wire(self, wire_safe_prices):
+        return {ticker: self.price_from_wire(ticker, price)
+                        for ticker, price in wire_safe_prices.iteritems()}
+
+    def orders_from_wire(self, wire_orders):
+        return {id: self.order_from_wire(wire_order) for id, wire_order in wire_orders.iteritems()}
+
+    def positions_from_wire(self, wire_positions):
+        return {ticker: self.position_from_wire(wire_position) for ticker, wire_position in self.wire_positions.iteritems()}
+
+class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     """
    Authenticated WAMP client using WAMP-Challenge-Response-Authentication ("WAMP-CRA").
 
@@ -158,125 +299,13 @@ class SputnikSession(wamp.ApplicationSession):
 
         wamp.ApplicationSession.subscribe(self, wrapped_handler, unicode(topic), **kwargs)
 
-    """
-    Utility functions
-    """
-
-    def price_to_wire(self, ticker, price):
-        if self.markets[ticker]['contract_type'] == "prediction":
-            price = price * self.markets[ticker]['denominator']
-        else:
-            price = price * self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] * \
-                    self.markets[ticker]['denominator']
-
-        return int(price - price % self.markets[ticker]['tick_size'])
-
-    def price_from_wire(self, ticker, price):
-        if self.markets[ticker]['contract_type'] == "prediction":
-            return Decimal(price) / self.markets[ticker]['denominator']
-        else:
-            return Decimal(price) / (self.markets[self.markets[ticker]['denominated_contract_ticker']]['denominator'] *
-                            self.markets[ticker]['denominator'])
-
-    def quantity_from_wire(self, ticker, quantity):
-        if self.markets[ticker]['contract_type'] == "prediction":
-            return quantity
-        elif self.markets[ticker]['contract_type'] == "cash":
-            return Decimal(quantity) / self.markets[ticker]['denominator']
-        else:
-            return Decimal(quantity) / self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
-
-    def quantity_to_wire(self, ticker, quantity):
-        if self.markets[ticker]['contract_type'] == "prediction":
-            return int(quantity)
-        elif self.markets[ticker]['contract_type'] == "cash":
-            return int(quantity * self.markets[ticker]['denominator'])
-        else:
-            quantity = quantity * self.markets[self.markets[ticker]['payout_contract_ticker']]['denominator']
-            return int(quantity - quantity % self.markets[ticker]['lot_size'])
-
-    def ohlcv_from_wire(self, wire_ohlcv):
-        ticker = wire_ohlcv['contract']
-        ohlcv = {
-            'contract': ticker,
-            'open': self.price_from_wire(ticker, wire_ohlcv['open']),
-            'high': self.price_from_wire(ticker, wire_ohlcv['high']),
-            'low': self.price_from_wire(ticker, wire_ohlcv['low']),
-            'close': self.price_from_wire(ticker, wire_ohlcv['close']),
-            'volume': self.quantity_from_wire(ticker, wire_ohlcv['volume']),
-            'vwap': self.price_from_wire(ticker, wire_ohlcv['vwap']),
-            'open_timestamp': wire_ohlcv['open_timestamp'],
-            'close_timestamp': wire_ohlcv['close_timestamp'],
-            'period': wire_ohlcv['period']
-        }
-        return ohlcv
-
-    def position_from_wire(self, wire_position):
-        ticker = wire_position['contract']
-        position = copy(wire_position)
-        position['position'] = self.quantity_from_wire(ticker, wire_position['position'])
-        if self.markets[ticker]['contract_type'] == "futures":
-            position['reference_price'] = self.price_from_wire(ticker, wire_position['reference_price'])
-        return position
-
-    def order_to_wire(self, order):
-        ticker = order['contract']
-        wire_order = copy(order)
-        wire_order['price'] = self.price_to_wire(ticker, order['price'])
-        wire_order['quantity'] = self.quantity_to_wire(ticker, order['quantity'])
-        if 'quantity_left' in order:
-            wire_order['quantity_left'] = self.quantity_to_wire(ticker, order['quantity_left'])
-
-        return wire_order
-
-    def order_from_wire(self, wire_order):
-        ticker = wire_order['contract']
-        order = copy(wire_order)
-        order['price'] = self.price_from_wire(ticker, wire_order['price'])
-        order['quantity'] = self.quantity_from_wire(ticker, wire_order['quantity'])
-        order['quantity_left'] = self.quantity_from_wire(ticker, wire_order['quantity_left'])
-        return order
-
-    def book_row_from_wire(self, ticker, wire_book_row):
-        book_row = copy(wire_book_row)
-        book_row['price'] = self.price_from_wire(ticker, wire_book_row['price'])
-        book_row['quantity'] = self.price_from_wire(ticker, wire_book_row['quantity'])
-        return book_row
-
-    def trade_from_wire(self, wire_trade):
-        ticker = wire_trade['contract']
-        trade = copy(wire_trade)
-        trade['price'] = self.price_from_wire(ticker, wire_trade['price'])
-        trade['quantity'] = self.quantity_from_wire(ticker, wire_trade['quantity'])
-        return trade
-
-    def fill_from_wire(self, wire_fill):
-        ticker = wire_fill['contract']
-        fill = copy(wire_fill)
-        fill['fees'] = copy(wire_fill['fees'])
-        fill['price'] = self.price_from_wire(ticker, wire_fill['price'])
-        fill['quantity'] = self.quantity_from_wire(ticker, wire_fill['quantity'])
-        for fee_ticker, fee in wire_fill['fees'].iteritems():
-            fill['fees'][fee_ticker] = self.quantity_from_wire(fee_ticker, fee)
-
-        return fill
-
-    def transaction_from_wire(self, wire_transaction):
-        transaction = copy(wire_transaction)
-        ticker = wire_transaction['contract']
-        transaction['quantity'] = self.quantity_from_wire(ticker, wire_transaction['quantity'])
-        if 'balance' in wire_transaction:
-            transaction['balance'] = self.quantity_from_wire(ticker, wire_transaction['balance'])
-
-        return transaction
-
     @property
     def orders(self):
-        return {id: self.order_from_wire(wire_order) for id, wire_order in self.wire_orders.iteritems()}
+        return self.orders_from_wire(self.wire_orders)
 
     @property
     def positions(self):
-        return {ticker: self.position_from_wire(wire_position) for ticker, wire_position in self.wire_positions.iteritems()}
+        return self.positions_from_wire(self.wire_positions)
 
     """
     reactive events - on* 
@@ -332,9 +361,9 @@ class SputnikSession(wamp.ApplicationSession):
         pprint(["onTradeHistory", trade_history])
         return trade_history
 
-    def onNewAPIToken(self, token):
-        pprint(["onNewAPIToken", token])
-        return token
+    def onNewAPICredentials(self, credentials):
+        pprint(["onNewAPICredentials", credentials])
+        return credentials
 
     def onPositions(self, positions):
         pprint(["onPositions", positions])
@@ -414,9 +443,7 @@ class SputnikSession(wamp.ApplicationSession):
         ticker = wire_book['contract']
         self.markets[ticker]['wire_book'] = wire_book
 
-        book = copy(wire_book)
-        book['bids'] = [self.book_row_from_wire(ticker, row) for row in wire_book['bids']]
-        book['asks'] = [self.book_row_from_wire(ticker, row) for row in wire_book['asks']]
+        book = self.book_from_wire(wire_book)
 
         self.markets[ticker]['book'] = book
         return self.onBook(uri, book)
@@ -438,8 +465,7 @@ class SputnikSession(wamp.ApplicationSession):
     def subSafePrices(self, ticker):
         uri = u"feeds.market.safe_prices.%s" % self.encode_ticker(ticker)
         def _onSafePrice(uri, wire_safe_prices):
-            return self.onSafePrice(uri, {ticker: self.price_from_wire(ticker, price)
-                                          for ticker, price in wire_safe_prices.iteritems()})
+            return self.onSafePrice(uri, self.safe_prices_from_wire(wire_safe_prices))
 
         self.subscribe(_onSafePrice, uri)
         print 'subscribed to: ', uri
@@ -549,8 +575,7 @@ class SputnikSession(wamp.ApplicationSession):
             end_timestamp = None
 
         def _onOHLCVHistory(wire_ohlcv_history):
-            return self.onOHLCVHistory({timestamp: self.ohlcv_from_wire(wire_ohlcv)
-                                        for timestamp, wire_ohlcv in wire_ohlcv_history.iteritems()})
+            return self.onOHLCVHistory(self.ohlcv_history_from_wire(wire_ohlcv_history))
 
         d = self.call(u"rpc.market.get_ohlcv_history", ticker, period, start_timestamp, end_timestamp)
         return d.addCallback(_onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
@@ -581,9 +606,9 @@ class SputnikSession(wamp.ApplicationSession):
     """
     Private RPC Calls
     """
-    def getNewAPIToken(self):
-        d = self.call(u"rpc.token.get_new_api_token")
-        return d.addCallback(self.onNewAPIToken).addErrback(self.onError, "getNewAPIToken")
+    def getNewAPICredentials(self):
+        d = self.call(u"rpc.token.get_new_api_credentials")
+        return d.addCallback(self.onNewAPICredentials).addErrback(self.onError, "getNewAPICredentials")
 
     def getPositions(self):
         d = self.call(u"rpc.trader.get_positions")
@@ -609,14 +634,13 @@ class SputnikSession(wamp.ApplicationSession):
 
         return d.addCallback(_onOpenOrders).addErrback(self.onError, "getOpenOrders")
 
-    def getTransactionHistory(self, start_datetime=datetime.now()-timedelta(days=2), end_datetime=datetime.now()):
+    def getTransactionHistory(self, start_datetime=datetime.utcnow()-timedelta(days=2), end_datetime=datetime.utcnow()):
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
 
         def _onTransactionHistory(wire_transaction_history):
-            return self.onTransactionHistory([self.transaction_from_wire(wire_transaction)
-                                              for wire_transaction in wire_transaction_history])
+            return self.onTransactionHistory(self.transaction_history_from_wire(wire_transaction_history))
 
         d = self.call("rpc.trader.get_transaction_history", start_timestamp, end_timestamp)
         return d.addCallback(_onTransactionHistory).addErrback(self.onError, "getTransactionHistory")
@@ -642,7 +666,7 @@ class SputnikSession(wamp.ApplicationSession):
         def onError(error):
             logging.info("removing internal order %s" % order_id)
             try:
-                del self.orders[order_id]
+                del self.wire_orders[order_id]
             except KeyError as e:
                 logging.error("Unable to remove order: %s" % e)
 
@@ -686,22 +710,23 @@ class BasicBot(SputnikSession):
 
     def startAutomation(self):
         # Test the audit
-        self.getAudit()
-
-        # Test exchange info
-        self.getExchangeInfo()
-
-        # Test some OHLCV history fns
-        self.getOHLCVHistory('BTC/HUF', 'day')
-        self.getOHLCVHistory('BTC/HUF', 'minute')
-
-        # Now make an account
-        self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        # self.getAudit()
+        #
+        # # Test exchange info
+        # self.getExchangeInfo()
+        #
+        # # Test some OHLCV history fns
+        # self.getOHLCVHistory('BTC/HUF', 'day')
+        # self.getOHLCVHistory('BTC/HUF', 'minute')
+        #
+        # # Now make an account
+        # self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        # self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        # self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        pass
 
     def startAutomationAfterAuth(self):
-        # self.getNewAPIToken()
+        # self.getNewAPICredentials()
         # self.getTransactionHistory()
         # self.requestSupportNonce()
         pass
@@ -772,6 +797,113 @@ class Sputnik():
     def getOrderBook(self, ticker):
         return defer.succeed(self.session.markets[ticker]['book'])
 
+    def getTransactionHistory(self, start_datetime, end_datetime):
+        return self.session.getTransactionHistory(start_datetime, end_datetime)
+
+class SputnikRest(SputnikMixin):
+    def __init__(self, username=None, api_key=None, api_secret=None, endpoint=None, onInit=None):
+        self.username = username
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.endpoint = endpoint
+        def _cb(markets):
+            self.markets = markets
+            if onInit is not None:
+                onInit(self)
+
+        self.getMarkets().addCallback(_cb)
+
+    def generate_auth(self):
+        nonce = int(time.time() * 1e6)
+        message = "%d:%s:%s" % (nonce, self.username, self.api_key)
+        signature = hmac.new(
+            self.api_secret.encode("utf-8"), msg=message.encode('utf-8'), digestmod=hashlib.sha256)
+        signature = signature.hexdigest().upper()
+        return {
+            'username': self.username,
+            'key': self.api_key, 'signature': signature, 'nonce': nonce
+        }
+
+    def onError(self, failure, call):
+        log.err([call, failure.value.args])
+        log.err(failure)
+        return failure
+
+    @inlineCallbacks
+    def handle_response(self, response):
+        content = yield response.content()
+        result = json.loads(content)
+        if result['success']:
+            returnValue(result['result'])
+        else:
+            raise Exception(*result['error'])
+
+    def post(self, url, payload={}, auth=None):
+        headers = {"content-type": "application/json"}
+        params = {'payload': payload}
+        if auth is not None:
+            params['auth'] = auth
+
+        return treq.post(url, data=json.dumps(params), headers=headers).addCallback(self.handle_response)
+
+    def getMarkets(self):
+        url = self.endpoint + "/rpc/market/get_markets"
+        return self.post(url).addErrback(self.onError, "getMarkets")
+
+    def getPositions(self):
+        url = self.endpoint + "/rpc/trader/get_positions"
+        auth = self.generate_auth()
+        return self.post(url, auth=auth).addCallback(self.positions_from_wire).addErrback(self.onError, "getPositions")
+
+    def getCurrentAddress(self, ticker):
+        url = self.endpoint + "/rpc/trader/get_current_address"
+        payload = {'ticker': ticker}
+        auth = self.generate_auth()
+        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "getCurrentAddress")
+
+    def requestWithdrawal(self, ticker, amount, address):
+        url = self.endpoint + "/rpc/trader/request_withdrawal"
+        payload = {'ticker': ticker,
+                  'amount': self.quantity_to_wire(ticker, amount),
+                  'address': address}
+        auth = self.generate_auth()
+        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "requestWithdrawal")
+
+    def placeOrder(self, ticker, quantity, price, side):
+        url = self.endpoint + "/rpc/trader/place_order"
+        payload = {'order': {'contract': ticker,
+                  'quantity': self.quantity_to_wire(ticker, quantity),
+                  'price': self.price_to_wire(ticker, price),
+                  'side': side }}
+        auth = self.generate_auth()
+        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "placeOrder")
+
+    def cancelOrder(self, id):
+        url = self.endpoint + "/rpc/trader/cancel_order"
+        payload = {'id': id}
+        auth = self.generate_auth()
+        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "cancelOrder")
+
+    def getOpenOrders(self):
+        url = self.endpoint + "/rpc/trader/get_open_orders"
+        auth = self.generate_auth()
+        return self.post(url, auth=auth).addCallback(self.orders_from_wire).addErrback(self.onError, "getOpenOrders")
+
+    def getOrderBook(self, ticker):
+        url = self.endpoint + "/rpc/market/get_order_book"
+        payload = {'ticker': ticker}
+        return self.post(url, payload=payload).addCallback(self.book_from_wire).addErrback(self.onError, "getOrderBook")
+
+    def getTransactionHistory(self, start_datetime, end_datetime):
+        url = self.endpoint + "/rpc/trader/get_transaction_history"
+        epoch = datetime.utcfromtimestamp(0)
+        start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
+        end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
+        payload = {'start_timestamp': start_timestamp,
+                   'end_timestamp': end_timestamp}
+        auth = self.generate_auth()
+        return self.post(url, payload=payload, auth=auth).addCallback(self.transaction_history_from_wire).addErrback(self.onError, "getTransactionHistory")
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                         level=logging.INFO)
@@ -795,8 +927,23 @@ if __name__ == '__main__':
                    'hostname': config.get("client", "hostname"),
                    'ca_certs_dir': config.get("client", "ca_certs_dir") }
 
-    sputnik = Sputnik(connection, bot_params, debug, bot=BasicBot)
-    sputnik.connect()
+    # sputnik_wamp = Sputnik(connection, bot_params, debug, bot=BasicBot)
+    # sputnik_wamp.connect()
+
+    if connection['ssl']:
+        rest_endpoint = "https://%s:%d/api" % (connection['hostname'], connection['port'])
+    else:
+        rest_endpoint = "http://%s:%d/api" % (connection['hostname'], connection['port'])
+
+    def onInit(sputnik):
+        # sputnik.getOpenOrders().addCallback(pprint)
+        # sputnik.getOrderBook('BTC/MXN').addCallback(pprint)
+        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(pprint)
+
+    sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
+                               api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,
+                               onInit=onInit)
+
 
     reactor.run()
 
