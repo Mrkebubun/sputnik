@@ -48,40 +48,46 @@ class RESTProxy(Resource, Plugin):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
 
     @inlineCallbacks
-    def check_auth(self, data):
-        auth = data.get('auth')
-        if auth is not None and 'username' in auth and 'key' in auth and 'nonce' in auth and 'signature' in auth:
-            databases = self.manager.services["sputnik.webserver.plugins.db"]
-            user = None
+    def check_auth(self, request, data):
+        # TODO: Do not pass email. Look it up in database instead.
+        email = request.getHeader("Email")
+        key = request.getHeader("Key")
+        signature = request.getHeader("Authorization")
+        if not all([user, key, signature]):
+            raise RestException("exceptions/rest/not_authorized")
 
-            for db in databases:
-                user = yield db.lookup(auth['username'])
-                if user is not None:
-                    break
+        databases = self.manager.services["sputnik.webserver.plugins.db"]
+        user = None
 
-            # Check the nonce
+        for db in databases:
+            user = yield db.lookup(email)
             if user is not None:
-                # Check the token and expiration
-                now = datetime.utcnow()
-                if user['api_key'] is None or user['api_expiration'] <= now or user['api_key'] != auth['key']:
-                    raise RestException("exceptions/rest/not_authorized")
-
-                # Check the HMAC
-                message = "%d:%s:%s" % (auth['nonce'], auth['username'], auth['key'])
-                signature = hmac.new(user['api_secret'].encode('utf-8'), msg=message.encode('utf-8'), digestmod=hashlib.sha256).hexdigest().upper()
-                if auth['signature'].upper() != signature:
-                    raise RestException("exceptions/rest/not_authorized")
-
-                nonce_check = yield self.administrator.proxy.check_and_update_api_nonce(user['username'],
-                                                                                        auth['nonce'])
-                if not nonce_check:
-                    raise RestException("exceptions/rest/not_authorized")
-
-                returnValue({'authid': user['username']})
-            else:
-                raise RestException("exceptions/rest/not_authorized")
+                break
         else:
-            raise RestException('exceptions/rest/invalid_rest_request')
+            raise RestException("exceptions/rest/not_authorized")
+
+        now = datetime.utcnow()
+        if user['api_key'] != key or user['api_expiration'] <= now:
+            raise RestException("exceptions/rest/not_authorized")
+
+        # Check the HMAC
+        actual = hmac.new(user['api_secret'].encode('utf-8'), msg=data.encode('utf-8'), digestmod=hashlib.sha256).hexdigest().upper()
+        if len(actual) != len(signature):
+            raise RestException("exceptions/rest/not_authorized")
+        valid = True
+        for i in range(len(actual)):
+            if actual[i] != signature[i]:
+                valid = False
+        if not valid:
+            raise RestException("exceptions/rest/not_authorized")
+
+        nonce = request.args.get("nonce")
+        if nonce is None:
+            raise RestException("exceptions/rest/invalid_nonce")
+
+        nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce)
+        if not nonce_valid:
+            raise RestException("exceptions/rest/not_authorized")
 
     @inlineCallbacks
     def process_request(self, request, data):
@@ -89,18 +95,16 @@ class RESTProxy(Resource, Plugin):
         if uri not in self.procs or uri in self.blocked_procs:
             raise RestException("exceptions/rest/no_such_function", uri)
 
-        if 'payload' not in data:
-            raise RestException('exceptions/rest/invalid_rest_request')
-
         if request.postpath[1] in self.auth_required:
-            auth = yield self.check_auth(data)
-            if auth is not None:
-                data['payload']['details'] = auth
-            else:
-                raise RestException("exceptions/rest/not_authorized")
+            yield self.check_auth(request, data)
 
-        fn = self.procs[uri]
-        result = yield fn(**data['payload'])
+        kwargs = request.args
+        for key in kwargs:
+            if len(kwargs[key]) == 1:
+                kwargs[key] = kwargs[key][0]
+
+        method = self.procs[uri]
+        result = yield method(**kwargs)
         returnValue(result)
 
     def log(self, request, data):
@@ -129,13 +133,8 @@ class RESTProxy(Resource, Plugin):
         try:
             if request.method != "POST":
                 raise RestException("exceptions/rest/unsupported_method")
-            else:
-                try:
-                    parsed_data = json.loads(data)
-                except ValueError as e:
-                    raise RestException("exceptions/rest/invalid_json", *e.args)
 
-                d = self.process_request(request, data=parsed_data)
+            d = self.process_request(request, data)
 
             def deliver_result(result, request):
                 if not result['success']:
