@@ -119,22 +119,7 @@
         "required": ["profile"],
         "additionalProperties": false
     },
-    "change_password": {
-        "type": "object",
-        "description": "change a user's password assuming we know the previous one",
-        "properties": {
-            "old_password_hash": {
-                "type": "string",
-                "description": "the old hash"
-            },
-            "new_password_hash": {
-                "type": "string",
-                "description": "the new hash"
-            }
-        },
-        "required": ["old_password_hash", "new_password_hash"],
-        "additionalProperties": false
-    },
+
     "get_open_orders": {
         "type": "object",
         "description": "get all a user's open orders",

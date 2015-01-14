@@ -233,7 +233,7 @@ class @Sputnik extends EventEmitter
         old_secret = autobahn.auth_cra.derive_key old_password, @authextra.salt
         new_secret = autobahn.auth_cra.derive_key new_password, @authextra.salt
 
-        @call("rpc.trader.change_password", old_secret, new_secret).then \
+        @call("rpc.token.change_password", old_secret, new_secret).then \
             (message) =>
                 @log "password changed successfully"
                 @emit "change_password_success", message
@@ -637,7 +637,7 @@ class @Sputnik extends EventEmitter
             return @wtf "Not connected."
         @log ["RPC #{method}",params]
         d = @connection.defer()
-        @session.call(method, params...).then \
+        @session.call(method, params).then \
             (result) =>
                 if not result.success?
                     @warn "RPC Warning: sputnik protocol violation in #{method}"

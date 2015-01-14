@@ -56,6 +56,22 @@ class TokenService(ServicePlugin):
         r = yield succeed(None)
         returnValue(r)
 
+    @wamp.register(u"rpc.token.change_password")
+    @error_handler
+    @authenticated
+    @schema(u"public/token.json#change_password")
+    def change_password(self, old_password_hash, new_password_hash, username=None):
+        """
+        Changes a users password.  Leaves salt and two factor untouched.
+        :param old_password_hash: current password
+        :param new_password_hash: new password
+        :returns: Deferred
+        """
+
+
+        result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
+        returnValue(None)
+
     # @wamp.register(u"rpc.token.get_new_two_factor")
     # @schema(u"public/token.json#get_new_two_factor")
     # @authenticated

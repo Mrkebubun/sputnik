@@ -285,23 +285,6 @@ class TraderService(ServicePlugin):
         profile = yield self.get_profile(username=username)
         returnValue(profile)
 
-    @wamp.register(u"rpc.trader.change_password")
-    @error_handler
-    @authenticated
-    @schema(u"public/trader.json#change_password")
-    def change_password(self, old_password_hash, new_password_hash, username=None):
-        """
-        Changes a users password.  Leaves salt and two factor untouched.
-        :param old_password_hash: current password
-        :param new_password_hash: new password
-        :returns: Deferred
-        """
-
-
-        result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
-        returnValue(None)
-
-
     @wamp.register(u"rpc.trader.get_open_orders")
     @error_handler
     @authenticated

@@ -332,7 +332,7 @@ Return the currently active address for sending deposits
 
 Return the authentication cookie for the user
 
-### rpc.trader.change_password(old_hash, new_hash)
+### rpc.token.change_password(old_hash, new_hash)
 
 Change the password, confirming that the old_hash matches the current password hash
 
