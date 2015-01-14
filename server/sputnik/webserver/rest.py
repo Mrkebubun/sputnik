@@ -49,18 +49,16 @@ class RESTProxy(Resource, Plugin):
 
     @inlineCallbacks
     def check_auth(self, request, data, auth):
-        # TODO: Do not pass username. Look it up in database instead.
-        username = auth.get("Username")
-        key = auth.get("Key")
+        key = auth.get("key")
         signature = request.getHeader("Authorization")
-        if not all([user, key, signature]):
+        if not all([key, signature]):
             raise RestException("exceptions/rest/not_authorized")
 
         databases = self.manager.services["sputnik.webserver.plugins.db"]
         user = None
 
         for db in databases:
-            user = yield db.lookup(username)
+            user = yield db.lookup(key)
             if user is not None:
                 break
         else:
@@ -72,6 +70,8 @@ class RESTProxy(Resource, Plugin):
 
         # Check the HMAC
         actual = hmac.new(user['api_secret'].encode('utf-8'), msg=data.encode('utf-8'), digestmod=hashlib.sha256).hexdigest().upper()
+        signature = signature.upper()
+
         if len(actual) != len(signature):
             raise RestException("exceptions/rest/not_authorized")
         valid = True
@@ -89,6 +89,8 @@ class RESTProxy(Resource, Plugin):
         if not nonce_valid:
             raise RestException("exceptions/rest/not_authorized")
 
+        returnValue({'authid': user['username']})
+
     @inlineCallbacks
     def process_request(self, request, data):
         try:
@@ -102,10 +104,11 @@ class RESTProxy(Resource, Plugin):
         if uri not in self.procs or uri in self.blocked_procs:
             raise RestException("exceptions/rest/no_such_function", uri)
 
-        if request.postpath[1] in self.auth_required:
-            yield self.check_auth(request, data, auth)
-
         kwargs = parsed_data.get("payload") or {}
+
+        if request.postpath[1] in self.auth_required:
+            details = yield self.check_auth(request, data, auth)
+            kwargs['details'] = details
 
         method = self.procs[uri]
         result = yield method(**kwargs)
@@ -140,7 +143,7 @@ class RESTProxy(Resource, Plugin):
 
             d = self.process_request(request, data)
 
-            def deliver_result(result, request):
+            def deliver_result(result):
                 if not result['success']:
                     error("request %s returned error %s" % (request, result['error']))
                 request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -156,7 +159,7 @@ class RESTProxy(Resource, Plugin):
                 error(failure)
                 return {'success': False, 'error': ("exceptions/rest/generic_error",)}
 
-            d.addErrback(sputnik_failure).addErrback(generic_failure).addCallback(deliver_result, request)
+            d.addErrback(sputnik_failure).addErrback(generic_failure).addCallback(deliver_result)
             return NOT_DONE_YET
 
 

@@ -37,14 +37,28 @@ If making an authenticated call:
 {
     payload: {}
     auth: {
-        username: "username"
-        api_token: "2349058324509348"
-        totp: 'CODE'
+        key: "908asdf09as8dfsa",
+        nonce: 2341
     }
 }
 ```
 
-The API token is that retrieved via the RPC call "rpc.token.get_new_api_token". If TOTP is enabled for the account,
-then the totp field must be present with the correct code.
+Where 'key' is the api_key retrieved in an `rpc.token.get_new_api_credentials` RPC call.
 
-The results are the same as in the WAMP API.
+Furthermore, there must be an additional header with a SHA256 HMAC of the contents, using
+the api_secret (similarly, that which is generated in `rpc.token.get_new_api_credentials`)
+
+Sample python code:
+
+```python
+def generate_auth_json(self, params, api_key, api_secret):
+    nonce = int(time.time() * 1e6)
+    params['auth'] = {'nonce': nonce,
+                      'key': api_key
+    }
+    message = json.dumps(params)
+    signature = hmac.new(api_secret.encode('utf-8'), msg=message.encode('utf-8'), digestmod=hashlib.sha256)
+    signature = signature.hexdigest().upper()
+    return (signature, message)
+```
+

@@ -59,13 +59,17 @@ class PostgresDatabase(DatabasePlugin):
 
     @inlineCallbacks
     def lookup(self, username):
-        query = "SELECT password, totp, api_key, api_secret, api_expiration, username FROM users WHERE username=%s LIMIT 1"
+        if username is None:
+            returnValue(None)
+
+        # Extend this later to lookup via email address and phone number
+        query = "SELECT password, totp, api_key, api_secret, api_expiration, username FROM users WHERE username=%s OR api_key=%s LIMIT 1"
         try:
             debug("Looking up username %s..." % username)
 
             # A hit and a miss both take approximately the same amount of time.
             # We can probably not worry about timing attacks here.
-            result = yield self.dbpool.runQuery(query, (username,))
+            result = yield self.dbpool.runQuery(query, (username, username,))
             if result:
                 # We return username because later we might query on email address or phone
                 # which might be different from username

@@ -813,16 +813,15 @@ class SputnikRest(SputnikMixin):
 
         self.getMarkets().addCallback(_cb)
 
-    def generate_auth(self):
+    def generate_auth_json(self, params):
         nonce = int(time.time() * 1e6)
-        message = "%d:%s:%s" % (nonce, self.username, self.api_key)
-        signature = hmac.new(
-            self.api_secret.encode("utf-8"), msg=message.encode('utf-8'), digestmod=hashlib.sha256)
-        signature = signature.hexdigest().upper()
-        return {
-            'username': self.username,
-            'key': self.api_key, 'signature': signature, 'nonce': nonce
+        params['auth'] = {'nonce': nonce,
+                          'key': self.api_key
         }
+        message = json.dumps(params)
+        signature = hmac.new(self.api_secret.encode('utf-8'), msg=message.encode('utf-8'), digestmod=hashlib.sha256)
+        signature = signature.hexdigest().upper()
+        return (signature, message)
 
     def onError(self, failure, call):
         log.err([call, failure.value.args])
@@ -838,13 +837,16 @@ class SputnikRest(SputnikMixin):
         else:
             raise Exception(*result['error'])
 
-    def post(self, url, payload={}, auth=None):
+    def post(self, url, payload={}, auth=False):
         headers = {"content-type": "application/json"}
         params = {'payload': payload}
-        if auth is not None:
-            params['auth'] = auth
+        if auth:
+            (auth, message) = self.generate_auth_json(params)
+            headers['authorization'] = auth
+        else:
+            message = json.dumps(params)
 
-        return treq.post(url, data=json.dumps(params), headers=headers).addCallback(self.handle_response)
+        return treq.post(url, data=message, headers=headers).addCallback(self.handle_response)
 
     def getMarkets(self):
         url = self.endpoint + "/rpc/market/get_markets"
@@ -852,22 +854,19 @@ class SputnikRest(SputnikMixin):
 
     def getPositions(self):
         url = self.endpoint + "/rpc/trader/get_positions"
-        auth = self.generate_auth()
-        return self.post(url, auth=auth).addCallback(self.positions_from_wire).addErrback(self.onError, "getPositions")
+        return self.post(url, auth=True).addCallback(self.positions_from_wire).addErrback(self.onError, "getPositions")
 
     def getCurrentAddress(self, ticker):
         url = self.endpoint + "/rpc/trader/get_current_address"
         payload = {'ticker': ticker}
-        auth = self.generate_auth()
-        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "getCurrentAddress")
+        return self.post(url, payload=payload, auth=True).addErrback(self.onError, "getCurrentAddress")
 
     def requestWithdrawal(self, ticker, amount, address):
         url = self.endpoint + "/rpc/trader/request_withdrawal"
         payload = {'ticker': ticker,
                   'amount': self.quantity_to_wire(ticker, amount),
                   'address': address}
-        auth = self.generate_auth()
-        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "requestWithdrawal")
+        return self.post(url, payload=payload, auth=True).addErrback(self.onError, "requestWithdrawal")
 
     def placeOrder(self, ticker, quantity, price, side):
         url = self.endpoint + "/rpc/trader/place_order"
@@ -875,19 +874,16 @@ class SputnikRest(SputnikMixin):
                   'quantity': self.quantity_to_wire(ticker, quantity),
                   'price': self.price_to_wire(ticker, price),
                   'side': side }}
-        auth = self.generate_auth()
-        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "placeOrder")
+        return self.post(url, payload=payload, auth=True).addErrback(self.onError, "placeOrder")
 
     def cancelOrder(self, id):
         url = self.endpoint + "/rpc/trader/cancel_order"
         payload = {'id': id}
-        auth = self.generate_auth()
-        return self.post(url, payload=payload, auth=auth).addErrback(self.onError, "cancelOrder")
+        return self.post(url, payload=payload, auth=True).addErrback(self.onError, "cancelOrder")
 
     def getOpenOrders(self):
         url = self.endpoint + "/rpc/trader/get_open_orders"
-        auth = self.generate_auth()
-        return self.post(url, auth=auth).addCallback(self.orders_from_wire).addErrback(self.onError, "getOpenOrders")
+        return self.post(url, auth=True).addCallback(self.orders_from_wire).addErrback(self.onError, "getOpenOrders")
 
     def getOrderBook(self, ticker):
         url = self.endpoint + "/rpc/market/get_order_book"
@@ -901,8 +897,7 @@ class SputnikRest(SputnikMixin):
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
         payload = {'start_timestamp': start_timestamp,
                    'end_timestamp': end_timestamp}
-        auth = self.generate_auth()
-        return self.post(url, payload=payload, auth=auth).addCallback(self.transaction_history_from_wire).addErrback(self.onError, "getTransactionHistory")
+        return self.post(url, payload=payload, auth=True).addCallback(self.transaction_history_from_wire).addErrback(self.onError, "getTransactionHistory")
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -938,7 +933,7 @@ if __name__ == '__main__':
     def onInit(sputnik):
         # sputnik.getOpenOrders().addCallback(pprint)
         # sputnik.getOrderBook('BTC/MXN').addCallback(pprint)
-        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(pprint)
+        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(pprint).addErrback(log.err)
 
     sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
                                api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,

@@ -343,7 +343,9 @@ Logout
 ### rpc.token.get_new_api_credentials(expiration)
 
 Get a new set of API credentials and invalidate the old one. If expiration is passed in, then the token will expire at
-the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days.
+the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days. In the future
+this call will also require an OTP if that is enabled for the account.
+
 Returns
 
 ```json
