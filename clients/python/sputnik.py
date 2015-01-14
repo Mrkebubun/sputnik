@@ -770,7 +770,7 @@ class Sputnik():
         return defer.succeed(self.session.orders)
 
     def getOrderBook(self, ticker):
-        return defer.suceed(self.session.markets[ticker]['book'])
+        return defer.succeed(self.session.markets[ticker]['book'])
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
