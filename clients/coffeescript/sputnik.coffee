@@ -256,7 +256,7 @@ class @Sputnik extends EventEmitter
         @connect()
 
     getCookie: () =>
-        @call("rpc.registrar.get_cookie").then \
+        @call("rpc.token.get_cookie").then \
             (uid) =>
                 @log "cookie: " + uid
                 @emit "cookie", uid
