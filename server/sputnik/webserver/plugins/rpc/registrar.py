@@ -40,7 +40,7 @@ class RegistrarService(ServicePlugin):
     @wamp.register(u"rpc.registrar.change_password_token")
     @error_handler
     @schema("public/registrar.json#change_password_token", drop_args=[])
-    def get_reset_token(self, username, hash, token):
+    def change_password_token(self, username, hash, token):
         result = yield self.administrator.proxy.reset_password_hash(username,
                 None, hash, token=token)
         log("Reset password using token for user %s." % username)
