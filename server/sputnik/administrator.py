@@ -1069,11 +1069,11 @@ class AdminAPI(Resource):
                 log.err(failure)
                 return {'success': False, 'error': failure.value.args}
 
-            def deliver_result(result, request):
+            def deliver_result(result):
                 request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
                 request.finish()
 
-            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result)
             return NOT_DONE_YET
         except AdministratorException as e:
             log.err(e)
