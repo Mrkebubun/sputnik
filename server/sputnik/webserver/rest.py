@@ -48,10 +48,10 @@ class RESTProxy(Resource, Plugin):
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
 
     @inlineCallbacks
-    def check_auth(self, request, data):
-        # TODO: Do not pass email. Look it up in database instead.
-        email = request.getHeader("Email")
-        key = request.getHeader("Key")
+    def check_auth(self, request, data, auth):
+        # TODO: Do not pass username. Look it up in database instead.
+        username = auth.get("Username")
+        key = auth.get("Key")
         signature = request.getHeader("Authorization")
         if not all([user, key, signature]):
             raise RestException("exceptions/rest/not_authorized")
@@ -60,7 +60,7 @@ class RESTProxy(Resource, Plugin):
         user = None
 
         for db in databases:
-            user = yield db.lookup(email)
+            user = yield db.lookup(username)
             if user is not None:
                 break
         else:
@@ -81,29 +81,31 @@ class RESTProxy(Resource, Plugin):
         if not valid:
             raise RestException("exceptions/rest/not_authorized")
 
-        nonce = request.args.get("nonce")
+        nonce = auth.get("nonce")
         if nonce is None:
             raise RestException("exceptions/rest/invalid_nonce")
 
-        nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce[0])
+        nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce)
         if not nonce_valid:
             raise RestException("exceptions/rest/not_authorized")
 
-        del request.args["nonce"]
-
     @inlineCallbacks
     def process_request(self, request, data):
+        try:
+            parsed_data = json.loads(data)
+        except ValueError as e:
+            raise RestException("exceptions/rest/invalid_json", *e.args)
+
+        auth = parsed_data.get("auth")
+
         uri = '.'.join(request.postpath)
         if uri not in self.procs or uri in self.blocked_procs:
             raise RestException("exceptions/rest/no_such_function", uri)
 
         if request.postpath[1] in self.auth_required:
-            yield self.check_auth(request, data)
+            yield self.check_auth(request, data, auth)
 
-        kwargs = request.args
-        for key in kwargs:
-            if len(kwargs[key]) == 1:
-                kwargs[key] = kwargs[key][0]
+        kwargs = parsed_data.get("payload") or {}
 
         method = self.procs[uri]
         result = yield method(**kwargs)
@@ -130,7 +132,7 @@ class RESTProxy(Resource, Plugin):
         request.setHeader('content-type', 'application/json')
 
         data = request.content.read()
-        self.log(request, data)
+        self.log(request, data.encode("utf-8"))
 
         try:
             if request.method != "POST":
