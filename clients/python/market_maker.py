@@ -136,7 +136,7 @@ class MarketMakerBot(SputnikSession):
                             self.replaceBidAsk(ticker, new_bid, 'BUY')
                         if new_ask != self.external_markets[ticker]['ask']:
                             self.external_markets[ticker]['ask'] = new_ask
-                            self.replaceBidAsk(currency, new_ask, 'SELL')
+                            self.replaceBidAsk(ticker, new_ask, 'SELL')
                     else:
                         self.external_markets[ticker] = {'bid': new_bid, 'ask': new_ask}
                         self.replaceBidAsk(ticker, new_ask, 'SELL')
