@@ -85,9 +85,11 @@ class RESTProxy(Resource, Plugin):
         if nonce is None:
             raise RestException("exceptions/rest/invalid_nonce")
 
-        nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce)
+        nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce[0])
         if not nonce_valid:
             raise RestException("exceptions/rest/not_authorized")
+
+        del request.args["nonce"]
 
     @inlineCallbacks
     def process_request(self, request, data):
