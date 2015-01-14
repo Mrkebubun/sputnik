@@ -36,7 +36,12 @@ sputnik.on "error", console.log
 sputnik.on "open", (session, details) ->
     console.log "Sputnik session open."
     #sputnik.follow "NETS2014"
-    sputnik.authenticate "marketmaker", "marketmaker"
+    #sputnik.authenticate "marketmaker", "marketmaker"
+    sputnik.getResetToken "marketmaker"
+
+    sputnik.token = 'MhjZ5mu5NMCzKnt4EqgIoQ=='
+    sputnik.username = 'marketmaker'
+    sputnik.changePasswordToken 'marketmaker'
 
 sputnik.on "auth_success", ->
     console.log "Authenticated"
@@ -44,6 +49,7 @@ sputnik.on "auth_success", ->
         sputnik.getCookie()
     else
         sputnik.changePassword "marketmaker", "marketmaker"
+        sputnik.changePassword "blah", "blah"
 
 sputnik.on "auth_fail", ->
     console.log "Cannot login"
@@ -51,4 +57,5 @@ sputnik.on "auth_fail", ->
 sputnik.on "cookie", (cookie) ->
     got_cookie = true
     sputnik.restoreSession "marketmaker", cookie
+
 

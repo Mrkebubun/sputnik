@@ -323,17 +323,15 @@ class Administrator:
         except sqlalchemy.orm.exc.NoResultFound:
             raise NO_SUCH_USER
 
-        [salt, hash] = user.password.split(':')
-
-        if hash != old_password_hash and token is None:
+        if user.password != old_password_hash and token is None:
             raise PASSWORD_MISMATCH
-        elif hash != old_password_hash:
+        elif user.password != old_password_hash:
             # Check token
             token = self.check_token(username, token)
             token.used = True
             self.session.add(token)
 
-        user.password = "%s:%s" % (salt, new_password_hash)
+        user.password = new_password_hash
 
         self.session.add(user)
         self.session.commit()

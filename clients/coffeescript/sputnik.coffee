@@ -94,13 +94,17 @@ class @Sputnik extends EventEmitter
 
     # authentication and account management
 
-    makeAccount: (username, secret, email, nickname, locale) =>
+    computeHash: (password) =>
         @log "Computing password hash..."
         salt = Math.random().toString(36).slice(2)
         @authextra =
             salt: salt
             iterations: 1000
         key = autobahn.auth_cra.derive_key password, @authextra.salt
+        return [key, salt]
+
+    makeAccount: (username, secret, email, nickname, locale) =>
+        [key, salt] = @computeHash secret
 
         @call("rpc.registrar.make_account", username, "#{salt}:#{key}", email, nickname, locale).then \
             (result) =>
@@ -206,23 +210,19 @@ class @Sputnik extends EventEmitter
             @wtf "Not connected."
 
         @log "Changing password with token"
-        @rejoin = [@username, ["wampcra"]]
+        [key, salt] = @computeHash(new_password)
 
-        @session._onchallenge = (session, method, extra) =>
-            if method == "wampcra"
-                @authextra = extra
-                key = autobahn.auth_cra.derive_key password, @authextra.salt
+        @call("rpc.registrar.change_password_token", @username, "#{salt}:#{key}", @token).then \
+            (message) =>
+                @log "password change successfully"
+                @emit "change_password_token_success", message
 
-                @call("rpc.registrar.change_password_token", @username, key, @token).then \
-                    (message) =>
-                        @log "password change successfully"
-                        @emit "change_password_token_success", message
-
-                        # Log me in
-                        @authenticate @username, new_password
-                    , (error) =>
-                        @error "password change error", error
-                        @emit "change_password_token_fail", error
+                # Log me in
+                @log "trying to reauth"
+                @authenticate @username, new_password
+            , (error) =>
+                @error "password change error", error
+                @emit "change_password_token_fail", error
 
         @session.leave "sputnik.internal.rejoin"
 
@@ -230,10 +230,11 @@ class @Sputnik extends EventEmitter
         if not @authenticated
             @wtf "Not logged in."
 
-        old_secret = autobahn.auth_cra.derive_key old_password, @authextra.salt
-        new_secret = autobahn.auth_cra.derive_key new_password, @authextra.salt
+        salt = @authextra.salt
+        old_secret = autobahn.auth_cra.derive_key old_password, salt
+        new_secret = autobahn.auth_cra.derive_key new_password, salt
 
-        @call("rpc.token.change_password", old_secret, new_secret).then \
+        @call("rpc.token.change_password", "#{salt}:#{old_secret}", "#{salt}:#{new_secret}").then \
             (message) =>
                 @log "password changed successfully"
                 @emit "change_password_success", message
@@ -649,7 +650,7 @@ class @Sputnik extends EventEmitter
                     # TODO: Remove this 0, in the array and correct error handlers appropriately
                     return d.reject [0, result.error]
             , (error) =>
-                @wtf "RPC Error: #{error.desc} in #{method}"
+                @wtf ["RPC Error", method, error]
         d.promise
 
     subscribe: (topic, callback) =>
@@ -688,10 +689,11 @@ class @Sputnik extends EventEmitter
         @session.onleave = @onLeave
         @connected = true
         @log "Connected to #{@uri}."
+        # TODO: REENABLE THIS WHEN GOING BACK TO WWW
         #@processHash()
 
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+        # @call("rpc.market.get_markets").then @onMarkets, @wtf
+        # @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         @emit "open"
 

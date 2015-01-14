@@ -5,16 +5,17 @@
         <item url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
         <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
         <item url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
       <root url="file://$PROJECT_DIR$/clients/www/ractive.adaptor.js" />
-      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
       <root url="file://$PROJECT_DIR$/clients/www/tradingview.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/events.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/client.js" />
       <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       <root url="file://$PROJECT_DIR$/clients/coffeescript/sputnik.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
     </CLASSES>
     <SOURCES />
   </library>
