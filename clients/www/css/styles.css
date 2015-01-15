@@ -1242,11 +1242,41 @@ h4.bid {
 /*-- Embeddable Module Extra CSS --*/
 
 .login-left {
+    text-align: left;
     float: left;
+    margin-left: -15px;
+    margin-bottom: 10px;
 }
 
 .login-right {
+    text-align: right;
     float: right;
+    margin-right: -15px;
+    margin-bottom: 10px;
+}
+
+.header-box-center {
+    text-align: center;
+    margin-left: 0px !important;
+    padding-left: 0px !important;
+}
+
+.greybg {
+    background-color: #474747 !important;
+    font-weight: 500;
+    padding: 10px 0 10px 0;
+    color: white;
+
+}
+
+.buy-box5 {
+    border-left: 1px solid #c1c1c1;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+.spacer-sides {
+    padding: 0 15px 0 15px;
 }
 
 

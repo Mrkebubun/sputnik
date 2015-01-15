@@ -10,11 +10,13 @@
         <div class="row">
             <div class="col-xs-12 text-center">
                 {{#if !sputnik.logged_in}}
-                <div class="col-xs-6 login-left"><a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
+                <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                 {{else}}
-                <div class="col-xs-6 login-right"><span id="login_name">{{sputnik.username}}</span><br/>
+                <div class="login-right"><span id="login_name">{{sputnik.username}}</span>&nbsp; | &nbsp;
                 <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></div>
+
                 {{/if}}
+                </div>
             </div>
         </div>
         <div class="row">
