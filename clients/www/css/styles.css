@@ -1299,12 +1299,14 @@ h4.bid {
 .navbar {
     margin-top: 2px;
 }
-.container-fluid {
+/*--
+ .container-fluid {
     border-right: solid 1px #c1c1c1;
     border-left: solid 1px #c1c1c1;
     border-bottom: solid 1px #c1c1c1;
     margin-top: 0px !important;
 }
+--*/
 
 .login-box {
     clear: both;
