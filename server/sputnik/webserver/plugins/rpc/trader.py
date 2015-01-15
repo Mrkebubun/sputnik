@@ -185,28 +185,28 @@ class TraderService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/trader.json#get_new_address")
-    def get_new_address(self, ticker, username=None):
+    def get_new_address(self, contract, username=None):
         """
         assigns a new deposit address to a user and returns the address
-        :param ticker:
-        :type ticker: str
+        :param contract:
+        :type contract: str
         :returns: Deferred
         """
 
-        address = yield self.cashier.proxy.get_new_address(username, ticker)
+        address = yield self.cashier.proxy.get_new_address(username, contract)
         returnValue(address)
 
     @wamp.register(u"rpc.trader.get_current_address")
     @error_handler
     @authenticated
     @schema(u"public/trader.json#get_current_address")
-    def get_current_address(self, ticker, username=None):
+    def get_current_address(self, contract, username=None):
         """
         RPC call to obtain the current address associated with a particular user
-        :param ticker:
+        :param contract:
         :returns: Deferred
         """
-        address = yield self.cashier.proxy.get_current_address(username, ticker)
+        address = yield self.cashier.proxy.get_current_address(username, contract)
         returnValue(address)
 
 
@@ -214,18 +214,18 @@ class TraderService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/trader.json#get_deposit_instructions")
-    def get_deposit_instructions(self, ticker, username=None):
-        instructions = yield self.cashier.proxy.get_deposit_instructions(ticker)
+    def get_deposit_instructions(self, contract, username=None):
+        instructions = yield self.cashier.proxy.get_deposit_instructions(contract)
         returnValue(instructions)
 
     @wamp.register(u"rpc.trader.request_withdrawal")
     @error_handler
     @authenticated
     @schema(u"public/trader.json#request_withdrawal")
-    def request_withdrawal(self, ticker, amount, address, username=None):
+    def request_withdrawal(self, contract, amount, address, username=None):
         """
         Makes a note in the database that a withdrawal needs to be processed
-        :param ticker: the currency to process the withdrawal in
+        :param contract: the currency to process the withdrawal in
         :param amount: the amount of money to withdraw
         :param address: the address to which the withdrawn money is to be sent
         :returns: bool, Deferred - if an invalid amount, just return False, otherwise return a deferred
@@ -233,7 +233,7 @@ class TraderService(ServicePlugin):
         if amount <= 0:
             raise WebserverException("exceptions/webserver/invalid-withdrawal-amount")
 
-        result = yield self.accountant.proxy.request_withdrawal(username, ticker, amount, address)
+        result = yield self.accountant.proxy.request_withdrawal(username, contract, amount, address)
         returnValue(result)
 
     @wamp.register(u"rpc.trader.get_positions")

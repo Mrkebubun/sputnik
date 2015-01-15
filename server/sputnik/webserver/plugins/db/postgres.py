@@ -96,7 +96,7 @@ class PostgresDatabase(DatabasePlugin):
                                              "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts")
         markets = {}
         for r in results:
-            markets[r[0]] = {"ticker": r[0],
+            markets[r[0]] = {"contract": r[0],
                              "description": r[1],
                              "denominator": r[2],
                              "contract_type": r[3],

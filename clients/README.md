@@ -56,7 +56,7 @@ corresponding server objects. Each is encoded in JSON.
 
 ```json
 {
-    ticker: "TICKER"
+    contract: "TICKER"
     description: "short description"
     full_description: "full description"
     contract_type: "futures|prediction|cash_pair|cash"
@@ -182,25 +182,25 @@ Take no arguments. Returns a ticker-indexed dictionary of contracts correspondin
 ### rpc.info.get_exchange_info()
 Takes no arguments. Gets information about the exchange running here.
 
-### rpc.market.get_trade_history(ticker, start_timestamp, end_timestamp)
+### rpc.market.get_trade_history(contract, start_timestamp, end_timestamp)
 
-ticker must be a string. It must be one of the active markets. Returns a time sorted array of trades.
+contract must be a string. It must be one of the active markets. Returns a time sorted array of trades.
 
-### rpc.market.get_ohlcv_history(ticker,period,start_timestamp,end_timestamp)
+### rpc.market.get_ohlcv_history(contract,period,start_timestamp,end_timestamp)
 
-ticker must be a string. It must be one of the active markets. period is minute/hour/day.
+contract must be a string. It must be one of the active markets. period is minute/hour/day.
 Returns a dict with the key as the timestamp, the start of the period in question.
 
 Each entry is an ```ohlcv``` object
 
-### rpc.market.get_order_book(ticker)
+### rpc.market.get_order_book(contract)
 
-ticker must be a string. It must be one of the active markets. Returns a dictionary with keys 'bids' and 'asks' and
-values array of orders. Key ```contract``` is the ticker requested.
+contract must be a string. It must be one of the active markets. Returns a dictionary with keys 'bids' and 'asks' and
+values array of orders. Key ```contract``` is the contract requested.
 
-### rpc.market.get_safe_prices(list of tickers)
+### rpc.market.get_safe_prices(list of contracts)
 
-Returns the safe prices for the tickers passed in, or if none, returns all safe prices
+Returns the safe prices for the contracts passed in, or if none, returns all safe prices
 
 ### rpc.info.get_audit()
 
@@ -316,15 +316,15 @@ Change the profile for the user, pass in a ```profile``` object
 
 Returns the nonce you need to submit a support request to the support ticket server. Type is the type of ticket. Only 'Compliance' is currently supported.
 
-### rpc.trader.request_withdrawal(ticker, amount, address)
+### rpc.trader.request_withdrawal(contract, amount, address)
 
 Send a request to withdraw a certain amount of a cash contract to a given address
 
-### rpc.trader.get_new_address(ticker)
+### rpc.trader.get_new_address(contract)
 
 Request a new address for sending deposits
 
-### rpc.trader.get_current_address(ticker)
+### rpc.trader.get_current_address(contract)
 
 Return the currently active address for sending deposits
 

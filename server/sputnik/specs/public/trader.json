@@ -46,43 +46,43 @@
         "type": "object",
         "description": "get a new deposit address for a contract",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             }
         },
-        "required": ["ticker"],
+        "required": ["contract"],
         "additionalProperties": false
     },
     "get_current_address": {
         "type": "object",
         "description": "get the currently active deposit address for a contract",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             }
         },
-        "required": ["ticker"],
+        "required": ["contract"],
         "additionalProperties": false
     },
     "get_deposit_instructions": {
         "type": "object",
         "description": "get the deposit instructions for a contract",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             }
         },
-        "required": ["ticker"],
+        "required": ["contract"],
         "additionalProperties": false
     },
     "request_withdrawal": {
         "type": "object",
         "description": "request a withdrawal of funds",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             },
@@ -95,7 +95,7 @@
                 "description": "the destination of the withdrawal"
             }
         },
-        "required": ["ticker", "amount", "address"],
+        "required": ["contract", "amount", "address"],
         "additionalProperties": false
     },
     "get_positions": {

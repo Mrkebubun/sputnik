@@ -8,7 +8,7 @@
         "type": "object",
         "description": "get historical bars",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             },
@@ -25,14 +25,14 @@
                 "description": "end of the period, microseconds since epoch"
             }
         },
-        "required": ["ticker", "period"],
+        "required": ["contract", "period"],
         "additionalProperties": false
     },
     "get_trade_history": {
         "type": "object",
         "description": "get every trade for the given time frame",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             },
@@ -45,28 +45,28 @@
                 "description": "end of the period, microseconds since epoch"
             }
         },
-        "required": ["ticker"],
+        "required": ["contract"],
         "additionalProperties": false
     },
     "get_order_book": {
         "type": "object",
         "description": "get the orderbook for a contract",
         "properties": {
-            "ticker": {
+            "contract": {
                 "type": "string",
                 "description": "the relevant contract"
             }
         },
-        "required": ["ticker"],
+        "required": ["contract"],
         "additionalProperties": false
     },
     "get_safe_prices": {
         "type": "object",
         "description": "get the safe prices for all or a list of contracts",
         "properties": {
-            "array_of_tickers": {
+            "array_of_contracts": {
                 "type": "array",
-                "description": "array of tickers we want safe prices for"
+                "description": "array of contracts we want safe prices for"
             }
         },
         "additionalProperties": false
