@@ -36,12 +36,12 @@ sputnik.on "error", console.log
 sputnik.on "open", (session, details) ->
     console.log "Sputnik session open."
     #sputnik.follow "NETS2014"
-    #sputnik.authenticate "marketmaker", "marketmaker"
-    sputnik.getResetToken "marketmaker"
+    sputnik.authenticate "marketmaker", "marketmaker"
+    #sputnik.getResetToken "marketmaker"
 
-    sputnik.token = 'MhjZ5mu5NMCzKnt4EqgIoQ=='
-    sputnik.username = 'marketmaker'
-    sputnik.changePasswordToken 'marketmaker'
+    #sputnik.token = 'MhjZ5mu5NMCzKnt4EqgIoQ=='
+    #sputnik.username = 'marketmaker'
+    #sputnik.changePasswordToken 'marketmaker'
 
 sputnik.on "auth_success", ->
     console.log "Authenticated"

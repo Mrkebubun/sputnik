@@ -279,7 +279,6 @@ class @Sputnik extends EventEmitter
             # Spit out some debugging, this should not happen
             @error ["cstFromTicker: ticker not in markets", ticker]
         contract = @markets[ticker]
-        @log @markets[ticker]
         if not contract?
             @error ["cstFromTicker: contract undefined", ticker]
         if contract.contract_type is "cash_pair"
@@ -658,7 +657,8 @@ class @Sputnik extends EventEmitter
             return @wtf "Not connected."
         @log "subscribing: #{topic}"
         @session.subscribe topic, (event) ->
-            callback event
+            # WAMPv2 returns an array as event, we just want the first item
+            callback event[0]
 
     unsubscribe: (topic) =>
         if not @session?
@@ -692,8 +692,8 @@ class @Sputnik extends EventEmitter
         # TODO: REENABLE THIS WHEN GOING BACK TO WWW
         #@processHash()
 
-        # @call("rpc.market.get_markets").then @onMarkets, @wtf
-        # @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         @emit "open"
 
