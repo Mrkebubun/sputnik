@@ -186,7 +186,7 @@ Takes no arguments. Gets information about the exchange running here.
 
 contract must be a string. It must be one of the active markets. Returns a time sorted array of trades.
 
-### rpc.market.get_ohlcv_history(contract,period,start_timestamp,end_timestamp)
+### rpc.market.get_ohlcv_history(contract, period, start_timestamp,end_timestamp)
 
 contract must be a string. It must be one of the active markets. period is minute/hour/day.
 Returns a dict with the key as the timestamp, the start of the period in question.

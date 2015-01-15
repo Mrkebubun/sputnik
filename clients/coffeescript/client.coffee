@@ -32,7 +32,8 @@ sputnik.connect()
 got_cookie = false
 sputnik.on "log", console.log
 sputnik.on "warn", console.log
-sputnik.on "error", console.log
+sputnik.on "error", console.error
+
 sputnik.on "open", (session, details) ->
     console.log "Sputnik session open."
     #sputnik.follow "NETS2014"
@@ -50,6 +51,17 @@ sputnik.on "auth_success", ->
     else
         sputnik.changePassword "marketmaker", "marketmaker"
         sputnik.changePassword "blah", "blah"
+        sputnik.placeOrder("BTC/USD", 1, 400, 'SELL')
+        sputnik.getAddress('BTC')
+
+        sputnik.newAddress('BTC')
+        sputnik.requestWithdrawal('USD', 3, 'my bank')
+        sputnik.requestWithdrawal('BTC', 4, '2923')
+
+        sputnik.openMarket('BTC/USD')
+
+        sputnik.logout()
+
 
 sputnik.on "auth_fail", ->
     console.log "Cannot login"
@@ -57,5 +69,3 @@ sputnik.on "auth_fail", ->
 sputnik.on "cookie", (cookie) ->
     got_cookie = true
     sputnik.restoreSession "marketmaker", cookie
-
-

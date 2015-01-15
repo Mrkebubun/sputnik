@@ -133,17 +133,17 @@ class MarketService(ServicePlugin):
     @wamp.register(u"rpc.market.get_trade_history")
     @error_handler
     @schema("public/market.json#get_trade_history")
-    def get_trade_history(self, contract, from_timestamp=None, to_timestamp=None):
+    def get_trade_history(self, contract, start_timestamp=None, end_timestamp=None):
         if contract not in self.markets:
             raise WebserverException("exceptions/webserver/no-such-ticker", contract)
 
         now = util.dt_to_timestamp(datetime.utcnow())
-        start = from_timestamp or int(now - 3.6e9) # delta 1 hour
-        end = to_timestamp or now
+        start = start_timestamp or int(now - 3.6e9) # delta 1 hour
+        end = end_timestamp or now
         
         history = yield succeed([entry for entry in self.trade_history.get(contract, []) \
                 if start <= entry["timestamp"] <= end])
-        returnValue([True, history])
+        returnValue(history)
 
     @wamp.register(u"rpc.market.get_order_book")
     @error_handler

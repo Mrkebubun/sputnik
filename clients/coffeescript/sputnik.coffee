@@ -70,7 +70,8 @@ class @Sputnik extends EventEmitter
         , 30000
 
     close: () =>
-        @session?.close()
+        @connection?.close()
+        @connection = null
         @session = null
 
     # market selection
@@ -157,23 +158,24 @@ class @Sputnik extends EventEmitter
             @emit "transaction_history", transaction_history
 
     processHash: () =>
-        hash = window.location.hash.substring(1).split('&')
-        @log ["Hash", hash]
-        args = {}
-        for entry in hash
-            pair = entry.split(/\=(.+)?/)
-            key = decodeURIComponent(pair[0])
-            value = decodeURIComponent(pair[1])
-            @log [entry, pair, key, value]
-            args[key] = value
+        if window?
+            hash = window.location.hash.substring(1).split('&')
+            @log ["Hash", hash]
+            args = {}
+            for entry in hash
+                pair = entry.split(/\=(.+)?/)
+                key = decodeURIComponent(pair[0])
+                value = decodeURIComponent(pair[1])
+                @log [entry, pair, key, value]
+                args[key] = value
 
-        @log ["args", args]
+            @log ["args", args]
 
-        if args.function?
-            if args.function == 'change_password_token'
-                @username = args.username
-                @token = args.token
-                @emit args['function'], args
+            if args.function?
+                if args.function == 'change_password_token'
+                    @username = args.username
+                    @token = args.token
+                    @emit args['function'], args
 
     authenticate: (@username, password) =>
         if not @session?
@@ -269,9 +271,6 @@ class @Sputnik extends EventEmitter
     encode_username: (username) =>
         CryptoJS.SHA256(username).toString(CryptoJS.enc.Hex)
 
-    onSessionExpired: (error) =>
-        @emit "session_expired"
-
     # data conversion
 
     cstFromTicker: (ticker) =>
@@ -327,7 +326,8 @@ class @Sputnik extends EventEmitter
         wire_order = @copy(order)
         wire_order.price = @priceToWire(ticker, order.price)
         wire_order.quantity = @quantityToWire(ticker, order.quantity)
-        wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
+        if order.quantity_left?
+            wire_order.quantity_left = @quantityToWire(ticker, order.quantity_left)
         return wire_order
 
     orderFromWire: (wire_order) =>
@@ -465,7 +465,7 @@ class @Sputnik extends EventEmitter
             return source.denominator * contract.denominator
 
     # order manipulation
-    canPlaceOrder: (quantity, price, ticker, side) =>
+    canPlaceOrder: (ticker, quantity, price, side) =>
       new_order =
           quantity: quantity
           quantity_left: quantity
@@ -476,7 +476,7 @@ class @Sputnik extends EventEmitter
       cash_position = @positions["BTC"].position
       return high_margin <= cash_position
 
-    placeOrder: (quantity, price, ticker, side) =>
+    placeOrder: (ticker, quantity, price, side) =>
         order =
             quantity: quantity
             price: price
@@ -646,8 +646,7 @@ class @Sputnik extends EventEmitter
                     return d.resolve result.result
                 else
                     @warn ["RPC call failed", result.error]
-                    # TODO: Remove this 0, in the array and correct error handlers appropriately
-                    return d.reject [0, result.error]
+                    return d.reject result.error
             , (error) =>
                 @wtf ["RPC Error", method, error]
         d.promise
@@ -689,8 +688,7 @@ class @Sputnik extends EventEmitter
         @session.onleave = @onLeave
         @connected = true
         @log "Connected to #{@uri}."
-        # TODO: REENABLE THIS WHEN GOING BACK TO WWW
-        #@processHash()
+        @processHash()
 
         @call("rpc.market.get_markets").then @onMarkets, @wtf
         @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
@@ -727,10 +725,16 @@ class @Sputnik extends EventEmitter
             @log ["joined anonymously"]
 
     onLeave: (reason, message) =>
+        @log ["leave reason", reason, message]
         if reason == "wamp.error.not_authorized"
             @username = null
-            @error ["auth_fail", message]
-            @emit "auth_fail", [0, message]
+            @log @rejoin
+            if @rejoin? and "cookie" in @rejoin[1]
+                @error ["cookie_login_fail", message.message]
+                @emit "cookie_login_fail", [message.message]
+            else
+                @error ["auth_fail", message.message]
+                @emit "auth_fail", [message.message]
         else
             if @rejoin?
                 @session.join "sputnik", @rejoin[1], @rejoin[0]
