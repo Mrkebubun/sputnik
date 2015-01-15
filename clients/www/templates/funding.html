@@ -12,11 +12,11 @@
                 {{#if !sputnik.logged_in}}
                 <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                 {{else}}
-                <div class="login-right"><span id="login_name">{{sputnik.username}}</span>&nbsp; | &nbsp;
-                <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></div>
-
-                {{/if}}
+                <div class="login-right">
+                    <span id="login_name">{{sputnik.username}}</span>&nbsp; | &nbsp;
+                    <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
                 </div>
+                {{/if}}
             </div>
         </div>
         <div class="row">
