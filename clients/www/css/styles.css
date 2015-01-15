@@ -1270,7 +1270,12 @@ h4.bid {
 }
 
 .buy-box5 {
-    border-left: 1px solid #c1c1c1;
+    border-left: 1px solid #e6e6e6;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+.buy-box6 {
     padding-left: 15px !important;
     padding-right: 15px !important;
 }
