@@ -39,6 +39,7 @@ from twisted.python import log
 from twisted.internet import reactor, defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString
+from twisted.internet.task import deferLater
 from autobahn.twisted import wamp, websocket
 from autobahn.wamp import types
 from autobahn.wamp import auth
@@ -614,7 +615,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         d = self.call(u"rpc.trader.get_positions")
         def _onPositions(wire_positions):
             self.wire_positions = wire_positions
-            self.onPositions(self.positions)
+            return self.onPositions(self.positions)
 
         return d.addCallback(_onPositions).addErrback(self.onError, "getPositions")
 
@@ -634,7 +635,12 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
         return d.addCallback(_onOpenOrders).addErrback(self.onError, "getOpenOrders")
 
-    def getTransactionHistory(self, start_datetime=datetime.utcnow()-timedelta(days=2), end_datetime=datetime.utcnow()):
+    def getTransactionHistory(self, start_datetime=None, end_datetime=None):
+        if start_datetime is None:
+            start_datetime = datetime.utcnow()-timedelta(days=2)
+        if end_datetime is None:
+            end_datetime = datetime.utcnow()
+
         epoch = datetime.utcfromtimestamp(0)
         start_timestamp = int((start_datetime - epoch).total_seconds() * 1e6)
         end_timestamp = int((end_datetime - epoch).total_seconds() * 1e6)
@@ -723,6 +729,7 @@ class BasicBot(SputnikSession):
         # self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         # self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         # self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        self.getResetToken('marketmaker')
         pass
 
     def startAutomationAfterAuth(self):
@@ -744,6 +751,15 @@ class BotFactory(wamp.ApplicationSessionFactory):
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
+
+def wait_for_session(f):
+    def wrapped(self, *args, **kwargs):
+        if self.session is None:
+            return deferLater(reactor, 5, wrapped, self, *args, **kwargs)
+        else:
+            return f(self, *args, **kwargs)
+
+    return wrapped
 
 class Sputnik():
     def __init__(self, connection, bot_params, debug, bot=SputnikSession):
@@ -776,27 +792,35 @@ class Sputnik():
     def onConnect(self, session):
         self.session = session
 
+    @wait_for_session
     def getPositions(self):
         return defer.succeed(self.session.positions)
 
+    @wait_for_session
     def getCurrentAddress(self, ticker):
         return self.session.getCurrentAddress(ticker)
 
+    @wait_for_session
     def requestWithdrawal(self, ticker, amount, address):
         return self.session.requestWithdrawal(ticker, amount, address)
 
+    @wait_for_session
     def placeOrder(self, ticker, quantity, price, side):
         return self.session.placeOrder(ticker, quantity, price, side)
 
+    @wait_for_session
     def cancelOrder(self, id):
         return self.session.cancelOrder(id)
 
+    @wait_for_session
     def getOpenOrders(self):
         return defer.succeed(self.session.orders)
 
+    @wait_for_session
     def getOrderBook(self, ticker):
         return defer.succeed(self.session.markets[ticker]['book'])
 
+    @wait_for_session
     def getTransactionHistory(self, start_datetime, end_datetime):
         return self.session.getTransactionHistory(start_datetime, end_datetime)
 
@@ -922,8 +946,8 @@ if __name__ == '__main__':
                    'hostname': config.get("client", "hostname"),
                    'ca_certs_dir': config.get("client", "ca_certs_dir") }
 
-    # sputnik_wamp = Sputnik(connection, bot_params, debug, bot=BasicBot)
-    # sputnik_wamp.connect()
+    sputnik_wamp = Sputnik(connection, bot_params, debug, bot=BasicBot)
+    sputnik_wamp.connect()
 
     if connection['ssl']:
         rest_endpoint = "https://%s:%d/api" % (connection['hostname'], connection['port'])
@@ -935,9 +959,9 @@ if __name__ == '__main__':
         # sputnik.getOrderBook('BTC/MXN').addCallback(pprint)
         sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(pprint).addErrback(log.err)
 
-    sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
-                               api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,
-                               onInit=onInit)
+    # sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
+    #                            api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,
+    #                            onInit=onInit)
 
 
     reactor.run()

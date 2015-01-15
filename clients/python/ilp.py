@@ -1,11 +1,12 @@
 __author__ = 'sameer'
 
 from datetime import datetime
-from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, Deferred
+from twisted.internet import reactor, task
 from twisted.python import log
 from copy import copy, deepcopy
 import collections
+import sys
 
 class State():
     def __init__(self, data):
@@ -40,15 +41,20 @@ class State():
     def update(self):
         last_update = self.timestamp
         self.timestamp = datetime.utcnow()
-        self.fiat_book = yield self.data.get_fiat_book()
-        self.source_book = yield self.data.get_source_book()
-        self.target_book = yield self.data.get_target_book()
-        self.balance_source = yield self.data.get_source_positions()
-        self.balance_target = yield self.data.get_target_positions()
+        fb_d = self.data.get_fiat_book()
+        sb_d = self.data.get_source_book()
+        tb_d = self.data.get_target_book()
+        bs_d = self.data.get_source_positions()
+        bt_d = self.data.get_target_positions()
+        st_d = self.data.get_source_transactions(last_update, self.timestamp)
+        tt_d = self.data.get_target_transactions(last_update, self.timestamp)
+
+        [self.fiat_book, self.source_book, self.target_book, self.balance_source, self.balance_target,
+         source_transactions, target_transactions] = \
+            yield gatherResults([fb_d, sb_d, tb_d, bs_d, bt_d, st_d, tt_d])
 
         # Update transits - remove ones that have arrived
-        source_transactions = yield self.data.get_source_transactions(last_update, self.timestamp)
-        target_transactions = yield self.data.get_target_transactions(last_update, self.timestamp)
+        # How do we do this?
 
         returnValue(None)
 
@@ -234,11 +240,11 @@ class Valuation():
     def market_risk(self):
         risk = 0
         for ticker, balance in self.balance_in_source.iteritems():
-            if ticker == self.source_ticker:
+            if ticker == self.data.source_ticker:
                 pass
-            if ticker == self.target_ticker:
+            if ticker == self.data.target_ticker:
                 risk += balance * self.fiat_exchange_var
-            if ticker == self.btc_ticker:
+            if ticker == self.data.btc_ticker:
                 risk += balance * self.source_exchange_var
 
         risk *= self.risk_aversion
@@ -331,7 +337,7 @@ class MarketData():
     def __init__(self,
                  source_exchange,
                  target_exchange,
-                 fiat_data,
+                 fiat_exchange,
                  source_ticker,
                  target_ticker,
                  btc_ticker,
@@ -346,7 +352,7 @@ class MarketData():
         # Configurations
         self.source_exchange = source_exchange
         self.target_exchange = target_exchange
-        self.fiat_data = fiat_data
+        self.fiat_exchange = fiat_exchange
         self.source_ticker = source_ticker
         self.target_ticker = target_ticker
         self.btc_ticker = btc_ticker
@@ -360,11 +366,14 @@ class MarketData():
         self.btc_delay = btc_delay
 
 
-    def get_fiat_order_book(self):
+    def get_fiat_book(self):
         return self.fiat_exchange.getOrderBook('%s/%s' % (self.source_ticker, self.target_ticker))
 
-    def get_source_order_book(self):
+    def get_source_book(self):
         return self.source_exchange.getOrderBook('%s/%s' % (self.btc_ticker, self.source_ticker))
+
+    def get_target_book(self):
+        return self.target_exchange.getOrderBook('%s/%s' % (self.btc_ticker, self.target_ticker))
 
     def get_target_positions(self):
         return self.target_exchange.getPositions()
@@ -380,8 +389,64 @@ class MarketData():
 
 
 
+if __name__ == "__main__":
+    @inlineCallbacks
+    def main():
+        from sputnik import Sputnik
+        from yahoo import Yahoo
+
+        connection = { 'ssl': False,
+                       'port': 8880,
+                       'hostname': 'localhost',
+                       'ca_certs_dir': "/etc/ssl/certs" }
+
+        debug = False
+
+        source_exchange = Sputnik(connection, {'username': 'ilp_source',
+                                               'password': 'ilp'}, debug)
+        target_exchange = Sputnik(connection, {'username': 'ilp_target',
+                                               'password': 'ilp'}, debug)
+        se = source_exchange.connect()
+        te = target_exchange.connect()
+        wait = yield gatherResults([se, te])
 
 
+
+        fiat_exchange = Yahoo()
+        market_data = MarketData(source_exchange=source_exchange,
+                                 target_exchange=target_exchange,
+                                 fiat_exchange=fiat_exchange,
+                                 source_ticker='USD',
+                                 target_ticker='HUF',
+                                 btc_ticker='BTC',
+                                 fiat_exchange_cost=(1000, 1), # Set the exchange cost really high because we basically can't
+                                 fiat_exchange_delay=86400 * 3,
+                                 source_fee=(0, 0.01),
+                                 target_fee=(0, 0.005),
+                                 btc_fee=0.0001,
+                                 btc_delay=3600)
+        state = State(market_data)
+        valuation = Valuation(state=state,
+                              data=market_data,
+                              edge=0.04,
+                              target_balance_source={ 'USD': 1000,
+                                                      'BTC': 1 },
+                              target_balance_target={ 'HUF': 271000,
+                                                       'BTC': 1 },
+                              deviation_penalty=0.3,
+                              risk_aversion=0.3,
+                              quote_size=0.01,
+                              fiat_exchange_var=23,
+                              source_exchange_var=1003,
+                              fiat_source_cov=0)
+
+        while True:
+            result = yield valuation.run_scenarios()
+            pprint(result)
+
+    log.startLogging(sys.stdout)
+    main().addErrback(log.err)
+    reactor.run()
 
 
 
