@@ -7,6 +7,8 @@ from twisted.python import log
 from copy import copy, deepcopy
 import collections
 import sys
+import math
+from pprint import pprint
 
 class State():
     def __init__(self, data):
@@ -243,9 +245,9 @@ class Valuation():
             if ticker == self.data.source_ticker:
                 pass
             if ticker == self.data.target_ticker:
-                risk += balance * self.fiat_exchange_var
+                risk += math.pow(balance, 2) * self.fiat_exchange_var
             if ticker == self.data.btc_ticker:
-                risk += balance * self.source_exchange_var
+                risk += math.pow(balance, 2) * self.source_exchange_var
 
         risk *= self.risk_aversion
         return risk

@@ -3,7 +3,7 @@ __author__ = 'sameer'
 import treq
 import json
 from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet import reactor
+from twisted.internet import reactor, task
 from twisted.python import log, failure
 import string
 import hmac
@@ -11,6 +11,7 @@ import hashlib
 import time
 from decimal import Decimal
 from pprint import pprint
+from datetime import datetime
 
 class CoinSetter():
     def __init__(self, username, password, ip, endpoint="https://api.coinsetter.com/v1/"):
@@ -33,6 +34,11 @@ class CoinSetter():
         account_list = yield self.post("customer/account")['accountList']
         self.account_uuids = [account['accountUuid'] for account in account_list]
         self.default_account = self.account_uuids[0]
+        self.heartbeat = task.LoopingCall(self.call_heartbeat)
+        self.heartbeat.start(60)
+
+    def call_heartbeat(self):
+        return self.get("clientSession/%s" % self.session_id, params={'action': 'HEARTBEAT'})
 
     @inlineCallbacks
     def placeOrder(self, contract, quantity, price, side):

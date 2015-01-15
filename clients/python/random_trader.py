@@ -80,10 +80,10 @@ class RandomBot(SputnikSession):
             # Post something close to the bid or ask, depending on the size
             if side == 'BUY':
                 best_ask = min([row['price'] for row in self.markets[ticker]['book']['asks']])
-                price = best_ask * distance
+                price = float(best_ask) * distance
             else:
                 best_bid = max([row['price'] for row in self.markets[ticker]['book']['bids']])
-                price = best_bid * distance
+                price = float(best_bid) * distance
 
         except (ValueError, KeyError):
             # We don't have a best bid/ask. If it's a prediction contract, pick a random price

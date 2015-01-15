@@ -12,6 +12,7 @@ import hashlib
 import time
 from decimal import Decimal
 from pprint import pprint
+from datetime import datetime
 
 class BitStamp():
     def __init__(self, client_id=None, api_key=None, api_secret=None, endpoint="https://www.bitstamp.net/api/"):
