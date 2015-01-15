@@ -160,7 +160,7 @@ class BitStamp():
                         finished = True
                         break
                     if timestamp >= start_datetime:
-                        transaction_usd = { 'timestamp': int(timestamp * 1e6),
+                        transaction_usd = { 'timestamp': int(transaction['datetime'] * 1e6),
                                             'type': type_map[transaction['type']],
                                             'contract': 'USD',
                                             'quantity': Decimal(transaction['usd']),
