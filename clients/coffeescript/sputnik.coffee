@@ -261,7 +261,7 @@ class @Sputnik extends EventEmitter
 
     logout: () =>
         @authenticated = false
-        @call "rpc.trader.logout"
+        @call "rpc.token.logout"
         @close()
         @emit "logout"
         # Reconnect after logout
