@@ -178,9 +178,8 @@ class @Sputnik extends EventEmitter
 
             if args.function?
                 if args.function == 'change_password_token'
-                    @username = args.username
-                    @token = args.token
-                    @emit args['function'], args
+                    @cp_args = args
+                    @emit args.function, args
 
     authenticate: (@username, password) =>
         if not @session?
@@ -219,19 +218,13 @@ class @Sputnik extends EventEmitter
         @log "Changing password with token"
         [key, salt] = @computeHash(new_password)
 
-        @call("rpc.registrar.change_password_token", @username, "#{salt}:#{key}", @token).then \
+        @call("rpc.registrar.change_password_token", @cp_args.username, "#{salt}:#{key}", @cp_args.token).then \
             (message) =>
                 @log "password change successfully"
-                @emit "change_password_token_success", message
-
-                # Log me in
-                @log "trying to reauth"
-                @authenticate @username, new_password
+                @emit "change_password_token_success", @cp_args.username
             , (error) =>
                 @error "password change error", error
                 @emit "change_password_token_fail", error
-
-        @session.leave "sputnik.internal.rejoin"
 
     changePassword: (old_password, new_password) =>
         if not @authenticated
@@ -640,6 +633,10 @@ class @Sputnik extends EventEmitter
     call: (method, params...) =>
         if not @session?
             return @wtf "Not connected."
+
+        if not @session.isOpen
+            return @error "Session not open"
+
         @log ["RPC #{method}",params]
         d = @connection.defer()
         @session.call(method, params).then \

@@ -520,6 +520,8 @@ $ ->
             change_password_token: (event) ->
                 event.original.preventDefault()
                 if $('#new_password_token').val() == $('#new_password_token_confirm').val()
+                    ladda = Ladda.create $("#change_password_token_button")[0]
+                    ladda.start()
                     sputnik.changePasswordToken($('#new_password_token').val())
                 else
                     $('#change_password_token_modal .alert').removeClass('alert-info').addClass('alert-danger').text locale.translate("alerts/mismatched_password", ractive.get("sputnik.profile.locale"))
@@ -891,13 +893,21 @@ $ ->
             ga('send', 'event', 'password', 'change_password_token_fail', 'error', error[0])
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
+            ladda = Ladda.create $("#change_password_token_button")[0]
+            ladda.stop()
             bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
 
-        sputnik.on "change_password_token_success", (message) ->
+        sputnik.on "change_password_token_success", (username) ->
             ga('send', 'event', 'password', 'change_password_token_success')
             $('#change_password_token_modal').modal "hide"
             window.location.hash = ''
+            ladda = Ladda.create $("#change_password_token_button")[0]
+            ladda.stop()
             bootbox.alert locale.translate("alerts/password_reset", ractive.get("sputnik.profile.locale"))
+
+            # Log me in
+            @log "trying to reauth as #{username}"
+            sputnik.authenticate username, $('#new_password_token').val()
 
         sputnik.on "change_password_success", (message) ->
             ga('send', 'event', 'password', 'change_password_success')
