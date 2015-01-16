@@ -39,7 +39,7 @@ from jinja2 import Environment, FileSystemLoader
 import sqlalchemy.orm.exc
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
-from autobahn.wamp1.protocol import WampCraProtocol
+from autobahn.wamp.auth import derive_key
 from twisted.web.static import File
 
 import config
@@ -297,8 +297,8 @@ class Administrator:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt": salt, "keylen": 32, "iterations": 1000}
-        password = WampCraProtocol.deriveKey(new_password, extra)
+
+        password = derive_key(new_password, salt, iterations=1000, keylen=32)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
