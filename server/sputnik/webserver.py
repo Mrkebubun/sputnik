@@ -135,15 +135,6 @@ MAX_TICKER_LENGTH = 100
 class AdministratorExport:
     pass
 
-
-def malicious_looking(w):
-    """
-
-    :param w:
-    :returns: bool
-    """
-    return any(x in w for x in '<>&')
-
 class PublicInterface:
     def __init__(self, factory):
         """

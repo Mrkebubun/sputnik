@@ -274,15 +274,7 @@ class TraderService(ServicePlugin):
         :param nickname:
         :returns: Deferred
         """
-        # TODO: make sure email is an actual email
-        # TODO: make sure nickname is appropriate
-        # (These checks should be in administrator?)
-
-        if malicious_looking(profile.get('email', '')) or malicious_looking(profile.get('nickname', '')):
-            raise WebserverException("exceptions/webserver/malicious-looking-input")
-
         result = yield self.administrator.proxy.change_profile(username, profile)
-        profile = yield self.get_profile(username=username)
         returnValue(profile)
 
     @wamp.register(u"rpc.trader.get_open_orders")

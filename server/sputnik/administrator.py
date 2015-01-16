@@ -79,6 +79,7 @@ INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insu
 NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
+MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
 
 from util import session_aware
 
@@ -135,6 +136,9 @@ class Administrator:
         :returns: bool
         :raises: USER_LIMIT_REACHED, USERNAME_TAKEN, OUT_OF_ADDRESSES
         """
+        if self.malicious_looking(username):
+            raise MALICIOUS_LOOKING_INPUT
+
         user_count = self.session.query(models.User).count()
         if user_count > self.user_limit:
             log.err("User limit reached")
@@ -170,6 +174,15 @@ class Administrator:
         log.msg("Account created for %s" % username)
         return True
 
+
+    def malicious_looking(self, w):
+        """
+
+        :param w:
+        :returns: bool
+        """
+        return any(x in w for x in '<>&')
+
     def change_profile(self, username, profile):
         """Changes the profile of a user
 
@@ -189,6 +202,9 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
+
+        if self.malicious_looking(profile.get('email', '')) or self.malicious_looking(profile.get('nickname', '')):
+            raise MALICIOUS_LOOKING_INPUT
 
         # User notifications
         if 'notifications' in profile:
