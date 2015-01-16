@@ -138,7 +138,8 @@ class @TVFeed
         else if resolution == "D"
             period = "day"
 
-        @sputnik.subscribe "ohlcv##{symbolInfo.name}", (bar) =>
+        encoded_market = @sputnik.encode_market(symbolInfo.name)
+        @sputnik.subscribe "feeds.market.ohlcv.#{encoded_market}", (bar) =>
             if bar.period == period
                 return_bar = {
                     time: ohlcv.timestamp / 1e3
@@ -159,7 +160,8 @@ class @TVFeed
         @sputnik.log ["unsubscribeBars", subscriberUID]
         if subscriberUID in @subscribed
             for symbol in @subscribed[subscriberUID]
-                @sputnik.unsubscribe "ohlcv##{@subscribed[subscriberUID]}"
+                encoded_market = @sputnik.encode_market(symbol)
+                @sputnik.unsubscribe "feeds.market.ohlcv.#{encoded_market}"
                 delete @subscribed[subscriberUID]
 
     getQuotes: (symbols, onDataCallback, onErrorCallback) =>
