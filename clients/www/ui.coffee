@@ -678,9 +678,9 @@ $ ->
         tv = new window.TVFeed sputnik
         window.tv = tv
 
-        sputnik.on "log", console.log
-        sputnik.on "warn", console.log
-        sputnik.on "error", console.error
+        sputnik.on "log", (args...) -> console.log args...
+        sputnik.on "warn", (args...) -> console.log args...
+        sputnik.on "error", (args...) -> console.error args...
 
         sputnik.on "open", () ->
             sputnik.log "open"
