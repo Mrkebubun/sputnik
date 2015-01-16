@@ -104,7 +104,7 @@ contracts set BTC/USD contract_type cash_pair
 contracts set BTC/USD tick_size 100
 contracts set BTC/USD lot_size 1000000
 contracts set BTC/USD denominator 1
-contracts set BTC/USD denominated_contract_ticker HUF
+contracts set BTC/USD denominated_contract_ticker USD
 contracts set BTC/USD payout_contract_ticker BTC
 contracts set BTC/USD fees 100
 contracts set BTC/USD description "BTC/USD"

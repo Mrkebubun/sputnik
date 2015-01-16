@@ -818,7 +818,10 @@ class Sputnik():
 
     @wait_for_session
     def getOrderBook(self, contract):
-        return defer.succeed(self.session.markets[contract]['book'])
+        if 'book' not in self.session.markets[contract]:
+            return deferLater(reactor, 5, self.getOrderBook, contract)
+        else:
+            return defer.succeed(self.session.markets[contract]['book'])
 
     @wait_for_session
     def getTransactionHistory(self, start_datetime, end_datetime):
