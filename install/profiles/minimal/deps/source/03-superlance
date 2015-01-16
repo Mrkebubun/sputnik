@@ -5,7 +5,7 @@ SOURCE=https://github.com/MimeticMarkets/superlance.git
 check()
 {
     VERSION=`pip show superlance | grep 'Version' | awk '{ print $2 }'`
-    test "${VERSION}" '==' '1.0.0.dev0'
+    test "${VERSION}" '==' '1.0.0-dev'
 }
 
 install()
