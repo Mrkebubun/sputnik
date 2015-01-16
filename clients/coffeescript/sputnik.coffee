@@ -30,6 +30,10 @@ if module?
     autobahn = require "autobahn"
     EventEmitter = require("./events").EventEmitter
     CryptoJS = require "crypto-js"
+else
+    EventEmitter = window.EventEmitter
+    autobahn = window.autobahn
+
 
 class @Sputnik extends EventEmitter
 
