@@ -33,7 +33,7 @@ if module?
 else
     EventEmitter = window.EventEmitter
     autobahn = window.autobahn
-
+    CryptoJS = window.CryptoJS
 
 class @Sputnik extends EventEmitter
 
@@ -700,7 +700,7 @@ class @Sputnik extends EventEmitter
         @emit "open"
 
     onClose: (code, reason, details) =>
-        @log "Connection lost."
+        @error ["Connection lost", code, reason, details]
         @connected = false
         @emit "close", [code, reason, details]
 
@@ -739,9 +739,14 @@ class @Sputnik extends EventEmitter
             else
                 @error ["auth_fail", message.message]
                 @emit "auth_fail", [message.message]
+
+            # Rejoin anonymously
+            @session.join "sputnik", ["anonymous"]
         else
             if @rejoin?
                 @session.join "sputnik", @rejoin[1], @rejoin[0]
+            else
+                @session.join "sputnik", ["anonymous"]
 
     # default RPC callbacks
 
