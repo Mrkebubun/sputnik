@@ -129,7 +129,7 @@ $ ->
         ws_protocol = "wss:"
         port = 8443
 
-    uri = ws_protocol + "//" + hostname + ":#{port}"
+    uri = ws_protocol + "//" + hostname + ":#{port}" + "/ws"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
