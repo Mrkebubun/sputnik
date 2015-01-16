@@ -42,6 +42,7 @@ class @Sputnik extends EventEmitter
     orders: {}
     positions: {}
     margins: {}
+    subscriptions: {}
     authenticated: false
     profile:
         email: null
@@ -94,7 +95,7 @@ class @Sputnik extends EventEmitter
         market_encoded = @encode_market market
         @unsubscribe "feeds.market.book.#{market_encoded}"
         @unsubscribe "feeds.market.trades.#{market_encoded}"
-        @unsubscribe "feeds.market.safe_prices.##{market_encoded}"
+        @unsubscribe "feeds.market.safe_prices.#{market_encoded}"
         @unsubscribe "feeds.market.ohlcv.#{market_encoded}"
 
     # authentication and account management
@@ -659,15 +660,29 @@ class @Sputnik extends EventEmitter
         if not @session?
             return @wtf "Not connected."
         @log "subscribing: #{topic}"
-        @session.subscribe topic, (event) ->
+        handler = (event) ->
             # WAMPv2 returns an array as event, we just want the first item
             callback event[0]
+
+        @session.subscribe(topic, handler).then (subscription) =>
+            if @subscriptions[topic]?
+                @subscriptions[topic].push subscription
+            else
+                @subscriptions[topic] = [subscription]
+        , (error) =>
+            @emit "subscription_fail", [error, topic]
 
     unsubscribe: (topic) =>
         if not @session?
             return @wtf "Not connected."
+
         @log "unsubscribing: #{topic}"
-        @session.unsubscribe topic
+        if @subscriptions[topic]?
+            for subscription in @subscriptions[topic]
+                @log ["unsubscribing", subscription]
+                @session.unsubscribe subscription
+            @subscriptions[topic] = []
+
 
     publish: (topic, message) =>
         if not @session?
