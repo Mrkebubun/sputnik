@@ -1001,8 +1001,8 @@ $ ->
                     error: (error) ->
                         ladda.stop()
                         ga('send', 'event', 'compliance', 'failure', 'error', error.responseJSON[0])
-                        bootbox.alert locale.translate(error.responseJSON[0], ractive.get("sputnik.profile.locale"))
-                        sputnik.log ["Error:", error]
+                        bootbox.alert locale.translate(error.responseJSON.error[0], ractive.get("sputnik.profile.locale"))
+                        sputnik.log ["Error:", error.responseJSON]
 
         # Now that everything is setup, let's connect
         sputnik.connect()

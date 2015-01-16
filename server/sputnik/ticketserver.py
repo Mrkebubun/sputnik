@@ -66,7 +66,7 @@ class TicketServer(Resource):
                 log.err(failure)
                 request.setResponseCode(422)
                 request.setHeader("Content-Type", "application/json; charset=utf-8")
-                request.write(json.dumps(failure.value.args).encode('utf-8'))
+                request.write(json.dumps({'success': False, 'error': failure.value.args}).encode('utf-8'))
                 request.finish()
 
             def onCheckSuccess(user):
@@ -90,7 +90,7 @@ class TicketServer(Resource):
                     def onRegisterTicketSuccess(result):
                         log.msg("Ticket registered successfully")
                         request.setHeader("Content-Type", "application/json; charset=utf-8")
-                        request.write(json.dumps({'result': ticket_number}).encode('utf-8'))
+                        request.write(json.dumps({'success': True, 'result': ticket_number}).encode('utf-8'))
                         request.finish()
 
                     log.msg("Ticket created: %s" % ticket_number)
