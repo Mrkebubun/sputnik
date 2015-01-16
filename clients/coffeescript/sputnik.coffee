@@ -799,10 +799,10 @@ class @Sputnik extends EventEmitter
             ticker = trade_history[0].contract
             @markets[ticker].trades = trade_history
             @cleanTradeHistory(ticker)
+            @emitTradeHistory(ticker)
         else
             @warn "no trades in history"
 
-        @emitTradeHistory(ticker)
 
     onOHLCV: (ohlcv) =>
         @log ["ohlcv", ohlcv]
