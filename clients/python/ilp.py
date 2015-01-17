@@ -8,7 +8,7 @@ from copy import copy, deepcopy
 import collections
 import sys
 import math
-from pprint import pprint
+from pprint import pprint, pformat
 from decimal import Decimal
 import numpy as np
 from scipy.optimize import minimize
@@ -336,6 +336,58 @@ class Valuation():
                 })
         return value
 
+    @inlineCallbacks
+    def optimize(self):
+            wait = yield self.state.update()
+            self.base_params = {}
+            if self.state.offered_bid is not None:
+                self.base_params['offered_bid'] = self.state.offered_bid
+            if self.state.offered_ask is not None:
+                self.base_params['offered_ask'] = self.state.offered_ask
+
+            self.base_value = self.valuation(params=self.base_params)
+            def negative_valuation(x):
+                params = {'offered_bid': x[0],
+                          'offered_ask': x[1],
+                          'btc_source_target': x[2],
+                          'fiat_source_target': x[3],
+                          'trade_source_qty': x[4],
+                          'transfer_source_out': x[5]}
+
+                value = self.valuation(params=params)
+                return float(-value)
+
+            base_rate = float(self.state.source_exchange_rate) * float(self.state.fiat_exchange_rate)
+            def constraint(x):
+                params = {'offered_bid': x[0],
+                          'offered_ask': x[1],
+                          'btc_source_target': x[2],
+                          'fiat_source_target': x[3],
+                          'trade_source_qty': x[4],
+                          'transfer_source_out': x[5]}
+                if self.state.constraint_fn(params):
+                    return 1
+                else:
+                    return -1
+
+            x0 = np.array([base_rate, base_rate, 0, 0, 0, 0])
+
+            res = minimize(negative_valuation, x0, method='COBYLA',
+                           constraints={'type': 'ineq',
+                                         'fun': constraint},
+                           tol=1e-2,
+                           options={'disp': False,
+                                    'maxiter': 100,
+                                    })
+            x = res.x
+            self.optimized_params =  {'offered_bid': x[0],
+                          'offered_ask': x[1],
+                          'btc_source_target': x[2],
+                          'fiat_source_target': x[3],
+                          'trade_source_qty': x[4],
+                          'transfer_source_out': x[5]}
+            self.optimized_value = self.valuation(params=self.optimized_params)
+
 
 class MarketData():
     def __init__(self,
@@ -391,6 +443,20 @@ class MarketData():
     def get_target_transactions(self, start_timestamp, end_timestamp):
         return self.target_exchange.getTransactionHistory(start_timestamp, end_timestamp)
 
+from twisted.web.resource import Resource
+from twisted.web.server import Site
+
+class Webserver(Resource):
+    isLeaf = True
+    def __init__(self, state, valuation):
+        self.state = state
+        self.valuation = valuation
+
+    def render_GET(self, request):
+        # Do the JINJA
+        request.setHeader("content-type", "text/plain")
+        return pformat({'valuation': self.valuation.__dict__,
+                        'state': self.state.__dict__})
 
 
 if __name__ == "__main__":
@@ -412,9 +478,7 @@ if __name__ == "__main__":
                                                'password': 'ilp'}, debug)
         se = source_exchange.connect()
         te = target_exchange.connect()
-        wait = yield gatherResults([se, te])
-
-
+        yield gatherResults([se, te])
 
         fiat_exchange = Yahoo()
         market_data = MarketData(source_exchange=source_exchange,
@@ -444,53 +508,13 @@ if __name__ == "__main__":
                               source_exchange_var=1003,
                               fiat_source_cov=0)
 
+        server = Webserver(state, valuation)
+        site = Site(server)
+        reactor.listenTCP(9304, site)
+
         while True:
             try:
-                wait = yield state.update()
-                base_value = valuation.valuation()
-                def negative_valuation(x):
-                    params = {'offered_bid': x[0],
-                              'offered_ask': x[1],
-                              'btc_source_target': x[2],
-                              'fiat_source_target': x[3],
-                              'trade_source_qty': x[4],
-                              'transfer_source_out': x[5]}
-
-                    value = valuation.valuation(params=params, output=True)
-                    return float(-value)
-
-                base_rate = float(state.source_exchange_rate) * float(state.fiat_exchange_rate)
-                def constraint(x):
-                    params = {'offered_bid': x[0],
-                              'offered_ask': x[1],
-                              'btc_source_target': x[2],
-                              'fiat_source_target': x[3],
-                              'trade_source_qty': x[4],
-                              'transfer_source_out': x[5]}
-                    if state.constraint_fn(params):
-                        return 1
-                    else:
-                        return -1
-
-                x0 = np.array([base_rate, base_rate, 0, 0, 0, 0])
-
-                res = minimize(negative_valuation, x0, method='COBYLA',
-                               constraints={'type': 'ineq',
-                                             'fun': constraint},
-                               tol=1e-2,
-                               options={'disp': True,
-                                        'maxiter': 100,
-                                        })
-                pprint(res)
-                x = res.x
-                params =  {'offered_bid': x[0],
-                              'offered_ask': x[1],
-                              'btc_source_target': x[2],
-                              'fiat_source_target': x[3],
-                              'trade_source_qty': x[4],
-                              'transfer_source_out': x[5]}
-                valuation.valuation(params=params, output=True)
-                pass
+                yield valuation.optimize()
             except Exception as e:
                 log.err(e)
                 pass
