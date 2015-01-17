@@ -13,6 +13,14 @@ from decimal import Decimal
 import numpy as np
 from scipy.optimize import minimize
 
+# Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
+#         Then the source exchange is Bitstamp and the source currency is USD
+# Fiat: This is the exchange which allows us to convert from the source fiat currency (say, USD)
+#       to the target fiat currency (HUF in the example)
+# Target: The target exchange or currency. Ie if we are providing liquidity to BTC/HUF at
+#         Demo, then the target currency is HUF and the target exchange is Demo
+#
+
 class State():
     def __init__(self, data):
         # ILP
@@ -20,11 +28,23 @@ class State():
 
         # State
         self.timestamp = None
+
+        # Book at fiat exchange
         self.fiat_book = None
+
+        # Book at source exchange
         self.source_book = None
+
+        # Book at target exchange
         self.target_book = None
+
+        # Balances at target exchange
         self.balance_target = None
+
+        # Balances at source exchange
         self.balance_source = None
+
+        # Currently offered bid at ask at target exchange
         self.offered_bid = None
         self.offered_ask = None
 
@@ -54,6 +74,8 @@ class State():
         st_d = self.data.get_source_transactions(last_update, self.timestamp)
         tt_d = self.data.get_target_transactions(last_update, self.timestamp)
 
+
+        # Gather all the results and get all the dataz
         [self.fiat_book, self.source_book, self.target_book, self.balance_source, self.balance_target,
          source_transactions, target_transactions] = \
             yield gatherResults([fb_d, sb_d, tb_d, bs_d, bt_d, st_d, tt_d])
@@ -64,6 +86,14 @@ class State():
         returnValue(None)
 
     def source_trade(self, quantity):
+        """
+
+        :param quantity:
+        :return:
+
+        Get the impact to balances if we place a limit order for 'quantity' at the source exchange
+        if quantity < 0, we are selling. Quantity is in BTC
+        """
         if quantity > 0:
             half = 'asks'
             sign = 1
@@ -79,6 +109,7 @@ class State():
         total_spent = 0
         total_bought = 0
 
+        # Find the liquidity in the book
         for row in self.source_book[half]:
             price = row['price']
             quantity = min(quantity_left, row['quantity'])
@@ -94,6 +125,16 @@ class State():
                 self.data.btc_ticker: Decimal(sign * total_bought)}
 
     def target_trade(self, quantity, price, side):
+        """
+
+        :param quantity:
+        :param price:
+        :param side:
+        :return:
+
+        What are the results if we place a limit order on the target exchange
+        and it is executed? Quantity must be greater than 0
+        """
         if quantity > 0:
             total_spent = quantity * price
             total_bought = quantity
@@ -111,37 +152,58 @@ class State():
                     self.data.btc_ticker: Decimal(0)}
 
     def source_target_fiat_transfer(self, amount):
-        # amount is always in source currency but fee is charged depending on direction
+        """
+
+        :param amount:
+        :return:
+        What is the impact on balances if we transfer fiat from the source exchange
+        to the target exchange. Amount is always in source currency, but if it is negative,
+        we are doing a transfer from the target exchange to the source exchange. The fees are charged
+        to the exchange that is receiving the money
+
+        """
         if amount != 0:
             fee_in_source = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
             if amount > 0:
-                return { self.data.source_ticker: Decimal(-(amount + fee_in_source)),
-                         self.data.target_ticker: Decimal(amount) * self.fiat_book['asks'][0]['price']}
-            else:
                 return { self.data.source_ticker: Decimal(-amount),
                          self.data.target_ticker: Decimal(amount - fee_in_source) * self.fiat_book['asks'][0]['price']}
+            else:
+                return { self.data.source_ticker: Decimal(abs(amount) - fee_in_source),
+                         self.data.target_ticker: Decimal(amount) * self.fiat_book['asks'][0]['price'] }
         else:
             return {self.data.target_ticker: Decimal(0),
                     self.data.source_ticker: Decimal(0)}
 
-    # BTC transfer from source->fiat, we can make amount negative
     def btc_transfer(self, amount):
+        """
+
+        :param amount:
+        :return:
+        Transfer btc from source to target exchange. If amount is negative,
+        transfer in the other direction. We assume exchange charges no BTC transfer
+        fees but there is a BTC transfer fee charged by the network. We charge it
+        to the receiving side
+        """
         if amount > 0:
-            return {'source_btc': Decimal(-(self.data.btc_fee + amount)),
-                    'target_btc': Decimal(amount) }
-        elif amount < 0:
             return {'source_btc': Decimal(-amount),
                     'target_btc': Decimal(amount - self.data.btc_fee)}
+        elif amount < 0:
+            return {'source_btc': Decimal(abs(amount) - self.data.btc_fee),
+                    'target_btc': Decimal(amount)}
         else:
             return {'source_btc': Decimal(0),
                     'target_btc': Decimal(0)}
 
     def transfer_source_out(self, amount):
+        """
+
+        :param amount:
+        :return:
+        Transfer source currency out of the source exchange to our own bank. We can't transfer in
+        """
         fee = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
         if amount > 0:
             return {self.data.source_ticker: Decimal(-(amount + fee))}
-        elif amount < 0:
-            return {self.data.source_ticker: Decimal(amount - fee)}
         else:
             return {self.data.source_ticker: Decimal(0)}
 
@@ -160,6 +222,13 @@ class State():
 
     @property
     def total_balance_target(self):
+        """
+
+
+        :return:
+        Give us the total balances at the target taking into account cash that is in transit
+        both in and out
+        """
         total_balance = copy(self.balance_target)
 
         for id, transit in self.transit_to_target.iteritems():
@@ -172,6 +241,13 @@ class State():
 
     @property
     def total_balance_source(self):
+        """
+
+
+        :return:
+        Give us the total balances at the source taking into account cash that is in transit
+        both in and out
+        """
         total_balance = copy(self.balance_source)
 
         for id, transit in self.transit_to_source.iteritems():
@@ -183,6 +259,14 @@ class State():
         return total_balance
 
     def constraint_fn(self, params={}):
+        """
+        Given the state of the exchanges, tell us what we can't do. This current
+        version doesn't take into account fees. Actual version will actually call the "impact"
+        functions and make sure that they don't result in negative balances
+
+        :param params:
+        :return:
+        """
         offered_bid = params.get('offered_bid', 0)
         offered_ask = params.get('offered_ask', 0)
         btc_source_target = params.get('btc_source_target', 0)
