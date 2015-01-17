@@ -1085,7 +1085,7 @@ class AdminWebUI(Resource):
             referer = request.getHeader("referer")
             if referer is None or not referer.startswith(self.base_uri):
                 log.err("Referer check failed: %s" % referer)
-                return False
+                return True
             else:
                 return True
         else:
