@@ -254,9 +254,10 @@ class Valuation():
 
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
-    def valuation(self, params={}):
+    def valuation(self, params={}, output=False):
         # Get current balances
-        pprint(params)
+        if output:
+            pprint(params)
         source_source_balance_in_source = self.state.convert_to_source(self.data.source_ticker, self.state.total_balance_source[self.data.source_ticker]['position'])
         source_btc_balance_in_source = self.state.convert_to_source(self.data.btc_ticker, self.state.total_balance_source[self.data.btc_ticker]['position'])
         target_target_balance_in_source = self.state.convert_to_source(self.data.target_ticker, self.state.total_balance_target[self.data.target_ticker]['position'])
@@ -296,13 +297,25 @@ class Valuation():
         source_source_balance_in_source += self.state.convert_to_source(self.data.source_ticker, transfer_out_consequence[self.data.source_ticker])
 
         # Deviation Penalty
-        source_source_deviation = self.state.convert_to_source(self.data.source_ticker, self.target_balance_source[self.data.source_ticker]) - source_source_balance_in_source
-        source_btc_deviation = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_source[self.data.btc_ticker]) - source_btc_balance_in_source
+        source_source_target = self.state.convert_to_source(self.data.source_ticker, self.target_balance_source[self.data.source_ticker])
+        source_btc_target = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_source[self.data.btc_ticker])
+        target_target_target = self.state.convert_to_source(self.data.target_ticker, self.target_balance_target[self.data.target_ticker])
+        target_btc_target = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_target[self.data.btc_ticker])
 
-        target_target_deviation = self.state.convert_to_source(self.data.target_ticker, self.target_balance_target[self.data.target_ticker]) - target_target_balance_in_source
-        target_btc_deviation = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_target[self.data.btc_ticker]) - target_btc_balance_in_source
+        def get_penalty(balance, target):
+            if balance < 0:
+                return Decimal('Infinity')
+            critical_min = Decimal(0.25) * target
+            min_bal = Decimal(0.75) * target
+            max_bal = Decimal(1.25) * target
+            critical_max = Decimal(5) * target
+            penalty = max(0, critical_min - balance) * 10 + max(0, min_bal - balance) * 3 + max(0, balance - max_bal) * 1 + max(0, balance - critical_max) * 3
+            return penalty
 
-        deviation_penalty = Decimal(self.deviation_penalty) * (abs(source_source_deviation) + abs(source_btc_deviation) + abs(target_target_deviation) + abs(target_btc_deviation))
+        deviation_penalty = get_penalty(source_source_balance_in_source, source_source_target) + \
+            get_penalty(source_btc_balance_in_source, source_btc_target) + get_penalty(target_target_balance_in_source, target_target_target) + \
+            get_penalty(target_btc_balance_in_source, target_btc_target)
+        deviation_penalty *= Decimal(self.deviation_penalty)
 
         # Market Risk
         market_risk = Decimal(self.risk_aversion) * (Decimal(self.source_exchange_var) * pow(source_btc_balance_in_source + target_btc_balance_in_source, 2) +
@@ -311,7 +324,16 @@ class Valuation():
         # Total value
         total_value = source_source_balance_in_source + source_btc_balance_in_source + target_target_balance_in_source + target_btc_balance_in_source
         value = total_value - market_risk - deviation_penalty
-        print value
+        if output:
+            pprint({'value': value,
+                    'total_value': total_value,
+                    'market_risk': market_risk,
+                    'deviation_penalty': deviation_penalty,
+                    'target_target_balance_in_source': target_target_balance_in_source,
+                    'target_btc_balance_in_source': target_btc_balance_in_source,
+                    'source_source_balance_in_source': source_source_balance_in_source,
+                    'source_btc_balance_in_source': source_btc_balance_in_source
+                })
         return value
 
 
@@ -401,7 +423,7 @@ if __name__ == "__main__":
                                  source_ticker='USD',
                                  target_ticker='HUF',
                                  btc_ticker='BTC',
-                                 fiat_exchange_cost=(1000, 1), # Set the exchange cost really high because we basically can't
+                                 fiat_exchange_cost=(150, 0.1), # Set the exchange cost pretty high because of the delay
                                  fiat_exchange_delay=86400 * 3,
                                  source_fee=(0, 0.01),
                                  target_fee=(0, 0.005),
@@ -411,12 +433,12 @@ if __name__ == "__main__":
         valuation = Valuation(state=state,
                               data=market_data,
                               edge=0.04,
-                              target_balance_source={ 'USD': Decimal(1000),
-                                                      'BTC': Decimal(1) },
-                              target_balance_target={ 'HUF': Decimal(271000),
-                                                      'BTC': Decimal(1) },
-                              deviation_penalty=0.3,
-                              risk_aversion=0.3,
+                              target_balance_source={ 'USD': Decimal(6000),
+                                                      'BTC': Decimal(6) },
+                              target_balance_target={ 'HUF': Decimal(1626000),
+                                                      'BTC': Decimal(6) },
+                              deviation_penalty=50,
+                              risk_aversion=0.0001,
                               quote_size=0.01,
                               fiat_exchange_var=23,
                               source_exchange_var=1003,
@@ -434,7 +456,7 @@ if __name__ == "__main__":
                               'trade_source_qty': x[4],
                               'transfer_source_out': x[5]}
 
-                    value = valuation.valuation(params=params)
+                    value = valuation.valuation(params=params, output=True)
                     return float(-value)
 
                 base_rate = float(state.source_exchange_rate) * float(state.fiat_exchange_rate)
@@ -455,8 +477,19 @@ if __name__ == "__main__":
                 res = minimize(negative_valuation, x0, method='COBYLA',
                                constraints={'type': 'ineq',
                                              'fun': constraint},
-                               options={'xtol': 1e-2, 'disp': True})
+                               tol=1e-2,
+                               options={'disp': True,
+                                        'maxiter': 100,
+                                        })
                 pprint(res)
+                x = res.x
+                params =  {'offered_bid': x[0],
+                              'offered_ask': x[1],
+                              'btc_source_target': x[2],
+                              'fiat_source_target': x[3],
+                              'trade_source_qty': x[4],
+                              'transfer_source_out': x[5]}
+                valuation.valuation(params=params, output=True)
                 pass
             except Exception as e:
                 log.err(e)
