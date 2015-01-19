@@ -507,9 +507,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def subSafePrices(self, contract):
         uri = u"feeds.market.safe_prices.%s" % self.encode_ticker(contract)
-        def _onSafePrice(uri, wire_safe_prices):
-
-            return self.onSafePrice(uri, self.safe_prices_from_wire(wire_safe_prices))
+        def _onSafePrice(uri, event):
+            self.safe_prices[contract] = self.price_from_wire(contract, event)
+            return self.onSafePrice(uri, self.self.price_from_wire(contract, event))
 
         self.subscribe(_onSafePrice, uri)
         print 'subscribed to: ', uri
@@ -573,6 +573,14 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     """
     Public RPC Calls
     """
+
+    def getSafePrices(self):
+        d = self.my_call(u"rpc.market.get_safe_prices")
+        def _onSafePrices(safe_prices):
+            self.safe_prices = safe_prices
+            pprint(safe_prices)
+
+        d.addCallbacks(_onSafePrices, self.onError)
 
     def getTradeHistory(self, contract):
         d = self.call(u"rpc.market.get_trade_history", contract)
