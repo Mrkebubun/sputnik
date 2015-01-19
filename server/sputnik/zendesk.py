@@ -5,10 +5,7 @@ import json
 from twisted.internet import defer
 from twisted.python import log
 import string
-
-class ZendeskException(Exception):
-    pass
-
+from exception import *
 ZENDESK_ERROR = ZendeskException("exceptions/zendesk/zendesk_error")
 
 class Zendesk(object):

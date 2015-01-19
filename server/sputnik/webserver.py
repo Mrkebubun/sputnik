@@ -8,8 +8,7 @@ facilitating all communications between the client, the database and the matchin
 from optparse import OptionParser
 
 import config
-import compropago
-import recaptcha
+
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -20,6 +19,8 @@ if options.filename:
     # noinspection PyUnresolvedReferences
     config.reconfigure(options.filename)
 
+import compropago
+import recaptcha
 import cgi
 import sys
 import datetime
@@ -29,7 +30,6 @@ import hashlib
 import uuid
 import random
 from util import dt_to_timestamp, timestamp_to_dt, ChainedOpenSSLContextFactory
-import json
 import collections
 from zmq_util import export, pull_share_async, dealer_proxy_async
 from accountant import AccountantProxy
@@ -40,7 +40,6 @@ from blockscore import BlockScore
 from jsonschema import validate
 from twisted.internet import reactor, task
 from twisted.web.server import Site
-from twisted.web.server import NOT_DONE_YET
 from twisted.web.resource import Resource
 from twisted.web.static import File
 from twisted.python import log
@@ -135,15 +134,6 @@ MAX_TICKER_LENGTH = 100
 
 class AdministratorExport:
     pass
-
-
-def malicious_looking(w):
-    """
-
-    :param w:
-    :returns: bool
-    """
-    return any(x in w for x in '<>&')
 
 class PublicInterface:
     def __init__(self, factory):
@@ -1580,143 +1570,6 @@ class PepsiColaServerFactory(WampServerFactory):
                                           ( self.ohlcv_history[ticker][period][start_period]['volume'] + trade['quantity'] )
             self.ohlcv_history[ticker][period][start_period]['volume'] += trade['quantity']
 
-class TicketServer(Resource):
-    isLeaf = True
-    def __init__(self, administrator, zendesk, blockscore=None):
-        self.administrator = administrator
-        self.zendesk = zendesk
-        self.blockscore = blockscore
-
-        Resource.__init__(self)
-
-    def getChild(self, path, request):
-        """
-
-        :param path:
-        :param request:
-        :returns: Resource
-        """
-        return self
-
-    def log(self, request):
-        """Log a request
-
-        :param request:
-        """
-        log.msg(request.getClientIP(),
-                     request.method,
-                     request.uri,
-                     request.clientproto,
-                     request.code,
-                     request.sentLength or "-",
-                     request.getHeader("referer") or "-",
-                     request.getHeader("user-agent") or "-",
-                     request.getHeader("authorization") or "-")
-
-    def create_kyc_ticket(self, request):
-        """
-
-        :param request:
-        :type request: IRequest
-        :returns: Deferred
-        """
-        headers = request.getAllHeaders()
-        fields = cgi.FieldStorage(
-                    fp = request.content,
-                    headers = headers,
-                    environ= {'REQUEST_METHOD': request.method,
-                              'CONTENT_TYPE': headers['content-type'] }
-                    )
-
-        def onBlockScore(blockscore_result):
-            def onFail(failure):
-                """
-
-                :param failure:
-                """
-                log.err("unable to create support ticket")
-                log.err(failure)
-                request.setResponseCode(422)
-                request.setHeader("Content-Type", "application/json; charset=utf-8")
-                request.write(json.dumps(failure.value.args).encode('utf-8'))
-                request.finish()
-
-            def onCheckSuccess(user):
-                attachments = []
-                file_fields = fields['file']
-                if not isinstance(file_fields, list):
-                    file_fields = [file_fields]
-
-                for field in file_fields:
-                    attachments.append({"filename": field.filename,
-                                        "data": field.value,
-                                        "type": field.type})
-
-                try:
-                    data = {'blockscore_result': blockscore_result,
-                           'input_data': json.loads(fields['data'].value)}
-                except ValueError:
-                    data = {'error': "Invalid json data: %s" % fields['data'].value }
-
-                def onCreateTicketSuccess(ticket_number):
-                    def onRegisterTicketSuccess(result):
-                        log.msg("Ticket registered successfully")
-                        request.setHeader("Content-Type", "application/json; charset=utf-8")
-                        request.write(json.dumps({'result': ticket_number}).encode('utf-8'))
-                        request.finish()
-
-                    log.msg("Ticket created: %s" % ticket_number)
-                    d3 = self.administrator.register_support_ticket(username, nonce, 'Compliance', str(ticket_number))
-                    d3.addCallbacks(onRegisterTicketSuccess, onFail)
-
-
-                d2 = self.zendesk.create_ticket(user, "New compliance document submission",
-                                                json.dumps(data, indent=4,
-                                                           separators=(',', ': ')), attachments)
-                d2.addCallbacks(onCreateTicketSuccess, onFail)
-
-            username = fields['username'].value
-            nonce = fields['nonce'].value
-            d = self.administrator.check_support_nonce(username, nonce, 'Compliance')
-            d.addCallbacks(onCheckSuccess, onFail)
-            return d
-
-
-        if self.blockscore is not None:
-            input_data = json.loads(fields['data'].value)
-
-            input_values = {'date_of_birth': input_data['date_of_birth'],
-                            'identification': {input_data['id_type']: input_data['id_number']},
-                            'name': {'first': input_data['first_name'],
-                                     'middle': input_data['middle_name'],
-                                     'last': input_data['last_name']},
-                            'address': {'street1': input_data['address1'],
-                                        'street2': input_data['address2'],
-                                        'city': input_data['city'],
-                                        'state': input_data['state'],
-                                        'postal_code': input_data['postal_code'],
-                                        'country_code': input_data['country_code']}
-            }
-            log.msg("Sending to blockscore: %s" % input_values)
-            d = self.blockscore.verify(input_values)
-            d.addBoth(onBlockScore)
-        else:
-            d = onBlockScore({})
-
-        return NOT_DONE_YET
-
-    def render(self, request):
-        """
-
-        :param request:
-        :returns: NOT_DONE_YET, None
-        """
-        self.log(request)
-        if request.postpath[0] == 'create_kyc_ticket':
-            return self.create_kyc_ticket(request)
-        else:
-            return None
-
 
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
@@ -1784,32 +1637,16 @@ if __name__ == '__main__':
     listenWS(factory, contextFactory, interface=interface)
 
     watchdog = watchdog(config.get("watchdog", "webserver"))
-    administrator =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
-    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
-                      config.get("ticketserver", "zendesk_token"),
-                      config.get("ticketserver", "zendesk_email"))
 
-    if config.getboolean("ticketserver", "enable_blockscore"):
-        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
-    else:
-        blockscore = None
-
-    ticket_server =  TicketServer(administrator, zendesk, blockscore=blockscore)
 
     if config.getboolean("webserver", "www"):
         web_dir = File(config.get("webserver", "www_root"))
-        web_dir.putChild('ticket_server', ticket_server)
         web = Site(web_dir)
         port = config.getint("webserver", "www_port")
         if config.getboolean("webserver", "ssl"):
             reactor.listenSSL(port, web, contextFactory, interface=interface)
         else:
             reactor.listenTCP(port, web, interface=interface)
-    else:
-        base_resource = Resource()
-        base_resource.putChild('ticket_server', ticket_server)
-        reactor.listenTCP(config.getint("ticketserver", "ticketserver_port"), Site(base_resource),
-                                        interface="127.0.0.1")
 
 
     reactor.run()

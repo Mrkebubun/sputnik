@@ -1,0 +1,60 @@
+{
+    "make_account": {
+        "type": "object",
+        "description": "create a new account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "username for new account"
+            },
+            "password": {
+                "type": "string",
+                "description": "new user's password"
+            },
+            "email": {
+                "type": "string",
+                "description": "email address"
+            },
+            "nickname": {
+                "type": "string",
+                "description": "nickname"
+            },
+            "locale": {
+                "type": ["string", "null"],
+                "description": "ISO locale"
+            }
+        },
+        "required": ["username", "password", "email", "nickname"],
+        "additionalProperties": false
+    },
+    "get_reset_token": {
+        "type": "object",
+        "description": "send a reset token to a user's email",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "username"
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    },
+    "change_password_token": {
+        "type": "object",
+        "description": "change a user's password with a reset token",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "username"
+            },
+            "hash": {
+                "type": "string",
+                "description": "the new password hash"
+            },
+            "token": {
+                "type": "string",
+                "description": "the password reset token"
+            }
+        }
+    }
+}

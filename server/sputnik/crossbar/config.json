@@ -1,0 +1,75 @@
+{
+    "controller": {}, 
+    "workers": [
+        {
+            "realms": [
+                {
+                    "name": "realm1", 
+                    "roles": [
+                        {
+                            "name": "anonymous", 
+                            "permissions": [
+                                {
+                                    "call": true, 
+                                    "publish": false, 
+                                    "register": false, 
+                                    "subscribe": true, 
+                                    "uri": "*"
+                                }
+                            ]
+                        }, 
+                        {
+                            "name": "authenticated", 
+                            "permissions": [
+                                {
+                                    "call": true, 
+                                    "publish": false, 
+                                    "register": false, 
+                                    "subscribe": true, 
+                                    "uri": "*"
+                                }
+                            ]
+                        }
+                    ],
+                    "classes":["timeservice.TimeService"]
+                }
+            ], 
+            "transports": [
+                {
+                    "endpoint": {
+                        "port": 8000, 
+                        "type": "tcp"
+                    }, 
+                    "paths": {
+                        "/": {
+                            "directory": "static", 
+                            "type": "static"
+                        }, 
+                        "ws": {
+                            "auth": {
+                                "mozilla_persona": {
+                                    "role": {
+                                        "type": "static", 
+                                        "value": "authenticated"
+                                    }
+                                },
+                                "anonymous": {
+                                    "role": {
+                                        "type": "static",
+                                        "value": "anonymous"
+                                    }
+                                },
+                                "options":{"debug":"true"}
+                            }, 
+                            "cookie": {}, 
+                            "type": "websocket", 
+                            "url": "ws://localhost:8000/ws"
+                        }
+                    }, 
+                    "type": "web"
+                }
+            ], 
+            "type": "router"
+        }
+    ]
+}

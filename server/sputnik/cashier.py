@@ -31,16 +31,14 @@ from Crypto.Random.random import getrandbits
 from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
 import markdown
-from util import session_aware, SputnikException
+from util import session_aware
+from exception import *
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
 (options, args) = parser.parse_args()
 if options.filename:
     config.reconfigure(options.filename)
-
-class CashierException(SputnikException):
-    pass
 
 WITHDRAWAL_NOT_FOUND = CashierException("exceptions/cashier/withdrawal_not_found")
 WITHDRAWAL_COMPLETE = CashierException("exceptions/cashier/withdrawal_complete")

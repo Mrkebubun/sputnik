@@ -17,6 +17,9 @@ import json
 import copy
 import string
 import pickle
+import Crypto.Random.random
+import Crypto.Random.random
+from dateutil import parser
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -33,35 +36,34 @@ from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
-from autobahn.wamp1.protocol import WampCraProtocol
 from dateutil import parser
 from datetime import timedelta
+from autobahn.wamp.auth import derive_key
+from twisted.web.static import File
 
 import config
 import database
 import models
-from util import ChainedOpenSSLContextFactory, SputnikException
+from util import ChainedOpenSSLContextFactory
 import util
 from sendmail import Sendmail
 from watchdog import watchdog
 
-# noinspection PyUnresolvedReferences
-from accountant import AccountantProxy, AccountantException
+from accountant import AccountantProxy
 
-# noinspection PyUnresolvedReferences
-from cashier import CashierException
+from exception import *
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 from dateutil import relativedelta
-
-
-class AdministratorException(SputnikException): pass
+from zendesk import Zendesk
+from blockscore import BlockScore
+from ticketserver import TicketServer
+import base64
+from Crypto.Random.random import getrandbits
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -80,6 +82,7 @@ INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insu
 NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
+MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
 
 from util import session_aware
 
@@ -136,6 +139,9 @@ class Administrator:
         :returns: bool
         :raises: USER_LIMIT_REACHED, USERNAME_TAKEN, OUT_OF_ADDRESSES
         """
+        if self.malicious_looking(username):
+            raise MALICIOUS_LOOKING_INPUT
+
         user_count = self.session.query(models.User).count()
         if user_count > self.user_limit:
             log.err("User limit reached")
@@ -171,6 +177,15 @@ class Administrator:
         log.msg("Account created for %s" % username)
         return True
 
+
+    def malicious_looking(self, w):
+        """
+
+        :param w:
+        :returns: bool
+        """
+        return any(x in w for x in '<>&')
+
     def change_profile(self, username, profile):
         """Changes the profile of a user
 
@@ -190,6 +205,9 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
+
+        if self.malicious_looking(profile.get('email', '')) or self.malicious_looking(profile.get('nickname', '')):
+            raise MALICIOUS_LOOKING_INPUT
 
         # User notifications
         if 'notifications' in profile:
@@ -229,6 +247,30 @@ class Administrator:
                    'notifications': notifications
         }
         return profile
+
+    def get_new_api_credentials(self, username, expiration):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        user.api_key = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+        user.api_expiration = util.timestamp_to_dt(expiration)
+        user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+
+        self.session.commit()
+        return {'key': user.api_key, 'secret': user.api_secret, 'expiration': util.dt_to_timestamp(user.api_expiration)}
+
+    def check_and_update_api_nonce(self, username, nonce):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if nonce <= user.api_nonce:
+            return False
+        else:
+            user.api_nonce = nonce
+            self.session.commit()
+            return True
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -274,8 +316,8 @@ class Administrator:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt": salt, "keylen": 32, "iterations": 1000}
-        password = WampCraProtocol.deriveKey(new_password, extra)
+
+        password = derive_key(new_password, salt, iterations=1000, keylen=32)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
@@ -300,17 +342,15 @@ class Administrator:
         except sqlalchemy.orm.exc.NoResultFound:
             raise NO_SUCH_USER
 
-        [salt, hash] = user.password.split(':')
-
-        if hash != old_password_hash and token is None:
+        if user.password != old_password_hash and token is None:
             raise PASSWORD_MISMATCH
-        elif hash != old_password_hash:
+        elif user.password != old_password_hash:
             # Check token
             token = self.check_token(username, token)
             token.used = True
             self.session.add(token)
 
-        user.password = "%s:%s" % (salt, new_password_hash)
+        user.password = new_password_hash
 
         self.session.add(user)
         self.session.commit()
@@ -1193,11 +1233,11 @@ class AdminAPI(Resource):
                 log.err(failure)
                 return {'success': False, 'error': failure.value.args}
 
-            def deliver_result(result, request):
+            def deliver_result(result):
                 request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
                 request.finish()
 
-            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result)
             return NOT_DONE_YET
         except AdministratorException as e:
             log.err(e)
@@ -1960,6 +2000,18 @@ class WebserverExport(ComponentExport):
 
     @export
     @session_aware
+    @schema("rpc/administrator.json#get_new_api_credentials")
+    def get_new_api_credentials(self, username, expiration):
+        return self.administrator.get_new_api_credentials(username, expiration)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_and_update_api_nonce")
+    def check_and_update_api_nonce(self, username, nonce):
+        return self.administrator.check_and_update_api_nonce(username, nonce)
+
+    @export
+    @session_aware
     @schema("rpc/administrator.json#make_account")
     def make_account(self, username, password):
         return self.administrator.make_account(username, password)
@@ -2113,6 +2165,37 @@ if __name__ == "__main__":
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+    # Ticketserver
+
+    administrator_for_ticketserver =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+    if config.getboolean("ticketserver", "enable_blockscore"):
+        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
+    else:
+        blockscore = None
+
+    ticketserver =  TicketServer(administrator_for_ticketserver, zendesk, blockscore=blockscore)
+
+    interface = config.get("webserver", "interface")
+    if config.getboolean("webserver", "www"):
+        web_dir = File(config.get("webserver", "www_root"))
+        web_dir.putChild('ticket_server', ticketserver)
+        web = Site(web_dir)
+        port = config.getint("webserver", "www_port")
+        if config.getboolean("webserver", "ssl"):
+            reactor.listenSSL(port, web, contextFactory, interface=interface)
+        else:
+            reactor.listenTCP(port, web, interface=interface)
+    else:
+        base_resource = Resource()
+        base_resource.putChild('ticket_server', ticketserver)
+        reactor.listenTCP(config.getint("ticketserver", "ticketserver_port"), Site(base_resource),
+                                        interface="127.0.0.1")
+
 
     reactor.run()
 

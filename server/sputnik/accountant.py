@@ -47,9 +47,7 @@ from jinja2 import Environment, FileSystemLoader
 import time
 from datetime import datetime
 from util import session_aware
-
-class AccountantException(util.SputnikException):
-    pass
+from exception import *
 
 INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
 TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
@@ -65,6 +63,7 @@ USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mism
 ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
 NO_SUCH_USER = AccountantException("exceptions/accountant/no_such_user")
+INVALID_PRICE_QUANTITY = AccountantException("exceptions/accountant/invalid_price_quantity")
 
 class Accountant:
     """The Accountant primary class
@@ -805,16 +804,16 @@ class Accountant:
             raise AccountantException(0, "Not a valid contract type.")
 
         if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-            raise AccountantException(0, "invalid price or quantity")
+            raise INVALID_PRICE_QUANTITY
 
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper(),
                          timestamp=util.timestamp_to_dt(order['timestamp']))

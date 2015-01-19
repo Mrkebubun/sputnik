@@ -13,8 +13,7 @@ from sqlalchemy import func
 from twisted.python import log
 from zmq_util import ComponentExport
 from sqlalchemy.orm.session import Session
-
-class SputnikException(Exception): pass
+import hashlib
 
 #
 # This doesn't work properly
@@ -63,6 +62,17 @@ def timed(f):
 
 def get_uid():
     return uuid.uuid4().get_hex()
+
+def malicious_looking(w):
+    """
+
+    :param w:
+    :returns: bool
+    """
+    return any(x in w for x in '<>&')
+
+def encode_username(username):
+    return hashlib.sha256(username).hexdigest()
 
 def price_to_wire(contract, price):
     if contract.contract_type == "prediction":

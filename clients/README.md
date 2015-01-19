@@ -2,7 +2,7 @@
 
 ## Overview
 
-The server and client communicate using [​WAMP] (http://wamp.ws/).
+The server and client communicate using [​WAMPv2] (http://wamp.ws/).
 This is a derivative of a websocket connection with an additional layer supporting RPC and PubSub.
 
 The default port for websockets is 8443. A typical session runs as follows:
@@ -13,10 +13,34 @@ The default port for websockets is 8443. A typical session runs as follows:
 4. The client is now authenticated and may make private calls.
 5. The client is automatically subscribed to several feeds relating to their account.
 
+The websockets endpoint is:
+
+wss://hostname:8443/ws
+
+For information on the REST api, see REST.md
+
 ## RPC Response Format
 
-RPC responses are tuples of two elements. The first element any non-zero value if the RPC call succeeded. It is zero
-otherwise. The second element is call specific.
+RPC responses are json objects with two elements. In the case of a successful call:
+
+```json
+{
+    success: true
+    result: result
+}
+```
+
+In the case of a failure
+
+```json
+{
+    success:false
+    error: ['error-message', arguments]
+}
+```
+
+Error is a list where the first argument is a string specifying the error. Subsequent elements are particular
+details about that specific error, for example the invalid data passed to the function.
 
 ## Denominations
 
@@ -32,7 +56,7 @@ corresponding server objects. Each is encoded in JSON.
 
 ```json
 {
-    ticker: "TICKER"
+    contract: "TICKER"
     description: "short description"
     full_description: "full description"
     contract_type: "futures|prediction|cash_pair|cash"
@@ -152,33 +176,33 @@ the user would like to receive, and how.
 
 ## Public methods
 
-### get_markets()
+### rpc.market.get_markets()
 Take no arguments. Returns a ticker-indexed dictionary of contracts corresponding to currently active markets.
 
-### get_exchange_info()
+### rpc.info.get_exchange_info()
 Takes no arguments. Gets information about the exchange running here.
 
-### get_trade_history(ticker, start_timestamp, end_timestamp)
+### rpc.market.get_trade_history(contract, start_timestamp, end_timestamp)
 
-ticker must be a string. It must be one of the active markets. Returns a time sorted array of trades.
+contract must be a string. It must be one of the active markets. Returns a time sorted array of trades.
 
-### get_ohlcv_history(ticker,period,start_timestamp,end_timestamp)
+### rpc.market.get_ohlcv_history(contract, period, start_timestamp,end_timestamp)
 
-ticker must be a string. It must be one of the active markets. period is minute/hour/day.
+contract must be a string. It must be one of the active markets. period is minute/hour/day.
 Returns a dict with the key as the timestamp, the start of the period in question.
 
 Each entry is an ```ohlcv``` object
 
-### get_order_book(ticker)
+### rpc.market.get_order_book(contract)
 
-ticker must be a string. It must be one of the active markets. Returns a dictionary with keys 'bids' and 'asks' and
-values array of orders. Key ```contract``` is the ticker requested.
+contract must be a string. It must be one of the active markets. Returns a dictionary with keys 'bids' and 'asks' and
+values array of orders. Key ```contract``` is the contract requested.
 
-### get_chat_history()
+### rpc.market.get_safe_prices(list of contracts)
 
-Take no arguments. Returns a list of the last 100 chat messages. Each element is in the format [nickname, message].
+Returns the safe prices for the contracts passed in, or if none, returns all safe prices
 
-### get_audit()
+### rpc.info.get_audit()
 
 Takes no argument. Returns audit data which allows the user to see his balance in each contract (blinded by user_hash)
 and the total balance for each contract, so he can verify that there is enough money on account to satisfy withdrawal
@@ -205,21 +229,23 @@ Each entry in assets and liabilities is ticker-indexed:
 
 Positions is an array of ```(user_hash, position)```
 
-### get_reset_token(username)
+### rpc.registrar.get_reset_token(username)
 
 Takes a username as an argument, sends that user a token to reset their password.
 
-### make_account(username, password, salt, email, nickname)
+### rpc.registrar.make_account(username, password, salt, email, nickname)
 
 Create an account with the given username, password hash, and salt. Also set the user's profile to the passed email and nickname
 
-### change_password_token(username, new_password_hash, token)
+### rpc.registrar.change_password_token(username, new_password_hash, token)
 
 Given a password reset token, change the user's password to the new hash. leaves the salt and two factor untouched.
 
 ## Public feeds
 
-### book#TICKER
+For the following, TICKER is the ticker with '/' replaced by '_'
+
+### feeds.market.book.TICKER
 Each event is a complete order book. It has the following format. Each entry in bids/asks is a book_row type.
 
 ```json
@@ -239,116 +265,121 @@ price: 43
 }
 ```
 
-### trades#TICKER
+### feeds.market.trades.TICKER
 
 Each event is a ```trade```.
 
-### safe_prices#TICKER
+### feeds.market.safe_prices.TICKER
 
 Each event is a dictionary. The keys are tickers and the values are the new safe prices.
 
-### ohlcv#TICKER
+### feeds.market.ohlcv.TICKER
 
 Each event is an ```ohlcv``` object
 
-### chat
-
-Each event is a chat message in the format [nickname, message]. This feed allows publishing when user is authenticated.
-
 ## Private methods
 
-### place_order(order)
+### rpc.trader.place_order(order)
 
 order must be an ```order``` object, however the timestamp, id, and quantity_left
 are ignored. This returns the order id on success.
 
-### cancel_order(id)
+### rpc.trader.cancel_order(id)
 
-order id must be an integer. It is the id of the order as returned by place_order().
+id must be an integer. It is the id of the order as returned by place_order().
 
-### get_positions()
+### rpc.trader.get_positions()
 
 Returns a ticker-indexed dictionary of positions.
 
-### get_open_orders()
+### rpc.trader.get_open_orders()
 
 Returns an order id-indexed dictionary of orders.
 
-### get_transaction_history(start_timestamp, end_timestamp)
+### rpc.trader.get_transaction_history(start_timestamp, end_timestamp)
 
 Returns an array of transaction entries
 
-### get_permissions()
+### rpc.trader.get_permissions()
 
 Returns a dict with keys that are the user's permissions and values True or False
 
-### get_profile()
+### rpc.trader.get_profile()
 
 Returns the profile for the user as a ```profile``` object
 
-### change_profile(profile)
+### rpc.trader.change_profile(profile)
 
 Change the profile for the user, pass in a ```profile``` object
 
-### request_support_nonce(type)
+### rpc.trader.request_support_nonce(type)
 
 Returns the nonce you need to submit a support request to the support ticket server. Type is the type of ticket. Only 'Compliance' is currently supported.
 
-### request_withdrawal(ticker, amount, address)
+### rpc.trader.request_withdrawal(contract, amount, address)
 
 Send a request to withdraw a certain amount of a cash contract to a given address
 
-### get_new_address(ticker)
+### rpc.trader.get_new_address(contract)
 
 Request a new address for sending deposits
 
-### get_current_address(ticker)
+### rpc.trader.get_current_address(contract)
 
 Return the currently active address for sending deposits
 
-### get_cookie()
+### rpc.token.get_cookie()
 
 Return the authentication cookie for the user
 
-### logout()
-
-Logout
-
-### get_new_two_factor()
-
-Prepares two factor authentication for an account. Returns the shared secret.
-
-### disable_two_factor(confirmation)
-
-Disables two factor auth for an account. Requires 'confirmation', which is the OTP
-
-### register_two_factor(confirmation)
-
-Enables two factor authentication. The confirmation must be the OTP
-
-### change_password(old_hash, new_hash)
+### rpc.token.change_password(old_hash, new_hash)
 
 Change the password, confirming that the old_hash matches the current password hash
 
-### get_safe_prices(list of tickers)
+### rpc.token.logout()
 
-Returns the safe prices for the tickers passed in, or if none, returns all safe prices
+Logout
 
-### chat(message)
+### rpc.token.get_new_api_credentials(expiration)
 
-Publish 'message' on the chat channel
+Get a new set of API credentials and invalidate the old one. If expiration is passed in, then the token will expire at
+the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days. In the future
+this call will also require an OTP if that is enabled for the account.
+
+Returns
+
+```json
+{
+   key: "sdf98sca"
+   secret: "ac09dancakl"
+}
+```
+
+### rpc.token.get_new_two_factor()
+
+Prepares two factor authentication for an account. Returns the shared secret.
+
+### rpc.token.disable_two_factor(confirmation)
+
+Disables two factor auth for an account. Requires 'confirmation', which is the OTP
+
+### rpc.token.register_two_factor(confirmation)
+
+Enables two factor authentication. The confirmation must be the OTP
 
 ## Private feeds
 
-### orders#USERNAME
+In the below, USER_HASH is a hex_encoded sha256 hash of the username
+
+### feeds.user.orders.USER_HASH
 
 Each event is a ```order``` object. It is meant to update an existing order the client has in memory.
 
-### fills#USERNAME
+### feeds.user.fills.USER_HASH
 
 Each event is a ```fill``` object.
 
-### transactions#USERNAME
+### feeds.user.transactions.USER_HASH
 
 Each event updates the user when a balance in their account changes, due to withdrawals, deposits, trades, fees,
 transfers, adjustments-- anything. Each event is a ```transaction``` object, but without the `balance` field.

@@ -1,0 +1,30 @@
+{
+    "type": "object",
+    "description": "Sputnik order object as sent by the user.",
+    "properties":
+    {
+        "contract":
+         {
+            "type": "string",
+            "description": "ticker of the contract"
+        },
+        "price":
+        {
+            "type": "integer",
+            "description": "Order price."
+        },
+        "quantity":
+        {
+            "type": "integer",
+            "description": "Order volume."
+        },
+        "side":
+        {
+            "enum": ["BUY", "SELL"],
+            "description": "The order side"
+        }
+    },
+    "required": ["contract", "price", "quantity", "side"],
+    "additionalProperties": false
+}
+

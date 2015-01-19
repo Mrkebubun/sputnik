@@ -154,7 +154,12 @@
                     "old_password": "Old Password",
                     "new_password": "New Password",
                     "confirm_password": "Confirm Password",
-                    "notifications": "Notifications"
+                    "notifications": "Notifications",
+                    "api_credentials": "REST API Credentials",
+                    "api_key": "API Key",
+                    "api_secret": "API Secret",
+                    "expiration": "Expiration",
+                    "api_docs": "API Documentation"
                 },
                 "notifications": {
                     "fill": "Fill",
@@ -164,7 +169,8 @@
                 },
                 "buttons": {
                     "update": "Update Profile",
-                    "change_password": "Change Password"
+                    "change_password": "Change Password",
+                    "get_new_api_credentials": "New Credentials"
                 }
             },
             "audit": {

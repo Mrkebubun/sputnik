@@ -33,7 +33,7 @@ from twisted.internet import reactor, ssl, task
 
 from autobahn.twisted.websocket import connectWS
 
-from client import BotFactory
+from sputnik import BotFactory
 from random_trader import RandomBot
 from market_maker import MarketMakerBot
 import random

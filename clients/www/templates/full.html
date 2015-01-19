@@ -1,3 +1,4 @@
+{{>change_password_token}}
 {{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
     {{translate("alerts/connecting", sputnik.profile.locale)}}.
@@ -5,7 +6,6 @@
 {{else}}
 <div class="container-fluid" id="main_page">
     {{>login_register}}
-    {{>change_password_token}}
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar navbar2">
@@ -501,6 +501,36 @@
     </div>
     {{/if}}
     {{#if current_page == "account"}}
+    <div class="modal fade" id="api-credentials-modal" aria-hidden="true" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">{{translate("account/profile/titles/api_credentials", sputnik.profile.locale)}}</h4>
+                </div>
+                <div class="modal-body">
+                    <table>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_docs", sputnik.profile.locale)}}</th>
+                            <td><a href="https://github.com/MimeticMarkets/sputnik/blob/master/clients/REST.md" target="_blank">https://github.com/MimeticMarkets/sputnik/blob/master/clients/REST.md</a></td>
+                        </tr>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_secret", sputnik.profile.locale)}}</th>
+                            <td>{{sputnik.api.secret}}</td>
+                        </tr>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_key", sputnik.profile.locale)}}</th>
+                            <td>{{sputnik.api.key}}</td>
+                        <tr>
+                            <th>{{translate("account/profile/titles/expiration", sputnik.profile.locale)}}</th>
+                            <td>{{format_datetime(sputnik.api.expiration, sputnik.profile.locale)}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="page-account">
         <div class="row">
             <div class="col-xs-12">
@@ -1261,7 +1291,7 @@
                             </div>
                             <div class="row">
                                 <div class="col-sm-5 deposit-content2">
-                                    <h4 class="heading-sub2">Change Password</h4>
+                                    <h4 class="heading-sub2">{{translate("account/profile/titles/change_password", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
                                             <p>{{translate("account/profile/titles/old_password", sputnik.profile.locale)}}</p>
@@ -1292,6 +1322,14 @@
                                         </div>
                                         <div class="col-sm-7 form-label">
                                             <a href="#" class="button-link-box3" on-click="change_password">{{translate("account/profile/buttons/change_password", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-5 deposit-content">
+                                    <h4 class="heading-sub2">{{translate("account/profile/titles/api_credentials", sputnik.profile.locale)}}</h4>
+                                    <div class="row form-row">
+                                        <div class="col-sm-12 form-label">
+                                            <a href="#" class="button-link-box3" data-toggle="modal" data-target="#api-credentials-modal" on-click="get_new_api_credentials">{{translate("account/profile/buttons/get_new_api_credentials", sputnik.profile.locale)}}</a>
                                         </div>
                                     </div>
                                 </div>

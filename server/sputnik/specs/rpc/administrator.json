@@ -15,6 +15,38 @@
         "required": [ "username", "password" ],
         "additionalProperties": false
     },
+    "get_new_api_credentials": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get a new REST api key and secret",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "expiration": {
+                "type": ["integer", "null"],
+                "description": "microseconds since epoch for when the token should stop working"
+            }
+        },
+        "required": [ "username", "expiration" ],
+        "additionalProperties": false
+    },
+    "check_and_update_api_nonce": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to check a nonce and update if ok",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "nonce": {
+                "type": "integer",
+                "description": "single-use nonce to check"
+            }
+        },
+        "required": [ "username", "nonce" ],
+        "additionalProperties": false
+    },
     "get_profile": {
         "type": "object",
         "description": "webserver -> administrator RPC call to get someone's profile",
