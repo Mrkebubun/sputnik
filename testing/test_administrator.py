@@ -8,6 +8,7 @@ import re
 from twisted.web.test.test_web import DummyRequest
 from twisted.internet import defer
 from datetime import datetime
+from sputnik.exception import AdministratorException
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))
@@ -204,7 +205,7 @@ class TestWebserverExport(TestAdministrator):
         self.add_address(address='second_new_address_without_user')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'username_taken'):
+        with self.assertRaisesRegexp(AdministratorException, 'username_taken'):
             self.webserver_export.make_account('new_user', 'new_user_password_hash')
 
     def test_many_accounts(self):
@@ -217,12 +218,12 @@ class TestWebserverExport(TestAdministrator):
             self.add_address(address='address_%d' % i)
             try:
                 self.webserver_export.make_account('user_%d' % i, 'test_password')
-            except administrator.AdministratorException:
+            except AdministratorException:
                 pass
 
         # Now it should fail
         self.add_address(address='address_%d' % user_limit)
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'user_limit_reached'):
+        with self.assertRaisesRegexp(AdministratorException, 'user_limit_reached'):
             self.webserver_export.make_account('user_%d' % user_limit, 'test_password')
 
 
@@ -312,7 +313,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "password_mismatch"):
+        with self.assertRaisesRegexp(AdministratorException, "password_mismatch"):
             self.webserver_export.reset_password_hash('test', "bad_old_hash", new_password_hash)
 
     def test_reset_password_hash_bad_token(self):
@@ -330,7 +331,7 @@ class TestWebserverExport(TestAdministrator):
 
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, "invalid_token"):
+        with self.assertRaisesRegexp(AdministratorException, "invalid_token"):
             self.assertTrue(
                 self.webserver_export.reset_password_hash('test', None, new_password_hash, token='bad_token'))
 
@@ -427,7 +428,7 @@ class TestTicketServerExport(TestAdministrator):
         self.create_account('test')
         from sputnik import administrator
 
-        with self.assertRaisesRegexp(administrator.AdministratorException, 'invalid_support_nonce'):
+        with self.assertRaisesRegexp(AdministratorException, 'invalid_support_nonce'):
             self.ticketserver_export.check_support_nonce('test', 'bad_nonce', 'Compliance')
 
     def test_register_support_ticket(self):
@@ -470,7 +471,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, None)
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')

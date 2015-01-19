@@ -17,6 +17,8 @@ permissions add Trade trade login
 permissions add Withdraw withdraw login
 """
 
+from sputnik.exception import AccountantException
+
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -136,7 +138,7 @@ class TestAccountantAudit(TestAccountantBase):
             contract_id=BTC.id).one()
         self.assertEqual(position.pending_postings, 0)
         self.assertEqual(position.position, 50)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'disabled_user'):
+        with self.assertRaisesRegexp(AccountantException, 'disabled_user'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -145,7 +147,7 @@ class TestAccountantAudit(TestAccountantBase):
                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
         self.clock.advance(300)
         self.assertEqual(position.position, 0)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
+        with self.assertRaisesRegexp(AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -958,7 +960,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'contract_expired'):
+        with self.assertRaisesRegexp(AccountantException, 'contract_expired'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'NETS2014',
                                                        'price': 500,
@@ -1072,7 +1074,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
+        with self.assertRaisesRegexp(AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1090,7 +1092,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1112,7 +1114,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             result = self.webserver_export.place_order('test', {'username': 'test',
                                                                 'contract': 'BTC/MXN',
                                                                 'price': 1000000,
@@ -1166,7 +1168,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1233,7 +1235,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "user_order_mismatch"):
+        with self.assertRaisesRegexp(AccountantException, "user_order_mismatch"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1255,7 +1257,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         id = 5
-        with self.assertRaisesRegexp(accountant.AccountantException, "no_order_found"):
+        with self.assertRaisesRegexp(AccountantException, "no_order_found"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1317,7 +1319,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "withdraw_not_permitted"):
+        with self.assertRaisesRegexp(AccountantException, "withdraw_not_permitted"):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1330,7 +1332,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
+        with self.assertRaisesRegexp(AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1343,7 +1345,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
+        with self.assertRaisesRegexp(AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])

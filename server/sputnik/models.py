@@ -308,6 +308,7 @@ class PermissionGroup(db.Base):
     deposit = Column(Boolean, server_default=sql.false())
     withdraw = Column(Boolean, server_default=sql.false())
     login = Column(Boolean, server_default=sql.true())
+    full_ui = Column(Boolean, server_default=sql.false())
 
     def __init__(self, name, permissions):
         """
@@ -320,6 +321,7 @@ class PermissionGroup(db.Base):
         self.withdraw = 'withdraw' in permissions
         self.deposit = 'deposit' in permissions
         self.login = 'login' in permissions
+        self.full_ui = 'full_ui' in permissions
 
     @property
     def dict(self):
@@ -327,7 +329,8 @@ class PermissionGroup(db.Base):
                 'trade': self.trade,
                 'deposit': self.deposit,
                 'withdraw': self.withdraw,
-                'login': self.login
+                'login': self.login,
+                'full_ui': self.full_ui
         }
 
     def __repr__(self):
@@ -393,6 +396,10 @@ class User(db.Base):
                                    default='Liability', server_default="Liability")
     audit_secret = Column(String)
     locale = Column(String, server_default="en")
+    api_key = Column(String)
+    api_secret = Column(String)
+    api_expiration = Column(DateTime)
+    api_nonce = Column(BigInteger, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")

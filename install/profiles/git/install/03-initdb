@@ -6,10 +6,12 @@ contracts add BTC
 contracts add MXN
 contracts add PLN
 contracts add HUF
+contracts add USD
 
 contracts add BTC/MXN
 contracts add BTC/PLN
 contracts add BTC/HUF
+contracts add BTC/USD
 
 contracts add NETS2014
 contracts set NETS2014 contract_type prediction
@@ -83,6 +85,11 @@ contracts set HUF deposit_instructions "Please mail a check to us\n\n500 Westove
 contracts set HUF lot_size 100
 contracts set HUF description Forint
 
+contracts set USD contract_type cash
+contracts set USD denominator 100
+contracts set USD deposit_instructions "Mail a check"
+contracts set USD description "Dollar"
+
 contracts set BTC/MXN contract_type cash_pair
 contracts set BTC/MXN tick_size 100
 contracts set BTC/MXN lot_size 1000000
@@ -109,6 +116,15 @@ contracts set BTC/HUF denominated_contract_ticker HUF
 contracts set BTC/HUF payout_contract_ticker BTC
 contracts set BTC/HUF fees 100
 contracts set BTC/HUF description BTC/HUF
+
+contracts set BTC/USD contract_type cash_pair
+contracts set BTC/USD tick_size 100
+contracts set BTC/USD lot_size 1000000
+contracts set BTC/USD denominator 1
+contracts set BTC/USD denominated_contract_ticker USD
+contracts set BTC/USD payout_contract_ticker BTC
+contracts set BTC/USD fees 100
+contracts set BTC/USD description "BTC/USD"
 
 permissions add Default login
 permissions add Full trade withdraw deposit login
@@ -154,6 +170,16 @@ accounts position randomtrader MXN
 accounts position randomtrader HUF
 accounts position randomtrader PLN
 admin add admin
+
+accounts add ilp_source
+accounts password ilp_source ilp
+accounts position ilp_source BTC
+accounts position ilp_source USD
+
+accounts add ilp_target
+accounts password ilp_target ilp
+accounts position ilp_target BTC
+accounts position ilp_target HUF
 
 accounts add clearing_USDBTC0W
 accounts set clearing_USDBTC0W type Asset

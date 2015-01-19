@@ -1,0 +1,22 @@
+Here is your activity statement for the period:
+
+Start     : {{start}}
+End       : {{end}}
+
+{% for ticker, detail in details.iteritems() %}
+Contract  : {{ticker}}
+Starting  : {{detail.beginning_balance_fmt}}
+Ending    : {{detail.ending_balance_fmt}}
+
+Activity Summary:
+{% for type, total_fmt in detail.totals_by_type_fmt.iteritems() %}{{type.ljust(10)}}: {{total_fmt}}
+{% endfor %}
+--
+
+Transactions:
+Time                       | Type       | Debit      | Credit     | Balance    | Note
+===========================+============+============+============+============+=====
+{% for transaction in detail.transactions %}{{transaction.timestamp}} | {{transaction.type.ljust(10)}} | {% if transaction.direction == "debit" %}{{transaction.quantity_fmt.rjust(10)}}{% else %}          {% endif %} | {% if transaction.direction == "credit" %}{{transaction.quantity_fmt.rjust(10)}}{% else %}          {% endif %} | {{transaction.balance_fmt.rjust(10)}} | {{transaction.note}}
+{% endfor %}
+##
+{% endfor %}

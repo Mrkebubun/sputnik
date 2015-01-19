@@ -48,9 +48,7 @@ from jinja2 import Environment, FileSystemLoader
 import time
 from datetime import datetime
 from util import session_aware
-
-class AccountantException(Exception):
-    pass
+from exception import *
 
 INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
 TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
@@ -66,6 +64,8 @@ NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
 USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
 ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
+NO_SUCH_USER = AccountantException("exceptions/accountant/no_such_user")
+INVALID_PRICE_QUANTITY = AccountantException("exceptions/accountant/invalid_price_quantity")
 
 class Accountant:
     """The Accountant primary class
@@ -241,7 +241,7 @@ class Accountant:
             return self.session.query(models.User).filter_by(
                 username=username).one()
         except NoResultFound:
-            raise AccountantException("No such user: '%s'." % username)
+            raise NO_SUCH_USER
 
     def get_contract(self, ticker):
         """
@@ -929,13 +929,17 @@ class Accountant:
                 log.err("Webserver allowed a 'cash' contract!")
                 raise AccountantException(0, "Not a valid contract type.")
 
-            if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+        if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
+            raise AccountantException(0, "invalid price or quantity")
+
+        # case of predictions
+        if contract.contract_type == 'prediction':
+            if not 0 <= order["price"] <= contract.denominator:
                 raise AccountantException(0, "invalid price or quantity")
 
-            # case of predictions
-            if contract.contract_type == 'prediction':
-                if not 0 <= order["price"] <= contract.denominator:
-                    raise AccountantException(0, "invalid price or quantity")
+        if contract.contract_type == "cash_pair":
+            if not order["quantity"] % contract.lot_size == 0:
+                raise AccountantException(0, "invalid price or quantity")
 
             if contract.contract_type == "cash_pair":
                 if not order["quantity"] % contract.lot_size == 0:
@@ -1242,9 +1246,11 @@ class Accountant:
             user.permission_group_id = id
             # self.session.add(user)
             self.session.commit()
+            return None
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
    
     def disable_user(self, user):
         user = self.get_user(user)
@@ -1436,6 +1442,7 @@ class Accountant:
             user = self.get_user(username)
             user.fee_group_id = id
             self.session.commit()
+            return None
         except Exception as e:
             self.session.rollback()
             raise e
@@ -1653,7 +1660,7 @@ class AdministratorExport(ComponentExport):
     @session_aware
     @schema("rpc/accountant.administrator.json#change_permission_group")
     def change_permission_group(self, username, id):
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     @export
     @session_aware

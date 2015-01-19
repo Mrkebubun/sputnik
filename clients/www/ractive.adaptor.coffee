@@ -48,6 +48,7 @@ class RactiveSputnikWrapper
         @position_contracts = {}
         @safe_prices = {}
         @permissions = {}
+        @api = {}
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -64,6 +65,10 @@ class RactiveSputnikWrapper
             else
                 @exchange_info.supported_ids = ['passport', 'drivers_license', 'personal_identification']
 
+            if @exchange_info.restrict_full_ui? and @exchange_info.restrict_full_ui.toLowerCase() == "true"
+                @exchange_info.restrict_full_ui = true
+            else
+                @exchange_info.restrict_full_ui = false
 
             @notify "exchange_info"
 
@@ -241,6 +246,9 @@ class RactiveSputnikWrapper
             @sputnik.log ["safe_prices", @safe_prices]
             @notify "safe_prices"
 
+        sputnik.on "api", (@api) =>
+            @notify "api"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -268,6 +276,7 @@ class RactiveSputnikWrapper
         position_contracts: @position_contracts
         safe_prices: @safe_prices
         permissions: @permissions
+        api: @api
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates
