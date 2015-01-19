@@ -255,7 +255,7 @@ class Administrator:
         user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
 
         self.session.commit()
-        return {'key': user.api_key, 'secret': user.api_secret}
+        return {'key': user.api_key, 'secret': user.api_secret, 'expiration': util.dt_to_timestamp(user.api_expiration)}
 
     def check_and_update_api_nonce(self, username, nonce):
         user = self.session.query(models.User).filter_by(username=username).one()
