@@ -9,7 +9,7 @@ from sputnik.webserver.plugin import ServicePlugin, schema, error_handler
 from sputnik.exception import WebserverException
 from datetime import datetime
 
-from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 from autobahn import wamp
 
 
@@ -23,28 +23,28 @@ class MarketService(ServicePlugin):
         self.safe_prices = {}
 
     @inlineCallbacks
+    def load_contract(self, ticker):
+        contract = yield self.db.load_contract(ticker)
+        self.markets[ticker] = contract
+
+    @inlineCallbacks
     def init(self):
         yield ServicePlugin.init(self)
 
         self.db = self.require("sputnik.webserver.plugins.db.postgres.PostgresDatabase")
         self.administrator = self.require("sputnik.webserver.plugins.backend.administrator.AdministratorProxy")
-
-        self.markets = yield self.db.get_markets()
-        dl = []
-
-        def get_ohlcv(trade_history, contract):
-            self.trade_history[contract] = trade_history
+        contracts = yield self.db.get_contracts()
+        for contract in contracts:
+            yield self.load_contract(contract)
+            self.trade_history[contract] = yield self.db.get_trade_history(contract)
 
             # Clear ohlcv history
             self.ohlcv_history[contract] = {}
+
+            # Fill ohlcv history
             for period in ["minute", "hour", "day"]:
                 for trade in self.trade_history[contract]:
                     self.update_ohlcv(trade, period=period)
-
-        for contract in self.markets.iterkeys():
-            dl.append(self.db.get_trade_history(contract).addCallback(get_ohlcv, contract))
-
-        yield gatherResults(dl)
 
     def on_trade(self, contract, trade):
         self.trade_history[contract].append(trade)
