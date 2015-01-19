@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Liquidity Pool</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" media="screen">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/coffee-script/1.6.3/coffee-script.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="panel panel-primary">
+            <div class="panel-heading">State</div>
+            <div class="panel-body">
+                <table id="state" class="table table-striped table-hover">
+                    <tbody>
+                        <tr>
+                            <th>Timestamp</th>
+                            <td>{{object.state.timestamp}}</td>
+                        </tr>
+                        <tr>
+                            <th>Offers</th>
+                            <td>{{object.state.offered_bid}}</td>
+                            <td>{{object.state.offered_ask}}</td>
+                        </tr>
+                        <tr>
+                            <th>Source Balances</th>
+                            {% for ticker, position in object.state.balance_source.iteritems() %}
+                            <td>{{ticker}}: {{position.position}}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th>Target Balances</th>
+                            {% for ticker, position in object.state.balance_target.iteritems() %}
+                            <td>{{ticker}}: {{position.position}}</td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel panel-primary">
+            <div class="panel-heading">Valuation</div>
+            <div class="panel-body">
+                <table id="valuation" class="table table-striped table-hover">
+                    <tbody>
+                        <tr>
+                            <th>Base Value</th>
+                            <td>{{object.valuation.base_value}}</td>
+                        </tr>
+                        {% for parameter, value in object.valuation.optimized_params.iteritems() %}
+                        <tr>
+                            <td>{{parameter}}</td>
+                            <td>{{value}}</td>
+                        </tr>
+                        {% endfor %}
+                        {% for parameter, value in object.valuation.optimized.iteritems() %}
+                        <tr>
+                            <td>{{parameter}}</td>
+                            <td>{{value}}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

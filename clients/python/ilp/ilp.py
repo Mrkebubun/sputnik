@@ -12,6 +12,7 @@ from pprint import pprint, pformat
 from decimal import Decimal
 import numpy as np
 from scipy.optimize import minimize
+from jinja2 import Environment, FileSystemLoader
 
 # Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
 #         Then the source exchange is Bitstamp and the source currency is USD
@@ -39,10 +40,10 @@ class State():
         self.target_book = None
 
         # Balances at target exchange
-        self.balance_target = None
+        self.balance_target = {}
 
         # Balances at source exchange
-        self.balance_source = None
+        self.balance_source = {}
 
         # Currently offered bid at ask at target exchange
         self.offered_bid = None
@@ -336,12 +337,14 @@ class Valuation():
         self.source_exchange_var = source_exchange_var
         self.fiat_source_cov = fiat_source_cov
 
+        self.optimized_params = {}
+        self.optimized = {}
+
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
-    def valuation(self, params={}, output=False):
+    def valuation(self, params={}):
         # Get current balances
-        if output:
-            pprint(params)
+
         source_source_balance_in_source = self.state.convert_to_source(self.data.source_ticker, self.state.total_balance_source[self.data.source_ticker]['position'])
         source_btc_balance_in_source = self.state.convert_to_source(self.data.btc_ticker, self.state.total_balance_source[self.data.btc_ticker]['position'])
         target_target_balance_in_source = self.state.convert_to_source(self.data.target_ticker, self.state.total_balance_target[self.data.target_ticker]['position'])
@@ -408,8 +411,7 @@ class Valuation():
         # Total value
         total_value = source_source_balance_in_source + source_btc_balance_in_source + target_target_balance_in_source + target_btc_balance_in_source
         value = total_value - market_risk - deviation_penalty
-        if output:
-            pprint({'value': value,
+        ret = {'value': value,
                     'total_value': total_value,
                     'market_risk': market_risk,
                     'deviation_penalty': deviation_penalty,
@@ -417,9 +419,8 @@ class Valuation():
                     'target_btc_balance_in_source': target_btc_balance_in_source,
                     'source_source_balance_in_source': source_source_balance_in_source,
                     'source_btc_balance_in_source': source_btc_balance_in_source
-                })
-        return value
-
+                }
+        return ret
     @inlineCallbacks
     def optimize(self):
             wait = yield self.state.update()
@@ -429,7 +430,7 @@ class Valuation():
             if self.state.offered_ask is not None:
                 self.base_params['offered_ask'] = self.state.offered_ask
 
-            self.base_value = self.valuation(params=self.base_params)
+            self.base_value = self.valuation(params=self.base_params)['value']
             def negative_valuation(x):
                 params = {'offered_bid': x[0],
                           'offered_ask': x[1],
@@ -438,8 +439,8 @@ class Valuation():
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
 
-                value = self.valuation(params=params)
-                return float(-value)
+                ret = self.valuation(params=params)
+                return float(-ret['value'])
 
             base_rate = float(self.state.source_exchange_rate) * float(self.state.fiat_exchange_rate)
             def constraint(x):
@@ -470,7 +471,7 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
-            self.optimized_value = self.valuation(params=self.optimized_params)
+            self.optimized = self.valuation(params=self.optimized_params)
 
 
 class MarketData():
@@ -532,20 +533,25 @@ from twisted.web.server import Site
 
 class Webserver(Resource):
     isLeaf = True
-    def __init__(self, state, valuation):
+    def __init__(self, state, valuation, template_dir="."):
         self.state = state
         self.valuation = valuation
 
+
+        self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
+                                     autoescape=True)
+
     def render_GET(self, request):
         # Do the JINJA
-        request.setHeader("content-type", "text/plain")
-        return pformat({'valuation': self.valuation.__dict__,
-                        'state': self.state.__dict__})
 
+        t = self.jinja_env.get_template("template.html")
+        return t.render(object=self).encode('utf-8')
 
 if __name__ == "__main__":
     @inlineCallbacks
     def main():
+        import sys
+        sys.path.append("..")
         from sputnik import Sputnik
         from yahoo import Yahoo
 
