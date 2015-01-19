@@ -98,7 +98,7 @@ class SputnikMixin():
     """
 
     def price_to_wire(self, contract, price):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             price = price * self.markets[contract]['denominator']
         else:
             price = price * self.markets[self.markets[contract]['denominated_contract_ticker']]['denominator'] * \
@@ -107,14 +107,14 @@ class SputnikMixin():
         return int(price - price % self.markets[contract]['tick_size'])
 
     def price_from_wire(self, contract, price):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return Decimal(price) / self.markets[contract]['denominator']
         else:
             return Decimal(price) / (self.markets[self.markets[contract]['denominated_contract_ticker']]['denominator'] *
                             self.markets[contract]['denominator'])
 
     def quantity_from_wire(self, contract, quantity):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return quantity
         elif self.markets[contract]['contract_type'] == "cash":
             return Decimal(quantity) / self.markets[contract]['denominator']
@@ -122,7 +122,7 @@ class SputnikMixin():
             return Decimal(quantity) / self.markets[self.markets[contract]['payout_contract_ticker']]['denominator']
 
     def quantity_to_wire(self, contract, quantity):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return int(quantity)
         elif self.markets[contract]['contract_type'] == "cash":
             return int(quantity * self.markets[contract]['denominator'])
@@ -508,6 +508,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     def subSafePrices(self, contract):
         uri = u"feeds.market.safe_prices.%s" % self.encode_ticker(contract)
         def _onSafePrice(uri, wire_safe_prices):
+
             return self.onSafePrice(uri, self.safe_prices_from_wire(wire_safe_prices))
 
         self.subscribe(_onSafePrice, uri)
