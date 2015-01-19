@@ -258,6 +258,7 @@ if __name__ == "__main__":
                "sputnik.webserver.plugins.feeds.user.UserAnnouncer",
                "sputnik.webserver.plugins.receiver.accountant.AccountantReceiver",
                "sputnik.webserver.plugins.receiver.engine.EngineReceiver",
+               "sputnik.webserver.plugins.receiver.administrator.AdministratorReceiver",
                "sputnik.webserver.rest.RESTProxy"]
     plugin.run_with_plugins(reactor, plugins, main)
 

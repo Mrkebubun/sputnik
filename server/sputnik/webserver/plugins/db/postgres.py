@@ -46,15 +46,15 @@ class PostgresDatabase(DatabasePlugin):
         dbpassword = config.get("database", "password")
         if dbpassword:
             dbpool = MyConnectionPool(config.get("database", "adapter"),
-                                       user=config.get("database", "username"),
-                                       password=dbpassword,
-                                       host=config.get("database", "host"),
-                                       port=config.get("database", "port"),
-                                       database=config.get("database", "dbname"))
+                                      user=config.get("database", "username"),
+                                      password=dbpassword,
+                                      host=config.get("database", "host"),
+                                      port=config.get("database", "port"),
+                                      database=config.get("database", "dbname"))
         else:
             dbpool = MyConnectionPool(config.get("database", "adapter"),
-                                       user=config.get("database", "username"),
-                                       database=config.get("database", "dbname"))
+                                      user=config.get("database", "username"),
+                                      database=config.get("database", "dbname"))
         self.dbpool = dbpool
 
     @inlineCallbacks
@@ -90,33 +90,43 @@ class PostgresDatabase(DatabasePlugin):
             returnValue(None)
 
     @inlineCallbacks
-    def get_markets(self):
-        results = yield self.dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
-                                             "tick_size, lot_size, margin_high, margin_low,"
-                                             "denominated_contract_ticker, payout_contract_ticker, expiration FROM contracts")
-        markets = {}
-        for r in results:
-            markets[r[0]] = {"contract": r[0],
-                             "description": r[1],
-                             "denominator": r[2],
-                             "contract_type": r[3],
-                             "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
-                                                                                     "markdown.extensions.sane_lists",
-                                                                                     "markdown.extensions.nl2br"
-                             ]),
-                             "tick_size": r[5],
-                             "lot_size": r[6],
-                             "denominated_contract_ticker": r[9],
-                             "payout_contract_ticker": r[10]}
+    def get_contracts(self):
+        result = yield self.dbpool.runQuery("SELECT ticker FROM contracts")
+        contracts = [r[0] for r in result]
+        returnValue(contracts)
 
-            if markets[r[0]]['contract_type'] == 'futures':
-                markets[r[0]]['margin_high'] = r[7]
-                markets[r[0]]['margin_low'] = r[8]
+    @inlineCallbacks
+    def load_contract(self, ticker):
+        res = yield self.dbpool.runQuery("SELECT ticker, description, denominator, contract_type, full_description,"
+                                         "tick_size, lot_size, margin_high, margin_low,"
+                                         "denominated_contract_ticker, payout_contract_ticker, expiration "
+                                         "FROM contracts WHERE ticker = %s", (ticker,))
+        if len(res) < 1:
+            raise PostgresException("No such contract: %s" % ticker)
+        if len(res) > 1:
+            raise PostgresException("Contract %s not unique" % ticker)
+        r = res[0]
+        contract = {"contract": r[0],
+                    "description": r[1],
+                    "denominator": r[2],
+                    "contract_type": r[3],
+                    "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
+                                                                            "markdown.extensions.sane_lists",
+                                                                            "markdown.extensions.nl2br"
+                    ]),
+                    "tick_size": r[5],
+                    "lot_size": r[6],
+                    "denominated_contract_ticker": r[9],
+                    "payout_contract_ticker": r[10]}
 
-            if markets[r[0]]['contract_type'] in ['futures', 'prediction']:
-                markets[r[0]]['expiration'] = util.dt_to_timestamp(r[11])
+        if contract['contract_type'] == 'futures':
+            contract['margin_high'] = r[7]
+            contract['margin_low'] = r[8]
 
-        returnValue(markets)
+        if contract['contract_type'] in ['futures', 'prediction']:
+            contract['expiration'] = util.dt_to_timestamp(r[11])
+
+        returnValue(contract)
 
     @inlineCallbacks
     def get_trade_history(self, ticker):
@@ -204,16 +214,18 @@ class PostgresDatabase(DatabasePlugin):
         returnValue({x[1]: {"contract": x[1],
                             "position": x[2],
                             "reference_price": x[3]
-                            }
-                            for x in result})
+        }
+                     for x in result})
 
     @inlineCallbacks
     def get_open_orders(self, username):
 
-        results = yield self.dbpool.runQuery('SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
-                               'orders.timestamp, orders.side, orders.id FROM orders, contracts '
-                               'WHERE orders.contract_id=contracts.id AND orders.username=%s '
-                               'AND orders.quantity_left > 0 '
-                               'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (username,))
+        results = yield self.dbpool.runQuery(
+            'SELECT contracts.ticker, orders.price, orders.quantity, orders.quantity_left, '
+            'orders.timestamp, orders.side, orders.id FROM orders, contracts '
+            'WHERE orders.contract_id=contracts.id AND orders.username=%s '
+            'AND orders.quantity_left > 0 '
+            'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (username,))
         returnValue({r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-                       'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in results})
+                            'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False}
+                     for r in results})
