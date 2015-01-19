@@ -52,6 +52,46 @@ import time
 import Crypto.Random.random
 from copy import copy
 
+from twisted.internet import stdio
+from twisted.protocols import basic
+import shlex
+
+class CommandLine(basic.LineReceiver):
+    from os import linesep as delimiter
+    def __init__(self, bot):
+        self.bot = bot
+
+    def connectionMade(self):
+        self.transport.write(">>> ")
+
+    def run_command(self, line):
+        tokens = shlex.split(line)
+        if len(tokens):
+            command = tokens[0]
+            args = tokens[1:]
+            try:
+                fn = getattr(self.bot, command)
+            except AttributeError:
+                print "Command %s not found" % command
+            else:
+                converted_args = []
+                for arg in args:
+                    try:
+                        arg_float = float(arg)
+                    except ValueError:
+                        converted_args.append(arg)
+                    else:
+                        converted_args.append(arg_float)
+                print "Calling: %s %s" % (command, converted_args)
+                try:
+                    fn(*converted_args)
+                except TypeError as e:
+                    print "Called incorrectly: %s" % e
+
+    def lineReceived(self, line):
+        self.run_command(line)
+        self.transport.write(">>> ")
+
 class SputnikMixin():
     """
     Utility functions
@@ -211,6 +251,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     """
     def onConnect(self):
         log.msg("connect")
+        stdio.StandardIO(CommandLine(self))
+
         if self.factory.username is not None:
             log.msg("logging in as %s" % self.factory.username)
             self.join(self.config.realm, [u'wampcra'], unicode(self.factory.username))
@@ -517,9 +559,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
                 sign = -1
 
             if contract in self.wire_positions:
-                self.wire_positions[contract]['position'] += sign * transaction['quantity']
+                self.wire_positions[contract]['position'] += sign * wire_transaction['quantity']
             else:
-                self.wire_positions[contract] = { 'position': sign * transaction['quantity'],
+                self.wire_positions[contract] = { 'position': sign * wire_transaction['quantity'],
                                                 'contract': contract }
 
             return self.onTransaction(uri, self.transaction_from_wire(wire_transaction))
