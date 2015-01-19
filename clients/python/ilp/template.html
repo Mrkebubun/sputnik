@@ -36,6 +36,16 @@
                             <td>{{ticker}}: {{position.position}}</td>
                             {% endfor %}
                         </tr>
+                        <tr>
+                            <th>Source Best Bid/Ask</th>
+                            <td>{{object.state.source_best_bid}}</td>
+                            <td>{{object.state.source_best_ask}}</td>
+                        </tr>
+                        <tr>
+                            <th>Fiat Best Bid/Ask</th>
+                            <td>{{object.state.fiat_best_bid}}</td>
+                            <td>{{object.state.fiat_best_ask}}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -61,6 +71,10 @@
                             <td>{{value}}</td>
                         </tr>
                         {% endfor %}
+                        <tr>
+                            <th>Optimized Edge</th>
+                            <td>{{100 * object.valuation.optimized.value / object.valuation.base_value - 100}}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

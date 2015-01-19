@@ -167,10 +167,10 @@ class State():
             fee_in_source = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
             if amount > 0:
                 return { self.data.source_ticker: Decimal(-amount),
-                         self.data.target_ticker: Decimal(amount - fee_in_source) * self.fiat_book['asks'][0]['price']}
+                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, Decimal(amount - fee_in_source))}
             else:
                 return { self.data.source_ticker: Decimal(abs(amount) - fee_in_source),
-                         self.data.target_ticker: Decimal(amount) * self.fiat_book['asks'][0]['price'] }
+                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, Decimal(amount))}
         else:
             return {self.data.target_ticker: Decimal(0),
                     self.data.source_ticker: Decimal(0)}
@@ -208,18 +208,54 @@ class State():
         else:
             return {self.data.source_ticker: Decimal(0)}
 
-    def mid(self, bid, ask):
-        return (bid + ask) / 2
+    def get_best_bid(self, book):
+        if 'bids' in book and len(book['bids']) > 0:
+            return book['bids'][0]['price']
+        else:
+            # There is no bid, worth 0!
+            return Decimal(0)
+
+    def get_best_ask(self, book):
+        if 'asks' in book and len(book['asks']) > 0:
+            return book['asks'][0]['price']
+        else:
+            # There is no bid, worth 0!
+            return Decimal('Infinity')
+
+    @property
+    def source_best_ask(self):
+        return self.get_best_ask(self.source_book)
+
+    @property
+    def source_best_bid(self):
+        return self.get_best_bid(self.source_book)
+
+    @property
+    def fiat_best_ask(self):
+        return self.get_best_ask(self.fiat_book)
+
+    @property
+    def fiat_best_bid(self):
+        return self.get_best_bid(self.fiat_book)
+
 
     @property
     def source_exchange_rate(self):
-        return self.mid(self.source_book['bids'][0]['price'],
-                 self.source_book['asks'][0]['price'])
+        """
+        Get the rate to convert BTC to the source currency. Use the bid
+
+        :return:
+        """
+        return self.get_best_bid(self.source_book)
 
     @property
     def fiat_exchange_rate(self):
-        return self.mid(self.fiat_book['bids'][0]['price'],
-                 self.fiat_book['asks'][0]['price'])
+        """
+        Get the rate to convert target currency to source currency
+
+        :return:
+        """
+        return self.get_best_bid(self.fiat_book)
 
     @property
     def total_balance_target(self):
@@ -302,9 +338,25 @@ class State():
         if ticker == self.data.source_ticker:
             return quantity
         if ticker == self.data.btc_ticker:
-            return quantity * self.source_exchange_rate
+            return quantity * self.source_best_bid
         if ticker == self.data.target_ticker:
-            return quantity / self.fiat_exchange_rate
+            return quantity * self.fiat_best_bid
+
+    def convert_to_target(self, ticker, quantity):
+        if ticker == self.data.target_ticker:
+            return quantity
+        if ticker == self.data.btc_ticker:
+            raise NotImplementedError
+        if ticker == self.data.source_ticker:
+            return quantity / self.fiat_best_ask
+
+    def convert_to_btc(self, ticker, quantity):
+        if ticker == self.data.btc_ticker:
+            return quantity
+        if ticker == self.data.source_ticker:
+            return quantity / self.source_best_ask
+        if ticker == self.data.target_ticker:
+            raise NotImplementedError
 
 class Valuation():
     def __init__(self,
@@ -345,10 +397,10 @@ class Valuation():
     def valuation(self, params={}):
         # Get current balances
 
-        source_source_balance_in_source = self.state.convert_to_source(self.data.source_ticker, self.state.total_balance_source[self.data.source_ticker]['position'])
-        source_btc_balance_in_source = self.state.convert_to_source(self.data.btc_ticker, self.state.total_balance_source[self.data.btc_ticker]['position'])
-        target_target_balance_in_source = self.state.convert_to_source(self.data.target_ticker, self.state.total_balance_target[self.data.target_ticker]['position'])
-        target_btc_balance_in_source = self.state.convert_to_source(self.data.btc_ticker, self.state.total_balance_target[self.data.btc_ticker]['position'])
+        source_source_balance = self.state.total_balance_source[self.data.source_ticker]['position']
+        source_btc_balance = self.state.total_balance_source[self.data.btc_ticker]['position']
+        target_target_balance = self.state.total_balance_target[self.data.target_ticker]['position']
+        target_btc_balance = self.state.total_balance_target[self.data.btc_ticker]['position']
 
         offered_bid = params.get('offered_bid', 0)
         offered_ask = params.get('offered_ask', 0)
@@ -366,28 +418,28 @@ class Valuation():
         transfer_out_consequence = self.state.transfer_source_out(transfer_source_out)
 
         # It has an impact on our balances
-        target_target_balance_in_source += self.state.convert_to_source(self.data.target_ticker, bid_consequence[self.data.target_ticker])
-        target_btc_balance_in_source += self.state.convert_to_source(self.data.btc_ticker, bid_consequence[self.data.btc_ticker])
+        target_target_balance += bid_consequence[self.data.target_ticker]
+        target_btc_balance += bid_consequence[self.data.btc_ticker]
 
-        target_target_balance_in_source += self.state.convert_to_source(self.data.target_ticker, ask_consequence[self.data.target_ticker])
-        target_btc_balance_in_source += self.state.convert_to_source(self.data.btc_ticker, ask_consequence[self.data.btc_ticker])
+        target_target_balance += ask_consequence[self.data.target_ticker]
+        target_btc_balance += ask_consequence[self.data.btc_ticker]
 
-        target_btc_balance_in_source += self.state.convert_to_source(self.data.btc_ticker, btc_transfer_consequence['target_btc'])
-        source_btc_balance_in_source += self.state.convert_to_source(self.data.btc_ticker, btc_transfer_consequence['source_btc'])
+        target_btc_balance += btc_transfer_consequence['target_btc']
+        source_btc_balance += btc_transfer_consequence['source_btc']
 
-        target_target_balance_in_source += self.state.convert_to_source(self.data.target_ticker, fiat_transfer_consequence[self.data.target_ticker])
-        source_source_balance_in_source += self.state.convert_to_source(self.data.source_ticker, fiat_transfer_consequence[self.data.source_ticker])
+        target_target_balance += fiat_transfer_consequence[self.data.target_ticker]
+        source_source_balance += fiat_transfer_consequence[self.data.source_ticker]
 
-        source_source_balance_in_source += self.state.convert_to_source(self.data.source_ticker, trade_source_consequence[self.data.source_ticker])
-        source_btc_balance_in_source += self.state.convert_to_source(self.data.btc_ticker, trade_source_consequence[self.data.btc_ticker])
+        source_source_balance += trade_source_consequence[self.data.source_ticker]
+        source_btc_balance += trade_source_consequence[self.data.btc_ticker]
 
-        source_source_balance_in_source += self.state.convert_to_source(self.data.source_ticker, transfer_out_consequence[self.data.source_ticker])
+        source_source_balance += transfer_out_consequence[self.data.source_ticker]
 
         # Deviation Penalty
-        source_source_target = self.state.convert_to_source(self.data.source_ticker, self.target_balance_source[self.data.source_ticker])
-        source_btc_target = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_source[self.data.btc_ticker])
-        target_target_target = self.state.convert_to_source(self.data.target_ticker, self.target_balance_target[self.data.target_ticker])
-        target_btc_target = self.state.convert_to_source(self.data.btc_ticker, self.target_balance_target[self.data.btc_ticker])
+        source_source_target = self.target_balance_source[self.data.source_ticker]
+        source_btc_target = self.target_balance_source[self.data.btc_ticker]
+        target_target_target = self.target_balance_target[self.data.target_ticker]
+        target_btc_target = self.target_balance_target[self.data.btc_ticker]
 
         def get_penalty(balance, target):
             if balance < 0:
@@ -399,28 +451,36 @@ class Valuation():
             penalty = max(0, critical_min - balance) * 10 + max(0, min_bal - balance) * 3 + max(0, balance - max_bal) * 1 + max(0, balance - critical_max) * 3
             return penalty
 
-        deviation_penalty = get_penalty(source_source_balance_in_source, source_source_target) + \
-            get_penalty(source_btc_balance_in_source, source_btc_target) + get_penalty(target_target_balance_in_source, target_target_target) + \
-            get_penalty(target_btc_balance_in_source, target_btc_target)
-        deviation_penalty *= Decimal(self.deviation_penalty)
+        deviation_penalty_in_source = \
+            self.state.convert_to_source(self.data.source_ticker, get_penalty(source_source_balance, source_source_target)) + \
+            self.state.convert_to_source(self.data.btc_ticker, get_penalty(source_btc_balance, source_btc_target)) + \
+            self.state.convert_to_source(self.data.target_ticker, get_penalty(target_target_balance, target_target_target)) + \
+            self.state.convert_to_source(self.data.btc_ticker, get_penalty(target_btc_balance, target_btc_target))
+
+        deviation_penalty_in_source *= Decimal(self.deviation_penalty)
 
         # Market Risk
-        market_risk = Decimal(self.risk_aversion) * (Decimal(self.source_exchange_var) * pow(source_btc_balance_in_source + target_btc_balance_in_source, 2) +
-                                            Decimal(self.fiat_exchange_var) * pow(target_target_balance_in_source, 2))
+        market_risk_in_source = Decimal(self.risk_aversion) * \
+                      (Decimal(self.source_exchange_var) * pow(source_btc_balance + target_btc_balance, 2) +
+                       Decimal(self.fiat_exchange_var) * pow(target_target_balance, 2))
 
         # Total value
-        total_value = source_source_balance_in_source + source_btc_balance_in_source + target_target_balance_in_source + target_btc_balance_in_source
-        value = total_value - market_risk - deviation_penalty
-        ret = {'value': value,
-                    'total_value': total_value,
-                    'market_risk': market_risk,
-                    'deviation_penalty': deviation_penalty,
-                    'target_target_balance_in_source': target_target_balance_in_source,
-                    'target_btc_balance_in_source': target_btc_balance_in_source,
-                    'source_source_balance_in_source': source_source_balance_in_source,
-                    'source_btc_balance_in_source': source_btc_balance_in_source
+        total_value_in_source = self.state.convert_to_source(self.data.source_ticker, source_source_balance) + \
+                      self.state.convert_to_source(self.data.btc_ticker, source_btc_balance + target_btc_balance) + \
+                      self.state.convert_to_source(self.data.target_ticker, target_target_balance)
+
+        value = total_value_in_source - market_risk_in_source - deviation_penalty_in_source
+        ret = {'optimized_value': value,
+                    'total_value_in_source': total_value_in_source,
+                    'market_risk_in_source': market_risk_in_source,
+                    'deviation_penalty': deviation_penalty_in_source,
+                    'target_target_balance': target_target_balance,
+                    'target_btc_balance': target_btc_balance,
+                    'source_source_balance': source_source_balance,
+                    'source_btc_balance': source_btc_balance,
                 }
         return ret
+
     @inlineCallbacks
     def optimize(self):
             wait = yield self.state.update()
@@ -430,7 +490,7 @@ class Valuation():
             if self.state.offered_ask is not None:
                 self.base_params['offered_ask'] = self.state.offered_ask
 
-            self.base_value = self.valuation(params=self.base_params)['value']
+            self.base_value = self.valuation(params=self.base_params)['optimized_value']
             def negative_valuation(x):
                 params = {'offered_bid': x[0],
                           'offered_ask': x[1],
@@ -440,9 +500,9 @@ class Valuation():
                           'transfer_source_out': x[5]}
 
                 ret = self.valuation(params=params)
-                return float(-ret['value'])
+                return float(-ret['optimized_value'])
 
-            base_rate = float(self.state.source_exchange_rate) * float(self.state.fiat_exchange_rate)
+            base_rate = float(self.state.source_exchange_rate) / float(self.state.fiat_exchange_rate)
             def constraint(x):
                 params = {'offered_bid': x[0],
                           'offered_ask': x[1],
@@ -461,7 +521,7 @@ class Valuation():
                            constraints={'type': 'ineq',
                                          'fun': constraint},
                            tol=1e-2,
-                           options={'disp': False,
+                           options={'disp': True,
                                     'maxiter': 100,
                                     })
             x = res.x
@@ -472,6 +532,7 @@ class Valuation():
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
             self.optimized = self.valuation(params=self.optimized_params)
+
 
 
 class MarketData():
@@ -488,6 +549,8 @@ class MarketData():
                  target_fee, # (fixed_fee, prop_fee)
                  btc_fee, # fixed_fee
                  btc_delay, # (seconds)
+                 variance_period, # "day", "hour", "minute"
+                 variance_window # How many periods to use to calculate variance
     ):
 
         # Configurations
@@ -497,6 +560,8 @@ class MarketData():
         self.source_ticker = source_ticker
         self.target_ticker = target_ticker
         self.btc_ticker = btc_ticker
+        self.variance_period = variance_period
+        self.variance_window = variance_window
 
         # Outside parameters
         self.fiat_exchange_cost = fiat_exchange_cost
@@ -508,7 +573,7 @@ class MarketData():
 
 
     def get_fiat_book(self):
-        return self.fiat_exchange.getOrderBook('%s/%s' % (self.source_ticker, self.target_ticker))
+        return self.fiat_exchange.getOrderBook('%s/%s' % (self.target_ticker, self.source_ticker))
 
     def get_source_book(self):
         return self.source_exchange.getOrderBook('%s/%s' % (self.btc_ticker, self.source_ticker))
@@ -582,7 +647,10 @@ if __name__ == "__main__":
                                  source_fee=(0, 0.01),
                                  target_fee=(0, 0.005),
                                  btc_fee=0.0001,
-                                 btc_delay=3600)
+                                 btc_delay=3600,
+                                 variance_period="day",
+                                 variance_window="30"
+                                 )
         state = State(market_data)
         valuation = Valuation(state=state,
                               data=market_data,
