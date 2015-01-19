@@ -25,15 +25,15 @@ class FSMTrader(SputnikSession):
     def onLeave(self, details):
         self.fsm.process("leave")
 
-    def buy(self):
+    def buy(self, fsm):
         # decide if we want to buy and how much
         pass
 
-    def sell(self):
+    def sell(self, fsm):
         # decide if we want to sell and how much
         pass
 
-    def start(self):
+    def start(self, fsm):
         pass
 
     def onMarkets(self, markets):
@@ -45,9 +45,9 @@ class FSMTrader(SputnikSession):
         #   after doing a small time average
         pass
 
-    def notify_disconnected(self):
+    def notify_disconnected(self, fsm):
         print "Disconnected. Stopped."
 
-    def fsm_error(self):
+    def fsm_error(self, fsm):
         print "FSM encountered an error. Stopped."
 
