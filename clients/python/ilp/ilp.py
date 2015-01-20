@@ -341,7 +341,7 @@ class State():
 
         return total_balance
 
-    def constraint_fn(self, params={}):
+    def constraint_fn(self, params={}, quote_size=0):
         """
         Given the state of the exchanges, tell us what we can't do. This current
         version doesn't take into account fees. Actual version will actually call the "impact"
@@ -350,32 +350,41 @@ class State():
         :param params:
         :return:
         """
+        consequences = self.get_consequences(params, quote_size=quote_size)
+
         offered_bid = params.get('offered_bid', 0)
         offered_ask = params.get('offered_ask', 0)
-        btc_source_target = params.get('btc_source_target', 0)
-        fiat_source_target = params.get('fiat_source_target', 0)
-        trade_source_qty = params.get('trade_source_qty', 0)
-        transfer_source_out = params.get('transfer_source_out', 0)
 
         if offered_ask or offered_bid < 0:
             return False
         if offered_ask <= offered_bid:
             return False
-        if btc_source_target > 0 and btc_source_target > self.total_balance_source[self.data.btc_ticker]['positon']:
+
+        # Make sure we don't end up with a negative balance
+        def sum_negatives(numbers):
+            return abs(sum([min(x, 0) for x in numbers]))
+
+        if (sum_negatives([consequences['bid'][self.data.target_ticker],
+                          consequences['ask'][self.data.target_ticker],
+                          consequences['fiat_transfer'][self.data.target_ticker]]) >
+            self.balance_target[self.data.target_ticker]['position']):
             return False
-        if btc_source_target < 0 and abs(btc_source_target) > self.total_balance_target[self.data.btc_ticker]['position']:
+
+        if (sum_negatives([consequences['bid'][self.data.btc_ticker],
+                          consequences['ask'][self.data.btc_ticker],
+                          consequences['btc_transfer']['target_btc']]) >
+            self.balance_target[self.data.btc_ticker]['position']):
             return False
-        if fiat_source_target > 0 and fiat_source_target > self.total_balance_source[self.data.source_ticker]['position']:
+
+        if (sum_negatives([consequences['trade_source'][self.data.source_ticker],
+                           consequences['fiat_transfer'][self.data.source_ticker],
+                           consequences['transfer_out'][self.data.source_ticker]]) >
+            self.balance_source[self.data.source_ticker]['position']):
             return False
-        if fiat_source_target < 0 and abs(fiat_source_target) > self.convert_to_source(self.data.target_ticker, self.total_balance_target[self.data.target_ticker]['position']):
-            return False
-        if trade_source_qty < 0 and trade_source_qty > self.total_balance_source[self.data.btc_ticker]['position']:
-            return False
-        if trade_source_qty > 0 and self.convert_to_source(self.data.btc_ticker, trade_source_qty) > self.total_balance_source[self.data.source_ticker]['position']:
-            return False
-        if transfer_source_out > 0 and transfer_source_out > self.total_balance_source[self.data.source_ticker]['position']:
-            return False
-        if transfer_source_out < 0:
+
+        if (sum_negatives([consequences['trade_source'][self.data.btc_ticker],
+                           consequences['btc_transfer']['source_btc']]) >
+            self.balance_source[self.data.btc_ticker]['position']):
             return False
 
         return True
@@ -403,6 +412,28 @@ class State():
             return quantity / self.source_best_ask
         if ticker == self.data.target_ticker:
             raise NotImplementedError
+
+    def get_consequences(self, params, quote_size):
+        offered_bid = params.get('offered_bid', 0)
+        offered_ask = params.get('offered_ask', 0)
+        btc_source_target = params.get('btc_source_target', 0)
+        fiat_source_target = params.get('fiat_source_target', 0)
+        trade_source_qty = params.get('trade_source_qty', 0)
+        transfer_source_out = params.get('transfer_source_out', 0)
+
+        # Get effect of various activities
+        bid_consequence = self.target_trade(quote_size, offered_bid, 'BUY')
+        ask_consequence = self.target_trade(quote_size, offered_ask, 'ASK')
+        btc_transfer_consequence = self.btc_transfer(btc_source_target)
+        fiat_transfer_consequence = self.source_target_fiat_transfer(fiat_source_target)
+        trade_source_consequence = self.source_trade(trade_source_qty)
+        transfer_out_consequence = self.transfer_source_out(transfer_source_out)
+        return {'bid': bid_consequence,
+                'ask': ask_consequence,
+                'btc_transfer': btc_transfer_consequence,
+                'fiat_transfer': fiat_transfer_consequence,
+                'trade_source': trade_source_consequence,
+                'transfer_out': transfer_out_consequence}
 
 class Valuation():
     def __init__(self,
@@ -440,38 +471,25 @@ class Valuation():
         target_target_balance = float(self.state.total_balance_target[self.data.target_ticker]['position'])
         target_btc_balance = float(self.state.total_balance_target[self.data.btc_ticker]['position'])
 
-        offered_bid = params.get('offered_bid', 0)
-        offered_ask = params.get('offered_ask', 0)
-        btc_source_target = params.get('btc_source_target', 0)
-        fiat_source_target = params.get('fiat_source_target', 0)
-        trade_source_qty = params.get('trade_source_qty', 0)
-        transfer_source_out = params.get('transfer_source_out', 0)
-
-        # Get effect of various activities
-        bid_consequence = self.state.target_trade(self.quote_size, offered_bid, 'BUY')
-        ask_consequence = self.state.target_trade(self.quote_size, offered_ask, 'ASK')
-        btc_transfer_consequence = self.state.btc_transfer(btc_source_target)
-        fiat_transfer_consequence = self.state.source_target_fiat_transfer(fiat_source_target)
-        trade_source_consequence = self.state.source_trade(trade_source_qty)
-        transfer_out_consequence = self.state.transfer_source_out(transfer_source_out)
+        consequences = self.state.get_consequences(params, quote_size=self.quote_size)
 
         # It has an impact on our balances
-        target_target_balance += bid_consequence[self.data.target_ticker]
-        target_btc_balance += bid_consequence[self.data.btc_ticker]
+        target_target_balance += consequences['bid'][self.data.target_ticker]
+        target_btc_balance += consequences['bid'][self.data.btc_ticker]
 
-        target_target_balance += ask_consequence[self.data.target_ticker]
-        target_btc_balance += ask_consequence[self.data.btc_ticker]
+        target_target_balance += consequences['ask'][self.data.target_ticker]
+        target_btc_balance += consequences['ask'][self.data.btc_ticker]
 
-        target_btc_balance += btc_transfer_consequence['target_btc']
-        source_btc_balance += btc_transfer_consequence['source_btc']
+        target_btc_balance += consequences['btc_transfer']['target_btc']
+        source_btc_balance += consequences['btc_transfer']['source_btc']
 
-        target_target_balance += fiat_transfer_consequence[self.data.target_ticker]
-        source_source_balance += fiat_transfer_consequence[self.data.source_ticker]
+        target_target_balance += consequences['fiat_transfer'][self.data.target_ticker]
+        source_source_balance += consequences['fiat_transfer'][self.data.source_ticker]
 
-        source_source_balance += trade_source_consequence[self.data.source_ticker]
-        source_btc_balance += trade_source_consequence[self.data.btc_ticker]
+        source_source_balance += consequences['trade_source'][self.data.source_ticker]
+        source_btc_balance += consequences['trade_source'][self.data.btc_ticker]
 
-        source_source_balance += transfer_out_consequence[self.data.source_ticker]
+        source_source_balance += consequences['transfer_out'][self.data.source_ticker]
 
         # Deviation Penalty
         source_source_target = self.target_balance_source[self.data.source_ticker]
@@ -557,7 +575,7 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
-                if self.state.constraint_fn(params):
+                if self.state.constraint_fn(params, quote_size=self.quote_size):
                     return 1
                 else:
                     return -1
