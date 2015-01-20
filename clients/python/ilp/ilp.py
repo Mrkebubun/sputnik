@@ -13,6 +13,8 @@ from decimal import Decimal
 import numpy as np
 from scipy.optimize import minimize
 from jinja2 import Environment, FileSystemLoader
+from dateutil import relativedelta
+import statistics
 
 # Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
 #         Then the source exchange is Bitstamp and the source currency is USD
@@ -571,15 +573,26 @@ class MarketData():
         self.btc_fee = btc_fee
         self.btc_delay = btc_delay
 
+    @property
+    def fiat_exchange_ticker(self):
+        return '%s/%s' % (self.target_ticker, self.source_ticker)
+
+    @property
+    def source_exchange_ticker(self):
+        return '%s/%s' % (self.btc_ticker, self.source_ticker)
+
+    @property
+    def target_exchange_ticker(self):
+        return '%s/%s' % (self.btc_ticker, self.target_ticker)
 
     def get_fiat_book(self):
-        return self.fiat_exchange.getOrderBook('%s/%s' % (self.target_ticker, self.source_ticker))
+        return self.fiat_exchange.getOrderBook(self.fiat_exchange_ticker)
 
     def get_source_book(self):
-        return self.source_exchange.getOrderBook('%s/%s' % (self.btc_ticker, self.source_ticker))
+        return self.source_exchange.getOrderBook(self.source_exchange_ticker)
 
     def get_target_book(self):
-        return self.target_exchange.getOrderBook('%s/%s' % (self.btc_ticker, self.target_ticker))
+        return self.target_exchange.getOrderBook(self.target_exchange_ticker)
 
     def get_target_positions(self):
         return self.target_exchange.getPositions()
@@ -592,6 +605,33 @@ class MarketData():
 
     def get_target_transactions(self, start_timestamp, end_timestamp):
         return self.target_exchange.getTransactionHistory(start_timestamp, end_timestamp)
+
+    @inlineCallbacks
+    def get_variance(self, ticker, exchange):
+        if self.variance_window == "month":
+            now = datetime.utcnow()
+            start_datetime = now - relativedelta(months=1)
+            end_datetime = now
+        else:
+            raise NotImplementedError
+
+        if self.variance_period == "day":
+            period = "day"
+        else:
+            raise NotImplementedError
+
+        ohlcv = yield exchange.getOHLCVHistory(ticker, period="day", start_datetime=start_datetime,
+                                                      end_datetime=end_datetime)
+        closes = [ohlcv['close'] for timestamp, ohlcv in ohlcv.iteritems()]
+        variance = statistics.variance(closes)
+        returnValue(variance)
+
+    def source_variance(self):
+        return self.get_variance(self.source_exchange_ticker, self.source_exchange)
+
+    def fiat_variance(self):
+        return self.fiat_viarance(self.fiat_exchange_ticker, self.fiat_exchange)
+
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site
