@@ -10,23 +10,22 @@
         <div class="row">
             <div class="col-xs-12 text-center">
                 {{#if !sputnik.logged_in}}
-                <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
+                <div class="login-right"><a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                 {{else}}
-                <div class="login-right">
-                    <span id="login_name">{{sputnik.username}}</span>&nbsp; | &nbsp;
-                    <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
-                </div>
+                <div class="login-left"><span id="login_name">{{sputnik.username}}</span></div>
+                <div class="login-right"><span><a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></span></div>
                 {{/if}}
             </div>
         </div>
+
         <div class="row">
-            <div class="col-xs-12 text-center simple_ticker">
+            <div class="col-xs-12 text-center simple_ticker greybg">
                 {{current_currency}}
             </div>
         </div>
         {{#if sputnik.logged_in}}
         <div class="row">
-            <div class="col-sm-12 content">
+            <div class="col-sm-12 content2">
                 <div class="contracts">
                     <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">{{translate("account/funding_history/pages/deposit", sputnik.profile.locale)}}</a>
                     <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">{{translate("account/funding_history/pages/withdraw", sputnik.profile.locale)}}</a>
@@ -53,7 +52,7 @@
                     </div>
                     <div class="row">
                         <div class="col-sm-12 deposit-heading">
-                            <h4 class="header-sub content-push-right">{{translate("account/funding_history/titles/deposit_instructions", sputnik.profile.locale)}}</h4>
+                            <h4 class="header-sub4 content-push-right">{{translate("account/funding_history/titles/deposit_instructions", sputnik.profile.locale)}}</h4>
                         </div>
                     </div>
                     <div class="row">
@@ -62,7 +61,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-sm-12 spacer-bottom">
+                        <div class="col-sm-12 spacer-bottom2">
                             {{#if current_currency == "BTC"}}
                             <div intro="show_qr:{{sputnik.currencies[current_currency].address}}" class="content-push-right" id="qr_code"></div>
                             <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>

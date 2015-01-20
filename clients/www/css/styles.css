@@ -200,6 +200,13 @@ a.news-title {
     z-index: 1;
 }
 
+.content2 {
+    background-color: #fff;
+    border: solid 1px #e6e6e6;
+    margin-top: -1px;
+    z-index: 1;
+}
+
 .contracts {
     border-bottom: 1px solid #e6e6e6;
     padding: 38px 35px;
@@ -1040,6 +1047,10 @@ td.notifications {
     margin: 10px 0 10px -17px;
 }
 
+.header-sub4 {
+    margin: 20px 0 -20px 21px;
+}
+
 .file::-webkit-file-upload-button {
   visibility: hidden;
   border: 1;
@@ -1570,6 +1581,11 @@ h4.bid {
 }
 
 .spacer-bottom {
+    margin-bottom: 20px;
+}
+
+.spacer-bottom2 {
+    padding-bottom: 20px;
     margin-bottom: 20px;
 }
 
