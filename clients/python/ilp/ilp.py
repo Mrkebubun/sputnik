@@ -14,7 +14,11 @@ import numpy as np
 from scipy.optimize import minimize
 from jinja2 import Environment, FileSystemLoader
 from dateutil import relativedelta
-import statistics
+import numpy as np
+from datetime import timedelta
+import util
+import treq
+import pickle
 
 # Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
 #         Then the source exchange is Bitstamp and the source currency is USD
@@ -47,6 +51,10 @@ class State():
         # Balances at source exchange
         self.balance_source = {}
 
+        # Variances - only update infrequently
+        self.fiat_variance = None
+        self.source_variance = None
+
         # Currently offered bid at ask at target exchange
         self.offered_bid = None
         self.offered_ask = None
@@ -63,7 +71,17 @@ class State():
         self.transit_from_source = {}
         self.transit_from_target = {}
 
-        self.update()
+        self.depickle()
+
+    def depickle(self):
+        # Load from pickle
+        try:
+            attrs = pickle.load(open("/tmp/state.pickle", "rb"))
+            for key, value in attrs.iteritems():
+                setattr(self, key, value)
+        except Exception as e:
+            log.err("Unable to depickle")
+            log.err(e)
 
     @inlineCallbacks
     def update(self):
@@ -83,10 +101,36 @@ class State():
          source_transactions, target_transactions] = \
             yield gatherResults([fb_d, sb_d, tb_d, bs_d, bt_d, st_d, tt_d])
 
+
+        if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
+            self.fiat_variance = yield self.data.get_fiat_variance()
+
+        if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
+            self.source_variance = yield self.data.get_source_variance()
+
+
         # Update transits - remove ones that have arrived
         # How do we do this?
 
+        self.pickle()
         returnValue(None)
+
+    def pickle(self):
+        # Pickle my state
+        attrs = {'fiat_book': self.fiat_book,
+                 'source_book': self.source_book,
+                 'target_book': self.target_book,
+                 'balance_source': self.balance_source,
+                 'balance_target': self.balance_target,
+                 'timestamp': self.timestamp,
+                 'transit_to_source': self.transit_to_source,
+                 'transit_to_target': self.transit_to_target,
+                 'transit_from_source': self.transit_from_source,
+                 'transit_from_target': self.transit_from_target,
+                 'source_variance': self.source_variance,
+                 'fiat_variance': self.fiat_variance }
+
+        pickle.dump(attrs, open("/tmp/state.pickle", "wb"))
 
     def source_trade(self, quantity):
         """
@@ -105,8 +149,8 @@ class State():
             half = 'bids'
             sign = -1
         else:
-            return {self.data.source_ticker: Decimal(0),
-                    self.data.btc_ticker: Decimal(0)}
+            return {self.data.source_ticker: 0,
+                    self.data.btc_ticker: 0}
 
         quantity_left = quantity
         total_spent = 0
@@ -114,18 +158,18 @@ class State():
 
         # Find the liquidity in the book
         for row in self.source_book[half]:
-            price = row['price']
-            quantity = min(quantity_left, row['quantity'])
-            total_spent += price * Decimal(quantity)
+            price = float(row['price'])
+            quantity = min(quantity_left, float(row['quantity']))
+            total_spent += price * quantity
             total_bought += quantity
             quantity_left -= quantity
             if quantity_left <= 0:
                 break
 
-        fee = abs(total_spent) * Decimal(self.data.source_fee[1]) + self.data.source_fee[0]
+        fee = abs(total_spent) * self.data.source_fee[1] + self.data.source_fee[0]
 
-        return {self.data.source_ticker: Decimal(-(sign * total_spent + fee)),
-                self.data.btc_ticker: Decimal(sign * total_bought)}
+        return {self.data.source_ticker: -(sign * total_spent + fee),
+                self.data.btc_ticker: sign * total_bought}
 
     def target_trade(self, quantity, price, side):
         """
@@ -148,11 +192,11 @@ class State():
             else:
                 sign = -1
 
-            return {self.data.target_ticker: Decimal(- sign * total_spent + fee),
-                    self.data.btc_ticker: Decimal(sign * total_bought)}
+            return {self.data.target_ticker: - sign * total_spent + fee,
+                    self.data.btc_ticker: sign * total_bought}
         else:
-            return {self.data.target_ticker: Decimal(0),
-                    self.data.btc_ticker: Decimal(0)}
+            return {self.data.target_ticker: 0,
+                    self.data.btc_ticker: 0}
 
     def source_target_fiat_transfer(self, amount):
         """
@@ -168,14 +212,14 @@ class State():
         if amount != 0:
             fee_in_source = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
             if amount > 0:
-                return { self.data.source_ticker: Decimal(-amount),
-                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, Decimal(amount - fee_in_source))}
+                return { self.data.source_ticker: -amount,
+                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, amount - fee_in_source)}
             else:
-                return { self.data.source_ticker: Decimal(abs(amount) - fee_in_source),
-                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, Decimal(amount))}
+                return { self.data.source_ticker: abs(amount) - fee_in_source,
+                         self.data.target_ticker: self.convert_to_target(self.data.source_ticker, amount)}
         else:
-            return {self.data.target_ticker: Decimal(0),
-                    self.data.source_ticker: Decimal(0)}
+            return {self.data.target_ticker: 0,
+                    self.data.source_ticker: 0}
 
     def btc_transfer(self, amount):
         """
@@ -188,14 +232,14 @@ class State():
         to the receiving side
         """
         if amount > 0:
-            return {'source_btc': Decimal(-amount),
-                    'target_btc': Decimal(amount - self.data.btc_fee)}
+            return {'source_btc': -amount,
+                    'target_btc': amount - self.data.btc_fee}
         elif amount < 0:
-            return {'source_btc': Decimal(abs(amount) - self.data.btc_fee),
-                    'target_btc': Decimal(amount)}
+            return {'source_btc': abs(amount) - self.data.btc_fee,
+                    'target_btc': amount}
         else:
-            return {'source_btc': Decimal(0),
-                    'target_btc': Decimal(0)}
+            return {'source_btc': 0,
+                    'target_btc': 0}
 
     def transfer_source_out(self, amount):
         """
@@ -206,23 +250,23 @@ class State():
         """
         fee = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
         if amount > 0:
-            return {self.data.source_ticker: Decimal(-(amount + fee))}
+            return {self.data.source_ticker: -(amount + fee)}
         else:
-            return {self.data.source_ticker: Decimal(0)}
+            return {self.data.source_ticker: 0}
 
     def get_best_bid(self, book):
         if 'bids' in book and len(book['bids']) > 0:
-            return book['bids'][0]['price']
+            return float(book['bids'][0]['price'])
         else:
             # There is no bid, worth 0!
-            return Decimal(0)
+            return 0
 
     def get_best_ask(self, book):
         if 'asks' in book and len(book['asks']) > 0:
-            return book['asks'][0]['price']
+            return float(book['asks'][0]['price'])
         else:
             # There is no bid, worth 0!
-            return Decimal('Infinity')
+            return float('inf')
 
     @property
     def source_best_ask(self):
@@ -369,10 +413,7 @@ class Valuation():
                  target_balance_target,
                  deviation_penalty, # dimensionless factor on USD
                  risk_aversion, # ( 1 / USD )
-                 quote_size, # BTC
-                 fiat_exchange_var,
-                 source_exchange_var,
-                 fiat_source_cov # ignore for now
+                 quote_size # BTC
                  ):
 
         self.state = state
@@ -386,11 +427,6 @@ class Valuation():
         self.risk_aversion = risk_aversion
         self.quote_size = quote_size
 
-        # External
-        self.fiat_exchange_var = fiat_exchange_var
-        self.source_exchange_var = source_exchange_var
-        self.fiat_source_cov = fiat_source_cov
-
         self.optimized_params = {}
         self.optimized = {}
 
@@ -399,10 +435,10 @@ class Valuation():
     def valuation(self, params={}):
         # Get current balances
 
-        source_source_balance = self.state.total_balance_source[self.data.source_ticker]['position']
-        source_btc_balance = self.state.total_balance_source[self.data.btc_ticker]['position']
-        target_target_balance = self.state.total_balance_target[self.data.target_ticker]['position']
-        target_btc_balance = self.state.total_balance_target[self.data.btc_ticker]['position']
+        source_source_balance = float(self.state.total_balance_source[self.data.source_ticker]['position'])
+        source_btc_balance = float(self.state.total_balance_source[self.data.btc_ticker]['position'])
+        target_target_balance = float(self.state.total_balance_target[self.data.target_ticker]['position'])
+        target_btc_balance = float(self.state.total_balance_target[self.data.btc_ticker]['position'])
 
         offered_bid = params.get('offered_bid', 0)
         offered_ask = params.get('offered_ask', 0)
@@ -445,11 +481,11 @@ class Valuation():
 
         def get_penalty(balance, target):
             if balance < 0:
-                return Decimal('Infinity')
-            critical_min = Decimal(0.25) * target
-            min_bal = Decimal(0.75) * target
-            max_bal = Decimal(1.25) * target
-            critical_max = Decimal(5) * target
+                return float('inf')
+            critical_min = 0.25 * target
+            min_bal = 0.75 * target
+            max_bal = 1.25 * target
+            critical_max = 5 * target
             penalty = max(0, critical_min - balance) * 10 + max(0, min_bal - balance) * 3 + max(0, balance - max_bal) * 1 + max(0, balance - critical_max) * 3
             return penalty
 
@@ -459,12 +495,12 @@ class Valuation():
             self.state.convert_to_source(self.data.target_ticker, get_penalty(target_target_balance, target_target_target)) + \
             self.state.convert_to_source(self.data.btc_ticker, get_penalty(target_btc_balance, target_btc_target))
 
-        deviation_penalty_in_source *= Decimal(self.deviation_penalty)
+        deviation_penalty_in_source *= self.deviation_penalty
 
         # Market Risk
-        market_risk_in_source = Decimal(self.risk_aversion) * \
-                      (Decimal(self.source_exchange_var) * pow(source_btc_balance + target_btc_balance, 2) +
-                       Decimal(self.fiat_exchange_var) * pow(target_target_balance, 2))
+        market_risk_in_source = self.risk_aversion * \
+                      (self.state.source_variance * pow(source_btc_balance + target_btc_balance, 2) +
+                       self.state.fiat_variance * pow(target_target_balance, 2))
 
         # Total value
         total_value_in_source = self.state.convert_to_source(self.data.source_ticker, source_source_balance) + \
@@ -487,10 +523,19 @@ class Valuation():
     def optimize(self):
             wait = yield self.state.update()
             self.base_params = {}
+
+            base_bid = self.state.source_best_bid / self.state.fiat_best_ask
+            base_ask = self.state.source_best_ask / self.state.fiat_best_bid
+
             if self.state.offered_bid is not None:
                 self.base_params['offered_bid'] = self.state.offered_bid
+            else:
+                self.base_params['offered_bid'] = base_bid
+
             if self.state.offered_ask is not None:
                 self.base_params['offered_ask'] = self.state.offered_ask
+            else:
+                self.base_params['offered_ask'] = base_ask
 
             self.base_value = self.valuation(params=self.base_params)['optimized_value']
             def negative_valuation(x):
@@ -502,9 +547,9 @@ class Valuation():
                           'transfer_source_out': x[5]}
 
                 ret = self.valuation(params=params)
-                return float(-ret['optimized_value'])
+                return -ret['optimized_value']
 
-            base_rate = float(self.state.source_exchange_rate) / float(self.state.fiat_exchange_rate)
+
             def constraint(x):
                 params = {'offered_bid': x[0],
                           'offered_ask': x[1],
@@ -517,7 +562,7 @@ class Valuation():
                 else:
                     return -1
 
-            x0 = np.array([base_rate, base_rate, 0, 0, 0, 0])
+            x0 = np.array([base_bid, base_ask, 0, 0, 0, 0])
 
             res = minimize(negative_valuation, x0, method='COBYLA',
                            constraints={'type': 'ineq',
@@ -610,8 +655,8 @@ class MarketData():
     def get_variance(self, ticker, exchange):
         if self.variance_window == "month":
             now = datetime.utcnow()
-            start_datetime = now - relativedelta(months=1)
-            end_datetime = now
+            start_datetime = now - relativedelta.relativedelta(months=1)
+            end_datetime = now - relativedelta.relativedelta(days=1)
         else:
             raise NotImplementedError
 
@@ -620,21 +665,45 @@ class MarketData():
         else:
             raise NotImplementedError
 
-        ohlcv = yield exchange.getOHLCVHistory(ticker, period="day", start_datetime=start_datetime,
-                                                      end_datetime=end_datetime)
-        closes = [ohlcv['close'] for timestamp, ohlcv in ohlcv.iteritems()]
-        variance = statistics.variance(closes)
+        if ticker == "BTC/USD":
+            trade_history = []
+            start = int(util.dt_to_timestamp(start_datetime)/1e6)
+            end = int(util.dt_to_timestamp(end_datetime)/1e6)
+            # Update this file regularly
+            # http://api.bitcoincharts.com/v1/csv/
+            log.msg("Loading BTC/USD history")
+            with open(".btceUSD.csv") as f:
+                for row in f:
+                    timestamp_str, price_str, quantity_str = row.split(',')
+                    if int(timestamp_str) > end:
+                        break
+                    if int(timestamp_str) < start:
+                        continue
+
+                    trade_history.append({'contract': 'BTC/USD',
+                                          'price': float(price_str),
+                                          'timestamp': int(int(timestamp_str) * 1e6),
+                                          'quantity': float(quantity_str)
+                             })
+            ohlcv_history = util.trade_history_to_ohlcv(trade_history, period=period)
+        else:
+            ohlcv_history = yield exchange.getOHLCVHistory(ticker, period=period, start_datetime=start_datetime,
+                                                          end_datetime=end_datetime)
+
+        closes = [float(ohlcv['close']) for timestamp, ohlcv in ohlcv_history.iteritems()]
+        variance = np.var(closes)
         returnValue(variance)
 
-    def source_variance(self):
+    def get_source_variance(self):
         return self.get_variance(self.source_exchange_ticker, self.source_exchange)
 
-    def fiat_variance(self):
-        return self.fiat_viarance(self.fiat_exchange_ticker, self.fiat_exchange)
+    def get_fiat_variance(self):
+        return self.get_variance(self.fiat_exchange_ticker, self.fiat_exchange)
 
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site
+from twisted.internet import task
 
 class Webserver(Resource):
     isLeaf = True
@@ -689,33 +758,31 @@ if __name__ == "__main__":
                                  btc_fee=0.0001,
                                  btc_delay=3600,
                                  variance_period="day",
-                                 variance_window="30"
+                                 variance_window="month"
                                  )
+
         state = State(market_data)
+
         valuation = Valuation(state=state,
                               data=market_data,
                               edge=0.04,
-                              target_balance_source={ 'USD': Decimal(6000),
-                                                      'BTC': Decimal(6) },
-                              target_balance_target={ 'HUF': Decimal(1626000),
-                                                      'BTC': Decimal(6) },
+                              target_balance_source={ 'USD': 6000,
+                                                      'BTC': 6 },
+                              target_balance_target={ 'HUF': 1626000,
+                                                      'BTC': 6 },
                               deviation_penalty=50,
                               risk_aversion=0.0001,
-                              quote_size=0.01,
-                              fiat_exchange_var=23,
-                              source_exchange_var=1003,
-                              fiat_source_cov=0)
+                              quote_size=0.01)
+
 
         server = Webserver(state, valuation)
         site = Site(server)
         reactor.listenTCP(9304, site)
 
-        while True:
-            try:
-                yield valuation.optimize()
-            except Exception as e:
-                log.err(e)
-                pass
+
+        call = task.LoopingCall(valuation.optimize)
+        call.start(60)
+
 
     log.startLogging(sys.stdout)
     main().addErrback(log.err)

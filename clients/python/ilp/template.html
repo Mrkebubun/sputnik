@@ -46,6 +46,11 @@
                             <td>{{object.state.fiat_best_bid}}</td>
                             <td>{{object.state.fiat_best_ask}}</td>
                         </tr>
+                        <tr>
+                            <th>Variances</th>
+                            <td>Source: {{object.state.source_variance}}</td>
+                            <td>Fiat: {{object.state.fiat_variance}}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -73,7 +78,7 @@
                         {% endfor %}
                         <tr>
                             <th>Optimized Edge</th>
-                            <td>{{100 * object.valuation.optimized.value / object.valuation.base_value - 100}}</td>
+                            <td>{{100 * object.valuation.optimized.optimized_value / object.valuation.base_value - 100}}</td>
                         </tr>
                     </tbody>
                 </table>

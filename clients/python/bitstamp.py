@@ -167,7 +167,7 @@ class BitStamp():
                                             'quantity': Decimal(transaction['usd']),
                                             'direction': 'debit',
                                             'note': transaction['order_id'] }
-                        transaction_btc = { 'timestamp': int(timestamp * 1e6),
+                        transaction_btc = { 'timestamp': int(transaction['datetime'] * 1e6),
                                             'type': type_map[transaction['type']],
                                             'contract': 'BTC',
                                             'quantity': Decimal(transaction['btc']),

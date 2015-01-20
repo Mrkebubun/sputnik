@@ -41,7 +41,10 @@ class Yahoo():
                   'format': 'CSV',
                   'margin_fixed': '0',
                   'redirected': 1}
-        response = yield treq.get(url, params=params)
+        try:
+            response = yield treq.get(url, params=params)
+        except Exception as e:
+            pass
         content = yield response.content()
         soup = BeautifulSoup(content)
         content_section = soup.find(id="converter_table").find(id="content_section")
