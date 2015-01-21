@@ -20,6 +20,8 @@ import util
 import treq
 import pickle
 
+EPSILON = 1e-4
+
 # Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
 #         Then the source exchange is Bitstamp and the source currency is USD
 # Fiat: This is the exchange which allows us to convert from the source fiat currency (say, USD)
@@ -141,10 +143,10 @@ class State():
         Get the impact to balances if we place a limit order for 'quantity' at the source exchange
         if quantity < 0, we are selling. Quantity is in BTC
         """
-        if quantity > 0:
+        if quantity > EPSILON:
             half = 'asks'
             sign = 1
-        elif quantity < 0:
+        elif quantity < -EPSILON:
             quantity = -quantity
             half = 'bids'
             sign = -1
@@ -182,7 +184,7 @@ class State():
         What are the results if we place a limit order on the target exchange
         and it is executed? Quantity must be greater than 0
         """
-        if quantity > 0:
+        if quantity > EPSILON:
             total_spent = quantity * price
             total_bought = quantity
             fee = abs(total_spent * self.data.target_fee[1]) + self.data.target_fee[0]
@@ -209,7 +211,7 @@ class State():
         to the exchange that is receiving the money
 
         """
-        if amount != 0:
+        if abs(amount) > EPSILON:
             fee_in_source = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
             if amount > 0:
                 return { self.data.source_ticker: -amount,
@@ -231,10 +233,10 @@ class State():
         fees but there is a BTC transfer fee charged by the network. We charge it
         to the receiving side
         """
-        if amount > 0:
+        if amount > EPSILON:
             return {'source_btc': -amount,
                     'target_btc': amount - self.data.btc_fee}
-        elif amount < 0:
+        elif amount < -EPSILON:
             return {'source_btc': abs(amount) - self.data.btc_fee,
                     'target_btc': amount}
         else:
@@ -249,7 +251,7 @@ class State():
         Transfer source currency out of the source exchange to our own bank. We can't transfer in
         """
         fee = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
-        if amount > 0:
+        if amount > EPSILON:
             return {self.data.source_ticker: -(amount + fee)}
         else:
             return {self.data.source_ticker: 0}
@@ -354,10 +356,14 @@ class State():
 
         offered_bid = params.get('offered_bid', 0)
         offered_ask = params.get('offered_ask', 0)
+        transfer_source_out = params.get('transfer_source_out', 0)
 
         if offered_ask or offered_bid < 0:
             return False
         if offered_ask <= offered_bid:
+            return False
+
+        if transfer_source_out < 0:
             return False
 
         # Make sure we don't end up with a negative balance
@@ -460,6 +466,8 @@ class Valuation():
 
         self.optimized_params = {}
         self.optimized = {}
+        self.base_params = {}
+        self.base = {}
 
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
@@ -521,13 +529,13 @@ class Valuation():
                        self.state.fiat_variance * pow(target_target_balance, 2))
 
         # Total value
-        total_value_in_source = self.state.convert_to_source(self.data.source_ticker, source_source_balance) + \
+        cash_value_in_source = self.state.convert_to_source(self.data.source_ticker, source_source_balance) + \
                       self.state.convert_to_source(self.data.btc_ticker, source_btc_balance + target_btc_balance) + \
                       self.state.convert_to_source(self.data.target_ticker, target_target_balance)
 
-        value = total_value_in_source - market_risk_in_source - deviation_penalty_in_source
-        ret = {'optimized_value': value,
-                    'total_value_in_source': total_value_in_source,
+        value = cash_value_in_source - market_risk_in_source - deviation_penalty_in_source
+        ret = {'value': value,
+                    'cash_value_in_source': cash_value_in_source,
                     'market_risk_in_source': market_risk_in_source,
                     'deviation_penalty': deviation_penalty_in_source,
                     'target_target_balance': target_target_balance,
@@ -555,7 +563,7 @@ class Valuation():
             else:
                 self.base_params['offered_ask'] = base_ask
 
-            self.base_value = self.valuation(params=self.base_params)['optimized_value']
+            self.base = self.valuation(params=self.base_params)
             def negative_valuation(x):
                 params = {'offered_bid': x[0],
                           'offered_ask': x[1],
@@ -563,9 +571,14 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
-
+                # params = {'offered_bid': x[0],
+                #           'offered_ask': x[1],
+                #           'btc_source_target': 0,
+                #           'fiat_source_target': 0,
+                #           'trade_source_qty': 0,
+                #           'transfer_source_out': 0}
                 ret = self.valuation(params=params)
-                return -ret['optimized_value']
+                return -ret['value']
 
 
             def constraint(x):
@@ -575,6 +588,12 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
+                # params = {'offered_bid': x[0],
+                #           'offered_ask': x[1],
+                #           'btc_source_target': 0,
+                #           'fiat_source_target': 0,
+                #           'trade_source_qty': 0,
+                #           'transfer_source_out': 0}
                 if self.state.constraint_fn(params, quote_size=self.quote_size):
                     return 1
                 else:
@@ -720,14 +739,16 @@ class MarketData():
 
 
 from twisted.web.resource import Resource
-from twisted.web.server import Site
+from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import task
+from twisted.web.util import redirectTo
 
 class Webserver(Resource):
     isLeaf = True
-    def __init__(self, state, valuation, template_dir="."):
+    def __init__(self, state, valuation, data, template_dir="."):
         self.state = state
         self.valuation = valuation
+        self.data = data
 
 
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
@@ -738,6 +759,22 @@ class Webserver(Resource):
 
         t = self.jinja_env.get_template("template.html")
         return t.render(object=self).encode('utf-8')
+
+    def render_POST(self, request):
+        self.valuation.risk_aversion = float(request.args['risk_aversion'][0])
+        self.valuation.deviation_penalty = float(request.args['deviation_penalty'][0])
+        self.valuation.target_balance_source[self.data.source_ticker] = float(request.args['target_balance_source_source'][0])
+        self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
+        self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
+        self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
+        d = self.valuation.optimize()
+        def _cb(result):
+            request.write(redirectTo("/", request))
+            request.finish()
+
+        d.addCallback(_cb)
+        return NOT_DONE_YET
+
 
 if __name__ == "__main__":
     @inlineCallbacks
@@ -790,10 +827,10 @@ if __name__ == "__main__":
                                                       'BTC': 6 },
                               deviation_penalty=50,
                               risk_aversion=0.0001,
-                              quote_size=0.01)
+                              quote_size=0.1)
 
 
-        server = Webserver(state, valuation)
+        server = Webserver(state, valuation, market_data)
         site = Site(server)
         reactor.listenTCP(9304, site)
 
