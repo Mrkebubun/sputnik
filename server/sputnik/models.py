@@ -133,6 +133,7 @@ class Contract(db.Base):
     margin_low = Column(BigInteger)
 
     hot_wallet_limit = Column(BigInteger)
+    multisig_wallet_address = Column(String)
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")

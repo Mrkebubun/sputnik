@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Wallets{% endblock %}
+{% block coffeescript %}
+
+{% endblock %}
+{% block wallets_active %}class="active"{% endblock %}
+{% block body %}
+<div class="container">
+<div class="panel panel-primary table-responsive" style="overflow-x: auto;">
+    <div class="panel-heading">Wallets</div>
+    <div class="panel-body">
+    <form role="form" action="#">
+    <div class="form-group">
+        <input type="search" id="search" autocomplete="off" placeholder="Search">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="exact"> Exact match
+            </label>
+        </div>
+    </div>
+    </form>
+    <table id="contracts" class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>Hot Wallet</th>
+                <th>Multisig Wallet</th>
+                <th>Cold Wallet</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contract in contracts %}
+            {% if contract.ticker == "BTC" %}
+            <tr>
+                <td>
+                    {{contract.ticker}}
+                </td>
+                <td>
+                    {% if contract.ticker in onlinecash %}
+                    {{onlinecash[contract.ticker].quantity_fmt}}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if contract.multisig_wallet_address and contract.ticker in multisigcash %}
+                    {{multisigcash[contract.ticker].quantity_fmt}}
+                    <br/>
+                    To Hot:
+                    <form action="/transfer_to_hot_wallet" method="POST">
+                        <input type="hidden" name="contract" value="{{contract.ticker}}">
+                        <input type="hidden" name="source_wallet" value="multisigcash">
+                        <input type="text" name="otp" placeholder="OTP" size="8">
+                        <input type="text" name="quantity" placeholder="Quantity" size="16">
+                    </form>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if contract.ticker in offlinecash %}
+                    {{offlinecash[contract.ticker].quantity_fmt}}<br/>
+                    <a href="bitcoin://{{offlinecash_addresses[contract.ticker]}}">Transfer To Hot</a>: {{offlinecash_addresses[contract.ticker]}}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+{% endblock %}
+

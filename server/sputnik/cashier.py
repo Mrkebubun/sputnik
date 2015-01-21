@@ -72,7 +72,7 @@ class Cashier():
         self.alerts = alerts
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
-                looping_call = LoopingCall(self.transfer_to_cold_wallet, ticker)
+                looping_call = LoopingCall(self.transfer_from_hot_wallet, ticker)
                 looping_call.start(cold_wallet_period, now=False)
 
     @inlineCallbacks
@@ -245,7 +245,7 @@ class Cashier():
         returnValue(True)
 
 
-    def transfer_to_cold_wallet(self, ticker):
+    def transfer_from_hot_wallet(self, ticker, destination="multisig"):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
         try:
             result = yield self.bitcoinrpc[contract.ticker].getbalance()
@@ -256,27 +256,61 @@ class Cashier():
         balance = result['result']
         online_cash = long(round(balance * contract.denominator))
         log.msg("Online cash for %s is %d" % (ticker, online_cash))
+        if destination == "cold" or not contract.multisig_wallet_address:
+            address = contract.cold_wallet_address
+            to_account = "offlinecash"
+        else:
+            address = contract.multisig_wallet_address
+            to_account = "multisigcash"
+
         # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
         if online_cash > contract.hot_wallet_limit * 1.1:
             amount = online_cash - contract.hot_wallet_limit
-            log.msg("Transferring %d from hot to cold wallet at %s" % (amount, contract.cold_wallet_address))
+            log.msg("Transferring %d from hot to %s wallet at %s" % (amount, destination, address))
             try:
-                result = yield self.bitcoinrpc[ticker].sendtoaddress(contract.cold_wallet_address,
+                result = yield self.bitcoinrpc[ticker].sendtoaddress(address,
                                                           float(amount) / contract.denominator)
             except Exception as e:
                 log.err(e)
-                self.alerts.send_alert(str(e), "Failure in transfer_to_cold_wallet")
+                self.alerts.send_alert(str(e), "Failure in transfer from hot wallet")
             else:
                 txid = result['result']
                 uid = util.get_uid()
-                note = "%s: %s" % (contract.cold_wallet_address, txid)
+                note = "%s: %s" % (address, txid)
                 d1=self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
                                                   note, uid)
-                d2=self.accountant.transfer_position('offlinecash', ticker, 'credit', amount, note, uid)
+                d2=self.accountant.transfer_position(to_account, ticker, 'credit', amount, note, uid)
                 yield defer.gatherResults([d1, d2])
 
     @inlineCallbacks
-    def process_withdrawal(self, withdrawal_id, online=False, cancel=False, admin_username=None):
+    def send_to_address(self, ticker, address, amount, multisig={}):
+        contract = util.get_contract(self.session, ticker)
+        if not multisig:
+            withdrawal_amount = util.quantity_from_wire(contract, amount)
+            try:
+                result = yield self.bitcoinrpc[ticker].getbalance()
+            except Exception as e:
+                log.err("Unable to get wallet balance: %s" % str(e))
+                raise e
+
+            balance = result['result']
+            if balance >= withdrawal_amount:
+                try:
+                    result = yield self.bitcoinrpc[ticker].sendtoaddress(address, withdrawal_amount)
+                    txid = result['result']
+                except Exception as e:
+                    log.err("Unable to send to address: %s" % str(e))
+                    raise e
+            else:
+                raise INSUFFICIENT_FUNDS
+        else:
+            # TODO: Support BitGo
+            raise NotImplementedError
+
+        returnValue(txid)
+
+    @inlineCallbacks
+    def process_withdrawal(self, withdrawal_id, online=False, cancel=False, admin_username=None, multisig={}):
         # Mark a withdrawal as complete, send the money from the BTC wallet if online=True
         # and tell the accountant that the withdrawal has happened
         # If cancel=True, then return the money to the user
@@ -297,30 +331,17 @@ class Cashier():
             to_user = withdrawal.username
         else:
             if online:
-                # Actually process via the hot wallet
+                # Actually process via the hot or warm wallet
                 if withdrawal.contract.ticker in self.bitcoinrpc:
-                    withdrawal_amount = float(withdrawal.amount) / withdrawal.contract.denominator
-                    try:
-                        result = yield self.bitcoinrpc[withdrawal.contract.ticker].getbalance()
-                    except Exception as e:
-                        log.err("Unable to get wallet balance: %s" % str(e))
-                        raise e
-
-                    balance = result['result']
-                    if balance >= withdrawal_amount:
-                        try:
-                            result = yield self.bitcoinrpc[withdrawal.contract.ticker].sendtoaddress(withdrawal.address,
-                                                                                          withdrawal_amount)
-                            txid = result['result']
-                        except Exception as e:
-                            log.err("Unable to send to address: %s" % str(e))
-                            raise e
-
+                    if not multisig:
                         to_user = "onlinecash"
                     else:
-                        raise INSUFFICIENT_FUNDS
+                        to_user = "multisig"
+
+                    txid = yield self.send_to_address(withdrawal.contract.ticker, withdrawal.address, withdrawal.amount,
+                                                      multisig=multisig)
+
                 else:
-                    # TODO: Support BitGo withdrawals
                     raise NO_AUTOMATIC_WITHDRAWAL
             else:
                 txid = "offline"
@@ -610,6 +631,18 @@ class AdministratorExport(ComponentExport):
     @schema("rpc/cashier.json#process_withdrawal")
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
         return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+
+    @export
+    @session_aware
+    @schema("rpc/cashier.json#get_current_address")
+    def get_current_address(self, username, ticker):
+        return self.cashier.get_current_address(username, ticker)
+
+    @export
+    @session_aware
+    @schema("rpc/cashier.json#send_to_address")
+    def send_to_address(self, ticker, address, quantity, multisig):
+        return self.cashier.send_to_address(ticker, address, quantity, multisig)
 
 class AccountantExport(ComponentExport):
     def __init__(self, cashier):

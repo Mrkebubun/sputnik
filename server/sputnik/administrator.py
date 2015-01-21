@@ -29,6 +29,7 @@ from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
 from zope.interface import implements
 from twisted.internet import reactor, defer
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import ICredentialsChecker
@@ -716,12 +717,15 @@ class Administrator:
         log.msg("Admin user %s has password force reset" % username)
         return True
 
-    def get_positions(self):
-        """Get all the positions that exist
+    def get_positions(self, username=None):
+        """Get all the positions that exist, if username is set, get positions for that user only
 
         :returns: list -- models.Position
         """
-        positions = self.session.query(models.Position).all()
+        if username is None:
+            positions = self.session.query(models.Position)
+        else:
+            positions = self.session.query(models.Position).filter_by(username=username)
         return positions
 
     def get_position(self, user, ticker):
@@ -798,6 +802,18 @@ class Administrator:
     def clear_first_error(self, failure):
         failure.trap(defer.FirstError)
         return failure.value.args[0]
+
+    def get_current_address(self, username, ticker):
+        return self.cashier.get_current_address(username, ticker)
+
+    @inlineCallbacks
+    def transfer_to_hot_wallet(self, ticker, source_wallet, quantity_ui, multisig):
+        address = yield self.cashier.get_current_address(source_wallet, ticker)
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+
+        result = yield self.cashier.send_to_address(ticker, address, quantity, multisig=multisig)
+        returnValue(result)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -1138,8 +1154,8 @@ class Administrator:
             self.session.rollback()
             raise e
 
-    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig={}):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
 
 class AdminAPI(Resource):
@@ -1207,8 +1223,10 @@ class AdminAPI(Resource):
             else:
                 online = False
 
+        multisig = data.get('multisig', {})
+
         return self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
+                                              admin_username=self.avatarId, multisig=multisig)
 
     def manual_deposit(self, request, data):
         return self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
@@ -1374,6 +1392,8 @@ class AdminWebUI(Resource):
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/transfer_position': self.transfer_position,
                       '/adjust_position': self.adjust_position,
+                      '/wallets': self.wallets,
+                      '/transfer_to_hot_wallet': self.transfer_to_hot_wallet,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1423,8 +1443,13 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
+        if 'multisig' in request.args:
+            multisig = {'otp': request.args['otp'][0]}
+        else:
+            multisig = {}
+
         d = self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
-                                                  admin_username=self.avatarId)
+                                                  admin_username=self.avatarId, multisig=multisig)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
@@ -1446,6 +1471,46 @@ class AdminWebUI(Resource):
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
         return t.render(permission_groups=permission_groups).encode('utf-8')
+
+    def wallets(self, request):
+        """Get the permission groups page
+
+        """
+        contracts = self.administrator.get_contracts()
+        onlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="onlinecash")}
+        offlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="offlinecash")}
+        multisigcash = {position.contract.ticker: position for position in self.administrator.get_positions(username="multisigcash")}
+
+        @inlineCallbacks
+        def get_addresses():
+            offlinecash_addresses = {}
+            for ticker in offlinecash.keys():
+                offlinecash_addresses[ticker] = yield self.administrator.get_current_address('offlinecash', ticker)
+            returnValue(offlinecash_addresses)
+
+        def _cb(offlinecash_addresses):
+            t = self.jinja_env.get_template('wallets.html')
+            request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
+                            offlinecash_addresses=offlinecash_addresses,
+                            multisigcash=multisigcash).encode('utf-8'))
+            request.finish()
+
+        d = get_addresses()
+        d.addCallback(_cb)
+        return NOT_DONE_YET
+
+    def transfer_to_hot_wallet(self, request):
+        ticker = request.args['contract'][0]
+        source_wallet = request.args['source_wallet'][0]
+        quantity_ui = float(request.args['quantity'][0])
+        multisig = {'otp': request.args['otp'][0]}
+        d = self.administrator.transfer_to_hot_wallet(ticker, source_wallet, quantity_ui, multisig=multisig)
+        def _cb():
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb)
+        return NOT_DONE_YET
 
     def new_permission_group(self, request):
         """Create a new permission group and then return the permission groups page
@@ -1517,7 +1582,8 @@ class AdminWebUI(Resource):
     def edit_contract(self, request):
         ticker = request.args['ticker'][0]
         args = {}
-        for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
+        for key in ["description", "full_description", "cold_wallet_address", "multisig_wallet_address",
+                    "deposit_instructions"]:
             if key in request.args:
                 args[key] = request.args[key][0].decode('utf-8')
 
@@ -1787,8 +1853,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.cashier.rescan_address(address)
 
     @session_aware
-    def process_withdrawal(self, id, online, cancel, admin_username):
-        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online, cancel, admin_username, multisig):
+        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username, multisig=multisig)
 
     @session_aware
     def expire_all(self):
@@ -1862,6 +1928,18 @@ class AdminWebExport(ComponentExport):
     @session_aware
     def get_user(self, username):
         return self.administrator.get_user(username)
+
+    @session_aware
+    def get_positions(self, username=None):
+        return self.administrator.get_positions(username=username)
+
+    @session_aware
+    def get_current_address(self, username, ticker):
+        return self.administrator.get_current_address(username, ticker)
+
+    @session_aware
+    def transfer_to_hot_wallet(self, ticker, source_wallet, quantity_ui, multisig):
+        return self.administrator.transfer_to_hot_wallet(ticker, source_wallet, quantity_ui, multisig)
 
     @session_aware
     def new_admin_user(self, username, password_hash, level):

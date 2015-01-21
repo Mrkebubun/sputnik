@@ -1,4 +1,28 @@
 {
+    "send_to_address": {
+        "type": "object",
+        "description": "administrator -> cashier RPC call to send cash to an address",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "the contract"
+            },
+            "address": {
+                "type": "string",
+                "description": "the address to which to send the cash"
+            },
+            "quantity": {
+                "type": "integer",
+                "description": "how much to send"
+            },
+            "multisig": {
+                "type": "object",
+                "description": "parameters needed to send via a multisig wallet"
+            }
+        },
+        "required": [ "username", "address", "quantity" ],
+        "additionalProperties": false
+    },
     "get_new_address": {
         "type": "object",
         "description": "webserver -> cashier RPC call to get a new deposit address for a given contract",
