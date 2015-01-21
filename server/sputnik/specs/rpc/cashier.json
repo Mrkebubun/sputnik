@@ -1,26 +1,46 @@
 {
-    "send_to_address": {
+    "transfer_from_hot_wallet": {
         "type": "object",
-        "description": "administrator -> cashier RPC call to send cash to an address",
+        "description": "administrator -> cashier RPC call to transfer cash from the hotwallet out",
         "properties": {
             "ticker": {
                 "type": "string",
                 "description": "the contract"
             },
-            "address": {
+            "quantity": {
+                "type": "integer",
+                "description": "how much to transfer"
+            },
+            "destination": {
+                "enum": ["multisigcash", "offlinecash"],
+                "description": "where do we send the money"
+            }
+        },
+        "required": ["ticker", "quantity", "destination"],
+        "additionalProperties": false
+    },
+    "transfer_from_multisig_wallet": {
+        "type": "object",
+        "description": "administrator -> cashier RPC call to transfer cash from the multisig wallet out",
+        "properties": {
+            "ticker": {
                 "type": "string",
-                "description": "the address to which to send the cash"
+                "description": "the contract"
             },
             "quantity": {
                 "type": "integer",
-                "description": "how much to send"
+                "description": "how much to transfer"
+            },
+            "destination": {
+                "enum": ["onlinecash", "offlinecash"],
+                "description": "where do we send the money"
             },
             "multisig": {
                 "type": "object",
-                "description": "parameters needed to send via a multisig wallet"
+                "description": "multi-sig API authentication parameters"
             }
         },
-        "required": [ "username", "address", "quantity" ],
+        "required": ["ticker", "quantity", "destination", "multisig"],
         "additionalProperties": false
     },
     "get_new_address": {

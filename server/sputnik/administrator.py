@@ -807,12 +807,17 @@ class Administrator:
         return self.cashier.get_current_address(username, ticker)
 
     @inlineCallbacks
-    def transfer_to_hot_wallet(self, ticker, source_wallet, quantity_ui, multisig):
-        address = yield self.cashier.get_current_address(source_wallet, ticker)
-        contract = util.get_contract(self.session, ticker)
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination="offlinecash", multisig={}):
+        contract = util.get_contract(self.session.ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_multisig_wallet(ticker, quantity, multisig=multisig, destination=destination)
+        returnValue(result)
 
-        result = yield self.cashier.send_to_address(ticker, address, quantity, multisig=multisig)
+    @inlineCallbacks
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination="offlinecash"):
+        contract = util.get_contract(self.session.ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_hot_wallet(ticker, quantity, destination=destination)
         returnValue(result)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
@@ -1393,7 +1398,8 @@ class AdminWebUI(Resource):
                       '/transfer_position': self.transfer_position,
                       '/adjust_position': self.adjust_position,
                       '/wallets': self.wallets,
-                      '/transfer_to_hot_wallet': self.transfer_to_hot_wallet,
+                      '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
+                      '/transfer_from_cold_wallet': self.transfer_from_cold_wallet,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1499,12 +1505,24 @@ class AdminWebUI(Resource):
         d.addCallback(_cb)
         return NOT_DONE_YET
 
-    def transfer_to_hot_wallet(self, request):
+    def transfer_from_hot_wallet(self, request):
         ticker = request.args['contract'][0]
-        source_wallet = request.args['source_wallet'][0]
+        destination = request.args['destination'][0]
+        quantity_ui = float(request.args['quantity'][0])
+        d = self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+        def _cb():
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb)
+        return NOT_DONE_YET
+
+    def transfer_to_cold_wallet(self, request):
+        ticker = request.args['contract'][0]
+        destination = request.args['destination'][0]
         quantity_ui = float(request.args['quantity'][0])
         multisig = {'otp': request.args['otp'][0]}
-        d = self.administrator.transfer_to_hot_wallet(ticker, source_wallet, quantity_ui, multisig=multisig)
+        d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
         def _cb():
             request.write(redirectTo("/wallets", request))
             request.finish()
@@ -1938,8 +1956,12 @@ class AdminWebExport(ComponentExport):
         return self.administrator.get_current_address(username, ticker)
 
     @session_aware
-    def transfer_to_hot_wallet(self, ticker, source_wallet, quantity_ui, multisig):
-        return self.administrator.transfer_to_hot_wallet(ticker, source_wallet, quantity_ui, multisig)
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination):
+        return self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+
+    @session_aware
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination, multisig):
+        return self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig)
 
     @session_aware
     def new_admin_user(self, username, password_hash, level):

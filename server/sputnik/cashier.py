@@ -244,43 +244,65 @@ class Cashier():
         # None of the checks failed, return True
         returnValue(True)
 
-
-    def transfer_from_hot_wallet(self, ticker, destination="multisig"):
+    @inlineCallbacks
+    def transfer_from_hot_wallet(self, ticker, quantity=None, destination="multisigcash"):
         contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
-        try:
-            result = yield self.bitcoinrpc[contract.ticker].getbalance()
-        except Exception as e:
-            log.err("Unable to get wallet balance: %s" % str(e))
-            raise e
 
-        balance = result['result']
-        online_cash = long(round(balance * contract.denominator))
-        log.msg("Online cash for %s is %d" % (ticker, online_cash))
-        if destination == "cold" or not contract.multisig_wallet_address:
+        if destination == "offlinecash" or not contract.multisig_wallet_address:
             address = contract.cold_wallet_address
             to_account = "offlinecash"
         else:
             address = contract.multisig_wallet_address
             to_account = "multisigcash"
 
-        # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
-        if online_cash > contract.hot_wallet_limit * 1.1:
-            amount = online_cash - contract.hot_wallet_limit
-            log.msg("Transferring %d from hot to %s wallet at %s" % (amount, destination, address))
+        if quantity is None:
             try:
-                result = yield self.bitcoinrpc[ticker].sendtoaddress(address,
-                                                          float(amount) / contract.denominator)
-            except Exception as e:
-                log.err(e)
-                self.alerts.send_alert(str(e), "Failure in transfer from hot wallet")
+                online_cash = self.session.query(models.Positions).filter_by(username="onlinecash").filter_by(contract=contract).one()
+            except NoResultFound:
+                log.msg("No position in %s for onlinecash" % ticker)
+                returnValue(None)
+
+            # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
+            if online_cash.position > contract.hot_wallet_limit * 1.1:
+                quantity = online_cash.position - contract.hot_wallet_limit
             else:
-                txid = result['result']
-                uid = util.get_uid()
-                note = "%s: %s" % (address, txid)
-                d1=self.accountant.transfer_position('onlinecash', ticker, 'debit', amount,
-                                                  note, uid)
-                d2=self.accountant.transfer_position(to_account, ticker, 'credit', amount, note, uid)
-                yield defer.gatherResults([d1, d2])
+                returnValue(None)
+
+        log.msg("Transferring %d from hot to %s wallet at %s" % (quantity, destination, address))
+        txid = yield self.send_to_address(ticker, address, quantity)
+
+        uid = util.get_uid()
+        note = "%s: %s" % (address, txid)
+        d1=self.accountant.transfer_position('onlinecash', ticker, 'debit', quantity,
+                                          note, uid)
+        d2=self.accountant.transfer_position(to_account, ticker, 'credit', quantity, note, uid)
+        yield defer.gatherResults([d1, d2])
+        returnValue(txid)
+
+    @inlineCallbacks
+    def transfer_from_multisig_wallet(self, ticker, quantity, destination, multisig):
+        contract = util.get_contract(self.session, ticker)
+        if destination == "onlinecash":
+            address = self.get_current_address("multisigcash", ticker)
+        elif destination == "offlinecash":
+            address = contract.cold_wallet_address
+        else:
+            raise NotImplementedError
+
+        txid = yield self.send_to_address(ticker, address, quantity, multisig=multisig)
+        if destination == "offlinecash":
+            # Record the transfer
+            uid = util.get_uid()
+            note = "%s: %s" % (address, txid)
+            d1=self.accountant.transfer_position('multisigcash', ticker, 'debit', quantity,
+                                              note, uid)
+            d2=self.accountant.transfer_position('offlinecash', ticker, 'credit', quantity, note, uid)
+            yield defer.gatherResults([d1, d2])
+        else:
+            # If going to online cash the transfer will get recorded when the btc arrives
+            pass
+
+        returnValue(txid)
 
     @inlineCallbacks
     def send_to_address(self, ticker, address, amount, multisig={}):
@@ -640,9 +662,15 @@ class AdministratorExport(ComponentExport):
 
     @export
     @session_aware
-    @schema("rpc/cashier.json#send_to_address")
-    def send_to_address(self, ticker, address, quantity, multisig):
-        return self.cashier.send_to_address(ticker, address, quantity, multisig)
+    @schema("rpc/cashier.json#transfer_from_multisig_wallet")
+    def transfer_from_multisig_wallet(self, ticker, quantity, destination, multisig):
+        return self.cashier.transfer_from_multisig_wallet(ticker, quantity, destination, multisig)
+
+    @export
+    @session_aware
+    @schema("rpc/cashier.json#transfer_from_multisig_wallet")
+    def transfer_from_hot_wallet(self, ticker, quantity, destination):
+        return self.cashier.transfer_from_hot_wallet(ticker, quantity, destination)
 
 class AccountantExport(ComponentExport):
     def __init__(self, cashier):

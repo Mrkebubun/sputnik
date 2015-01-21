@@ -39,19 +39,35 @@
                 <td>
                     {% if contract.ticker in onlinecash %}
                     {{onlinecash[contract.ticker].quantity_fmt}}
+                    Transfer
+                    <form action="/transfer_from_hot_wallet" method="POST">
+                        <input type="hidden" name="contract" value="{{contract.ticker}}">
+                        <select name="destination">
+                            <option value="onlinecash">Hot Wallet</option>
+                            {% if contract.multisig_wallet_address %}
+                            <option value="offlinecash">Multisig Wallet</option>
+                            {% endif %}
+                        </select>
+                        <input type="text" name="quantity" placeholder="Quantity" size="16">
+                    </form>
+                    <br/>
                     {% endif %}
                 </td>
                 <td>
                     {% if contract.multisig_wallet_address and contract.ticker in multisigcash %}
                     {{multisigcash[contract.ticker].quantity_fmt}}
                     <br/>
-                    To Hot:
-                    <form action="/transfer_to_hot_wallet" method="POST">
+                    Transfer
+                    <form action="/transfer_from_multisig_wallet" method="POST">
                         <input type="hidden" name="contract" value="{{contract.ticker}}">
-                        <input type="hidden" name="source_wallet" value="multisigcash">
+                        <select name="destination">
+                            <option value="onlinecash">Hot Wallet</option>
+                            <option value="offlinecash">Cold Wallet</option>
+                        </select>
                         <input type="text" name="otp" placeholder="OTP" size="8">
                         <input type="text" name="quantity" placeholder="Quantity" size="16">
                     </form>
+                    <br/>
                     {% endif %}
                 </td>
                 <td>
