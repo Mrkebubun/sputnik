@@ -607,6 +607,11 @@ $ ->
                 ractive.set("all_orders_sort_column", column)
 
 
+            get_new_api_credentials: (event) ->
+                event.original.preventDefault()
+                sputnik.getNewAPICredentials()
+
+
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
             if old_ticker?
                 sputnik.unfollow old_ticker

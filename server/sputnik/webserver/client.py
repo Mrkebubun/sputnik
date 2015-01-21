@@ -8,7 +8,7 @@ from twisted.internet.endpoints import clientFromString
 from autobahn.twisted import wamp, websocket
 from autobahn.wamp import types
 from autobahn.wamp import auth
-import util
+from sputnik import util
 
 class MyFrontendComponent(wamp.ApplicationSession):
     methods = [u"anonymous", u"wampcra", u"cookie"]

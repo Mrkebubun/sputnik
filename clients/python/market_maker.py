@@ -54,7 +54,7 @@ class MarketMakerBot(SputnikSession):
 
     def startAutomationAfterMarkets(self):
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
-        self.get_external_market.start(self.factory.rate / 10)
+        self.get_external_market.start(self.factory.rate * 6)
 
         self.monitor_orders = task.LoopingCall(self.monitorOrders)
         self.monitor_orders.start(self.factory.rate * 1)
@@ -62,12 +62,12 @@ class MarketMakerBot(SputnikSession):
         return True
 
     # See if we have any orders on a given side
-    def cancelOrders(self, currency, side):
+    def cancelOrders(self, ticker, side):
         for id, order in self.orders.items():
             if order['is_cancelled'] or order['quantity_left'] <= 0:
                 continue
 
-            if order['side'] == side and order['contract'] == 'BTC/%s' % currency:
+            if order['side'] == side and order['contract'] == ticker:
                 self.cancelOrder(id)
 
     def checkOrders(self, side):

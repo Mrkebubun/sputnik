@@ -607,6 +607,11 @@ class @Sputnik extends EventEmitter
                 @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
                 @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
+    getNewAPICredentials: () =>
+        @call("rpc.token.get_new_api_credentials").then \
+            (credentials) =>
+                @emit "api", credentials
+
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"
 
