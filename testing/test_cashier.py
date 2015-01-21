@@ -332,24 +332,23 @@ class TestAdministratorExport(TestCashier):
         def onSuccess(withdrawal_id):
             from sputnik import cashier
 
-            with self.assertRaisesRegexp(CashierException, ""):
-                d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
+            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
 
-                def onFail(failure):
-                    self.assertEqual(failure.value.args[1], "no_automatic_withdrawal")
-                    from sputnik import models
+            def onFail(failure):
+                self.assertEqual(failure.value.args[0], "exceptions/cashier/no_automatic_withdrawal")
+                from sputnik import models
 
-                    withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
+                withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
 
-                    self.assertEqual(self.accountant.component.log, [])
-                    self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
-                    self.assertTrue(withdrawal.pending)
+                self.assertEqual(self.accountant.component.log, [])
+                self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
+                self.assertTrue(withdrawal.pending)
 
-                def onSuccess(result):
-                    self.assertTrue(False)
+            def onSuccess(result):
+                self.assertTrue(False)
 
-                d.addCallbacks(onSuccess, onFail)
-                return d
+            d.addCallbacks(onSuccess, onFail)
+            return d
 
         def onFail(failure):
             self.assertFalse(True)
