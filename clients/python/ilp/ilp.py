@@ -20,7 +20,8 @@ import util
 import treq
 import pickle
 
-EPSILON = 1e-4
+# Don't do anything if its value is less than this in source currency
+EPSILON = 1
 
 # Source: Source exchange or currency. Ie if we are taking liquidity from BTC/USD at Bitstamp
 #         Then the source exchange is Bitstamp and the source currency is USD
@@ -143,10 +144,10 @@ class State():
         Get the impact to balances if we place a limit order for 'quantity' at the source exchange
         if quantity < 0, we are selling. Quantity is in BTC
         """
-        if quantity > EPSILON:
+        if self.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
             half = 'asks'
             sign = 1
-        elif quantity < -EPSILON:
+        elif self.convert_to_source(self.data.btc_ticker, quantity) < -EPSILON:
             quantity = -quantity
             half = 'bids'
             sign = -1
@@ -184,7 +185,7 @@ class State():
         What are the results if we place a limit order on the target exchange
         and it is executed? Quantity must be greater than 0
         """
-        if quantity > EPSILON:
+        if self.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
             total_spent = quantity * price
             total_bought = quantity
             fee = abs(total_spent * self.data.target_fee[1]) + self.data.target_fee[0]
@@ -211,7 +212,7 @@ class State():
         to the exchange that is receiving the money
 
         """
-        if abs(amount) > EPSILON:
+        if self.convert_to_source(self.data.source_ticker, abs(amount)) > EPSILON:
             fee_in_source = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
             if amount > 0:
                 return { self.data.source_ticker: -amount,
@@ -233,10 +234,10 @@ class State():
         fees but there is a BTC transfer fee charged by the network. We charge it
         to the receiving side
         """
-        if amount > EPSILON:
+        if self.convert_to_source(self.data.btc_ticker, amount) > EPSILON:
             return {'source_btc': -amount,
                     'target_btc': amount - self.data.btc_fee}
-        elif amount < -EPSILON:
+        elif self.convert_to_source(self.data.btc_ticker, amount) < -EPSILON:
             return {'source_btc': abs(amount) - self.data.btc_fee,
                     'target_btc': amount}
         else:
@@ -251,7 +252,7 @@ class State():
         Transfer source currency out of the source exchange to our own bank. We can't transfer in
         """
         fee = abs(amount) * self.data.fiat_exchange_cost[1] + self.data.fiat_exchange_cost[0]
-        if amount > EPSILON:
+        if self.convert_to_source(self.data.source_ticker, amount) > EPSILON:
             return {self.data.source_ticker: -(amount + fee)}
         else:
             return {self.data.source_ticker: 0}
