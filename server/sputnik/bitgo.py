@@ -1,65 +1,42 @@
-import requests
-import treq
-import json
-import hmac
-import hashlib
+from sputnik.plugin import Plugin
+from sputnik.bitgo_rpc import BitGo
+from Crypto.Random import random
+from bip32utils import BIP32Key
 
-ENDPOINTS = {"test":"https://test.bitgo.com/api/v1/",
-             "prod": "https://www.bitgo.com/api/v1/"}
+class BitgoPlugin(Plugin):
+    def __init__(self):
+        self.bitgo = BitGo(test=True, async=True)
+        # TODO: lose this
+        self.bitgo.login()
 
-class BitGo(object):
+    def oauth_callback(self, token):
+        self.bitgo.token = token
 
-    def __init__(self, test=False, async=False, debug=False):
-        self.test = test
-        self.async = async
-        self.debug = debug
+    @inlineCallbacks
+    def create_wallet(self, backup_key):
+        # check for existing wallet
+        result = yield self.bitgo.wallet()
+        for wallet in result:
+            if result[wallet]["label"] == "sputnik":
+                raise MultiSigException("Wallet already exists.")
 
-        self.endpoint = ENDPOINTS["prod"]
-        if self.test:
-            self.endpoint = ENDPOINTS["test"]
-       
-        self.agent = requests
-        if self.async:
-            self.agent = treq
+        # create a new key
+        # TODO: allow testnet
+        key = BIP32Key.fromEntropy("".join(map(chr,
+                [random.getrandbits(8) for i in range(32)])), public=False)
+        # TODO: save private key
+        private = key.ExtendedKey(private=True, encoded=True)
+        user_key = key.ExtendedKey(private=False, encoded=True)
 
-        self.token = None
+        # create a new bitgo key
+        result = yield self.bitgo.keychain("bitgo")
+        bitgo_key = result["xpub"]
 
-    def __getattr__(self, key):
-        if key.startswith("__") and key.endswith("__"):
-            raise AttributeError
+        # create the wallet
+        keychains = [{"xpub":user_key}, {"xpub":backup_key}, {"xpub":bitgo_key}]
+        yield self.bitgo.wallet(label="sputnik", m=2, n=3, keychains=keychains)
 
-        def remote_method(*args, **kwargs):
-            url = self.endpoint + key + "/" + "/".join(args)
-
-            headers = {"Content-Type": "application/json"}
-            if self.token:
-                headers["Authorization"] = "Bearer %s" % self.token
-
-            if len(kwargs) == 0:
-                d = self.agent.get(url, headers=headers)
-            else:
-                d = self.agent.post(url, headers=headers,
-                                    data=json.dumps(kwargs))
-
-            if self.async:
-                return d.addCallback(treq.json_content)
-            return d.json()
-
-        return remote_method
-
-    def login(self, email, password, otp="0000000"):
-        password = hmac.HMAC(email, password, hashlib.sha256).hexdigest()
-        d = self.user("login", email=email, password=password, otp=otp)
-        if self.async:
-            def save_token(data):
-                self.token = data["access_token"]
-                return data
-            d.addCallback(save_token)
-        else:
-            self.token = d["access_token"]
-
-        return d
-
-b = BitGo(test=True, async=False, debug=True)
-b.login("janedoe@bitgo.com", "mypassword", otp="0000000")
+    @inlineCallbacks
+    def send_coins(self, address, amount, auth):
+        pass
 
