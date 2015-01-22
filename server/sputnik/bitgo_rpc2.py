@@ -190,7 +190,7 @@ class BitGo(object):
 
         self.token = None
 
-        self.keychain = Keychains(self)
+        self.keychains = Keychains(self)
         self.wallets = Wallets(self)
 
     @inlineCallbacks
