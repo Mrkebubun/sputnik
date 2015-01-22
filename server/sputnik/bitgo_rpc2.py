@@ -9,6 +9,8 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 
 from Crypto.Random import random
 from pycoin.key.BIP32Node import BIP32Node
+from pycoin.tx.Spendable import Spendable
+from pycoin.tx import tx_utils
 
 ENDPOINTS = {"test":"https://test.bitgo.com/api/v1/",
              "production": "https://www.bitgo.com/api/v1/"}
@@ -96,8 +98,22 @@ class Wallet(object):
     def unspents(self):
         return self._call("GET", "wallet/%s/unspents" % self.id)
 
-    def createTransaction(address, amount, keychain, fee=None, confirms=None):
-        raise NotImplemented
+    @inlineCallbacks
+    def createTransaction(self, address, amount, keychain, fee="standard",
+                          confirms=0):
+        result = yield self.unspents()
+        spendables = []
+        for unspent in result["unspents"]:
+            if unspent["confirmations"] < confirms:
+                continue
+            spendable = Spendable(unspent["value"], unspent["redeemScript"],
+                                  unspent["tx_hash"], unspent["tx_output_n"])
+            spendables.append(spendable)
+        available = sum([spendable.coin_value for spendable in spendables])
+        result = yield self.createAddress(1)
+        change = result["address"]
+        tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
+        returnValue(tx)
 
     def sendTransaction(self, tx):
         return self._call("POST", "tx/send", {"tx":tx})
@@ -198,7 +214,16 @@ class BitGo(object):
             print "Got: %s" % content
 
         try:
-            content = json.loads(content)
+            def encode(data):
+                encoded = {}
+                for key, value in data.iteritems():
+                    if isinstance(key, unicode):
+                        key = key.encode("utf-8")
+                    if isinstance(value, unicode):
+                        value = value.encode("utf-8")
+                    encoded[key] = value
+                return encoded
+            content = json.loads(content, object_hook=encode)
         except ValueError as e:
             pass
 
