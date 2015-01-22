@@ -160,7 +160,7 @@ class Wallets(object):
                   "backupKeychain":backup_keychain,
                   "bitgoKeychain":bitgo_keychain,
                   "warning":"Be sure to backup the backup keychain -- " \
-                            "it is not stored anywhere else!"
+                            "it is not stored anywhere else!"}
         returnValue(result)
 
 class BitGo(object):
