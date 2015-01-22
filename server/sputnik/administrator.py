@@ -63,7 +63,7 @@ from dateutil import relativedelta
 from zendesk import Zendesk
 from blockscore import BlockScore
 from ticketserver import TicketServer
-from bitgo_rpc2 import BitGo
+from bitgo_rpc import BitGo
 import base64
 from Crypto.Random.random import getrandbits
 import urllib
@@ -1180,8 +1180,27 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig={}):
         return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
-    def initialize_multisig(self, public_key, multisig={}):
-        raise NotImplementedError
+    @inlineCallbacks
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        # Create wallet with the given public_key
+        self.bitgo.token = multisig['token']
+        yield self.bitgo.unlock(multisig['otp'])
+        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=multisig['passphrase'], label="sputnik", backupxpub=public_key)
+
+        # Get deposit address
+        address = result['wallet'].id
+
+        # Save deposit address
+        try:
+            contract = util.get_contract(self.session, ticker)
+            contract.multisig_wallet_address = address
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            log.err("Unable to save new deposit address for multisig")
+            log.err(e)
+
+        returnValue(result)
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -1483,14 +1502,22 @@ class AdminWebUI(Resource):
         return NOT_DONE_YET
 
     def initialize_multisig(self, request):
+        ticker = request.args['contract'][0]
         name, mime, stream = request.files['public_key'][0]
         public_key = stream.read()
         token = self.administrator.get_bitgo_token(self.avatarId)
         if token is None:
             raise BITGO_TOKEN_INVALID
 
-        d = self.administrator.initialize_multisig(public_key, {'token': token,
-                                                                'otp': request.args['otp'][0]})
+        d = self.administrator.initialize_multisig(ticker, public_key, {'token': token,
+                                                                        'otp': request.args['otp'][0],
+                                                                        'passphrase': request.args['passphrase'][0]})
+        def _cb(result):
+            request.write(redirectTo('/wallets', request))
+            request.finish()
+
+        d.addCallback(_cb)
+        return NOT_DONE_YET
 
 
     def process_withdrawal(self, request):
@@ -1509,6 +1536,7 @@ class AdminWebUI(Resource):
                 raise BITGO_TOKEN_INVALID
 
             multisig = {'otp': request.args['otp'][0],
+                        'passphrase': request.args['passphrase'][0],
                         'token': self.administrator.get_bitgo_token(self.avatarId)}
         else:
             multisig = {}
@@ -1586,6 +1614,7 @@ class AdminWebUI(Resource):
             raise BITGO_TOKEN_INVALID
 
         multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
+                    'passphrase': request.args['passphrase'][0],
                     'otp': request.args['otp'][0]}
         d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
         def _cb():
@@ -2085,8 +2114,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.get_bitgo_token(admin_user)
 
     @session_aware
-    def initialize_multisig(self, public_key, multisig={}):
-        return self.administrator.initialize_multisig(public_key, multisig)
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        return self.administrator.initialize_multisig(ticker, public_key, multisig)
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db

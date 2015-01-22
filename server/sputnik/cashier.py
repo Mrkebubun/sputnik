@@ -34,6 +34,7 @@ from rpc_schema import schema
 import markdown
 from util import session_aware
 from exception import *
+from bitgo_rpc import BitGo
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -47,6 +48,7 @@ OUT_OF_ADDRESSES = CashierException("exceptions/cashier/out_of_addresses")
 NO_AUTOMATIC_WITHDRAWAL = CashierException("exceptions/cashier/no_automatic_withdrawal")
 INSUFFICIENT_FUNDS = CashierException("exceptions/cashier/insufficient_funds")
 WITHDRAWAL_TOO_LARGE = CashierException("exceptions/cashier/withdrawal_too_large")
+NO_SPUTNIK_WALLET = CashierException("exceptions/cashier/no_sputnik_wallet")
 
 class Cashier():
     """
@@ -56,7 +58,8 @@ class Cashier():
     """
 
     def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
-                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6, alerts=None):
+                 sendmail=None, template_dir="admin_templates", minimum_confirmations=6, alerts=None,
+                 bitgo=None):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -70,6 +73,7 @@ class Cashier():
         self.minimum_confirmations = minimum_confirmations
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.alerts = alerts
+        self.bitgo = bitgo
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
                 looping_call = LoopingCall(self.transfer_from_hot_wallet, ticker)
@@ -326,8 +330,21 @@ class Cashier():
             else:
                 raise INSUFFICIENT_FUNDS
         else:
-            # TODO: Support BitGo
-            raise NotImplementedError
+            self.bitgo.token = multisig['token']
+            yield self.bitgo.unlock(multisig['otp'])
+            wallets = yield self.bitgo.wallets.list()
+            # Find the sputnik wallet
+            found = False
+            for id, wallet in wallets:
+                if wallet.label == "sputnik":
+                    found = True
+                    break
+
+            if not found:
+                raise NO_SPUTNIK_WALLET
+
+            result = yield wallet.sendCoins(address=address, amount=amount, walletPassphrase=multisig['passphrase'])
+            txid = result['tx']
 
         returnValue(txid)
 
@@ -701,12 +718,15 @@ if __name__ == '__main__':
     sendmail=Sendmail(config.get("administrator", "email"))
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
+    bitgo_config = dict(config.items("bitgo"))
+    bitgo = BitGo(bitgo_config)
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago,
                       cold_wallet_period=cold_wallet_period,
                       sendmail=sendmail,
                       minimum_confirmations=minimum_confirmations,
-                      alerts=alerts_proxy)
+                      alerts=alerts_proxy,
+                      bitgo=bitgo)
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)
