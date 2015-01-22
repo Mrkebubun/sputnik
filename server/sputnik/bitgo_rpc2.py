@@ -7,6 +7,9 @@ import urlparse
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 
+from Crypto.Random import random
+from bip32utils import BIP32Key
+
 ENDPOINTS = {"test":"https://test.bitgo.com/api/v1/",
              "production": "https://www.bitgo.com/api/v1/"}
 
@@ -36,7 +39,15 @@ class Keychains(object):
         return self._call("GET", "keychain")
 
     def create(self):
-        raise NotImplemented
+        # TODO: add support for testnet
+        if not self.proxy.use_production:
+            raise NotImplemented
+
+        key = BIP32Key.fromEntropy("".join(map(chr,
+                [random.getrandbits(8) for i in range(32)])), public=False)
+        private = key.ExtendedKey(private=True, encoded=True)
+        public = key.ExtendedKey(private=False, encoded=True)
+        return {"xpub":public, "xprv":private}
 
     def add(self, xpub, encrypted_xprv=None):
         data = {"xpub":xpub}
@@ -130,8 +141,28 @@ class Wallets(object):
     def get(self, id):
         return self._call("POST", "wallet/%s" % id).addCallback(self._decode)
 
-    def create(self, passphrase, label, backup_xpub=None):
-        raise NotImplemented
+    @inlineCallbacks
+    def createWalletWithKeychains(self, passphrase, label, backup_xpub=None):
+        user_keychain = self.proxy.keychains.create()
+        # TODO: encrypt with passphrase
+        encrypted_xpriv = ""
+        backup_keychain = {"xpub":backup_xpub}
+        if not backup_keychain["xpub"]:
+            backup_keychain = self.proxy.keychains.create()
+        yield self.proxy.keychains.add(user_keychain["xpub"], encrypted_xpriv)
+        yield self.proxy.keychains.add(backup_keychain["xpub"])
+        bitgo_keychain = yield self.proxy.keychains.createBitGo()
+        keychains = [{"xpub":user_keychain["xpub"]},
+                     {"xpub":backup_keychain["xpub"]},
+                     {"xpub":bitgo_keychain["xpub"]}]
+        wallet = yield self.add(label, 2, 3, keychains)
+        result = {"wallet":wallet,
+                  "userKeychain":user_keychain,
+                  "backupKeychain":backup_keychain,
+                  "bitgoKeychain":bitgo_keychain,
+                  "warning":"Be sure to backup the backup keychain -- " \
+                            "it is not stored anywhere else!"
+        returnValue(result)
 
 class BitGo(object):
     def __init__(self, use_production=False, debug=False):
