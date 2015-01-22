@@ -346,7 +346,7 @@ class BitGo(object):
         self.token = token_result['access_token'].encode('utf-8')
         self.token_expiration = datetime.fromtimestamp(token_result['expires_at'])
         returnValue({'token': self.token,
-                     'expiration': util.timestamp_from_dt(self.token_expiration)})
+                     'expiration': util.dt_to_timestamp(self.token_expiration)})
 
 
 if __name__ == "__main__":

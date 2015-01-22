@@ -139,7 +139,7 @@ class Administrator:
     @inlineCallbacks
     def bitgo_oauth_token(self, code, admin_user):
         token_result = yield self.bitgo.oauth_token(code)
-        self.bitgo_tokens[admin_user] = (token_result['token'], util.dt_to_timestamp(token_result['expiration']))
+        self.bitgo_tokens[admin_user] = (token_result['token'], util.timestamp_to_dt(token_result['expiration']))
 
     def get_bitgo_token(self, admin_user):
         now = datetime.utcnow()
@@ -1503,6 +1503,7 @@ class AdminWebUI(Resource):
 
     def initialize_multisig(self, request):
         ticker = request.args['contract'][0]
+        # TODO: Find the file upload correctly
         name, mime, stream = request.files['public_key'][0]
         public_key = stream.read()
         token = self.administrator.get_bitgo_token(self.avatarId)
@@ -1951,6 +1952,10 @@ class AdminWebExport(ComponentExport):
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
+
+    @session_aware
+    def bitgo_oauth_token(self, code, admin_user):
+        return self.administrator.bitgo_oauth_token(code, admin_user)
 
     @session_aware
     def get_withdrawals(self):
