@@ -8,7 +8,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from Crypto.Random import random
-from bip32utils import BIP32Key
+from pycoin.key.BIP32Node import BIP32Node
 
 ENDPOINTS = {"test":"https://test.bitgo.com/api/v1/",
              "production": "https://www.bitgo.com/api/v1/"}
@@ -39,14 +39,13 @@ class Keychains(object):
         return self._call("GET", "keychain")
 
     def create(self):
-        # TODO: add support for testnet
+        network = "BTC"
         if not self.proxy.use_production:
-            raise NotImplemented
-
-        key = BIP32Key.fromEntropy("".join(map(chr,
-                [random.getrandbits(8) for i in range(32)])), public=False)
-        private = key.ExtendedKey(private=True, encoded=True)
-        public = key.ExtendedKey(private=False, encoded=True)
+            network = "XTN"
+        entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
+        key = BIP32Node.from_master_secret(entropy, network)
+        private = key.wallet_key(as_private=True).encode("utf-8")
+        public = key.wallet_key(as_private=False).encode("utf-8")
         return {"xpub":public, "xprv":private}
 
     def add(self, xpub, encrypted_xprv=None):
