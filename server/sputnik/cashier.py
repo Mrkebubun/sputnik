@@ -331,20 +331,48 @@ class Cashier():
                 raise INSUFFICIENT_FUNDS
         else:
             self.bitgo.token = multisig['token']
-            yield self.bitgo.unlock(multisig['otp'])
-            wallets = yield self.bitgo.wallets.list()
-            # Find the sputnik wallet
-            found = False
-            for id, wallet in wallets:
-                if wallet.label == "sputnik":
-                    found = True
-                    break
+            try:
+                yield self.bitgo.unlock(multisig['otp'])
+            except Exception as e:
+                log.err("Unable to unlock multisig")
+                log.err(e)
+                raise e
 
-            if not found:
-                raise NO_SPUTNIK_WALLET
+            try:
+                wallets = yield self.bitgo.wallets.list()
+                # Find the sputnik wallet
+                found = False
+                wallet = None
+                for id, wallet in wallets:
+                    if wallet.label == "sputnik":
+                        found = True
+                        break
 
-            result = yield wallet.sendCoins(address=address, amount=amount, walletPassphrase=multisig['passphrase'])
-            txid = result['tx']
+                if not found:
+                    raise NO_SPUTNIK_WALLET
+            except Exception as e:
+                log.err("Unable to get wallet")
+                log.err(e)
+                raise e
+
+            try:
+                wallet = yield wallets.get(wallet.id)
+            except Exception as e:
+                log.err("Unable to get wallet details")
+                log.err(e)
+                raise e
+
+            balance = wallet.balance
+            if balance > amount:
+                raise INSUFFICIENT_FUNDS
+
+            try:
+                result = yield wallet.sendCoins(address=address, amount=amount, walletPassphrase=multisig['passphrase'])
+                txid = result['tx']
+            except Exception as e:
+                log.err("Unable to sendCoins")
+                log.err(e)
+                raise e
 
         returnValue(txid)
 
