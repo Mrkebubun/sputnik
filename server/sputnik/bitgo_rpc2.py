@@ -22,8 +22,119 @@ class Unauthorized(BitGoException):
 class MethodNotFound(BitGoException):
     pass
 
+class NotAcceptable(BitGoException):
+    pass
+
+class Keychains(object):
+    def __init__(self, proxy):
+        self.proxy = proxy
+
+    def _call(self, method, url, data=None):
+        return self.proxy._call(method, url, data)
+
+    def list(self):
+        return self._call("GET", "keychain")
+
+    def create(self):
+        raise NotImplemented
+
+    def add(self, xpub, encrypted_xprv=None):
+        data = {"xpub":xpub}
+        if encrypted_xprv:
+            data["encryptedXprv"] = encrypted_xprv
+        return self._call("POST", "keychain", data)
+
+    def createBitGo(self):
+        return self._call("POST", "keychain/bitgo")
+
+    def get(self, xpub):
+        return self._call("POST", "keychain/%s" % xpub)
+
+    def update(self, xpub, encrypted_xprv=None):
+        data = None
+        if encrypted_xprv:
+            data = {"encryptedXprv":encrypted_xprv}
+        return self._call("PUT", "keychain/%s" % xpub, data)
+
+class Wallet(object):
+    def __init__(self, proxy, data):
+        self.proxy = proxy
+        for key, value in data.iteritems():
+            setattr(self, key, value)
+
+    def __str__(self):
+        return "Wallet: %s" % self.id
+
+    def _call(self, method, url, data=None):
+        return self.proxy._call(method, url, data)
+
+    def createAddress(self, chain):
+        return self._call("POST", "wallet/%s/address/%s" % (self.id, chain))
+
+    def sendCoins(self, address, amount, passphrase, confirms=None):
+        raise NotImplemented
+
+    def sendMany(self, recipients, message=None, confirms=None):
+        raise NotImplemented
+
+    def addresses(self):
+        return self._call("GET", "wallet/%s/addresses" % self.id)
+
+    def transactions(self):
+        return self._call("GET", "wallet/%s/tx" % self.id)
+
+    def unspents(self):
+        return self._call("GET", "wallet/%s/unspents" % self.id)
+
+    def createTransaction(address, amount, keychain, fee=None, confirms=None):
+        raise NotImplemented
+
+    def sendTransaction(self, tx):
+        return self._call("POST", "tx/send", {"tx":tx})
+
+    def setPolicy(self, policy):
+        return self._call("POST", "wallet/%s/policy" % self.id,
+                          {"policy":policy})
+
+    def addUser(self, email, permissions):
+        return self._call("POST", "wallet/%s/policy/grant" % self.id,
+                          {"email":email, "permissions":permissions})
+
+    def removeUser(self, email):
+        return self._call("POST", "wallet/%s/policy/revoke" % self.id,
+                          {"email":email})
+
+class Wallets(object):
+    def __init__(self, proxy):
+        self.proxy = proxy
+
+    def _call(self, method, url, data=None):
+        return self.proxy._call(method, url, data)
+
+    def _decode(self, data):
+        return Wallet(self.proxy, data)
+
+    def list(self):
+        def decode(result):
+            wallets = result["wallets"]
+            return {"wallets":{k: self._decode(v) for k, v in wallets.items()}}
+
+        return self._call("GET", "wallet").addCallback(decode)
+
+    def add(self, label, m, n, keychains, enterprise=None):
+        data = {"lavel":label, "m":m, "n":n, "keychains":keychains}
+        if enterprise:
+            data["enterprise"] = enterprise
+        return self._call("POST", "wallet", data).addCallback(self._decode)
+
+    def get(self, id):
+        return self._call("POST", "wallet/%s" % id).addCallback(self._decode)
+
+    def create(self, passphrase, label, backup_xpub=None):
+        raise NotImplemented
+
 class BitGo(object):
-    def __init__(self, use_production=False, debug=True):
+    def __init__(self, use_production=False, debug=False):
         self.use_production = use_production
         self.debug = debug
 
@@ -32,6 +143,9 @@ class BitGo(object):
             self.endpoint = ENDPOINTS["production"]
 
         self.token = None
+
+        self.keychain = Keychains(self)
+        self.wallets = Wallets(self)
 
     @inlineCallbacks
     def _call(self, method, url, data=None):
@@ -50,6 +164,8 @@ class BitGo(object):
         response = yield treq.request(method, url, headers=headers, data=data)
         code = response.code
         content = yield treq.content(response)
+        if self.debug:
+            print "Got: %s" % content
 
         try:
             content = json.loads(content)
@@ -64,6 +180,8 @@ class BitGo(object):
             raise Unauthorized(content)
         elif code == 404:
             raise MethodNotFound(content)
+        elif code == 406:
+            raise NotAcceptable(content)
         else:
             raise BitGoException(content)
 
@@ -78,7 +196,7 @@ class BitGo(object):
             data["otp"] = otp
 
         def save_token(data):
-            self.token = data["access_token"]
+            self.token = data["access_token"].encode("utf-8")
             return data
 
         return self._call("POST", "user/login", data).addCallback(save_token)
@@ -101,4 +219,13 @@ class BitGo(object):
 
     def me(self):
         return self._call("GET", "user/me")
+
+    def get_address(self, address):
+        return self._call("GET", "address/%s" % address)
+    
+    def get_address_transactions(self, address):
+        return self._call("GET", "address/%s/tx" % address)
+
+    def get_transaction(self, tx):
+        return self._call("GET", "tx/%s" % tx)
 
