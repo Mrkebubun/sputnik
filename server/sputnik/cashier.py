@@ -367,7 +367,8 @@ class Cashier():
                 raise INSUFFICIENT_FUNDS
 
             try:
-                result = yield wallet.sendCoins(address=address, amount=amount, walletPassphrase=multisig['passphrase'])
+                result = yield wallet.sendCoins(address=address, amount=amount, passphrase=multisig['passphrase'],
+                                                otp=multisig['otp'])
                 txid = result['tx']
             except Exception as e:
                 log.err("Unable to sendCoins")

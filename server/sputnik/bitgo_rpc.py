@@ -3,7 +3,7 @@ import json
 import hmac
 import hashlib
 import urlparse
-
+import os
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 import util
@@ -33,6 +33,10 @@ class MethodNotFound(BitGoException):
 
 class NotAcceptable(BitGoException):
     pass
+
+KEY_FILE_EXISTS = BitGoException("exceptions/bitgo/key_file_exists")
+NO_KEY_FILE = BitGoException("exceptions/bitgo/no_key_file")
+
 
 
 class Keychains(object):
@@ -89,8 +93,22 @@ class Wallet(object):
     def createAddress(self, chain):
         return self._call("POST", "api/v1/wallet/%s/address/%s" % (self.id, chain))
 
-    def sendCoins(self, address, amount, passphrase, confirms=None):
-        raise NotImplemented
+    def sendCoins(self, address, amount, passphrase, otp='000000', confirms=None):
+        if not os.path.exists(self.proxy.private_key_file):
+            raise NO_KEY_FILE
+        else:
+            with open(self.proxy.private_key_file, "rb") as f:
+                encrypted_xpriv = f.read()
+
+        xprv = self.proxy.decrypt(encrypted_xpriv, passphrase)
+        # The first keychain is the userkeychain, so we add the decrypted key to that one
+        self.keychains[0]['xprv'] = xprv
+        tx = yield self.createTransaction(address, amount, self.keychains[0], fee="standard")
+        result = yield self.sendTransaction(tx=tx['tx'], otp=otp)
+        returnvalue = {'tx': result['tx'],
+                       'hash': result['transactionHash'],
+                       'fee': tx['fee']}
+        returnValue(returnvalue)
 
     def sendMany(self, recipients, message=None, confirms=None):
         raise NotImplemented
@@ -119,10 +137,18 @@ class Wallet(object):
         result = yield self.createAddress(1)
         change = result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
-        returnValue(tx)
 
-    def sendTransaction(self, tx):
-        return self._call("POST", "api/v1/tx/send", {"tx": tx})
+        # Is this how to get the WIFs?
+        private_key = BIP32Node.from_text(keychain['xprv'])
+        public_key = BIP32Node.from_text(keychain['xpub'])
+        wifs = [private_key.wif(), public_key.wif()]
+
+        tx_signed = tx_utils.sign_tx(tx, wifs)
+        returnValue({'tx': tx_signed.as_hex(),
+                     'fee': tx_signed.fee()})
+
+    def sendTransaction(self, tx, otp):
+        return self._call("POST", "api/v1/tx/send", {"tx": tx, "otp": otp})
 
     def setPolicy(self, policy):
         return self._call("POST", "api/v1/wallet/%s/policy" % self.id,
@@ -166,12 +192,18 @@ class Wallets(object):
     @inlineCallbacks
     def createWalletWithKeychains(self, passphrase, label, backup_xpub=None, token=None):
         user_keychain = self.proxy.keychains.create()
-        # TODO: encrypt with passphrase
-        encrypted_xpriv = ""
+        encrypted_xprv = self.proxy.encrypt(user_keychain['xprv'], passphrase)
         backup_keychain = {"xpub": backup_xpub}
         if not backup_keychain["xpub"]:
             backup_keychain = self.proxy.keychains.create()
-        yield self.proxy.keychains.add(user_keychain["xpub"], encrypted_xpriv)
+        yield self.proxy.keychains.add(user_keychain["xpub"], encrypted_xprv)
+        # Save the encrypted xpriv to the local storage
+        if os.path.exists(self.private_key_file):
+            raise KEY_FILE_EXISTS
+        else:
+            with open(self.private_key_file, "wb") as f:
+                f.write(encrypted_xprv)
+
         yield self.proxy.keychains.add(backup_keychain["xpub"])
         bitgo_keychain = yield self.proxy.keychains.createBitGo()
         keychains = [{"xpub": user_keychain["xpub"]},
@@ -193,12 +225,21 @@ class BitGo(object):
         self.endpoint = bitgo_config['endpoint']
         self.client_id = bitgo_config['client_id']
         self.client_secret = bitgo_config['client_secret']
+        self.private_key_file = bitgo_config['private_key_file']
         self.debug = debug
 
         self.token = None
 
         self.keychains = Keychains(self)
         self.wallets = Wallets(self)
+
+    def encrypt(self, message, passphrase):
+        # TODO: Actually encrypt
+        return message
+
+    def decrypt(self, encrypted, passphrase):
+        # TODO: Actually decrypt
+        return encrypted
 
     @inlineCallbacks
     def _call(self, method, url, data=None):

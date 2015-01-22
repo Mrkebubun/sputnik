@@ -16,6 +16,7 @@ production = false
 client_id = XXX
 client_secret = XXX
 endpoint = https://test.bitgo.com
+user_key_file = ${keys}/bitgo.key
 
 [engine]
 accountant_base_port = 4200
