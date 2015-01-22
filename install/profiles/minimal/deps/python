@@ -14,3 +14,4 @@ pycrypto
 service_identity
 coverage
 pycoin
+bip32utils

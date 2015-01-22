@@ -148,7 +148,7 @@ class Wallets(object):
         return self._call("GET", "wallet").addCallback(decode)
 
     def add(self, label, m, n, keychains, enterprise=None):
-        data = {"lavel":label, "m":m, "n":n, "keychains":keychains}
+        data = {"label":label, "m":m, "n":n, "keychains":keychains}
         if enterprise:
             data["enterprise"] = enterprise
         return self._call("POST", "wallet", data).addCallback(self._decode)
@@ -265,7 +265,7 @@ class BitGo(object):
     def sendOTP(self, force_sms=False):
         return self._call("GET", "user/sendotp", {"forceSMS":force_sms})
 
-    def unlock(self, otp, duation=600):
+    def unlock(self, otp, duration=600):
         return self._call("POST", "user/unlock",
                           {"otp":otp, "duration":duration})
 

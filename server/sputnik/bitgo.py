@@ -2,6 +2,7 @@ from sputnik.plugin import Plugin
 from sputnik.bitgo_rpc import BitGo
 from Crypto.Random import random
 from bip32utils import BIP32Key
+from twisted.internet.defer import inlineCallbacks
 
 class BitgoPlugin(Plugin):
     def __init__(self):
