@@ -38,7 +38,7 @@ class BitGo(object):
                 headers["Authorization"] = "Bearer %s" % self.token
 
             if len(kwargs) == 0:
-                d = self.agent.get(url), headers=headers)
+                d = self.agent.get(url, headers=headers)
             else:
                 d = self.agent.post(url, headers=headers,
                                     data=json.dumps(kwargs))
