@@ -7,6 +7,9 @@ import os
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 import util
+from twisted.python import log
+from pprint import pprint
+import string
 
 from Crypto.Random import random
 from pycoin.key.BIP32Node import BIP32Node
@@ -350,6 +353,34 @@ if __name__ == "__main__":
     bitgo_config = {'production': False,
                     'endpoint': "https://test.bitgo.com",
                     'client_id': 'XXX',
-                    'client_secret': 'YYY'}
+                    'client_secret': 'YYY',
+                    'private_key_file': './bitgo.key'}
     bitgo = BitGo(bitgo_config, debug=True)
 
+    @inlineCallbacks
+    def main():
+        otp = '329482'
+        auth = yield bitgo.authenticate('sameer@m2.io', 'i6M:wpF4', otp=otp)
+        pprint(auth)
+        label = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+
+        wallet = yield bitgo.wallets.createWalletWithKeychains('none', label=label)
+        pprint(wallet)
+
+        wallet_list = yield bitgo.wallets.list()
+        pprint(wallet_list)
+        for id, wallet in wallet_list.iteritems():
+            full_wallet = yield bitgo.wallets.get(wallet.id)
+            pprint(full_wallet)
+
+            # Get an address
+            address = yield wallet.createAddress(0)
+            pprint(address)
+
+            # Send coins to myself
+            tx = yield wallet.sendCoins(address, 10000, 'none', otp=otp)
+            pprint(tx)
+
+    main().addErrback(log.err)
+
+    reactor.run()
