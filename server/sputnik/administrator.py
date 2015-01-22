@@ -63,8 +63,10 @@ from dateutil import relativedelta
 from zendesk import Zendesk
 from blockscore import BlockScore
 from ticketserver import TicketServer
+from bitgo_rpc2 import BitGo
 import base64
 from Crypto.Random.random import getrandbits
+import urllib
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -98,6 +100,7 @@ class Administrator:
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
+                 bitgo=None,
                  bs_cache_update_period=86400):
         """Set up the administrator
 
@@ -121,6 +124,8 @@ class Administrator:
         self.sendmail = sendmail
         self.user_limit = user_limit
         self.page_size = 10
+        self.bitgo = bitgo
+        self.bitgo_tokens = {}
 
         self.load_bs_cache()
         # Initialize the balance sheet cache
@@ -129,6 +134,18 @@ class Administrator:
             self.bs_updater.start(bs_cache_update_period, now=True)
         else:
             self.update_bs_cache()
+
+    @inlineCallbacks
+    def bitgo_oauth_token(self, code, admin_user):
+        token_result = yield self.bitgo.oauth_token(code)
+        self.bitgo_tokens[admin_user] = (token_result['token'], util.dt_to_timestamp(token_result['expiration']))
+
+    def get_bitgo_token(self, admin_user):
+        now = datetime.utcnow()
+        if admin_user in self.bitgo_tokens and self.bitgo_tokens[admin_user][1] > now:
+            return self.bitgo_tokens[admin_user][0]
+        else:
+            return None
 
     def make_account(self, username, password):
         """Makes a user account with the given password
@@ -1400,6 +1417,8 @@ class AdminWebUI(Resource):
                       '/wallets': self.wallets,
                       '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
                       '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
+                      '/bitgo_oauth_get': self.bitgo_oauth_get,
+                      '/bitgo_oauth_redirect': self.bitgo_oauth_redirect,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1438,6 +1457,26 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template("error.html")
         return t.render(error=error).encode('utf-8')
 
+    def bitgo_oauth_get(self, request):
+        params = { 'client_id': self.administrator.component.bitgo.client_id,
+                   'redirect_uri': self.base_uri + '/bitgo_oauth_redirect',
+                   'scope': 'openid wallet_spend_enterprise wallet_create'
+        }
+        bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
+        params_encoded = urllib.urlencode(params)
+        return redirectTo(bitgo_uri + '?' + params_encoded, request)
+
+    def bitgo_oauth_redirect(self, request):
+        code = request.args['code'][0]
+
+        def _cb(result):
+            request.write(redirectTo('/wallets', request))
+            request.finish()
+
+        d = self.administrator.bitgo_oauth_token(code, self.avatarId)
+        d.addCallback(_cb)
+        return NOT_DONE_YET
+
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
             cancel = True
@@ -1450,7 +1489,8 @@ class AdminWebUI(Resource):
                 online = False
 
         if 'multisig' in request.args:
-            multisig = {'otp': request.args['otp'][0]}
+            multisig = {'otp': request.args['otp'][0],
+                        'token': self.administrator.get_bitgo_token(self.avatarId)}
         else:
             multisig = {}
 
@@ -1486,6 +1526,7 @@ class AdminWebUI(Resource):
         onlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="onlinecash")}
         offlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="offlinecash")}
         multisigcash = {position.contract.ticker: position for position in self.administrator.get_positions(username="multisigcash")}
+        bitgo_auth = self.administrator.get_bitgo_token(self.avatarId) is not None
 
         @inlineCallbacks
         def get_addresses():
@@ -1497,7 +1538,7 @@ class AdminWebUI(Resource):
         def _cb(offlinecash_addresses):
             t = self.jinja_env.get_template('wallets.html')
             request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
-                            offlinecash_addresses=offlinecash_addresses,
+                            offlinecash_addresses=offlinecash_addresses, bitgo_auth=bitgo_auth,
                             multisigcash=multisigcash).encode('utf-8'))
             request.finish()
 
@@ -1521,7 +1562,8 @@ class AdminWebUI(Resource):
         ticker = request.args['contract'][0]
         destination = request.args['destination'][0]
         quantity_ui = float(request.args['quantity'][0])
-        multisig = {'otp': request.args['otp'][0]}
+        multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
+                    'otp': request.args['otp'][0]}
         d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
         def _cb():
             request.write(redirectTo("/wallets", request))
@@ -2015,6 +2057,10 @@ class AdminWebExport(ComponentExport):
     def get_postings(self, user, contract, page):
         return self.administrator.get_postings(user, contract, page)
 
+    @session_aware
+    def get_bitgo_token(self, admin_user):
+        return self.administrator.get_bitgo_token(admin_user)
+
 
 
 class PasswordChecker(object):
@@ -2224,12 +2270,16 @@ if __name__ == "__main__":
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
+    bitgo_config = dict(config.items("bitgo"))
+
+    bitgo = BitGo(bitgo_config)
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
-                                  bs_cache_update_period=bs_cache_update)
+                                  bs_cache_update_period=bs_cache_update,
+                                  bitgo=bitgo)
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)

@@ -19,7 +19,12 @@
         </div>
     </div>
     </form>
-    <table id="contracts" class="table table-striped table-hover">
+    {% if bitgo_auth %}
+        AUTHENTICATED WITH BITGO
+    {% else %}
+    <a href="/bitgo_oauth_get">Authenticate with BitGo</a>
+    {% endif %}
+    <table id="wallets" class="table table-striped table-hover">
         <thead>
             <tr>
                 <th>Ticker</th>
@@ -54,9 +59,11 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if contract.multisig_wallet_address %}
                     {% if contract.ticker in multisigcash %}
                     {{multisigcash[contract.ticker].quantity_fmt}}
+                    {% endif %}
+                    {% if bitgo_auth %}
+                    {% if contract.multisig_wallet_address %}
                     <br/>
                     Transfer
                     <form action="/transfer_from_multisig_wallet" method="POST">
@@ -69,13 +76,13 @@
                         <input type="text" name="quantity" placeholder="Quantity" size="16">
                     </form>
                     <br/>
-                    {% endif %}
                     {% else %}
                     <form method="POST" action="/initialize_multisig">
                         <input type="file" name="public_key">
                         <input type="hidden" name="contract" value="{{contract.ticker}}">
                         <input type="submit" value="Initialize">
                     </form>
+                    {% endif %}
                     {% endif %}
                 </td>
                 <td>

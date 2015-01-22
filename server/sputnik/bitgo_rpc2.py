@@ -6,14 +6,13 @@ import urlparse
 
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
+import util
 
 from Crypto.Random import random
 from pycoin.key.BIP32Node import BIP32Node
 from pycoin.tx.Spendable import Spendable
 from pycoin.tx import tx_utils
-
-ENDPOINTS = {"test":"https://test.bitgo.com/api/v1/",
-             "production": "https://www.bitgo.com/api/v1/"}
+from datetime import datetime
 
 class BitGoException(Exception):
     pass
@@ -54,19 +53,19 @@ class Keychains(object):
         data = {"xpub":xpub}
         if encrypted_xprv:
             data["encryptedXprv"] = encrypted_xprv
-        return self._call("POST", "keychain", data)
+        return self._call("POST", "api/v1/keychain", data)
 
     def createBitGo(self):
-        return self._call("POST", "keychain/bitgo")
+        return self._call("POST", "api/v1/keychain/bitgo")
 
     def get(self, xpub):
-        return self._call("POST", "keychain/%s" % xpub)
+        return self._call("POST", "api/v1/keychain/%s" % xpub)
 
     def update(self, xpub, encrypted_xprv=None):
         data = None
         if encrypted_xprv:
             data = {"encryptedXprv":encrypted_xprv}
-        return self._call("PUT", "keychain/%s" % xpub, data)
+        return self._call("PUT", "api/v1/keychain/%s" % xpub, data)
 
 class Wallet(object):
     def __init__(self, proxy, data):
@@ -81,7 +80,7 @@ class Wallet(object):
         return self.proxy._call(method, url, data)
 
     def createAddress(self, chain):
-        return self._call("POST", "wallet/%s/address/%s" % (self.id, chain))
+        return self._call("POST", "api/v1/wallet/%s/address/%s" % (self.id, chain))
 
     def sendCoins(self, address, amount, passphrase, confirms=None):
         raise NotImplemented
@@ -90,13 +89,13 @@ class Wallet(object):
         raise NotImplemented
 
     def addresses(self):
-        return self._call("GET", "wallet/%s/addresses" % self.id)
+        return self._call("GET", "api/v1/wallet/%s/addresses" % self.id)
 
     def transactions(self):
-        return self._call("GET", "wallet/%s/tx" % self.id)
+        return self._call("GET", "api/v1/wallet/%s/tx" % self.id)
 
     def unspents(self):
-        return self._call("GET", "wallet/%s/unspents" % self.id)
+        return self._call("GET", "api/v1/wallet/%s/unspents" % self.id)
 
     @inlineCallbacks
     def createTransaction(self, address, amount, keychain, fee="standard",
@@ -116,18 +115,18 @@ class Wallet(object):
         returnValue(tx)
 
     def sendTransaction(self, tx):
-        return self._call("POST", "tx/send", {"tx":tx})
+        return self._call("POST", "api/v1/tx/send", {"tx":tx})
 
     def setPolicy(self, policy):
-        return self._call("POST", "wallet/%s/policy" % self.id,
+        return self._call("POST", "api/v1/wallet/%s/policy" % self.id,
                           {"policy":policy})
 
     def addUser(self, email, permissions):
-        return self._call("POST", "wallet/%s/policy/grant" % self.id,
+        return self._call("POST", "api/v1/wallet/%s/policy/grant" % self.id,
                           {"email":email, "permissions":permissions})
 
     def removeUser(self, email):
-        return self._call("POST", "wallet/%s/policy/revoke" % self.id,
+        return self._call("POST", "api/v1/wallet/%s/policy/revoke" % self.id,
                           {"email":email})
 
 class Wallets(object):
@@ -145,16 +144,16 @@ class Wallets(object):
             wallets = result["wallets"]
             return {"wallets":{k: self._decode(v) for k, v in wallets.items()}}
 
-        return self._call("GET", "wallet").addCallback(decode)
+        return self._call("GET", "api/v1/wallet").addCallback(decode)
 
     def add(self, label, m, n, keychains, enterprise=None):
         data = {"label":label, "m":m, "n":n, "keychains":keychains}
         if enterprise:
             data["enterprise"] = enterprise
-        return self._call("POST", "wallet", data).addCallback(self._decode)
+        return self._call("POST", "api/v1/wallet", data).addCallback(self._decode)
 
     def get(self, id):
-        return self._call("POST", "wallet/%s" % id).addCallback(self._decode)
+        return self._call("POST", "api/v1/wallet/%s" % id).addCallback(self._decode)
 
     @inlineCallbacks
     def createWalletWithKeychains(self, passphrase, label, backup_xpub=None):
@@ -180,15 +179,15 @@ class Wallets(object):
         returnValue(result)
 
 class BitGo(object):
-    def __init__(self, use_production=False, debug=False):
-        self.use_production = use_production
+    def __init__(self, bitgo_config, debug=False):
+        self.use_production = bitgo_config['production'] == "true"
+        self.endpoint = bitgo_config['endpoint']
+        self.client_id = bitgo_config['client_id']
+        self.client_secret = bitgo_config['client_secret']
         self.debug = debug
 
-        self.endpoint = ENDPOINTS["test"]
-        if self.use_production:
-            self.endpoint = ENDPOINTS["production"]
-
         self.token = None
+        self.token_expiration = None
 
         self.keychains = Keychains(self)
         self.wallets = Wallets(self)
@@ -254,33 +253,52 @@ class BitGo(object):
             self.token = data["access_token"].encode("utf-8")
             return data
 
-        return self._call("POST", "user/login", data).addCallback(save_token)
+        return self._call("POST", "api/v1/user/login", data).addCallback(save_token)
 
     def logout(self):
-        return self._call("GET", "user/logout")
+        return self._call("GET", "api/v1/user/logout")
 
     def session(self):
-        return self._call("GET", "user/session")
+        return self._call("GET", "api/v1/user/session")
 
     def sendOTP(self, force_sms=False):
-        return self._call("GET", "user/sendotp", {"forceSMS":force_sms})
+        return self._call("GET", "api/v1/user/sendotp", {"forceSMS":force_sms})
 
     def unlock(self, otp, duration=600):
-        return self._call("POST", "user/unlock",
+        return self._call("POST", "api/v1/user/unlock",
                           {"otp":otp, "duration":duration})
 
     def lock(self):
-        return self._call("POST", "user/lock")
+        return self._call("POST", "api/v1/user/lock")
 
     def me(self):
-        return self._call("GET", "user/me")
+        return self._call("GET", "api/v1/user/me")
 
     def get_address(self, address):
-        return self._call("GET", "address/%s" % address)
+        return self._call("GET", "api/v1/address/%s" % address)
     
     def get_address_transactions(self, address):
-        return self._call("GET", "address/%s/tx" % address)
+        return self._call("GET", "api/v1/address/%s/tx" % address)
 
     def get_transaction(self, tx):
         return self._call("GET", "tx/%s" % tx)
+
+    @inlineCallbacks
+    def oauth_token(self, code):
+        token_result = yield self._call("POST", "oauth/token",
+            {'code': code,
+             'client_id': self.client_id,
+             'client_secret': self.client_secret,
+             'grant_type': 'authorization_code'})
+        self.token = token_result['access_token']
+        self.token_expiration = datetime.fromtimestamp(token_result['expires_at'])
+        returnValue({'token': self.token,
+                     'expiration': util.timestamp_from_dt(self.token_expiration)})
+
+if __name__ == "__main__":
+    bitgo_config = {'production': False,
+                    'endpoint': "https://test.bitgo.com",
+                    'client_id': 'XXX',
+                    'client_secret': 'YYY'}
+    bitgo = BitGo(bitgo_config, debug=True)
 

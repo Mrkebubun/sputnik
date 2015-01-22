@@ -11,6 +11,12 @@ compropago_key = ${compropago_key}
 cold_wallet_period = 3600
 minimum_confirmations = ${minimum_confirmations}
 
+[bitgo]
+production = false
+client_id = XXX
+client_secret = XXX
+endpoint = https://test.bitgo.com
+
 [engine]
 accountant_base_port = 4200
 administrator_base_port = 4250
