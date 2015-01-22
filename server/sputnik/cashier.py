@@ -343,7 +343,7 @@ class Cashier():
                 # Find the sputnik wallet
                 found = False
                 wallet = None
-                for id, wallet in wallets:
+                for id, wallet in wallets.iteritems():
                     if wallet.label == "sputnik":
                         found = True
                         break
