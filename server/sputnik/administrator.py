@@ -86,6 +86,7 @@ NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_user
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
+BITGO_TOKEN_INVALID = AdministratorException("exceptions/administrator/bitgo_token_invalid")
 
 from util import session_aware
 
@@ -1179,6 +1180,8 @@ class Administrator:
     def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig={}):
         return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
+    def initialize_multisig(self, public_key, multisig={}):
+        raise NotImplementedError
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -1419,6 +1422,7 @@ class AdminWebUI(Resource):
                       '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
                       '/bitgo_oauth_get': self.bitgo_oauth_get,
                       '/bitgo_oauth_redirect': self.bitgo_oauth_redirect,
+                      '/initialize_multisig': self.initialize_multisig,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1477,6 +1481,17 @@ class AdminWebUI(Resource):
         d.addCallback(_cb)
         return NOT_DONE_YET
 
+    def initialize_multisig(self, request):
+        name, mime, stream = request.files['public_key'][0]
+        public_key = stream.read()
+        token = self.administrator.get_bitgo_token(self.avatarId)
+        if token is None:
+            raise BITGO_TOKEN_INVALID
+
+        d = self.administrator.initialize_multisig(public_key, {'token': token,
+                                                                'otp': request.args['otp'][0]})
+
+
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
             cancel = True
@@ -1489,6 +1504,9 @@ class AdminWebUI(Resource):
                 online = False
 
         if 'multisig' in request.args:
+            if self.administrator.get_bitgo_token(self.avatarId) is None:
+                raise BITGO_TOKEN_INVALID
+
             multisig = {'otp': request.args['otp'][0],
                         'token': self.administrator.get_bitgo_token(self.avatarId)}
         else:
@@ -1562,6 +1580,9 @@ class AdminWebUI(Resource):
         ticker = request.args['contract'][0]
         destination = request.args['destination'][0]
         quantity_ui = float(request.args['quantity'][0])
+        if self.administrator.get_bitgo_token(self.avatarId) is None:
+            raise BITGO_TOKEN_INVALID
+
         multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
                     'otp': request.args['otp'][0]}
         d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
@@ -2061,7 +2082,9 @@ class AdminWebExport(ComponentExport):
     def get_bitgo_token(self, admin_user):
         return self.administrator.get_bitgo_token(admin_user)
 
-
+    @session_aware
+    def initialize_multisig(self, public_key, multisig={}):
+        return self.administrator.initialize_multisig(public_key, multisig)
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db

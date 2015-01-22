@@ -187,7 +187,6 @@ class BitGo(object):
         self.debug = debug
 
         self.token = None
-        self.token_expiration = None
 
         self.keychains = Keychains(self)
         self.wallets = Wallets(self)
@@ -240,7 +239,7 @@ class BitGo(object):
             raise BitGoException(content)
 
     def ping(self):
-        return self._call("GET", "ping")
+        return self._call("GET", "api/v1/ping")
 
     def authenticate(self, email, password, otp=None):
         password = hmac.HMAC(email, password, hashlib.sha256).hexdigest()
@@ -281,7 +280,7 @@ class BitGo(object):
         return self._call("GET", "api/v1/address/%s/tx" % address)
 
     def get_transaction(self, tx):
-        return self._call("GET", "tx/%s" % tx)
+        return self._call("GET", "api/v1/tx/%s" % tx)
 
     @inlineCallbacks
     def oauth_token(self, code):
@@ -290,7 +289,7 @@ class BitGo(object):
              'client_id': self.client_id,
              'client_secret': self.client_secret,
              'grant_type': 'authorization_code'})
-        self.token = token_result['access_token']
+        self.token = token_result['access_token'].encode('utf-8')
         self.token_expiration = datetime.fromtimestamp(token_result['expires_at'])
         returnValue({'token': self.token,
                      'expiration': util.timestamp_from_dt(self.token_expiration)})

@@ -62,7 +62,7 @@
                     {% if contract.ticker in multisigcash %}
                     {{multisigcash[contract.ticker].quantity_fmt}}
                     {% endif %}
-                    {% if bitgo_auth %}
+                    {% if bitgo_auth or debug %}
                     {% if contract.multisig_wallet_address %}
                     <br/>
                     Transfer
@@ -80,6 +80,7 @@
                     <form method="POST" action="/initialize_multisig">
                         <input type="file" name="public_key">
                         <input type="hidden" name="contract" value="{{contract.ticker}}">
+                        <input type="text" name="otp" placeholder="OTP">
                         <input type="submit" value="Initialize">
                     </form>
                     {% endif %}
