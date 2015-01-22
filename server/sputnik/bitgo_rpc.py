@@ -190,7 +190,7 @@ class Wallets(object):
         return self._call("POST", "api/v1/wallet", data).addCallback(self._decode)
 
     def get(self, id):
-        return self._call("POST", "api/v1/wallet/%s" % id).addCallback(self._decode)
+        return self._call("GET", "api/v1/wallet/%s" % id).addCallback(self._decode)
 
     @inlineCallbacks
     def createWalletWithKeychains(self, passphrase, label, backup_xpub=None, token=None):
@@ -364,8 +364,8 @@ if __name__ == "__main__":
         pprint(auth)
         label = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
-        wallet = yield bitgo.wallets.createWalletWithKeychains('none', label=label)
-        pprint(wallet)
+        #wallet = yield bitgo.wallets.createWalletWithKeychains('none', label=label)
+        #pprint(wallet)
 
         wallet_list = yield bitgo.wallets.list()
         pprint(wallet_list)
@@ -373,12 +373,15 @@ if __name__ == "__main__":
             full_wallet = yield bitgo.wallets.get(wallet.id)
             pprint(full_wallet)
 
+            keychain = bitgo.keychains.create()
+            result = yield full_wallet.createTransaction("msj42CCGruhRsFrGATiUuh25dtxYtnpbTx", 1000000, keychain)
+
             # Get an address
-            address = yield wallet.createAddress(0)
+            address = yield full_wallet.createAddress(0)
             pprint(address)
 
             # Send coins to myself
-            tx = yield wallet.sendCoins(address, 10000, 'none', otp=otp)
+            tx = yield wallet.sendCoins(address['address'], 10000, 'none', otp=otp)
             pprint(tx)
 
     main().addErrback(log.err)
