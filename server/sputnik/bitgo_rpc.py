@@ -29,14 +29,16 @@ class BitGo(object):
             raise AttributeError
 
         def remote_method(*args, **kwargs):
-            url = self.endpoint + key + "/" + "/".join(args)
+            url = self.endpoint + key
+            if len(args) > 0:
+                url += "/" + "/".join(args)
 
             headers = {"Content-Type": "application/json"}
             if self.token:
                 headers["Authorization"] = "Bearer %s" % self.token
 
             if len(kwargs) == 0:
-                d = self.agent.get(url, headers=headers)
+                d = self.agent.get(url)#, headers=headers)
             else:
                 d = self.agent.post(url, headers=headers,
                                     data=json.dumps(kwargs))
@@ -60,6 +62,6 @@ class BitGo(object):
 
         return d
 
-#b = BitGo(test=True, async=False, debug=True)
+b = BitGo(test=True, async=False, debug=True)
 #b.login("janedoe@bitgo.com", "mypassword", otp="0000000")
 
