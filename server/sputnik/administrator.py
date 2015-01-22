@@ -1399,7 +1399,7 @@ class AdminWebUI(Resource):
                       '/adjust_position': self.adjust_position,
                       '/wallets': self.wallets,
                       '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
-                      '/transfer_from_cold_wallet': self.transfer_from_cold_wallet,
+                      '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1517,7 +1517,7 @@ class AdminWebUI(Resource):
         d.addCallback(_cb)
         return NOT_DONE_YET
 
-    def transfer_to_cold_wallet(self, request):
+    def transfer_from_multisig_wallet(self, request):
         ticker = request.args['contract'][0]
         destination = request.args['destination'][0]
         quantity_ui = float(request.args['quantity'][0])
@@ -1595,7 +1595,7 @@ class AdminWebUI(Resource):
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
-        return t.render(contracts=contracts).encode('utf-8')
+        return t.render(contracts=contracts, debug=self.administrator.component.debug).encode('utf-8')
 
     def edit_contract(self, request):
         ticker = request.args['ticker'][0]

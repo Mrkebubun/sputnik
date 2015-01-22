@@ -54,7 +54,8 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if contract.multisig_wallet_address and contract.ticker in multisigcash %}
+                    {% if contract.multisig_wallet_address %}
+                    {% if contract.ticker in multisigcash %}
                     {{multisigcash[contract.ticker].quantity_fmt}}
                     <br/>
                     Transfer
@@ -68,6 +69,13 @@
                         <input type="text" name="quantity" placeholder="Quantity" size="16">
                     </form>
                     <br/>
+                    {% endif %}
+                    {% else %}
+                    <form method="POST" action="/initialize_multisig">
+                        <input type="file" name="public_key">
+                        <input type="hidden" name="contract" value="{{contract.ticker}}">
+                        <input type="submit" value="Initialize">
+                    </form>
                     {% endif %}
                 </td>
                 <td>
