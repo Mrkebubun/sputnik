@@ -826,14 +826,14 @@ class Administrator:
 
     @inlineCallbacks
     def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination="offlinecash", multisig={}):
-        contract = util.get_contract(self.session.ticker)
+        contract = util.get_contract(self.session, ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
         result = yield self.cashier.transfer_from_multisig_wallet(ticker, quantity, multisig=multisig, destination=destination)
         returnValue(result)
 
     @inlineCallbacks
     def transfer_from_hot_wallet(self, ticker, quantity_ui, destination="offlinecash"):
-        contract = util.get_contract(self.session.ticker)
+        contract = util.get_contract(self.session, ticker)
         quantity = util.quantity_to_wire(contract, quantity_ui)
         result = yield self.cashier.transfer_from_hot_wallet(ticker, quantity, destination=destination)
         returnValue(result)
@@ -1368,7 +1368,8 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
-        if request.path != '/':
+        # Which paths don't require a referer check
+        if request.path != '/' and request.path != '/bitgo_oauth_redirect':
             if not self.check_referer(request):
                 return redirectTo('/', request)
 
@@ -1557,6 +1558,7 @@ class AdminWebUI(Resource):
             t = self.jinja_env.get_template('wallets.html')
             request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
                             offlinecash_addresses=offlinecash_addresses, bitgo_auth=bitgo_auth,
+                            debug=self.administrator.component.debug,
                             multisigcash=multisigcash).encode('utf-8'))
             request.finish()
 

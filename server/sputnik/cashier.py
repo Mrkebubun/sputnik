@@ -668,7 +668,7 @@ class AdministratorExport(ComponentExport):
 
     @export
     @session_aware
-    @schema("rpc/cashier.json#transfer_from_multisig_wallet")
+    @schema("rpc/cashier.json#transfer_from_hot_wallet")
     def transfer_from_hot_wallet(self, ticker, quantity, destination):
         return self.cashier.transfer_from_hot_wallet(ticker, quantity, destination)
 
