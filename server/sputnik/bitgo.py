@@ -16,8 +16,8 @@ class BitgoPlugin(Plugin):
     def create_wallet(self, backup_key):
         # check for existing wallet
         result = yield self.bitgo.wallet()
-        for wallet in result:
-            if result[wallet]["label"] == "sputnik":
+        for wallet in result["wallets"]:
+            if result["wallets"][wallet]["label"] == "sputnik":
                 raise MultiSigException("Wallet already exists.")
 
         # create a new key
