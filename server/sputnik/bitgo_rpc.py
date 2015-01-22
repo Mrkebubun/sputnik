@@ -201,10 +201,10 @@ class Wallets(object):
             backup_keychain = self.proxy.keychains.create()
         yield self.proxy.keychains.add(user_keychain["xpub"], encrypted_xprv)
         # Save the encrypted xpriv to the local storage
-        if os.path.exists(self.private_key_file):
+        if os.path.exists(self.proxy.private_key_file):
             raise KEY_FILE_EXISTS
         else:
-            with open(self.private_key_file, "wb") as f:
+            with open(self.proxy.private_key_file, "wb") as f:
                 f.write(encrypted_xprv)
 
         yield self.proxy.keychains.add(backup_keychain["xpub"])
@@ -359,7 +359,7 @@ if __name__ == "__main__":
 
     @inlineCallbacks
     def main():
-        otp = '329482'
+        otp = '0000000'
         auth = yield bitgo.authenticate('sameer@m2.io', 'i6M:wpF4', otp=otp)
         pprint(auth)
         label = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
@@ -369,7 +369,7 @@ if __name__ == "__main__":
 
         wallet_list = yield bitgo.wallets.list()
         pprint(wallet_list)
-        for id, wallet in wallet_list.iteritems():
+        for id, wallet in wallet_list['wallets'].iteritems():
             full_wallet = yield bitgo.wallets.get(wallet.id)
             pprint(full_wallet)
 
