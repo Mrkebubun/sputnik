@@ -62,7 +62,7 @@
                     {% if contract.ticker in multisigcash %}
                     {{multisigcash[contract.ticker].quantity_fmt}}
                     {% endif %}
-                    {% if bitgo_auth or debug %}
+                    {% if bitgo_auth %}
                     {% if contract.multisig_wallet_address %}
                     <br/>
                     Transfer

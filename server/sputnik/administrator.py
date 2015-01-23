@@ -1212,7 +1212,7 @@ class Administrator:
             log.err("Unable to save new deposit address for multisig")
             log.err(e)
 
-        returnValue(result)
+        returnValue(address)
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -1500,12 +1500,14 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template("error.html")
         return t.render(error=error).encode('utf-8')
 
-    def bitgo_oauth_get(self, request):
+    def bitgo_oauth_get(self, request, wallet_id=None):
         params = { 'client_id': self.administrator.component.bitgo.client_id,
-                   'redirect_uri': self.base_uri + '/bitgo_oauth_redirect',
-                   # TODO: Change the spend and view scope to be only the wallet id associated with sputnik
-                   'scope': 'openid wallet_spend_enterprise wallet_view_enterprise wallet_create'
-        }
+                   'redirect_uri': self.base_uri + '/bitgo_oauth_redirect'}
+        if wallet_id is None:
+            params['scope'] = "wallet_create"
+        else:
+            params['scope'] = "wallet_spend:%s wallet_view:%s" % (wallet_id, wallet_id)
+
         bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
         params_encoded = urllib.urlencode(params)
         return redirectTo(bitgo_uri + '?' + params_encoded, request)
@@ -1534,7 +1536,8 @@ class AdminWebUI(Resource):
                                                                         'otp': request.args['otp'][0],
                                                                         'passphrase': request.args['passphrase'][0]})
         def _cb(result):
-            request.write(redirectTo('/wallets', request))
+            # Reauth to get view and spend permissions on the wallet we just created
+            request.write(self.bitgo_oauth_get(request, wallet_id=result))
             request.finish()
 
         d.addCallback(_cb).addErrback(self.error_callback, request)

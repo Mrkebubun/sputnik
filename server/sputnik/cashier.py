@@ -349,13 +349,13 @@ class Cashier():
                 raise e
 
             balance = wallet.balance
-            if balance > amount:
+            if balance < amount:
                 raise INSUFFICIENT_FUNDS
 
             if not os.path.exists(self.bitgo_private_key_file):
                 raise NO_KEY_FILE
             else:
-                with open(self.proxy.private_key_file, "rb") as f:
+                with open(self.bitgo_private_key_file, "rb") as f:
                     encrypted_xpriv = f.read()
 
             try:
