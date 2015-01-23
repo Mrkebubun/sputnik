@@ -15,6 +15,11 @@ from Crypto.Random import random
 from pycoin.key.BIP32Node import BIP32Node
 from pycoin.tx.Spendable import Spendable
 from pycoin.tx import tx_utils
+from pycoin.tx.pay_to import build_hash160_lookup, build_p2sh_lookup
+from pycoin.serialize import h2b_rev
+
+import binascii
+
 from datetime import datetime
 
 
@@ -130,25 +135,25 @@ class Wallet(object):
                           confirms=0):
         result = yield self.unspents()
         spendables = []
+        p2sh = []
         for unspent in result["unspents"]:
             if unspent["confirmations"] < confirms:
                 continue
-            spendable = Spendable(unspent["value"], unspent["redeemScript"],
-                                  unspent["tx_hash"], unspent["tx_output_n"])
+            p2sh.append(unspent["redeemScript"])
+            spendable = Spendable(unspent["value"],
+                                  binascii.unhexlify(unspent["redeemScript"]),
+                                  h2b_rev(unspent["tx_hash"]),
+                                  unspent["tx_output_n"])
             spendables.append(spendable)
         available = sum([spendable.coin_value for spendable in spendables])
         result = yield self.createAddress(1)
         change = result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
 
-        # Is this how to get the WIFs?
-        private_key = BIP32Node.from_text(keychain['xprv'])
-        public_key = BIP32Node.from_text(keychain['xpub'])
-        wifs = [private_key.wif(), public_key.wif()]
-
-        tx_signed = tx_utils.sign_tx(tx, wifs)
-        returnValue({'tx': tx_signed.as_hex(),
-                     'fee': tx_signed.fee()})
+        key = BIP32Node.from_hwif(keychain["xprv"])
+        tx_utils.sign_tx(tx, [key.wif()])
+        returnValue({'tx': tx.as_hex(),
+                     'fee': tx.fee()})
 
     def sendTransaction(self, tx, otp):
         return self._call("POST", "api/v1/tx/send", {"tx": tx, "otp": otp})
@@ -360,30 +365,14 @@ if __name__ == "__main__":
     @inlineCallbacks
     def main():
         otp = '0000000'
-        auth = yield bitgo.authenticate('sameer@m2.io', 'i6M:wpF4', otp=otp)
-        pprint(auth)
-        label = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-
-        #wallet = yield bitgo.wallets.createWalletWithKeychains('none', label=label)
-        #pprint(wallet)
-
-        wallet_list = yield bitgo.wallets.list()
-        pprint(wallet_list)
-        for id, wallet in wallet_list['wallets'].iteritems():
-            full_wallet = yield bitgo.wallets.get(wallet.id)
-            pprint(full_wallet)
-
-            keychain = bitgo.keychains.create()
-            result = yield full_wallet.createTransaction("msj42CCGruhRsFrGATiUuh25dtxYtnpbTx", 1000000, keychain)
-
-            # Get an address
-            address = yield full_wallet.createAddress(0)
-            pprint(address)
-
-            # Send coins to myself
-            tx = yield wallet.sendCoins(address['address'], 10000, 'none', otp=otp)
-            pprint(tx)
+        auth = yield bitgo.authenticate('yury@m2.io', '9R73IxQpYX%%(', otp=otp)
+        result = yield bitgo.wallets.list()
+        wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
+        keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
+        result = yield wallet.createTransaction("msj42CCGruhRsFrGATiUuh25dtxYtnpbTx", 1, keychain, 100000)
+        pprint(result)
 
     main().addErrback(log.err)
 
     reactor.run()
+
