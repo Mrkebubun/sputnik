@@ -16,7 +16,81 @@ from pycoin.key.BIP32Node import BIP32Node
 from pycoin.tx.Spendable import Spendable
 from pycoin.tx import tx_utils
 from pycoin.tx.pay_to import build_hash160_lookup, build_p2sh_lookup
-from pycoin.serialize import h2b_rev
+from pycoin.serialize import h2b, h2b_rev, b2h, h2b_rev
+
+# pycoin does not produce scripts like we want it to
+# to be honest, there is no standard for partially signed transactions
+from pycoin.tx.pay_to.ScriptMultisig import ScriptMultisig
+from pycoin.tx.pay_to import SolvingError
+from pycoin.tx.script import tools
+from pycoin.tx.script.vm import parse_signature_blob
+from pycoin import ecdsa
+from pycoin import encoding
+
+def solve(self, **kwargs):
+    """
+    The kwargs required depend upon the script type.
+    hash160_lookup:
+        dict-like structure that returns a secret exponent for a hash160
+    existing_script:
+        existing solution to improve upon (optional)
+    sign_value:
+        the integer value to sign (derived from the transaction hash)
+    signature_type:
+        usually SIGHASH_ALL (1)
+    """
+    # we need a hash160 => secret_exponent lookup
+    db = kwargs.get("hash160_lookup")
+    if db is None:
+        raise SolvingError("missing hash160_lookup parameter")
+
+    sign_value = kwargs.get("sign_value")
+    signature_type = kwargs.get("signature_type")
+
+    secs_solved = set()
+    existing_signatures = []
+    existing_script = kwargs.get("existing_script")
+    if existing_script:
+        pc = 0
+        opcode, data, pc = tools.get_opcode(existing_script, pc)
+        # ignore the first opcode
+        while pc < len(existing_script):
+            opcode, data, pc = tools.get_opcode(existing_script, pc)
+            sig_pair, actual_signature_type = parse_signature_blob(data)
+            for sec_key in self.sec_keys:
+                try:
+                    public_pair = encoding.sec_to_public_pair(sec_key)
+                    sig_pair, signature_type = parse_signature_blob(data)
+                    v = ecdsa.verify(ecdsa.generator_secp256k1, public_pair, sign_value, sig_pair)
+                    if v:
+                        existing_signatures.append(data)
+                        secs_solved.add(sec_key)
+                        break
+                except encoding.EncodingError:
+                    # if public_pair is invalid, we just ignore it
+                    pass
+
+    for sec_key in self.sec_keys:
+        if sec_key in secs_solved:
+            continue
+        if len(existing_signatures) >= self.n:
+            break
+        hash160 = encoding.hash160(sec_key)
+        result = db.get(hash160)
+        if result is None:
+            continue
+        secret_exponent, public_pair, compressed = result
+        binary_signature = self._create_script_signature(secret_exponent, sign_value, signature_type)
+        existing_signatures.append(b2h(binary_signature))
+    DUMMY_SIGNATURE = "OP_0"
+    while len(existing_signatures) < self.n:
+        existing_signatures.append(DUMMY_SIGNATURE)
+
+    script = "OP_0 %s" % " ".join(s for s in existing_signatures)
+    solution = tools.compile(script)
+    return solution
+
+ScriptMultisig.solve = solve
 
 import binascii
 
@@ -139,24 +213,26 @@ class Wallet(object):
         for unspent in result["unspents"]:
             if unspent["confirmations"] < confirms:
                 continue
-            p2sh.append(unspent["redeemScript"])
+            p2sh.append(h2b(unspent["redeemScript"]))
             spendable = Spendable(unspent["value"],
-                                  binascii.unhexlify(unspent["redeemScript"]),
+                                  h2b(unspent["script"]),
                                   h2b_rev(unspent["tx_hash"]),
                                   unspent["tx_output_n"])
             spendables.append(spendable)
-        available = sum([spendable.coin_value for spendable in spendables])
+        p2sh_lookup = build_p2sh_lookup(p2sh)
         result = yield self.createAddress(1)
         change = result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
 
-        key = BIP32Node.from_hwif(keychain["xprv"])
-        tx_utils.sign_tx(tx, [key.wif()])
+        key = BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path("0/0/0/0")
+        hash160_lookup = build_hash160_lookup([key.secret_exponent()])
+
+        tx.sign(hash160_lookup=hash160_lookup, p2sh_lookup=p2sh_lookup)
         returnValue({'tx': tx.as_hex(),
                      'fee': tx.fee()})
 
-    def sendTransaction(self, tx, otp):
-        return self._call("POST", "api/v1/tx/send", {"tx": tx, "otp": otp})
+    def sendTransaction(self, tx):
+        return self._call("POST", "api/v1/tx/send", {"tx": tx})
 
     def setPolicy(self, policy):
         return self._call("POST", "api/v1/wallet/%s/policy" % self.id,
@@ -366,10 +442,12 @@ if __name__ == "__main__":
     def main():
         otp = '0000000'
         auth = yield bitgo.authenticate('yury@m2.io', '9R73IxQpYX%%(', otp=otp)
+        yield bitgo.unlock("0000000")
         result = yield bitgo.wallets.list()
         wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
         keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
-        result = yield wallet.createTransaction("msj42CCGruhRsFrGATiUuh25dtxYtnpbTx", 1, keychain, 100000)
+        result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
+        result = yield wallet.sendTransaction(result["tx"])
         pprint(result)
 
     main().addErrback(log.err)
