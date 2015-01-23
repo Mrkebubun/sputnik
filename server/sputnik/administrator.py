@@ -140,6 +140,10 @@ class Administrator:
         else:
             self.update_bs_cache()
 
+    def bitgo_oauth_clear(self, admin_user):
+        if admin_user in self.bitgo_tokens:
+            del self.bitgo_tokens[admin_user]
+
     @inlineCallbacks
     def bitgo_oauth_token(self, code, admin_user):
         token_result = yield self.bitgo.oauth_token(code)
@@ -1460,6 +1464,7 @@ class AdminWebUI(Resource):
                       '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
                       '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
                       '/bitgo_oauth_get': self.bitgo_oauth_get,
+                      '/bitgo_oauth_clear': self.bitgo_oauth_clear,
                       '/bitgo_oauth_redirect': self.bitgo_oauth_redirect,
                       '/initialize_multisig': self.initialize_multisig,
                       '/clear_contract': self.clear_contract}]
@@ -1503,6 +1508,9 @@ class AdminWebUI(Resource):
     def bitgo_oauth_get(self, request, wallet_id=None):
         params = { 'client_id': self.administrator.component.bitgo.client_id,
                    'redirect_uri': self.base_uri + '/bitgo_oauth_redirect'}
+        if 'wallet_id' in request.args:
+            wallet_id = request.args['wallet_id'][0]
+
         if wallet_id is None:
             params['scope'] = "wallet_create"
         else:
@@ -1511,6 +1519,10 @@ class AdminWebUI(Resource):
         bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
         params_encoded = urllib.urlencode(params)
         return redirectTo(bitgo_uri + '?' + params_encoded, request)
+
+    def bitgo_oauth_clear(self, request):
+        self.administrator.bitgo_oauth_clear(self.avatarId)
+        return redirectTo('/wallets', request)
 
     def bitgo_oauth_redirect(self, request):
         code = request.args['code'][0]
@@ -1979,6 +1991,10 @@ class AdminWebExport(ComponentExport):
     @session_aware
     def bitgo_oauth_token(self, code, admin_user):
         return self.administrator.bitgo_oauth_token(code, admin_user)
+
+    @session_aware
+    def bitgo_oauth_clear(self, dmin_user):
+        return self.administrator.bitgo_oauth_clear(admin_user)
 
     @session_aware
     def get_withdrawals(self):

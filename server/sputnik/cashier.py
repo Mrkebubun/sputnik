@@ -289,7 +289,7 @@ class Cashier():
     def transfer_from_multisig_wallet(self, ticker, quantity, destination, multisig):
         contract = util.get_contract(self.session, ticker)
         if destination == "onlinecash":
-            address = self.get_current_address("multisigcash", ticker)
+            address = yield self.get_current_address("multisigcash", ticker)
         elif destination == "offlinecash":
             address = contract.cold_wallet_address
         else:
@@ -360,7 +360,7 @@ class Cashier():
 
             try:
                 result = yield wallet.sendCoins(address=address, amount=amount, passphrase=multisig['passphrase'],
-                                                otp=multisig['otp'], encrypted_xpriv=encrypted_xpriv)
+                                                otp=multisig['otp'], encrypted_xprv=encrypted_xpriv)
                 txid = result['tx']
             except Exception as e:
                 log.err("Unable to sendCoins")

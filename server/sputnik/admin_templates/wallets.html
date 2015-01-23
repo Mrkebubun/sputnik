@@ -19,14 +19,10 @@
         </div>
     </div>
     </form>
-    {% if bitgo_auth %}
-        AUTHENTICATED WITH BITGO
-    {% else %}
-    <a href="/bitgo_oauth_get">Authenticate with BitGo</a>
-    {% endif %}
     <table id="wallets" class="table table-striped table-hover">
         <thead>
             <tr>
+                <th></th>
                 <th>Ticker</th>
                 <th>Hot Wallet</th>
                 <th>Multisig Wallet</th>
@@ -38,6 +34,17 @@
             {% for contract in contracts %}
             {% if contract.ticker == "BTC" %}
             <tr>
+                <td>
+                    {% if bitgo_auth %}
+                        AUTHENTICATED WITH BITGO <a href="/bitgo_oauth_clear">CLEAR TOKEN</a>
+                    {% else %}
+                    {% if contract.multisig_wallet_address %}
+                        <a href="/bitgo_oauth_get?wallet_id={{contract.multisig_wallet_address}}">Authenticate with BitGo</a>
+                    {% else %}
+                        <a href="/bitgo_oauth_get">Authenticate with BitGo</a>
+                    {% endif %}
+                    {% endif %}
+                </td>
                 <td>
                     {{contract.ticker}}
                 </td>

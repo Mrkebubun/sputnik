@@ -173,13 +173,14 @@ class Wallet(object):
     def createAddress(self, chain):
         return self._call("POST", "api/v1/wallet/%s/address/%s" % (self.id, chain))
 
-    def sendCoins(self, address, amount, passphrase, otp='000000', confirms=None, encrypted_xpriv=None):
-        xprv = self.proxy.decrypt(encrypted_xpriv, passphrase)
+    @inlineCallbacks
+    def sendCoins(self, address, amount, passphrase, otp='000000', confirms=None, encrypted_xprv=None):
+        xprv = self.proxy.decrypt(encrypted_xprv, passphrase)
         # The first keychain is the userkeychain, so we add the decrypted key to that one
-        self.keychains[0]['xprv'] = xprv
-        tx = yield self.createTransaction(address, amount, self.keychains[0], fee="standard")
+        self.private['keychains'][0]['xprv'] = xprv
+        tx = yield self.createTransaction(address, amount, self.private['keychains'][0], fee="standard")
         result = yield self.sendTransaction(tx=tx['tx'], otp=otp)
-        returnvalue = {'tx': result['tx'],
+        returnvalue = {'tx': result['transaction'],
                        'hash': result['transactionHash'],
                        'fee': tx['fee']}
         returnValue(returnvalue)
@@ -223,8 +224,8 @@ class Wallet(object):
         returnValue({'tx': tx.as_hex(),
                      'fee': tx.fee()})
 
-    def sendTransaction(self, tx):
-        return self._call("POST", "api/v1/tx/send", {"tx": tx})
+    def sendTransaction(self, tx, otp):
+        return self._call("POST", "api/v1/tx/send", {"tx": tx, "otp": otp})
 
     def setPolicy(self, policy):
         return self._call("POST", "api/v1/wallet/%s/policy" % self.id,
@@ -463,7 +464,7 @@ if __name__ == "__main__":
             wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
             keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
             result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
-            result = yield wallet.sendTransaction(result["tx"])
+            result = yield wallet.sendTransaction(result["tx"], otp)
             pprint(result)
 
     main().addErrback(log.err)
