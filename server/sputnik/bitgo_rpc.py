@@ -314,10 +314,10 @@ class BitGo(object):
 
     @inlineCallbacks
     def _call(self, method, url, data=None):
-        url = urlparse.urljoin(self.endpoint, url)
+        url = urlparse.urljoin(self.endpoint, url).encode('utf-8')
         headers = {"Content-Type": "application/json"}
         if self.token:
-            headers["Authorization"] = "Bearer %s" % self.token
+            headers["Authorization"] = ("Bearer %s" % self.token).encode('utf-8')
 
         if data:
             data = json.dumps(data)  # raises TypeError

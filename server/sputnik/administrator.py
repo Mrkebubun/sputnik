@@ -1503,7 +1503,7 @@ class AdminWebUI(Resource):
     def bitgo_oauth_get(self, request):
         params = { 'client_id': self.administrator.component.bitgo.client_id,
                    'redirect_uri': self.base_uri + '/bitgo_oauth_redirect',
-                   'scope': 'openid wallet_spend_enterprise wallet_create'
+                   'scope': 'openid wallet_spend_enterprise wallet_view_enterprise wallet_create'
         }
         bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
         params_encoded = urllib.urlencode(params)

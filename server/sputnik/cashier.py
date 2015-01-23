@@ -340,25 +340,9 @@ class Cashier():
                 log.err(e)
                 raise e
 
+            wallet_id = contract.multisig_wallet_address
             try:
-                wallets = yield self.bitgo.wallets.list()
-                # Find the sputnik wallet
-                found = False
-                wallet = None
-                for id, wallet in wallets['wallets'].iteritems():
-                    if wallet.label == "sputnik":
-                        found = True
-                        break
-
-                if not found:
-                    raise NO_SPUTNIK_WALLET
-            except Exception as e:
-                log.err("Unable to get wallet")
-                log.err(e)
-                raise e
-
-            try:
-                wallet = yield wallets.get(wallet.id)
+                wallet = yield self.bitgo.wallets.get(wallet_id)
             except Exception as e:
                 log.err("Unable to get wallet details")
                 log.err(e)
