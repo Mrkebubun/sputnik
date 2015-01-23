@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-import sys
+import sys, os
 from optparse import OptionParser
 import functools
 
@@ -49,6 +49,7 @@ NO_AUTOMATIC_WITHDRAWAL = CashierException("exceptions/cashier/no_automatic_with
 INSUFFICIENT_FUNDS = CashierException("exceptions/cashier/insufficient_funds")
 WITHDRAWAL_TOO_LARGE = CashierException("exceptions/cashier/withdrawal_too_large")
 NO_SPUTNIK_WALLET = CashierException("exceptions/cashier/no_sputnik_wallet")
+NO_KEY_FILE = CashierException("exceptions/bitgo/no_key_file")
 
 class Cashier():
     """
@@ -59,7 +60,7 @@ class Cashier():
 
     def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
                  sendmail=None, template_dir="admin_templates", minimum_confirmations=6, alerts=None,
-                 bitgo=None):
+                 bitgo=None, bitgo_private_key_file=None):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -74,6 +75,7 @@ class Cashier():
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
         self.alerts = alerts
         self.bitgo = bitgo
+        self.bitgo_private_key_file = bitgo_private_key_file
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
                 looping_call = LoopingCall(self.transfer_from_hot_wallet, ticker)
@@ -366,9 +368,15 @@ class Cashier():
             if balance > amount:
                 raise INSUFFICIENT_FUNDS
 
+            if not os.path.exists(self.bitgo_private_key_file):
+                raise NO_KEY_FILE
+            else:
+                with open(self.proxy.private_key_file, "rb") as f:
+                    encrypted_xpriv = f.read()
+
             try:
                 result = yield wallet.sendCoins(address=address, amount=amount, passphrase=multisig['passphrase'],
-                                                otp=multisig['otp'])
+                                                otp=multisig['otp'], encrypted_xpriv=encrypted_xpriv)
                 txid = result['tx']
             except Exception as e:
                 log.err("Unable to sendCoins")
@@ -749,13 +757,16 @@ if __name__ == '__main__':
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     bitgo_config = dict(config.items("bitgo"))
     bitgo = BitGo(bitgo_config)
+    bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago,
                       cold_wallet_period=cold_wallet_period,
                       sendmail=sendmail,
                       minimum_confirmations=minimum_confirmations,
                       alerts=alerts_proxy,
-                      bitgo=bitgo)
+                      bitgo=bitgo,
+                      bitgo_private_key_file=bitgo_private_key_file
+    )
 
     administrator_export = AdministratorExport(cashier)
     accountant_export = AccountantExport(cashier)

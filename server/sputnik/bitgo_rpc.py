@@ -116,10 +116,12 @@ class MethodNotFound(BitGoException):
 class NotAcceptable(BitGoException):
     pass
 
-KEY_FILE_EXISTS = BitGoException("exceptions/bitgo/key_file_exists")
-NO_KEY_FILE = BitGoException("exceptions/bitgo/no_key_file")
-
-
+def create_keychain(network):
+    entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
+    key = BIP32Node.from_master_secret(entropy, network)
+    private = key.wallet_key(as_private=True).encode("utf-8")
+    public = key.wallet_key(as_private=False).encode("utf-8")
+    return {"xpub": public, "xprv": private}
 
 class Keychains(object):
     def __init__(self, proxy):
@@ -135,11 +137,7 @@ class Keychains(object):
         network = "BTC"
         if not self.proxy.use_production:
             network = "XTN"
-        entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
-        key = BIP32Node.from_master_secret(entropy, network)
-        private = key.wallet_key(as_private=True).encode("utf-8")
-        public = key.wallet_key(as_private=False).encode("utf-8")
-        return {"xpub": public, "xprv": private}
+        return create_keychain(network)
 
     def add(self, xpub, encrypted_xprv=None):
         data = {"xpub": xpub}
@@ -175,13 +173,7 @@ class Wallet(object):
     def createAddress(self, chain):
         return self._call("POST", "api/v1/wallet/%s/address/%s" % (self.id, chain))
 
-    def sendCoins(self, address, amount, passphrase, otp='000000', confirms=None):
-        if not os.path.exists(self.proxy.private_key_file):
-            raise NO_KEY_FILE
-        else:
-            with open(self.proxy.private_key_file, "rb") as f:
-                encrypted_xpriv = f.read()
-
+    def sendCoins(self, address, amount, passphrase, otp='000000', confirms=None, encrypted_xpriv=None):
         xprv = self.proxy.decrypt(encrypted_xpriv, passphrase)
         # The first keychain is the userkeychain, so we add the decrypted key to that one
         self.keychains[0]['xprv'] = xprv
@@ -280,13 +272,9 @@ class Wallets(object):
         backup_keychain = {"xpub": backup_xpub}
         if not backup_keychain["xpub"]:
             backup_keychain = self.proxy.keychains.create()
+
         yield self.proxy.keychains.add(user_keychain["xpub"], encrypted_xprv)
-        # Save the encrypted xpriv to the local storage
-        if os.path.exists(self.proxy.private_key_file):
-            raise KEY_FILE_EXISTS
-        else:
-            with open(self.proxy.private_key_file, "wb") as f:
-                f.write(encrypted_xprv)
+        user_keychain["encryptedXprv"] = encrypted_xprv
 
         yield self.proxy.keychains.add(backup_keychain["xpub"])
         bitgo_keychain = yield self.proxy.keychains.createBitGo()
@@ -309,7 +297,6 @@ class BitGo(object):
         self.endpoint = bitgo_config['endpoint']
         self.client_id = bitgo_config['client_id']
         self.client_secret = bitgo_config['client_secret']
-        self.private_key_file = bitgo_config['private_key_file']
         self.debug = debug
 
         self.token = None
@@ -435,20 +422,49 @@ if __name__ == "__main__":
                     'endpoint': "https://test.bitgo.com",
                     'client_id': 'XXX',
                     'client_secret': 'YYY',
-                    'private_key_file': './bitgo.key'}
+    }
     bitgo = BitGo(bitgo_config, debug=True)
+    from sys import argv
 
     @inlineCallbacks
     def main():
         otp = '0000000'
-        auth = yield bitgo.authenticate('yury@m2.io', '9R73IxQpYX%%(', otp=otp)
-        yield bitgo.unlock("0000000")
-        result = yield bitgo.wallets.list()
-        wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
-        keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
-        result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
-        result = yield wallet.sendTransaction(result["tx"])
-        pprint(result)
+        if argv[1] == 'sameer':
+            auth = yield bitgo.authenticate('sameer@m2.io', 'i6M:wpF4', otp=otp)
+            pprint(auth)
+            label = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+
+            wallet = yield bitgo.wallets.createWalletWithKeychains('none', label=label,
+                                                                   backup_xpub='tpubD6NzVbkrYhZ4WtoseA5DYXuz6TpukQxDaLdvBa1MawByoeVUvCJ7N6qhZCeLrSbbcBpmsKas9VSvZ7KwJYEc9hi1s566sWwafZUpjPqaGqT')
+            pprint(wallet)
+            encrypted_xprv = wallet['userKeychain']['encryptedXprv']
+
+            wallet_list = yield bitgo.wallets.list()
+            pprint(wallet_list)
+
+            full_wallet = yield bitgo.wallets.get(wallet['wallet'].id)
+            pprint(full_wallet)
+
+            keychain = bitgo.keychains.create()
+            result = yield full_wallet.createTransaction("msj42CCGruhRsFrGATiUuh25dtxYtnpbTx", 1000000, keychain)
+
+            # Get an address
+            address = yield full_wallet.createAddress(0)
+            pprint(address)
+
+            # Send coins to myself
+            tx = yield full_wallet.sendCoins(address['address'], 10000, 'none', otp=otp, encrypted_xprv=encrypted_xprv)
+            pprint(tx)
+
+        else:
+            auth = yield bitgo.authenticate('yury@m2.io', '9R73IxQpYX%%(', otp=otp)
+            yield bitgo.unlock("0000000")
+            result = yield bitgo.wallets.list()
+            wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
+            keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
+            result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
+            result = yield wallet.sendTransaction(result["tx"])
+            pprint(result)
 
     main().addErrback(log.err)
 

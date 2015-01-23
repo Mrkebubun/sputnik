@@ -10,7 +10,7 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import sys
+import sys, os
 import collections
 from datetime import datetime
 import json
@@ -88,6 +88,7 @@ INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quan
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
 BITGO_TOKEN_INVALID = AdministratorException("exceptions/administrator/bitgo_token_invalid")
+KEY_FILE_EXISTS = AdministratorException("exceptions/bitgo/key_file_exists")
 
 from util import session_aware
 
@@ -103,6 +104,7 @@ class Administrator:
                  template_dir='admin_templates',
                  user_limit=500,
                  bitgo=None,
+                 bitgo_private_key_file=None,
                  bs_cache_update_period=86400):
         """Set up the administrator
 
@@ -127,6 +129,7 @@ class Administrator:
         self.user_limit = user_limit
         self.page_size = 10
         self.bitgo = bitgo
+        self.bitgo_private_key_file = bitgo_private_key_file
         self.bitgo_tokens = {}
 
         self.load_bs_cache()
@@ -144,7 +147,8 @@ class Administrator:
 
     def get_bitgo_token(self, admin_user):
         now = datetime.utcnow()
-        if admin_user in self.bitgo_tokens and self.bitgo_tokens[admin_user][1] > now:
+        # TODO: Fix expiration check to consider timezones?
+        if admin_user in self.bitgo_tokens: # and self.bitgo_tokens[admin_user][1] > now:
             return self.bitgo_tokens[admin_user][0]
         else:
             return None
@@ -1184,9 +1188,16 @@ class Administrator:
     @inlineCallbacks
     def initialize_multisig(self, ticker, public_key, multisig={}):
         # Create wallet with the given public_key
+        if os.path.exists(self.bitgo_private_key_file):
+            raise KEY_FILE_EXISTS
+
         self.bitgo.token = multisig['token']
-        yield self.bitgo.unlock(multisig['otp'])
+        #yield self.bitgo.unlock(multisig['otp'])
         result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=multisig['passphrase'], label="sputnik", backupxpub=public_key)
+
+        # Save the encrypted xpriv to the local storage
+        with open(self.proxy.private_key_file, "wb") as f:
+            f.write(result['userKeychain']['encryptedXprv'])
 
         # Get deposit address
         address = result['wallet'].id
@@ -1504,14 +1515,8 @@ class AdminWebUI(Resource):
 
     def initialize_multisig(self, request):
         ticker = request.args['contract'][0]
-        headers = request.getAllHeaders()
-        fields = cgi.FieldStorage(
-                    fp = request.content,
-                    headers = headers,
-                    environ= {'REQUEST_METHOD': request.method,
-                              'CONTENT_TYPE': headers['content-type'] }
-                    )
-        public_key = fields['public_key'].value
+
+        public_key = request.args['public_key'][0]
 
         token = self.administrator.get_bitgo_token(self.avatarId)
         if token is None:
@@ -2339,13 +2344,16 @@ if __name__ == "__main__":
     bitgo_config = dict(config.items("bitgo"))
 
     bitgo = BitGo(bitgo_config)
+    bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
+
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update,
-                                  bitgo=bitgo)
+                                  bitgo=bitgo,
+                                  bitgo_private_key_file=bitgo_private_key_file)
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)

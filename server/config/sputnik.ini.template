@@ -10,13 +10,13 @@ webserver_export = tcp://127.0.0.1:4140
 compropago_key = ${compropago_key}
 cold_wallet_period = 3600
 minimum_confirmations = ${minimum_confirmations}
+bitgo_private_keyfile = ${keys}/bitgo.key
 
 [bitgo]
 production = false
 client_id = MimeticMarkets
 client_secret = xk0DL5qnyrfT99pXDhlpmUsnZdDAJuHdHxT8yi1ufyBCXM
 endpoint = https://test.bitgo.com
-private_key_file = ${keys}/bitgo.key
 
 [engine]
 accountant_base_port = 4200
