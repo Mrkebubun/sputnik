@@ -1193,10 +1193,10 @@ class Administrator:
 
         self.bitgo.token = multisig['token']
         #yield self.bitgo.unlock(multisig['otp'])
-        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=multisig['passphrase'], label="sputnik", backupxpub=public_key)
+        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=multisig['passphrase'], label="sputnik", backup_xpub=public_key)
 
         # Save the encrypted xpriv to the local storage
-        with open(self.proxy.private_key_file, "wb") as f:
+        with open(self.bitgo_private_key_file, "wb") as f:
             f.write(result['userKeychain']['encryptedXprv'])
 
         # Get deposit address
@@ -1344,15 +1344,23 @@ class AdminWebUI(Resource):
         Resource.__init__(self)
 
     def check_referer(self, request):
-        if self.base_uri is not None:
-            referer = request.getHeader("referer")
-            if referer is None or not referer.startswith(self.base_uri):
-                log.err("Referer check failed: %s" % referer)
-                return False
+        # If we have a raw GET with no args, we don't need to check referer
+        if request.method == "GET" and not request.args:
+            return True
+
+        # for bitgo oauth:
+        if request.path == '/bitgo_oauth_redirect':
+            return True
+        else:
+            if self.base_uri is not None:
+                referer = request.getHeader("referer")
+                if referer is None or not referer.startswith(self.base_uri):
+                    log.err("Referer check failed: %s" % referer)
+                    return False
+                else:
+                    return True
             else:
                 return True
-        else:
-            return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1400,9 +1408,8 @@ class AdminWebUI(Resource):
         """
         self.log(request)
         # Which paths don't require a referer check
-        if request.path != '/' and request.path != '/bitgo_oauth_redirect':
-            if not self.check_referer(request):
-                return redirectTo('/', request)
+        if not self.check_referer(request):
+            return redirectTo('/', request)
 
         resources = [
                     # Level 0
@@ -1510,7 +1517,7 @@ class AdminWebUI(Resource):
             request.finish()
 
         d = self.administrator.bitgo_oauth_token(code, self.avatarId)
-        d.addCallback(_cb)
+        d.addCallback(_cb).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def initialize_multisig(self, request):
@@ -1529,7 +1536,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo('/wallets', request))
             request.finish()
 
-        d.addCallback(_cb)
+        d.addCallback(_cb).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
 
@@ -1604,7 +1611,7 @@ class AdminWebUI(Resource):
             request.finish()
 
         d = get_addresses()
-        d.addCallback(_cb)
+        d.addCallback(_cb).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def transfer_from_hot_wallet(self, request):
@@ -1616,7 +1623,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
-        d.addCallback(_cb)
+        d.addCallback(_cb).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def transfer_from_multisig_wallet(self, request):
@@ -1634,7 +1641,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
-        d.addCallback(_cb)
+        d.addCallback(_cb).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
     def new_permission_group(self, request):

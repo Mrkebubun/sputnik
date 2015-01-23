@@ -266,7 +266,7 @@ class Wallets(object):
         return self._call("GET", "api/v1/wallet/%s" % id).addCallback(self._decode)
 
     @inlineCallbacks
-    def createWalletWithKeychains(self, passphrase, label, backup_xpub=None, token=None):
+    def createWalletWithKeychains(self, passphrase, label, backup_xpub=None):
         user_keychain = self.proxy.keychains.create()
         encrypted_xprv = self.proxy.encrypt(user_keychain['xprv'], passphrase)
         backup_keychain = {"xpub": backup_xpub}
