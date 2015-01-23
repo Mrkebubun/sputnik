@@ -194,16 +194,22 @@ class Wallet(object):
     def transactions(self):
         return self._call("GET", "api/v1/wallet/%s/tx" % self.id)
 
-    def unspents(self):
-        return self._call("GET", "api/v1/wallet/%s/unspents" % self.id)
+    def unspents(self, target=None):
+        if target:
+            data = {'target': target}
+        else:
+            data = None
+
+        return self._call("GET", "api/v1/wallet/%s/unspents" % self.id, data=data)
 
     @inlineCallbacks
     def createTransaction(self, address, amount, keychain, fee="standard",
                           confirms=0):
-        result = yield self.unspents()
+        unspents_result = yield self.unspents()
         spendables = []
         p2sh = []
-        for unspent in result["unspents"]:
+        chain_paths = []
+        for unspent in unspents_result["unspents"]:
             if unspent["confirmations"] < confirms:
                 continue
             p2sh.append(h2b(unspent["redeemScript"]))
@@ -212,15 +218,27 @@ class Wallet(object):
                                   h2b_rev(unspent["tx_hash"]),
                                   unspent["tx_output_n"])
             spendables.append(spendable)
+            # Strip leading / from path
+            chain_paths.append(unspent['chainPath'][1:])
         p2sh_lookup = build_p2sh_lookup(p2sh)
-        result = yield self.createAddress(1)
-        change = result["address"]
+        address_result = yield self.createAddress(1)
+        change = address_result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
 
-        key = BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path("0/0/0/0")
-        hash160_lookup = build_hash160_lookup([key.secret_exponent()])
+        # address_keys = [BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path("0/0/0/0"),
+        #                 BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path(address_result['path'])]
+
+        spendable_keys = [BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path(path) for path in chain_paths]
+        # all_keys = address_keys + spendable_keys
+
+        hash160_lookup = build_hash160_lookup([key.secret_exponent() for key in spendable_keys])
+
+        pprint(tx)
 
         tx.sign(hash160_lookup=hash160_lookup, p2sh_lookup=p2sh_lookup)
+
+        pprint(tx)
+
         returnValue({'tx': tx.as_hex(),
                      'fee': tx.fee()})
 
@@ -464,6 +482,7 @@ if __name__ == "__main__":
             wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
             keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
             result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
+            pprint(result)
             result = yield wallet.sendTransaction(result["tx"], otp)
             pprint(result)
 
