@@ -78,7 +78,7 @@
                     </form>
                     <br/>
                     {% else %}
-                    <form method="POST" action="/initialize_multisig">
+                    <form method="POST" action="/initialize_multisig" enctype="multipart/form-data">
                         <input type="file" name="public_key">
                         <input type="hidden" name="contract" value="{{contract.ticker}}">
                         <input type="text" name="otp" placeholder="OTP">

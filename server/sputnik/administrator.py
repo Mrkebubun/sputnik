@@ -20,6 +20,7 @@ import pickle
 import Crypto.Random.random
 import Crypto.Random.random
 from dateutil import parser
+import cgi
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -1503,9 +1504,15 @@ class AdminWebUI(Resource):
 
     def initialize_multisig(self, request):
         ticker = request.args['contract'][0]
-        # TODO: Find the file upload correctly
-        name, mime, stream = request.files['public_key'][0]
-        public_key = stream.read()
+        headers = request.getAllHeaders()
+        fields = cgi.FieldStorage(
+                    fp = request.content,
+                    headers = headers,
+                    environ= {'REQUEST_METHOD': request.method,
+                              'CONTENT_TYPE': headers['content-type'] }
+                    )
+        public_key = fields['public_key'].value
+
         token = self.administrator.get_bitgo_token(self.avatarId)
         if token is None:
             raise BITGO_TOKEN_INVALID
