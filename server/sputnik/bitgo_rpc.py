@@ -92,6 +92,39 @@ def solve(self, **kwargs):
 
 ScriptMultisig.solve = solve
 
+# patch p2sh bug: https://github.com/richardkiss/pycoin/issues/71
+from pycoin.tx.Tx import Tx, SIGHASH_ALL
+from pycoin.tx.pay_to import ScriptPayToScript, script_obj_from_script
+from pycoin.tx.script import opcodes
+
+byte_to_int = ord if bytes == str else lambda x: x
+
+def sign_tx_in(self, hash160_lookup, tx_in_idx, tx_out_script,
+        hash_type=SIGHASH_ALL, **kwargs):
+    tx_in = self.txs_in[tx_in_idx]
+
+    is_p2h = (len(tx_out_script) == 23 and byte_to_int(tx_out_script[0]) == opcodes.OP_HASH160 and byte_to_int(tx_out_script[-1]) == opcodes.OP_EQUAL)
+    script_to_hash = tx_out_script
+    if is_p2h:
+        hash160 = ScriptPayToScript.from_script(tx_out_script).hash160
+        p2sh_lookup = kwargs.get("p2sh_lookup")
+        if p2sh_lookup is None:
+            raise ValueError("p2sh_lookup not set")
+        if hash160 not in p2sh_lookup:
+            raise ValueError("hash160=%s not found in p2sh_lookup" %
+                    b2h(hash160))
+        script_to_hash = p2sh_lookup[hash160]
+
+    signature_for_hash_type_f = lambda hash_type: self.signature_hash(tx_out_script, tx_in_idx, hash_type)
+    if tx_in.verify(tx_out_script, signature_for_hash_type_f):
+        return
+    sign_value = self.signature_hash(script_to_hash, tx_in_idx, hash_type=hash_type)
+    the_script = script_obj_from_script(tx_out_script)
+    solution = the_script.solve(hash160_lookup=hash160_lookup, sign_value=sign_value, signature_type=hash_type,existing_script=self.txs_in[tx_in_idx].script, **kwargs)
+    tx_in.script = solution
+
+Tx.sign_tx_in = sign_tx_in
+
 import binascii
 
 from datetime import datetime
@@ -218,11 +251,10 @@ class Wallet(object):
                                   h2b_rev(unspent["tx_hash"]),
                                   unspent["tx_output_n"])
             spendables.append(spendable)
-            # Strip leading / from path
-            chain_paths.append(unspent['chainPath'][1:])
+            chain_paths.append("0/0" + unspent['chainPath'])
         p2sh_lookup = build_p2sh_lookup(p2sh)
         address_result = yield self.createAddress(1)
-        change = address_result["address"]
+        change = "34FUjBn9PmBMqu3f7353XD1VUvyLjq67zW" #address_result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
 
         # address_keys = [BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path("0/0/0/0"),
@@ -481,10 +513,10 @@ if __name__ == "__main__":
             result = yield bitgo.wallets.list()
             wallet = result["wallets"]["2Mv2sk6aMXxT7AQU3pjiWFLPpjasAgq5TKG"]
             keychain = {"xprv":"xprv9s21ZrQH143K2yYdt9sNVB8MG8ZqDpfYbt722oWoVPvScEGy1YzAi6etQR7DJZCBnMDatjiXUxs9aeG7pSWkohUy5mbQneShd5sq7ay7KyN", "xpub":"xpub661MyMwAqRbcFTd6zBQNrK55pAQKdHPPy72cqBvR3jTRV2c7Z6JRFtyNFiMcJRPw8UVbNWorx9AUDbENSbs3mJaFDmDokZDhtGEK4rpQgVJ"}
-            result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 100000)
+            result = yield wallet.createTransaction("2Mz7sBSNftUd5Ntwcyvb4tENr2kjWhQpNGN", 1e8, keychain, 10000)
             pprint(result)
-            result = yield wallet.sendTransaction(result["tx"], otp)
-            pprint(result)
+            #result = yield wallet.sendTransaction(result["tx"], otp)
+            #pprint(result)
 
     main().addErrback(log.err)
 
