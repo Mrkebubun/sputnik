@@ -458,24 +458,22 @@ class Valuation():
     def __init__(self,
                  state,
                  data,
-                 edge,
+                 trader,
                  target_balance_source,
                  target_balance_target,
                  deviation_penalty, # dimensionless factor on USD
                  risk_aversion, # ( 1 / USD )
-                 quote_size # BTC
                  ):
 
         self.state = state
         self.data = data
+        self.trader = trader
 
         # Tunable parameters
-        self.edge = edge
         self.target_balance_source = target_balance_source
         self.target_balance_target = target_balance_target
         self.deviation_penalty = deviation_penalty
         self.risk_aversion = risk_aversion
-        self.quote_size = quote_size
 
         self.optimized_params = {}
         self.optimized = {}
@@ -492,7 +490,7 @@ class Valuation():
         target_target_balance = float(self.state.total_balance_target[self.data.target_ticker]['position'])
         target_btc_balance = float(self.state.total_balance_target[self.data.btc_ticker]['position'])
 
-        consequences = self.state.get_consequences(params, quote_size=self.quote_size)
+        consequences = self.state.get_consequences(params, quote_size=self.trader.quote_size)
 
         # It has an impact on our balances
         target_target_balance += consequences['bid'][self.data.target_ticker]
@@ -607,7 +605,7 @@ class Valuation():
                 #           'fiat_source_target': 0,
                 #           'trade_source_qty': 0,
                 #           'transfer_source_out': 0}
-                if self.state.constraint_fn(params, quote_size=self.quote_size):
+                if self.state.constraint_fn(params, quote_size=self.trader.quote_size):
                     return 1
                 else:
                     return -1
@@ -879,7 +877,7 @@ class Trader():
             return
 
         try:
-            txid = yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.trader.out_address)
+            txid = yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.out_address)
         except NotImplementedError:
             id = max(self.state.transit_from_source.keys()) + 1
 
@@ -1003,17 +1001,22 @@ if __name__ == "__main__":
                                  )
 
         state = State(market_data)
+        trader = Trader(source_exchange=source_exchange,
+                        target_exchange=target_exchange,
+                        quote_size=0.1,
+                        out_address='OUT',
+                        state=state,
+                        data=market_data)
 
         valuation = Valuation(state=state,
                               data=market_data,
-                              edge=0.04,
+                              trader=trader,
                               target_balance_source={ 'USD': 6000,
                                                       'BTC': 6 },
                               target_balance_target={ 'HUF': 1626000,
                                                       'BTC': 6 },
                               deviation_penalty=50,
-                              risk_aversion=0.0001,
-                              quote_size=0.1)
+                              risk_aversion=0.0001)
 
 
         server = Webserver(state, valuation, market_data)
