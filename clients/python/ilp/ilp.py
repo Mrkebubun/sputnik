@@ -71,6 +71,7 @@ class State():
         # Transit from are because some API don't support
         # withdrawal, in which case we need to record that we've asked a human
         # to make a transfer from one exchange to another
+
         self.transit_from_source = {}
         self.transit_from_target = {}
 
@@ -135,6 +136,30 @@ class State():
 
         pickle.dump(attrs, open("/tmp/state.pickle", "wb"))
 
+    def source_price_for_size(self, quantity):
+        if quantity > 0:
+            half = 'asks'
+            sign = 1
+        else:
+            half = 'bids'
+            sign = -1
+
+        quantity_left = quantity
+        total_spent = 0
+        total_bought = 0
+
+        # Find the liquidity in the book
+        for row in self.source_book[half]:
+            price = float(row['price'])
+            quantity = min(quantity_left, float(row['quantity']))
+            total_spent += price * quantity
+            total_bought += quantity
+            quantity_left -= quantity
+            if quantity_left <= 0:
+                break
+
+        return price, total_spent, total_bought
+
     def source_trade(self, quantity):
         """
 
@@ -155,20 +180,7 @@ class State():
             return {self.data.source_ticker: 0,
                     self.data.btc_ticker: 0}
 
-        quantity_left = quantity
-        total_spent = 0
-        total_bought = 0
-
-        # Find the liquidity in the book
-        for row in self.source_book[half]:
-            price = float(row['price'])
-            quantity = min(quantity_left, float(row['quantity']))
-            total_spent += price * quantity
-            total_bought += quantity
-            quantity_left -= quantity
-            if quantity_left <= 0:
-                break
-
+        price, total_spent, total_bought = self.source_price_for_size(quantity)
         fee = abs(total_spent) * self.data.source_fee[1] + self.data.source_fee[0]
 
         return {self.data.source_ticker: -(sign * total_spent + fee),
@@ -318,10 +330,10 @@ class State():
         total_balance = copy(self.balance_target)
 
         for id, transit in self.transit_to_target.iteritems():
-            total_balance[transit['ticker']]['position'] += transit['quantity']
+            total_balance[transit['to_ticker']]['position'] += transit['quantity']
 
         for id, transit in self.transit_from_target.iteritems():
-            total_balance[transit['ticker']]['position'] -= transit['quantity']
+            total_balance[transit['from_ticker']]['position'] -= transit['quantity']
 
         return total_balance
 
@@ -337,10 +349,10 @@ class State():
         total_balance = copy(self.balance_source)
 
         for id, transit in self.transit_to_source.iteritems():
-            total_balance[transit['ticker']]['position'] += transit['quantity']
+            total_balance[transit['to_ticker']]['position'] += transit['quantity']
 
         for id, transit in self.transit_from_source.iteritems():
-            total_balance[transit['ticker']]['position'] -= transit['quantity']
+            total_balance[transit['from_ticker']]['position'] -= transit['quantity']
 
         return total_balance
 
@@ -737,6 +749,179 @@ class MarketData():
 
     def get_fiat_variance(self):
         return self.get_variance(self.fiat_exchange_ticker, self.fiat_exchange)
+
+class Trader():
+    def __init__(self, source_exchange, target_exchange, quote_size, out_address,
+                 state, data):
+        self.source_exchange = source_exchange
+        self.target_exchange = target_exchange
+        self.quote_size = quote_size
+        self.out_address = out_address # Where do we transfer source currency to get out of the system
+
+        self.state = state
+        self.data = data
+
+    @inlineCallbacks
+    def source_trade(self, quantity):
+        # Check for orders outstanding and cancel them
+        orders = yield self.source_exchange.getOpenOrders()
+        for id, order in orders.iteritems():
+            if order['contact'] == self.data.source_exchange_ticker:
+                yield self.source_exchange.cancelOrder(id)
+
+        if self.state.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
+            side = 'BUY'
+        elif self.state.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
+            side = 'SELL'
+        else:
+            return
+
+        # Place a new order
+        price, total_spent, total_bought = self.state.source_price_for_size(quantity)
+        yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_bought, price, side)
+
+    @inlineCallbacks
+    def btc_transfer(self, quantity):
+        """
+        :param ticker:
+        :param quantity:
+        :return:
+
+        Transfer quantity of BTC from source to target
+        If quantity is negative we transfer from target to source
+        """
+        if abs(self.state.convert_to_source(self.data.btc_ticker, quantity)) < EPSILON:
+            return
+
+        if quantity > 0:
+            from_exchange = self.source_exchange
+            to_exchange = self.target_exchange
+            from_state = self.state.transit_from_source
+            to_state = self.state.transit_to_target
+            destination = 'target'
+        else:
+            from_exchange = self.target_exchange
+            to_exchange = self.source_exchange
+            from_state = self.state.transit_from_target
+            to_state = self.state.transit_to_source
+            destination = 'source'
+
+        # Get deposit address
+        try:
+            deposit_address = yield to_exchange.getCurrentAddress(self.data.btc_ticker)
+            txid = yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
+            to_state[txid] = {'to_ticker': self.data.btc_ticker,
+                              'from_ticker': self.data.btc_ticker,
+                              'quantity': abs(quantity)
+            }
+
+        except NotImplementedError:
+            id = max(from_state.keys()) + 1
+
+            from_state[id] = {'to_ticker': self.data.btc_ticker,
+                               'from_ticker': self.data.btc_ticker,
+                                'quantity': abs(quantity),
+                                'destination': destination}
+
+    @inlineCallbacks
+    def source_target_fiat_transfer(self, quantity):
+        """
+        :param ticker:
+        :param quantity:
+        :return:
+
+        Transfer quantity of fiat from source to target
+        If quantity is negative we transfer from target to source
+        quantity is in source currency
+        """
+        if abs(self.state.convert_to_source(self.data.source_ticker, quantity)) < EPSILON:
+            return
+
+        if quantity > 0:
+            from_exchange = self.source_exchange
+            to_exchange = self.target_exchange
+            from_state = self.state.transit_from_source
+            to_state = self.state.transit_to_target
+            from_ticker = self.data.source_ticker
+            to_ticker = self.data.target_ticker
+            converter = self.state.convert_to_source
+            destination = 'target'
+        else:
+            from_exchange = self.target_exchange
+            to_exchange = self.source_exchange
+            from_state = self.state.transit_from_target
+            to_state = self.state.transit_to_source
+            from_ticker = self.data.target_ticker
+            to_ticker = self.data.source_ticker
+            converter = self.state.convert_to_target
+            destination = 'source'
+
+        from_qty = converter(self.data.source_ticker, abs(quantity))
+        # Get deposit address
+        try:
+            deposit_address = yield to_exchange.getCurrentAddress(to_ticker)
+            txid = yield from_exchange.requestWithdrawal(from_ticker, from_qty, deposit_address)
+            to_state[txid] = {'to_ticker': to_ticker,
+                              'from_ticker': from_ticker,
+                              'quantity': abs(quantity)
+            }
+        except NotImplementedError:
+            id = max(from_state.keys()) + 1
+
+            from_state[id] = {'to_ticker': to_ticker,
+                               'from_ticker': from_ticker,
+                                'quantity': from_qty,
+                                'destination': destination}
+
+    @inlineCallbacks
+    def transfer_source_out(self, quantity):
+        if self.state.convert_to_source(self.data.source_ticker, quantity) < EPSILON:
+            return
+
+        try:
+            txid = yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.trader.out_address)
+        except NotImplementedError:
+            id = max(self.state.transit_from_source.keys()) + 1
+
+            self.state.transit_from_source[id] = {'to_ticker': self.data.source_ticker,
+                               'from_ticker': self.data.source_ticker,
+                                'quantity': quantity,
+                                'destination': self.out_address}
+
+    @inlineCallbacks
+    def update_offers(self, offered_bid, offered_ask, replace_bid=False, replace_ask=False):
+        ticker = self.data.target_exchange_ticker
+        orders = yield self.target_exchange.getOpenOrders()
+        my_orders = {id: order for id, order in orders.iteritems() if order['contract'] == ticker}
+        bids = [order for order in my_orders.values() if order['side'] == 'BUY']
+        asks = [order for order in my_orders.values() if order['side'] == 'SELL']
+
+        if not replace_bid:
+            bid_size = sum([order['quantity_left'] for order in bids])
+            if bid_size < self.quote_size:
+                difference = self.quote_size - bid_size
+                yield self.target_exchange.placeOrder(ticker, difference, offered_bid, 'BUY')
+                self.state.offered_bid = offered_bid
+        else:
+            for id in [order['id'] for order in bids]:
+                yield self.target_exchange.cancelOrder(id)
+
+            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_bid, 'BUY')
+            self.state.offered_bid = offered_bid
+
+        if not replace_ask:
+            ask_size = sum([order['quantity_left'] for order in asks])
+            if ask_size < self.quote_size:
+                difference = self.quote_size - ask_size
+                yield self.target_exchange.placeOrder(ticker, difference, offered_ask, 'SELL')
+                self.state.offered_ask = offered_ask
+        else:
+            for id in [order['id'] for order in asks]:
+                yield self.target_exchange.cancelOrder(id)
+
+            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_ask, 'SELL')
+            self.state.offered_ask = offered_ask
+
 
 
 from twisted.web.resource import Resource
