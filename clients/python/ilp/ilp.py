@@ -4,22 +4,18 @@ from datetime import datetime
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, Deferred
 from twisted.internet import reactor, task
 from twisted.python import log
-from copy import copy, deepcopy
-import collections
+from copy import copy
 import sys
-import math
-from pprint import pprint, pformat
 from decimal import Decimal
-import numpy as np
 from scipy.optimize import minimize
 from jinja2 import Environment, FileSystemLoader
 from dateutil import relativedelta
 import numpy as np
 from datetime import timedelta
 import util
-import treq
 import pickle
 import decimal
+from fsm import FSM
 
 # Don't do anything if its value is less than this in source currency
 EPSILON = 1
@@ -782,10 +778,35 @@ class Trader():
         self.valuation.trader = self
         self.state.trader = self
         self.edge = None
+        self.looping_call = None
 
-    def start(self):
-        call = task.LoopingCall(self.loop)
-        call.start(self.period)
+        fsm = FSM("INIT", None)
+        self.fsm = fsm
+        fsm.set_default_transition(self.stop, "STOPPED")
+        fsm.add_transition("ready", "INIT", None, "READY")
+        fsm.add_transition("start", "READY", self.start, "TRADING")
+        fsm.add_transition("start", "STOPPED", self.start, "TRADING")
+        fsm.add_transition("stop", "TRADING", self.stop, "READY")
+
+    def start(self, fsm):
+        self.looping_call = task.LoopingCall(self.loop)
+        self.looping_call.start(self.period)
+
+    def stop(self, fsm):
+        if self.looping_call is not None:
+            self.looping_call.stop()
+
+        self.cancel_all_orders()
+
+    @inlineCallbacks
+    def cancel_all_orders(self):
+        source_orders = yield self.get_source_orders()
+        for id, order in source_orders.iteritems():
+            self.source_exchange.cancelOrder(id)
+
+        target_orders = yield self.get_target_orders()
+        for id, order in target_orders.iteritems():
+            self.target_exchange.cancelOrder(id)
 
     def get_source_orders(self):
         return self.source_exchange.getOpenOrders()
@@ -1036,26 +1057,37 @@ class Webserver(Resource):
 
     def render_GET(self, request):
         # Do the JINJA
-
-        request.setHeader('refresh', self.trader.period)
-        t = self.jinja_env.get_template("template.html")
-        return t.render(object=self).encode('utf-8')
+        if request.path == '/':
+            request.setHeader('refresh', self.trader.period)
+            t = self.jinja_env.get_template("template.html")
+            return t.render(object=self).encode('utf-8')
+        elif request.path == '/start':
+            self.trader.fsm.process("start")
+            return redirectTo('/', request)
+        elif request.path == '/stop':
+            self.trader.fsm.process("stop")
+            return redirectTo('/', request)
 
     def render_POST(self, request):
-        self.valuation.risk_aversion = float(request.args['risk_aversion'][0])
-        self.valuation.deviation_penalty = float(request.args['deviation_penalty'][0])
-        self.valuation.target_balance_source[self.data.source_ticker] = float(request.args['target_balance_source_source'][0])
-        self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
-        self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
-        self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
-        d = self.valuation.optimize()
-        def _cb(result):
-            request.write(redirectTo("/", request))
-            request.finish()
+        if request.path == '/valuation_parameters':
+            self.valuation.risk_aversion = float(request.args['risk_aversion'][0])
+            self.valuation.deviation_penalty = float(request.args['deviation_penalty'][0])
+            self.valuation.target_balance_source[self.data.source_ticker] = float(request.args['target_balance_source_source'][0])
+            self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
+            self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
+            self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
+            d = self.valuation.optimize()
+            def _cb(result):
+                request.write(redirectTo("/", request))
+                request.finish()
 
-        d.addCallback(_cb)
-        return NOT_DONE_YET
-
+            d.addCallback(_cb)
+            return NOT_DONE_YET
+        elif request.path == '/trader_parameters':
+            self.trader.quote_size = Decimal(request.args['quote_size'][0])
+            self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
+            self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
+            return redirectTo('/', request)
 
 if __name__ == "__main__":
     @inlineCallbacks
@@ -1076,9 +1108,7 @@ if __name__ == "__main__":
                                                'password': 'ilp'}, debug)
         target_exchange = Sputnik(connection, {'username': 'ilp_target',
                                                'password': 'ilp'}, debug)
-        se = source_exchange.connect()
-        te = target_exchange.connect()
-        yield gatherResults([se, te])
+
 
         fiat_exchange = Yahoo()
         market_data = MarketData(source_exchange=source_exchange,
@@ -1122,8 +1152,18 @@ if __name__ == "__main__":
         site = Site(server)
         reactor.listenTCP(9304, site)
 
-        trader.start()
+        joined_list = []
+        def joined(exchange):
+            joined_list.append(exchange)
+            if "source" in joined_list and "target" in joined_list:
+                trader.fsm.process("ready")
 
+        source_exchange.notifyConnect = lambda x: joined("source")
+        target_exchange.notifyConnect = lambda x: joined("target")
+
+        se = source_exchange.connect()
+        te = target_exchange.connect()
+        yield gatherResults([se, te])
 
     log.startLogging(sys.stdout)
     main().addErrback(log.err)

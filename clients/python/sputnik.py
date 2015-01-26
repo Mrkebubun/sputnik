@@ -231,7 +231,6 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             self.factory.onConnect(self)
 
     def onJoin(self, details):
-
         log.msg("Joined as %s" % details.authrole)
         d = self.getMarkets()
         d.addCallback(lambda x: self.startAutomationAfterMarkets())
@@ -250,8 +249,6 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
             self.startAutomationAfterAuth()
 
-        if self.factory.onJoin is not None:
-            self.factory.onJoin(details)
 
     def onChallenge(self, challenge):
         log.msg("got challenge: %s" % challenge)
@@ -762,24 +759,15 @@ class BotFactory(wamp.ApplicationSessionFactory):
         self.ignore_contracts = kwargs.get('ignore_contracts')
         self.rate = kwargs.get('rate')
         self.onConnect = kwargs.get('onConnect')
-        self.onJoin = kwargs.get('onJoin')
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
-def wait_for_session(f):
-    def wrapped(self, *args, **kwargs):
-        if self.session is None:
-            return deferLater(reactor, 5, wrapped, self, *args, **kwargs)
-        else:
-            return f(self, *args, **kwargs)
-
-    return wrapped
-
 class Sputnik():
-    def __init__(self, connection, bot_params, debug, bot=SputnikSession):
+    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None):
         self.debug = debug
-        self.session_factory = BotFactory(onConnect=self.onConnect, onJoin=self.onJoin, **bot_params)
+        self.session_factory = BotFactory(onConnect=self.onConnect, **bot_params)
+        self.notifyConnect = notifyConnect
         self.session_factory.session = bot
 
         if connection['ssl']:
@@ -806,42 +794,33 @@ class Sputnik():
 
     def onConnect(self, session):
         self.session = session
+        if self.notifyConnect is not None:
+            self.notifyConnect(self)
 
-    def onJoin(self, details):
-        pass
-
-    @wait_for_session
     def getPositions(self):
         return defer.succeed(self.session.positions)
 
-    @wait_for_session
     def getCurrentAddress(self, contract):
         return self.session.getCurrentAddress(contract)
 
-    @wait_for_session
     def requestWithdrawal(self, contract, amount, address):
         return self.session.requestWithdrawal(contract, amount, address)
 
-    @wait_for_session
     def placeOrder(self, contract, quantity, price, side):
         return self.session.placeOrder(contract, quantity, price, side)
 
-    @wait_for_session
     def cancelOrder(self, id):
         return self.session.cancelOrder(id)
 
-    @wait_for_session
     def getOpenOrders(self):
         return defer.succeed(self.session.orders)
 
-    @wait_for_session
     def getOrderBook(self, contract):
         if 'book' not in self.session.markets[contract]:
             return deferLater(reactor, 5, self.getOrderBook, contract)
         else:
             return defer.succeed(self.session.markets[contract]['book'])
 
-    @wait_for_session
     def getTransactionHistory(self, start_datetime, end_datetime):
         return self.session.getTransactionHistory(start_datetime, end_datetime)
 
