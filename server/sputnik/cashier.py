@@ -359,8 +359,8 @@ class Cashier():
                     encrypted_xpriv = json.load(f)
 
             try:
-                result = yield wallet.sendCoins(address=address, amount=amount, passphrase=multisig['passphrase'],
-                                                otp=multisig['otp'], encrypted_xprv=encrypted_xpriv)
+                result = yield wallet.sendCoins(address=address, amount=amount,
+                        passphrase=multisig['passphrase'], otp=multisig['otp'])
                 txid = result['tx']
             except Exception as e:
                 log.err("Unable to sendCoins")
