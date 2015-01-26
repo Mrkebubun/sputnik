@@ -1492,11 +1492,18 @@ class AdminWebUI(Resource):
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
 
-    def error_callback(self, failure, request):
+    def sputnik_error_callback(self, failure, request):
         failure.trap(SputnikException)
         log.err("SputnikException in deferred for request: %s" % request)
         log.err(failure)
         msg = self.error_request(request, failure.value.args)
+        request.write(msg)
+        request.finish()
+
+    def generic_error_callback(self, failure, request):
+        log.err("UNHANDLED ERROR in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, ("exceptions/administrator/generic_error",))
         request.write(msg)
         request.finish()
 
@@ -1532,7 +1539,7 @@ class AdminWebUI(Resource):
             request.finish()
 
         d = self.administrator.bitgo_oauth_token(code, self.avatarId)
-        d.addCallback(_cb).addErrback(self.error_callback, request)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def initialize_multisig(self, request):
@@ -1552,7 +1559,7 @@ class AdminWebUI(Resource):
             request.write(self.bitgo_oauth_get(request, wallet_id=result))
             request.finish()
 
-        d.addCallback(_cb).addErrback(self.error_callback, request)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
 
@@ -1583,7 +1590,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def mail_statement(self, request):
@@ -1627,7 +1634,7 @@ class AdminWebUI(Resource):
             request.finish()
 
         d = get_addresses()
-        d.addCallback(_cb).addErrback(self.error_callback, request)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def transfer_from_hot_wallet(self, request):
@@ -1639,7 +1646,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
-        d.addCallback(_cb).addErrback(self.error_callback, request)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def transfer_from_multisig_wallet(self, request):
@@ -1657,7 +1664,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
-        d.addCallback(_cb).addErrback(self.error_callback, request)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def new_permission_group(self, request):
@@ -1683,7 +1690,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def fee_groups(self, request):
@@ -1700,7 +1707,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def modify_fee_group(self, request):
@@ -1752,7 +1759,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/contracts", request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def withdrawals(self, request):
@@ -1775,7 +1782,7 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book).addErrback(self.error_callback, request)
+        d.addCallback(got_order_book).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
@@ -1787,7 +1794,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def ledger(self, request):
@@ -1909,7 +1916,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def transfer_position(self, request):
@@ -1924,7 +1931,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def rescan_address(self, request):
@@ -1943,7 +1950,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def admin_list(self, request):
@@ -1993,7 +2000,7 @@ class AdminWebExport(ComponentExport):
         return self.administrator.bitgo_oauth_token(code, admin_user)
 
     @session_aware
-    def bitgo_oauth_clear(self, dmin_user):
+    def bitgo_oauth_clear(self, admin_user):
         return self.administrator.bitgo_oauth_clear(admin_user)
 
     @session_aware
