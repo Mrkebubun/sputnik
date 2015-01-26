@@ -410,7 +410,7 @@ class BitGo(object):
     def __init__(self, use_production=True, client_id=None,
             client_secret=None, debug=False):
         self.use_production = use_production
-        self.endpoint = self.ENDPOINTS[use_prodution]
+        self.endpoint = self.ENDPOINTS[use_production]
         self.client_id = client_id
         self.client_secret = client_secret
         self.debug = debug
@@ -430,7 +430,10 @@ class BitGo(object):
         return self._call("GET", "api/v1/market/latest")
 
     def verifyAddress(self, address):
-        return is_address_valid(address)
+        if self.use_production:
+            return is_address_valid(address) == "BTC"
+        else:
+            return is_address_valid(address) == "XTN"
 
     def version(self):
         return "0.1.0"
