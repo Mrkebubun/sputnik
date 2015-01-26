@@ -51,6 +51,7 @@ from pycoin.tx.script import tools
 from pycoin.tx.script.vm import parse_signature_blob
 from pycoin import ecdsa
 from pycoin import encoding
+from sjcl import SJCL
 
 def solve(self, **kwargs):
     """
@@ -380,13 +381,13 @@ class BitGo(object):
         self.keychains = Keychains(self)
         self.wallets = Wallets(self)
 
-    def encrypt(self, message, passphrase):
-        # TODO: Actually encrypt
-        return message
+    def encrypt(self, plaintext, passphrase):
+        ciphertext = SJCL().encrypt(plaintext, passphrase)
+        return ciphertext
 
-    def decrypt(self, encrypted, passphrase):
-        # TODO: Actually decrypt
-        return encrypted
+    def decrypt(self, ciphertext, passphrase):
+        plaintext = SJCL().decrypt(ciphertext, passphrase)
+        return plaintext
 
     @inlineCallbacks
     def _call(self, method, url, data=None):
