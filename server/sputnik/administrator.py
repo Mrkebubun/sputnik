@@ -2346,7 +2346,9 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
-    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
+    # Set the cashier timeout to 5 seconds because sending multisig cash may
+    # take a little bit
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"), timeout=5)
     watchdog(config.get("watchdog", "administrator"))
 
     if config.getboolean("webserver", "ssl"):

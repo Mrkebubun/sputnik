@@ -268,6 +268,8 @@ class Wallet(object):
         spendables = []
         p2sh = []
         chain_paths = []
+        # Strip leading /
+        keychain_path = keychain['path'][1:]
         for unspent in unspents_result["unspents"]:
             if unspent["confirmations"] < confirms:
                 continue
@@ -277,10 +279,10 @@ class Wallet(object):
                                   h2b_rev(unspent["tx_hash"]),
                                   unspent["tx_output_n"])
             spendables.append(spendable)
-            chain_paths.append("0/0" + unspent['chainPath'])
+            chain_paths.append(keychain_path + unspent['chainPath'])
         p2sh_lookup = build_p2sh_lookup(p2sh)
         address_result = yield self.createAddress(1)
-        change = "34FUjBn9PmBMqu3f7353XD1VUvyLjq67zW" #address_result["address"]
+        change = address_result["address"]
         tx = tx_utils.create_tx(spendables, [(address, amount), change], fee)
 
         # address_keys = [BIP32Node.from_hwif(keychain["xprv"]).subkey_for_path("0/0/0/0"),
@@ -382,7 +384,7 @@ class BitGo(object):
         self.wallets = Wallets(self)
 
     def encrypt(self, plaintext, passphrase):
-        ciphertext = SJCL().encrypt(plaintext, passphrase, count=1000, dkLen=32)
+        ciphertext = SJCL().encrypt(plaintext, passphrase, count=1000)
         return ciphertext
 
     def decrypt(self, ciphertext, passphrase):

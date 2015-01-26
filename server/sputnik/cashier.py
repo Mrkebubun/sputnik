@@ -300,9 +300,9 @@ class Cashier():
             # Record the transfer
             uid = util.get_uid()
             note = "%s: %s" % (address, txid)
-            d1=self.accountant.transfer_position('multisigcash', ticker, 'debit', quantity,
+            d1=self.accountant.transfer_position('multisigcash', ticker, 'credit', quantity,
                                               note, uid)
-            d2=self.accountant.transfer_position('offlinecash', ticker, 'credit', quantity, note, uid)
+            d2=self.accountant.transfer_position('offlinecash', ticker, 'debit', quantity, note, uid)
             yield defer.gatherResults([d1, d2])
         else:
             # If going to online cash the transfer will get recorded when the btc arrives
