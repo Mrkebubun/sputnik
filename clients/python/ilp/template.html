@@ -56,6 +56,64 @@
             </div>
         </div>
         <div class="panel panel-primary">
+            <div class="panel-heading">Source Orders</div>
+            <div class="panel-body">
+                <table id="source_orders" class="table table-striped table-hover">
+                    <tbody>
+                        <tr>
+                            <th>Id</th>
+                            <th>Timestamp</th>
+                            <th>Ticker</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Quantity Left</th>
+                            <th>Side</th>
+                        </tr>
+                        {% for id, order in object.state.source_orders.iteritems() %}
+                        <tr>
+                            <td>{{id}}</td>
+                            <td>{{order.timestamp}}</td>
+                            <td>{{order.contract}}</td>
+                            <td>{{order.price}}</td>
+                            <td>{{order.quantity}}</td>
+                            <td>{{order.quantity_left}}</td>
+                            <td>{{order.side}}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel panel-primary">
+            <div class="panel-heading">Target Orders</div>
+            <div class="panel-body">
+                <table id="target_orders" class="table table-striped table-hover">
+                    <tbody>
+                        <tr>
+                            <th>Id</th>
+                            <th>Timestamp</th>
+                            <th>Ticker</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Quantity Left</th>
+                            <th>Side</th>
+                        </tr>
+                        {% for id, order in object.state.target_orders.iteritems() %}
+                        <tr>
+                            <td>{{id}}</td>
+                            <td>{{order.timestamp}}</td>
+                            <td>{{order.contract}}</td>
+                            <td>{{order.price}}</td>
+                            <td>{{order.quantity}}</td>
+                            <td>{{order.quantity_left}}</td>
+                            <td>{{order.side}}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="panel panel-primary">
             <div class="panel-heading">Base Valuation</div>
             <div class="panel-body">
                 <table id="base" class="table table-striped table-hover">
@@ -110,21 +168,46 @@
                             </tr>
                             <tr>
                                 <th>Risk Aversion</th>
-                                <td><input type="text" name="risk_aversion" value="{{object.valuation.risk_aversion}}"</td>
+                                <td><input type="text" name="risk_aversion" value="{{object.valuation.risk_aversion}}"></td>
                             </tr>
                             <tr>
                                 <th>Target Balance Source</th>
                                 <td>{{object.data.btc_ticker}}: <input type="text" name="target_balance_source_btc" value="{{object.valuation.target_balance_source[object.data.btc_ticker]}}"></td>
-                                <td>{{object.data.source_ticker}}: <input type="text" name="target_balance_source_source" value="{{object.valuation.target_balance_source[object.data.source_ticker]}}"</td>
+                                <td>{{object.data.source_ticker}}: <input type="text" name="target_balance_source_source" value="{{object.valuation.target_balance_source[object.data.source_ticker]}}"></td>
                             </tr>
                             <tr>
                                 <th>Target Balance Target</th>
                                 <td>{{object.data.btc_ticker}}: <input type="text" name="target_balance_target_btc" value="{{object.valuation.target_balance_target[object.data.btc_ticker]}}"></td>
-                                <td>{{object.data.target_ticker}}: <input type="text" name="target_balance_target_target" value="{{object.valuation.target_balance_target[object.data.target_ticker]}}"</td>
+                                <td>{{object.data.target_ticker}}: <input type="text" name="target_balance_target_target" value="{{object.valuation.target_balance_target[object.data.target_ticker]}}"></td>
                             </tr>
                         </tbody>
                     </table>
                 </form>
+            </div>
+        </div>
+        <div class="panel panel-primary">
+            <div class="panel-heading">Trader</div>
+            <div class="panel-body">
+                <table id="trader-parameters">
+                    <tbody>
+                        <tr>
+                            <th>Edge</th>
+                            <td>{{object.trader.edge}}</td>
+                        </tr>
+                        <tr>
+                            <th>Quote Size</th>
+                            <td><input type="text" name="quote_size" value="{{object.trader.quote_size}}"></td>
+                        </tr>
+                        <tr>
+                            <th>Edge to Enter</th>
+                            <td><input type="text" name="edge_to_enter" value="{{object.trader.edge_to_enter}}"></td>
+                        </tr>
+                        <tr>
+                            <th>Edge to Leave</th>
+                            <td><input type="text" name="edge_to_leave" value="{{object.trader.edge_to_leave}}"></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

@@ -51,11 +51,21 @@ import time
 
 import Crypto.Random.random
 from copy import copy
+import math
+import decimal
 
 class SputnikMixin():
     """
     Utility functions
     """
+    def get_price_precision(self, contract):
+        if self.markets[contract]['contract_type'] == "prediction":
+            return round(max(math.log10(self.markets[contract]['denominator'] / self.markets[contract]['tick_size']),
+                             0))
+        else:
+            return round(max(math.log10(self.markets[self.markets[contract]['denominated_contract_ticker']]['denominator'] *
+                                                     self.markets[contract]['denominator'] /
+                                        self.markets[contract]['tick_size']), 0))
 
     def price_to_wire(self, contract, price):
         if self.markets[contract]['contract_type'] == "prediction":
@@ -217,7 +227,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         else:
             self.join(self.config.realm, [u'anonymous'])
 
-        self.factory.onConnect(self)
+        if self.factory.onConnect is not None:
+            self.factory.onConnect(self)
 
     def onJoin(self, details):
 
@@ -238,6 +249,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             self.getPositions()
 
             self.startAutomationAfterAuth()
+
+        if self.factory.onJoin is not None:
+            self.factory.onJoin(details)
 
     def onChallenge(self, challenge):
         log.msg("got challenge: %s" % challenge)
@@ -517,9 +531,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
                 sign = -1
 
             if contract in self.wire_positions:
-                self.wire_positions[contract]['position'] += sign * transaction['quantity']
+                self.wire_positions[contract]['position'] += sign * wire_transaction['quantity']
             else:
-                self.wire_positions[contract] = { 'position': sign * transaction['quantity'],
+                self.wire_positions[contract] = { 'position': sign * wire_transaction['quantity'],
                                                 'contract': contract }
 
             return self.onTransaction(uri, self.transaction_from_wire(wire_transaction))
@@ -748,6 +762,7 @@ class BotFactory(wamp.ApplicationSessionFactory):
         self.ignore_contracts = kwargs.get('ignore_contracts')
         self.rate = kwargs.get('rate')
         self.onConnect = kwargs.get('onConnect')
+        self.onJoin = kwargs.get('onJoin')
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
@@ -764,7 +779,7 @@ def wait_for_session(f):
 class Sputnik():
     def __init__(self, connection, bot_params, debug, bot=SputnikSession):
         self.debug = debug
-        self.session_factory = BotFactory(onConnect=self.onConnect, **bot_params)
+        self.session_factory = BotFactory(onConnect=self.onConnect, onJoin=self.onJoin, **bot_params)
         self.session_factory.session = bot
 
         if connection['ssl']:
@@ -791,6 +806,9 @@ class Sputnik():
 
     def onConnect(self, session):
         self.session = session
+
+    def onJoin(self, details):
+        pass
 
     @wait_for_session
     def getPositions(self):
@@ -826,6 +844,15 @@ class Sputnik():
     @wait_for_session
     def getTransactionHistory(self, start_datetime, end_datetime):
         return self.session.getTransactionHistory(start_datetime, end_datetime)
+
+    def round_bid(self, ticker, price):
+        precision = self.session.get_price_precision(ticker)
+        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_DOWN)
+
+    def round_ask(self, ticker, price):
+        precision = self.session.get_price_precision(ticker)
+        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_UP)
+
 
 class SputnikRest(SputnikMixin):
     def __init__(self, username=None, api_key=None, api_secret=None, endpoint=None, onInit=None):
