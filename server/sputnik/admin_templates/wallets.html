@@ -51,7 +51,8 @@
                 <td>
                     {% if contract.ticker in onlinecash %}
                     {{onlinecash[contract.ticker].quantity_fmt}}
-                    Transfer
+                    {% if onlinecash[contract.ticker].quantity %}
+                    Transfer To
                     <form action="/transfer_from_hot_wallet" method="POST">
                         <input type="hidden" name="contract" value="{{contract.ticker}}">
                         <select name="destination">
@@ -64,36 +65,40 @@
                     </form>
                     <br/>
                     {% endif %}
+                    {% endif %}
                 </td>
                 <td>
                     {% if contract.ticker in multisigcash %}
-                    {{multisigcash[contract.ticker].quantity_fmt}}
+                        {{multisigcash[contract.ticker].quantity_fmt}}
                     {% endif %}
+
                     {% if bitgo_auth %}
-                    {% if contract.multisig_wallet_address %}
-                    <br/>
-                    Transfer
-                    <form action="/transfer_from_multisig_wallet" method="POST">
-                        <input type="hidden" name="contract" value="{{contract.ticker}}">
-                        <select name="destination">
-                            <option value="onlinecash">Hot Wallet</option>
-                            <option value="offlinecash">Cold Wallet</option>
-                        </select>
-                        <input type="text" name="otp" placeholder="OTP" size="8">
-                        <input type="text" name="passphrase" placeholder="Passphrase" size="8">
-                        <input type="text" name="quantity" placeholder="Quantity" size="16">
-                        <input type="submit" name="Send">
-                    </form>
-                    <br/>
-                    {% else %}
-                    <form method="POST" action="/initialize_multisig">
-                        <input type="text" name="public_key" size="111">
-                        <input type="hidden" name="contract" value="{{contract.ticker}}">
-                        <input type="text" name="otp" placeholder="OTP">
-                        <input type="text" name="passphrase" placeholder="Passphrase" size="8">
-                        <input type="submit" value="Initialize">
-                    </form>
-                    {% endif %}
+                        {% if contract.multisig_wallet_address %}
+                            {% if multisigcash[contract.ticker].quantity %}
+                                <br/>
+                                Transfer To
+                                <form action="/transfer_from_multisig_wallet" method="POST">
+                                    <input type="hidden" name="contract" value="{{contract.ticker}}">
+                                    <select name="destination">
+                                        <option value="onlinecash">Hot Wallet</option>
+                                        <option value="offlinecash">Cold Wallet</option>
+                                    </select>
+                                    <input type="text" name="otp" placeholder="OTP" size="8">
+                                    <input type="text" name="passphrase" placeholder="Passphrase" size="8">
+                                    <input type="text" name="quantity" placeholder="Quantity" size="16">
+                                    <input type="submit" name="Send">
+                                </form>
+                                <br/>
+                            {% endif %}
+                        {% else %}
+                            <form method="POST" action="/initialize_multisig">
+                                <input type="text" name="public_key" size="111">
+                                <input type="hidden" name="contract" value="{{contract.ticker}}">
+                                <input type="text" name="otp" placeholder="OTP">
+                                <input type="text" name="passphrase" placeholder="Passphrase" size="8">
+                                <input type="submit" value="Initialize">
+                            </form>
+                        {% endif %}
                     {% endif %}
                 </td>
                 <td>
