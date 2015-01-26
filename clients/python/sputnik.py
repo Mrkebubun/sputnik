@@ -794,8 +794,11 @@ class Sputnik():
 
     def onConnect(self, session):
         self.session = session
-        if self.notifyConnect is not None:
-            self.notifyConnect(self)
+        def _onMarkets(markets):
+            SputnikSession.onMarkets(self.session, markets)
+            if self.notifyConnect is not None:
+                self.notifyConnect(self)
+        self.session.onMarkets = _onMarkets
 
     def getPositions(self):
         return defer.succeed(self.session.positions)

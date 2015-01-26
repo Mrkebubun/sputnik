@@ -112,11 +112,13 @@ class State():
         # Find offered bid and ask in target_orders
         if self.offered_bid is None:
             bids = [order['price'] for order in self.target_orders.values() if order['side'] == 'BUY']
-            self.offered_bid = max(bids)
+            if bids:
+                self.offered_bid = max(bids)
 
         if self.offered_ask is None:
             asks = [order['price'] for order in self.target_orders.values() if order['side'] == 'SELL']
-            self.offered_ask = min(asks)
+            if asks:
+                self.offered_ask = min(asks)
 
         if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
             self.fiat_variance = yield self.data.get_fiat_variance()
@@ -569,7 +571,7 @@ class Valuation():
 
     @inlineCallbacks
     def optimize(self):
-            wait = yield self.state.update()
+            yield self.state.update()
             self.base_params = {}
 
             base_bid = self.state.source_best_bid / self.state.fiat_best_ask
@@ -780,13 +782,20 @@ class Trader():
         self.edge = None
         self.looping_call = None
 
-        fsm = FSM("INIT", None)
+        fsm = FSM("DISCONNECTED", None)
         self.fsm = fsm
         fsm.set_default_transition(self.stop, "STOPPED")
-        fsm.add_transition("ready", "INIT", None, "READY")
+        fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
+        fsm.add_transition("updated", "INITIALIZING", None, "READY")
         fsm.add_transition("start", "READY", self.start, "TRADING")
         fsm.add_transition("start", "STOPPED", self.start, "TRADING")
         fsm.add_transition("stop", "TRADING", self.stop, "READY")
+
+    def initialize(self, fsm):
+        d = self.state.update()
+        def _cb(result):
+            self.fsm.process("updated")
+        d.addCallback(_cb).addErrback(log.err)
 
     def start(self, fsm):
         self.looping_call = task.LoopingCall(self.loop)
@@ -864,10 +873,12 @@ class Trader():
         try:
             yield self.update_offers(rounded_params['offered_bid'], rounded_params['offered_ask'], replace_bid=replace_bid,
                                      replace_ask=replace_ask)
-            yield self.source_trade(rounded_params['trade_source_qty'])
-            yield self.btc_transfer(rounded_params['btc_source_target'])
-            yield self.source_target_fiat_transfer(rounded_params['fiat_source_target'])
-            yield self.transfer_source_out(rounded_params['transfer_source_out'])
+
+            if self.edge > self.edge_to_enter:
+                yield self.source_trade(rounded_params['trade_source_qty'])
+                yield self.btc_transfer(rounded_params['btc_source_target'])
+                yield self.source_target_fiat_transfer(rounded_params['fiat_source_target'])
+                yield self.transfer_source_out(rounded_params['transfer_source_out'])
         except Exception as e:
             log.err(e)
             raise e
@@ -1156,7 +1167,7 @@ if __name__ == "__main__":
         def joined(exchange):
             joined_list.append(exchange)
             if "source" in joined_list and "target" in joined_list:
-                trader.fsm.process("ready")
+                trader.fsm.process("connected")
 
         source_exchange.notifyConnect = lambda x: joined("source")
         target_exchange.notifyConnect = lambda x: joined("target")
