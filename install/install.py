@@ -440,7 +440,7 @@ class Installer():
         def ignore(path, names):
             ignored = []
             for name in names:
-                if not fnmatch.fnmatch(name, "*.pyc"):
+                if not fnmatch.fnmatch(name, "*.pyc") and not os.path.isdir(os.path.join(path, name)):
                     ignored.append(name)
             return ignored
         shutil.copytree(server_source, build_server, ignore=ignore)
