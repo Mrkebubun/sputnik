@@ -29,7 +29,6 @@ import json
 import hmac
 import hashlib
 import urlparse
-import os
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 import util
