@@ -32,7 +32,6 @@ import hashlib
 import urlparse
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
-import util
 from twisted.python import log
 from pprint import pprint
 import string
@@ -198,12 +197,6 @@ class MethodNotFound(BitGoException):
 class NotAcceptable(BitGoException):
     pass
 
-def create_keychain(network):
-    entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
-    key = BIP32Node.from_master_secret(entropy, network)
-    private = key.wallet_key(as_private=True).encode("utf-8")
-    public = key.wallet_key(as_private=False).encode("utf-8")
-    return {"xpub": public, "xprv": private}
 
 class Keychains(object):
     def __init__(self, proxy):
@@ -219,7 +212,11 @@ class Keychains(object):
         network = "BTC"
         if not self.proxy.use_production:
             network = "XTN"
-        return create_keychain(network)
+        entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
+        key = BIP32Node.from_master_secret(entropy, network)
+        private = key.wallet_key(as_private=True).encode("utf-8")
+        public = key.wallet_key(as_private=False).encode("utf-8")
+        return {"xpub": public, "xprv": private}
 
     def add(self, xpub, encrypted_xprv=None):
         data = {"xpub": xpub}
@@ -421,9 +418,10 @@ class BitGo(object):
         self.wallets = Wallets(self)
 
     def encrypt(self, plaintext, passphrase):
-        return SJCL().encrypt(plaintext, passphrase, count=1000)
+        return json.dumps(SJCL().encrypt(plaintext, passphrase, count=1000))
 
     def decrypt(self, ciphertext, passphrase):
+        ciphertext = json.loads(ciphertext)
         return SJCL().decrypt(ciphertext, passphrase)
 
     def market(self):

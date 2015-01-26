@@ -34,7 +34,7 @@ from rpc_schema import schema
 import markdown
 from util import session_aware
 from exception import *
-from bitgo_rpc import BitGo
+from bitgo import BitGo
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -740,7 +740,7 @@ if __name__ == '__main__':
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
     bitgo_config = dict(config.items("bitgo"))
-    bitgo = BitGo(bitgo_config)
+    bitgo = BitGo(**bitgo_config)
     bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
 
     cashier = Cashier(session, accountant, bitcoinrpc, compropago,

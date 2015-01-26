@@ -64,7 +64,7 @@ from dateutil import relativedelta
 from zendesk import Zendesk
 from blockscore import BlockScore
 from ticketserver import TicketServer
-from bitgo_rpc import BitGo
+from bitgo import BitGo
 import base64
 from Crypto.Random.random import getrandbits
 import urllib
@@ -146,7 +146,7 @@ class Administrator:
 
     @inlineCallbacks
     def bitgo_oauth_token(self, code, admin_user):
-        token_result = yield self.bitgo.oauth_token(code)
+        token_result = yield self.bitgo.authenticateWithAuthCode(code)
         self.bitgo_tokens[admin_user] = (token_result['token'], util.timestamp_to_dt(token_result['expiration']))
 
     def get_bitgo_token(self, admin_user):
@@ -2379,7 +2379,7 @@ if __name__ == "__main__":
 
     bitgo_config = dict(config.items("bitgo"))
 
-    bitgo = BitGo(bitgo_config)
+    bitgo = BitGo(**bitgo_config)
     bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
 
     administrator = Administrator(session, accountant, cashier, engines,
