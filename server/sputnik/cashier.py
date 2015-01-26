@@ -356,7 +356,7 @@ class Cashier():
                 raise NO_KEY_FILE
             else:
                 with open(self.bitgo_private_key_file, "rb") as f:
-                    encrypted_xpriv = f.read()
+                    encrypted_xpriv = json.load(f)
 
             try:
                 result = yield wallet.sendCoins(address=address, amount=amount, passphrase=multisig['passphrase'],

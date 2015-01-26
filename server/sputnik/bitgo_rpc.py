@@ -382,7 +382,7 @@ class BitGo(object):
         self.wallets = Wallets(self)
 
     def encrypt(self, plaintext, passphrase):
-        ciphertext = SJCL().encrypt(plaintext, passphrase)
+        ciphertext = SJCL().encrypt(plaintext, passphrase, count=1000, dkLen=32)
         return ciphertext
 
     def decrypt(self, ciphertext, passphrase):

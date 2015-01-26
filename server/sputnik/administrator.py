@@ -1201,7 +1201,7 @@ class Administrator:
 
         # Save the encrypted xpriv to the local storage
         with open(self.bitgo_private_key_file, "wb") as f:
-            f.write(result['userKeychain']['encryptedXprv'])
+            json.dump(result['userKeychain']['encryptedXprv'], f)
 
         # Get deposit address
         address = result['wallet'].id
