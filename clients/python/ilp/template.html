@@ -138,16 +138,16 @@
                                         <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
-                                        <th>Quantity</th>
-                                        <th>Destination</th>
+                                        <th>From Quantity</th>
+                                        <th>To Quantity</th>
                                     </tr>
                                     {% for id, transit in object.state.transit_to_source.iteritems() %}
                                     <tr>
                                         <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
-                                        <td>{{transit.quantity}}</td>
-                                        <td>{{transit.destination}}</td>
+                                        <td>{{transit.from_quantity}}</td>
+                                        <td>{{transit.to_quantity}}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -164,7 +164,8 @@
                                         <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
-                                        <th>Quantity</th>
+                                        <th>From Quantity</th>
+                                        <th>To Quantity</th>
                                         <th>Destination</th>
                                     </tr>
                                     {% for id, transit in object.state.transit_from_source.iteritems() %}
@@ -173,7 +174,8 @@
                                         <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
-                                        <td>{{transit.quantity}}</td>
+                                        <td>{{transit.from_quantity}}</td>
+                                        <td>{{transit.to_quantity}}</td>
                                         <td>{{transit.destination}}</td>
                                     </tr>
                                     {% endfor %}
@@ -190,16 +192,16 @@
                                         <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
-                                        <th>Quantity</th>
-                                        <th>Destination</th>
+                                        <th>From Quantity</th>
+                                        <th>To Quantity</th>
                                     </tr>
                                     {% for id, transit in object.state.transit_to_target.iteritems() %}
                                     <tr>
                                         <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
-                                        <td>{{transit.quantity}}</td>
-                                        <td>{{transit.destination}}</td>
+                                        <td>{{transit.from_quantity}}</td>
+                                        <td>{{transit.to_quantity}}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -216,7 +218,8 @@
                                         <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
-                                        <th>Quantity</th>
+                                        <th>From Quantity</th>
+                                        <th>To Quantity</th>
                                         <th>Destination</th>
                                     </tr>
                                     {% for id, transit in object.state.transit_from_target.iteritems() %}
@@ -225,7 +228,8 @@
                                         <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
-                                        <td>{{transit.quantity}}</td>
+                                        <td>{{transit.from_quantity}}</td>
+                                        <td>{{transit.to_quantity}}</td>
                                         <td>{{transit.destination}}</td>
                                     </tr>
                                     {% endfor %}

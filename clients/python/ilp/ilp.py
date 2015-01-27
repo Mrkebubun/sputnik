@@ -4,7 +4,7 @@ from datetime import datetime
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, Deferred
 from twisted.internet import reactor, task
 from twisted.python import log
-from copy import copy
+from copy import copy, deepcopy
 import sys
 from decimal import Decimal
 from scipy.optimize import minimize
@@ -140,13 +140,13 @@ class State():
 
         def clear_transits(transits, deposit_list):
             def near(value_1, value_2):
-                if abs(value_1-value_2)/value_2 < 0.05:
+                if abs(value_1-value_2)/value_1 < 0.05:
                     return True
                 else:
                     return False
 
             for deposit in deposit_list:
-                contract = deposit['ticker']
+                contract = deposit['contract']
                 quantity = deposit['quantity']
                 for id, transit in transits.items():
                     if transit['to_ticker'] == contract and near(transit['to_quantity'], quantity):
@@ -363,7 +363,7 @@ class State():
         Give us the total balances at the target taking into account cash that is in transit
         both in and out
         """
-        total_balance = copy(self.balance_target)
+        total_balance = deepcopy(self.balance_target)
 
         for id, transit in self.transit_to_target.iteritems():
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
@@ -382,7 +382,7 @@ class State():
         Give us the total balances at the source taking into account cash that is in transit
         both in and out
         """
-        total_balance = copy(self.balance_source)
+        total_balance = deepcopy(self.balance_source)
 
         for id, transit in self.transit_to_source.iteritems():
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
@@ -407,7 +407,7 @@ class State():
         offered_ask = params.get('offered_ask', 0)
         transfer_source_out = params.get('transfer_source_out', 0)
 
-        if offered_ask or offered_bid < 0:
+        if offered_ask < 0 or offered_bid < 0:
             return False
         if offered_ask <= offered_bid:
             return False
@@ -954,7 +954,7 @@ class Trader():
         try:
             deposit_address = yield to_exchange.getNewAddress(self.data.btc_ticker)
             yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
-            id = max(to_state.keys()) + 1
+            id = max(0, 0, *to_state.keys()) + 1
 
             to_state[id] = {'to_ticker': self.data.btc_ticker,
                               'from_ticker': self.data.btc_ticker,
@@ -964,7 +964,7 @@ class Trader():
             }
 
         except NotImplementedError:
-            id = max(from_state.keys()) + 1
+            id = max(0, 0, *from_state.keys()) + 1
 
             from_state[id] = {'to_ticker': self.data.btc_ticker,
                                'from_ticker': self.data.btc_ticker,
@@ -1013,7 +1013,7 @@ class Trader():
         try:
             deposit_address = yield to_exchange.getNewAddress(to_ticker)
             yield from_exchange.requestWithdrawal(from_ticker, from_quantity, deposit_address)
-            id = max(to_state.keys()) + 1
+            id = max(0, 0, *to_state.keys()) + 1
 
             to_state[id] = {'to_ticker': to_ticker,
                               'from_ticker': from_ticker,
@@ -1022,7 +1022,7 @@ class Trader():
                               'address': deposit_address
             }
         except NotImplementedError:
-            id = max(from_state.keys()) + 1
+            id = max(0, 0, *from_state.keys()) + 1
 
             from_state[id] = {'to_ticker': to_ticker,
                                'from_ticker': from_ticker,

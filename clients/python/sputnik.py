@@ -339,6 +339,14 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         pprint(["onPlaceOrder", id])
         return id
 
+    def onGetCurrentAddress(self, address):
+        pprint(["onGetCurrentAddress", address])
+        return address
+
+    def onGetNewAddress(self, address):
+        pprint(["onGetNewAddress", address])
+        return address
+
     def onCancelOrder(self, success):
         pprint(["onCancelOrder", success])
         return success
@@ -349,6 +357,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def onError(self, message, call=None):
         pprint(["Error", message.value, call])
+
 
     def onRpcFailure(self, event):
         pprint(["RpcFailure", event.value.args])
@@ -630,12 +639,12 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
         return d.addCallback(_onPositions).addErrback(self.onError, "getPositions")
 
-    def getCurrentAddress(self):
-        d = self.call(u"rpc.trader.get_current_address")
+    def getCurrentAddress(self, ticker):
+        d = self.call(u"rpc.trader.get_current_address", ticker)
         return d.addCallback(self.onGetCurrentAddress).addErrback(self.onError, "getCurrentAddress")
 
-    def getNewAddress(self):
-        d = self.call(u"rpc.trader.get_new_address")
+    def getNewAddress(self, ticker):
+        d = self.call(u"rpc.trader.get_new_address", ticker)
         return d.addCallback(self.onGetNewAddress).addErrback(self.onError, "getNewAddress")
 
     def getOpenOrders(self):
@@ -805,6 +814,9 @@ class Sputnik():
 
     def getCurrentAddress(self, contract):
         return self.session.getCurrentAddress(contract)
+
+    def getNewAddress(self, contract):
+        return self.session.getNewAddress(contract)
 
     def requestWithdrawal(self, contract, amount, address):
         return self.session.requestWithdrawal(contract, amount, address)
