@@ -133,9 +133,27 @@ class State():
         if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
             self.source_variance = yield self.data.get_source_variance()
 
-
         # Update transits - remove ones that have arrived
         # How do we do this?
+        source_deposits = [transaction for transaction in source_transactions if transaction['type'] == "Deposit"]
+        target_deposits = [transaction for transaction in target_transactions if transaction['type'] == "Deposit"]
+
+        def clear_transits(transits, deposit_list):
+            def near(value_1, value_2):
+                if abs(value_1-value_2)/value_2 < 0.05:
+                    return True
+                else:
+                    return False
+
+            for deposit in deposit_list:
+                contract = deposit['ticker']
+                quantity = deposit['quantity']
+                for id, transit in transits.items():
+                    if transit['to_ticker'] == contract and near(transit['to_quantity'], quantity):
+                        del transits[id]
+
+        clear_transits(self.transit_to_source, source_deposits)
+        clear_transits(self.transit_to_target, target_deposits)
 
         self.pickle()
         returnValue(None)
@@ -348,10 +366,10 @@ class State():
         total_balance = copy(self.balance_target)
 
         for id, transit in self.transit_to_target.iteritems():
-            total_balance[transit['to_ticker']]['position'] += transit['quantity']
+            total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
         for id, transit in self.transit_from_target.iteritems():
-            total_balance[transit['from_ticker']]['position'] -= transit['quantity']
+            total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
         return total_balance
 
@@ -367,10 +385,10 @@ class State():
         total_balance = copy(self.balance_source)
 
         for id, transit in self.transit_to_source.iteritems():
-            total_balance[transit['to_ticker']]['position'] += transit['quantity']
+            total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
         for id, transit in self.transit_from_source.iteritems():
-            total_balance[transit['from_ticker']]['position'] -= transit['quantity']
+            total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
         return total_balance
 
@@ -935,10 +953,13 @@ class Trader():
         # Get deposit address
         try:
             deposit_address = yield to_exchange.getNewAddress(self.data.btc_ticker)
-            txid = yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
-            to_state[txid] = {'to_ticker': self.data.btc_ticker,
+            yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
+            id = max(to_state.keys()) + 1
+
+            to_state[id] = {'to_ticker': self.data.btc_ticker,
                               'from_ticker': self.data.btc_ticker,
-                              'quantity': abs(quantity),
+                              'from_quantity': abs(quantity),
+                              'to_quantity': abs(quantity),
                               'address': deposit_address
             }
 
@@ -947,7 +968,8 @@ class Trader():
 
             from_state[id] = {'to_ticker': self.data.btc_ticker,
                                'from_ticker': self.data.btc_ticker,
-                                'quantity': abs(quantity),
+                                'from_quantity': abs(quantity),
+                                'to_quantity': abs(quantity),
                                 'destination': destination}
 
     @inlineCallbacks
@@ -971,7 +993,8 @@ class Trader():
             to_state = self.state.transit_to_target
             from_ticker = self.data.source_ticker
             to_ticker = self.data.target_ticker
-            converter = self.state.convert_to_source
+            from_converter = self.state.convert_to_source
+            to_converter = self.state.convert_to_target
             destination = 'target'
         else:
             from_exchange = self.target_exchange
@@ -980,17 +1003,22 @@ class Trader():
             to_state = self.state.transit_to_source
             from_ticker = self.data.target_ticker
             to_ticker = self.data.source_ticker
-            converter = self.state.convert_to_target
+            from_converter = self.state.convert_to_target
+            to_converter = self.state.convert_to_source
             destination = 'source'
 
-        from_qty = converter(self.data.source_ticker, abs(quantity))
+        from_quantity = from_converter(self.data.source_ticker, abs(quantity))
+        to_quantity = to_converter(self.data.source_ticker, abs(quantity))
         # Get deposit address
         try:
             deposit_address = yield to_exchange.getNewAddress(to_ticker)
-            txid = yield from_exchange.requestWithdrawal(from_ticker, from_qty, deposit_address)
-            to_state[txid] = {'to_ticker': to_ticker,
+            yield from_exchange.requestWithdrawal(from_ticker, from_quantity, deposit_address)
+            id = max(to_state.keys()) + 1
+
+            to_state[id] = {'to_ticker': to_ticker,
                               'from_ticker': from_ticker,
-                              'quantity': abs(quantity),
+                              'from_quantity': from_quantity,
+                              'to_quantity': to_quantity,
                               'address': deposit_address
             }
         except NotImplementedError:
@@ -998,7 +1026,8 @@ class Trader():
 
             from_state[id] = {'to_ticker': to_ticker,
                                'from_ticker': from_ticker,
-                                'quantity': from_qty,
+                                'from_quantity': from_quantity,
+                                'to_quantity': to_quantity,
                                 'destination': destination}
 
     @inlineCallbacks
@@ -1007,13 +1036,14 @@ class Trader():
             return
 
         try:
-            txid = yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.out_address)
+            yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.out_address)
         except NotImplementedError:
             id = max(self.state.transit_from_source.keys()) + 1
 
             self.state.transit_from_source[id] = {'to_ticker': self.data.source_ticker,
                                'from_ticker': self.data.source_ticker,
-                                'quantity': quantity,
+                                'from_quantity': quantity,
+                                'to_quantity': quantity,
                                 'destination': self.out_address}
 
     @inlineCallbacks
@@ -1065,7 +1095,6 @@ class Webserver(Resource):
         self.data = data
         self.trader = trader
 
-
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
                                      autoescape=True)
         from util import timestamp_to_dt
@@ -1082,6 +1111,13 @@ class Webserver(Resource):
         elif request.path == '/stop':
             self.trader.fsm.process("stop")
             return redirectTo('/#trader', request)
+        elif request.path == '/clear':
+            id = int(request.args['id'][0])
+            if request.args['transit'] == 'source':
+                del self.state.transit_from_source[id]
+            elif request.args['transit'] == 'target':
+                del self.state.transit_from_target[id]
+            return redirectTo('/#transits', request)
 
     def render_POST(self, request):
         if request.path == '/valuation_parameters':
@@ -1103,6 +1139,7 @@ class Webserver(Resource):
             self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
             self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
             return redirectTo('/', request)
+
 
 if __name__ == "__main__":
     @inlineCallbacks
