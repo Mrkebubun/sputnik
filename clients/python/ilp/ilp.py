@@ -72,6 +72,10 @@ class State():
         self.transit_from_source = {}
         self.transit_from_target = {}
 
+        # Transaction history
+        self.source_transactions = []
+        self.target_transactions = []
+
         self.source_orders = {}
         self.target_orders = {}
 
@@ -108,6 +112,9 @@ class State():
         [self.fiat_book, self.source_book, self.target_book, self.balance_source, self.balance_target,
          source_transactions, target_transactions, self.source_orders, self.target_orders] = \
             yield gatherResults([fb_d, sb_d, tb_d, bs_d, bt_d, st_d, tt_d, so_d, to_d])
+
+        self.source_transactions += source_transactions
+        self.target_transactions += target_transactions
 
         # Find offered bid and ask in target_orders
         if self.offered_bid is None:
@@ -1061,6 +1068,8 @@ class Webserver(Resource):
 
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
                                      autoescape=True)
+        from util import timestamp_to_dt
+        self.jinja_env.filters['timestamp'] = timestamp_to_dt
 
     def render_GET(self, request):
         # Do the JINJA
@@ -1069,10 +1078,10 @@ class Webserver(Resource):
             return t.render(object=self).encode('utf-8')
         elif request.path == '/start':
             self.trader.fsm.process("start")
-            return redirectTo('/', request)
+            return redirectTo('/#trader', request)
         elif request.path == '/stop':
             self.trader.fsm.process("stop")
-            return redirectTo('/', request)
+            return redirectTo('/#trader', request)
 
     def render_POST(self, request):
         if request.path == '/valuation_parameters':
