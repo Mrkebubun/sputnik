@@ -153,26 +153,26 @@ class State():
     def source_price_for_size(self, quantity):
         if quantity > 0:
             half = 'asks'
-            sign = 1
+            price = float('inf')
         else:
             half = 'bids'
-            sign = -1
+            price = 0
 
-        quantity_left = quantity
+        quantity_left = abs(quantity)
         total_spent = 0
-        total_bought = 0
+        total_traded = 0
 
         # Find the liquidity in the book
         for row in self.source_book[half]:
             price = float(row['price'])
             quantity = min(quantity_left, float(row['quantity']))
             total_spent += price * quantity
-            total_bought += quantity
+            total_traded += quantity
             quantity_left -= quantity
             if quantity_left <= 0:
                 break
 
-        return price, total_spent, total_bought
+        return price, total_spent, total_traded
 
     def source_trade(self, quantity):
         """
@@ -184,21 +184,18 @@ class State():
         if quantity < 0, we are selling. Quantity is in BTC
         """
         if self.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
-            half = 'asks'
             sign = 1
         elif self.convert_to_source(self.data.btc_ticker, quantity) < -EPSILON:
-            quantity = -quantity
-            half = 'bids'
             sign = -1
         else:
             return {self.data.source_ticker: 0,
                     self.data.btc_ticker: 0}
 
-        price, total_spent, total_bought = self.source_price_for_size(quantity)
-        fee = abs(total_spent) * self.data.source_fee[1] + self.data.source_fee[0]
+        price, total_spent, total_traded = self.source_price_for_size(quantity)
+        fee = total_spent * self.data.source_fee[1] + self.data.source_fee[0]
 
         return {self.data.source_ticker: -(sign * total_spent + fee),
-                self.data.btc_ticker: sign * total_bought}
+                self.data.btc_ticker: sign * total_traded}
 
     def target_trade(self, quantity, price, side):
         """
@@ -900,8 +897,8 @@ class Trader():
             return
 
         # Place a new order
-        price, total_spent, total_bought = self.state.source_price_for_size(float(quantity))
-        yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, abs(total_bought), price, side)
+        price, total_spent, total_traded = self.state.source_price_for_size(float(quantity))
+        yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_traded, price, side)
 
     @inlineCallbacks
     def btc_transfer(self, quantity):
@@ -1157,7 +1154,7 @@ if __name__ == "__main__":
                         valuation=valuation,
                         edge_to_enter=500,
                         edge_to_leave=250,
-                        period=60)
+                        period=5)
 
         server = Webserver(state, valuation, market_data, trader)
         site = Site(server)
