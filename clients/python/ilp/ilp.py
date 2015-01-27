@@ -1152,8 +1152,8 @@ if __name__ == "__main__":
                         state=state,
                         data=market_data,
                         valuation=valuation,
-                        edge_to_enter=500,
-                        edge_to_leave=250,
+                        edge_to_enter=2,
+                        edge_to_leave=-2,
                         period=5)
 
         server = Webserver(state, valuation, market_data, trader)
