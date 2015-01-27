@@ -293,9 +293,9 @@ class TestWebserverExport(TestAdministrator):
         password = WampCraProtocol.deriveKey('test', extra)
         new_password_hash = '%s:%s' % (salt, password)
 
-        self.assertTrue(self.webserver_export.reset_password_hash('test', old_password_hash, new_password_hash))
+        self.assertTrue(self.webserver_export.reset_password_hash('test', user.password, new_password_hash))
         user = self.session.query(models.User).filter_by(username='test').one()
-        self.assertEqual(user.password, "%s:%s" % (salt, new_password_hash))
+        self.assertEqual(user.password, "%s" % new_password_hash)
 
     def test_reset_password_hash_bad(self):
         self.create_account('test', password='null')
@@ -379,7 +379,7 @@ class TestWebserverExport(TestAdministrator):
 
         self.assertTrue(self.webserver_export.reset_password_hash('test', None, new_password_hash, token=token_str))
         user = self.session.query(models.User).filter_by(username='test').one()
-        self.assertEqual(user.password, "%s:%s" % (salt, new_password_hash))
+        self.assertEqual(user.password, "%s" % new_password_hash)
 
     def test_get_reset_token_no_user(self):
         # Should fail silently
