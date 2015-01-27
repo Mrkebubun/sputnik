@@ -777,31 +777,29 @@ class Trader():
         self.valuation.trader = self
         self.state.trader = self
         self.edge = None
-        self.looping_call = None
+        self.looping_call = task.LoopingCall(self.loop)
 
         fsm = FSM("DISCONNECTED", None)
         self.fsm = fsm
-        fsm.set_default_transition(self.stop, "STOPPED")
+        #fsm.set_default_transition(self.error, "ERROR")
         fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
         fsm.add_transition("updated", "INITIALIZING", None, "READY")
         fsm.add_transition("start", "READY", self.start, "TRADING")
-        fsm.add_transition("start", "STOPPED", self.start, "TRADING")
         fsm.add_transition("stop", "TRADING", self.stop, "READY")
+        fsm.add_transition("stop", "READY", None, "READY")
 
     def initialize(self, fsm):
         d = self.state.update()
         def _cb(result):
             self.fsm.process("updated")
+            self.looping_call.start(self.period)
+
         d.addCallback(_cb).addErrback(log.err)
 
     def start(self, fsm):
-        self.looping_call = task.LoopingCall(self.loop)
-        self.looping_call.start(self.period)
+        pass
 
     def stop(self, fsm):
-        if self.looping_call is not None:
-            self.looping_call.stop()
-
         self.cancel_all_orders()
 
     @inlineCallbacks
@@ -843,43 +841,44 @@ class Trader():
        # 5) if your new quote is more conservative than the old quote, only replace the old quote if its edge is less than the edge_to_leave
 
         # Round optimized results
-        rounded_params = {'offered_bid': self.target_exchange.round_bid(self.data.target_exchange_ticker, optimized_params['offered_bid']),
+        self.rounded_params = {'offered_bid': self.target_exchange.round_bid(self.data.target_exchange_ticker, optimized_params['offered_bid']),
                           'offered_ask': self.target_exchange.round_ask(self.data.target_exchange_ticker, optimized_params['offered_ask']),
                           'btc_source_target': self.round_btc(optimized_params['btc_source_target']),
                           'fiat_source_target': self.round_source(optimized_params['fiat_source_target']),
                           'trade_source_qty': self.round_btc(optimized_params['trade_source_qty']),
                           'transfer_source_out': self.round_source(optimized_params['transfer_source_out'])}
-        rp_as_floats = {key: float(value) for key, value in rounded_params.iteritems()}
-        rounded = self.valuation.valuation(rp_as_floats)
-        self.edge = rounded['value'] - base_value
+        rp_as_floats = {key: float(value) for key, value in self.rounded_params.iteritems()}
+        self.rounded = self.valuation.valuation(rp_as_floats)
+        self.edge = self.rounded['value'] - base_value
 
 
-        replace_bid = False
-        replace_ask = False
-        # Better bid
-        if rounded_params['offered_bid'] > base_params['offered_bid'] and self.edge > self.edge_to_enter:
-            replace_bid = True
-        if rounded_params['offered_ask'] < base_params['offered_ask'] and self.edge > self.edge_to_enter:
-            replace_ask = True
+        if self.fsm.current_state == "TRADING":
+            replace_bid = False
+            replace_ask = False
+            # Better bid
+            if self.rounded_params['offered_bid'] > base_params['offered_bid'] and self.edge > self.edge_to_enter:
+                replace_bid = True
+            if self.rounded_params['offered_ask'] < base_params['offered_ask'] and self.edge > self.edge_to_enter:
+                replace_ask = True
 
-        if rounded_params['offered_bid'] < base_params['offered_bid'] and self.edge < self.edge_to_leave:
-            replace_bid = True
-        if rounded_params['offered_ask'] > base_params['offered_ask'] and self.edge < self.edge_to_leave:
-            replace_ask = True
+            if self.rounded_params['offered_bid'] < base_params['offered_bid'] and self.edge < self.edge_to_leave:
+                replace_bid = True
+            if self.rounded_params['offered_ask'] > base_params['offered_ask'] and self.edge < self.edge_to_leave:
+                replace_ask = True
 
-        try:
-            yield self.update_offers(rounded_params['offered_bid'], rounded_params['offered_ask'], replace_bid=replace_bid,
-                                     replace_ask=replace_ask)
+            try:
+                yield self.update_offers(self.rounded_params['offered_bid'], self.rounded_params['offered_ask'], replace_bid=replace_bid,
+                                         replace_ask=replace_ask)
 
-            if self.edge > self.edge_to_enter:
-                yield self.source_trade(rounded_params['trade_source_qty'])
-                yield self.btc_transfer(rounded_params['btc_source_target'])
-                yield self.source_target_fiat_transfer(rounded_params['fiat_source_target'])
-                yield self.transfer_source_out(rounded_params['transfer_source_out'])
-        except Exception as e:
-            log.err(e)
-            raise e
-            pass
+                if self.edge > self.edge_to_enter:
+                    yield self.source_trade(self.rounded_params['trade_source_qty'])
+                    yield self.btc_transfer(self.rounded_params['btc_source_target'])
+                    yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
+                    yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
+            except Exception as e:
+                log.err(e)
+                raise e
+                pass
 
     @inlineCallbacks
     def source_trade(self, quantity):
@@ -1066,7 +1065,6 @@ class Webserver(Resource):
     def render_GET(self, request):
         # Do the JINJA
         if request.path == '/':
-            request.setHeader('refresh', self.trader.period)
             t = self.jinja_env.get_template("template.html")
             return t.render(object=self).encode('utf-8')
         elif request.path == '/start':
