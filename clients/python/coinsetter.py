@@ -129,7 +129,8 @@ class CoinSetter():
                 'price': order['requestedPrice'],
                 'quantity': order['requestedQuantity'],
                 'quantity_left': order['openQuantity'],
-                'timestamp': order['createDate']
+                'contract': 'BTC/USD',
+                'timestamp': int(order['createDate'] * 1e3)
             } for order in result['orderList']}
 
         returnValue(orders)
@@ -147,7 +148,6 @@ class CoinSetter():
     def getTransactionHistory(self, start_datetime, end_datetime):
         params = {'dateStart': start_datetime.strftime("%d%m%Y"),
                   'dateEnd': end_datetime.strftime("%d%m%Y")}
-        params={}
         result = yield self.get("customer/account/%s/financialTransaction" % self.default_account, params=params)
         transactions = []
         epoch = datetime.utcfromtimestamp(0)
@@ -224,8 +224,7 @@ if __name__ == "__main__":
     password = "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f"
     url = "https://staging-api.coinsetter.com/v1/"
     ip = "67.190.85.163"
-    uuid = "6097ca03-b529-4dc8-8ffa-c28c7d7ee628"
-    account_uuid = "0415a006-800b-4e69-9e5f-9e35f8024b70"
+
 
     coinsetter = CoinSetter(username, password, ip, endpoint=url)
 

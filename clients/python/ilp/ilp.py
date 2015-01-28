@@ -829,6 +829,21 @@ class Trader():
         fsm.add_transition("stop", "TRADING", self.stop, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
 
+    @inlineCallbacks
+    def init(self):
+        joined_list = []
+        def joined(exchange):
+            joined_list.append(exchange)
+            if "source" in joined_list and "target" in joined_list:
+                self.fsm.process("connected")
+
+        self.source_exchange.notifyConnect = lambda x: joined("source")
+        self.target_exchange.notifyConnect = lambda x: joined("target")
+
+        se = self.source_exchange.connect()
+        te = self.target_exchange.connect()
+        yield gatherResults([se, te])
+
     def initialize(self, fsm):
         d = self.state.update()
         def _cb(result):
@@ -968,6 +983,7 @@ class Trader():
 
         # Get deposit address
         try:
+            deposit_address = None
             deposit_address = yield to_exchange.getNewAddress(self.data.btc_ticker)
             yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
             id = max(0, 0, *to_state.keys()) + 1
@@ -986,6 +1002,7 @@ class Trader():
                                'from_ticker': self.data.btc_ticker,
                                 'from_quantity': abs(quantity),
                                 'to_quantity': abs(quantity),
+                                'address': deposit_address,
                                 'destination': destination}
 
     @inlineCallbacks
@@ -1027,6 +1044,7 @@ class Trader():
         to_quantity = to_converter(self.data.source_ticker, abs(quantity))
         # Get deposit address
         try:
+            deposit_address = None
             deposit_address = yield to_exchange.getNewAddress(to_ticker)
             yield from_exchange.requestWithdrawal(from_ticker, from_quantity, deposit_address)
             id = max(0, 0, *to_state.keys()) + 1
@@ -1044,6 +1062,7 @@ class Trader():
                                'from_ticker': from_ticker,
                                 'from_quantity': from_quantity,
                                 'to_quantity': to_quantity,
+                                'address': deposit_address,
                                 'destination': destination}
 
     @inlineCallbacks
@@ -1164,6 +1183,7 @@ if __name__ == "__main__":
         sys.path.append("..")
         from sputnik import Sputnik
         from yahoo import Yahoo
+        from coinsetter import CoinSetter
 
         connection = { 'ssl': False,
                        'port': 8880,
@@ -1172,15 +1192,21 @@ if __name__ == "__main__":
 
         debug = False
 
-        source_exchange = Sputnik(connection, {'username': 'ilp_source',
+        sputnik_source_exchange = Sputnik(connection, {'username': 'ilp_source',
                                                'password': 'ilp'}, debug)
-        target_exchange = Sputnik(connection, {'username': 'ilp_target',
+        sputnik_target_exchange = Sputnik(connection, {'username': 'ilp_target',
                                                'password': 'ilp'}, debug)
+
+
+        coinsetter_source_exchange = CoinSetter("uisp8279hdwjmgwmwnsrzd324f6dk8x",
+                                                    "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f",
+                                                    "67.190.85.163",
+                                                    endpoint="https://staging-api.coinsetter.com/v1/")
 
 
         fiat_exchange = Yahoo()
-        market_data = MarketData(source_exchange=source_exchange,
-                                 target_exchange=target_exchange,
+        market_data = MarketData(source_exchange=coinsetter_source_exchange,
+                                 target_exchange=sputnik_target_exchange,
                                  fiat_exchange=fiat_exchange,
                                  source_ticker='USD',
                                  target_ticker='HUF',
@@ -1205,8 +1231,8 @@ if __name__ == "__main__":
                               deviation_penalty=50,
                               risk_aversion=0.01)
 
-        trader = Trader(source_exchange=source_exchange,
-                        target_exchange=target_exchange,
+        trader = Trader(source_exchange=coinsetter_source_exchange,
+                        target_exchange=sputnik_target_exchange,
                         quote_size=Decimal('0.1'),
                         out_address='OUT',
                         state=state,
@@ -1220,18 +1246,7 @@ if __name__ == "__main__":
         site = Site(server)
         reactor.listenTCP(9304, site)
 
-        joined_list = []
-        def joined(exchange):
-            joined_list.append(exchange)
-            if "source" in joined_list and "target" in joined_list:
-                trader.fsm.process("connected")
-
-        source_exchange.notifyConnect = lambda x: joined("source")
-        target_exchange.notifyConnect = lambda x: joined("target")
-
-        se = source_exchange.connect()
-        te = target_exchange.connect()
-        yield gatherResults([se, te])
+        yield trader.init()
 
     log.startLogging(sys.stdout)
     main().addErrback(log.err)
