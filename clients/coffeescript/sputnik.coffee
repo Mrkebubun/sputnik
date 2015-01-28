@@ -90,6 +90,7 @@ class @Sputnik extends EventEmitter
         @subscribe "feeds.market.trades.#{market_encoded}", @onTrade
         @subscribe "feeds.market.safe_prices.#{market_encoded}", @onSafePrice
         @subscribe "feeds.market.ohlcv.#{market_encoded}", @onOHLCV
+        @following = market
 
     unfollow: (market) =>
         market_encoded = @encode_market market
@@ -97,6 +98,7 @@ class @Sputnik extends EventEmitter
         @unsubscribe "feeds.market.trades.#{market_encoded}"
         @unsubscribe "feeds.market.safe_prices.#{market_encoded}"
         @unsubscribe "feeds.market.ohlcv.#{market_encoded}"
+        @following = undefined
 
     # authentication and account management
 
@@ -709,10 +711,6 @@ class @Sputnik extends EventEmitter
         @session.onleave = @onLeave
         @connected = true
         @log "Connected to #{@uri}."
-        @processHash()
-
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         @emit "open"
 
@@ -723,6 +721,19 @@ class @Sputnik extends EventEmitter
 
     onJoin: =>
         @log ["onJoin", @username]
+
+        # Clear subscriptions
+        @subscriptions = {}
+
+        # Do initial stuff
+        @processHash()
+
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+
+        if @following?
+            @follow @following
+
         if @username? and @username != null
             @log ["authenticated"]
             @authenticated = true
