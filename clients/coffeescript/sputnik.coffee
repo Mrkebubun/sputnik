@@ -71,7 +71,7 @@ class @Sputnik extends EventEmitter
 
         setTimeout () =>
             if not @connected
-                @connection.connect()
+                @connection.open()
         , 30000
 
     close: () =>
