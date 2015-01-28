@@ -49,6 +49,7 @@ class CoinSetter():
 
         self.notifyConnect = None
         self.notifyDisconnect = None
+        self.json = json.JSONDecoder(parse_float=Decimal)
 
     @inlineCallbacks
     def connect(self):
@@ -98,8 +99,8 @@ class CoinSetter():
     @inlineCallbacks
     def getPositions(self):
         result = yield self.get("customer/account/%s" % self.default_account)
-        processed = {'BTC': {'position': Decimal(result['btcBalance'])},
-                     'USD': {'position': Decimal(result['usdBalance'])}}
+        processed = {'BTC': {'position': result['btcBalance']},
+                     'USD': {'position': result['usdBalance']}}
         returnValue(processed)
 
     @inlineCallbacks
@@ -125,9 +126,9 @@ class CoinSetter():
         orders = {order['uuid']: {
                 'id': order['uuid'],
                 'side': order['side'],
-                'price': Decimal(order['requestedPrice']),
-                'quantity': Decimal(order['requestedQuantity']),
-                'quantity_left': Decimal(order['openQuantity']),
+                'price': order['requestedPrice'],
+                'quantity': order['requestedQuantity'],
+                'quantity_left': order['openQuantity'],
                 'timestamp': order['createDate']
             } for order in result['orderList']}
 
@@ -137,8 +138,8 @@ class CoinSetter():
     def getOrderBook(self, ticker):
         result = yield self.get("marketdata/full_depth")
         book = {'contract': ticker,
-                'bids': [{'price': Decimal(bid[0]), 'quantity': Decimal(bid[1])} for bid in result['bids']],
-                'asks': [{'price': Decimal(ask[0]), 'quantity': Decimal(ask[1])} for ask in result['asks']],
+                'bids': [{'price': bid[0], 'quantity': bid[1]} for bid in result['bids']],
+                'asks': [{'price': ask[0], 'quantity': ask[1]} for ask in result['asks']],
                 'timestamp': None}
         returnValue(book)
 
@@ -146,20 +147,21 @@ class CoinSetter():
     def getTransactionHistory(self, start_datetime, end_datetime):
         params = {'dateStart': start_datetime.strftime("%d%m%Y"),
                   'dateEnd': end_datetime.strftime("%d%m%Y")}
+        params={}
         result = yield self.get("customer/account/%s/financialTransaction" % self.default_account, params=params)
         transactions = []
         epoch = datetime.utcfromtimestamp(0)
 
         for transaction in result['financialTransactionList']:
-            timestamp = datetime.strptime(transaction['createDate'] + "000", "%m/%d/%Y %H:%M:%S.%f")
+            timestamp = datetime.strptime(transaction['createDate'] + "000", "%d/%m/%Y %H:%M:%S.%f")
             if timestamp < start_datetime or timestamp > end_datetime:
                 continue
             transactions.append({
                 'timestamp': int((timestamp - epoch).total_seconds() * 1e6),
                 'type': transaction['transactionCategoryName'],
                 'contract': transaction['amountDenomination'],
-                'quantity': Decimal(transaction['amount']),
-                'direction': 'debit',
+                'quantity': abs(transaction['amount']),
+                'direction': 'credit' if transaction['amount'] > 0 else 'debit',
                 'note': transaction['referenceNumber']
             })
 
@@ -175,7 +177,7 @@ class CoinSetter():
 
         result = yield treq.post(url, data=json.dumps(data), headers=headers)
         content = yield result.content()
-        parsed = json.loads(content)
+        parsed = self.json.decode(content)
         returnValue(parsed)
 
     @inlineCallbacks
@@ -188,7 +190,7 @@ class CoinSetter():
 
         result = yield treq.get(url.encode('utf-8'), params=params, headers=headers)
         content = yield result.content()
-        parsed = json.loads(content)
+        parsed = self.json.decode(content)
         returnValue(parsed)
 
     @inlineCallbacks
@@ -201,7 +203,7 @@ class CoinSetter():
 
         result = yield treq.delete(url.encode('utf-8'), params=params, headers=headers)
         content = yield result.content()
-        parsed = json.loads(content)
+        parsed = self.json.decode(content)
         returnValue(parsed)
 
     @inlineCallbacks
@@ -214,7 +216,7 @@ class CoinSetter():
 
         result = yield treq.put(url.encode('utf-8'), params=params, headers=headers)
         content = yield result.content()
-        parsed = json.loads(content)
+        parsed = self.json.decode(content)
         returnValue(parsed)
 
 if __name__ == "__main__":
@@ -254,6 +256,10 @@ if __name__ == "__main__":
 
         transactions = yield coinsetter.getTransactionHistory(start, end)
         pprint(transactions)
+
+
+        positions = yield coinsetter.getPositions()
+        pprint(positions)
 
     main(coinsetter).addCallback(pprint).addErrback(log.err)
     reactor.run()
