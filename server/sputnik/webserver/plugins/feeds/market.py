@@ -18,7 +18,7 @@ class MarketAnnouncer(ServicePlugin):
 
     def on_trade(self, ticker, trade):
         ticker = self.encode_ticker(ticker)
-        self.publish(u"feeds.market.trade.%s" % ticker, trade)
+        self.publish(u"feeds.market.trades.%s" % ticker, trade)
 
     def on_book(self, ticker, book):
         ticker = self.encode_ticker(ticker)
