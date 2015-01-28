@@ -91,6 +91,10 @@ class CoinSetter():
         raise NotImplementedError
 
     @inlineCallbacks
+    def getNewAddress(self, ticker):
+        raise NotImplementedError
+
+    @inlineCallbacks
     def requestWithdrawal(self, ticker, amount, address):
         raise NotImplementedError
 

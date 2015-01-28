@@ -27,7 +27,7 @@
 __author__ = 'sameer'
 
 from datetime import datetime
-from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, Deferred
+from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults
 from twisted.internet import reactor, task
 from twisted.python import log
 from copy import copy, deepcopy
@@ -643,12 +643,6 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
-                # params = {'offered_bid': x[0],
-                #           'offered_ask': x[1],
-                #           'btc_source_target': 0,
-                #           'fiat_source_target': 0,
-                #           'trade_source_qty': 0,
-                #           'transfer_source_out': 0}
                 ret = self.valuation(params=params)
                 return -ret['value']
 
@@ -660,12 +654,6 @@ class Valuation():
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
-                # params = {'offered_bid': x[0],
-                #           'offered_ask': x[1],
-                #           'btc_source_target': 0,
-                #           'fiat_source_target': 0,
-                #           'trade_source_qty': 0,
-                #           'transfer_source_out': 0}
                 if self.state.constraint_fn(params, quote_size=float(self.trader.quote_size)):
                     return 1
                 else:
@@ -1157,7 +1145,7 @@ class Webserver(Resource):
             self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
             d = self.valuation.optimize()
             def _cb(result):
-                request.write(redirectTo("/", request))
+                request.write(redirectTo("/#valuation", request))
                 request.finish()
 
             d.addCallback(_cb)
@@ -1166,7 +1154,7 @@ class Webserver(Resource):
             self.trader.quote_size = Decimal(request.args['quote_size'][0])
             self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
             self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
-            return redirectTo('/', request)
+            return redirectTo('/#trader', request)
 
 
 if __name__ == "__main__":
@@ -1215,7 +1203,7 @@ if __name__ == "__main__":
                               target_balance_target={ 'HUF': 1626000,
                                                       'BTC': 6 },
                               deviation_penalty=50,
-                              risk_aversion=0.0001)
+                              risk_aversion=0.01)
 
         trader = Trader(source_exchange=source_exchange,
                         target_exchange=target_exchange,
@@ -1224,8 +1212,8 @@ if __name__ == "__main__":
                         state=state,
                         data=market_data,
                         valuation=valuation,
-                        edge_to_enter=2,
-                        edge_to_leave=-2,
+                        edge_to_enter=2000,
+                        edge_to_leave=-2000,
                         period=5)
 
         server = Webserver(state, valuation, market_data, trader)

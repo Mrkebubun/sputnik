@@ -355,12 +355,15 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         pprint(["onOHLCVHistory", ohlcv_history])
         return ohlcv_history
 
-    def onError(self, message, call=None):
-        pprint(["Error", message.value, call])
+    def onError(self, failure, call=None):
+        log.err(failure)
+        pprint(["Error", failure.value.args, call])
+        return failure
 
-
-    def onRpcFailure(self, event):
-        pprint(["RpcFailure", event.value.args])
+    def onRpcFailure(self, failure):
+        log.err(failure)
+        pprint(["RpcFailure", failure.value.args])
+        return failure
 
     def onAudit(self, audit):
         pprint(["onAudit", audit])

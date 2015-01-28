@@ -59,6 +59,7 @@ class BitStamp():
     def onError(self, failure, call):
         log.err([call, failure.value.args])
         log.err(failure)
+        return failure
 
     @inlineCallbacks
     def handle_response(self, response):
@@ -92,6 +93,9 @@ class BitStamp():
             raise NotImplementedError
 
         return d.addErrback(self.onError, "getCurrentAddress")
+
+    def getNewAddress(self, ticker):
+        return self.getCurrentAddress(ticker)
 
     def requestWithdrawal(self, ticker, amount, address):
         if ticker == 'BTC':
