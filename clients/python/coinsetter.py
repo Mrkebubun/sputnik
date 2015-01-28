@@ -47,6 +47,9 @@ class CoinSetter():
         self.endpoint = endpoint
         self.session_id = None
 
+        self.notifyConnect = None
+        self.notifyDisconnect = None
+
     @inlineCallbacks
     def connect(self):
         data = {'username': self.username,
@@ -57,14 +60,26 @@ class CoinSetter():
         self.session_id = session['uuid']
         self.customer_id = session['customerUuid']
 
-        account_list = yield self.post("customer/account")['accountList']
+        result = yield self.get("customer/account")
+        account_list = result['accountList']
         self.account_uuids = [account['accountUuid'] for account in account_list]
         self.default_account = self.account_uuids[0]
         self.heartbeat = task.LoopingCall(self.call_heartbeat)
         self.heartbeat.start(60)
+        if self.notifyConnect is not None:
+            self.notifyConnect(self)
 
+    @inlineCallbacks
     def call_heartbeat(self):
-        return self.get("clientSession/%s" % self.session_id, params={'action': 'HEARTBEAT'})
+        try:
+            result = yield self.put("clientSession/%s" % self.session_id, params={'action': 'HEARTBEAT'})
+            if result['message'] != "OK":
+                raise Exception("Heartbeat not OK")
+        except Exception as e:
+            log.err(e)
+            if self.notifyDisconnect is not None:
+                self.notifyDisconnect(self)
+            raise e
 
     @inlineCallbacks
     def placeOrder(self, contract, quantity, price, side):
@@ -74,7 +89,8 @@ class CoinSetter():
                 'requestedQuantity': quantity,
                 'requestedPrice': price,
                 'side': side,
-                'symbol': contract.replace('/', '')
+                'symbol': contract.replace('/', ''),
+                'routingMethod': 2
         }
         result = yield self.post("order", data=data)
         returnValue(result['uuid'])
@@ -105,7 +121,7 @@ class CoinSetter():
 
     @inlineCallbacks
     def getOpenOrders(self):
-        result = yield self.get("customer/account/%s/order" % self.default_account, params={'view', "OPEN"})
+        result = yield self.get("customer/account/%s/order" % self.default_account, params={'view': "OPEN"})
         orders = {order['uuid']: {
                 'id': order['uuid'],
                 'side': order['side'],
@@ -113,7 +129,7 @@ class CoinSetter():
                 'quantity': Decimal(order['requestedQuantity']),
                 'quantity_left': Decimal(order['openQuantity']),
                 'timestamp': order['createDate']
-            } for order in result}
+            } for order in result['orderList']}
 
         returnValue(orders)
 
@@ -123,7 +139,7 @@ class CoinSetter():
         book = {'contract': ticker,
                 'bids': [{'price': Decimal(bid[0]), 'quantity': Decimal(bid[1])} for bid in result['bids']],
                 'asks': [{'price': Decimal(ask[0]), 'quantity': Decimal(ask[1])} for ask in result['asks']],
-                'timestamp': result['timeStamp']}
+                'timestamp': None}
         returnValue(book)
 
     @inlineCallbacks
@@ -142,7 +158,7 @@ class CoinSetter():
                 'timestamp': int((timestamp - epoch).total_seconds() * 1e6),
                 'type': transaction['transactionCategoryName'],
                 'contract': transaction['amountDenomination'],
-                'quantity': Decimal(amount),
+                'quantity': Decimal(transaction['amount']),
                 'direction': 'debit',
                 'note': transaction['referenceNumber']
             })
@@ -150,11 +166,12 @@ class CoinSetter():
         returnValue(transactions)
 
     @inlineCallbacks
-    def post(self, call, data):
+    def post(self, call, data={}):
         url = self.endpoint + call
-        headers = {'content-type': 'application/json'}
+        headers = {'content-type': 'application/json',
+                   'accept': 'application/json'}
         if self.session_id is not None:
-            headers['coinsetter-client-session-id'] = self.session_id
+            headers['coinsetter-client-session-id'] = self.session_id.encode('utf-8')
 
         result = yield treq.post(url, data=json.dumps(data), headers=headers)
         content = yield result.content()
@@ -164,11 +181,12 @@ class CoinSetter():
     @inlineCallbacks
     def get(self, call, params={}):
         url = self.endpoint + call
-        headers = {'content-type': 'application/json'}
+        headers = {'content-type': 'application/json',
+                   'accept': 'application/json'}
         if self.session_id is not None:
-            headers['coinsetter-client-session-id'] = self.session_id
+            headers['coinsetter-client-session-id'] = self.session_id.encode('utf-8')
 
-        result = yield treq.get(url, params=params, headers=headers)
+        result = yield treq.get(url.encode('utf-8'), params=params, headers=headers)
         content = yield result.content()
         parsed = json.loads(content)
         returnValue(parsed)
@@ -176,11 +194,68 @@ class CoinSetter():
     @inlineCallbacks
     def delete(self, call, params={}):
         url = self.endpoint + call
-        headers = {'content-type': 'application/json'}
+        headers = {'content-type': 'application/json',
+                   'accept': 'application/json'}
         if self.session_id is not None:
-            headers['coinsetter-client-session-id'] = self.session_id
+            headers['coinsetter-client-session-id'] = self.session_id.encode('utf-8')
 
-        result = yield treq.delete(url, params=params, headers=headers)
+        result = yield treq.delete(url.encode('utf-8'), params=params, headers=headers)
         content = yield result.content()
         parsed = json.loads(content)
         returnValue(parsed)
+
+    @inlineCallbacks
+    def put(self, call, params={}):
+        url = self.endpoint + call
+        headers = {'content-type': 'application/json',
+                   'accept': 'application/json'}
+        if self.session_id is not None:
+            headers['coinsetter-client-session-id'] = self.session_id.encode('utf-8')
+
+        result = yield treq.put(url.encode('utf-8'), params=params, headers=headers)
+        content = yield result.content()
+        parsed = json.loads(content)
+        returnValue(parsed)
+
+if __name__ == "__main__":
+    username = "uisp8279hdwjmgwmwnsrzd324f6dk8x"
+    password = "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f"
+    url = "https://staging-api.coinsetter.com/v1/"
+    ip = "67.190.85.163"
+    uuid = "6097ca03-b529-4dc8-8ffa-c28c7d7ee628"
+    account_uuid = "0415a006-800b-4e69-9e5f-9e35f8024b70"
+
+    coinsetter = CoinSetter(username, password, ip, endpoint=url)
+
+    @inlineCallbacks
+    def main(coinsetter):
+        yield coinsetter.connect()
+        book = yield coinsetter.getOrderBook('BTC/USD')
+        pprint(book)
+
+        start = datetime.utcnow()
+
+        positions = yield coinsetter.getPositions()
+        pprint(positions)
+
+        order = yield coinsetter.placeOrder('BTC/USD', 1, 200, 'BUY')
+        pprint(order)
+
+        orders = yield coinsetter.getOpenOrders()
+        pprint(orders)
+
+        result = yield coinsetter.cancelOrder(order)
+        pprint(result)
+
+        order = yield coinsetter.placeOrder('BTC/USD', 1, 1000, 'BUY')
+        pprint(order)
+
+        end = datetime.utcnow()
+
+        transactions = yield coinsetter.getTransactionHistory(start, end)
+        pprint(transactions)
+
+    main(coinsetter).addCallback(pprint).addErrback(log.err)
+    reactor.run()
+
+
