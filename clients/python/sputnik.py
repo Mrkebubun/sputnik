@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2014, Mimetic Markets, Inc.
+# Copyright (c) 2014, 2015 Mimetic Markets, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
