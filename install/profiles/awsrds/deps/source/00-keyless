@@ -12,6 +12,7 @@ install()
     cd /usr/local/src
     git clone $SOURCE
     cd keyless
+    gem install fpm
     make package
     dpkg -i keyless*.deb
 }

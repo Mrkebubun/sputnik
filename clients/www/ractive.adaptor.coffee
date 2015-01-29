@@ -47,6 +47,7 @@ class RactiveSputnikWrapper
         @cash_spent = {}
         @position_contracts = {}
         @permissions = {}
+        @api = {}
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -240,6 +241,9 @@ class RactiveSputnikWrapper
             @sputnik.log ["ohlcv", ohlcv]
             update_ohlcv(ohlcv)
 
+        sputnik.on "api", (@api) =>
+            @notify "api"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -266,6 +270,7 @@ class RactiveSputnikWrapper
         cash_spent: @cash_spent
         position_contracts: @position_contracts
         permissions: @permissions
+        api: @api
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

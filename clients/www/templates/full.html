@@ -1,3 +1,4 @@
+{{>change_password_token}}
 {{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
     {{translate("alerts/connecting", sputnik.profile.locale)}}.
@@ -5,7 +6,6 @@
 {{else}}
 <div class="container-fluid" id="main_page">
     {{>login_register}}
-    {{>change_password_token}}
     <div id="nav-bar">
         <div class="row">
             <div class="col-xs-12 navbar navbar2">
@@ -48,6 +48,20 @@
     </div>
     {{else}}
     {{#if current_page == "trade"}}
+    <div class="modal fade" id="full-description-modal" aria-hidden="true" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">{{sputnik.markets[current_ticker].description}}</h4>
+                </div>
+                <div class="modal-body">
+                    {{{sputnik.markets[current_ticker].full_description}}}
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="page-trade">
         <div class="row">
             <div class="col-xs-12">
@@ -86,7 +100,11 @@
                                     <div class="row">
                                         <div class="col-xs-6 contract-overview-info">
                                             <div class="row">
-                                                <p class="grey-header" id="contract-description">{{sputnik.markets[current_ticker].description}}</p>
+                                                {{#if sputnik.markets[current_ticker].full_description}}
+                                                <p><a href="#" class="grey-header" data-toggle="modal" data-target="#full-description-modal">{{sputnik.markets[current_ticker].description}}</a></p>
+                                                {{else}}
+                                                <p class="grey-header">{{sputnik.markets[current_ticker].description}}</p>
+                                                {{/if}}
                                                 <p class="grey-header" id="contract-expiration">{{format_datetime(sputnik.markets[current_ticker].expiration, sputnik.profile.locale)}}</p>
                                             </div>
                                             <div class="row">
@@ -483,6 +501,36 @@
     </div>
     {{/if}}
     {{#if current_page == "account"}}
+    <div class="modal fade" id="api-credentials-modal" aria-hidden="true" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">{{translate("account/profile/titles/api_credentials", sputnik.profile.locale)}}</h4>
+                </div>
+                <div class="modal-body">
+                    <table>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_docs", sputnik.profile.locale)}}</th>
+                            <td><a href="https://github.com/MimeticMarkets/sputnik/blob/master/clients/REST.md" target="_blank">https://github.com/MimeticMarkets/sputnik/blob/master/clients/REST.md</a></td>
+                        </tr>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_secret", sputnik.profile.locale)}}</th>
+                            <td>{{sputnik.api.secret}}</td>
+                        </tr>
+                        <tr>
+                            <th>{{translate("account/profile/titles/api_key", sputnik.profile.locale)}}</th>
+                            <td>{{sputnik.api.key}}</td>
+                        <tr>
+                            <th>{{translate("account/profile/titles/expiration", sputnik.profile.locale)}}</th>
+                            <td>{{format_datetime(sputnik.api.expiration, sputnik.profile.locale)}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="page-account">
         <div class="row">
             <div class="col-xs-12">
@@ -553,6 +601,11 @@
                                     {{#current_currency}}
                                     <div class="row">
                                         <div class="col-sm-12">
+                                            {{{sputnik.currencies[current_currency].full_description}}}
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-sm-12">
                                             <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance", sputnik.profile.locale)}}:</p>
                                             <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position, sputnik.profile.locale)}}</strong></p>
                                         </div>
@@ -614,6 +667,11 @@
                                         </div>
                                     </div>
                                     {{#current_currency}}
+                                    <div class="row">
+                                        <div class="col-sm-12">
+                                            {{{sputnik.currencies[current_currency].full_description}}}
+                                        </div>
+                                    </div>
                                     <div class="row">
                                         <div class="col-sm-3">
                                             <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance", sputnik.profile.locale)}}:</p>
@@ -1204,6 +1262,21 @@
                                                     <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.fill}}" value="email"></td>
                                                     <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.fill}}" value="growl"></td>
                                                 </tr>
+                                                <tr>
+                                                    <td style="padding: 5px">{{translate("account/profile/notifications/daily", sputnik.profile.locale)}}</td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.daily}}" value="email"></td>
+                                                    <td style="padding: 5px"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 5px">{{translate("account/profile/notifications/weekly", sputnik.profile.locale)}}</td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.weekly}}" value="email"></td>
+                                                    <td style="padding: 5px"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 5px">{{translate("account/profile/notifications/monthly", sputnik.profile.locale)}}</td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.monthly}}" value="email"></td>
+                                                    <td style="padding: 5px"></td>
+                                                </tr>
                                             </table>
                                         </div>
                                     </div>
@@ -1218,7 +1291,7 @@
                             </div>
                             <div class="row">
                                 <div class="col-sm-5 deposit-content2">
-                                    <h4 class="heading-sub2">Change Password</h4>
+                                    <h4 class="heading-sub2">{{translate("account/profile/titles/change_password", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
                                             <p>{{translate("account/profile/titles/old_password", sputnik.profile.locale)}}</p>
@@ -1249,6 +1322,14 @@
                                         </div>
                                         <div class="col-sm-7 form-label">
                                             <a href="#" class="button-link-box3" on-click="change_password">{{translate("account/profile/buttons/change_password", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-5 deposit-content">
+                                    <h4 class="heading-sub2">{{translate("account/profile/titles/api_credentials", sputnik.profile.locale)}}</h4>
+                                    <div class="row form-row">
+                                        <div class="col-sm-12 form-label">
+                                            <a href="#" class="button-link-box3" data-toggle="modal" data-target="#api-credentials-modal" on-click="get_new_api_credentials">{{translate("account/profile/buttons/get_new_api_credentials", sputnik.profile.locale)}}</a>
                                         </div>
                                     </div>
                                 </div>

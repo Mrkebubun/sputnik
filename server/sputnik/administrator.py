@@ -17,6 +17,9 @@ import json
 import copy
 import string
 import pickle
+import Crypto.Random.random
+import Crypto.Random.random
+from dateutil import parser
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -33,33 +36,34 @@ from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
-from autobahn.wamp1.protocol import WampCraProtocol
 from dateutil import parser
+from datetime import timedelta
+from autobahn.wamp.auth import derive_key
+from twisted.web.static import File
 
 import config
 import database
 import models
-from util import ChainedOpenSSLContextFactory, SputnikException
+from util import ChainedOpenSSLContextFactory
 import util
 from sendmail import Sendmail
 from watchdog import watchdog
 
-# noinspection PyUnresolvedReferences
-from accountant import AccountantProxy, AccountantException
+from accountant import AccountantProxy
 
-# noinspection PyUnresolvedReferences
-from cashier import CashierException
+from exception import *
 
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
-
-
-class AdministratorException(SputnikException): pass
+from dateutil import relativedelta
+from zendesk import Zendesk
+from blockscore import BlockScore
+from ticketserver import TicketServer
+import base64
+from Crypto.Random.random import getrandbits
 
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
@@ -78,6 +82,7 @@ INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insu
 NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
+MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
 
 from util import session_aware
 
@@ -134,6 +139,9 @@ class Administrator:
         :returns: bool
         :raises: USER_LIMIT_REACHED, USERNAME_TAKEN, OUT_OF_ADDRESSES
         """
+        if self.malicious_looking(username):
+            raise MALICIOUS_LOOKING_INPUT
+
         user_count = self.session.query(models.User).count()
         if user_count > self.user_limit:
             log.err("User limit reached")
@@ -169,6 +177,15 @@ class Administrator:
         log.msg("Account created for %s" % username)
         return True
 
+
+    def malicious_looking(self, w):
+        """
+
+        :param w:
+        :returns: bool
+        """
+        return any(x in w for x in '<>&')
+
     def change_profile(self, username, profile):
         """Changes the profile of a user
 
@@ -188,6 +205,9 @@ class Administrator:
         #user.email = profile.get("email", user.email)
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
+
+        if self.malicious_looking(profile.get('email', '')) or self.malicious_looking(profile.get('nickname', '')):
+            raise MALICIOUS_LOOKING_INPUT
 
         # User notifications
         if 'notifications' in profile:
@@ -227,6 +247,30 @@ class Administrator:
                    'notifications': notifications
         }
         return profile
+
+    def get_new_api_credentials(self, username, expiration):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        user.api_key = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+        user.api_expiration = util.timestamp_to_dt(expiration)
+        user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+
+        self.session.commit()
+        return {'key': user.api_key, 'secret': user.api_secret, 'expiration': util.dt_to_timestamp(user.api_expiration)}
+
+    def check_and_update_api_nonce(self, username, nonce):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if nonce <= user.api_nonce:
+            return False
+        else:
+            user.api_nonce = nonce
+            self.session.commit()
+            return True
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -272,8 +316,8 @@ class Administrator:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt": salt, "keylen": 32, "iterations": 1000}
-        password = WampCraProtocol.deriveKey(new_password, extra)
+
+        password = derive_key(new_password, salt, iterations=1000, keylen=32)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
@@ -298,17 +342,15 @@ class Administrator:
         except sqlalchemy.orm.exc.NoResultFound:
             raise NO_SUCH_USER
 
-        [salt, hash] = user.password.split(':')
-
-        if hash != old_password_hash and token is None:
+        if user.password != old_password_hash and token is None:
             raise PASSWORD_MISMATCH
-        elif hash != old_password_hash:
+        elif user.password != old_password_hash:
             # Check token
             token = self.check_token(username, token)
             token.used = True
             self.session.add(token)
 
-        user.password = "%s:%s" % (salt, new_password_hash)
+        user.password = new_password_hash
 
         self.session.add(user)
         self.session.commit()
@@ -381,6 +423,153 @@ class Administrator:
         user = self.session.query(models.User).filter_by(username=username).one()
 
         return user
+
+    def mail_statements(self, period, now=None):
+        self.expire_all()
+
+        if now is None:
+            now = datetime.utcnow()
+
+        if period == "daily":
+            yesterday = now - timedelta(days=1)
+            yesterday_bod = datetime(yesterday.year, yesterday.month, yesterday.day)
+            today_bod = datetime(now.year, now.month, now.day)
+            yesterday_eod = today_bod - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(yesterday_bod)
+            to_timestamp = util.dt_to_timestamp(yesterday_eod)
+        elif period == "weekly":
+            recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-1))
+            second_recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-2))
+            last_week_start = datetime(second_recent_sunday.year, second_recent_sunday.month, second_recent_sunday.day)
+            this_week_start = datetime(recent_sunday.year, recent_sunday.month, recent_sunday.day)
+            last_week_end = this_week_start - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_week_start)
+            to_timestamp = util.dt_to_timestamp(last_week_end)
+        elif period == "monthly":
+            last_month = now + relativedelta.relativedelta(months=-1)
+            last_month_bom = datetime(last_month.year, last_month.month, 1)
+            this_month_bom = datetime(now.year, now.month, 1)
+            last_month_eom = this_month_bom - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_month_bom)
+            to_timestamp = util.dt_to_timestamp(last_month_eom)
+        else:
+            raise AdministratorException("Period not supported: %s" % period)
+
+        users = self.session.query(models.User)
+        user_list = []
+
+        for user in users:
+            if period in [notification.type for notification in user.notifications if notification.method == "email"]:
+                self.mail_statement(user.username, from_timestamp, to_timestamp)
+                user_list.append(user.username)
+
+        return user_list
+
+    @util.timed
+    def mail_statement(self, username, from_timestamp=None, to_timestamp=None):
+        now = datetime.utcnow()
+        user = self.get_user(username)
+
+        if to_timestamp is None:
+            end = now
+        else:
+            end = util.timestamp_to_dt(to_timestamp)
+
+        if from_timestamp is None:
+            start = end + relativedelta.relativedelta(months=-1)
+        else:
+            start = util.timestamp_to_dt(from_timestamp)
+
+        log.msg("mailing statement for %s from %s to %s" % (username, start, end))
+
+        # Get beginning balances
+        balances = self.session.query(func.sum(models.Posting.quantity).label("balance"),
+                                      func.max(models.Journal.timestamp).label("max_timestamp"),
+                                      models.Contract).filter(models.Posting.username == username).filter(
+                                        models.Journal.id==models.Posting.journal_id).filter(
+                                        models.Posting.contract_id==models.Contract.id).filter(
+                                        models.Journal.timestamp < start).group_by(models.Contract)
+
+
+        transaction_info = collections.defaultdict(list)
+        beginning_balance_info = collections.defaultdict(int)
+        totals_by_type = collections.defaultdict(lambda: collections.defaultdict(int))
+        totals_by_type_fmt = collections.defaultdict(dict)
+        details = {}
+
+        # get all positions
+        positions = self.session.query(models.Position).filter_by(username=username)
+        for position in positions:
+            contract = position.contract
+
+            # Find the balance in balances
+            running_balance = 0
+            for balance in balances:
+                if balance.Contract == contract:
+                    running_balance = balance.balance
+                    break
+
+            details[contract.ticker] = {
+                'transactions': [],
+                'totals_by_type': collections.defaultdict(int),
+                'totals_by_type_fmt': {},
+                'beginning_balance': running_balance,
+                'beginning_balance_fmt': util.quantity_fmt(contract, running_balance),
+                'ending_balance': running_balance,
+                'ending_balance_fmt': util.quantity_fmt(contract, running_balance)
+            }
+            # Get transactions during period
+            transactions = self.session.query(models.Posting, models.Journal).filter(
+                models.Journal.id==models.Posting.journal_id).filter(
+                models.Journal.timestamp >= start).filter(
+                models.Journal.timestamp <= end).filter(models.Posting.username==username).filter(
+                models.Posting.contract_id == contract.id).order_by(
+                models.Journal.timestamp)
+
+            for transaction in transactions:
+                running_balance += transaction.Posting.quantity
+                details[contract.ticker]['totals_by_type'][transaction.Journal.type] += transaction.Posting.quantity
+
+                if transaction.Posting.quantity < 0:
+                    if user.type == 'Asset':
+                        direction = 'credit'
+                    else:
+                        direction = 'debit'
+                else:
+                    if user.type == 'Asset':
+                        direction = 'debit'
+                    else:
+                        direction = 'credit'
+
+                details[contract.ticker]['transactions'].append({'contract': contract.ticker,
+                                                                         'timestamp': transaction.Journal.timestamp,
+                                                                         'quantity': abs(transaction.Posting.quantity),
+                                                                         'quantity_fmt': util.quantity_fmt(
+                                                                             contract,
+                                                                             abs(transaction.Posting.quantity)),
+                                                                         'direction': direction,
+                                                                         'balance': running_balance,
+                                                                         'balance_fmt': util.quantity_fmt(
+                                                                             contract, running_balance),
+                                                                         'note': transaction.Posting.note,
+                                                                         'type': transaction.Journal.type
+                })
+                details[contract.ticker]['ending_balance'] = running_balance
+                details[contract.ticker]['ending_balance_fmt'] = util.quantity_fmt(contract, running_balance)
+
+            for type, total in details[contract.ticker]['totals_by_type'].iteritems():
+                details[contract.ticker]['totals_by_type_fmt'][type] = util.quantity_fmt(contract, total)
+
+        t = self.jinja_env.get_template('transaction_statement.email')
+        content = t.render(user=user,
+                           start=start,
+                           end=end,
+                           details=details).encode('utf-8')
+        log.msg("Sending statement to user at %s" % user.email)
+        self.sendmail.send_mail(content, subject="Your statement", to_address=user.email)
 
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket
@@ -1044,11 +1233,11 @@ class AdminAPI(Resource):
                 log.err(failure)
                 return {'success': False, 'error': failure.value.args}
 
-            def deliver_result(result, request):
+            def deliver_result(result):
                 request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
                 request.finish()
 
-            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result, request)
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result)
             return NOT_DONE_YET
         except AdministratorException as e:
             log.err(e)
@@ -1059,7 +1248,7 @@ class AdminAPI(Resource):
 class AdminWebUI(Resource):
     isLeaf = False
 
-    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory, base_uri):
         """The web Resource that front-ends the administrator
 
         :param administrator: the actual administrator
@@ -1077,7 +1266,19 @@ class AdminWebUI(Resource):
         self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.component.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
+        self.base_uri = base_uri
         Resource.__init__(self)
+
+    def check_referer(self, request):
+        if self.base_uri is not None:
+            referer = request.getHeader("referer")
+            if referer is None or not referer.startswith(self.base_uri):
+                log.err("Referer check failed: %s" % referer)
+                return False
+            else:
+                return True
+        else:
+            return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1124,6 +1325,10 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
+        if request.path != '/':
+            if not self.check_referer(request):
+                return redirectTo('/', request)
+
         resources = [
                     # Level 0
                     { '/': self.admin,
@@ -1136,7 +1341,8 @@ class AdminWebUI(Resource):
                       '/user_postings': self.user_postings,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
-                      '/contracts': self.contracts
+                      '/contracts': self.contracts,
+                      '/mail_statement': self.mail_statement,
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
@@ -1226,6 +1432,12 @@ class AdminWebUI(Resource):
         d.addCallback(_cb, request).addErrback(self.error_callback, request)
         return NOT_DONE_YET
 
+    def mail_statement(self, request):
+        self.administrator.expire_all()
+
+        self.administrator.mail_statement(request.args['username'][0])
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+    
     def permission_groups(self, request):
         """Get the permission groups page
 
@@ -1748,10 +1960,11 @@ class PasswordChecker(object):
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator, session, digest_factory):
+    def __init__(self, administrator, session, digest_factory, admin_base_uri):
         self.administrator = administrator
         self.session = session
         self.digest_factory = digest_factory
+        self.admin_base_uri = admin_base_uri
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
@@ -1766,7 +1979,7 @@ class SimpleRealm(object):
                 self.session.rollback()
                 print "Exception: %s" % e
 
-            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory, self.admin_base_uri)
             api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
             ui_resource.putChild('api', api_resource)
 
@@ -1784,6 +1997,18 @@ class WebserverExport(ComponentExport):
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_new_api_credentials")
+    def get_new_api_credentials(self, username, expiration):
+        return self.administrator.get_new_api_credentials(username, expiration)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_and_update_api_nonce")
+    def check_and_update_api_nonce(self, username, nonce):
+        return self.administrator.check_and_update_api_nonce(username, nonce)
 
     @export
     @session_aware
@@ -1832,6 +2057,17 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_profile")
     def get_profile(self, username):
         return self.administrator.get_profile(username)
+
+class CronExport(ComponentExport):
+    def __init__(self, administrator):
+        self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#mail_statements")
+    def mail_statements(self, period):
+        return self.administrator.mail_statements(period)
 
 
 class TicketServerExport(ComponentExport):
@@ -1897,15 +2133,23 @@ if __name__ == "__main__":
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
+    cron_export = CronExport(administrator)
 
     router_share_async(webserver_export,
                        config.get("administrator", "webserver_export"))
     router_share_async(ticketserver_export,
                        config.get("administrator", "ticketserver_export"))
+    router_share_async(cron_export,
+                       config.get("administrator", "cron_export"))
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory),
+    admin_base_uri = "%s://%s:%d" % (protocol,
+                                     config.get("webserver", "www_address"),
+                                     config.getint("administrator", "UI_port"))
+
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory,
+                                                        admin_base_uri),
                                             checkers),
                                      [digest_factory])
 
@@ -1921,6 +2165,37 @@ if __name__ == "__main__":
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+    # Ticketserver
+
+    administrator_for_ticketserver =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+    if config.getboolean("ticketserver", "enable_blockscore"):
+        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
+    else:
+        blockscore = None
+
+    ticketserver =  TicketServer(administrator_for_ticketserver, zendesk, blockscore=blockscore)
+
+    interface = config.get("webserver", "interface")
+    if config.getboolean("webserver", "www"):
+        web_dir = File(config.get("webserver", "www_root"))
+        web_dir.putChild('ticket_server', ticketserver)
+        web = Site(web_dir)
+        port = config.getint("webserver", "www_port")
+        if config.getboolean("webserver", "ssl"):
+            reactor.listenSSL(port, web, contextFactory, interface=interface)
+        else:
+            reactor.listenTCP(port, web, interface=interface)
+    else:
+        base_resource = Resource()
+        base_resource.putChild('ticket_server', ticketserver)
+        reactor.listenTCP(config.getint("ticketserver", "ticketserver_port"), Site(base_resource),
+                                        interface="127.0.0.1")
+
 
     reactor.run()
 

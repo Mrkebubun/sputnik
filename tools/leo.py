@@ -5,7 +5,7 @@ import sys
 
 import string
 import textwrap
-import autobahn.wamp1.protocol
+import autobahn.wamp.auth
 import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -163,11 +163,10 @@ class AccountManager:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt":salt, "keylen":32, "iterations":1000}
         encoded_secret = secret.encode("utf-8")
         if secret != encoded_secret:
             raise Exception("passwords with non-ascii characters not valid")
-        password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(encoded_secret, extra)
+        password = autobahn.wamp.auth.derive_key(encoded_secret, salt)
         self.set(username, "password", "%s:%s" % (salt, password))
 
 class ContractManager:

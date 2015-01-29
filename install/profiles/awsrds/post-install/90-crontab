@@ -1,0 +1,2 @@
+#!/bin/sh
+crontab -u $profile_user $profile_conf/crontab

@@ -40,7 +40,7 @@ class @TVFeed
 
     setup: (reserved, callback) =>
         @sputnik.log "setup called"
-        @sputnik.call("get_exchange_info").then (@info) =>
+        @sputnik.call("rpc.info.get_exchange_info").then (@info) =>
             config_data = {
                 exchanges: [ @info.name ]
                 symbols_types: [ 'cash_pair', 'futures', 'prediction' ]
@@ -52,7 +52,7 @@ class @TVFeed
 
     searchSymbolsByName: (userInput, exchange, symbolType, onResultReadyCallback) =>
         @sputnik.log ["searchSymbolsByName", userInput, exchange, symbolType]
-        @sputnik.call("get_markets").then (markets) =>
+        @sputnik.call("rpc.market.get_markets").then (markets) =>
             return_array = []
             for ticker, details of markets
                 if details.contract_type != "cash"
@@ -71,7 +71,7 @@ class @TVFeed
 
     resolveSymbol: (symbolName, onSymbolResolvedCallback, onResolveErrorCallback) =>
         @sputnik.log ["resolveSymbol", symbolName]
-        @sputnik.call("get_markets").then (markets) =>
+        @sputnik.call("rpc.market.get_markets").then (markets) =>
             if symbolName of markets
                 info = {
                     name: symbolName
@@ -111,7 +111,7 @@ class @TVFeed
         else if resolution == "D"
             period = "day"
 
-        @sputnik.call("get_ohlcv_history", symbolInfo.name, period, from_timestamp, to_timestamp).then (history) =>
+        @sputnik.call("rpc.market.get_ohlcv_history", symbolInfo.name, period, from_timestamp, to_timestamp).then (history) =>
             return_bars = []
             for timestamp, bar of history
                 return_bars.push {
@@ -138,7 +138,8 @@ class @TVFeed
         else if resolution == "D"
             period = "day"
 
-        @sputnik.subscribe "ohlcv##{symbolInfo.name}", (bar) =>
+        encoded_market = @sputnik.encode_market(symbolInfo.name)
+        @sputnik.subscribe "feeds.market.ohlcv.#{encoded_market}", (bar) =>
             if bar.period == period
                 return_bar = {
                     time: ohlcv.timestamp / 1e3
@@ -159,14 +160,15 @@ class @TVFeed
         @sputnik.log ["unsubscribeBars", subscriberUID]
         if subscriberUID in @subscribed
             for symbol in @subscribed[subscriberUID]
-                @sputnik.unsubscribe "ohlcv##{@subscribed[subscriberUID]}"
+                encoded_market = @sputnik.encode_market(symbol)
+                @sputnik.unsubscribe "feeds.market.ohlcv.#{encoded_market}"
                 delete @subscribed[subscriberUID]
 
     getQuotes: (symbols, onDataCallback, onErrorCallback) =>
         @sputnik.log ["getQuotes", symbols]
         dlist = []
         for symbol in symbols
-            dlist.push @call("get_order_book", symbol)
+            dlist.push @sputnik.call("rpc.market.get_order_book", symbol)
 
         $.when(dlist).then (results) =>
             @sputnik.log ["onDataCallback", results]
@@ -175,7 +177,8 @@ class @TVFeed
     subscribeQuotes: (symbols, fastSymbols, onRealtimeCallback, subscriberUID) =>
         @sputnik.log ["subscribeQuotes", symbols, fastSymbols, subscriberUID]
         for symbol in symbols + fastSymbols
-            @sputnik.subscribe("book##{symbol}").then (book) =>
+            encoded_symbol = @sputnik.encode_market symbol
+            @sputnik.subscribe("feeds.market.book.#{encoded_symbol}").then (book) =>
                 @sputnik.log ["onRealtimeCallback", book]
                 onRealtimeCallback book
 
@@ -187,7 +190,8 @@ class @TVFeed
     unsubscribeQuotes: (subscriberUID) =>
         @sputnik.log ["unsubscribeQuotes", subscriberUID]
         for symbol in @quotes[subscriberUID]
-            @sputnik.unsubscribe("book##{symbol}")
+            encoded_symbol = @sputnik.encode_market symbol
+            @sputnik.unsubscribe("feeds.market.book.#{encoded_symbol}")
 
         delete @quotes[subscriberUID]
 

@@ -4,9 +4,6 @@ from twisted.trial import unittest
 from twisted.internet import task, reactor
 import sys
 import os
-import logging
-
-logging.basicConfig(level=1000)
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "../server"))

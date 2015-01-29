@@ -64,6 +64,7 @@ mimetic_share = ${mimetic_share}
 webserver_export = tcp://127.0.0.1:4670
 accountant_export = tcp://127.0.0.1:4640
 ticketserver_export = tcp://127.0.0.1:4680
+cron_export = tcp://127.0.0.1:5000
 UI_port = ${administrator_port}
 interface = ${webserver_interface}
 address = ${webserver_address}
