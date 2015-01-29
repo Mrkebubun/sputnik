@@ -297,7 +297,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             if result['success']:
                 return result['result']
             else:
-                return defer.fail(result['error'])
+                raise Exception(result['error'])
 
         d.addCallbacks(onSuccess, self.onRpcFailure)
         return d
