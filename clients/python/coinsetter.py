@@ -37,7 +37,7 @@ import hashlib
 import time
 from decimal import Decimal
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class CoinSetter():
     def __init__(self, username, password, ip, endpoint="https://api.coinsetter.com/v1/"):
@@ -150,22 +150,27 @@ class CoinSetter():
     @inlineCallbacks
     def getTransactionHistory(self, start_datetime, end_datetime):
         params = {'dateStart': start_datetime.strftime("%d%m%Y"),
-                  'dateEnd': end_datetime.strftime("%d%m%Y")}
+                  'dateEnd': (end_datetime + timedelta(days=1)).strftime("%d%m%Y")}
         result = yield self.get("customer/account/%s/financialTransaction" % self.default_account, params=params)
         transactions = []
         epoch = datetime.utcfromtimestamp(0)
+        type_map = {'WITHDRAWAL': 'Withdrawal',
+                    'DEPOSIT': 'Deposit',
+                    'COMMISSION CHARGE': 'Commission'}
 
         for transaction in result['financialTransactionList']:
             timestamp = datetime.strptime(transaction['createDate'] + "000", "%d/%m/%Y %H:%M:%S.%f")
             if timestamp < start_datetime or timestamp > end_datetime:
                 continue
+            print timestamp
+            mapped_type = type_map.get(transaction['transactionCategoryName'], transaction['transactionCategoryName'])
             transactions.append({
                 'timestamp': int((timestamp - epoch).total_seconds() * 1e6),
-                'type': transaction['transactionCategoryName'],
+                'type': mapped_type,
                 'contract': transaction['amountDenomination'],
                 'quantity': abs(transaction['amount']),
                 'direction': 'credit' if transaction['amount'] > 0 else 'debit',
-                'note': transaction['referenceNumber']
+                'note': None
             })
 
         returnValue(transactions)
@@ -234,26 +239,27 @@ if __name__ == "__main__":
     @inlineCallbacks
     def main(coinsetter):
         yield coinsetter.connect()
-        book = yield coinsetter.getOrderBook('BTC/USD')
-        pprint(book)
+        # book = yield coinsetter.getOrderBook('BTC/USD')
+        # pprint(book)
+        #
 
-        start = datetime.utcnow()
-
-        positions = yield coinsetter.getPositions()
-        pprint(positions)
-
-        order = yield coinsetter.placeOrder('BTC/USD', 1, 200, 'BUY')
-        pprint(order)
-
-        orders = yield coinsetter.getOpenOrders()
-        pprint(orders)
-
-        result = yield coinsetter.cancelOrder(order)
-        pprint(result)
-
-        order = yield coinsetter.placeOrder('BTC/USD', 1, 1000, 'BUY')
-        pprint(order)
-
+        #
+        # positions = yield coinsetter.getPositions()
+        # pprint(positions)
+        #
+        # order = yield coinsetter.placeOrder('BTC/USD', 1, 200, 'BUY')
+        # pprint(order)
+        #
+        # orders = yield coinsetter.getOpenOrders()
+        # pprint(orders)
+        #
+        # result = yield coinsetter.cancelOrder(order)
+        # pprint(result)
+        #
+        # order = yield coinsetter.placeOrder('BTC/USD', 1, 1000, 'BUY')
+        # pprint(order)
+        #
+        start = datetime.utcnow() - timedelta(days=1)
         end = datetime.utcnow()
 
         transactions = yield coinsetter.getTransactionHistory(start, end)

@@ -170,16 +170,18 @@ class State():
 
         def clear_transits(transits, tx_list, field='to'):
             def near(value_1, value_2):
-                if abs(value_1-value_2)/value_1 < 0.05:
+                if abs(value_1-value_2)/value_1 < 0.01:
                     return True
                 else:
                     return False
+            kept_transits = []
 
-            for tx in tx_list:
-                contract = tx['contract']
-                quantity = tx['quantity']
-                for ix in range(transits):
-                    if transits[ix]['%s_ticker' % field] == contract and near(transits[ix]['%s_quantity'] % field,
+            for ix in range(len(transits)):
+                found = False
+                for tx in tx_list:
+                    contract = tx['contract']
+                    quantity = tx['quantity']
+                    if transits[ix]['%s_ticker' % field] == contract and near(transits[ix]['%s_quantity' % field],
                                                                               quantity):
                         if field == "from":
                             destination = transits[ix].get("destination")
@@ -187,13 +189,20 @@ class State():
                                 self.transit_to_source.append(transits[ix])
                             if destination == "target":
                                 self.transit_to_target.append(transits[ix])
+                        found = True
+                        break
 
-                        del transits[ix]
+                if not found:
+                    kept_transits.append(transits[ix])
 
-        clear_transits(self.transit_to_source, source_deposits, field='to')
-        clear_transits(self.transit_to_target, target_deposits, field='to')
-        clear_transits(self.transit_from_source, source_withdrawals, field='from')
-        clear_transits(self.transit_from_target, target_withdrawals, field='from')
+
+
+            return kept_transits
+
+        self.transit_to_source = clear_transits(self.transit_to_source, source_deposits, field='to')
+        self.transit_to_target = clear_transits(self.transit_to_target, target_deposits, field='to')
+        self.transit_from_source = clear_transits(self.transit_from_source, source_withdrawals, field='from')
+        self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
         self.pickle()
         returnValue(None)
