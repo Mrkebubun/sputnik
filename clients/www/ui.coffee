@@ -132,7 +132,7 @@ $ ->
     uri = ws_protocol + "//" + hostname + ":#{port}" + "/ws"
 
     # FOR CLIENT DEV
-    uri = "wss://demo.m2.io:8443"
+    uri = "wss://demo.m2.io:8443/ws"
 
     sputnik = new Sputnik uri
     window.sputnik = sputnik
