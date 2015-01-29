@@ -756,6 +756,8 @@ class @Sputnik extends EventEmitter
         else
             @log ["joined anonymously"]
 
+        @emit "join"
+
     onLeave: (reason, message) =>
         @log ["leave reason", reason, message]
         if reason == "wamp.error.not_authorized"
