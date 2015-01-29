@@ -712,6 +712,12 @@ class @Sputnik extends EventEmitter
         @connected = true
         @log "Connected to #{@uri}."
 
+        # Do initial stuff
+        @processHash()
+
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+
         @emit "open"
 
     onClose: (code, reason, details) =>
@@ -724,12 +730,6 @@ class @Sputnik extends EventEmitter
 
         # Clear subscriptions
         @subscriptions = {}
-
-        # Do initial stuff
-        @processHash()
-
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         if @following?
             @follow @following
