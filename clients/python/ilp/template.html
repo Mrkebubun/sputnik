@@ -135,19 +135,19 @@
                             <table id="transit_to_source" class="table table-striped table-hover">
                                 <tbody>
                                     <tr>
-                                        <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
                                         <th>From Quantity</th>
                                         <th>To Quantity</th>
+                                        <th>Address</th>
                                     </tr>
-                                    {% for id, transit in object.state.transit_to_source.iteritems() %}
+                                    {% for transit in object.state.transit_to_source %}
                                     <tr>
-                                        <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
                                         <td>{{transit.from_quantity}}</td>
                                         <td>{{transit.to_quantity}}</td>
+                                        <td>{{transit.address}}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -160,22 +160,20 @@
                             <table id="transit_from_source" class="table table-striped table-hover">
                                 <tbody>
                                     <tr>
-                                        <th></th>
-                                        <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
                                         <th>From Quantity</th>
                                         <th>To Quantity</th>
+                                        <th>Address</th>
                                         <th>Destination</th>
                                     </tr>
-                                    {% for id, transit in object.state.transit_from_source.iteritems() %}
+                                    {% for transit in object.state.transit_from_source %}
                                     <tr>
-                                        <td><a href="/clear?transit=source?id={{id}}">Mark Requested</a></td>
-                                        <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
                                         <td>{{transit.from_quantity}}</td>
                                         <td>{{transit.to_quantity}}</td>
+                                        <td>{{transit.address}}</td>
                                         <td>{{transit.destination}}</td>
                                     </tr>
                                     {% endfor %}
@@ -189,19 +187,19 @@
                             <table id="transit_to_target" class="table table-striped table-hover">
                                 <tbody>
                                     <tr>
-                                        <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
                                         <th>From Quantity</th>
                                         <th>To Quantity</th>
+                                        <th>Address</th>
                                     </tr>
-                                    {% for id, transit in object.state.transit_to_target.iteritems() %}
+                                    {% for transit in object.state.transit_to_target %}
                                     <tr>
-                                        <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
                                         <td>{{transit.from_quantity}}</td>
                                         <td>{{transit.to_quantity}}</td>
+                                        <td>{{transit.address}}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -214,22 +212,20 @@
                             <table id="transit_from_target" class="table table-striped table-hover">
                                 <tbody>
                                     <tr>
-                                        <th></th>
-                                        <th>ID</th>
                                         <th>From Ticker</th>
                                         <th>To Ticker</th>
                                         <th>From Quantity</th>
                                         <th>To Quantity</th>
+                                        <th>Address</th>
                                         <th>Destination</th>
                                     </tr>
-                                    {% for id, transit in object.state.transit_from_target.iteritems() %}
+                                    {% for transit in object.state.transit_from_target %}
                                     <tr>
-                                        <td><a href="/clear?transit=target?id={{id}}">Mark Requested</a></td>
-                                        <td>{{id}}</td>
                                         <td>{{transit.from_ticker}}</td>
                                         <td>{{transit.to_ticker}}</td>
                                         <td>{{transit.from_quantity}}</td>
                                         <td>{{transit.to_quantity}}</td>
+                                        <td>{{transit.address}}</td>
                                         <td>{{transit.destination}}</td>
                                     </tr>
                                     {% endfor %}
@@ -256,7 +252,7 @@
                                     {% for id, order in object.state.source_orders.iteritems() %}
                                     <tr>
                                         <td>{{id}}</td>
-                                        <td>{{order.timestamp|timestamp}}</td>
+                                        <td>{{order.timestamp|format_timestamp}}</td>
                                         <td>{{order.contract}}</td>
                                         <td>{{order.price}}</td>
                                         <td>{{order.quantity}}</td>
@@ -285,7 +281,7 @@
                                     {% for id, order in object.state.target_orders.iteritems() %}
                                     <tr>
                                         <td>{{id}}</td>
-                                        <td>{{order.timestamp|timestamp}}</td>
+                                        <td>{{order.timestamp|format_timestamp}}</td>
                                         <td>{{order.contract}}</td>
                                         <td>{{order.price}}</td>
                                         <td>{{order.quantity}}</td>

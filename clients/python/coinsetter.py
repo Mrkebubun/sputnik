@@ -94,6 +94,9 @@ class CoinSetter():
                 'routingMethod': 2
         }
         result = yield self.post("order", data=data)
+        if result['requestStatus'] == 'FAILURE':
+            raise Exception(result['message'])
+
         returnValue(result['uuid'])
 
     @inlineCallbacks

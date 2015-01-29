@@ -27,7 +27,7 @@
 __author__ = 'sameer'
 
 from datetime import datetime
-from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults
+from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
 from twisted.internet import reactor, task
 from twisted.python import log
 from copy import copy, deepcopy
@@ -85,18 +85,16 @@ class State():
         self.offered_bid = None
         self.offered_ask = None
 
-        # Transit states are a dict of transfers in progress, keyed
-        # by a transfer id, the value is a dict with fields 'quantity',
-        # 'eta', and 'ticker'
-        self.transit_to_source = {}
-        self.transit_to_target = {}
+        # Transit states are a list of transfers in progress,
+        self.transit_to_source = []
+        self.transit_to_target = []
 
         # Transit from are because some API don't support
         # withdrawal, in which case we need to record that we've asked a human
         # to make a transfer from one exchange to another
 
-        self.transit_from_source = {}
-        self.transit_from_target = {}
+        self.transit_from_source = []
+        self.transit_from_target = []
 
         # Transaction history
         self.source_transactions = []
@@ -128,8 +126,12 @@ class State():
         tb_d = self.data.get_target_book()
         bs_d = self.data.get_source_positions()
         bt_d = self.data.get_target_positions()
-        st_d = self.data.get_source_transactions(last_update, self.timestamp)
-        tt_d = self.data.get_target_transactions(last_update, self.timestamp)
+        if last_update is None:
+            st_d = succeed([])
+            tt_d = succeed([])
+        else:
+            st_d = self.data.get_source_transactions(last_update, self.timestamp)
+            tt_d = self.data.get_target_transactions(last_update, self.timestamp)
 
         so_d = self.trader.get_source_orders()
         to_d = self.trader.get_target_orders()
@@ -163,23 +165,35 @@ class State():
         # How do we do this?
         source_deposits = [transaction for transaction in source_transactions if transaction['type'] == "Deposit"]
         target_deposits = [transaction for transaction in target_transactions if transaction['type'] == "Deposit"]
+        source_withdrawals = [transaction for transaction in source_transactions if transaction['type'] == "Withdrawal"]
+        target_withdrawals = [transaction for transaction in target_transactions if transaction['type'] == "Withdrawal"]
 
-        def clear_transits(transits, deposit_list):
+        def clear_transits(transits, tx_list, field='to'):
             def near(value_1, value_2):
                 if abs(value_1-value_2)/value_1 < 0.05:
                     return True
                 else:
                     return False
 
-            for deposit in deposit_list:
-                contract = deposit['contract']
-                quantity = deposit['quantity']
-                for id, transit in transits.items():
-                    if transit['to_ticker'] == contract and near(transit['to_quantity'], quantity):
-                        del transits[id]
+            for tx in tx_list:
+                contract = tx['contract']
+                quantity = tx['quantity']
+                for ix in range(transits):
+                    if transits[ix]['%s_ticker' % field] == contract and near(transits[ix]['%s_quantity'] % field,
+                                                                              quantity):
+                        if field == "from":
+                            destination = transits[ix].get("destination")
+                            if destination == "source":
+                                self.transit_to_source.append(transits[ix])
+                            if destination == "target":
+                                self.transit_to_target.append(transits[ix])
 
-        clear_transits(self.transit_to_source, source_deposits)
-        clear_transits(self.transit_to_target, target_deposits)
+                        del transits[ix]
+
+        clear_transits(self.transit_to_source, source_deposits, field='to')
+        clear_transits(self.transit_to_target, target_deposits, field='to')
+        clear_transits(self.transit_from_source, source_withdrawals, field='from')
+        clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
         self.pickle()
         returnValue(None)
@@ -189,6 +203,8 @@ class State():
         attrs = {'fiat_book': self.fiat_book,
                  'source_book': self.source_book,
                  'target_book': self.target_book,
+                 'source_orders': self.source_orders,
+                 'target_orders': self.target_orders,
                  'balance_source': self.balance_source,
                  'balance_target': self.balance_target,
                  'timestamp': self.timestamp,
@@ -391,10 +407,10 @@ class State():
         """
         total_balance = deepcopy(self.balance_target)
 
-        for id, transit in self.transit_to_target.iteritems():
+        for transit in self.transit_to_target:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
-        for id, transit in self.transit_from_target.iteritems():
+        for transit in self.transit_from_target:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
         return total_balance
@@ -410,10 +426,10 @@ class State():
         """
         total_balance = deepcopy(self.balance_source)
 
-        for id, transit in self.transit_to_source.iteritems():
+        for transit in self.transit_to_source:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
-        for id, transit in self.transit_from_source.iteritems():
+        for transit in self.transit_from_source:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
         return total_balance
@@ -933,7 +949,6 @@ class Trader():
                     yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
             except Exception as e:
                 log.err(e)
-                raise e
                 pass
 
     @inlineCallbacks
@@ -982,28 +997,24 @@ class Trader():
             destination = 'source'
 
         # Get deposit address
+        deposit_address = None
         try:
-            deposit_address = None
             deposit_address = yield to_exchange.getNewAddress(self.data.btc_ticker)
             yield from_exchange.requestWithdrawal(self.data.btc_ticker, abs(quantity), deposit_address)
-            id = max(0, 0, *to_state.keys()) + 1
 
-            to_state[id] = {'to_ticker': self.data.btc_ticker,
+            to_state.append({'to_ticker': self.data.btc_ticker,
                               'from_ticker': self.data.btc_ticker,
                               'from_quantity': abs(quantity),
                               'to_quantity': abs(quantity),
-                              'address': deposit_address
-            }
+                              'address': deposit_address})
 
         except NotImplementedError:
-            id = max(0, 0, *from_state.keys()) + 1
-
-            from_state[id] = {'to_ticker': self.data.btc_ticker,
+            from_state.append({'to_ticker': self.data.btc_ticker,
                                'from_ticker': self.data.btc_ticker,
                                 'from_quantity': abs(quantity),
                                 'to_quantity': abs(quantity),
                                 'address': deposit_address,
-                                'destination': destination}
+                                'destination': destination})
 
     @inlineCallbacks
     def source_target_fiat_transfer(self, quantity):
@@ -1042,28 +1053,25 @@ class Trader():
 
         from_quantity = from_converter(self.data.source_ticker, abs(quantity))
         to_quantity = to_converter(self.data.source_ticker, abs(quantity))
+        deposit_address = None
+
         # Get deposit address
         try:
-            deposit_address = None
             deposit_address = yield to_exchange.getNewAddress(to_ticker)
             yield from_exchange.requestWithdrawal(from_ticker, from_quantity, deposit_address)
-            id = max(0, 0, *to_state.keys()) + 1
 
-            to_state[id] = {'to_ticker': to_ticker,
+            to_state.append({'to_ticker': to_ticker,
                               'from_ticker': from_ticker,
                               'from_quantity': from_quantity,
                               'to_quantity': to_quantity,
-                              'address': deposit_address
-            }
+                              'address': deposit_address})
         except NotImplementedError:
-            id = max(0, 0, *from_state.keys()) + 1
-
-            from_state[id] = {'to_ticker': to_ticker,
+            from_state.append({'to_ticker': to_ticker,
                                'from_ticker': from_ticker,
                                 'from_quantity': from_quantity,
                                 'to_quantity': to_quantity,
                                 'address': deposit_address,
-                                'destination': destination}
+                                'destination': destination})
 
     @inlineCallbacks
     def transfer_source_out(self, quantity):
@@ -1073,13 +1081,12 @@ class Trader():
         try:
             yield self.source_exchange.requestWithdrawal(self.data.source_ticker, quantity, self.out_address)
         except NotImplementedError:
-            id = max(self.state.transit_from_source.keys()) + 1
-
-            self.state.transit_from_source[id] = {'to_ticker': self.data.source_ticker,
+            self.state.transit_from_source.append({'to_ticker': self.data.source_ticker,
                                'from_ticker': self.data.source_ticker,
                                 'from_quantity': quantity,
                                 'to_quantity': quantity,
-                                'destination': self.out_address}
+                                'address': self.out_address,
+                                'destination': 'OUT'})
 
     @inlineCallbacks
     def update_offers(self, offered_bid, offered_ask, replace_bid=False, replace_ask=False):
@@ -1124,7 +1131,7 @@ from twisted.web.util import redirectTo
 
 class Webserver(Resource):
     isLeaf = True
-    def __init__(self, state, valuation, data, trader, template_dir="."):
+    def __init__(self, state, valuation, data, trader, template_dir="./ilp"):
         self.state = state
         self.valuation = valuation
         self.data = data
@@ -1133,7 +1140,7 @@ class Webserver(Resource):
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
                                      autoescape=True)
         from util import timestamp_to_dt
-        self.jinja_env.filters['timestamp'] = timestamp_to_dt
+        self.jinja_env.filters['format_timestamp'] = timestamp_to_dt
 
     def render_GET(self, request):
         # Do the JINJA
@@ -1146,13 +1153,6 @@ class Webserver(Resource):
         elif request.path == '/stop':
             self.trader.fsm.process("stop")
             return redirectTo('/#trader', request)
-        elif request.path == '/clear':
-            id = int(request.args['id'][0])
-            if request.args['transit'] == 'source':
-                del self.state.transit_from_source[id]
-            elif request.args['transit'] == 'target':
-                del self.state.transit_from_target[id]
-            return redirectTo('/#transits', request)
 
     def render_POST(self, request):
         if request.path == '/valuation_parameters':
