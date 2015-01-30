@@ -147,12 +147,12 @@ class Administrator:
     @inlineCallbacks
     def bitgo_oauth_token(self, code, admin_user):
         token_result = yield self.bitgo.authenticateWithAuthCode(code)
-        self.bitgo_tokens[admin_user] = (token_result['token'], util.timestamp_to_dt(token_result['expiration']))
+        self.bitgo_tokens[admin_user] = (token_result['access_token'].encode('utf-8'),
+                                         datetime.utcfromtimestamp(token_result['expires_at']))
 
     def get_bitgo_token(self, admin_user):
         now = datetime.utcnow()
-        # TODO: Fix expiration check to consider timezones?
-        if admin_user in self.bitgo_tokens: # and self.bitgo_tokens[admin_user][1] > now:
+        if admin_user in self.bitgo_tokens and self.bitgo_tokens[admin_user][1] > now:
             return self.bitgo_tokens[admin_user][0]
         else:
             return None
@@ -1195,13 +1195,17 @@ class Administrator:
         if os.path.exists(self.bitgo_private_key_file):
             raise KEY_FILE_EXISTS
 
-        self.bitgo.token = multisig['token']
-        #yield self.bitgo.unlock(multisig['otp'])
-        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=multisig['passphrase'], label="sputnik", backup_xpub=public_key)
+        self.bitgo.token = multisig['token'].encode('utf-8')
+        # Generate a passphrase
+        passphrase = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
+        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=passphrase, label="sputnik", backup_xpub=public_key)
 
         # Save the encrypted xpriv to the local storage
+
         with open(self.bitgo_private_key_file, "wb") as f:
-            json.dump(result['userKeychain']['encryptedXprv'], f)
+            key_data = {'passphrase': passphrase,
+                        'encryptedXprv': result['userKeychain']['encryptedXprv']}
+            json.dump(key_data, f)
 
         # Get deposit address
         address = result['wallet'].id
@@ -1552,8 +1556,7 @@ class AdminWebUI(Resource):
             raise BITGO_TOKEN_INVALID
 
         d = self.administrator.initialize_multisig(ticker, public_key, {'token': token,
-                                                                        'otp': request.args['otp'][0],
-                                                                        'passphrase': request.args['passphrase'][0]})
+                                                                        'otp': request.args['otp'][0]})
         def _cb(result):
             # Reauth to get view and spend permissions on the wallet we just created
             request.write(self.bitgo_oauth_get(request, wallet_id=result))
@@ -1579,7 +1582,6 @@ class AdminWebUI(Resource):
                 raise BITGO_TOKEN_INVALID
 
             multisig = {'otp': request.args['otp'][0],
-                        'passphrase': request.args['passphrase'][0],
                         'token': self.administrator.get_bitgo_token(self.avatarId)}
         else:
             multisig = {}
@@ -1657,7 +1659,6 @@ class AdminWebUI(Resource):
             raise BITGO_TOKEN_INVALID
 
         multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
-                    'passphrase': request.args['passphrase'][0],
                     'otp': request.args['otp'][0]}
         d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
         def _cb():
@@ -2377,7 +2378,9 @@ if __name__ == "__main__":
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
-    bitgo_config = dict(config.items("bitgo"))
+    bitgo_config = {'use_production': config.getboolean("bitgo", "use_production"),
+                    'client_id': config.get("bitgo", "client_id"),
+                    'client_secret': config.get("bitgo", "client_secret")}
 
     bitgo = BitGo(**bitgo_config)
     bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")

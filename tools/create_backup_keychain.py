@@ -1,6 +1,6 @@
 __author__ = 'sameer'
 
-from sputnik.bitgo_rpc import create_keychain
+from sputnik.bitgo import create_keychain
 from sys import argv
 from pprint import pprint
 

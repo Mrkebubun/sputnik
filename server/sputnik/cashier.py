@@ -332,7 +332,7 @@ class Cashier():
             else:
                 raise INSUFFICIENT_FUNDS
         else:
-            self.bitgo.token = multisig['token']
+            self.bitgo.token = multisig['token'].encode('utf-8')
             try:
                 yield self.bitgo.unlock(multisig['otp'])
             except Exception as e:
@@ -356,11 +356,12 @@ class Cashier():
                 raise NO_KEY_FILE
             else:
                 with open(self.bitgo_private_key_file, "rb") as f:
-                    encrypted_xpriv = json.load(f)
+                    key_data = json.load(f)
+                    passphrase = key_data['passphrase']
 
             try:
                 result = yield wallet.sendCoins(address=address, amount=amount,
-                        passphrase=multisig['passphrase'], otp=multisig['otp'])
+                        passphrase=passphrase)
                 txid = result['tx']
             except Exception as e:
                 log.err("Unable to sendCoins")
@@ -739,7 +740,9 @@ if __name__ == '__main__':
     sendmail=Sendmail(config.get("administrator", "email"))
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
-    bitgo_config = dict(config.items("bitgo"))
+    bitgo_config = {'use_production': config.getboolean("bitgo", "use_production"),
+                    'client_id': config.get("bitgo", "client_id"),
+                    'client_secret': config.get("bitgo", "client_secret")}
     bitgo = BitGo(**bitgo_config)
     bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
 

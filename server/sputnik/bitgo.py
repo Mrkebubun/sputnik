@@ -197,6 +197,12 @@ class MethodNotFound(BitGoException):
 class NotAcceptable(BitGoException):
     pass
 
+def create_keychain(network):
+    entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
+    key = BIP32Node.from_master_secret(entropy, network)
+    private = key.wallet_key(as_private=True).encode("utf-8")
+    public = key.wallet_key(as_private=False).encode("utf-8")
+    return {"xpub": public, "xprv": private}
 
 class Keychains(object):
     def __init__(self, proxy):
@@ -212,11 +218,7 @@ class Keychains(object):
         network = "BTC"
         if not self.proxy.use_production:
             network = "XTN"
-        entropy = "".join([chr(random.getrandbits(8)) for i in range(32)])
-        key = BIP32Node.from_master_secret(entropy, network)
-        private = key.wallet_key(as_private=True).encode("utf-8")
-        public = key.wallet_key(as_private=False).encode("utf-8")
-        return {"xpub": public, "xprv": private}
+        return create_keychain(network)
 
     def add(self, xpub, encrypted_xprv=None):
         data = {"xpub": xpub}
@@ -258,17 +260,20 @@ class Wallet(object):
             result = yield self.proxy.keychains.get(keychain["xpub"])
             encrypted = result.get("encryptedXprv")
             if encrypted:
-                returnValue(encrypted)
+                keychain['encryptedXprv'] = encrypted
+                returnValue(keychain)
         else:
             raise BitGoException("No encrypted keychains on this wallet.")
 
 
     @inlineCallbacks
     def sendCoins(self, address, amount, passphrase, confirms=None):
-        encrypted_xprv = self.getEncryptedUserKeychain()
+        keychain = yield self.getEncryptedUserKeychain()
+        encrypted_xprv = keychain['encryptedXprv']
         xprv = self.proxy.decrypt(encrypted_xprv, passphrase)
+        keychain['xprv'] = xprv
         tx = yield self.createTransaction(address, amount,
-                {"xprv":xprv}, fee="standard")
+                keychain, fee="standard")
         result = yield self.sendTransaction(tx=tx['tx'])
         returnValue({'tx': result['transaction'],
                      'hash': result['transactionHash'],
@@ -332,8 +337,8 @@ class Wallet(object):
         returnValue({'tx': tx.as_hex(),
                      'fee': tx.fee()})
 
-    def sendTransaction(self, tx, otp):
-        return self._call("POST", "api/v1/tx/send", {"tx": tx, "otp": otp})
+    def sendTransaction(self, tx):
+        return self._call("POST", "api/v1/tx/send", {"tx": tx})
 
     def setPolicy(self, policy):
         return self._call("POST", "api/v1/wallet/%s/policy" % self.id,
@@ -536,8 +541,7 @@ class BitGo(object):
                                    'client_secret': self.client_secret,
                                    'grant_type': 'authorization_code'})
         self.token = result['access_token'].encode('utf-8')
-        self.token_expiration = datetime.fromtimestamp(result['expires_at'])
-        returnValue({'token': self.token,
-                     'expiration': util.dt_to_timestamp(self.token_expiration)})
+        self.token_expiration = datetime.utcfromtimestamp(result['expires_at'])
+        returnValue(result)
 
 
