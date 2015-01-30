@@ -108,7 +108,9 @@ class Profile:
                     with open(os.path.join(profile, stage, dep_type)) \
                             as dep_list:
                         for line in dep_list:
-                            package = line.strip()
+                            package = line.split("#", 1)[0].strip()
+                            if not package:
+                                continue
                             deps[dep_type].append(package)
                 except IOError:
                     pass
