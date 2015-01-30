@@ -141,10 +141,15 @@ class CoinSetter():
     @inlineCallbacks
     def getOrderBook(self, ticker):
         result = yield self.get("marketdata/full_depth")
-        book = {'contract': ticker,
-                'bids': [{'price': bid[0], 'quantity': bid[1]} for bid in result['bids']],
-                'asks': [{'price': ask[0], 'quantity': ask[1]} for ask in result['asks']],
-                'timestamp': None}
+        if result is None:
+            book = {'contract': ticker,
+                    'bids': [],
+                    'asks': []}
+        else:
+            book = {'contract': ticker,
+                    'bids': [{'price': bid[0], 'quantity': bid[1]} for bid in result['bids']],
+                    'asks': [{'price': ask[0], 'quantity': ask[1]} for ask in result['asks']],
+                    'timestamp': None}
         returnValue(book)
 
     @inlineCallbacks

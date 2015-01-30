@@ -844,11 +844,21 @@ class Sputnik():
 
     def round_bid(self, ticker, price):
         precision = self.session.get_price_precision(ticker)
-        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_DOWN)
+        try:
+            rounded = Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_DOWN)
+        except decimal.InvalidOperation:
+            rounded = Decimal('Infinity')
+
+        return rounded
 
     def round_ask(self, ticker, price):
         precision = self.session.get_price_precision(ticker)
-        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_UP)
+        try:
+            rounded = Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_UP)
+        except decimal.InvalidOperation:
+            rounded = Decimal('Infinity')
+
+        return rounded
 
 
 class SputnikRest(SputnikMixin):

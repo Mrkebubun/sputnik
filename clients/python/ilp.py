@@ -930,32 +930,15 @@ class Trader():
                           'transfer_source_out': self.round_source(optimized_params['transfer_source_out'])}
         rp_as_floats = {key: float(value) for key, value in self.rounded_params.iteritems()}
         self.rounded = self.valuation.valuation(rp_as_floats)
-        self.edge = self.rounded['value'] - base_value
 
 
         if self.fsm.current_state == "TRADING":
-            replace_bid = False
-            replace_ask = False
-            # Better bid
-            if self.rounded_params['offered_bid'] > base_params['offered_bid'] and self.edge > self.edge_to_enter:
-                replace_bid = True
-            if self.rounded_params['offered_ask'] < base_params['offered_ask'] and self.edge > self.edge_to_enter:
-                replace_ask = True
-
-            if self.rounded_params['offered_bid'] < base_params['offered_bid'] and self.edge < self.edge_to_leave:
-                replace_bid = True
-            if self.rounded_params['offered_ask'] > base_params['offered_ask'] and self.edge < self.edge_to_leave:
-                replace_ask = True
-
             try:
-                yield self.update_offers(self.rounded_params['offered_bid'], self.rounded_params['offered_ask'], replace_bid=replace_bid,
-                                         replace_ask=replace_ask)
-
-                if self.edge > self.edge_to_enter:
-                    yield self.source_trade(self.rounded_params['trade_source_qty'])
-                    yield self.btc_transfer(self.rounded_params['btc_source_target'])
-                    yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
-                    yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
+                yield self.update_offers(optimized_params['offered_bid'], optimized_params['offered_ask'])
+                yield self.source_trade(self.rounded_params['trade_source_qty'])
+                yield self.btc_transfer(self.rounded_params['btc_source_target'])
+                yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
+                yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
             except Exception as e:
                 log.err(e)
                 pass
@@ -1098,40 +1081,40 @@ class Trader():
                                 'destination': 'OUT'})
 
     @inlineCallbacks
-    def update_offers(self, offered_bid, offered_ask, replace_bid=False, replace_ask=False):
+    def update_offers(self, bid, ask):
+        edge_to_enter_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_enter)
+        edge_to_leave_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_leave)
+        bid_to_leave = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_leave_in_target)
+        bid_to_enter = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_enter_in_target)
+        ask_to_leave = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
+        ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
+
         ticker = self.data.target_exchange_ticker
         orders = yield self.target_exchange.getOpenOrders()
         my_orders = {id: order for id, order in orders.iteritems() if order['contract'] == ticker}
-        bids = [order for order in my_orders.values() if order['side'] == 'BUY']
-        asks = [order for order in my_orders.values() if order['side'] == 'SELL']
-
-        if not replace_bid:
-            bid_size = sum([order['quantity_left'] for order in bids])
-            if bid_size < self.quote_size:
-                difference = self.quote_size - bid_size
-                yield self.target_exchange.placeOrder(ticker, difference, offered_bid, 'BUY')
-                self.state.offered_bid = offered_bid
-        else:
-            for id in [order['id'] for order in bids]:
-                yield self.target_exchange.cancelOrder(id)
-
-            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_bid, 'BUY')
-            self.state.offered_bid = offered_bid
-
-        if not replace_ask:
-            ask_size = sum([order['quantity_left'] for order in asks])
-            if ask_size < self.quote_size:
-                difference = self.quote_size - ask_size
-                yield self.target_exchange.placeOrder(ticker, difference, offered_ask, 'SELL')
-                self.state.offered_ask = offered_ask
-        else:
-            for id in [order['id'] for order in asks]:
-                yield self.target_exchange.cancelOrder(id)
-
-            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_ask, 'SELL')
-            self.state.offered_ask = offered_ask
 
 
+        bid_size = 0
+        ask_size = 0
+        for bid in [order for order in my_orders.values() if order['side'] == 'BUY']:
+            if bid['price'] > bid_to_leave or bid['price'] < bid_to_enter:
+                self.target_exchange.cancelOrder(bid['id'])
+            else:
+                bid_size += bid['quantity_left']
+
+        for ask in [order for order in my_orders.values() if order['side'] == 'SELL']:
+            if ask['price'] < ask_to_leave or ask['price'] > ask_to_enter:
+                self.target_exchange.cancelOrder(ask['id'])
+            else:
+                ask_size += ask['quantity_left']
+
+        if ask_size < self.quote_size:
+            difference = self.quote_size - ask_size
+            yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
+
+        if bid_size < self.quote_size:
+            difference = self.quote_size - bid_size
+            yield self.target_exchange.placeOrder(ticker, self.quote_size, bid_to_enter, 'BUY')
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site, NOT_DONE_YET
@@ -1247,8 +1230,8 @@ if __name__ == "__main__":
                         state=state,
                         data=market_data,
                         valuation=valuation,
-                        edge_to_enter=2000,
-                        edge_to_leave=-2000,
+                        edge_to_enter=20, # These are in source currency
+                        edge_to_leave=10,
                         period=5)
 
         server = Webserver(state, valuation, market_data, trader)
