@@ -14,6 +14,7 @@
             <ul class="nav nav-tabs" role="tablist" id="myTab">
                 <li role="presentation"><a href="#trader" aria-controls="trader" role="tab" data-toggle="tab">Trader</a></li>
                 <li role="presentation"><a href="#valuation" aria-controls="valuation" role="tab" data-toggle="tab">Valuation</a></li>
+                <li role="presentation"><a href="#market" aria-controls="market" role="tab" data-toggle="tab">Market</a></li>
                 <li role="presentation"><a href="#state" aria-controls="state" role="tab" data-toggle="tab">State</a></li>
                 <li role="presentation"><a href="#transits" aria-controls="transits" role="tab" data-toggle="tab">Transits</a></li>
                 <li role="presentation"><a href="#orders" aria-controls="orders" role="tab" data-toggle="tab">Orders</a></li>
@@ -27,25 +28,58 @@
                         <div class="panel-body">
                             <a href="/start">Start</a>
                             <a href="/stop">Stop</a>
-                            <table id="trader-parameters">
-                                <form method="POST" action="/trader_parameters">
+                            <form method="POST" action="/trader_parameters">
                                 <input type="submit">
-                                <tbody>
-                                    <tr>
-                                        <th>Quote Size</th>
-                                        <td><input type="text" name="quote_size" value="{{object.trader.quote_size}}"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Edge to Enter</th>
-                                        <td><input type="text" name="edge_to_enter" value="{{object.trader.edge_to_enter}}"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Edge to Leave</th>
-                                        <td><input type="text" name="edge_to_leave" value="{{object.trader.edge_to_leave}}"></td>
-                                    </tr>
-                                </tbody>
-                                </form>
-                            </table>
+                                <table id="trader-parameters">
+                                    <tbody>
+                                        <tr>
+                                            <th>Quote Size</th>
+                                            <td><input type="text" name="quote_size" value="{{object.trader.quote_size}}"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Edge to Enter</th>
+                                            <td><input type="text" name="edge_to_enter" value="{{object.trader.edge_to_enter}}"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Edge to Leave</th>
+                                            <td><input type="text" name="edge_to_leave" value="{{object.trader.edge_to_leave}}"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div role="tabpanel" class="tab-pane" id="market">
+                    <div class="panel panel-primary">
+                        <div class="panel-heading">Market Parameters</div>
+                        <div class="panel-body">
+                            <form method="POST" action="/market_parameters">
+                                <input type="submit">
+                                <table id="market-parameters">
+                                    <tbody>
+                                        <tr>
+                                            <th>Source Exchange Fee</th>
+                                            <td>Fixed: <input type="text" name="source_fixed_fee" value="{{object.data.source_fee[0]}}"></td>
+                                            <td>Variable: <input type="text" name="source_ratio_fee" value="{{object.data.source_fee[1]}}"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Target Exchange Fee</th>
+                                            <td>Fixed: <input type="text" name="target_fixed_fee" value="{{object.data.target_fee[0]}}"></td>
+                                            <td>Variable: <input type="text" name="target_ratio_fee" value="{{object.data.target_fee[1]}}"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>BTC Fee</th>
+                                            <td>Fixed: <input type="text" name="btc_fee" value="{{object.data.btc_fee}}"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Fiat Exchange Cost</th>
+                                            <td>Fixed: <input type="text" name="fiat_exchange_fixed_cost" value="{{object.data.fiat_exchange_cost[0]}}"></td>
+                                            <td>Variable: <input type="text" name="fiat_exchange_ratio_cost" value="{{object.data.fiat_exchange_cost[1]}}"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </form>
                         </div>
                     </div>
                 </div>

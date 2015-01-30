@@ -43,6 +43,23 @@ import pickle
 import decimal
 from fsm import FSM
 
+def load(klass, file):
+    # Load from pickle file
+    try:
+        attrs = pickle.load(open(file, "rb"))
+        for key, value in attrs.iteritems():
+            setattr(klass, key, value)
+    except Exception as e:
+        log.err("Unable to load")
+        log.err(e)
+
+def save(klass, file, params):
+    attrs = {}
+    for param in params:
+        attrs[param] = getattr(klass, param)
+
+    pickle.dump(attrs, open(file, "w"))
+
 # Don't do anything if its value is less than this in source currency
 EPSILON = 1
 
@@ -105,17 +122,8 @@ class State():
 
         self.trader = None
 
-        self.depickle()
-
-    def depickle(self):
-        # Load from pickle
-        try:
-            attrs = pickle.load(open("state.pickle", "rb"))
-            for key, value in attrs.iteritems():
-                setattr(self, key, value)
-        except Exception as e:
-            log.err("Unable to depickle")
-            log.err(e)
+        load(self, 'state.pickle')
+        self.save()
 
     @inlineCallbacks
     def update(self):
@@ -204,27 +212,14 @@ class State():
         self.transit_from_source = clear_transits(self.transit_from_source, source_withdrawals, field='from')
         self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
-        self.pickle()
+        self.save()
         returnValue(None)
 
-    def pickle(self):
-        # Pickle my state
-        attrs = {'fiat_book': self.fiat_book,
-                 'source_book': self.source_book,
-                 'target_book': self.target_book,
-                 'source_orders': self.source_orders,
-                 'target_orders': self.target_orders,
-                 'balance_source': self.balance_source,
-                 'balance_target': self.balance_target,
-                 'timestamp': self.timestamp,
-                 'transit_to_source': self.transit_to_source,
-                 'transit_to_target': self.transit_to_target,
-                 'transit_from_source': self.transit_from_source,
-                 'transit_from_target': self.transit_from_target,
-                 'source_variance': self.source_variance,
-                 'fiat_variance': self.fiat_variance }
-
-        pickle.dump(attrs, open("state.pickle", "wb"))
+    def save(self):
+        save(self, 'state.pickle', ['fiat_book', 'source_book', 'target_book', 'source_orders',
+                                  'target_orders', 'balance_source', 'balance_target', 'timestamp',
+                                  'transit_to_source', 'transit_to_target', 'transit_from_source',
+                                  'transit_from_target', 'source_variance', 'fiat_variance'])
 
     def source_price_for_size(self, quantity):
         if quantity > 0:
@@ -574,6 +569,15 @@ class Valuation():
         self.base_params = {}
         self.base = {}
 
+        load(self, 'valuation.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'valuation.pickle', ['target_balance_source',
+                                      'target_balance_target',
+                                      'deviation_penalty',
+                                      'risk_aversion'])
+
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
     def valuation(self, params={}):
@@ -748,6 +752,14 @@ class MarketData():
         self.btc_fee = btc_fee
         self.btc_delay = btc_delay
 
+        load(self, 'data.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'data.pickle', ['source_ticker', 'target_ticker', 'btc_ticker', 'variance_period',
+                                 'variance_window', 'fiat_exchange_cost', 'fiat_exchange_delay',
+                                 'source_fee', 'target_fee', 'btc_fee', 'btc_delay'])
+
     @property
     def fiat_exchange_ticker(self):
         return '%s/%s' % (self.target_ticker, self.source_ticker)
@@ -850,7 +862,6 @@ class Trader():
 
         self.valuation.trader = self
         self.state.trader = self
-        self.edge = None
         self.looping_call = task.LoopingCall(self.loop)
 
         fsm = FSM("DISCONNECTED", None)
@@ -861,6 +872,12 @@ class Trader():
         fsm.add_transition("start", "READY", self.start, "TRADING")
         fsm.add_transition("stop", "TRADING", self.stop, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
+
+        load(self, 'trader.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'trader.pickle', ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period'])
 
     @inlineCallbacks
     def init(self):
@@ -1160,6 +1177,7 @@ class Webserver(Resource):
             self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
             self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
             self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
+            self.valuation.save()
             d = self.valuation.optimize()
             def _cb(result):
                 request.write(redirectTo("/#valuation", request))
@@ -1171,7 +1189,18 @@ class Webserver(Resource):
             self.trader.quote_size = Decimal(request.args['quote_size'][0])
             self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
             self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
+            self.trader.save()
             return redirectTo('/#trader', request)
+        elif request.path == '/market_parameters':
+            self.data.source_fee[0] = float(request.args['source_fixed_fee'][0])
+            self.data.source_fee[1] = float(request.args['source_ratio_fee'][0])
+            self.data.target_fee[0] = float(request.args['target_fixed_fee'][0])
+            self.data.target_fee[1] = float(request.args['target_ratio_fee'][0])
+            self.data.btc_fee = float(request.args['btc_fee'][0])
+            self.data.fiat_exchange_cost[0] = float(request.args['fiat_exchange_fixed_cost'][0])
+            self.data.fiat_exchange_cost[1] = float(request.args['fiat_exchange_ratio_cost'][0])
+            self.data.save()
+            return redirectTo('/#market', request)
 
 
 if __name__ == "__main__":
