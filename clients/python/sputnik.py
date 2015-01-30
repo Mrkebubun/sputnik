@@ -504,7 +504,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         uri = u"feeds.user.orders.%s" % self.encode_username(self.username)
 
         def _onOrder(uri, wire_order):
-            id = wire_order['id']
+            id = str(wire_order['id'])
             if id in self.wire_orders and (wire_order['is_cancelled'] or wire_order['quantity_left'] == 0):
                 del self.wire_orders[id]
             else:
@@ -724,8 +724,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         print "cancel order: %s" % id
         d = self.call(u"rpc.trader.cancel_order", int(id))
         def _onCancelOrder(success):
-            if success and id in self.wire_orders:
-                del self.wire_orders[id]
+            if success and str(id) in self.wire_orders:
+                del self.wire_orders[str(id)]
 
             return self.onCancelOrder(success)
 

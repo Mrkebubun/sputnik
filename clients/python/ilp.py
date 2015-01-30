@@ -419,6 +419,10 @@ class State():
         for transit in self.transit_to_target:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
+        for transit in self.transit_from_source:
+            if transit['destination'] == 'target':
+                total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
+
         for transit in self.transit_from_target:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
@@ -437,6 +441,10 @@ class State():
 
         for transit in self.transit_to_source:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
+
+        for transit in self.transit_from_target:
+            if transit['destination'] == 'source':
+                total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
         for transit in self.transit_from_source:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
@@ -946,10 +954,10 @@ class Trader():
     @inlineCallbacks
     def source_trade(self, quantity):
         # Check for orders outstanding and cancel them
-        orders = yield self.source_exchange.getOpenOrders()
-        for id, order in orders.iteritems():
-            if order['contract'] == self.data.source_exchange_ticker:
-                yield self.source_exchange.cancelOrder(id)
+        my_ids = [order['id'] for order in self.state.source_orders.values()
+                  if order['contract'] == self.data.source_exchange_ticker]
+        for id in my_ids:
+            yield self.source_exchange.cancelOrder(id)
 
         if self.state.convert_to_source(self.data.btc_ticker, float(quantity)) > EPSILON:
             side = 'BUY'
@@ -1087,22 +1095,20 @@ class Trader():
         bid_to_leave = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_leave_in_target)
         bid_to_enter = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_enter_in_target)
         ask_to_leave = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
-        ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
+        ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_enter_in_target)
 
         ticker = self.data.target_exchange_ticker
-        orders = yield self.target_exchange.getOpenOrders()
-        my_orders = {id: order for id, order in orders.iteritems() if order['contract'] == ticker}
-
+        my_orders = [order for order in self.state.target_orders.values() if order['contract'] == ticker]
 
         bid_size = 0
         ask_size = 0
-        for bid in [order for order in my_orders.values() if order['side'] == 'BUY']:
+        for bid in [order for order in my_orders if order['side'] == 'BUY']:
             if bid['price'] > bid_to_leave or bid['price'] < bid_to_enter:
                 self.target_exchange.cancelOrder(bid['id'])
             else:
                 bid_size += bid['quantity_left']
 
-        for ask in [order for order in my_orders.values() if order['side'] == 'SELL']:
+        for ask in [order for order in my_orders if order['side'] == 'SELL']:
             if ask['price'] < ask_to_leave or ask['price'] > ask_to_enter:
                 self.target_exchange.cancelOrder(ask['id'])
             else:
@@ -1114,7 +1120,7 @@ class Trader():
 
         if bid_size < self.quote_size:
             difference = self.quote_size - bid_size
-            yield self.target_exchange.placeOrder(ticker, self.quote_size, bid_to_enter, 'BUY')
+            yield self.target_exchange.placeOrder(ticker, difference, bid_to_enter, 'BUY')
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site, NOT_DONE_YET
