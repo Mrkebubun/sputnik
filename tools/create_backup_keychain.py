@@ -1,16 +1,19 @@
 __author__ = 'sameer'
 
-from sputnik.bitgo import create_keychain
+from sputnik.bitgo import BitGo, Keychains
 from sys import argv
 from pprint import pprint
 
 if __name__ == "__main__":
-    if len(argv) == 2:
-        network = argv[1]
-    else:
-        network = "XTN"
+    use_production = False
 
-    keychain = create_keychain(network)
+    if len(argv) == 2:
+        if argv[1] == 'prod':
+            use_production = True
+
+
+    bitgo = BitGo(use_production=use_production)
+    keychain = Keychains(bitgo).create()
     print """
 Store the following backup keychain OFFLINE and in a SECURE LOCATION:
 
