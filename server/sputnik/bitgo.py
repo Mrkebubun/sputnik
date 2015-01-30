@@ -535,7 +535,7 @@ class BitGo(object):
                                    'client_id': self.client_id,
                                    'client_secret': self.client_secret,
                                    'grant_type': 'authorization_code'})
-        self.token = token_result['access_token'].encode('utf-8')
+        self.token = result['access_token'].encode('utf-8')
         self.token_expiration = datetime.fromtimestamp(result['expires_at'])
         returnValue({'token': self.token,
                      'expiration': util.dt_to_timestamp(self.token_expiration)})
