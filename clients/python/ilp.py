@@ -870,7 +870,8 @@ class Trader():
         fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
         fsm.add_transition("updated", "INITIALIZING", None, "READY")
         fsm.add_transition("start", "READY", self.start, "TRADING")
-        fsm.add_transition("stop", "TRADING", self.stop, "READY")
+        fsm.add_transition("stop", "TRADING", self.stop, "STOPPING")
+        fsm.add_transition("cleared", "STOPPING", None, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
 
         load(self, 'trader.pickle')
@@ -894,29 +895,29 @@ class Trader():
         te = self.target_exchange.connect()
         yield gatherResults([se, te])
 
+    @inlineCallbacks
     def initialize(self, fsm):
-        d = self.state.update()
-        def _cb(result):
-            self.fsm.process("updated")
-            self.looping_call.start(self.period)
+        yield self.state.update()
+        yield self.cancel_all_orders()
+        self.fsm.process("updated")
+        self.looping_call.start(self.period)
 
-        d.addCallback(_cb).addErrback(log.err)
 
     def start(self, fsm):
         pass
 
+    @inlineCallbacks
     def stop(self, fsm):
-        self.cancel_all_orders()
+        yield self.cancel_all_orders()
+        self.fsm.process("cleared")
 
     @inlineCallbacks
     def cancel_all_orders(self):
-        source_orders = yield self.get_source_orders()
-        for id, order in source_orders.iteritems():
-            self.source_exchange.cancelOrder(id)
+        for id in self.state.source_orders.keys():
+            yield self.source_exchange.cancelOrder(id)
 
-        target_orders = yield self.get_target_orders()
-        for id, order in target_orders.iteritems():
-            self.target_exchange.cancelOrder(id)
+        for id in self.state.target_orders.keys():
+            yield self.target_exchange.cancelOrder(id)
 
     def get_source_orders(self):
         return self.source_exchange.getOpenOrders()
@@ -934,7 +935,13 @@ class Trader():
 
     @inlineCallbacks
     def loop(self):
-        yield self.valuation.optimize()
+        try:
+            yield self.valuation.optimize()
+        except Exception as e:
+            log.err("Unable to optimize")
+            log.err(e)
+            return
+
         base_value = self.valuation.base['value']
         base_params = self.valuation.base_params
 
@@ -960,13 +967,33 @@ class Trader():
         if self.fsm.current_state == "TRADING":
             try:
                 yield self.update_offers(optimized_params['offered_bid'], optimized_params['offered_ask'])
+            except Exception as e:
+                log.err("Can't update offers")
+                log.err(e)
+
+            try:
                 yield self.source_trade(self.rounded_params['trade_source_qty'])
+            except Exception as e:
+                log.err("Can't execute a trade on source exchange")
+                log.err(e)
+
+            try:
                 yield self.btc_transfer(self.rounded_params['btc_source_target'])
+            except Exception as e:
+                log.err("Can't transfer BTC")
+                log.err(e)
+
+            try:
                 yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
+            except Exception as e:
+                log.err("Can't transfer fiat")
+                log.err(e)
+
+            try:
                 yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
             except Exception as e:
+                log.err("Can't transfer fiat out of source")
                 log.err(e)
-                pass
 
     @inlineCallbacks
     def source_trade(self, quantity):
