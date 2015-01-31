@@ -2,6 +2,7 @@ __author__ = 'sameer'
 
 import sys
 import os
+import time
 from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
 from pprint import pprint
 import re
@@ -415,6 +416,160 @@ class TestWebserverExport(TestAdministrator):
         self.assertEqual(ticket.nonce, nonce)
         self.assertEqual(ticket.type, 'Compliance')
         self.assertIsNone(ticket.foreign_key)
+
+
+class TestTOTP(TestAdministrator):
+    def test_new_user(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        self.assertEqual(user.totp_secret, None)
+        self.assertFalse(user.totp_enabled)
+    
+    def test_enable_totp(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        self.assertEqual(user.totp_secret, secret)
+        self.assertFalse(user.totp_enabled)
+
+    def test_enable_totp_already_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        with self.assertRaisesRegexp(AdministratorException, "totp_already_enabled"):
+            secret2 = self.webserver_export.enable_totp("test")
+        self.assertEqual(user.totp_secret, secret)
+        self.assertTrue(user.totp_enabled)
+
+    def test_verify_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertTrue(user.totp_enabled)
+
+    def test_verify_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", "")
+        self.assertFalse(result)
+        self.assertFalse(user.totp_enabled)
+
+    def test_verify_totp_not_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        with self.assertRaisesRegexp(AdministratorException, "totp_not_enabled"):
+            self.webserver_export.verify_totp("test", compute_totp(""))
+
+    def test_verify_totp_already_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        with self.assertRaisesRegexp(AdministratorException, "totp_already_enabled"):
+            self.webserver_export.verify_totp("test", compute_totp(secret))
+
+    def test_disable_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        result = self.webserver_export.disable_totp("test",
+                compute_totp(secret, 1))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_secret, None)
+        self.assertFalse(user.totp_enabled)
+
+    def test_disable_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        result = self.webserver_export.disable_totp("test", "")
+        self.assertFalse(result)
+        self.assertEqual(user.totp_secret, secret)
+        self.assertTrue(user.totp_enabled)
+
+    def test_disable_totp_not_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        with self.assertRaisesRegexp(AdministratorException, "totp_not_enabled"):
+            self.webserver_export.disable_totp("test", "")
+
+    def test_check_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test",
+                compute_totp(secret, 1))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now + 1)
+
+    def test_check_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test", "")
+        self.assertFalse(result)
+        self.assertEqual(user.totp_last, now)
+
+    def test_check_totp_replay(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test", compute_totp(secret))
+        self.assertFalse(result)
+        self.assertEqual(user.totp_last, now)
+
+    def test_check_totp_not_enabled(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        last = user.totp_last
+        result = self.webserver_export.check_totp("test", "")
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, last)
 
 
 class TestTicketServerExport(TestAdministrator):
