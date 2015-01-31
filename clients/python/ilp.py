@@ -43,6 +43,23 @@ import pickle
 import decimal
 from fsm import FSM
 
+def load(klass, file):
+    # Load from pickle file
+    try:
+        attrs = pickle.load(open(file, "rb"))
+        for key, value in attrs.iteritems():
+            setattr(klass, key, value)
+    except Exception as e:
+        log.err("Unable to load")
+        log.err(e)
+
+def save(klass, file, params):
+    attrs = {}
+    for param in params:
+        attrs[param] = getattr(klass, param)
+
+    pickle.dump(attrs, open(file, "w"))
+
 # Don't do anything if its value is less than this in source currency
 EPSILON = 1
 
@@ -105,33 +122,24 @@ class State():
 
         self.trader = None
 
-        self.depickle()
-
-    def depickle(self):
-        # Load from pickle
-        try:
-            attrs = pickle.load(open("state.pickle", "rb"))
-            for key, value in attrs.iteritems():
-                setattr(self, key, value)
-        except Exception as e:
-            log.err("Unable to depickle")
-            log.err(e)
+        load(self, 'state.pickle')
+        self.save()
 
     @inlineCallbacks
     def update(self):
         last_update = self.timestamp
         self.timestamp = datetime.utcnow()
-        fb_d = self.data.get_fiat_book()
-        sb_d = self.data.get_source_book()
-        tb_d = self.data.get_target_book()
-        bs_d = self.data.get_source_positions()
-        bt_d = self.data.get_target_positions()
+        fb_d = self.data.get_fiat_book().addErrback(log.err)
+        sb_d = self.data.get_source_book().addErrback(log.err)
+        tb_d = self.data.get_target_book().addErrback(log.err)
+        bs_d = self.data.get_source_positions().addErrback(log.err)
+        bt_d = self.data.get_target_positions().addErrback(log.err)
         if last_update is None:
             st_d = succeed([])
             tt_d = succeed([])
         else:
-            st_d = self.data.get_source_transactions(last_update, self.timestamp)
-            tt_d = self.data.get_target_transactions(last_update, self.timestamp)
+            st_d = self.data.get_source_transactions(last_update, self.timestamp).addErrback(log.err)
+            tt_d = self.data.get_target_transactions(last_update, self.timestamp).addErrback(log.err)
 
         so_d = self.trader.get_source_orders()
         to_d = self.trader.get_target_orders()
@@ -156,10 +164,10 @@ class State():
                 self.offered_ask = min(asks)
 
         if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
-            self.fiat_variance = yield self.data.get_fiat_variance()
+            self.fiat_variance = yield self.data.get_fiat_variance().addErrback(log.err)
 
         if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
-            self.source_variance = yield self.data.get_source_variance()
+            self.source_variance = yield self.data.get_source_variance().addErrback(log.err)
 
         # Update transits - remove ones that have arrived
         # How do we do this?
@@ -170,16 +178,18 @@ class State():
 
         def clear_transits(transits, tx_list, field='to'):
             def near(value_1, value_2):
-                if abs(value_1-value_2)/value_1 < 0.05:
+                if abs(value_1-value_2)/value_1 < 0.01:
                     return True
                 else:
                     return False
+            kept_transits = []
 
-            for tx in tx_list:
-                contract = tx['contract']
-                quantity = tx['quantity']
-                for ix in range(transits):
-                    if transits[ix]['%s_ticker' % field] == contract and near(transits[ix]['%s_quantity'] % field,
+            for ix in range(len(transits)):
+                found = False
+                for tx in tx_list:
+                    contract = tx['contract']
+                    quantity = tx['quantity']
+                    if transits[ix]['%s_ticker' % field] == contract and near(transits[ix]['%s_quantity' % field],
                                                                               quantity):
                         if field == "from":
                             destination = transits[ix].get("destination")
@@ -187,35 +197,29 @@ class State():
                                 self.transit_to_source.append(transits[ix])
                             if destination == "target":
                                 self.transit_to_target.append(transits[ix])
+                        found = True
+                        break
 
-                        del transits[ix]
+                if not found:
+                    kept_transits.append(transits[ix])
 
-        clear_transits(self.transit_to_source, source_deposits, field='to')
-        clear_transits(self.transit_to_target, target_deposits, field='to')
-        clear_transits(self.transit_from_source, source_withdrawals, field='from')
-        clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
-        self.pickle()
+
+            return kept_transits
+
+        self.transit_to_source = clear_transits(self.transit_to_source, source_deposits, field='to')
+        self.transit_to_target = clear_transits(self.transit_to_target, target_deposits, field='to')
+        self.transit_from_source = clear_transits(self.transit_from_source, source_withdrawals, field='from')
+        self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
+
+        self.save()
         returnValue(None)
 
-    def pickle(self):
-        # Pickle my state
-        attrs = {'fiat_book': self.fiat_book,
-                 'source_book': self.source_book,
-                 'target_book': self.target_book,
-                 'source_orders': self.source_orders,
-                 'target_orders': self.target_orders,
-                 'balance_source': self.balance_source,
-                 'balance_target': self.balance_target,
-                 'timestamp': self.timestamp,
-                 'transit_to_source': self.transit_to_source,
-                 'transit_to_target': self.transit_to_target,
-                 'transit_from_source': self.transit_from_source,
-                 'transit_from_target': self.transit_from_target,
-                 'source_variance': self.source_variance,
-                 'fiat_variance': self.fiat_variance }
-
-        pickle.dump(attrs, open("state.pickle", "wb"))
+    def save(self):
+        save(self, 'state.pickle', ['fiat_book', 'source_book', 'target_book', 'source_orders',
+                                  'target_orders', 'balance_source', 'balance_target', 'timestamp',
+                                  'transit_to_source', 'transit_to_target', 'transit_from_source',
+                                  'transit_from_target', 'source_variance', 'fiat_variance'])
 
     def source_price_for_size(self, quantity):
         if quantity > 0:
@@ -410,6 +414,10 @@ class State():
         for transit in self.transit_to_target:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
+        for transit in self.transit_from_source:
+            if transit['destination'] == 'target':
+                total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
+
         for transit in self.transit_from_target:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
 
@@ -428,6 +436,10 @@ class State():
 
         for transit in self.transit_to_source:
             total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
+
+        for transit in self.transit_from_target:
+            if transit['destination'] == 'source':
+                total_balance[transit['to_ticker']]['position'] += transit['to_quantity']
 
         for transit in self.transit_from_source:
             total_balance[transit['from_ticker']]['position'] -= transit['from_quantity']
@@ -556,6 +568,15 @@ class Valuation():
         self.optimized = {}
         self.base_params = {}
         self.base = {}
+
+        load(self, 'valuation.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'valuation.pickle', ['target_balance_source',
+                                      'target_balance_target',
+                                      'deviation_penalty',
+                                      'risk_aversion'])
 
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
@@ -731,6 +752,14 @@ class MarketData():
         self.btc_fee = btc_fee
         self.btc_delay = btc_delay
 
+        load(self, 'data.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'data.pickle', ['source_ticker', 'target_ticker', 'btc_ticker', 'variance_period',
+                                 'variance_window', 'fiat_exchange_cost', 'fiat_exchange_delay',
+                                 'source_fee', 'target_fee', 'btc_fee', 'btc_delay'])
+
     @property
     def fiat_exchange_ticker(self):
         return '%s/%s' % (self.target_ticker, self.source_ticker)
@@ -833,7 +862,6 @@ class Trader():
 
         self.valuation.trader = self
         self.state.trader = self
-        self.edge = None
         self.looping_call = task.LoopingCall(self.loop)
 
         fsm = FSM("DISCONNECTED", None)
@@ -842,8 +870,15 @@ class Trader():
         fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
         fsm.add_transition("updated", "INITIALIZING", None, "READY")
         fsm.add_transition("start", "READY", self.start, "TRADING")
-        fsm.add_transition("stop", "TRADING", self.stop, "READY")
+        fsm.add_transition("stop", "TRADING", self.stop, "STOPPING")
+        fsm.add_transition("cleared", "STOPPING", None, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
+
+        load(self, 'trader.pickle')
+        self.save()
+
+    def save(self):
+        save(self, 'trader.pickle', ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period'])
 
     @inlineCallbacks
     def init(self):
@@ -853,36 +888,50 @@ class Trader():
             if "source" in joined_list and "target" in joined_list:
                 self.fsm.process("connected")
 
+        def onDisconnect(exchange, name):
+            # Stop trading
+            self.fsm.process("stop")
+
+            # Mark as not connected
+            if name in joined_list:
+                del joined_list[joined_list.index(name)]
+
+            # Try to reconnect
+            exchange.connect()
+
         self.source_exchange.notifyConnect = lambda x: joined("source")
         self.target_exchange.notifyConnect = lambda x: joined("target")
+
+        self.source_exchange.notifyDisconnect = lambda x: onDisconnect(x, "source")
+        self.target_exchange.notifyDisconnect = lambda x: onDisconnect(x, "target")
 
         se = self.source_exchange.connect()
         te = self.target_exchange.connect()
         yield gatherResults([se, te])
 
+    @inlineCallbacks
     def initialize(self, fsm):
-        d = self.state.update()
-        def _cb(result):
-            self.fsm.process("updated")
-            self.looping_call.start(self.period)
+        yield self.state.update()
+        yield self.cancel_all_orders()
+        self.fsm.process("updated")
+        self.looping_call.start(self.period)
 
-        d.addCallback(_cb).addErrback(log.err)
 
     def start(self, fsm):
         pass
 
+    @inlineCallbacks
     def stop(self, fsm):
-        self.cancel_all_orders()
+        yield self.cancel_all_orders()
+        self.fsm.process("cleared")
 
     @inlineCallbacks
     def cancel_all_orders(self):
-        source_orders = yield self.get_source_orders()
-        for id, order in source_orders.iteritems():
-            self.source_exchange.cancelOrder(id)
+        for id in self.state.source_orders.keys():
+            yield self.source_exchange.cancelOrder(id)
 
-        target_orders = yield self.get_target_orders()
-        for id, order in target_orders.iteritems():
-            self.target_exchange.cancelOrder(id)
+        for id in self.state.target_orders.keys():
+            yield self.target_exchange.cancelOrder(id)
 
     def get_source_orders(self):
         return self.source_exchange.getOpenOrders()
@@ -900,7 +949,13 @@ class Trader():
 
     @inlineCallbacks
     def loop(self):
-        yield self.valuation.optimize()
+        try:
+            yield self.valuation.optimize()
+        except Exception as e:
+            log.err("Unable to optimize")
+            log.err(e)
+            return
+
         base_value = self.valuation.base['value']
         base_params = self.valuation.base_params
 
@@ -921,43 +976,46 @@ class Trader():
                           'transfer_source_out': self.round_source(optimized_params['transfer_source_out'])}
         rp_as_floats = {key: float(value) for key, value in self.rounded_params.iteritems()}
         self.rounded = self.valuation.valuation(rp_as_floats)
-        self.edge = self.rounded['value'] - base_value
 
 
         if self.fsm.current_state == "TRADING":
-            replace_bid = False
-            replace_ask = False
-            # Better bid
-            if self.rounded_params['offered_bid'] > base_params['offered_bid'] and self.edge > self.edge_to_enter:
-                replace_bid = True
-            if self.rounded_params['offered_ask'] < base_params['offered_ask'] and self.edge > self.edge_to_enter:
-                replace_ask = True
-
-            if self.rounded_params['offered_bid'] < base_params['offered_bid'] and self.edge < self.edge_to_leave:
-                replace_bid = True
-            if self.rounded_params['offered_ask'] > base_params['offered_ask'] and self.edge < self.edge_to_leave:
-                replace_ask = True
+            try:
+                yield self.update_offers(optimized_params['offered_bid'], optimized_params['offered_ask'])
+            except Exception as e:
+                log.err("Can't update offers")
+                log.err(e)
 
             try:
-                yield self.update_offers(self.rounded_params['offered_bid'], self.rounded_params['offered_ask'], replace_bid=replace_bid,
-                                         replace_ask=replace_ask)
-
-                if self.edge > self.edge_to_enter:
-                    yield self.source_trade(self.rounded_params['trade_source_qty'])
-                    yield self.btc_transfer(self.rounded_params['btc_source_target'])
-                    yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
-                    yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
+                yield self.source_trade(self.rounded_params['trade_source_qty'])
             except Exception as e:
+                log.err("Can't execute a trade on source exchange")
                 log.err(e)
-                pass
+
+            try:
+                yield self.btc_transfer(self.rounded_params['btc_source_target'])
+            except Exception as e:
+                log.err("Can't transfer BTC")
+                log.err(e)
+
+            try:
+                yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
+            except Exception as e:
+                log.err("Can't transfer fiat")
+                log.err(e)
+
+            try:
+                yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
+            except Exception as e:
+                log.err("Can't transfer fiat out of source")
+                log.err(e)
 
     @inlineCallbacks
     def source_trade(self, quantity):
         # Check for orders outstanding and cancel them
-        orders = yield self.source_exchange.getOpenOrders()
-        for id, order in orders.iteritems():
-            if order['contract'] == self.data.source_exchange_ticker:
-                yield self.source_exchange.cancelOrder(id)
+        my_ids = [order['id'] for order in self.state.source_orders.values()
+                  if order['contract'] == self.data.source_exchange_ticker]
+        for id in my_ids:
+            yield self.source_exchange.cancelOrder(id)
 
         if self.state.convert_to_source(self.data.btc_ticker, float(quantity)) > EPSILON:
             side = 'BUY'
@@ -968,7 +1026,15 @@ class Trader():
 
         # Place a new order
         price, total_spent, total_traded = self.state.source_price_for_size(float(quantity))
-        yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_traded, price, side)
+        try:
+            yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_traded, price, side)
+        except Exception as e:
+            log.err("Unable to place order on source exchange: %s %s %s %s" % (
+                self.data.source_exchange_ticker,
+                total_traded,
+                price, side
+                                                                              ))
+            log.err(e)
 
     @inlineCallbacks
     def btc_transfer(self, quantity):
@@ -1089,39 +1155,47 @@ class Trader():
                                 'destination': 'OUT'})
 
     @inlineCallbacks
-    def update_offers(self, offered_bid, offered_ask, replace_bid=False, replace_ask=False):
-        ticker = self.data.target_exchange_ticker
-        orders = yield self.target_exchange.getOpenOrders()
-        my_orders = {id: order for id, order in orders.iteritems() if order['contract'] == ticker}
-        bids = [order for order in my_orders.values() if order['side'] == 'BUY']
-        asks = [order for order in my_orders.values() if order['side'] == 'SELL']
+    def update_offers(self, bid, ask):
+        edge_to_enter_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_enter)
+        edge_to_leave_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_leave)
+        bid_to_leave = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_leave_in_target)
+        bid_to_enter = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_enter_in_target)
+        ask_to_leave = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
+        ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_enter_in_target)
 
-        if not replace_bid:
-            bid_size = sum([order['quantity_left'] for order in bids])
+        ticker = self.data.target_exchange_ticker
+        my_orders = [order for order in self.state.target_orders.values() if order['contract'] == ticker]
+
+        bid_size = 0
+        ask_size = 0
+        for bid in [order for order in my_orders if order['side'] == 'BUY']:
+            if bid['price'] > bid_to_leave or bid['price'] < bid_to_enter:
+                self.target_exchange.cancelOrder(bid['id'])
+            else:
+                bid_size += bid['quantity_left']
+
+        for ask in [order for order in my_orders if order['side'] == 'SELL']:
+            if ask['price'] < ask_to_leave or ask['price'] > ask_to_enter:
+                self.target_exchange.cancelOrder(ask['id'])
+            else:
+                ask_size += ask['quantity_left']
+
+        if ask_size < self.quote_size:
+            difference = self.quote_size - ask_size
+            try:
+                yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
+            except Exception as e:
+                log.err("Unable to place SELL order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
+                log.err(e)
+
+        if bid_to_enter > 0:
             if bid_size < self.quote_size:
                 difference = self.quote_size - bid_size
-                yield self.target_exchange.placeOrder(ticker, difference, offered_bid, 'BUY')
-                self.state.offered_bid = offered_bid
-        else:
-            for id in [order['id'] for order in bids]:
-                yield self.target_exchange.cancelOrder(id)
-
-            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_bid, 'BUY')
-            self.state.offered_bid = offered_bid
-
-        if not replace_ask:
-            ask_size = sum([order['quantity_left'] for order in asks])
-            if ask_size < self.quote_size:
-                difference = self.quote_size - ask_size
-                yield self.target_exchange.placeOrder(ticker, difference, offered_ask, 'SELL')
-                self.state.offered_ask = offered_ask
-        else:
-            for id in [order['id'] for order in asks]:
-                yield self.target_exchange.cancelOrder(id)
-
-            yield self.target_exchange.placeOrder(ticker, self.quote_size, offered_ask, 'SELL')
-            self.state.offered_ask = offered_ask
-
+                try:
+                    yield self.target_exchange.placeOrder(ticker, difference, bid_to_enter, 'BUY')
+                except Exception as e:
+                    log.err("Unable to place BUY order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
+                    log.err(e)
 
 
 from twisted.web.resource import Resource
@@ -1162,6 +1236,7 @@ class Webserver(Resource):
             self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
             self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
             self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
+            self.valuation.save()
             d = self.valuation.optimize()
             def _cb(result):
                 request.write(redirectTo("/#valuation", request))
@@ -1173,7 +1248,18 @@ class Webserver(Resource):
             self.trader.quote_size = Decimal(request.args['quote_size'][0])
             self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
             self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
+            self.trader.save()
             return redirectTo('/#trader', request)
+        elif request.path == '/market_parameters':
+            self.data.source_fee[0] = float(request.args['source_fixed_fee'][0])
+            self.data.source_fee[1] = float(request.args['source_ratio_fee'][0])
+            self.data.target_fee[0] = float(request.args['target_fixed_fee'][0])
+            self.data.target_fee[1] = float(request.args['target_ratio_fee'][0])
+            self.data.btc_fee = float(request.args['btc_fee'][0])
+            self.data.fiat_exchange_cost[0] = float(request.args['fiat_exchange_fixed_cost'][0])
+            self.data.fiat_exchange_cost[1] = float(request.args['fiat_exchange_ratio_cost'][0])
+            self.data.save()
+            return redirectTo('/#market', request)
 
 
 if __name__ == "__main__":
@@ -1238,8 +1324,8 @@ if __name__ == "__main__":
                         state=state,
                         data=market_data,
                         valuation=valuation,
-                        edge_to_enter=2000,
-                        edge_to_leave=-2000,
+                        edge_to_enter=20, # These are in source currency
+                        edge_to_leave=10,
                         period=5)
 
         server = Webserver(state, valuation, market_data, trader)

@@ -269,8 +269,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def onDisconnect(self):
         log.msg("Disconnected")
-        reactor.stop()
-
+        if self.factory.onDisconnect is not None:
+            self.factory.onDisconnect(self)
 
     def action(self):
         '''
@@ -297,7 +297,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             if result['success']:
                 return result['result']
             else:
-                return defer.fail(result['error'])
+                raise Exception(result['error'])
 
         d.addCallbacks(onSuccess, self.onRpcFailure)
         return d
@@ -504,7 +504,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         uri = u"feeds.user.orders.%s" % self.encode_username(self.username)
 
         def _onOrder(uri, wire_order):
-            id = wire_order['id']
+            id = str(wire_order['id'])
             if id in self.wire_orders and (wire_order['is_cancelled'] or wire_order['quantity_left'] == 0):
                 del self.wire_orders[id]
             else:
@@ -724,8 +724,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         print "cancel order: %s" % id
         d = self.call(u"rpc.trader.cancel_order", int(id))
         def _onCancelOrder(success):
-            if success and id in self.wire_orders:
-                del self.wire_orders[id]
+            if success and str(id) in self.wire_orders:
+                del self.wire_orders[str(id)]
 
             return self.onCancelOrder(success)
 
@@ -771,15 +771,17 @@ class BotFactory(wamp.ApplicationSessionFactory):
         self.ignore_contracts = kwargs.get('ignore_contracts')
         self.rate = kwargs.get('rate')
         self.onConnect = kwargs.get('onConnect')
+        self.onDisconnect = kwargs.get('onDisconnect')
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
 class Sputnik():
-    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None):
+    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None, notifyDisconnect=lambda x: reactor.stop()):
         self.debug = debug
-        self.session_factory = BotFactory(onConnect=self.onConnect, **bot_params)
+        self.session_factory = BotFactory(onConnect=self.onConnect, onDisconnect=self.onDisconnect, **bot_params)
         self.notifyConnect = notifyConnect
+        self.notifyDisconnect = notifyDisconnect
         self.session_factory.session = bot
 
         if connection['ssl']:
@@ -800,7 +802,7 @@ class Sputnik():
         client = clientFromString(reactor, self.connection_string)
         def _connectError(failure):
             log.err(failure)
-            reactor.stop()
+            self.onDisconnect(None)
 
         return client.connect(self.transport_factory).addErrback(_connectError)
 
@@ -811,6 +813,10 @@ class Sputnik():
             if self.notifyConnect is not None:
                 self.notifyConnect(self)
         self.session.onMarkets = _onMarkets
+
+    def onDisconnect(self, session):
+        if self.notifyDisconnect is not None:
+            self.notifyDisconnect(self)
 
     def getPositions(self):
         return defer.succeed(self.session.positions)
@@ -844,11 +850,21 @@ class Sputnik():
 
     def round_bid(self, ticker, price):
         precision = self.session.get_price_precision(ticker)
-        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_DOWN)
+        try:
+            rounded = Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_DOWN)
+        except decimal.InvalidOperation:
+            rounded = Decimal('Infinity')
+
+        return rounded
 
     def round_ask(self, ticker, price):
         precision = self.session.get_price_precision(ticker)
-        return Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_UP)
+        try:
+            rounded = Decimal(price).quantize(Decimal('1E-%d' % precision), rounding=decimal.ROUND_UP)
+        except decimal.InvalidOperation:
+            rounded = Decimal('Infinity')
+
+        return rounded
 
 
 class SputnikRest(SputnikMixin):
