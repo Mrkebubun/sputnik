@@ -63,7 +63,7 @@ class PostgresDatabase(DatabasePlugin):
             returnValue(None)
 
         # Extend this later to lookup via email address and phone number
-        query = "SELECT password, totp, api_key, api_secret, api_expiration, username FROM users WHERE username=%s OR api_key=%s LIMIT 1"
+        query = "SELECT password, totp_enabled, api_key, api_secret, api_expiration, username FROM users WHERE username=%s OR api_key=%s LIMIT 1"
         try:
             debug("Looking up username %s..." % username)
 
