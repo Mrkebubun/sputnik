@@ -83,6 +83,7 @@ class SputnikRouterSession(RouterSession):
         required_failures = []
         optional_successes = []
         required_successes = []
+        # TODO: log overall success
         for plugin, flag in self.factory.plugins:
             result = types.Deny(message=u"Server error.")
             try:
