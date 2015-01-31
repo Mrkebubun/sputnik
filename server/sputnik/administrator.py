@@ -17,6 +17,7 @@ import json
 import copy
 import string
 import pickle
+import time
 import Crypto.Random.random
 from dateutil import parser
 
@@ -455,20 +456,21 @@ class Administrator:
         user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
-            raise NO_SUCH_USER 
+            raise NO_SUCH_USER
         
         if not user.totp_enabled:
             raise TOTP_NOT_ENABLED
         
         if self._check_totp(user, otp):
             user.totp_secret = None
+            user.totp_enabled = False
             self.session.commit()
             return True
 
         return False
 
     def check_totp(self, username, otp):
-        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled returns True.
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled, returns True.
 
         :param username: the account username
         :type username: str
@@ -480,13 +482,16 @@ class Administrator:
         user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
-            raise NO_SUCH_USER 
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled or not user.totp_secret:
+            return True
         
         return self._check_totp(user, otp)
 
     @session_aware
     def _check_totp(self, user, otp):
-        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled returns True. This method is safe to use internally.
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. This method is safe to use internally.
 
         :param user: the User object
         :type username: str
@@ -494,16 +499,13 @@ class Administrator:
         :type username: str
         :returns: bool
         """
-        if not user.totp_enabled or not user.totp_secret:
-            return True
-
-        secret = user.totp_secret
+        secret = bytes(user.totp_secret)
         now = time.time() // 30
         for i in range(-1, 2):
             if user.totp_last >= now + i:
                 # token reuse is not allowed
                 continue
-            if auth.compute_totp(secret, i) == otp:
+            if compute_totp(secret, i) == otp:
                 user.totp_last = now + i
                 self.session.commit()
                 return True
