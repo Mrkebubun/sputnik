@@ -59,7 +59,9 @@ class SputnikRouter(Router):
 class SputnikRouterSession(RouterSession):
     @inlineCallbacks
     def onHello(self, realm, details):
-        if details.authmethods == None:
+        if details.authid is None:
+            details.authid = u"anonymous"
+        if details.authmethods is None:
             details.authmethods = []
         for plugin, flag in self.factory.plugins:
             result = types.Deny(message=u"Server error.")
