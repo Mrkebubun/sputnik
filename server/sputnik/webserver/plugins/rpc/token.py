@@ -75,25 +75,25 @@ class TokenService(ServicePlugin):
     @wamp.register(u"rpc.token.enable_otp")
     @schema(u"public/token.json#enable_otp")
     @authenticated
-    def enable_otp(self):
+    def enable_otp(self, username=None):
         """Starts two step process to enable OTP for an account."""
-        secret = yield self.administrator.proxy.enable_otp()
+        secret = yield self.administrator.proxy.enable_otp(username)
         returnValue(secret)
 
     @wamp.register(u"rpc.token.enable_otp")
     @schema(u"public/token.json#enable_otp")
     @authenticated
-    def verify_otp(self, otp):
+    def verify_otp(self, otp, username=None):
         """Confirms that the user has saved the OTP secret."""
-        result = yield self.administrator.proxy.verify_otp(otp)
+        result = yield self.administrator.proxy.verify_otp(username, otp)
         returnValue(result)
 
     @wamp.register(u"rpc.token.enable_otp")
     @schema(u"public/token.json#enable_otp")
     @authenticated
-    def disable_otp(self, otp):
+    def disable_otp(self, otp, username=None):
         """Disables OTP for an account."""
-        result = yield self.administrator.proxy.disable_otp(otp)
+        result = yield self.administrator.proxy.disable_otp(username, otp)
         returnValue(result)
 
     @inlineCallbacks
