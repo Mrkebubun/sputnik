@@ -72,28 +72,31 @@ class TokenService(ServicePlugin):
         result = yield self.administrator.proxy.reset_password_hash(username, old_password_hash, new_password_hash)
         returnValue(None)
 
-    @wamp.register(u"rpc.token.enable_otp")
-    @schema(u"public/token.json#enable_otp")
+    @wamp.register(u"rpc.token.enable_totp")
+    @error_handler
     @authenticated
+    @schema(u"public/token.json#enable_totp")
     def enable_otp(self, username=None):
         """Starts two step process to enable OTP for an account."""
-        secret = yield self.administrator.proxy.enable_otp(username)
+        secret = yield self.administrator.proxy.enable_totp(username)
         returnValue(secret)
 
-    @wamp.register(u"rpc.token.enable_otp")
-    @schema(u"public/token.json#enable_otp")
+    @wamp.register(u"rpc.token.verify_totp")
+    @error_handler
     @authenticated
+    @schema(u"public/token.json#verify_totp")
     def verify_otp(self, otp, username=None):
         """Confirms that the user has saved the OTP secret."""
-        result = yield self.administrator.proxy.verify_otp(username, otp)
+        result = yield self.administrator.proxy.verify_totp(username, otp)
         returnValue(result)
 
-    @wamp.register(u"rpc.token.enable_otp")
-    @schema(u"public/token.json#enable_otp")
+    @wamp.register(u"rpc.token.disable_totp")
+    @error_handler
     @authenticated
+    @schema(u"public/token.json#disable_totp")
     def disable_otp(self, otp, username=None):
         """Disables OTP for an account."""
-        result = yield self.administrator.proxy.disable_otp(username, otp)
+        result = yield self.administrator.proxy.disable_totp(username, otp)
         returnValue(result)
 
     @inlineCallbacks
