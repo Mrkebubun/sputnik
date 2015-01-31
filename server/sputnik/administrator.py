@@ -2152,6 +2152,30 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#enable_totp")
+    def enable_totp(self, username):
+        return self.administrator.enable_totp(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#verify_totp")
+    def enable_totp(self, username, otp):
+        return self.administrator.verify_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#disable_totp")
+    def enable_totp(self, username, otp):
+        return self.administrator.disable_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_totp")
+    def enable_totp(self, username, otp):
+        return self.administrator.check_totp(username, otp)
 
     @export
     @session_aware
