@@ -43,10 +43,13 @@ class TOTPVerification(AuthenticationPlugin):
         username = router_session.challenge["authid"].encode("utf8")
         totp = router_session.totp
         if totp:
-            if "totp" not in extra:
+            if "otp" not in extra:
+                log("TOTP parameter is missing for %s." % username)
                 returnValue(types.Deny(message=u"Missing TOTP."))
             success = yield self.administrator.proxy.check_totp(
-                    username, extra["totp"].encode("utf-8"))
+                    username, extra["otp"].encode("utf-8"))
             if not success: 
+                log("TOTP parameter is invalid for %s." % username)
                 returnValue(types.Deny(message=u"Invalid TOTP."))
+            log("Successfully verified TOTP for %s." % username)
 
