@@ -129,17 +129,17 @@ class State():
     def update(self):
         last_update = self.timestamp
         self.timestamp = datetime.utcnow()
-        fb_d = self.data.get_fiat_book()
-        sb_d = self.data.get_source_book()
-        tb_d = self.data.get_target_book()
-        bs_d = self.data.get_source_positions()
-        bt_d = self.data.get_target_positions()
+        fb_d = self.data.get_fiat_book().addErrback(log.err)
+        sb_d = self.data.get_source_book().addErrback(log.err)
+        tb_d = self.data.get_target_book().addErrback(log.err)
+        bs_d = self.data.get_source_positions().addErrback(log.err)
+        bt_d = self.data.get_target_positions().addErrback(log.err)
         if last_update is None:
             st_d = succeed([])
             tt_d = succeed([])
         else:
-            st_d = self.data.get_source_transactions(last_update, self.timestamp)
-            tt_d = self.data.get_target_transactions(last_update, self.timestamp)
+            st_d = self.data.get_source_transactions(last_update, self.timestamp).addErrback(log.err)
+            tt_d = self.data.get_target_transactions(last_update, self.timestamp).addErrback(log.err)
 
         so_d = self.trader.get_source_orders()
         to_d = self.trader.get_target_orders()
@@ -164,10 +164,10 @@ class State():
                 self.offered_ask = min(asks)
 
         if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
-            self.fiat_variance = yield self.data.get_fiat_variance()
+            self.fiat_variance = yield self.data.get_fiat_variance().addErrback(log.err)
 
         if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
-            self.source_variance = yield self.data.get_source_variance()
+            self.source_variance = yield self.data.get_source_variance().addErrback(log.err)
 
         # Update transits - remove ones that have arrived
         # How do we do this?
@@ -888,8 +888,22 @@ class Trader():
             if "source" in joined_list and "target" in joined_list:
                 self.fsm.process("connected")
 
+        def onDisconnect(exchange, name):
+            # Stop trading
+            self.fsm.process("stop")
+
+            # Mark as not connected
+            if name in joined_list:
+                del joined_list[joined_list.index(name)]
+
+            # Try to reconnect
+            exchange.connect()
+
         self.source_exchange.notifyConnect = lambda x: joined("source")
         self.target_exchange.notifyConnect = lambda x: joined("target")
+
+        self.source_exchange.notifyDisconnect = lambda x: onDisconnect(x, "source")
+        self.target_exchange.notifyDisconnect = lambda x: onDisconnect(x, "target")
 
         se = self.source_exchange.connect()
         te = self.target_exchange.connect()
@@ -1012,7 +1026,15 @@ class Trader():
 
         # Place a new order
         price, total_spent, total_traded = self.state.source_price_for_size(float(quantity))
-        yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_traded, price, side)
+        try:
+            yield self.source_exchange.placeOrder(self.data.source_exchange_ticker, total_traded, price, side)
+        except Exception as e:
+            log.err("Unable to place order on source exchange: %s %s %s %s" % (
+                self.data.source_exchange_ticker,
+                total_traded,
+                price, side
+                                                                              ))
+            log.err(e)
 
     @inlineCallbacks
     def btc_transfer(self, quantity):
@@ -1160,11 +1182,21 @@ class Trader():
 
         if ask_size < self.quote_size:
             difference = self.quote_size - ask_size
-            yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
+            try:
+                yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
+            except Exception as e:
+                log.err("Unable to place SELL order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
+                log.err(e)
 
-        if bid_size < self.quote_size:
-            difference = self.quote_size - bid_size
-            yield self.target_exchange.placeOrder(ticker, difference, bid_to_enter, 'BUY')
+        if bid_to_enter > 0:
+            if bid_size < self.quote_size:
+                difference = self.quote_size - bid_size
+                try:
+                    yield self.target_exchange.placeOrder(ticker, difference, bid_to_enter, 'BUY')
+                except Exception as e:
+                    log.err("Unable to place BUY order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
+                    log.err(e)
+
 
 from twisted.web.resource import Resource
 from twisted.web.server import Site, NOT_DONE_YET

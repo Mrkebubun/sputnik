@@ -77,10 +77,10 @@ class CoinSetter():
             if result['message'] != "OK":
                 raise Exception("Heartbeat not OK")
         except Exception as e:
+            log.err("Heartbeat failure")
             log.err(e)
             if self.notifyDisconnect is not None:
                 self.notifyDisconnect(self)
-            raise e
 
     @inlineCallbacks
     def placeOrder(self, contract, quantity, price, side):

@@ -269,8 +269,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def onDisconnect(self):
         log.msg("Disconnected")
-        reactor.stop()
-
+        if self.factory.onDisconnect is not None:
+            self.factory.onDisconnect(self)
 
     def action(self):
         '''
@@ -771,15 +771,17 @@ class BotFactory(wamp.ApplicationSessionFactory):
         self.ignore_contracts = kwargs.get('ignore_contracts')
         self.rate = kwargs.get('rate')
         self.onConnect = kwargs.get('onConnect')
+        self.onDisconnect = kwargs.get('onDisconnect')
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
 class Sputnik():
-    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None):
+    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None, notifyDisconnect=lambda x: reactor.stop()):
         self.debug = debug
-        self.session_factory = BotFactory(onConnect=self.onConnect, **bot_params)
+        self.session_factory = BotFactory(onConnect=self.onConnect, onDisconnect=self.onDisconnect, **bot_params)
         self.notifyConnect = notifyConnect
+        self.notifyDisconnect = notifyDisconnect
         self.session_factory.session = bot
 
         if connection['ssl']:
@@ -800,7 +802,7 @@ class Sputnik():
         client = clientFromString(reactor, self.connection_string)
         def _connectError(failure):
             log.err(failure)
-            reactor.stop()
+            self.onDisconnect(None)
 
         return client.connect(self.transport_factory).addErrback(_connectError)
 
@@ -811,6 +813,10 @@ class Sputnik():
             if self.notifyConnect is not None:
                 self.notifyConnect(self)
         self.session.onMarkets = _onMarkets
+
+    def onDisconnect(self, session):
+        if self.notifyDisconnect is not None:
+            self.notifyDisconnect(self)
 
     def getPositions(self):
         return defer.succeed(self.session.positions)
