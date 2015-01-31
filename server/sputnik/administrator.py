@@ -435,7 +435,7 @@ class Administrator:
         if user.totp_enabled:
             raise TOTP_ALREADY_ENABLED
 
-        if self._check_totp(user, otp)
+        if self._check_totp(user, otp):
             user.totp_enabled = True
             self.session.commit()
             return True
