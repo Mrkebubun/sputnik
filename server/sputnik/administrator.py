@@ -400,7 +400,7 @@ class Administrator:
         :returns: str
         :raises: NO_SUCH_USER, TOTP_ALREADY_ENABLED
         """
-        user = self.session.query(models.user).filter_by(
+        user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
             raise NO_SUCH_USER
@@ -424,7 +424,7 @@ class Administrator:
         :returns: bool
         :raises: NO_SUCH_USER, TOTP_NOT_ENABLED, TOTP_ALREADY_ENABLED
         """
-        user = self.session.query(models.user).filter_by(
+        user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
             raise NO_SUCH_USER
@@ -452,7 +452,7 @@ class Administrator:
         :returns: bool
         :raises: NO_SUCH_USER, TOTP_NOT_ENABLED
         """
-        user = self.session.query(models.user).filter_by(
+        user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
             raise NO_SUCH_USER 
@@ -477,7 +477,7 @@ class Administrator:
         :returns: bool
         :raises: NO_SUCH_USER
         """
-        user = self.session.query(models.user).filter_by(
+        user = self.session.query(models.User).filter_by(
             username=username).one()
         if not user:
             raise NO_SUCH_USER 
