@@ -2162,19 +2162,19 @@ class WebserverExport(ComponentExport):
     @export
     @session_aware
     @schema("rpc/administrator.json#verify_totp")
-    def enable_totp(self, username, otp):
+    def verify_totp(self, username, otp):
         return self.administrator.verify_totp(username, otp)
     
     @export
     @session_aware
     @schema("rpc/administrator.json#disable_totp")
-    def enable_totp(self, username, otp):
+    def disable_totp(self, username, otp):
         return self.administrator.disable_totp(username, otp)
     
     @export
     @session_aware
     @schema("rpc/administrator.json#check_totp")
-    def enable_totp(self, username, otp):
+    def check_totp(self, username, otp):
         return self.administrator.check_totp(username, otp)
 
     @export
