@@ -1,6 +1,6 @@
 from sputnik import observatory
 
-debug, log, warn, error, critical = observatory.get_loggers("auth_cookie")
+debug, log, warn, error, critical = observatory.get_loggers("auth_totp")
 
 from sputnik.webserver.plugin import AuthenticationPlugin
 from twisted.internet.defer import inlineCallbacks, returnValue
