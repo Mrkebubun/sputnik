@@ -81,10 +81,7 @@ def price_to_wire(contract, price):
         price = price * contract.denominated_contract.denominator * contract.denominator
 
     p = price - price % contract.tick_size
-    if p != int(p):
-        raise Exception("price_to_wire returns non-integer value")
-    else:
-        return int(p)
+    return int(p)
 
 def price_from_wire(contract, price):
     if contract.contract_type == "prediction":
@@ -108,11 +105,7 @@ def quantity_to_wire(contract, quantity):
     else:
         quantity = quantity * contract.payout_contract.denominator
         q = quantity - quantity % contract.lot_size
-
-    if q != int(q):
-        raise Exception("quantity_to_wire returns non-integer value")
-    else:
-        return int(q)
+    return int(q)
 
 def get_precision(numerator, denominator):
     if numerator <= denominator:

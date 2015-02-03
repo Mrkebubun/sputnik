@@ -17,7 +17,7 @@ import json
 import copy
 import string
 import pickle
-import Crypto.Random.random
+import time
 import Crypto.Random.random
 from dateutil import parser
 import cgi
@@ -43,7 +43,7 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
 from datetime import timedelta
-from autobahn.wamp.auth import derive_key
+from autobahn.wamp.auth import derive_key, compute_totp
 from twisted.web.static import File
 
 import config
@@ -87,6 +87,8 @@ NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_user
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
+TOTP_NOT_ENABLED = AdministratorException("exceptions/administrator/totp_not_enabled")
+TOTP_ALREADY_ENABLED = AdministratorException("exceptions/administrator/totp_already_enabled")
 BITGO_TOKEN_INVALID = AdministratorException("exceptions/administrator/bitgo_token_invalid")
 KEY_FILE_EXISTS = AdministratorException("exceptions/bitgo/key_file_exists")
 
@@ -418,6 +420,125 @@ class Administrator:
                                     subject='Reset password link enclosed')
 
         return True
+
+    def enable_totp(self, username):
+        """Initiates process to enable TOTP for account. Returns the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :returns: str
+        :raises: NO_SUCH_USER, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        secret = base64.b32encode("".join(
+            chr(getrandbits(8)) for i in range(16)))
+        user.totp_secret = secret
+        self.session.commit()
+        return secret
+
+    def verify_totp(self, username, otp):
+        """Verifies the user has saved the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if not user.totp_secret:
+            raise TOTP_NOT_ENABLED
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        if self._check_totp(user, otp):
+            user.totp_enabled = True
+            self.session.commit()
+            return True
+
+        return False
+
+    def disable_totp(self, username, otp):
+        """Disables TOTP for an account.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled:
+            raise TOTP_NOT_ENABLED
+        
+        if self._check_totp(user, otp):
+            user.totp_secret = None
+            user.totp_enabled = False
+            self.session.commit()
+            return True
+
+        return False
+
+    def check_totp(self, username, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled, returns True.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled or not user.totp_secret:
+            return True
+        
+        return self._check_totp(user, otp)
+
+    @session_aware
+    def _check_totp(self, user, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. This method is safe to use internally.
+
+        :param user: the User object
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        """
+        secret = bytes(user.totp_secret)
+        now = time.time() // 30
+        for i in range(-1, 2):
+            if user.totp_last >= now + i:
+                # token reuse is not allowed
+                continue
+            if compute_totp(secret, i) == otp:
+                user.totp_last = now + i
+                self.session.commit()
+                return True
+
+        return False
 
     def expire_all(self):
         """Use this to expire all objects in the session, because other processes may have updated things in the db
@@ -2285,6 +2406,30 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#enable_totp")
+    def enable_totp(self, username):
+        return self.administrator.enable_totp(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#verify_totp")
+    def verify_totp(self, username, otp):
+        return self.administrator.verify_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#disable_totp")
+    def disable_totp(self, username, otp):
+        return self.administrator.disable_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_totp")
+    def check_totp(self, username, otp):
+        return self.administrator.check_totp(username, otp)
 
     @export
     @session_aware
