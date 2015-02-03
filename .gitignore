@@ -1,9 +1,6 @@
 *.py[cod]
 __pycache__
 *.log
-logs
-build
-debug
 dist
 sputnik.tar.gz
 .bitcoin
@@ -12,13 +9,6 @@ postgresql-9.2-1002.jdbc4.jar
 sqlitejdbc-v056.jar
 zentus-sqlite-license.txt
 postgresql-driver-license.txt
-clients/www/*.js
-clients/coffeescript/*.js
-clients/www/*.css
 sputnik.tar
-docs/build
-testing/_trial_temp
-testing/.coverage*
-testing/htmlcov
 aux.ini
-tools/alembic/versions
+
