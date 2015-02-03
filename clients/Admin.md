@@ -107,7 +107,7 @@ curl --digest -u username:password -H "Content-Type: application/json" \
        "id": 102,
        "username": "marketmaker"
    } ]
-]    
+}    
 ```
 
 ```
@@ -117,7 +117,7 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 ```
    
 ```json
-{ 'success': true, 'result': null }
+{ "success": true, "result": null }
 ```
 
 ```
@@ -145,5 +145,5 @@ curl --digest -u username:password -H "Content-Type: application/json" \
 ```
 
 ```json
-{ 'success': true, 'result': 'txid' }
+{ "success": true, "result": "txid" }
 ```    
