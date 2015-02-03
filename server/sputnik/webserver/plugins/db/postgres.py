@@ -76,7 +76,7 @@ class PostgresDatabase(DatabasePlugin):
                 r = result[0]
                 debug("User %s found." % username)
                 returnValue({'password': r[0],
-                             'totp': r[1],
+                             'totp_enabled': r[1],
                              'api_key': r[2],
                              'api_secret': r[3],
                              'api_expiration': r[4],
