@@ -25,8 +25,8 @@ RPC responses are json objects with two elements. In the case of a successful ca
 
 ```json
 {
-    success: true
-    result: result
+    "success": true,
+    "result": result
 }
 ```
 
@@ -34,8 +34,8 @@ In the case of a failure
 
 ```json
 {
-    success:false
-    error: ['error-message', arguments]
+    "success": false
+    "error": ["error-message", arguments]
 }
 ```
 
@@ -54,119 +54,203 @@ corresponding server objects. Each is encoded in JSON.
 
 ### contract
 
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|description|string|Short description of the contract|
+|full_description|string|Full description of the contract|
+|contract_type|enum|The type of the contract|
+|tick_size|integer|See Denominations spec|
+|lot_size|integer|See Denominations spec|
+|denominator|integer|See Denominations spec|
+|expiration|integer|Contract expiry (Microseconds since epoch)|
+
+Example:
+
 ```json
 {
-    contract: "TICKER"
-    description: "short description"
-    full_description: "full description"
-    contract_type: "futures|prediction|cash_pair|cash"
-    tick_size: 1
-    lot_size: 1
-    denominator: 1
-    expiration: "1390165959122754"
+    "contract": "TICKER",
+    "description": "short description",
+    "full_description": "full description",
+    "contract_type": "futures|prediction|cash_pair|cash",
+    "tick_size": 1,
+    "lot_size": 1,
+    "denominator": 1,
+    "expiration": 1390165959122754
 }
 ```
 
 ### trade
+
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|price|integer|price of the trade|
+|quantity|integer|quantity traded|
+|timestamp|integer|time of trade (Microseconds since epoch)
+
 ```json
 {
-    contract: "TICKER"
-    price: 100000
-    quantity: 100000
-    timestamp: "1390165959122754"
+    "contract": "TICKER",
+    "price": 100000,
+    "quantity": 100000,
+    "timestamp": 1390165959122754
 }
 ```
 
 ### ohlcv
+
+
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|period|enum|Period for the OHLCV bar|
+|open|integer|Opening trade price|
+|high|integer|Highest trade price|
+|low|integer|Lowest trade price|
+|close|integer|Closing trade price|
+|volume|integer|Total volume for period|
+|vwap|integer|Volume-weighted average price|
+|open_timestamp|integer|Beginning of period (Microseconds since epoch)|
+|close_timestamp|integer|End of period (Microseconds since epoch)|
+
 ```json
 {
-   contract: "TICKER"
-   period: "day|hour|minute"
-   open: 4244
-   high: 6777
-   low: 4000
-   close: 5456
-   volume: 245
-   vwap: 5100
-   open_timestamp: "2340934534283"
-   close_timestamp: "456945645968"
+   "contract": "TICKER",
+   "period": "day|hour|minute",
+   "open": 4244,
+   "high": 6777,
+   "low": 4000,
+   "close": 5456,
+   "volume": 245,
+   "vwap": 5100,
+   "open_timestamp": 2340934534283,
+   "close_timestamp": 456945645968
 }
 ```
 
 ### order
+
+
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|price|integer|The limit price|
+|quantity|integer|Original quantity of the order|
+|quantity_left|integer|Remaining unfilled quantity|
+|side|enum|Buy or sell|
+|timestamp|integer|Timestamp of the order (Microseconds since epoch)|
+|id|integer|Order id|
+|is_cancelled|boolean|True if the order has been cancelled|
+
+Example: 
+
 ```json
 {
-    contract: "TICKER"
-    price: 100000
-    quantity: 10000
-    quantity_left: 500
-    side: "BUY|SELL"
-    timestamp: "1390165959122754"
-    id: 3123121
-    is_cancelled: "True|False"
+    "contract": "TICKER",
+    "price": 100000,
+    "quantity": 10000,
+    "quantity_left": 500,
+    "side": "BUY|SELL",
+    "timestamp": 1390165959122754,
+    "id": 3123121,
+    "is_cancelled": false,
 }
 ```
 
 ### position
-```json
-{
-    contract: "TICKER"
-    position: 1000
-    reference_price: 1000
-}
-```
 
-### trade
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|position|integer|Quantity held|
+|reference_price|integer|See futures margin explanation|
+
+Example:
+
 ```json
 {
-         contract: "TICKER"
-         price: 100
-         quantity: 100000
-         id: 3123121
-         timestamp: "234234234"
+    "contract": "TICKER",
+    "position": 1000,
+    "reference_price": 1000
 }
 ```
 
 ### fill
+
+
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|price|integer|Price at which the contract traded|
+|quantity|integer|Quantity traded|
+|id|integer|Trade id|
+|timestamp|integer|Timestamp of the trade (Microseconds since epoch)|
+|side|enum|Buy or sell|
+|fees|dict|Ticker-indexed dict of fees charged|
+
+Example: 
+
 ```json
       {
-         contract: "TICKER"
-         price: 100
-         quantity: 100000
-         id: 3123121
-         timestamp: "234234234"
-         side: "BUY|SELL"
-         fees: {
-            BTC: 24000000
-            MXN: 23123
+         "contract": "TICKER",
+         "price": 100,
+         "quantity": 100000,
+         "id": 3123121,
+         "timestamp": 334234234
+         "side": "BUY|SELL",
+         "fees": {
+            "BTC": 24000000,
+            "MXN": 23123
         }
      }
 ```
 
 ### transaction
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|timestamp|integer|Timestamp of transaction (Microseconds since epoch)|
+|quantity|integer|Quantity of the transaction|
+|type|enum|Type of transaction|
+|note|string|Unstructured description of transaction (future: will be JSON)|
+|direction|enum|debit or credit|
+|balance|integer|balance after transaction posted|
+
+Example:
+
 ```json
 {
-     contract: "TICKER"
-     timestamp: "23423423"
-     quantity: 23423
-     type: "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment"
-     note: "note about the transaction"
-     direction: "debit|credit"
-     balance: 234523
+     "contract": "TICKER",
+     "timestamp": 23423423,
+     "quantity": 23423,
+     "type": "Trade|Transfer|Deposit|Withdrawal|Fee|Adjustment",
+     "note": "note about the transaction",
+     "direction": "debit|credit",
+     "balance": 234523,
 }
 ```
 
 ### profile
+
+|Name|Type|Description|
+|----|----|-----------|
+|email|string|Email address|
+|nickname|string|Nickname for user|
+|audit_secret|string|Secret to use for audit|
+|locale|string|locale string|
+|notifications|dict|Notification-type indexed dict. Elements are array of notification method|
+
 ```json
 {
-    email: "email@domain.com"
-    nickname: "user nickname"
-    audit_secret: "SECRET_USED_FOR_AUDITING"
-    locale: "en"
-    notifications: {
-        fill: ["email", "sms"]
-        order: ["sms"]
-        transaction: ["growl"]
+    "email": "email@domain.com",
+    "nickname": "user nickname",
+    "audit_secret": "SECRET_USED_FOR_AUDITING",
+    "locale": "en",
+    "notifications": {
+        "fill": ["email", "sms"],
+        "order": ["sms"],
+        "transaction": ["growl"]
     }
 }
 ```
@@ -209,21 +293,37 @@ and the total balance for each contract, so he can verify that there is enough m
 requests. The audit a dict of assets and liabilities: ticker-indexed dict of positions on that index, and a total
 assets vs total liabilities.
 
+|Name|Type|Description|
+|----|----|-----------|
+|timestamp|integer|Timestamp of this audit (Microseconds since epoch)
+|Asset|dict|Ticker-indexed dict of assets in balance sheet|
+|Liability|dict|Ticked-indexed dict of liabilities in balance sheet|
+
+Example:
+
 ```json
 {
-    timestamp: "2342342"
-    Asset: {}
-    Liability: {}
+    "timestamp": 2342342,
+    "Asset": {},
+    "Liability": {}
 }
 ```
 
 Each entry in assets and liabilities is ticker-indexed:
 
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|total|integer|Total value|
+|positions|array|Array of user positions|
+
+Example:
+
 ```json
 {
-    contract: "TICKER"
-    total: 923423
-    positions: []
+    "contract": "TICKER",
+    "total": 923423,
+    "positions": []
 }
 ```
 
@@ -248,20 +348,35 @@ For the following, TICKER is the ticker with '/' replaced by '_'
 ### feeds.market.book.TICKER
 Each event is a complete order book. It has the following format. Each entry in bids/asks is a book_row type.
 
+| Name | Type | Description |
+|------|------|-------------|
+|contract|string|The ticker symbol of the contract|
+|bids|array|List of book_row|
+|asks|array|List of book_row|
+
+Example:
+
 ```json
     {
-        contract: "TICKER"
-        bids:[]
-        asks:[]
+        "contract": "TICKER",
+        "bids":[],
+        "asks":[]
     }
 ```
 
 The book_row type:
 
+|Name|Type|Description|
+|----|----|-----------|
+|quantity|integer|size|
+|price|integer|price|
+
+Example:
+
 ```json
 {
-quantity: 42
-price: 43
+"quantity": 42,
+"price": 43
 }
 ```
 
@@ -348,10 +463,17 @@ this call will also require an OTP if that is enabled for the account.
 
 Returns
 
+|Name|Type|Description|
+|----|----|-----------|
+|key|string|User API Key|
+|secret|string|User API Secret|
+
+Example:
+
 ```json
 {
-   key: "sdf98sca"
-   secret: "ac09dancakl"
+   "key": "sdf98sca",
+   "secret": "ac09dancakl"
 }
 ```
 
