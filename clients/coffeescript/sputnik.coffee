@@ -51,6 +51,7 @@ class @Sputnik extends EventEmitter
         locale: null
     chat_messages: []
     connected: false
+    log_flag: false
 
     constructor: (@uri) ->
         # Initialize globalization settings
@@ -283,7 +284,7 @@ class @Sputnik extends EventEmitter
         if contract.contract_type is "cash_pair"
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[contract.payout_contract_ticker]
-        else if contract.contract_type is "prediction"
+        else if contract.contract_type in ["prediction", "futures"]
             source = @markets[contract.denominated_contract_ticker]
             target = @markets[ticker]
         else
@@ -394,7 +395,7 @@ class @Sputnik extends EventEmitter
     quantityToWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             # Prediction contracts always have integer quantity
             quantity = quantity - quantity % 1
         else
@@ -406,7 +407,7 @@ class @Sputnik extends EventEmitter
 
     priceToWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             price = Math.round(price * contract.denominator)
         else
             price = Math.round(price * source.denominator * contract.denominator)
@@ -416,14 +417,14 @@ class @Sputnik extends EventEmitter
 
     quantityFromWire: (ticker, quantity) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             return quantity
         else
             return quantity / target.denominator
 
     priceFromWire: (ticker, price) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             return price / contract.denominator
         else
             return price / (source.denominator * contract.denominator)
@@ -435,17 +436,25 @@ class @Sputnik extends EventEmitter
 
         return cash_spent
 
+    safePricesFromWire: (safe_prices_wire) =>
+        safe_prices = @copy(safe_prices_wire)
+        for ticker, price of safe_prices
+            @warn [ticker, price]
+            safe_prices[ticker] = @priceFromWire(ticker, price)
+        @warn [safe_prices]
+        return safe_prices
+
     getPricePrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
 
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             return Math.round(Math.max(Math.log(contract.denominator / contract.tick_size) / Math.LN10,0))
         else
             return Math.round(Math.max(Math.log(source.denominator * contract.denominator / contract.tick_size) / Math.LN10,0))
 
     getQuantityPrecision: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             return 0
         else if contract.contract_type is "cash"
             return Math.round(Math.max(Math.log(contract.denominator / contract.lot_size) / Math.LN10,0))
@@ -459,7 +468,7 @@ class @Sputnik extends EventEmitter
 
     getPriceScale: (ticker) =>
         [contract, source, target] = @cstFromTicker(ticker)
-        if contract.contract_type is "prediction"
+        if contract.contract_type in ["prediction", "futures"]
             return contract.denominator
         else
             return source.denominator * contract.denominator
