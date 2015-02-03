@@ -67,6 +67,7 @@ class TestAdministrator(TestSputnik):
 
         accountant = accountant.AdministratorExport(FakeAccountant())
         cashier = cashier.AdministratorExport(FakeComponent())
+        bitgo = FakeComponent()
         engines = {"BTC/MXN": FakeEngine(),
                    "NETS2014": FakeEngine()}
         zendesk_domain = 'testing'
@@ -79,6 +80,7 @@ class TestAdministrator(TestSputnik):
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates",
                                                          user_limit=50,
+                                                         bitgo=bitgo,
                                                          bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
@@ -417,7 +419,6 @@ class TestWebserverExport(TestAdministrator):
         self.assertEqual(ticket.type, 'Compliance')
         self.assertIsNone(ticket.foreign_key)
 
-
 class TestTOTP(TestAdministrator):
     def test_new_user(self):
         self.create_account("test")
@@ -646,6 +647,28 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
+
+    def test_bitgo_oauth_get(self):
+        request_w_wallet = StupidRequest([''], path='/bitgo_oauth_get',
+                                args={'wallet_id': ['WALLET']})
+        request_wo_wallet = StupidRequest([''], path='/bitgo_oauth_get')
+
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored, req):
+            self.assertRegexpMatches(req.redirect_url, '/oauth/authorize')
+
+        d1 = self.render_test_helper(admin_ui, request_w_wallet).addCallback(rendered, request_w_wallet)
+        d2 = self.render_test_helper(admin_ui, request_wo_wallet).addCallback(rendered, request_wo_wallet)
+        return defer.gatherResults([d1, d2])
+
+    def test_bitgo_oauth_clear(self):
+        request = StupidRequest([''], path='/bitgo_oauth_clear')
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
 
     def test_change_fee_group(self):
         self.create_account('test')
