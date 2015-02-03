@@ -35,7 +35,7 @@ If making an authenticated call:
 
 ```json
 {
-    "payload": {}
+    "payload": {},
     "auth": {
         "key": "908asdf09as8dfsa",
         "nonce": 2341
