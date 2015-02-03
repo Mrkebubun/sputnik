@@ -384,7 +384,9 @@ class User(db.Base):
 
     username = Column(String, primary_key=True)
     password = Column(String, nullable=False)
-    totp = Column(String)
+    totp_secret = Column(String)
+    totp_enabled = Column(Boolean, server_default=sql.false())
+    totp_last = Column(Integer, server_default="0")
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())

@@ -110,6 +110,66 @@
         "required": [ "username" ],
         "additionalProperties": false
     },
+    "enable_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to enable TOTP for an account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            }
+        },
+        "required": [ "username" ],
+        "additionalProperties": false
+    },
+    "verify_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to confirm user received TOTP secret",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
+        "additionalProperties": false
+    },
+    "disable_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to disable TOTP for an account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
+        "additionalProperties": false
+    },
+    "check_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to check a TOTP code",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
+        "additionalProperties": false
+    },
     "register_support_ticket": {
         "type": "object",
         "description": "webserver/ticketserver -> administrator RPC call to register a support ticket",

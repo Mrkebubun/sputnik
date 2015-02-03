@@ -63,7 +63,7 @@ class PostgresDatabase(DatabasePlugin):
             returnValue(None)
 
         # Extend this later to lookup via email address and phone number
-        query = "SELECT password, totp, api_key, api_secret, api_expiration, username FROM users WHERE username=%s OR api_key=%s LIMIT 1"
+        query = "SELECT password, totp_enabled, api_key, api_secret, api_expiration, username FROM users WHERE username=%s OR api_key=%s LIMIT 1"
         try:
             debug("Looking up username %s..." % username)
 
@@ -76,7 +76,7 @@ class PostgresDatabase(DatabasePlugin):
                 r = result[0]
                 debug("User %s found." % username)
                 returnValue({'password': r[0],
-                             'totp': r[1],
+                             'totp_enabled': r[1],
                              'api_key': r[2],
                              'api_secret': r[3],
                              'api_expiration': r[4],
@@ -227,5 +227,9 @@ class PostgresDatabase(DatabasePlugin):
             'AND orders.quantity_left > 0 '
             'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (username,))
         returnValue({r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
+<<<<<<< HEAD
                             'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False}
                      for r in results})
+=======
+                       'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in results})
+>>>>>>> d5790df2c60e33aef45fb2c9ad5c484ac837b618
