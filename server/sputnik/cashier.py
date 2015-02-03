@@ -690,8 +690,8 @@ class AdministratorExport(ComponentExport):
     @export
     @session_aware
     @schema("rpc/cashier.json#process_withdrawal")
-    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig=None):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
     @export
     @session_aware

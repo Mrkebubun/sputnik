@@ -119,6 +119,11 @@
             {
                 "type": "string",
                 "description": "the username of the administrator processing this withdrawal"
+            },
+            "multisig":
+            {
+                "type": "object",
+                "description": "additional auth parameters that may be needed for multisig"
             }
         },
         "required": [ "id" ],
