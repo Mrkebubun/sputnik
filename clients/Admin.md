@@ -26,12 +26,12 @@ List all pending withdrawal requests. Returns an array of withdrawal requests, e
 
 ```json
 {
-    id: 2342
-    username: "username"
-    address: "BTC address or Wire Transfer / other instructions"
-    contract: "TICKER"
-    amount: 2394.34
-    entered: 209384234243
+    "id": 2342,
+    "username": "username",
+    "address": "BTC address or Wire Transfer / other instructions",
+    "contract": "TICKER",
+    "amount": "2394.34",
+    "entered": 209384234243
 }
 ```
 
@@ -41,12 +41,12 @@ List all active deposit addresses. Returns an array of deposit addresses, each o
 
 ```json
 {
-    id: 2342
-    username: "username"
-    contract: "TICKER"
-    address: "BTC address or unique identifier"
-    active: true
-    accounted_for: 342.54
+    "id": 2342,
+    "username": "username",
+    "contract": "TICKER",
+    "address": "BTC address or unique identifier",
+    "active": true,
+    "accounted_for": "342.54"
 }
 ```
 
@@ -58,9 +58,9 @@ Data submitted is of the form:
 
 ```json
 {
-    id: 2342
-    online: true
-    cancel: false
+    "id": 2342,
+    "online": true,
+    "cancel": false
 }
 ```
 
@@ -83,8 +83,8 @@ Data submitted is of the form:
 
 ```json
 {
-    address: 'BTC address or unique identifier'
-    quantity: 2342.434
+    "address": "BTC address or unique identifier",
+    "quantity": "2342.434"
 }
 ```
 
@@ -96,41 +96,47 @@ On success the result is 'null'
 curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/deposits
 ```    
-    
-> { "success": true,
->   "result": [ {
->        "accounted_for": "0.0000",
->        "active": true,
->        "address": "0WkKCca341k=",
->        "contract": "PLN",
->        "id": 102,
->        "username": "marketmaker"
->    } ]
-> ]    
+
+```json
+{ "success": true,
+  "result": [ {
+       "accounted_for": "0.0000",
+       "active": true,
+       "address": "0WkKCca341k=",
+       "contract": "PLN",
+       "id": 102,
+       "username": "marketmaker"
+   } ]
+]    
+```
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
     -d '{ "address": "0WkKCca341k=", "quantity": 324.43 }' \
     https://demo.m2.io:2096/api/manual_deposit
 ```
-    
-> { 'success': true, 'result': null }
+   
+```json
+{ 'success': true, 'result': null }
+```
 
 ```
 curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/withdrawals
 ```    
 
-> { "success": true,
->   "result": [ {
->         "address": "23",
->         "amount": "23.00000000",
->         "contract": "BTC",
->         "entered": 1412298366466533,
->         "id": 3,
->         "username": "marketmaker"
->     } ]
-> }
+```json
+{ "success": true,
+  "result": [ {
+        "address": "23",
+        "amount": "23.00000000",
+        "contract": "BTC",
+        "entered": 1412298366466533,
+        "id": 3,
+        "username": "marketmaker"
+    } ]
+}
+```
 
 ```    
 curl --digest -u username:password -H "Content-Type: application/json" \
@@ -138,5 +144,6 @@ curl --digest -u username:password -H "Content-Type: application/json" \
     https://demo.m2.io:2096/api/process_withdrawal
 ```
 
-> { 'success': true, 'result': 'txid' }
-    
+```json
+{ 'success': true, 'result': 'txid' }
+```    

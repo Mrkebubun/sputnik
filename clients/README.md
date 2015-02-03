@@ -26,7 +26,7 @@ RPC responses are json objects with two elements. In the case of a successful ca
 ```json
 {
     "success": true,
-    "result": result
+    "result": {}
 }
 ```
 
@@ -34,8 +34,8 @@ In the case of a failure
 
 ```json
 {
-    "success": false
-    "error": ["error-message", arguments]
+    "success": false,
+    "error": ["error-message", "arguments"]
 }
 ```
 
