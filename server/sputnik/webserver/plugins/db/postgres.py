@@ -227,9 +227,5 @@ class PostgresDatabase(DatabasePlugin):
             'AND orders.quantity_left > 0 '
             'AND orders.accepted=TRUE AND orders.is_cancelled=FALSE', (username,))
         returnValue({r[6]: {'contract': r[0], 'price': r[1], 'quantity': r[2], 'quantity_left': r[3],
-<<<<<<< HEAD
                             'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False}
                      for r in results})
-=======
-                       'timestamp': util.dt_to_timestamp(r[4]), 'side': r[5], 'id': r[6], 'is_cancelled': False} for r in results})
->>>>>>> d5790df2c60e33aef45fb2c9ad5c484ac837b618
