@@ -54,6 +54,46 @@ from copy import copy
 import math
 import decimal
 
+from twisted.internet import stdio
+from twisted.protocols import basic
+import shlex
+
+class CommandLine(basic.LineReceiver):
+    from os import linesep as delimiter
+    def __init__(self, bot):
+        self.bot = bot
+
+    def connectionMade(self):
+        self.transport.write(">>> ")
+
+    def run_command(self, line):
+        tokens = shlex.split(line)
+        if len(tokens):
+            command = tokens[0]
+            args = tokens[1:]
+            try:
+                fn = getattr(self.bot, command)
+            except AttributeError:
+                print "Command %s not found" % command
+            else:
+                converted_args = []
+                for arg in args:
+                    try:
+                        arg_float = float(arg)
+                    except ValueError:
+                        converted_args.append(arg)
+                    else:
+                        converted_args.append(arg_float)
+                print "Calling: %s %s" % (command, converted_args)
+                try:
+                    fn(*converted_args)
+                except TypeError as e:
+                    print "Called incorrectly: %s" % e
+
+    def lineReceived(self, line):
+        self.run_command(line)
+        self.transport.write(">>> ")
+
 class SputnikMixin():
     """
     Utility functions
@@ -68,7 +108,7 @@ class SputnikMixin():
                                         self.markets[contract]['tick_size']), 0))
 
     def price_to_wire(self, contract, price):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             price = price * self.markets[contract]['denominator']
         else:
             price = price * self.markets[self.markets[contract]['denominated_contract_ticker']]['denominator'] * \
@@ -77,14 +117,14 @@ class SputnikMixin():
         return int(price - price % self.markets[contract]['tick_size'])
 
     def price_from_wire(self, contract, price):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return Decimal(price) / self.markets[contract]['denominator']
         else:
             return Decimal(price) / (self.markets[self.markets[contract]['denominated_contract_ticker']]['denominator'] *
                             self.markets[contract]['denominator'])
 
     def quantity_from_wire(self, contract, quantity):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return quantity
         elif self.markets[contract]['contract_type'] == "cash":
             return Decimal(quantity) / self.markets[contract]['denominator']
@@ -92,7 +132,7 @@ class SputnikMixin():
             return Decimal(quantity) / self.markets[self.markets[contract]['payout_contract_ticker']]['denominator']
 
     def quantity_to_wire(self, contract, quantity):
-        if self.markets[contract]['contract_type'] == "prediction":
+        if self.markets[contract]['contract_type'] in ["prediction", "futures"]:
             return int(quantity)
         elif self.markets[contract]['contract_type'] == "cash":
             return int(quantity * self.markets[contract]['denominator'])
@@ -221,6 +261,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     """
     def onConnect(self):
         log.msg("connect")
+        stdio.StandardIO(CommandLine(self))
+
         if self.factory.username is not None:
             log.msg("logging in as %s" % self.factory.username)
             self.join(self.config.realm, [u'wampcra'], unicode(self.factory.username))
@@ -488,8 +530,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def subSafePrices(self, contract):
         uri = u"feeds.market.safe_prices.%s" % self.encode_ticker(contract)
-        def _onSafePrice(uri, wire_safe_prices):
-            return self.onSafePrice(uri, self.safe_prices_from_wire(wire_safe_prices))
+        def _onSafePrice(uri, event):
+            self.safe_prices[contract] = self.price_from_wire(contract, event)
+            return self.onSafePrice(uri, self.self.price_from_wire(contract, event))
 
         self.subscribe(_onSafePrice, uri)
         print 'subscribed to: ', uri
@@ -553,6 +596,14 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
     """
     Public RPC Calls
     """
+
+    def getSafePrices(self):
+        d = self.my_call(u"rpc.market.get_safe_prices")
+        def _onSafePrices(safe_prices):
+            self.safe_prices = safe_prices
+            pprint(safe_prices)
+
+        d.addCallbacks(_onSafePrices, self.onError)
 
     def getTradeHistory(self, contract):
         d = self.call(u"rpc.market.get_trade_history", contract)
