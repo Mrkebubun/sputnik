@@ -3,7 +3,7 @@ __author__ = 'sameer'
 import sys
 import os
 import time
-from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail, FakeBitgo
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
@@ -23,26 +23,6 @@ class FakeAccountant(FakeComponent):
     def get_balance_sheet(self):
         self._log_call("get_balance_sheet")
         return defer.succeed({})
-
-class FakeWallet(FakeComponent):
-    id = 'WALLET_ID'
-
-class FakeWallets(FakeComponent):
-    def createWalletWithKeychains(self, *args, **kwargs):
-        self._log_call("createWalletWithKeychains", *args, **kwargs)
-        return defer.succeed({'wallet': FakeWallet(),
-                              'userKeychain': {'encryptedXprv': 'ENCRYPTED'}})
-
-class FakeBitgo(FakeComponent):
-    endpoint = ''
-    wallets = FakeWallets()
-
-    def authenticateWithAuthCode(self, code):
-        self._log_call("authenticateWithAuthCode", code)
-        expiry = datetime.utcnow() + timedelta(days=1)
-        from sputnik import util
-        return defer.succeed({'access_token': 'TOKEN',
-                              'expires_at': util.dt_to_timestamp(expiry)/1e6})
 
 class FakeEngine(FakeComponent):
     name = "engine"

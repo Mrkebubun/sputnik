@@ -1,7 +1,7 @@
 import sys
 import os
 from twisted.internet import defer
-from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail, FakeBitgo
 from pprint import pprint
 from twisted.web.test.test_web import DummyRequest
 from sputnik.exception import CashierException
@@ -78,7 +78,14 @@ class TestCashier(TestSputnik):
         self.accountant = accountant.CashierExport(FakeComponent("accountant"))
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
         self.compropago = FakeComponent()
+        self.bitgo = FakeBitgo()
         self.sendmail = FakeSendmail('test-email@m2.io')
+        from tempfile import mkstemp
+        import json
+        keyfile = mkstemp(prefix="bitgo_key")[1]
+        with open(keyfile, "w") as f:
+            json.dump({'passphrase': 'NULL'}, f)
+
         self.cashier = cashier.Cashier(self.session, self.accountant,
                                        self.bitcoinrpc,
                                        self.compropago,
@@ -86,6 +93,8 @@ class TestCashier(TestSputnik):
                                        sendmail=self.sendmail,
                                        template_dir="../server/sputnik/admin_templates",
                                        minimum_confirmations=6,
+                                       bitgo=self.bitgo,
+                                       bitgo_private_key_file=keyfile,
                                        alerts=FakeComponent("alerts"))
 
         self.administrator_export = cashier.AdministratorExport(self.cashier)
@@ -204,6 +213,135 @@ class TestWebserverExport(TestCashier):
 
 
 class TestAdministratorExport(TestCashier):
+    def test_transfer_from_hot_wallet_to_offlinecash(self):
+        self.cashier.bitcoinrpc['BTC'].set_balance(0.01)
+
+        d = self.administrator_export.transfer_from_hot_wallet('BTC', 1000, 'offlinecash')
+        def onSuccess(result):
+            self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                                        ('onlinecash',
+                                                                         'BTC',
+                                                                         'debit',
+                                                                         1000,
+                                                                         'COLD_WALLET: TXSUCCESS'),
+                                                                        {}),
+                                                                       ('transfer_position',
+                                                                        ('offlinecash',
+                                                                         'BTC',
+                                                                         'credit',
+                                                                         1000,
+                                                                         'COLD_WALLET: TXSUCCESS'),
+                                                                        {})]))
+            self.assertEqual(self.bitgo.component.log, [])
+            self.assertTrue(self.bitcoinrpc['BTC'].check_for_calls([('set_balance', (0.01,), {}),
+                                                                    ('getbalance', (), {}),
+                                                                    ('sendtoaddress', ('COLD_WALLET', 1e-05), {})]))
+
+
+        def onFail(failure):
+            self.assertTrue(False)
+
+        d.addCallbacks(onSuccess, onFail)
+
+    def test_transfer_from_hot_wallet_to_multisigcash(self):
+        self.cashier.bitcoinrpc['BTC'].set_balance(0.01)
+
+        d = self.administrator_export.transfer_from_hot_wallet('BTC', 1000, 'multisigcash')
+        def onSuccess(result):
+            self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                                        ('onlinecash',
+                                                                         'BTC',
+                                                                         'debit',
+                                                                         1000,
+                                                                         'MULTISIG_WALLET: TXSUCCESS'),
+                                                                        {}),
+                                                                       ('transfer_position',
+                                                                        ('multisigcash',
+                                                                         'BTC',
+                                                                         'credit',
+                                                                         1000,
+                                                                         'MULTISIG_WALLET: TXSUCCESS'),
+                                                                        {})]))
+            self.assertEqual(self.bitgo.component.log, [])
+            self.assertTrue(self.bitcoinrpc['BTC'].check_for_calls([('set_balance', (0.01,), {}),
+                                                                    ('getbalance', (), {}),
+                                                                    ('sendtoaddress', ('MULTISIG_WALLET', 1e-05), {})]))
+
+
+        def onFail(failure):
+            self.assertTrue(False)
+
+        d.addCallbacks(onSuccess, onFail)
+
+    def test_transfer_from_multisig_wallet_to_offlinecash(self):
+
+        d = self.administrator_export.transfer_from_multisig_wallet('BTC', 1000, 'offlinecash', multisig={'otp': '000000',
+                                                                                                          'token': 'TOKEN'})
+
+        def onSuccess(result):
+            self.assertTrue(self.accountant.component.check_for_calls(
+                [('transfer_position',
+                  ('multisigcash',
+                   'BTC',
+                   'credit',
+                   1000,
+                   u'COLD_WALLET: TXSUCCESS',
+                  ),
+                  {}),
+                 ('transfer_position',
+                  ('offlinecash',
+                   'BTC',
+                   'debit',
+                   1000,
+                   u'COLD_WALLET: TXSUCCESS',
+                  ),
+                  {})]))
+            self.assertTrue(self.bitgo.component.check_for_calls([('unlock', ('000000',), {})]))
+            self.assertEqual(self.bitcoinrpc['BTC'].log, [])
+            d = self.bitgo.wallets.get('MULTISIG_WALLET')
+
+            def _cb(wallet):
+                self.assertTrue(wallet.check_for_calls([('sendCoins',
+                                                         (),
+                                                         {'address': u'COLD_WALLET', 'amount': 1000,
+                                                          'passphrase': u'NULL'})]
+                ))
+
+            d.addCallback(_cb)
+            return d
+
+
+        def onFail(failure):
+            self.assertTrue(False)
+
+        d.addCallbacks(onSuccess, onFail)
+
+    def test_transfer_from_multisig_wallet_to_onlinecash(self):
+
+        d = self.administrator_export.transfer_from_multisig_wallet('BTC', 1000, 'onlinecash', multisig={'otp': '000000',
+                                                                                                          'token': 'TOKEN'})
+
+        def onSuccess(result):
+            self.assertEqual(self.accountant.component.log, [])
+            self.assertTrue(self.bitgo.component.check_for_calls([('unlock', ('000000',), {})]))
+            self.assertEqual(self.bitcoinrpc['BTC'].log, [('getnewaddress', (), {})])
+            d = self.bitgo.wallets.get('MULTISIG_WALLET')
+
+            def _cb(wallet):
+                self.assertTrue(wallet.check_for_calls([('sendCoins',
+                                                         (),
+                                                         {'address': u'NEW_TEST_ADDRESS', 'amount': 1000,
+                                                          'passphrase': u'NULL'})]
+                ))
+
+            d.addCallback(_cb)
+            return d
+
+
+        def onFail(failure):
+            self.assertTrue(False)
+
+        d.addCallbacks(onSuccess, onFail)
     def test_rescan_address_with_deposit(self):
         self.create_account('test', 'TEST_ADDRESS')
         for confirmation in range(0, 6):
