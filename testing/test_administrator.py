@@ -24,6 +24,8 @@ class FakeAccountant(FakeComponent):
         self._log_call("get_balance_sheet")
         return defer.succeed({})
 
+class FakeBitgo(FakeComponent):
+    endpoint = ''
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -67,7 +69,7 @@ class TestAdministrator(TestSputnik):
 
         accountant = accountant.AdministratorExport(FakeAccountant())
         cashier = cashier.AdministratorExport(FakeComponent())
-        bitgo = FakeComponent()
+        bitgo = FakeBitgo()
         engines = {"BTC/MXN": FakeEngine(),
                    "NETS2014": FakeEngine()}
         zendesk_domain = 'testing'
@@ -605,7 +607,7 @@ class StupidRequest(DummyRequest):
     code = 123
     sentLength = None
 
-    def __init__(self, postpath, session=None, path=None, args=None):
+    def __init__(self, postpath, session=None, path=None, args={}):
         DummyRequest.__init__(self, postpath, session=session)
         self.path = path
         self.args = args
@@ -626,7 +628,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, None)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, '')
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')

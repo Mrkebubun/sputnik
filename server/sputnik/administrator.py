@@ -1481,7 +1481,7 @@ class AdminWebUI(Resource):
         if request.path == '/bitgo_oauth_redirect':
             return True
         else:
-            if self.base_uri is not None:
+            if self.base_uri:
                 referer = request.getHeader("referer")
                 if referer is None or not referer.startswith(self.base_uri):
                     log.err("Referer check failed: %s" % referer)
