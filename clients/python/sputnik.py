@@ -26,7 +26,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
-from pprint import pprint
+from pprint import pprint, pformat
 import logging
 from datetime import datetime, timedelta
 import random
@@ -252,6 +252,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         self.markets = {}
         self.wire_orders = {}
         self.wire_positions = {}
+        self.internal_external_order_map = {}
         self.last_internal_id = 0
         self.chats = []
         self.username = None
@@ -367,76 +368,76 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     # RPC Results
     def onMarkets(self, markets):
-        pprint(["onMarkets", markets])
+        log.msg(pformat(["onMarkets", markets]))
         return markets
 
     def onOpenOrders(self, orders):
-        pprint(["onOpenOrders", orders])
+        log.msg(pformat(["onOpenOrders", orders]))
         return orders
 
     def onPlaceOrder(self, id):
         """
         overwrite me
         """
-        pprint(["onPlaceOrder", id])
+        log.msg(pformat(["onPlaceOrder", id]))
         return id
 
     def onGetCurrentAddress(self, address):
-        pprint(["onGetCurrentAddress", address])
+        log.msg(pformat(["onGetCurrentAddress", address]))
         return address
 
     def onGetNewAddress(self, address):
-        pprint(["onGetNewAddress", address])
+        log.msg(pformat(["onGetNewAddress", address]))
         return address
 
     def onCancelOrder(self, success):
-        pprint(["onCancelOrder", success])
+        log.msg(pformat(["onCancelOrder", success]))
         return success
 
     def onOHLCVHistory(self, ohlcv_history):
-        pprint(["onOHLCVHistory", ohlcv_history])
+        log.msg(pformat(["onOHLCVHistory", ohlcv_history]))
         return ohlcv_history
 
     def onError(self, failure, call=None):
         log.err(failure)
-        pprint(["Error", failure.value.args, call])
+        log.msg(pformat(["Error", failure.value.args, call]))
         return failure
 
     def onRpcFailure(self, failure):
         log.err(failure)
-        pprint(["RpcFailure", failure.value.args])
+        log.msg(pformat(["RpcFailure", failure.value.args]))
         return failure
 
     def onAudit(self, audit):
-        pprint(["onAudit", audit])
+        log.msg(pformat(["onAudit", audit]))
         return audit
 
     def onMakeAccount(self, event):
-        pprint(["onMakeAccount", event])
+        log.msg(pformat(["onMakeAccount", event]))
         return event
 
     def onSupportNonce(self, event):
-        pprint(["onSupportNonce", event])
+        log.msg(pformat(["onSupportNonce", event]))
         return event
 
     def onTransactionHistory(self, transaction_history):
-        pprint(["onTransactionHistory", transaction_history])
+        log.msg(pformat(["onTransactionHistory", transaction_history]))
         return transaction_history
 
     def onTradeHistory(self, trade_history):
-        pprint(["onTradeHistory", trade_history])
+        log.msg(pformat(["onTradeHistory", trade_history]))
         return trade_history
 
     def onNewAPICredentials(self, credentials):
-        pprint(["onNewAPICredentials", credentials])
+        log.msg(pformat(["onNewAPICredentials", credentials]))
         return credentials
 
     def onPositions(self, positions):
-        pprint(["onPositions", positions])
+        log.msg(pformat(["onPositions", positions]))
         return positions
 
     def onRequestWithdrawal(self, result):
-        pprint(["onRequestWithdrawal", result])
+        log.msg(pformat(["onRequestWithdrawal", result]))
         return result
 
     """
@@ -446,7 +447,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         """
         overwrite me
         """
-        pprint(["onBook", topicUri, book])
+        log.msg(pformat(["onBook", topicUri, book]))
         return (topicUri, book)
 
 
@@ -454,14 +455,14 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         """
         overwrite me
         """
-        pprint(["onTrade", topicUri, trade])
+        log.msg(pformat(["onTrade", topicUri, trade]))
         return topicUri, trade
 
     def onSafePrice(self, topicUri, safe_price):
         """
         overwrite me
         """
-        pprint(["onSafePrice", topicUri, safe_price])
+        log.msg(pformat(["onSafePrice", topicUri, safe_price]))
         return topicUri, safe_price
 
     def onOrder(self, topicUri, order):
@@ -470,25 +471,25 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         """
 
 
-        pprint(["onOrder", topicUri, order])
+        log.msg(pformat(["onOrder", topicUri, order]))
         return topicUri, order
 
     def onFill(self, topicUri, fill):
         """
         overwrite me
         """
-        pprint(["onFill", topicUri, fill])
+        log.msg(pformat(["onFill", topicUri, fill]))
         return topicUri, fill
 
     def onTransaction(self, topicUri, transaction):
         """
         overwrite me
         """
-        pprint(["onTransaction", topicUri, transaction])
+        log.msg(pformat(["onTransaction", topicUri, transaction]))
         return topicUri, transaction
 
     def onOHLCV(self, topicUri, ohlcv):
-        pprint(["onOHLCV", topicUri, ohlcv])
+        log.msg(pformat(["onOHLCV", topicUri, ohlcv]))
         return topicUri, ohlcv
 
     """
@@ -551,8 +552,9 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             if id in self.wire_orders and (wire_order['is_cancelled'] or wire_order['quantity_left'] == 0):
                 del self.wire_orders[id]
             else:
-                # onPlaceOrder will delete the internal order so we don't need to find it here
-                # and delete it
+                # Look at the internal/external order map to see if there is an internal order that needs to be deleted
+                if id in self.internal_external_order_map:
+                    del self.wire_orders[self.internal_external_order_map[id]]
 
                 # Add or update, if not cancelled and quantity_left > 0
                 if not wire_order['is_cancelled'] and wire_order['quantity_left'] > 0:
@@ -601,7 +603,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         d = self.my_call(u"rpc.market.get_safe_prices")
         def _onSafePrices(safe_prices):
             self.safe_prices = safe_prices
-            pprint(safe_prices)
+            log.msg(pformat(safe_prices))
 
         d.addCallbacks(_onSafePrices, self.onError)
 
@@ -672,11 +674,11 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def getResetToken(self, username):
         d = self.call(u"rpc.registrar.get_reset_token", username)
-        return d.addCallback(pprint).addErrback(self.onError, "getResetToken")
+        return d.addCallback(log.msg(pformat).addErrback(self.onError, "getResetToken"))
 
     def getExchangeInfo(self):
         d = self.call(u"rpc.info.get_exchange_info")
-        return d.addCallback(pprint).addErrback(self.onError, "getExchangeInfo")
+        return d.addCallback(log.msg(pformat).addErrback(self.onError, "getExchangeInfo"))
 
     """
     Private RPC Calls
@@ -753,8 +755,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             self.onError(error, "placeOrder")
 
         def _onPlaceOrder(new_id):
-            if order_id in self.wire_orders:
-                del self.wire_orders[order_id]
+            self.internal_external_order_map[str(new_id)] = order_id
 
         return d.addCallbacks(_onPlaceOrder, onError)
 
@@ -1049,9 +1050,9 @@ if __name__ == '__main__':
         rest_endpoint = "http://%s:%d/api" % (connection['hostname'], connection['port'])
 
     def onInit(sputnik):
-        # sputnik.getOpenOrders().addCallback(pprint)
-        # sputnik.getOrderBook('BTC/MXN').addCallback(pprint)
-        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(pprint).addErrback(log.err)
+        # sputnik.getOpenOrders().addCallback(log.msg(pformat))
+        # sputnik.getOrderBook('BTC/MXN').addCallback(log.msg(pformat))
+        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(log.msg(pformat).addErrback(log.err))
 
     # sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
     #                            api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,

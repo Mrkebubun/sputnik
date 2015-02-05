@@ -165,13 +165,13 @@ class MarketMakerBot(SputnikSession):
                 else:
                     qty_to_add = 2.5
 
-                if qty_to_add > 0:
+                if qty_to_add > total_qty:
                     if side == 'BUY':
                         price = market['bid']
                     else:
                         price = market['ask']
 
-                    self.placeOrder(ticker, qty_to_add, price, side)
+                    self.placeOrder(ticker, qty_to_add - total_qty, price, side)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
