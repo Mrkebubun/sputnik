@@ -17,7 +17,7 @@ If a public API call, the content is of this form:
 
 ```json
 {
-    payload: {}
+    "payload": {}
 }
 ```
 
@@ -25,8 +25,8 @@ Where the payload is the arguments to the WAMPv2 API call. For example, for "rpc
 
 ```json
 {
-    payload: {
-        contract: 'BTC/MXN'
+    "payload": {
+        "contract": "BTC/MXN"
     }
 }
 ```
@@ -35,10 +35,10 @@ If making an authenticated call:
 
 ```json
 {
-    payload: {}
-    auth: {
-        key: "908asdf09as8dfsa",
-        nonce: 2341
+    "payload": {},
+    "auth": {
+        "key": "908asdf09as8dfsa",
+        "nonce": 2341
     }
 }
 ```
