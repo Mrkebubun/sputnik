@@ -197,7 +197,7 @@ Example:
          "price": 100,
          "quantity": 100000,
          "id": 3123121,
-         "timestamp": 334234234
+         "timestamp": 334234234,
          "side": "BUY|SELL",
          "fees": {
             "BTC": 24000000,
