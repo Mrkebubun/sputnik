@@ -128,45 +128,47 @@ class Engine:
 
     def place_order(self, order):
 
-        # Loop until the order or the opposite side is exhausted.
-        while order.quantity_left > 0:
+        def _process_order():
+            # Loop until the order or the opposite side is exhausted.
+            while order.quantity_left > 0:
 
-            # If the other side has run out of orders, break.
-            if not self.orderbook[-order.side]:
-                break
+                # If the other side has run out of orders, break.
+                if not self.orderbook[-order.side]:
+                    break
 
-            # Find the best counter-offer.
-            passive_order = self.orderbook[-order.side][0]
+                # Find the best counter-offer.
+                passive_order = self.orderbook[-order.side][0]
 
-            # We may assume this order is the best offer on its side. If not,
-            #   the following will automatically fail since it failed for
-            #   better offers already.
+                # We may assume this order is the best offer on its side. If not,
+                #   the following will automatically fail since it failed for
+                #   better offers already.
 
-            # If the other side's best order is too pricey, break.
-            if not order.matchable(passive_order):
-                break
+                # If the other side's best order is too pricey, break.
+                if not order.matchable(passive_order):
+                    break
 
-            # Trade.
-            price, quantity = self.match(order, passive_order)
+                # Trade.
+                price, quantity = self.match(order, passive_order)
 
-            # If the passive order is used up, remove it.
-            if passive_order.quantity_left <= 0:
-                heapq.heappop(self.orderbook[passive_order.side])
-                del self.ordermap[passive_order.id]
+                # If the passive order is used up, remove it.
+                if passive_order.quantity_left <= 0:
+                    heapq.heappop(self.orderbook[passive_order.side])
+                    del self.ordermap[passive_order.id]
 
-            # Notify listeners.
-            self.notify_trade_success(order, passive_order, price, quantity)
+                # Notify listeners.
+                self.notify_trade_success(order, passive_order, price, quantity)
 
-        # If order is not completely filled, push remainder onto heap and make
-        #   an entry in the map.
-        if order.quantity_left > 0:
-            heapq.heappush(self.orderbook[order.side], order)
-            self.ordermap[order.id] = order
+            # If order is not completely filled, push remainder onto heap and make
+            #   an entry in the map.
+            if order.quantity_left > 0:
+                heapq.heappush(self.orderbook[order.side], order)
+                self.ordermap[order.id] = order
 
-            # Notify listeners
-            self.notify_queue_success(order)
+                # Notify listeners
+                self.notify_queue_success(order)
 
-        # Order has been successfully processed.
+        reactor.callLater(0, _process_order)
+        # Order has arrived, return True
         return True
 
     def match(self, order, passive_order):
