@@ -529,7 +529,6 @@ if __name__ == "__main__":
     try:
         for order in session.query(models.Order).filter_by(
                 is_cancelled=False).filter_by(
-                dispatched=True).filter_by(
                 contract_id=contract.id).filter(
                         models.Order.quantity_left > 0):
             log.msg("Cancelling order %d" % order.id)

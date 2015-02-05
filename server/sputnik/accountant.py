@@ -770,6 +770,13 @@ class Accountant:
         if order.is_cancelled:
             raise ORDER_CANCELLED
 
+        # If the order has not been marked dispatched, it may have been in transit to the engine
+        # when the engine bounced, and it may arrive at the engine and end up in the book,
+        # after the engine told us to cancel it.
+        # So tell the engine to cancel it, just in case the engine picked it up after reboot
+        if not order.dispatched:
+            self.engines[order.contract.ticker].cancel_order(order.id)
+
         try:
             order.is_cancelled = True
             # self.session.add(order)
