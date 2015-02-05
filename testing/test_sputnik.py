@@ -107,6 +107,9 @@ accounts position randomtrader MXN
 accounts add onlinecash
 accounts set onlinecash type Asset
 
+accounts add multisigcash
+accounts set multisigcash type Asset
+
 accounts add offlinecash
 accounts set offlinecash type Asset
 

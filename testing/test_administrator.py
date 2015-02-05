@@ -8,7 +8,7 @@ from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
 from twisted.internet import defer
-from datetime import datetime
+from datetime import datetime, timedelta
 from sputnik.exception import AdministratorException
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -24,8 +24,25 @@ class FakeAccountant(FakeComponent):
         self._log_call("get_balance_sheet")
         return defer.succeed({})
 
+class FakeWallet(FakeComponent):
+    id = 'WALLET_ID'
+
+class FakeWallets(FakeComponent):
+    def createWalletWithKeychains(self, *args, **kwargs):
+        self._log_call("createWalletWithKeychains", *args, **kwargs)
+        return defer.succeed({'wallet': FakeWallet(),
+                              'userKeychain': {'encryptedXprv': 'ENCRYPTED'}})
+
 class FakeBitgo(FakeComponent):
     endpoint = ''
+    wallets = FakeWallets()
+
+    def authenticateWithAuthCode(self, code):
+        self._log_call("authenticateWithAuthCode", code)
+        expiry = datetime.utcnow() + timedelta(days=1)
+        from sputnik import util
+        return defer.succeed({'access_token': 'TOKEN',
+                              'expires_at': util.dt_to_timestamp(expiry)/1e6})
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -74,6 +91,9 @@ class TestAdministrator(TestSputnik):
                    "NETS2014": FakeEngine()}
         zendesk_domain = 'testing'
 
+        from tempfile import mkstemp
+        keyfile = mkstemp(prefix='bitgo_key')
+        os.remove(keyfile[1])
         self.administrator = administrator.Administrator(self.session, accountant, cashier,
                                                          engines,
                                                          zendesk_domain,
@@ -83,6 +103,7 @@ class TestAdministrator(TestSputnik):
                                                          template_dir="../server/sputnik/admin_templates",
                                                          user_limit=50,
                                                          bitgo=bitgo,
+                                                         bitgo_private_key_file=keyfile[1],
                                                          bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
@@ -671,6 +692,53 @@ class TestAdministratorWebUI(TestAdministrator):
 
         return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
+    def test_bitgo_oauth_redirect(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_initialize_multisig_no_token(self):
+        request = StupidRequest([''], path='/initialize_multisig',
+                                args={'contract': 'BTC',
+                                      'public_key': '2342',
+                                      'otp': '000000'})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), 'token_invalid')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_initialize_multisig(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+            request2 = StupidRequest([''], path='/initialize_multisig',
+                                    args={'contract': ['BTC'],
+                                          'public_key': ['2342'],
+                                          'otp': ['000000']})
+            admin_ui = self.web_ui_factory(5)
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, 'wallet_spend')
+                self.assertRegexpMatches(request2.redirect_url, 'WALLET_ID')
+                BTC = self.get_contract('BTC')
+                self.assertEqual(BTC.multisig_wallet_address, 'WALLET_ID')
+
+            return self.render_test_helper(admin_ui, request2).addCallback(rendered2)
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_wallets(self):
+        request = StupidRequest([''], path='/wallets')
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Wallets</title>')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
     def test_change_fee_group(self):
         self.create_account('test')
