@@ -740,6 +740,48 @@ class TestAdministratorWebUI(TestAdministrator):
 
         return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
+    def test_transfer_from_hot_wallet(self):
+        request = StupidRequest([''], path='/transfer_from_hot_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_transfer_from_multisig_wallet_no_token(self):
+        request = StupidRequest([''], path='/transfer_from_multisig_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4'],
+                                      'otp': ['000000']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), 'token_invalid')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_transfer_from_multisig_wallet(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+            request2 = StupidRequest([''], path='/transfer_from_multisig_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4'],
+                                      'otp': ['000000']})
+            admin_ui = self.web_ui_factory(5)
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, '/wallets')
+
+            return self.render_test_helper(admin_ui, request2).addCallback(rendered2)
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
     def test_change_fee_group(self):
         self.create_account('test')
 
@@ -1292,6 +1334,31 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
+
+    def test_process_withdrawal_multisig(self):
+        self.create_account('test')
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            request2 = StupidRequest([''],
+                                    path='/process_withdrawal',
+                                    args={'username': ['test'],
+                                          'id': ['5'],
+                                          'online': True,
+                                          'multisig': True,
+                                          'otp': ['000000']})
+            d = self.render_test_helper(self.web_ui_factory(4), request2)
+
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, 'user_details')
+                self.assertTrue(self.administrator.cashier.component.check_for_calls(
+                    [('process_withdrawal', (5,), {'cancel': False, 'online': True, 'multisig': {'otp': '000000', 'token': 'TOKEN'}})]))
+
+            d.addCallback(rendered2)
+            return d
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
     def test_balance_sheet(self):
         request = StupidRequest([''],

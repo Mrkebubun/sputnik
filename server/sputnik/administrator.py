@@ -1765,7 +1765,7 @@ class AdminWebUI(Resource):
         destination = request.args['destination'][0]
         quantity_ui = float(request.args['quantity'][0])
         d = self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
-        def _cb():
+        def _cb(ignored):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
@@ -1782,7 +1782,7 @@ class AdminWebUI(Resource):
         multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
                     'otp': request.args['otp'][0]}
         d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
-        def _cb():
+        def _cb(ignored):
             request.write(redirectTo("/wallets", request))
             request.finish()
 
