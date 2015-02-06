@@ -126,6 +126,7 @@ class Engine:
         self.ordermap = {}
         self.listeners = []
 
+    @util.timed
     def place_order(self, order):
 
         # Loop until the order or the opposite side is exhausted.
@@ -181,6 +182,7 @@ class Engine:
 
         return price, quantity
 
+    @util.timed
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
