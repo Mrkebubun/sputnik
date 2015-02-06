@@ -34,6 +34,7 @@ import treq
 from decimal import Decimal
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import json
 
 class Yahoo():
     def __init__(self):
@@ -59,32 +60,33 @@ class Yahoo():
     def getOHLCVHistory(self, ticker, period="day", start_datetime=None, end_datetime=None):
         payout, denominated = ticker.split('/')
 
-        url = self.oanda_uri + "historical-rates-classic"
+        url = self.oanda_uri + "historical-rates/update"
         params = {'date_fmt': 'us',
-                  'date1': start_datetime.strftime('%m/%d/%y'),
-                  'date': end_datetime.strftime('%m/%d/%y'),
-                  'exch': payout,
-                  'expr': denominated,
-                  'format': 'CSV',
-                  'margin_fixed': '0',
-                  'redirected': 1}
+                  'start_date': start_datetime.strftime('%Y-%m-%d'),
+                  'end_date': end_datetime.strftime('%Y-%m-%d'),
+                  'period': "daily",
+                  'quote_currency': payout,
+                  'base_currency_0': denominated,
+                  'rate': 0,
+                  'view': 'table',
+                  'display': 'absolute',
+                  'price': 'bid',
+                  'data_range': 'd90'}
+        headers = {'X-Requested-With': 'XMLHttpRequest',
+                   'X-Prototype-Version': '1.7',
+                   'Referer': 'http://www.oanda.com/currency/historical-rates/'}
         try:
-            response = yield treq.get(url, params=params)
+            response = yield treq.get(url, params=params, headers=headers)
         except Exception as e:
             pass
         content = yield response.content()
-        soup = BeautifulSoup(content)
-        content_section = soup.find(id="converter_table").find(id="content_section")
-        pre = content_section.find('pre')
-        rows = pre.text.split('\n')
+        parsed = json.loads(content)
+        data = parsed['widget'][0]['data']
         ohlcv_history = {}
-        for row in rows:
-            if not row:
-                continue
 
-            date_str, price_str = row.split(',')
-            date = datetime.strptime(date_str, '%m/%d/%Y')
-            price = Decimal(price_str)
+        for row in data:
+            date = datetime.fromtimestamp(row[0]/1e3)
+            price = float(row[1])
             epoch = datetime.utcfromtimestamp(0)
             open_timestamp = int((date - epoch).total_seconds() * 1e6)
             tomorrow_date = date + timedelta(days=1)
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     #d = yahoo.getOrderBook('USD/MXN')
     #d.addCallback(pprint).addErrback(log.err)
     now = datetime.utcnow()
-    d2 = yahoo.getOHLCVHistory('HUF/USD', start_datetime=now-timedelta(days=30), end_datetime=now)
+    d2 = yahoo.getOHLCVHistory('USD/HUF', start_datetime=now-timedelta(days=30), end_datetime=now)
     d2.addCallback(pprint).addErrback(log.err)
 
     reactor.run()
