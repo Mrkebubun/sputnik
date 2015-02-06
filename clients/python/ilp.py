@@ -697,7 +697,7 @@ class Valuation():
                     return -1
 
             x0 = np.array([base_bid, base_ask, 0, 0, 0, 0])
-
+            log.msg("Optimizing...")
             res = minimize(negative_valuation, x0, method='COBYLA',
                            constraints={'type': 'ineq',
                                          'fun': constraint},
