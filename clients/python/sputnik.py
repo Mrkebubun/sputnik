@@ -57,6 +57,7 @@ import decimal
 from twisted.internet import stdio
 from twisted.protocols import basic
 import shlex
+from pyee import EventEmitter
 
 class CommandLine(basic.LineReceiver):
     from os import linesep as delimiter
@@ -270,8 +271,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         else:
             self.join(self.config.realm, [u'anonymous'])
 
-        if self.factory.onConnect is not None:
-            self.factory.onConnect(self)
+        self.factory.emit("connect", self)
 
     def onJoin(self, details):
         log.msg("Joined as %s" % details.authrole)
@@ -291,6 +291,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             self.getPositions()
 
             self.startAutomationAfterAuth()
+
+        self.factory.emit("join", self, details)
 
 
     def onChallenge(self, challenge):
@@ -312,8 +314,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def onDisconnect(self):
         log.msg("Disconnected")
-        if self.factory.onDisconnect is not None:
-            self.factory.onDisconnect(self)
+        self.factory.emit("disconnect", self)
 
     def action(self):
         '''
@@ -816,24 +817,24 @@ class BasicBot(SputnikSession):
     def startAutomationAfterMarkets(self):
         self.placeOrder('BTC/HUF', 1, 5000, 'BUY')
 
-class BotFactory(wamp.ApplicationSessionFactory):
+class BotFactory(wamp.ApplicationSessionFactory, EventEmitter):
     def __init__(self, **kwargs):
+        EventEmitter.__init__(self)
         self.username = kwargs.get('username')
         self.password = kwargs.get('password')
         self.ignore_contracts = kwargs.get('ignore_contracts')
         self.rate = kwargs.get('rate')
-        self.onConnect = kwargs.get('onConnect')
-        self.onDisconnect = kwargs.get('onDisconnect')
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
-class Sputnik():
-    def __init__(self, connection, bot_params, debug, bot=SputnikSession, notifyConnect=None, notifyDisconnect=lambda x: reactor.stop()):
+class Sputnik(EventEmitter):
+    def __init__(self, connection, bot_params, debug, bot=SputnikSession):
+        EventEmitter.__init__(self)
         self.debug = debug
-        self.session_factory = BotFactory(onConnect=self.onConnect, onDisconnect=self.onDisconnect, **bot_params)
-        self.notifyConnect = notifyConnect
-        self.notifyDisconnect = notifyDisconnect
+        self.session_factory = BotFactory(**bot_params)
+        self.session_factory.on("connect", self.onConnect)
+        self.session_factory.on("disconnect", self.onDisconnect)
         self.session_factory.session = bot
 
         if connection['ssl']:
@@ -862,13 +863,12 @@ class Sputnik():
         self.session = session
         def _onMarkets(markets):
             SputnikSession.onMarkets(self.session, markets)
-            if self.notifyConnect is not None:
-                self.notifyConnect(self)
+            self.emit("connect", self)
+
         self.session.onMarkets = _onMarkets
 
     def onDisconnect(self, session):
-        if self.notifyDisconnect is not None:
-            self.notifyDisconnect(self)
+        self.emit("disconnect", self)
 
     def getPositions(self):
         return defer.succeed(self.session.positions)
@@ -1043,6 +1043,8 @@ if __name__ == '__main__':
 
     sputnik_wamp = Sputnik(connection, bot_params, debug, bot=BasicBot)
     sputnik_wamp.connect()
+    sputnik_wamp.on("disconnect", lambda x: reactor.stop())
+
 
     if connection['ssl']:
         rest_endpoint = "https://%s:%d/api" % (connection['hostname'], connection['port'])

@@ -873,6 +873,8 @@ class Trader():
         fsm.add_transition("stop", "TRADING", self.stop, "STOPPING")
         fsm.add_transition("cleared", "STOPPING", None, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
+        fsm.add_transition("stop", "DISCONNECTED", None, "DISCONNECTED")
+        fsm.add_transition("cleared", "DISCONNECTED", None, "DISCONNECTED")
 
         load(self, 'trader.pickle')
         self.save()
@@ -883,7 +885,7 @@ class Trader():
     @inlineCallbacks
     def init(self):
         joined_list = []
-        def joined(exchange):
+        def onConnect(exchange):
             joined_list.append(exchange)
             if "source" in joined_list and "target" in joined_list:
                 self.fsm.process("connected")
@@ -896,14 +898,14 @@ class Trader():
             if name in joined_list:
                 del joined_list[joined_list.index(name)]
 
-            # Try to reconnect
-            exchange.connect()
+            # Try to reconnect in 5 seconds
+            reactor.callLater(5, exchange.connect)
 
-        self.source_exchange.notifyConnect = lambda x: joined("source")
-        self.target_exchange.notifyConnect = lambda x: joined("target")
+        self.source_exchange.on("connect", lambda x: onConnect("source"))
+        self.target_exchange.on("connect", lambda x: onConnect("target"))
 
-        self.source_exchange.notifyDisconnect = lambda x: onDisconnect(x, "source")
-        self.target_exchange.notifyDisconnect = lambda x: onDisconnect(x, "target")
+        self.source_exchange.on("disconnect", lambda x: onDisconnect(x, "source"))
+        self.target_exchange.on("disconnect", lambda x: onDisconnect(x, "target"))
 
         se = self.source_exchange.connect()
         te = self.target_exchange.connect()
@@ -1283,15 +1285,17 @@ if __name__ == "__main__":
         sputnik_target_exchange = Sputnik(connection, {'username': 'ilp_target',
                                                'password': 'ilp'}, debug)
 
-
+        from urllib2 import urlopen
+        import json
+        ip = json.load(urlopen('http://jsonip.com'))['ip']
         coinsetter_source_exchange = CoinSetter("uisp8279hdwjmgwmwnsrzd324f6dk8x",
                                                     "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f",
-                                                    "67.190.85.163",
+                                                    ip,
                                                     endpoint="https://staging-api.coinsetter.com/v1/")
 
 
         fiat_exchange = Yahoo()
-        market_data = MarketData(source_exchange=coinsetter_source_exchange,
+        market_data = MarketData(source_exchange=sputnik_source_exchange,
                                  target_exchange=sputnik_target_exchange,
                                  fiat_exchange=fiat_exchange,
                                  source_ticker='USD',
@@ -1317,7 +1321,7 @@ if __name__ == "__main__":
                               deviation_penalty=50,
                               risk_aversion=0.01)
 
-        trader = Trader(source_exchange=coinsetter_source_exchange,
+        trader = Trader(source_exchange=sputnik_source_exchange,
                         target_exchange=sputnik_target_exchange,
                         quote_size=Decimal('0.1'),
                         out_address='OUT',

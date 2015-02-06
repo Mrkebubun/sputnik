@@ -141,6 +141,7 @@ if __name__ == '__main__':
                    'ca_certs_dir': config.get("client", "ca_certs_dir") }
 
     sputnik = Sputnik(connection, bot_params, debug, bot=RandomBot)
+    sputnik.on("disconnect", lambda x: reactor.stop())
     sputnik.connect()
 
     reactor.run()
