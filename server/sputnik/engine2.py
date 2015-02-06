@@ -466,12 +466,14 @@ class AccountantExport(ComponentExport):
     @export
     @schema("rpc/engine.json#place_order")
     def place_order(self, order):
-        return self.engine.place_order(Order(**order))
+        reactor.callLater(0, self.engine.place_order, Order(**order))
+        return True
 
     @export
     @schema("rpc/engine.json#cancel_order")
     def cancel_order(self, id):
-        return self.engine.cancel_order(id)
+        reactor.callLater(0, self.engine.cancel_order, id)
+        return True
 
 class AdministratorExport(ComponentExport):
     def __init__(self, engine):
