@@ -95,7 +95,7 @@ class Administrator:
     """
 
     def __init__(self, session, accountant, cashier, engines,
-                 zendesk_domain,
+                 zendesk_domain, webserver,
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
@@ -112,6 +112,7 @@ class Administrator:
         """
         self.session = session
         self.accountant = accountant
+        self.webserver = webserver
         self.cashier = cashier
         self.engines = engines
         self.zendesk_domain = zendesk_domain
@@ -160,7 +161,7 @@ class Administrator:
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
-            contract_type='cash').all()
+            contract_type='cash')
         for contract in contracts:
             position = models.Position(user, contract)
             self.session.add(position)
@@ -523,7 +524,7 @@ class Administrator:
 
         :returns: list -- list of models.User
         """
-        users = self.session.query(models.User).all()
+        users = self.session.query(models.User)
         return users
 
     def get_admin_users(self):
@@ -531,7 +532,7 @@ class Administrator:
 
         :returns: list -- list of models.AdminUser
         """
-        admin_users = self.session.query(models.AdminUser).all()
+        admin_users = self.session.query(models.AdminUser)
         return admin_users
 
     def get_user(self, username):
@@ -842,7 +843,7 @@ class Administrator:
 
         :returns: list -- models.Position
         """
-        positions = self.session.query(models.Position).all()
+        positions = self.session.query(models.Position)
         return positions
 
     def get_position(self, user, ticker):
@@ -1102,7 +1103,7 @@ class Administrator:
 
         :returns: list -- models.PermissionGroup
         """
-        permission_groups = self.session.query(models.PermissionGroup).all()
+        permission_groups = self.session.query(models.PermissionGroup)
         return permission_groups
 
     def get_fee_groups(self):
@@ -1121,7 +1122,7 @@ class Administrator:
         return fee_problems
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).filter_by(active=True).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True)
         return contracts
 
     def get_contract(self, ticker):
@@ -1134,13 +1135,15 @@ class Administrator:
             setattr(contract, key, value)
 
         self.session.commit()
+        self.webserver.reload_contract(ticker)
+        self.accountant.reload_contract(None, ticker)
 
     def get_withdrawals(self):
-        withdrawals = self.session.query(models.Withdrawal).all()
+        withdrawals = self.session.query(models.Withdrawal)
         return withdrawals
 
     def get_deposits(self):
-        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
+        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None)
         return addresses
 
     @util.timed
@@ -2249,6 +2252,7 @@ if __name__ == "__main__":
 
     cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
     watchdog(config.get("watchdog", "administrator"))
+    webserver = dealer_proxy_async(config.get("webserver", "administrator_export"))
 
     if config.getboolean("webserver", "ssl"):
         protocol = 'https'
@@ -2265,12 +2269,13 @@ if __name__ == "__main__":
     bs_cache_update = config.getint("administrator", "bs_cache_update")
     engine_base_port = config.getint("engine", "administrator_base_port")
     engines = {}
-    for contract in session.query(models.Contract).filter_by(active=True).all():
+    for contract in session.query(models.Contract).filter_by(active=True):
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
+                                  webserver,
                                   debug=debug, base_uri=base_uri,
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,

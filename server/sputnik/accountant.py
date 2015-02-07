@@ -36,7 +36,6 @@ from ledger import create_posting
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, \
     push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
-from twisted.internet import reactor
 from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
@@ -1284,6 +1283,10 @@ class Accountant:
         d.addCallback(after_cancellations)
         return d
 
+    def reload_contract(self, ticker):
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        self.session.expire(contract)
+
     def clear_position(self, position, price, position_count, uid):
         # We use position_calculated here to be sure we get the canonical position
         position_calculated, timestamp = util.position_calculated(position, self.session)
@@ -1469,6 +1472,11 @@ class AdministratorExport(ComponentExport):
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)
 
+    @export
+    @session_aware
+    @schema("rpc/accountant.administrator.json#reload_contract")
+    def reload_contract(self, username, ticker):
+        return self.accountant.reload_contract(ticker)
 
 class AccountantProxy:
     def __init__(self, mode, uri, base_port):

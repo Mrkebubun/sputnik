@@ -213,5 +213,25 @@
         },
         "required": ["username", "id"],
         "additionalProperties": false
+    },
+    "reload_contract":
+    {
+        "type":"object",
+        "description": "Reload a contract because it got changed in the administrator",
+        "properties":
+        {
+            "username":
+            {
+                "type": "null",
+                "description": "This should be null/None because it is for all users on this accountant"
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "The ticker of the contract we are reloading"
+            }
+        },
+        "required": ["username", "ticker"],
+        "additionalProperties": false
     }
 }
