@@ -26,8 +26,12 @@
                     <div class="panel panel-primary">
                         <div class="panel-heading">Trader {{object.trader.fsm.current_state}}</div>
                         <div class="panel-body">
+                            {% if object.trader.fsm.current_state == "READY" %}
                             <a href="/start">Start</a>
+                            {% endif %}
+                            {% if object.trader.fsm.current_state == "TRADING" %}
                             <a href="/stop">Stop</a>
+                            {% endif %}
                             <form method="POST" action="/trader_parameters">
                                 <input type="submit">
                                 <table id="trader-parameters" class="table table-striped table-hover">

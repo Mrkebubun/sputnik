@@ -869,12 +869,15 @@ class Trader():
         #fsm.set_default_transition(self.error, "ERROR")
         fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
         fsm.add_transition("updated", "INITIALIZING", None, "READY")
-        fsm.add_transition("start", "READY", self.start, "TRADING")
+        fsm.add_transition("start", "READY", None, "TRADING")
         fsm.add_transition("stop", "TRADING", self.stop, "STOPPING")
         fsm.add_transition("cleared", "STOPPING", None, "READY")
+        fsm.add_transition("cleared", "TRADING", None, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
-        fsm.add_transition("stop", "DISCONNECTED", None, "DISCONNECTED")
-        fsm.add_transition("cleared", "DISCONNECTED", None, "DISCONNECTED")
+        fsm.add_transition("disconnected", "DISCONNECTED", None, "DISCONNECTED")
+        fsm.add_transition("disconnected", "READY", None, "DISCONNECTED")
+        fsm.add_transition("disconnected", "TRADING", None, "DISCONNECTED")
+        fsm.add_transition("disconnected", "STOPPING", None, "DISCONNECTED")
 
         load(self, 'trader.pickle')
         self.save()
@@ -883,7 +886,7 @@ class Trader():
         save(self, 'trader.pickle', ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period'])
 
     @inlineCallbacks
-    def init(self):
+    def start(self):
         joined_list = []
         def onConnect(exchange):
             joined_list.append(exchange)
@@ -891,12 +894,13 @@ class Trader():
                 self.fsm.process("connected")
 
         def onDisconnect(exchange, name):
-            # Stop trading
-            self.fsm.process("stop")
-
             # Mark as not connected
             if name in joined_list:
                 del joined_list[joined_list.index(name)]
+
+            self.fsm.process("disconnected")
+            if self.looping_call.running:
+                self.looping_call.stop()
 
             # Try to reconnect in 5 seconds
             reactor.callLater(5, exchange.connect)
@@ -913,14 +917,10 @@ class Trader():
 
     @inlineCallbacks
     def initialize(self, fsm):
-        yield self.state.update()
         yield self.cancel_all_orders()
+        yield self.state.update()
         self.fsm.process("updated")
         self.looping_call.start(self.period)
-
-
-    def start(self, fsm):
-        pass
 
     @inlineCallbacks
     def stop(self, fsm):
@@ -1182,13 +1182,14 @@ class Trader():
             else:
                 ask_size += ask['quantity_left']
 
-        if ask_size < self.quote_size:
-            difference = self.quote_size - ask_size
-            try:
-                yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
-            except Exception as e:
-                log.err("Unable to place SELL order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
-                log.err(e)
+        if ask_to_enter < Decimal('Infinity'):
+            if ask_size < self.quote_size:
+                difference = self.quote_size - ask_size
+                try:
+                    yield self.target_exchange.placeOrder(ticker, difference, ask_to_enter, 'SELL')
+                except Exception as e:
+                    log.err("Unable to place SELL order on target: %s - %s %s" % (ticker, difference, ask_to_enter))
+                    log.err(e)
 
         if bid_to_enter > 0:
             if bid_size < self.quote_size:
@@ -1336,7 +1337,7 @@ if __name__ == "__main__":
         site = Site(server)
         reactor.listenTCP(9304, site)
 
-        yield trader.init()
+        yield trader.start()
 
     log.startLogging(sys.stdout)
     main().addErrback(log.err)
