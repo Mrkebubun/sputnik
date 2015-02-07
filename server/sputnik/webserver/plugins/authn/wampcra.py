@@ -56,7 +56,7 @@ class WAMPCRALogin(AuthenticationPlugin):
 
                     if result is not None:
                         salt, secret = result['password'].split(":")
-                        router_session.totp = result['totp']
+                        router_session.totp = result['totp_enabled']
                         router_session.exists = True
                     # We compute the signature even if there is no such user to
                     #   prevent timing attacks.
