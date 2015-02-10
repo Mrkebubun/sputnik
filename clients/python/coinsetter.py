@@ -49,7 +49,6 @@ class CoinSetter(EventEmitter):
         self.ip = ip
         self.endpoint = endpoint
         self.session_id = None
-        self.json = json.JSONDecoder(parse_float=Decimal)
 
     @inlineCallbacks
     def connect(self):
@@ -202,7 +201,7 @@ class CoinSetter(EventEmitter):
             raise Exception("Error code %d received" % result.code)
 
         content = yield result.content()
-        parsed = self.json.decode(content)
+        parsed = json.loads(content, parse_float=Decimal)
         returnValue(parsed)
 
     def post(self, call, **kwargs):

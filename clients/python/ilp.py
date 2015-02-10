@@ -29,6 +29,7 @@ __author__ = 'sameer'
 from datetime import datetime
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
 from twisted.internet import reactor, task
+from twisted.internet.threads import deferToThread
 from twisted.python import log
 from copy import copy, deepcopy
 import sys
@@ -43,22 +44,29 @@ import pickle
 import decimal
 from fsm import FSM
 
-def load(klass, file):
+def load(klass, file, ignore=[]):
     # Load from pickle file
     try:
         attrs = pickle.load(open(file, "rb"))
         for key, value in attrs.iteritems():
-            setattr(klass, key, value)
+            if key not in ignore:
+                setattr(klass, key, value)
     except Exception as e:
         log.err("Unable to load")
         log.err(e)
 
-def save(klass, file, params):
+def save(klass, file):
+    dict = klass.todict()
+    pickle.dump(dict, open(file, "w"))
+
+def todict(klass, params):
     attrs = {}
     for param in params:
-        attrs[param] = getattr(klass, param)
-
-    pickle.dump(attrs, open(file, "w"))
+        try:
+            attrs[param] = getattr(klass, param)
+        except (AttributeError, TypeError) as e:
+            log.msg("%s not in %s" % (param, klass))
+    return attrs
 
 # Don't do anything if its value is less than this in source currency
 EPSILON = 1
@@ -122,7 +130,7 @@ class State():
 
         self.trader = None
 
-        load(self, 'state.pickle')
+        load(self, 'state.pickle', ignore=['source_best_bid', 'source_best_ask', 'fiat_best_bid', 'fiat_best_ask'])
         self.save()
 
     @inlineCallbacks
@@ -216,10 +224,15 @@ class State():
         returnValue(None)
 
     def save(self):
-        save(self, 'state.pickle', ['fiat_book', 'source_book', 'target_book', 'source_orders',
+        save(self, 'state.pickle')
+
+    def todict(self):
+        return todict(self, ['fiat_book', 'source_book', 'target_book', 'source_orders',
                                   'target_orders', 'balance_source', 'balance_target', 'timestamp',
                                   'transit_to_source', 'transit_to_target', 'transit_from_source',
-                                  'transit_from_target', 'source_variance', 'fiat_variance'])
+                                  'transit_from_target', 'source_variance', 'fiat_variance',
+                                  'source_best_bid', 'source_best_ask', 'fiat_best_bid', 'fiat_best_ask',
+                                  'source_transactions', 'target_transactions'])
 
     def source_price_for_size(self, quantity):
         if quantity > 0:
@@ -360,10 +373,12 @@ class State():
 
     def get_best_ask(self, book):
         if 'asks' in book and len(book['asks']) > 0:
-            return float(book['asks'][0]['price'])
-        else:
-            # There is no bid, worth 0!
-            return float('inf')
+            fl = float(book['asks'][0]['price'])
+            if fl != float('inf'):
+                return fl
+
+        # There is no ask, worth max!
+        return sys.float_info.max
 
     @property
     def source_best_ask(self):
@@ -573,10 +588,15 @@ class Valuation():
         self.save()
 
     def save(self):
-        save(self, 'valuation.pickle', ['target_balance_source',
+        save(self, 'valuation.pickle')
+
+    def todict(self):
+        return todict(self, ['target_balance_source',
                                       'target_balance_target',
                                       'deviation_penalty',
-                                      'risk_aversion'])
+                                      'risk_aversion',
+                                      'base_params', 'base',
+                                      'optimized_params', 'optimized'])
 
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
@@ -661,6 +681,8 @@ class Valuation():
 
             base_bid = self.state.source_best_bid / self.state.fiat_best_ask
             base_ask = self.state.source_best_ask / self.state.fiat_best_bid
+            if base_ask == float('inf'):
+                base_ask = sys.float_info.max
 
             if self.state.offered_bid is not None:
                 self.base_params['offered_bid'] = float(self.state.offered_bid)
@@ -698,7 +720,7 @@ class Valuation():
 
             x0 = np.array([base_bid, base_ask, 0, 0, 0, 0])
             log.msg("Optimizing...")
-            res = minimize(negative_valuation, x0, method='COBYLA',
+            res = yield deferToThread(minimize, negative_valuation, x0, method='COBYLA',
                            constraints={'type': 'ineq',
                                          'fun': constraint},
                            tol=1e-2,
@@ -756,7 +778,10 @@ class MarketData():
         self.save()
 
     def save(self):
-        save(self, 'data.pickle', ['source_ticker', 'target_ticker', 'btc_ticker', 'variance_period',
+        save(self, 'data.pickle')
+
+    def todict(self):
+        return todict(self, ['source_ticker', 'target_ticker', 'btc_ticker', 'variance_period',
                                  'variance_window', 'fiat_exchange_cost', 'fiat_exchange_delay',
                                  'source_fee', 'target_fee', 'btc_fee', 'btc_delay'])
 
@@ -808,6 +833,7 @@ class MarketData():
             raise NotImplementedError
 
         if ticker == "BTC/USD":
+            returnValue(2000.0)
             trade_history = []
             start = int(util.dt_to_timestamp(start_datetime)/1e6)
             end = int(util.dt_to_timestamp(end_datetime)/1e6)
@@ -870,20 +896,23 @@ class Trader():
         fsm.add_transition("connected", "DISCONNECTED", self.initialize, "INITIALIZING")
         fsm.add_transition("updated", "INITIALIZING", None, "READY")
         fsm.add_transition("start", "READY", None, "TRADING")
-        fsm.add_transition("stop", "TRADING", self.stop, "STOPPING")
-        fsm.add_transition("cleared", "STOPPING", None, "READY")
-        fsm.add_transition("cleared", "TRADING", None, "READY")
+        fsm.add_transition("stop", "TRADING", self.stop, "READY")
         fsm.add_transition("stop", "READY", None, "READY")
         fsm.add_transition("disconnected", "DISCONNECTED", None, "DISCONNECTED")
         fsm.add_transition("disconnected", "READY", None, "DISCONNECTED")
         fsm.add_transition("disconnected", "TRADING", None, "DISCONNECTED")
         fsm.add_transition("disconnected", "STOPPING", None, "DISCONNECTED")
 
-        load(self, 'trader.pickle')
+        load(self, 'trader.pickle', ignore=['fsm'])
         self.save()
 
     def save(self):
-        save(self, 'trader.pickle', ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period'])
+        save(self, 'trader.pickle')
+
+    def todict(self):
+        dict = todict(self, ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period', 'rounded', 'rounded_params'])
+        dict['fsm'] = { 'current_state': self.fsm.current_state }
+        return dict
 
     @inlineCallbacks
     def start(self):
@@ -922,10 +951,8 @@ class Trader():
         self.fsm.process("updated")
         self.looping_call.start(self.period)
 
-    @inlineCallbacks
     def stop(self, fsm):
-        yield self.cancel_all_orders()
-        self.fsm.process("cleared")
+        self.cancel_all_orders()
 
     @inlineCallbacks
     def cancel_all_orders(self):
@@ -1202,67 +1229,82 @@ class Trader():
 
 
 from twisted.web.resource import Resource
+from twisted.web.static import File
 from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import task
-from twisted.web.util import redirectTo
+import json
 
-class Webserver(Resource):
+class ILPEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, datetime):
+            return util.dt_to_timestamp(o)
+        if isinstance(o, Decimal):
+            return str(o)
+
+        return json.JSONEncoder.default(self, o)
+
+class ILPServer(Resource):
     isLeaf = True
-    def __init__(self, state, valuation, data, trader, template_dir="./ilp"):
+    def __init__(self, state, valuation, data, trader):
         self.state = state
         self.valuation = valuation
         self.data = data
         self.trader = trader
 
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir),
-                                     autoescape=True)
-        from util import timestamp_to_dt
-        self.jinja_env.filters['format_timestamp'] = timestamp_to_dt
+    def get_update(self, request):
+        # Send back all our data as a JSON
+        data = {'state': self.state.todict(),
+                'valuation': self.valuation.todict(),
+                'data': self.data.todict(),
+                'trader': self.trader.todict()
+        }
+        result = json.dumps(data, indent=2, sort_keys=True, allow_nan=False, cls=ILPEncoder).encode('utf-8')
+        request.setHeader('Content-Type', 'application/json; charset=UTF-8')
+        return result
 
     def render_GET(self, request):
-        # Do the JINJA
-        if request.path == '/':
-            t = self.jinja_env.get_template("template.html")
-            return t.render(object=self).encode('utf-8')
-        elif request.path == '/start':
+        if request.postpath[0] == 'update':
+            pass
+        elif request.postpath[0] == 'start':
             self.trader.fsm.process("start")
-            return redirectTo('/#trader', request)
-        elif request.path == '/stop':
+        elif request.postpath[0] == 'stop':
             self.trader.fsm.process("stop")
-            return redirectTo('/#trader', request)
+
+        return self.get_update(request)
 
     def render_POST(self, request):
-        if request.path == '/valuation_parameters':
-            self.valuation.risk_aversion = float(request.args['risk_aversion'][0])
-            self.valuation.deviation_penalty = float(request.args['deviation_penalty'][0])
-            self.valuation.target_balance_source[self.data.source_ticker] = float(request.args['target_balance_source_source'][0])
-            self.valuation.target_balance_source[self.data.btc_ticker] = float(request.args['target_balance_source_btc'][0])
-            self.valuation.target_balance_target[self.data.target_ticker] = float(request.args['target_balance_target_target'][0])
-            self.valuation.target_balance_target[self.data.btc_ticker] = float(request.args['target_balance_target_btc'][0])
-            self.valuation.save()
-            d = self.valuation.optimize()
-            def _cb(result):
-                request.write(redirectTo("/#valuation", request))
-                request.finish()
+        data = json.load(request.content)
+        fields = {'valuation': ['risk_aversion', 'deviation_penalty', 'target_balance_source', 'target_balance_target'],
+                  'trader': ['quote_size', 'edge_to_enter', 'edge_to_leave'],
+                  'data': ['source_fee', 'target_fee', 'btc_fee', 'fiat_exchange_cost']}
+        decimal_fields = [('trader', 'quote_size')]
+        for section, list in fields.iteritems():
+            object = getattr(self, section)
+            for field in list:
+                if section in data and field in data[section]:
+                    try:
+                        if (section, field) in decimal_fields:
+                            value = Decimal(data[section][field])
+                        else:
+                            value = data[section][field]
+                            if isinstance(value, basestring):
+                                value = float(value)
+                        setattr(object, field, value)
+                    except Exception as e:
+                        log.err(e)
+                        request.responseCode = 400
+                        return str(e)
 
-            d.addCallback(_cb)
-            return NOT_DONE_YET
-        elif request.path == '/trader_parameters':
-            self.trader.quote_size = Decimal(request.args['quote_size'][0])
-            self.trader.edge_to_enter = float(request.args['edge_to_enter'][0])
-            self.trader.edge_to_leave = float(request.args['edge_to_leave'][0])
-            self.trader.save()
-            return redirectTo('/#trader', request)
-        elif request.path == '/market_parameters':
-            self.data.source_fee[0] = float(request.args['source_fixed_fee'][0])
-            self.data.source_fee[1] = float(request.args['source_ratio_fee'][0])
-            self.data.target_fee[0] = float(request.args['target_fixed_fee'][0])
-            self.data.target_fee[1] = float(request.args['target_ratio_fee'][0])
-            self.data.btc_fee = float(request.args['btc_fee'][0])
-            self.data.fiat_exchange_cost[0] = float(request.args['fiat_exchange_fixed_cost'][0])
-            self.data.fiat_exchange_cost[1] = float(request.args['fiat_exchange_ratio_cost'][0])
-            self.data.save()
-            return redirectTo('/#market', request)
+            object.save()
+
+        d = self.valuation.optimize()
+        def _cb(result):
+            update = self.get_update(request)
+            request.write(update)
+            request.finish()
+
+        d.addCallback(_cb)
+        return NOT_DONE_YET
 
 
 if __name__ == "__main__":
@@ -1333,8 +1375,10 @@ if __name__ == "__main__":
                         edge_to_leave=10,
                         period=5)
 
-        server = Webserver(state, valuation, market_data, trader)
-        site = Site(server)
+        server = ILPServer(state, valuation, market_data, trader)
+        root = File("./ilp")
+        root.putChild('api', server)
+        site = Site(root)
         reactor.listenTCP(9304, site)
 
         yield trader.start()
