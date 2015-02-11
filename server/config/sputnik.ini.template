@@ -13,9 +13,9 @@ minimum_confirmations = ${minimum_confirmations}
 bitgo_private_key_file = ${keys}/bitgo.key
 
 [bitgo]
-client_id = MimeticMarkets
-client_secret = xk0DL5qnyrfT99pXDhlpmUsnZdDAJuHdHxT8yi1ufyBCXM
-use_production = false
+client_id = ${bitgo_client_id}
+client_secret = ${bitgo_client_secret}
+use_production = ${bitgo_use_production}
 
 [engine]
 accountant_base_port = 4200
