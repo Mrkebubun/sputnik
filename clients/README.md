@@ -333,7 +333,7 @@ Positions is an array of ```(user_hash, position)```
 
 Takes a username as an argument, sends that user a token to reset their password.
 
-### rpc.registrar.make_account(email, password, salt, nickname)
+### rpc.registrar.make_account(username, password, salt, email, nickname)
 
 Create an account with the given username, password hash, and salt. Also set the user's profile to the passed email and nickname
 

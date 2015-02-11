@@ -112,10 +112,10 @@ class @Sputnik extends EventEmitter
         key = autobahn.auth_cra.derive_key password, @authextra.salt
         return [key, salt]
 
-    makeAccount: (email, secret, nickname, locale) =>
+    makeAccount: (username, secret, email, nickname, locale) =>
         [key, salt] = @computeHash secret
 
-        @call("rpc.registrar.make_account", email, "#{salt}:#{key}", nickname, locale).then \
+        @call("rpc.registrar.make_account", username, "#{salt}:#{key}", email, nickname, locale).then \
             (result) =>
                 @emit "make_account_success", result
             , (error) =>
