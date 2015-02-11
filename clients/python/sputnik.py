@@ -658,7 +658,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
         d = self.call(u"rpc.market.get_ohlcv_history", contract, period, start_timestamp, end_timestamp)
         return d.addCallback(_onOHLCVHistory).addErrback(self.onError, "getOHLCVHistory")
 
-    def makeAccount(self, username, password, email, nickname):
+    def makeAccount(self, email, password, nickname):
         alphabet = string.digits + string.lowercase
         num = Crypto.Random.random.getrandbits(64)
         salt = ""
@@ -670,7 +670,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
                                         extra['salt'].encode('utf-8'),
                                         extra['iterations'],
                                         extra['keylen'])
-        d = self.call(u"rpc.registrar.make_account", username, "%s:%s" % (salt, password_hash), email, nickname)
+        d = self.call(u"rpc.registrar.make_account", email, "%s:%s" % (salt, password_hash), nickname)
         return d.addCallback(self.onMakeAccount).addErrback(self.onError, "makeAccount")
 
     def getResetToken(self, username):
@@ -802,9 +802,9 @@ class BasicBot(SputnikSession):
         # self.getOHLCVHistory('BTC/HUF', 'minute')
         #
         # # Now make an account
-        # self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        # self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8)) + "@m2.io"
         # self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        # self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
+        # self.makeAccount(self.username, self.password, "Test User")
         self.getResetToken('marketmaker')
         pass
 
