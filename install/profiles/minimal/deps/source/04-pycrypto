@@ -1,0 +1,30 @@
+#!/bin/bash
+
+SOURCE=https://ftp.dlitz.net/pub/dlitz/crypto/pycrypto/pycrypto-2.7a1.tar.gz
+
+check()
+{
+    VERSION=`pip show pycrypto | grep 'Version' | awk '{ print $2 }'`
+    test "${VERSION}" '==' '2.7a1'
+}
+
+install()
+{
+    cd /usr/local/src
+    wget $SOURCE
+    tar xfz pycrypto-2.7a1.tar.gz
+    cd pycrypto-2.7a1
+    python setup.py install
+}
+
+case $1 in
+    check)
+        check
+        ;;
+    install)
+        install
+        ;;
+    *)
+        echo "usage: $0 check|install"
+        ;;
+esac
