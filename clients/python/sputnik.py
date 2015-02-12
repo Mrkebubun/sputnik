@@ -805,13 +805,25 @@ class Sputnik(EventEmitter):
         self.session_factory.on("disconnect", self.onDisconnect)
         self.session_factory.session = bot
         self.base_uri = endpoint
-        # PARSE BASE_URI
-        hostname = ""
-        port = 80
-        if endpoint.startswith("wss"):
+
+        from urlparse import urlparse
+        parse = urlparse(endpoint)
+        split_netloc = parse.netloc.split(':')
+        hostname = split_netloc[0]
+        if parse.scheme == 'wss':
+            if len(split_netloc) > 1:
+                port = int(split_netloc[1])
+            else:
+                port = 8443
             self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
-        else:
+        elif parse.scheme == 'ws':
+            if len(split_netloc) > 1:
+                port = int(split_netloc[1])
+            else:
+                port = 8880
             self.connection_string = "tcp:%s:%d" % (hostname, port)
+        else:
+            raise NotImplementedError
 
         self.session = None
         self.transport_factory = websocket.WampWebSocketClientFactory(self.session_factory,
