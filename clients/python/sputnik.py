@@ -809,20 +809,19 @@ class Sputnik(EventEmitter):
 
         from urlparse import urlparse
         parse = urlparse(endpoint)
-        split_netloc = parse.netloc.split(':')
-        hostname = split_netloc[0]
+
         if parse.scheme == 'wss':
-            if len(split_netloc) > 1:
-                port = int(split_netloc[1])
-            else:
+            if parse.port is None:
                 port = 8443
-            self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
-        elif parse.scheme == 'ws':
-            if len(split_netloc) > 1:
-                port = int(split_netloc[1])
             else:
+                port = parse.port
+            self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (parse.hostname, port, ca_certs_dir)
+        elif parse.scheme == 'ws':
+            if parse.port is None:
                 port = 8880
-            self.connection_string = "tcp:%s:%d" % (hostname, port)
+            else:
+                port = parse.port
+            self.connection_string = "tcp:%s:%d" % (parse.hostname, port)
         else:
             raise NotImplementedError
 
