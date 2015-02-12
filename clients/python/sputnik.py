@@ -784,67 +784,34 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
         return d.addCallback(_onCancelOrder).addErrback(self.onError, "cancelOrder")
 
-
-class BasicBot(SputnikSession):
-    def onMakeAccount(self, event):
-        SputnikSession.onMakeAccount(self, event)
-        #self.authenticate()
-
-    def startAutomation(self):
-        # Test the audit
-        # self.getAudit()
-        #
-        # # Test exchange info
-        # self.getExchangeInfo()
-        #
-        # # Test some OHLCV history fns
-        # self.getOHLCVHistory('BTC/HUF', 'day')
-        # self.getOHLCVHistory('BTC/HUF', 'minute')
-        #
-        # # Now make an account
-        # self.username = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        # self.password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        # self.makeAccount(self.username, self.password, "test@m2.io", "Test User")
-        self.getResetToken('marketmaker')
-        pass
-
-    def startAutomationAfterAuth(self):
-        # self.getNewAPICredentials()
-        # self.getTransactionHistory()
-        # self.requestSupportNonce()
-        pass
-
-    def startAutomationAfterMarkets(self):
-        self.placeOrder('BTC/HUF', 1, 5000, 'BUY')
-
 class BotFactory(wamp.ApplicationSessionFactory, EventEmitter):
     def __init__(self, **kwargs):
         EventEmitter.__init__(self)
-        self.username = kwargs.get('username')
-        self.password = kwargs.get('password')
-        self.ignore_contracts = kwargs.get('ignore_contracts')
-        self.rate = kwargs.get('rate')
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
 
         component_config = types.ComponentConfig(realm = u"sputnik")
         wamp.ApplicationSessionFactory.__init__(self, config=component_config)
 
 class Sputnik(EventEmitter):
-    def __init__(self, connection, bot_params, debug, bot=SputnikSession):
+    def __init__(self, endpoint=None, id=None, secret=None,
+                 debug=False, bot=SputnikSession, ca_certs_dir="/etc/ssl/certs", **kwargs):
         EventEmitter.__init__(self)
         self.debug = debug
-        self.session_factory = BotFactory(**bot_params)
+        self.session_factory = BotFactory(username=id,
+                                          password=secret,
+                                          **kwargs)
         self.session_factory.on("connect", self.onConnect)
         self.session_factory.on("disconnect", self.onDisconnect)
         self.session_factory.session = bot
-
-        if connection['ssl']:
-            self.base_uri = "wss://%s:%d/ws" % (connection['hostname'], connection['port'])
-            self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (connection['hostname'],
-                                                                       connection['port'],
-                                                                       connection['ca_certs_dir'])
+        self.base_uri = endpoint
+        # PARSE BASE_URI
+        hostname = ""
+        port = 80
+        if endpoint.startswith("wss"):
+            self.connection_string = "ssl:host=%s:port=%d:caCertsDir=%s" % (hostname, port, ca_certs_dir)
         else:
-            self.base_uri = "ws://%s:%d/ws" % (connection['hostname'], connection['port'])
-            self.connection_string = "tcp:%s:%d" % (connection['hostname'], connection['port'])
+            self.connection_string = "tcp:%s:%d" % (hostname, port)
 
         self.session = None
         self.transport_factory = websocket.WampWebSocketClientFactory(self.session_factory,
@@ -919,16 +886,16 @@ class Sputnik(EventEmitter):
         return rounded
 
 
-class SputnikRest(SputnikMixin):
-    def __init__(self, username=None, api_key=None, api_secret=None, endpoint=None, onInit=None):
-        self.username = username
-        self.api_key = api_key
-        self.api_secret = api_secret
+class SputnikRest(SputnikMixin, EventEmitter):
+    def __init__(self, endpoint=None, id=None, secret=None):
+        self.api_key = id
+        self.api_secret = secret
         self.endpoint = endpoint
+
+    def connect(self):
         def _cb(markets):
             self.markets = markets
-            if onInit is not None:
-                onInit(self)
+            self.emit("connect", self)
 
         self.getMarkets().addCallback(_cb)
 
@@ -948,14 +915,6 @@ class SputnikRest(SputnikMixin):
         return failure
 
     @inlineCallbacks
-    def handle_response(self, response):
-        content = yield response.content()
-        result = json.loads(content)
-        if result['success']:
-            returnValue(result['result'])
-        else:
-            raise Exception(*result['error'])
-
     def post(self, url, payload={}, auth=False):
         headers = {"content-type": "application/json"}
         params = {'payload': payload}
@@ -965,7 +924,20 @@ class SputnikRest(SputnikMixin):
         else:
             message = json.dumps(params)
 
-        return treq.post(url, data=message, headers=headers).addCallback(self.handle_response)
+        try:
+            response = yield treq.post(url, data=message, headers=headers)
+            if response.code != 200:
+                raise Exception("Received response code: %d" % response.code)
+        except Exception as e:
+            self.emit("disconnect", self)
+            raise e
+
+        content = yield response.content()
+        result = json.loads(content)
+        if result['success']:
+            returnValue(result['result'])
+        else:
+            raise Exception(*result['error'])
 
     def getMarkets(self):
         url = self.endpoint + "/rpc/market/get_markets"
@@ -1030,36 +1002,25 @@ if __name__ == '__main__':
     log.startLogging(sys.stdout)
     config = ConfigParser()
     config_file = path.abspath(path.join(path.dirname(__file__),
-            "./sputnik.ini"))
+            "./client.ini"))
     config.read(config_file)
 
-    bot_params = { 'username': config.get("client", "username"),
-                   'password': config.get("client", "password") }
+    params = dict(config.items("sputnik"))
 
-    connection = { 'ssl': config.getboolean("client", "ssl"),
-                   'port': config.getint("client", "port"),
-                   'hostname': config.get("client", "hostname"),
-                   'ca_certs_dir': config.get("client", "ca_certs_dir") }
-
-    sputnik_wamp = Sputnik(connection, bot_params, debug, bot=BasicBot)
-    sputnik_wamp.connect()
-    sputnik_wamp.on("disconnect", lambda x: reactor.stop())
-
-
-    if connection['ssl']:
-        rest_endpoint = "https://%s:%d/api" % (connection['hostname'], connection['port'])
+    if params['endpoint'].startswith("ws"):
+        sputnik = Sputnik(**params)
     else:
-        rest_endpoint = "http://%s:%d/api" % (connection['hostname'], connection['port'])
+        sputnik = SputnikRest(**params)
 
-    def onInit(sputnik):
-        # sputnik.getOpenOrders().addCallback(log.msg(pformat))
-        # sputnik.getOrderBook('BTC/MXN').addCallback(log.msg(pformat))
-        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(log.msg(pformat).addErrback(log.err))
+    sputnik.connect()
 
-    # sputnik_rest = SputnikRest(username=u'marketmaker', api_key=u'M865pzFPoLNdWr7RoXbwupVmbWhQ2/JF4zMh7U4vm94=',
-    #                            api_secret= u'nYbXz3pFGGHaRVAsvAamUQKfmeFOETXwbqIj1EJb8hk=', endpoint=rest_endpoint,
-    #                            onInit=onInit)
+    def onConnect(sputnik):
+        sputnik.getOpenOrders().addCallback(log.msg(pformat)).addErrback(log.err)
+        sputnik.getOrderBook('BTC/MXN').addCallback(log.msg(pformat)).addErrback(log.err)
+        sputnik.placeOrder('BTC/MXN', 1, 3403, 'BUY').addCallback(log.msg(pformat)).addErrback(log.err)
 
+    sputnik.on("connect", onConnect)
+    sputnik.on("disconnect", lambda x: reactor.stop())
 
     reactor.run()
 

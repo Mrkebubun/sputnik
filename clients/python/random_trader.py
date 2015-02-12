@@ -127,20 +127,13 @@ if __name__ == '__main__':
     log.startLogging(sys.stdout)
     config = ConfigParser()
     config_file = path.abspath(path.join(path.dirname(__file__),
-            "./sputnik.ini"))
+            "./client.ini"))
     config.read(config_file)
+    params = dict(config.items("sputnik"))
+    params.update(dict(config.items("market_maker")))
 
-    bot_params = { 'username': config.get("random_trader", "username"),
-                   'password': config.get("random_trader", "password"),
-                   'rate': config.getfloat("random_trader", "rate"),
-                   'ignore_contracts': [x.strip() for x in config.get("random_trader", "ignore_contracts").split(',')]}
+    sputnik = Sputnik(debug=debug, bot=RandomBot, **params)
 
-    connection = { 'ssl': config.getboolean("client", "ssl"),
-                   'port': config.getint("client", "port"),
-                   'hostname': config.get("client", "hostname"),
-                   'ca_certs_dir': config.get("client", "ca_certs_dir") }
-
-    sputnik = Sputnik(connection, bot_params, debug, bot=RandomBot)
     sputnik.on("disconnect", lambda x: reactor.stop())
     sputnik.connect()
 

@@ -28,14 +28,13 @@ __author__ = 'sameer'
 
 from datetime import datetime
 from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
-from twisted.internet import reactor, task
+from twisted.internet import reactor
 from twisted.internet.threads import deferToThread
 from twisted.python import log
-from copy import copy, deepcopy
+from copy import deepcopy
 import sys
 from decimal import Decimal
 from scipy.optimize import minimize
-from jinja2 import Environment, FileSystemLoader
 from dateutil import relativedelta
 import numpy as np
 from datetime import timedelta
@@ -43,6 +42,9 @@ import util
 import pickle
 import decimal
 from fsm import FSM
+from ConfigParser import ConfigParser
+from os import path
+import logging
 
 def load(klass, file, ignore=[]):
     # Load from pickle file
@@ -738,7 +740,7 @@ class Valuation():
 
 
 
-class MarketData():
+class Data():
     def __init__(self,
                  source_exchange,
                  target_exchange,
@@ -1308,83 +1310,90 @@ class ILPServer(Resource):
 
 
 if __name__ == "__main__":
-    @inlineCallbacks
-    def main():
-        import sys
-        sys.path.append("..")
-        from sputnik import Sputnik
-        from yahoo import Yahoo
-        from coinsetter import CoinSetter
-
-        connection = { 'ssl': False,
-                       'port': 8880,
-                       'hostname': 'localhost',
-                       'ca_certs_dir': "/etc/ssl/certs" }
-
-        debug = False
-
-        sputnik_source_exchange = Sputnik(connection, {'username': 'ilp_source',
-                                               'password': 'ilp'}, debug)
-        sputnik_target_exchange = Sputnik(connection, {'username': 'ilp_target',
-                                               'password': 'ilp'}, debug)
-
-        from urllib2 import urlopen
-        import json
-        ip = json.load(urlopen('http://jsonip.com'))['ip']
-        coinsetter_source_exchange = CoinSetter("uisp8279hdwjmgwmwnsrzd324f6dk8x",
-                                                    "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f",
-                                                    ip,
-                                                    endpoint="https://staging-api.coinsetter.com/v1/")
-
-
-        fiat_exchange = Yahoo()
-        market_data = MarketData(source_exchange=sputnik_source_exchange,
-                                 target_exchange=sputnik_target_exchange,
-                                 fiat_exchange=fiat_exchange,
-                                 source_ticker='USD',
-                                 target_ticker='HUF',
-                                 btc_ticker='BTC',
-                                 fiat_exchange_cost=(150, 0.1), # Set the exchange cost pretty high because of the delay
-                                 fiat_exchange_delay=86400 * 3,
-                                 source_fee=(0, 0.01),
-                                 target_fee=(0, 0.005),
-                                 btc_fee=0.0001,
-                                 btc_delay=3600,
-                                 variance_period="day",
-                                 variance_window="month"
-                                 )
-        state = State(market_data)
-
-        valuation = Valuation(state=state,
-                              data=market_data,
-                              target_balance_source={ 'USD': 6000,
-                                                      'BTC': 6 },
-                              target_balance_target={ 'HUF': 1626000,
-                                                      'BTC': 6 },
-                              deviation_penalty=50,
-                              risk_aversion=0.01)
-
-        trader = Trader(source_exchange=sputnik_source_exchange,
-                        target_exchange=sputnik_target_exchange,
-                        quote_size=Decimal('0.1'),
-                        out_address='OUT',
-                        state=state,
-                        data=market_data,
-                        valuation=valuation,
-                        edge_to_enter=20, # These are in source currency
-                        edge_to_leave=10,
-                        period=5)
-
-        server = ILPServer(state, valuation, market_data, trader)
-        root = File("./ilp")
-        root.putChild('api', server)
-        site = Site(root)
-        reactor.listenTCP(9304, site)
-
-        yield trader.start()
-
     log.startLogging(sys.stdout)
-    main().addErrback(log.err)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
+                        level=logging.INFO)
+
+    config = ConfigParser()
+    config_file = path.abspath(path.join(path.dirname(__file__),
+                                         "./ilp.ini"))
+    config.read(config_file)
+
+    modules = dict(config.items("modules"))
+
+    def load(path):
+        module_name, class_name = path.rsplit(".", 1)
+        mod = __import__(module_name)
+        for component in module_name.split(".")[1:]:
+            mod = getattr(mod, component)
+        klass = getattr(mod, class_name)
+        return klass
+
+    target_class = load(modules['target'])
+    source_class = load(modules['source'])
+    fiat_class = load(modules['fiat'])
+
+    source_connection = dict(config.items("source_connection"))
+    target_connection = dict(config.items("target_connection"))
+    source_exchange = source_class(**source_connection)
+    target_exchange = target_class(**target_connection)
+    fiat_exchange = fiat_class()
+
+    tickers = dict(config.items("tickers"))
+
+    data_params = {'fiat_exchange_cost': json.loads(config.get("data", "fiat_exchange_cost")),
+                   'source_fee': json.loads(config.get("data", "source_fee")),
+                   'target_fee': json.loads(config.get("data", "target_fee")),
+                   'btc_fee': config.getfloat("data", "btc_fee"),
+                   'btc_delay': config.getint("data", "btc_delay"),
+                   'fiat_exchange_delay': config.getint("data", 'fiat_exchange_delay'),
+                   'variance_period': config.get("data", "variance_period"),
+                   'variance_window': config.get("data", "variance_window")}
+
+    data = Data(source_exchange=source_exchange,
+                target_exchange=target_exchange,
+                fiat_exchange=fiat_exchange,
+                source_ticker=tickers['source'],
+                target_ticker=tickers['target'],
+                btc_ticker=tickers['BTC'],
+                **data_params)
+
+    state = State(data)
+
+    def to_float_dict(d):
+        return {key: float(value) for key, value in d}
+
+    target_balance_source = to_float_dict(config.items("target_balance_source"))
+    target_balance_target = to_float_dict(config.items("target_balance_target"))
+
+    valuation_params = to_float_dict(config.items("valuation"))
+
+    valuation = Valuation(state=state,
+                          data=data,
+                          target_balance_source=target_balance_source,
+                          target_balance_target=target_balance_target,
+                          **valuation_params)
+
+    trader_params = {'quote_size': Decimal(config.get("trader", "quote_size")),
+                     'out_address': config.get("trader", "out_address"),
+                     'edge_to_enter': config.getfloat("trader", "edge_to_enter"),
+                     'edge_to_leave': config.getfloat("trader", "edge_to_leave"),
+                     'period': config.getint("trader", "period")}
+
+    trader = Trader(source_exchange=source_exchange,
+                    target_exchange=target_exchange,
+                    state=state,
+                    data=data,
+                    valuation=valuation,
+                    **trader_params)
+
+    server = ILPServer(state, valuation, data, trader)
+    root = File("./ilp")
+    root.putChild('api', server)
+    site = Site(root)
+    reactor.listenTCP(9304, site)
+    trader.start().addErrback(log.err)
+
     reactor.run()
 
 

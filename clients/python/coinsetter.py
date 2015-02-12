@@ -40,15 +40,19 @@ from decimal import Decimal
 from pprint import pprint
 from datetime import datetime, timedelta
 from pyee import EventEmitter
+from ConfigParser import ConfigParser
+from os import path
 
 class CoinSetter(EventEmitter):
-    def __init__(self, username, password, ip, endpoint="https://api.coinsetter.com/v1/"):
+    def __init__(self, id=None, secret=None, endpoint="https://api.coinsetter.com/v1"):
         EventEmitter.__init__(self)
-        self.username = username
-        self.password = password
-        self.ip = ip
+        self.username = id
+        self.password = secret
         self.endpoint = endpoint
         self.session_id = None
+
+        from urllib2 import urlopen
+        self.ip = json.load(urlopen('http://jsonip.com'))['ip']
 
     @inlineCallbacks
     def connect(self):
@@ -60,7 +64,7 @@ class CoinSetter(EventEmitter):
         self.session_id = session['uuid']
         self.customer_id = session['customerUuid']
 
-        result = yield self.get("customer/account")
+        result = yield self.get("/customer/account")
         account_list = result['accountList']
         self.account_uuids = [account['accountUuid'] for account in account_list]
         self.default_account = self.account_uuids[0]
@@ -90,7 +94,7 @@ class CoinSetter(EventEmitter):
                 'symbol': contract.replace('/', ''),
                 'routingMethod': 2
         }
-        result = yield self.post("order", data=data)
+        result = yield self.post("/order", data=data)
         if result['requestStatus'] == 'FAILURE':
             raise Exception(result['message'])
 
@@ -98,7 +102,7 @@ class CoinSetter(EventEmitter):
 
     @inlineCallbacks
     def getPositions(self):
-        result = yield self.get("customer/account/%s" % self.default_account)
+        result = yield self.get("/customer/account/%s" % self.default_account)
         processed = {'BTC': {'position': result['btcBalance']},
                      'USD': {'position': result['usdBalance']}}
         returnValue(processed)
@@ -117,12 +121,12 @@ class CoinSetter(EventEmitter):
 
     @inlineCallbacks
     def cancelOrder(self, id):
-        result = yield self.delete("order/%s" % id)
+        result = yield self.delete("/order/%s" % id)
         returnValue(result)
 
     @inlineCallbacks
     def getOpenOrders(self):
-        result = yield self.get("customer/account/%s/order" % self.default_account, params={'view': "OPEN"})
+        result = yield self.get("/customer/account/%s/order" % self.default_account, params={'view': "OPEN"})
         orders = {order['uuid']: {
                 'id': order['uuid'],
                 'side': order['side'],
@@ -137,7 +141,7 @@ class CoinSetter(EventEmitter):
 
     @inlineCallbacks
     def getOrderBook(self, ticker):
-        result = yield self.get("marketdata/full_depth")
+        result = yield self.get("/marketdata/full_depth")
         if result is None:
             book = {'contract': ticker,
                     'bids': [],
@@ -153,7 +157,7 @@ class CoinSetter(EventEmitter):
     def getTransactionHistory(self, start_datetime, end_datetime):
         params = {'dateStart': start_datetime.strftime("%d%m%Y"),
                   'dateEnd': (end_datetime + timedelta(days=1)).strftime("%d%m%Y")}
-        result = yield self.get("customer/account/%s/financialTransaction" % self.default_account, params=params)
+        result = yield self.get("/customer/account/%s/financialTransaction" % self.default_account, params=params)
         transactions = []
         epoch = datetime.utcfromtimestamp(0)
         type_map = {'WITHDRAWAL': 'Withdrawal',
@@ -217,14 +221,14 @@ class CoinSetter(EventEmitter):
         return self._call("PUT", call, **kwargs)
 
 if __name__ == "__main__":
-    username = "uisp8279hdwjmgwmwnsrzd324f6dk8x"
-    password = "7132d0bf-37c0-4b57-ab6d-a27fbef56c0f"
-    url = "https://staging-api.coinsetter.com/v1/"
+    config = ConfigParser()
+    config_file = path.abspath(path.join(path.dirname(__file__),
+            "./client.ini"))
+    config.read(config_file)
 
-    from urllib2 import urlopen
-    ip = json.load(urlopen('http://jsonip.com'))['ip']
+    params = dict(config.items("coinsetter"))
 
-    coinsetter = CoinSetter(username, password, ip, endpoint=url)
+    coinsetter = CoinSetter(**params)
     coinsetter.on("disconnect", lambda x: reactor.stop())
 
     @inlineCallbacks

@@ -37,7 +37,7 @@ from datetime import datetime, timedelta
 import json
 
 class Yahoo():
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.yahoo_uri = "http://finance.yahoo.com/"
         self.oanda_uri = "http://www.oanda.com/currency/"
 
