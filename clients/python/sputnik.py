@@ -556,6 +556,7 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
                 # Look at the internal/external order map to see if there is an internal order that needs to be deleted
                 if id in self.internal_external_order_map:
                     del self.wire_orders[self.internal_external_order_map[id]]
+                    del self.internal_external_order_map[id]
 
                 # Add or update, if not cancelled and quantity_left > 0
                 if not wire_order['is_cancelled'] and wire_order['quantity_left'] > 0:
