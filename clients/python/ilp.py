@@ -163,15 +163,13 @@ class State():
         self.target_transactions += target_transactions
 
         # Find offered bid and ask in target_orders
-        if self.offered_bid is None:
-            bids = [order['price'] for order in self.target_orders.values() if order['side'] == 'BUY']
-            if bids:
-                self.offered_bid = max(bids)
+        bids = [order['price'] for order in self.target_orders.values() if order['side'] == 'BUY']
+        if bids:
+            self.offered_bid = max(bids)
 
-        if self.offered_ask is None:
-            asks = [order['price'] for order in self.target_orders.values() if order['side'] == 'SELL']
-            if asks:
-                self.offered_ask = min(asks)
+        asks = [order['price'] for order in self.target_orders.values() if order['side'] == 'SELL']
+        if asks:
+            self.offered_ask = min(asks)
 
         if self.fiat_variance is None or (now - last_update) > timedelta(days=7):
             self.fiat_variance = yield self.data.get_fiat_variance().addErrback(log.err)
@@ -235,7 +233,7 @@ class State():
                                   'transit_to_source', 'transit_to_target', 'transit_from_source',
                                   'transit_from_target', 'source_variance', 'fiat_variance',
                                   'source_best_bid', 'source_best_ask', 'fiat_best_bid', 'fiat_best_ask',
-                                  'source_transactions', 'target_transactions'])
+                                  'source_transactions', 'target_transactions', 'offered_bid', 'offered_ask'])
 
     def source_price_for_size(self, quantity):
         if quantity > 0:
