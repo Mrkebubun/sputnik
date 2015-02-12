@@ -67,7 +67,7 @@ def todict(klass, params):
         try:
             attrs[param] = getattr(klass, param)
         except (AttributeError, TypeError) as e:
-            log.msg("%s not in %s" % (param, klass))
+            log.msg("%s not in %s: %s" % (param, klass, e))
     return attrs
 
 # Don't do anything if its value is less than this in source currency
@@ -138,7 +138,7 @@ class State():
     @inlineCallbacks
     def update(self):
         last_update = self.timestamp
-        self.timestamp = datetime.utcnow()
+        now = datetime.utcnow()
         fb_d = self.data.get_fiat_book().addErrback(log.err)
         sb_d = self.data.get_source_book().addErrback(log.err)
         tb_d = self.data.get_target_book().addErrback(log.err)
@@ -173,10 +173,10 @@ class State():
             if asks:
                 self.offered_ask = min(asks)
 
-        if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
+        if self.fiat_variance is None or (now - last_update) > timedelta(days=7):
             self.fiat_variance = yield self.data.get_fiat_variance().addErrback(log.err)
 
-        if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
+        if self.source_variance is None or (now - last_update) > timedelta(days=7):
             self.source_variance = yield self.data.get_source_variance().addErrback(log.err)
 
         # Update transits - remove ones that have arrived
@@ -222,6 +222,7 @@ class State():
         self.transit_from_source = clear_transits(self.transit_from_source, source_withdrawals, field='from')
         self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
+        self.timestamp = datetime.utcnow()
         self.save()
         returnValue(None)
 
@@ -367,14 +368,14 @@ class State():
             return {self.data.source_ticker: 0}
 
     def get_best_bid(self, book):
-        if 'bids' in book and len(book['bids']) > 0:
+        if book is not None and 'bids' in book and len(book['bids']) > 0:
             return float(book['bids'][0]['price'])
         else:
             # There is no bid, worth 0!
             return 0
 
     def get_best_ask(self, book):
-        if 'asks' in book and len(book['asks']) > 0:
+        if book is not None and 'asks' in book and len(book['asks']) > 0:
             fl = float(book['asks'][0]['price'])
             if fl != float('inf'):
                 return fl
@@ -397,7 +398,6 @@ class State():
     @property
     def fiat_best_bid(self):
         return self.get_best_bid(self.fiat_book)
-
 
     @property
     def source_exchange_rate(self):
@@ -835,28 +835,32 @@ class Data():
             raise NotImplementedError
 
         if ticker == "BTC/USD":
-            returnValue(2000.0)
-            trade_history = []
-            start = int(util.dt_to_timestamp(start_datetime)/1e6)
-            end = int(util.dt_to_timestamp(end_datetime)/1e6)
-
             log.msg("Loading BTC/USD history")
-            import wget, gzip
-            gzip_file = wget.download("http://api.bitcoincharts.com/v1/csv/bitstampUSD.csv.gz", out="/tmp", bar=None)
+            def _get_history(start_datetime, end_datetime):
+                start = int(util.dt_to_timestamp(start_datetime)/1e6)
+                end = int(util.dt_to_timestamp(end_datetime)/1e6)
+                trade_history = []
+                import wget, gzip
+                gzip_file = wget.download("http://api.bitcoincharts.com/v1/csv/bitstampUSD.csv.gz", out="/tmp", bar=None)
 
-            with gzip.GzipFile(gzip_file, "r") as f:
-                for row in f:
-                    timestamp_str, price_str, quantity_str = row.split(',')
-                    if int(timestamp_str) > end:
-                        break
-                    if int(timestamp_str) < start:
-                        continue
+                with gzip.GzipFile(gzip_file, "r") as f:
+                    for row in f:
+                        timestamp_str, price_str, quantity_str = row.split(',')
+                        if int(timestamp_str) > end:
+                            break
+                        if int(timestamp_str) < start:
+                            continue
 
-                    trade_history.append({'contract': 'BTC/USD',
-                                          'price': float(price_str),
-                                          'timestamp': int(int(timestamp_str) * 1e6),
-                                          'quantity': float(quantity_str)
-                             })
+                        trade_history.append({'contract': 'BTC/USD',
+                                              'price': float(price_str),
+                                              'timestamp': int(int(timestamp_str) * 1e6),
+                                              'quantity': float(quantity_str)
+                                 })
+
+                return trade_history
+
+            trade_history = yield deferToThread(_get_history, start_datetime, end_datetime)
+            log.msg("Got BTC/USD history")
             ohlcv_history = util.trade_history_to_ohlcv(trade_history, period=period)
         else:
             ohlcv_history = yield exchange.getOHLCVHistory(ticker, period=period, start_datetime=start_datetime,
@@ -890,6 +894,9 @@ class Trader():
 
         self.valuation.trader = self
         self.state.trader = self
+        self.rounded_params = {}
+        self.rounded = {}
+
         self.looping_call = task.LoopingCall(self.loop)
 
         fsm = FSM("DISCONNECTED", None)
@@ -1321,7 +1328,7 @@ if __name__ == "__main__":
 
     modules = dict(config.items("modules"))
 
-    def load(path):
+    def load_module(path):
         module_name, class_name = path.rsplit(".", 1)
         mod = __import__(module_name)
         for component in module_name.split(".")[1:]:
@@ -1329,9 +1336,9 @@ if __name__ == "__main__":
         klass = getattr(mod, class_name)
         return klass
 
-    target_class = load(modules['target'])
-    source_class = load(modules['source'])
-    fiat_class = load(modules['fiat'])
+    target_class = load_module(modules['target'])
+    source_class = load_module(modules['source'])
+    fiat_class = load_module(modules['fiat'])
 
     source_connection = dict(config.items("source_connection"))
     target_connection = dict(config.items("target_connection"))
@@ -1355,7 +1362,7 @@ if __name__ == "__main__":
                 fiat_exchange=fiat_exchange,
                 source_ticker=tickers['source'],
                 target_ticker=tickers['target'],
-                btc_ticker=tickers['BTC'],
+                btc_ticker=tickers['btc'],
                 **data_params)
 
     state = State(data)
@@ -1363,8 +1370,11 @@ if __name__ == "__main__":
     def to_float_dict(d):
         return {key: float(value) for key, value in d}
 
-    target_balance_source = to_float_dict(config.items("target_balance_source"))
-    target_balance_target = to_float_dict(config.items("target_balance_target"))
+    def key_upper(d):
+        return {key.upper(): value for key, value in d.iteritems()}
+
+    target_balance_source = key_upper(to_float_dict(config.items("target_balance_source")))
+    target_balance_target = key_upper(to_float_dict(config.items("target_balance_target")))
 
     valuation_params = to_float_dict(config.items("valuation"))
 
