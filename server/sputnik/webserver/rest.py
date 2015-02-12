@@ -62,6 +62,7 @@ class RESTProxy(Resource, Plugin):
             if user is not None:
                 break
         else:
+            request.setResponseCode(403)
             raise RestException("exceptions/rest/not_authorized")
 
         now = datetime.utcnow()
@@ -73,20 +74,24 @@ class RESTProxy(Resource, Plugin):
         signature = signature.upper()
 
         if len(actual) != len(signature):
+            request.setResponseCode(403)
             raise RestException("exceptions/rest/not_authorized")
         valid = True
         for i in range(len(actual)):
             if actual[i] != signature[i]:
                 valid = False
         if not valid:
+            request.setResponseCode(403)
             raise RestException("exceptions/rest/not_authorized")
 
         nonce = auth.get("nonce")
         if nonce is None:
+            request.setResponseCode(403)
             raise RestException("exceptions/rest/invalid_nonce")
 
         nonce_valid = yield self.administrator.proxy.check_and_update_api_nonce(user['username'], nonce)
         if not nonce_valid:
+            request.setResponseCode(403)
             raise RestException("exceptions/rest/not_authorized")
 
         returnValue({'authid': user['username']})
@@ -96,12 +101,14 @@ class RESTProxy(Resource, Plugin):
         try:
             parsed_data = json.loads(data)
         except ValueError as e:
+            request.setResponseCode(400)
             raise RestException("exceptions/rest/invalid_json", *e.args)
 
         auth = parsed_data.get("auth")
 
         uri = '.'.join(request.postpath)
         if uri not in self.procs or uri in self.blocked_procs:
+            request.setResponseCode(400)
             raise RestException("exceptions/rest/no_such_function", uri)
 
         kwargs = parsed_data.get("payload") or {}
