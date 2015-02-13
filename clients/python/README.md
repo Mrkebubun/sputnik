@@ -2,7 +2,7 @@
 
 Use all code herein at your own risk!
 
-## ILP
+## International Liquidity Pool
 
 The ILP is a marketmaker to augment liquidity in Sputnik exchanges by taking liquidity from non-Sputnik exchanges
 and pooling liquidity among Sputnik exchanges.
@@ -14,7 +14,7 @@ in a single contract.
 
 ```
 git clone https://github.com/MimeticMarkets/sputnik
-sudo apt-get install python-setuptools
+sudo apt-get install python-pip
 sudo pip install Twisted
 sudo pip install autobahn
 sudo pip install treq
@@ -25,7 +25,7 @@ cd sputnik/clients/python
 
 ### Configuration
 
-In `ilp_example_config` there are sample configuration files. Copy one of these to `ilp.ini`
+In `ilp_example_config` there are sample configuration files. Copy one of these to `ilp.ini` and edit as needed.
 
 #### modules
 
@@ -35,15 +35,19 @@ to implement the entire interface documented below.
 
 #### source_connection / target_connection
 
-endpoint: The API endpoint
-id: the client_id/username/api_key
-secret: the client password/api_secret
+|Key|Description|
+|---|-----------|
+|endpoint|The API endpoint|
+|id|the client_id/username/api_key|
+|secret|the client password/api_secret|
 
 #### tickers
 
-source: The fiat currency at the source exchange
-target: The fiat currency at the target exchange
-btc: the ticker for bitcoin
+|Key|Description|
+|---|-----------|
+|source|The fiat currency at the source exchange|
+|target|The fiat currency at the target exchange|
+|btc|the ticker for bitcoin|
 
 #### target_balance_source / target_balance_target
 
@@ -52,28 +56,35 @@ want to hold (denominated in their respective currencies)
 
 #### valuation
 
-deviation_penalty: How much do we want to punish deviating from our target balances (dimensionless factor)
-risk_aversion: How afraid are we of volatility (unit: 1/source-currency)
+|Key|Description|
+|---|-----------|
+|deviation_penalty|How much do we want to punish deviating from our target balances (dimensionless factor)|
+|risk_aversion|How afraid are we of volatility (unit: 1/source-currency)|
 
 #### data
 
 Costs here can be artificially inflated if deemed appropriate.
 
-fiat_exchange_cost: fixed, variable costs of transferring fiat source<->target (fixed cost in source currency)
-fiat_exchange_delay: delay of a fiat transfer in seconds (not used)
-source_fee: fixed, variable costs of executing a trade on source exchange
-target_fee: fixed, variable costs of executing a trade on fiat exchange
-btc_fee: btc network transaction fee
-btc_delay: delay of a bitcoin transfer in seconds (not used)
-variance_period: "day" (only 'day' is supported) - what is the timeframe used to calculate variance
-variance_window: "month" (only 'month' is supported) - how far to look back to calculate variance
+|Key|Description|
+|---|-----------|
+|fiat_exchange_cost|fixed, variable costs of transferring fiat source<->target (fixed cost in source currency)|
+|fiat_exchange_delay|delay of a fiat transfer in seconds (not used)|
+|source_fee|fixed, variable costs of executing a trade on source exchange|
+|target_fee|fixed, variable costs of executing a trade on fiat exchange|
+|btc_fee|btc network transaction fee|
+btc_delay|delay of a bitcoin transfer in seconds (not used)|
+|variance_period|"day" (only 'day' is supported) - what is the timeframe used to calculate variance|
+|variance_window|"month" (only 'month' is supported) - how far to look back to calculate variance|
 
 #### trader
-quote_size: What are the size of our quotes (in BTC)
-out_address: what is the address to which we transfer the source currency out of the system
-edge_to_enter: in source currency
-edge_to_leave: in source currency. edge_to_leave < edge_to_enter
-period: period in seconds at which the trader runs its loop of checking status, optimizing, making trades, updating quotes
+
+|Key|Description|
+|---|-----------|
+|quote_size|What are the size of our quotes (in BTC)|
+|out_address|what is the address to which we transfer the source currency out of the system|
+|edge_to_enter|in source currency|
+|edge_to_leave|in source currency. edge_to_leave < edge_to_enter|
+|period|period in seconds at which the trader runs its loop of checking status, optimizing, making trades, updating quotes|
 
 ### Running
 
@@ -98,7 +109,7 @@ Click "STOP" to stop trading. Trader page will say "READY". The optimizer will c
 
 ## General Client Interface
 
-The clients to each different exchange expose the same API. They return Twisted `Deferred`s. 
+The clients to each different exchange expose the same API. They return Twisted `Deferred` objects. 
 
 Some APIs don't support certain calls. In those cases they will raise `NotImplementedError`
 
@@ -106,7 +117,7 @@ In order to support the ILP, the exchange client must expose all these API calls
 of deposit and withdrawal functions, the ILP handles `NotImplementedError` and pushes
 the requested deposit/withdrawal up for manual intervention.
 
-In these calls values are returned as `Decimal`, not as integers like in the Sputnik API on the wire.
+In these calls values are passed and returned as `Decimal`, not as integers like in the Sputnik API on the wire.
 
 ### Constructor
 
@@ -151,8 +162,6 @@ exchange.requestWithdrawal(ticker, amount, address)
 ```
 
 Request a withdrawal of `amount` of `ticker` to be sent to `address`
-
-Returns ?
 
 ### placeOrder
 
@@ -218,9 +227,3 @@ When the exchange gets connected, this event is called with the exchange class a
 #### disconnect
 
 When the exchange gets disconnected, this event is called with the exchange class as the only argument
-
-## Specific Client Notes
-
-### Sputnik
-
-### CoinSetter
