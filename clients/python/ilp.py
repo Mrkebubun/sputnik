@@ -1319,6 +1319,38 @@ class ILPServer(Resource):
         d.addCallback(_cb)
         return NOT_DONE_YET
 
+from twisted.internet.defer import succeed, fail
+from twisted.cred.error import UnauthorizedLogin
+from twisted.cred.credentials import IUsernamePassword
+from twisted.cred.portal import IRealm, Portal
+from twisted.web.resource import IResource
+from twisted.web.guard import BasicCredentialFactory, HTTPAuthSessionWrapper
+from twisted.web.static import File
+
+
+class PublicHTMLRealm(object):
+    def __init__(self, resource):
+        self._resource = resource
+
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        if IResource in interfaces:
+            return (IResource, self._resource, lambda: None)
+        raise NotImplementedError()
+
+
+class PasswordDictCredentialChecker(object):
+    credentialInterfaces = (IUsernamePassword,)
+
+    def __init__(self, passwords):
+        self.passwords = passwords
+
+    def requestAvatarId(self, credentials):
+        matched = self.passwords.get(credentials.username, None)
+        if matched and matched == credentials.password:
+            return succeed(credentials.username)
+        else:
+            return fail(UnauthorizedLogin("Invalid username or password"))
+
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
@@ -1408,8 +1440,33 @@ if __name__ == "__main__":
     server = ILPServer(state, valuation, data, trader)
     root = File("./ilp")
     root.putChild('api', server)
-    site = Site(root)
-    reactor.listenTCP(9304, site)
+
+    passwords = dict(config.items("users"))
+
+    portal = Portal(PublicHTMLRealm(root),
+                    [PasswordDictCredentialChecker(passwords)])
+    credentialFactory = BasicCredentialFactory("International Liquidity Pool")
+    wrapper = HTTPAuthSessionWrapper(portal, [credentialFactory])
+
+    site = Site(wrapper)
+
+    from twisted.internet.endpoints import serverFromString, quoteStringArgument
+    port = config.getint("webserver", "port")
+    if config.getboolean("webserver", "ssl"):
+        key = config.get("webserver", "ssl_key")
+        cert = config.get("webserver", "ssl_cert")
+        cert_chain = config.get("webserver", "ssl_cert_chain")
+        # TODO: Add dhparameters
+        # See https://twistedmatrix.com/documents/14.0.0/core/howto/endpoints.html
+        server = serverFromString(reactor, b"ssl:%d:privateKey=%s:certKey=%s:extraCertChain=%s:sslmethod=TLSv1_METHOD"
+                                  % (port,
+                                     quoteStringArgument(key),
+                                     quoteStringArgument(cert),
+                                     quoteStringArgument(cert_chain)))
+    else:
+        server = serverFromString(reactor, b"tcp:%d" % port)
+
+    server.listen(site)
     trader.start().addErrback(log.err)
 
     reactor.run()

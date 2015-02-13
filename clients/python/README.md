@@ -86,6 +86,26 @@ btc_delay|delay of a bitcoin transfer in seconds (not used)|
 |edge_to_leave|in source currency. edge_to_leave < edge_to_enter|
 |period|period in seconds at which the trader runs its loop of checking status, optimizing, making trades, updating quotes|
 
+#### webserver
+
+How to configure the web interface
+
+|Key|Description|
+|---|-----------|
+|ssl|true/false, whether or not to use SSL. If SSL is enabled, we have to configure keys and certs|
+|port|Which port to run on|
+|ssl_key|Path to the SSL private key|
+|ssl_cert|Path to the SSL cert|
+|ssl_cert_chain|Path to the SSL certificate chain|
+
+#### users
+
+users who have access to the web interface
+
+Keys are usernames, values are their passwords, in cleartext
+
+BE SURE TO EDIT THE SAMPLE CONFIG AND REMOVE THE DEFAULT `admin` USER
+
 ### Running
 
 ```
@@ -100,7 +120,8 @@ When the ILP is fully initialized, the trader page will say "READY".
 
 When "READY" the optimizer will run every period, so the operator can check the "Optimized" page to
 see the results, modify parameters and see the consequences of changing parameters without any
-trades being placed.
+trades being placed. After changing parameters, click the 'UPDATE' button at the top to push them
+to the ILP.
 
 Click "START" to start trading. Trader page will say "TRADING". Quotes will be placed, transfers will be executed.
 
