@@ -1,4 +1,5 @@
-*.pickle
-*.pyc
-ilp.ini
 client.ini
+ilp.ini
+*.pickle
+*.tmp
+*.pyc
