@@ -29,10 +29,8 @@ import sys
 from pprint import pprint, pformat
 import logging
 from datetime import datetime, timedelta
-import random
 import string
 from ConfigParser import ConfigParser
-from os import path
 from decimal import Decimal
 
 from twisted.python import log
@@ -1005,22 +1003,22 @@ class SputnikRest(SputnikMixin, EventEmitter):
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                         level=logging.INFO)
-
-    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        debug = True
-    else:
-        debug = False
-
     log.startLogging(sys.stdout)
+
+    import argparse
+    parser = argparse.ArgumentParser(description="Run sputnik client")
+    parser.add_argument("-c", "--config", dest="config", action="store",
+                        help="Configuration file", default="client.ini")
+    parser.add_argument("--debug", dest="debug", action="store_true",
+                        help="Enable debugging output", default=False)
+    args = parser.parse_args()
     config = ConfigParser()
-    config_file = path.abspath(path.join(path.dirname(__file__),
-            "./client.ini"))
-    config.read(config_file)
+    config.read(args.config)
 
     params = dict(config.items("sputnik"))
 
     if params['endpoint'].startswith("ws"):
-        sputnik = Sputnik(**params)
+        sputnik = Sputnik(debug=args.debug, **params)
     else:
         sputnik = SputnikRest(**params)
 

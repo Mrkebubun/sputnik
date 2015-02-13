@@ -31,17 +31,11 @@ import json
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.error import ConnectError
 from twisted.internet import reactor, task
-from twisted.python import log, failure
-import string
-import hmac
-import hashlib
-import time
+from twisted.python import log
 from decimal import Decimal
 from pprint import pprint
 from datetime import datetime, timedelta
 from pyee import EventEmitter
-from ConfigParser import ConfigParser
-from os import path
 
 class CoinSetter(EventEmitter):
     def __init__(self, id=None, secret=None, endpoint="https://api.coinsetter.com/v1"):
@@ -60,7 +54,7 @@ class CoinSetter(EventEmitter):
                 'password': self.password,
                 'ipAddress': self.ip
                 }
-        session = yield self.post("clientSession", data=data)
+        session = yield self.post("/clientSession", data=data)
         self.session_id = session['uuid']
         self.customer_id = session['customerUuid']
 
@@ -75,7 +69,7 @@ class CoinSetter(EventEmitter):
     @inlineCallbacks
     def call_heartbeat(self):
         try:
-            result = yield self.put("clientSession/%s" % self.session_id, params={'action': 'HEARTBEAT'})
+            result = yield self.put("/clientSession/%s" % self.session_id, params={'action': 'HEARTBEAT'})
             if result['message'] != "OK":
                 raise Exception("Heartbeat not OK")
         except Exception as e:
@@ -191,20 +185,21 @@ class CoinSetter(EventEmitter):
         new_kwargs = {'headers': headers}
         new_kwargs.update(kwargs)
         if 'data' in kwargs:
-            kwargs['data'] = json.dumps(kwargs['data'])
+            new_kwargs['data'] = json.dumps(kwargs['data'])
 
         try:
-            result = yield treq.request(method, url.encode('utf-8'), **kwargs)
+            result = yield treq.request(method, url.encode('utf-8'), **new_kwargs)
         except (IOError, ConnectError) as e:
             log.err(e)
             self.emit("disconnect", self)
             raise e
 
+        content = yield result.content()
+
         if result.code != 200:
             self.emit("disconnect", self)
             raise Exception("Error code %d received" % result.code)
 
-        content = yield result.content()
         parsed = json.loads(content, parse_float=Decimal)
         returnValue(parsed)
 
@@ -221,9 +216,11 @@ class CoinSetter(EventEmitter):
         return self._call("PUT", call, **kwargs)
 
 if __name__ == "__main__":
+    import argparse
+    from ConfigParser import ConfigParser
     config = ConfigParser()
-    config_file = path.abspath(path.join(path.dirname(__file__),
-            "./client.ini"))
+
+    config_file = config_file
     config.read(config_file)
 
     params = dict(config.items("coinsetter"))

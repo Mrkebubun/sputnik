@@ -964,10 +964,16 @@ class Trader():
     @inlineCallbacks
     def cancel_all_orders(self):
         for id in self.state.source_orders.keys():
-            yield self.source_exchange.cancelOrder(id)
+            try:
+                yield self.source_exchange.cancelOrder(id)
+            except Exception as e:
+                log.err(e)
 
         for id in self.state.target_orders.keys():
-            yield self.target_exchange.cancelOrder(id)
+            try:
+                yield self.target_exchange.cancelOrder(id)
+            except Exception as e:
+                log.err(e)
 
     def get_source_orders(self):
         return self.source_exchange.getOpenOrders()
@@ -1315,14 +1321,18 @@ class ILPServer(Resource):
 
 
 if __name__ == "__main__":
-    log.startLogging(sys.stdout)
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s',
                         level=logging.INFO)
+    log.startLogging(sys.stdout)
 
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run international liquidity pool")
+    parser.add_argument("-c", "--config", dest="config", action="store",
+                        help="Configuration file", default="ilp.ini")
+    args = parser.parse_args()
     config = ConfigParser()
-    config_file = path.abspath(path.join(path.dirname(__file__),
-                                         "./ilp.ini"))
-    config.read(config_file)
+    config.read(args.config)
 
     modules = dict(config.items("modules"))
 

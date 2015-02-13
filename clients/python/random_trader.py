@@ -27,20 +27,14 @@
 
 __author__ = 'sameer'
 
-from collections import deque
 import sys
 import logging
 from ConfigParser import ConfigParser
-from os import path
 
 from twisted.internet import task
 from twisted.python import log
 from twisted.internet import reactor
-from twisted.internet.endpoints import clientFromString
-from autobahn.twisted import websocket
-from autobahn.wamp import types
-
-from sputnik import SputnikSession, BotFactory, Sputnik
+from sputnik import SputnikSession, Sputnik
 
 import random
 
@@ -51,10 +45,10 @@ class RandomBot(SputnikSession):
 
     def startAutomationAfterMarkets(self):
         self.place_orders = task.LoopingCall(self.placeRandomOrder)
-        self.place_orders.start(1 * self.factory.rate)
+        self.place_orders.start(1 * float(self.factory.rate))
 
         self.cancel_orders = task.LoopingCall(self.cancelRandomOrder)
-        self.cancel_orders.start(1 * self.factory.rate)
+        self.cancel_orders.start(1 * float(self.factory.rate))
 
         return True
 
@@ -118,21 +112,22 @@ class RandomBot(SputnikSession):
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s() %(lineno)d:\t %(message)s', level=logging.INFO)
-
-    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        debug = True
-    else:
-        debug = False
-
     log.startLogging(sys.stdout)
+
+    import argparse
+    parser = argparse.ArgumentParser(description="Run sputnik sample randomtrader client")
+    parser.add_argument("-c", "--config", dest="config", action="store",
+                        help="Configuration file", default="client.ini")
+    parser.add_argument("--debug", dest="debug", action="store_true",
+                        help="Enable debugging output", default=False)
+    args = parser.parse_args()
     config = ConfigParser()
-    config_file = path.abspath(path.join(path.dirname(__file__),
-            "./client.ini"))
-    config.read(config_file)
+    config.read(args.config)
+
     params = dict(config.items("sputnik"))
     params.update(dict(config.items("market_maker")))
 
-    sputnik = Sputnik(debug=debug, bot=RandomBot, **params)
+    sputnik = Sputnik(debug=args.debug, bot=RandomBot, **params)
 
     sputnik.on("disconnect", lambda x: reactor.stop())
     sputnik.connect()
