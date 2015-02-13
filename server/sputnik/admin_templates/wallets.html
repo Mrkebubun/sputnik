@@ -74,7 +74,7 @@
 
                     {% if bitgo_auth %}
                         {% if contract.multisig_wallet_address %}
-                            {% if multisigcash[contract.ticker].quantity %}
+                            {% if contract.ticker in multisigcash and multisigcash[contract.ticker].quantity %}
                                 <br/>
                                 Transfer To
                                 <form action="/transfer_from_multisig_wallet" method="POST">
