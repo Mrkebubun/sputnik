@@ -49,8 +49,8 @@ contracts set NETS2015 fees 200
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC lot_size 1000000
-contracts set BTC cold_wallet_address COLD_WALLET
-contracts set BTC multisig_wallet_address MULTISIG_WALLET
+contracts set BTC cold_wallet_address n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj
+contracts set BTC multisig_wallet_address myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000

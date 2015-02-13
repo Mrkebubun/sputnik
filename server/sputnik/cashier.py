@@ -3,8 +3,6 @@
 import json
 import sys, os
 from optparse import OptionParser
-import functools
-
 
 from twisted.web.resource import Resource, ErrorPage
 from twisted.web.server import Site, NOT_DONE_YET
@@ -22,7 +20,7 @@ from accountant import AccountantProxy
 from alerts import AlertsProxy
 import util
 
-from zmq_util import dealer_proxy_sync, router_share_async, pull_share_async, export, ComponentExport
+from zmq_util import router_share_async, pull_share_async, export, ComponentExport
 import models
 import database as db
 from sqlalchemy.orm.exc import NoResultFound
@@ -35,6 +33,8 @@ import markdown
 from util import session_aware
 from exception import *
 from bitgo import BitGo
+from pycoin.key.validate import is_address_valid
+
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename", help="config file")
@@ -50,6 +50,7 @@ INSUFFICIENT_FUNDS = CashierException("exceptions/cashier/insufficient_funds")
 WITHDRAWAL_TOO_LARGE = CashierException("exceptions/cashier/withdrawal_too_large")
 NO_SPUTNIK_WALLET = CashierException("exceptions/cashier/no_sputnik_wallet")
 NO_KEY_FILE = CashierException("exceptions/bitgo/no_key_file")
+INVALID_ADDRESS = CashierException("exceptions/cashier/invalid_address")
 
 class Cashier():
     """
@@ -316,6 +317,10 @@ class Cashier():
 
     @inlineCallbacks
     def send_to_address(self, ticker, address, amount, multisig={}):
+        address_network = is_address_valid(address)
+        if address_network not in ["BTC", "XTN"]:
+            raise INVALID_ADDRESS
+
         contract = util.get_contract(self.session, ticker)
         if not multisig:
             withdrawal_amount = util.quantity_from_wire(contract, amount)

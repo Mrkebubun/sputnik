@@ -18,7 +18,7 @@ class FakeBitcoin(FakeComponent):
 
     def getnewaddress(self):
         self._log_call("getnewaddress")
-        return defer.succeed({'result': "NEW_TEST_ADDRESS"})
+        return defer.succeed({'result': "msj42CCGruhRsFrGATiUuh25dtxYtnpbTx"})
 
     def getreceivedbyaddress(self, address, minimum_confirmations):
         self._log_call("getreceivedbyaddress")
@@ -107,17 +107,17 @@ class TestCashier(TestSputnik):
 class TestWebserverExport(TestCashier):
     def test_get_new_address_already_exists(self):
         self.create_account('test')
-        self.add_address(address="NEW_ADDRESS_EXISTS")
+        self.add_address(address="muXGTbVYgDcLcpetQg777SmbSbRsk4kpqk")
         d = self.webserver_export.get_new_address('test', 'BTC')
 
 
         def onSuccess(new_address):
-            self.assertEqual(new_address, 'NEW_ADDRESS_EXISTS')
+            self.assertEqual(new_address, 'muXGTbVYgDcLcpetQg777SmbSbRsk4kpqk')
 
             from sputnik import models
 
             address = self.session.query(models.Addresses).filter_by(username='test', active=True).one()
-            self.assertEqual(address.address, 'NEW_ADDRESS_EXISTS')
+            self.assertEqual(address.address, 'muXGTbVYgDcLcpetQg777SmbSbRsk4kpqk')
 
         def onFail(failure):
             self.assertFalse(True)
@@ -131,12 +131,12 @@ class TestWebserverExport(TestCashier):
         d = self.webserver_export.get_new_address('test', 'BTC')
 
         def onSuccess(new_address):
-            self.assertEqual(new_address, 'NEW_TEST_ADDRESS')
+            self.assertEqual(new_address, 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx')
 
             from sputnik import models
 
             address = self.session.query(models.Addresses).filter_by(username='test', active=True).one()
-            self.assertEqual(address.address, 'NEW_TEST_ADDRESS')
+            self.assertEqual(address.address, 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx')
 
         def onFail(failure):
             self.assertFalse(True)
@@ -178,12 +178,12 @@ class TestWebserverExport(TestCashier):
         d = self.webserver_export.get_current_address('test', 'BTC')
 
         def onSuccess(current_address):
-            self.assertEqual(current_address, 'NEW_TEST_ADDRESS')
+            self.assertEqual(current_address, 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx')
 
             from sputnik import models
 
             address = self.session.query(models.Addresses).filter_by(username='test', active=True).one()
-            self.assertEqual(address.address, 'NEW_TEST_ADDRESS')
+            self.assertEqual(address.address, 'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx')
 
         def onFail(failure):
             self.assertTrue(False)
@@ -223,19 +223,19 @@ class TestAdministratorExport(TestCashier):
                                                                          'BTC',
                                                                          'credit',
                                                                          1000,
-                                                                         'COLD_WALLET: TXSUCCESS'),
+                                                                         'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS'),
                                                                         {}),
                                                                        ('transfer_position',
                                                                         ('offlinecash',
                                                                          'BTC',
                                                                          'debit',
                                                                          1000,
-                                                                         'COLD_WALLET: TXSUCCESS'),
+                                                                         'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS'),
                                                                         {})]))
             self.assertEqual(self.bitgo.component.log, [])
             self.assertTrue(self.bitcoinrpc['BTC'].check_for_calls([('set_balance', (0.01,), {}),
                                                                     ('getbalance', (), {}),
-                                                                    ('sendtoaddress', ('COLD_WALLET', 1e-05), {})]))
+                                                                    ('sendtoaddress', ('n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj', 1e-05), {})]))
 
 
         def onFail(failure):
@@ -253,19 +253,19 @@ class TestAdministratorExport(TestCashier):
                                                                          'BTC',
                                                                          'credit',
                                                                          1000,
-                                                                         'MULTISIG_WALLET: TXSUCCESS'),
+                                                                         'myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo: TXSUCCESS'),
                                                                         {}),
                                                                        ('transfer_position',
                                                                         ('multisigcash',
                                                                          'BTC',
                                                                          'debit',
                                                                          1000,
-                                                                         'MULTISIG_WALLET: TXSUCCESS'),
+                                                                         'myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo: TXSUCCESS'),
                                                                         {})]))
             self.assertEqual(self.bitgo.component.log, [])
             self.assertTrue(self.bitcoinrpc['BTC'].check_for_calls([('set_balance', (0.01,), {}),
                                                                     ('getbalance', (), {}),
-                                                                    ('sendtoaddress', ('MULTISIG_WALLET', 1e-05), {})]))
+                                                                    ('sendtoaddress', ('myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo', 1e-05), {})]))
 
 
         def onFail(failure):
@@ -285,7 +285,7 @@ class TestAdministratorExport(TestCashier):
                    'BTC',
                    'credit',
                    1000,
-                   u'COLD_WALLET: TXSUCCESS',
+                   u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
                   ),
                   {}),
                  ('transfer_position',
@@ -293,17 +293,17 @@ class TestAdministratorExport(TestCashier):
                    'BTC',
                    'debit',
                    1000,
-                   u'COLD_WALLET: TXSUCCESS',
+                   u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
                   ),
                   {})]))
             self.assertTrue(self.bitgo.component.check_for_calls([('unlock', ('000000',), {})]))
             self.assertEqual(self.bitcoinrpc['BTC'].log, [])
-            d = self.bitgo.wallets.get('MULTISIG_WALLET')
+            d = self.bitgo.wallets.get('myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo')
 
             def _cb(wallet):
                 self.assertTrue(wallet.check_for_calls([('sendCoins',
                                                          (),
-                                                         {'address': u'COLD_WALLET', 'amount': 1000,
+                                                         {'address': u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj', 'amount': 1000,
                                                           'passphrase': u'NULL'})]
                 ))
 
@@ -325,12 +325,12 @@ class TestAdministratorExport(TestCashier):
             self.assertEqual(self.accountant.component.log, [])
             self.assertTrue(self.bitgo.component.check_for_calls([('unlock', ('000000',), {})]))
             self.assertEqual(self.bitcoinrpc['BTC'].log, [('getnewaddress', (), {})])
-            d = self.bitgo.wallets.get('MULTISIG_WALLET')
+            d = self.bitgo.wallets.get('myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo')
 
             def _cb(wallet):
                 self.assertTrue(wallet.check_for_calls([('sendCoins',
                                                          (),
-                                                         {'address': u'NEW_TEST_ADDRESS', 'amount': 1000,
+                                                         {'address': u'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx', 'amount': 1000,
                                                           'passphrase': u'NULL'})]
                 ))
 
@@ -343,15 +343,15 @@ class TestAdministratorExport(TestCashier):
 
         d.addCallbacks(onSuccess, onFail)
     def test_rescan_address_with_deposit(self):
-        self.create_account('test', 'TEST_ADDRESS')
+        self.create_account('test', 'mm2wh34gqqchF2jNqJ7MGXFRrMtMX6pDaA')
         for confirmation in range(0, 6):
-            self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS', 1.23)
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('mm2wh34gqqchF2jNqJ7MGXFRrMtMX6pDaA', 1.23)
 
-        d = self.administrator_export.rescan_address('TEST_ADDRESS')
+        d = self.administrator_export.rescan_address('mm2wh34gqqchF2jNqJ7MGXFRrMtMX6pDaA')
 
         def onSuccess(result):
             self.assertTrue(result)
-            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", 'TEST_ADDRESS', 123000000L), {})]))
+            self.assertTrue(self.accountant.component.check_for_calls([('deposit_cash', ("test", 'mm2wh34gqqchF2jNqJ7MGXFRrMtMX6pDaA', 123000000L), {})]))
 
         def onFail(failure):
             self.assertFalse(True)
@@ -360,11 +360,11 @@ class TestAdministratorExport(TestCashier):
         return d
 
     def test_rescan_address_with_deposit_insufficient_confirms(self):
-        self.create_account('test', 'TEST_ADDRESS_2')
+        self.create_account('test', 'mqJmQC7jP41Gyac5K1dMRQfLCqBWisNpZZ')
         for confirmation in range(0, 5):
-            self.cashier.bitcoinrpc['BTC'].receive_at_address('TEST_ADDRESS_2', 1.23)
+            self.cashier.bitcoinrpc['BTC'].receive_at_address('mqJmQC7jP41Gyac5K1dMRQfLCqBWisNpZZ', 1.23)
 
-        d = self.administrator_export.rescan_address('TEST_ADDRESS_2')
+        d = self.administrator_export.rescan_address('mqJmQC7jP41Gyac5K1dMRQfLCqBWisNpZZ')
 
         def onSuccess(result):
             self.assertTrue(result)
@@ -377,9 +377,9 @@ class TestAdministratorExport(TestCashier):
         return d
 
     def test_rescan_address_with_nodeposit(self):
-        self.create_account('test', 'TEST_ADDRESS_3')
+        self.create_account('test', 'mkoQqsBvwFUUruWPkprTEfcf63mau3Twvp')
 
-        d = self.administrator_export.rescan_address('TEST_ADDRESS_3')
+        d = self.administrator_export.rescan_address('mkoQqsBvwFUUruWPkprTEfcf63mau3Twvp')
 
         def onSuccess(result):
             self.assertTrue(result)
@@ -391,9 +391,32 @@ class TestAdministratorExport(TestCashier):
         d.addCallbacks(onSuccess, onFail)
         return d
 
+    def test_process_withdrawal_bad_address(self):
+        self.create_account('test')
+        d = self.cashier.request_withdrawal('test', 'BTC', 'BAD_ADDRESS', 1000000)
+
+        def onSuccess(withdrawal_id):
+            self.cashier.bitcoinrpc['BTC'].set_balance(0.01)
+
+            d = self.administrator_export.process_withdrawal(withdrawal_id, online=True, admin_username='test_admin')
+            def onFail(failure):
+                self.assertEqual(failure.value.args, ("exceptions/cashier/invalid_address", ))
+
+            def onSuccess(result):
+                self.assertFalse(True)
+
+            d.addCallbacks(onSuccess, onFail)
+            return d
+
+        def onFail(failure):
+            self.assertFalse(True)
+
+        d.addCallbacks(onSuccess, onFail)
+        return d
+
     def test_process_withdrawal_online_have_cash(self):
         self.create_account('test')
-        d = self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+        d = self.cashier.request_withdrawal('test', 'BTC', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 1000000)
 
         def onSuccess(withdrawal_id):
             self.cashier.bitcoinrpc['BTC'].set_balance(0.01)
@@ -409,14 +432,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'BTC',
                                                                    'debit',
                                                                    1000000,
-                                                                   u'WITHDRAWAL_ADDRESS: TXSUCCESS (test_admin)'),
+                                                                   u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   ('onlinecash',
                                                                    u'BTC',
                                                                    'credit',
                                                                    1000000,
-                                                                   'WITHDRAWAL_ADDRESS: TXSUCCESS (test_admin)'),
+                                                                   'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
                                                                   {})]))
                 self.assertFalse(withdrawal.pending)
 
@@ -434,7 +457,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_online_no_cash(self):
         self.create_account('test')
-        d = self.cashier.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+        d = self.cashier.request_withdrawal('test', 'BTC', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 1000000)
 
         def onSuccess(withdrawal_id):
             self.cashier.bitcoinrpc['BTC'].set_balance(0.0)
@@ -465,7 +488,7 @@ class TestAdministratorExport(TestCashier):
     def test_process_withdrawal_online_fiat(self):
         self.create_account('test')
 
-        d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+        d = self.cashier.request_withdrawal('test', 'MXN', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 100000000)
 
         def onSuccess(withdrawal_id):
             from sputnik import cashier
@@ -496,7 +519,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_offline(self):
         self.create_account('test')
-        d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+        d = self.cashier.request_withdrawal('test', 'MXN', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 100000000)
 
         def onSuccess(withdrawal_id):
             d = self.administrator_export.process_withdrawal(withdrawal_id, online=False, admin_username='test_admin')
@@ -510,14 +533,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: offline (test_admin)'),
+                                                                   u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: offline (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   ('offlinecash',
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   'WITHDRAWAL_ADDRESS: offline (test_admin)'),
+                                                                   'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: offline (test_admin)'),
                                                                   {})]))
 
                 self.assertEqual(self.bitcoinrpc['BTC'].component.log, [])
@@ -538,7 +561,7 @@ class TestAdministratorExport(TestCashier):
 
     def test_process_withdrawal_cancel(self):
         self.create_account('test')
-        d = self.cashier.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 100000000)
+        d = self.cashier.request_withdrawal('test', 'MXN', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 100000000)
 
         def onSuccess(withdrawal_id):
             d = self.administrator_export.process_withdrawal(withdrawal_id, cancel=True, admin_username='test_admin')
@@ -552,14 +575,14 @@ class TestAdministratorExport(TestCashier):
                                                                    u'MXN',
                                                                    'debit',
                                                                    100000000,
-                                                                   u'WITHDRAWAL_ADDRESS: cancel (test_admin)'),
+                                                                   u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: cancel (test_admin)'),
                                                                   {}),
                                                                  ('transfer_position',
                                                                   (u'test',
                                                                    u'MXN',
                                                                    'credit',
                                                                    100000000,
-                                                                   'WITHDRAWAL_ADDRESS: cancel (test_admin)'),
+                                                                   'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: cancel (test_admin)'),
                                                                   {})]
                 ))
 
@@ -583,7 +606,7 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_small(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(1.0)
-        d = self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 1000000)
+        d = self.accountant_export.request_withdrawal('test', 'BTC', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 1000000)
 
         def onSuccess(withdrawal_id):
             from sputnik import models
@@ -595,14 +618,14 @@ class TestAccountantExport(TestCashier):
                                                                u'BTC',
                                                                'debit',
                                                                1000000,
-                                                               u'WITHDRAWAL_ADDRESS: TXSUCCESS',),
+                                                               u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS',),
                                                               {}),
                                                              ('transfer_position',
                                                               ('onlinecash',
                                                                u'BTC',
                                                                'credit',
                                                                1000000,
-                                                               'WITHDRAWAL_ADDRESS: TXSUCCESS',),
+                                                               'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS',),
                                                               {})]))
 
         def onFail(failure):
@@ -614,7 +637,7 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_larger(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(1.0)
-        d = self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 50000000)
+        d = self.accountant_export.request_withdrawal('test', 'BTC', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 50000000)
 
         def onSuccess(withdrawal_id):
             from sputnik import models
@@ -639,7 +662,7 @@ class TestAccountantExport(TestCashier):
     def test_request_withdrawal_btc_past_hard_limit(self):
         self.create_account('test')
         self.cashier.bitcoinrpc['BTC'].set_balance(100.0)
-        d = self.accountant_export.request_withdrawal('test', 'BTC', 'WITHDRAWAL_ADDRESS', 120000000)
+        d = self.accountant_export.request_withdrawal('test', 'BTC', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 120000000)
 
         def onSuccess(withdrawal_id):
             from sputnik import models
@@ -663,7 +686,7 @@ class TestAccountantExport(TestCashier):
 
     def test_request_withdrawal_fiat(self):
         self.create_account('test')
-        d = self.accountant_export.request_withdrawal('test', 'MXN', 'WITHDRAWAL_ADDRESS', 1200000)
+        d = self.accountant_export.request_withdrawal('test', 'MXN', 'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M', 1200000)
 
         def onSuccess(withdrawal_id):
             from sputnik import models
