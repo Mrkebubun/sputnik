@@ -76,6 +76,11 @@ btc_delay|delay of a bitcoin transfer in seconds (not used)|
 |variance_period|"day" (only 'day' is supported) - what is the timeframe used to calculate variance|
 |variance_window|"month" (only 'month' is supported) - how far to look back to calculate variance|
 
+#### variance_overrides
+
+Normally on startup the ILP downloads historical data to get variances. This may take a while,
+so we can override that by fixing the variance for a given contract in this section of the configuration.
+
 #### trader
 
 |Key|Description|
@@ -114,7 +119,7 @@ python ilp.py --config ilp.ini
 
 ### Management
 
-Connect to `http://localhost:9304`
+Connect to the webserver host/port specified in the `webserver` portion of the configuration file.
 
 When the ILP is fully initialized, the trader page will say "READY".
 

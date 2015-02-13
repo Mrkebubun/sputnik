@@ -46,21 +46,6 @@ from ConfigParser import ConfigParser
 from os import path
 import logging
 
-def load(klass, file, ignore=[]):
-    # Load from pickle file
-    try:
-        attrs = pickle.load(open(file, "rb"))
-        for key, value in attrs.iteritems():
-            if key not in ignore:
-                setattr(klass, key, value)
-    except Exception as e:
-        log.err("Unable to load")
-        log.err(e)
-
-def save(klass, file):
-    dict = klass.todict()
-    pickle.dump(dict, open(file, "w"))
-
 def todict(klass, params):
     attrs = {}
     for param in params:
@@ -132,8 +117,6 @@ class State():
 
         self.trader = None
 
-        load(self, 'state.pickle', ignore=['source_best_bid', 'source_best_ask', 'fiat_best_bid', 'fiat_best_ask'])
-        self.save()
 
     @inlineCallbacks
     def update(self):
@@ -221,11 +204,7 @@ class State():
         self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
 
         self.timestamp = datetime.utcnow()
-        self.save()
         returnValue(None)
-
-    def save(self):
-        save(self, 'state.pickle')
 
     def todict(self):
         return todict(self, ['fiat_book', 'source_book', 'target_book', 'source_orders',
@@ -584,12 +563,6 @@ class Valuation():
         self.base_params = {}
         self.base = {}
 
-        load(self, 'valuation.pickle')
-        self.save()
-
-    def save(self):
-        save(self, 'valuation.pickle')
-
     def todict(self):
         return todict(self, ['target_balance_source',
                                       'target_balance_target',
@@ -733,7 +706,8 @@ class Valuation():
                           'btc_source_target': x[2],
                           'fiat_source_target': x[3],
                           'trade_source_qty': x[4],
-                          'transfer_source_out': x[5]}
+                          'transfer_source_out': x[5],
+                          'timestamp': util.dt_to_timestamp(datetime.utcnow())}
             self.optimized = self.valuation(params=self.optimized_params)
 
 
@@ -753,7 +727,8 @@ class Data():
                  btc_fee, # fixed_fee
                  btc_delay, # (seconds)
                  variance_period, # "day", "hour", "minute"
-                 variance_window # How many periods to use to calculate variance
+                 variance_window, # How many periods to use to calculate variance
+                 variance_overrides
     ):
 
         # Configurations
@@ -765,6 +740,7 @@ class Data():
         self.btc_ticker = btc_ticker
         self.variance_period = variance_period
         self.variance_window = variance_window
+        self.variance_overrides = variance_overrides
 
         # Outside parameters
         self.fiat_exchange_cost = fiat_exchange_cost
@@ -773,12 +749,6 @@ class Data():
         self.target_fee = target_fee
         self.btc_fee = btc_fee
         self.btc_delay = btc_delay
-
-        load(self, 'data.pickle')
-        self.save()
-
-    def save(self):
-        save(self, 'data.pickle')
 
     def todict(self):
         return todict(self, ['source_ticker', 'target_ticker', 'btc_ticker', 'variance_period',
@@ -820,6 +790,9 @@ class Data():
 
     @inlineCallbacks
     def get_variance(self, ticker, exchange):
+        if ticker in self.variance_overrides:
+            returnValue(self.variance_overrides[ticker])
+
         if self.variance_window == "month":
             now = datetime.utcnow()
             start_datetime = now - relativedelta.relativedelta(months=1)
@@ -909,12 +882,6 @@ class Trader():
         fsm.add_transition("disconnected", "READY", None, "DISCONNECTED")
         fsm.add_transition("disconnected", "TRADING", None, "DISCONNECTED")
         fsm.add_transition("disconnected", "STOPPING", None, "DISCONNECTED")
-
-        load(self, 'trader.pickle', ignore=['fsm'])
-        self.save()
-
-    def save(self):
-        save(self, 'trader.pickle')
 
     def todict(self):
         dict = todict(self, ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period', 'rounded', 'rounded_params'])
@@ -1308,8 +1275,6 @@ class ILPServer(Resource):
                         request.responseCode = 400
                         return str(e)
 
-            object.save()
-
         d = self.valuation.optimize()
         def _cb(result):
             update = self.get_update(request)
@@ -1388,6 +1353,12 @@ if __name__ == "__main__":
 
     tickers = dict(config.items("tickers"))
 
+    def to_float_dict(d):
+        return {key: float(value) for key, value in d}
+
+    def key_upper(d):
+        return {key.upper(): value for key, value in d.iteritems()}
+
     data_params = {'fiat_exchange_cost': json.loads(config.get("data", "fiat_exchange_cost")),
                    'source_fee': json.loads(config.get("data", "source_fee")),
                    'target_fee': json.loads(config.get("data", "target_fee")),
@@ -1395,7 +1366,8 @@ if __name__ == "__main__":
                    'btc_delay': config.getint("data", "btc_delay"),
                    'fiat_exchange_delay': config.getint("data", 'fiat_exchange_delay'),
                    'variance_period': config.get("data", "variance_period"),
-                   'variance_window': config.get("data", "variance_window")}
+                   'variance_window': config.get("data", "variance_window"),
+                   "variance_overrides": key_upper(to_float_dict(config.items("variance_overrides")))}
 
     data = Data(source_exchange=source_exchange,
                 target_exchange=target_exchange,
@@ -1407,11 +1379,6 @@ if __name__ == "__main__":
 
     state = State(data)
 
-    def to_float_dict(d):
-        return {key: float(value) for key, value in d}
-
-    def key_upper(d):
-        return {key.upper(): value for key, value in d.iteritems()}
 
     target_balance_source = key_upper(to_float_dict(config.items("target_balance_source")))
     target_balance_target = key_upper(to_float_dict(config.items("target_balance_target")))

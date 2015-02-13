@@ -1,6 +1,24 @@
 <div class="container">
-    <div class="panel-heading">
-        Last Update: {{format_timestamp(timestamp)}} <button type="button" class="btn btn-default" on-click="post">Update</button>
+    <div class="panel panel-primary">
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-sm-4">
+                    {{format_timestamp(timestamp)}}
+                </div>
+                <div class="col-sm-4 text-center">
+                     <button type="button" class="btn btn-default" on-click="post">Update Parameters</button>
+                </div>
+                <div class="col-sm-4 text-right">
+                    {{trader.fsm.current_state}}
+                    {{#if trader.fsm.current_state == "READY"}}
+                    <a href="#trader" on-click="start">Start</a>
+                    {{/if}}
+                    {{#if trader.fsm.current_state == "TRADING"}}
+                    <a href="#trader" on-click="stop">Stop</a>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
     </div>
     <div role="tabpanel">
         <ul class="nav nav-tabs" role="tablist" id="myTab">
@@ -16,14 +34,8 @@
         <div class="tab-content">
             <div role="tabpanel" class="tab-pane" id="trader">
                 <div class="panel panel-primary">
-                    <div class="panel-heading">Trader {{trader.fsm.current_state}}</div>
+                    <div class="panel-heading">Trader</div>
                     <div class="panel-body">
-                        {{#if trader.fsm.current_state == "READY"}}
-                        <a href="#trader" on-click="start">Start</a>
-                        {{/if}}
-                        {{#if trader.fsm.current_state == "TRADING"}}
-                        <a href="#trader" on-click="stop">Stop</a>
-                        {{/if}}
                         <table id="trader-parameters" class="table table-striped table-hover">
                             <tbody>
                                 <tr>
@@ -313,7 +325,7 @@
             </div>
             <div role="tabpanel" class="tab-pane" id="optimized">
                 <div class="panel panel-primary">
-                    <div class="panel-heading">Optimization</div>
+                    <div class="panel-heading">Optimization {{format_timestamp(valuation.optimized_params.timestamp)}}</div>
                     <div class="panel-body">
                         <table id="optimized_table" class="table table-striped table-hover">
                             <thead>

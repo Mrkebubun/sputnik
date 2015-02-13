@@ -271,11 +271,11 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
         self.factory.emit("connect", self)
 
+    @inlineCallbacks
     def onJoin(self, details):
         log.msg("Joined as %s" % details.authrole)
-        d = self.getMarkets()
-        d.addCallback(lambda x: self.startAutomationAfterMarkets())
-
+        yield self.getMarkets()
+        self.startAutomationAfterMarkets()
         self.startAutomation()
 
         if details.authrole != u'anonymous':
@@ -285,9 +285,8 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
             self.subOrders()
             self.subFills()
             self.subTransactions()
-            self.getOpenOrders()
-            self.getPositions()
-
+            yield self.getOpenOrders()
+            yield self.getPositions()
             self.startAutomationAfterAuth()
 
         self.factory.emit("join", self, details)
@@ -616,18 +615,20 @@ class SputnikSession(wamp.ApplicationSession, SputnikMixin):
 
     def getMarkets(self):
         d = self.call(u"rpc.market.get_markets")
+
+        @inlineCallbacks
         def _onMarkets(event):
             self.markets = event
             if self.markets is not None:
                 for contract, details in self.markets.iteritems():
                     if details['contract_type'] != "cash":
-                        self.getOrderBook(contract)
+                        yield self.getOrderBook(contract)
                         self.subBook(contract)
                         self.subTrades(contract)
                         self.subSafePrices(contract)
                         self.subOHLCV(contract)
 
-            return self.onMarkets(event)
+            returnValue(self.onMarkets(event))
 
         return d.addCallback(_onMarkets).addErrback(self.onError, "getMarkets")
 
@@ -802,6 +803,7 @@ class Sputnik(EventEmitter):
                                           **kwargs)
         self.session_factory.on("connect", self.onConnect)
         self.session_factory.on("disconnect", self.onDisconnect)
+        self.session_factory.on("join", self.onJoin)
         self.session_factory.session = bot
         self.base_uri = endpoint
 
@@ -838,11 +840,9 @@ class Sputnik(EventEmitter):
 
     def onConnect(self, session):
         self.session = session
-        def _onMarkets(markets):
-            SputnikSession.onMarkets(self.session, markets)
-            self.emit("connect", self)
 
-        self.session.onMarkets = _onMarkets
+    def onJoin(self, session, details):
+        self.emit("connect", self)
 
     def onDisconnect(self, session):
         self.emit("disconnect", self)
