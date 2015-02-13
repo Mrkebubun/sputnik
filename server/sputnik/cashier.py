@@ -279,9 +279,11 @@ class Cashier():
 
         uid = util.get_uid()
         note = "%s: %s" % (address, txid)
-        d1=self.accountant.transfer_position('onlinecash', ticker, 'debit', quantity,
+        # CREDIT THE FROM ACCOUNT
+        d1=self.accountant.transfer_position('onlinecash', ticker, 'credit', quantity,
                                           note, uid)
-        d2=self.accountant.transfer_position(to_account, ticker, 'credit', quantity, note, uid)
+        # DEBIT THE TO ACCOUNT
+        d2=self.accountant.transfer_position(to_account, ticker, 'debit', quantity, note, uid)
         yield defer.gatherResults([d1, d2])
         returnValue(txid)
 
@@ -300,8 +302,10 @@ class Cashier():
             # Record the transfer
             uid = util.get_uid()
             note = "%s: %s" % (address, txid)
+            # CREDIT the from account
             d1=self.accountant.transfer_position('multisigcash', ticker, 'credit', quantity,
                                               note, uid)
+            # DEBIT the to account
             d2=self.accountant.transfer_position('offlinecash', ticker, 'debit', quantity, note, uid)
             yield defer.gatherResults([d1, d2])
         else:
