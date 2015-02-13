@@ -1679,8 +1679,7 @@ class AdminWebUI(Resource):
         if token is None:
             raise BITGO_TOKEN_INVALID
 
-        d = self.administrator.initialize_multisig(ticker, public_key, {'token': token,
-                                                                        'otp': request.args['otp'][0]})
+        d = self.administrator.initialize_multisig(ticker, public_key, {'token': token})
         def _cb(result):
             # Reauth to get view and spend permissions on the wallet we just created
             request.write(self.bitgo_oauth_get(request, wallet_id=result))

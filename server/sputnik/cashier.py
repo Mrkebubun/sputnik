@@ -51,6 +51,7 @@ WITHDRAWAL_TOO_LARGE = CashierException("exceptions/cashier/withdrawal_too_large
 NO_SPUTNIK_WALLET = CashierException("exceptions/cashier/no_sputnik_wallet")
 NO_KEY_FILE = CashierException("exceptions/bitgo/no_key_file")
 INVALID_ADDRESS = CashierException("exceptions/cashier/invalid_address")
+OTP_INVALID = CashierException("exceptions/cashier/otp_invalid")
 
 class Cashier():
     """
@@ -346,8 +347,7 @@ class Cashier():
                 yield self.bitgo.unlock(multisig['otp'])
             except Exception as e:
                 log.err("Unable to unlock multisig")
-                log.err(e)
-                raise e
+                raise OTP_INVALID
 
             wallet_id = contract.multisig_wallet_address
             try:
