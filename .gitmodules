@@ -8,3 +8,6 @@
 	url = https://github.com/MimeticMarkets/sputnik.git
 	branch = master
 	checkout = merge
+[submodule "bitgo"]
+	path = bitgo
+	url = https://github.com/MimeticMarkets/bitgo
