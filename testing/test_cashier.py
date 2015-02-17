@@ -50,6 +50,11 @@ class FakeBitcoin(FakeComponent):
         self._log_call("sendtoaddress", address, amount)
         return defer.succeed({'result': "TXSUCCESS"})
 
+    def gettransaction(self, txid):
+        self._log_call("gettransaction", txid)
+        if txid == "TXSUCCESS":
+            return defer.succeed({'result': {'details': [ {'fee': 0.01}]}})
+
     # Utility functions for tester
     def receive_at_address(self, address, amount):
         self._log_call("receive_at_address", address, amount)
@@ -222,6 +227,22 @@ class TestAdministratorExport(TestCashier):
                                                                         ('onlinecash',
                                                                          'BTC',
                                                                          'credit',
+                                                                         1000000L,
+                                                                         u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
+                                                                        ),
+                                                                        {}),
+                                                                       ('transfer_position',
+                                                                        ('customer',
+                                                                         'BTC',
+                                                                         'debit',
+                                                                         1000000L,
+                                                                         u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
+                                                                        ),
+                                                                        {}),
+                                                                       ('transfer_position',
+                                                                        ('onlinecash',
+                                                                         'BTC',
+                                                                         'credit',
                                                                          1000,
                                                                          'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS'),
                                                                         {}),
@@ -284,6 +305,22 @@ class TestAdministratorExport(TestCashier):
                   ('multisigcash',
                    'BTC',
                    'credit',
+                   1000000,
+                   u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
+                   ),
+                  {}),
+                 ('transfer_position',
+                  ('customer',
+                   'BTC',
+                   'debit',
+                   1000000,
+                   u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
+                   ),
+                  {}),
+                 ('transfer_position',
+                  ('multisigcash',
+                   'BTC',
+                   'credit',
                    1000,
                    u'n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj: TXSUCCESS',
                   ),
@@ -322,7 +359,22 @@ class TestAdministratorExport(TestCashier):
                                                                                                           'token': 'TOKEN'})
 
         def onSuccess(result):
-            self.assertEqual(self.accountant.component.log, [])
+            self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
+                                                              ('multisigcash',
+                                                               'BTC',
+                                                               'credit',
+                                                               1000000,
+                                                               'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx: TXSUCCESS',
+                                                              ),
+                                                              {}),
+                                                             ('transfer_position',
+                                                              ('customer',
+                                                               'BTC',
+                                                               'debit',
+                                                               1000000,
+                                                               'msj42CCGruhRsFrGATiUuh25dtxYtnpbTx: TXSUCCESS',
+                                                              ),
+                                                              {})]))
             self.assertTrue(self.bitgo.component.check_for_calls([('unlock', ('000000',), {})]))
             self.assertEqual(self.bitcoinrpc['BTC'].log, [('getnewaddress', (), {})])
             d = self.bitgo.wallets.get('myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo')
@@ -428,19 +480,35 @@ class TestAdministratorExport(TestCashier):
             def onSuccess(txid):
                 withdrawal = self.session.query(models.Withdrawal).filter_by(id=withdrawal_id).one()
                 self.assertTrue(self.accountant.component.check_for_calls([('transfer_position',
-                                                                  ('pendingwithdrawal',
-                                                                   u'BTC',
-                                                                   'debit',
-                                                                   1000000,
-                                                                   u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
-                                                                  {}),
-                                                                 ('transfer_position',
-                                                                  ('onlinecash',
-                                                                   u'BTC',
-                                                                   'credit',
-                                                                   1000000,
-                                                                   'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
-                                                                  {})]))
+                                                                            ('onlinecash',
+                                                                             u'BTC',
+                                                                             'credit',
+                                                                             1000000L,
+                                                                             u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)',
+                                                                             ),
+                                                                            {}),
+                                                                           ('transfer_position',
+                                                                            ('customer',
+                                                                             u'BTC',
+                                                                             'debit',
+                                                                             1000000L,
+                                                                             u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)',
+                                                                             ),
+                                                                            {}),
+                                                                           ('transfer_position',
+                                                                            ('pendingwithdrawal',
+                                                                             u'BTC',
+                                                                             'debit',
+                                                                             1000000,
+                                                                             u'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
+                                                                            {}),
+                                                                           ('transfer_position',
+                                                                            ('onlinecash',
+                                                                             u'BTC',
+                                                                             'credit',
+                                                                             1000000,
+                                                                             'mzJP8hzfZLs8B5Vx3DLfCQ8sJH3ViuJQ5M: TXSUCCESS (test_admin)'),
+                                                                            {})]))
                 self.assertFalse(withdrawal.pending)
 
             def onFail(failure):

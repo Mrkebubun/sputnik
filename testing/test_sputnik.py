@@ -234,7 +234,8 @@ class FakeWallet(FakeComponent):
 
     def sendCoins(self, *args, **kwargs):
         self._log_call("sendCoins", *args, **kwargs)
-        return defer.succeed({'tx': 'TXSUCCESS'})
+        return defer.succeed({'tx': 'TXSUCCESS',
+                              'fee': 1000000})
 
 class FakeWallets(FakeComponent):
     def __init__(self):

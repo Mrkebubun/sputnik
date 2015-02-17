@@ -269,24 +269,38 @@ class Cashier():
             except NoResultFound:
                 log.msg("No position in %s for onlinecash" % ticker)
                 returnValue(None)
-
-            # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
-            if online_cash.position > contract.hot_wallet_limit * 1.1:
-                quantity = online_cash.position - contract.hot_wallet_limit
             else:
-                returnValue(None)
+                # If we exceed the limit by 10%, so we're not always sending small amounts to the cold wallet
+                if online_cash.position > contract.hot_wallet_limit * 1.1:
+                    quantity = online_cash.position - contract.hot_wallet_limit
+                else:
+                    returnValue(None)
 
         log.msg("Transferring %d from hot to %s wallet at %s" % (quantity, destination, address))
-        txid = yield self.send_to_address(ticker, address, quantity)
+        result = yield self.send_to_address(ticker, address, quantity)
+        txid = result['txid']
+
+        # Charge the fee to 'customer'
+        fee = result['fee']
+        fee_uid = util.get_uid()
+        note = "%s: %s" % (address, txid)
+
+        # CREDIT online cash (decrease)
+        fee_d1 = self.accountant.transfer_position('onlinecash', ticker, "credit", fee,
+                                               note, fee_uid)
+
+        # DEBIT the customer (decrease)
+        fee_d2 = self.accountant.transfer_position('customer', ticker, "debit", fee,
+                                                   note, fee_uid)
 
         uid = util.get_uid()
-        note = "%s: %s" % (address, txid)
-        # CREDIT THE FROM ACCOUNT
+
+        # CREDIT THE FROM ACCOUNT (decrease)
         d1=self.accountant.transfer_position('onlinecash', ticker, 'credit', quantity,
                                           note, uid)
-        # DEBIT THE TO ACCOUNT
+        # DEBIT THE TO ACCOUNT (increase)
         d2=self.accountant.transfer_position(to_account, ticker, 'debit', quantity, note, uid)
-        yield defer.gatherResults([d1, d2])
+        yield defer.gatherResults([d1, d2, fee_d1, fee_d2], consumeErrors=True)
         returnValue(txid)
 
     @inlineCallbacks
@@ -299,11 +313,24 @@ class Cashier():
         else:
             raise NotImplementedError
 
-        txid = yield self.send_to_address(ticker, address, quantity, multisig=multisig)
+        result = yield self.send_to_address(ticker, address, quantity, multisig=multisig)
+        txid = result['txid']
+        fee = result['fee']
+
+        # Record fees
+        fee_uid = util.get_uid()
+        note = "%s: %s" % (address, txid)
+
+        # CREDIT the from account
+        fee_d1 = self.accountant.transfer_position('multisigcash', ticker, 'credit', fee, note, fee_uid)
+
+        # DEBIT the customer account
+        fee_d2 = self.accountant.transfer_position('customer', ticker, 'debit', fee, note, fee_uid)
+        yield defer.gatherResults([fee_d1, fee_d2], consumeErrors=True)
+
         if destination == "offlinecash":
             # Record the transfer
             uid = util.get_uid()
-            note = "%s: %s" % (address, txid)
             # CREDIT the from account
             d1=self.accountant.transfer_position('multisigcash', ticker, 'credit', quantity,
                                               note, uid)
@@ -336,6 +363,11 @@ class Cashier():
                 try:
                     result = yield self.bitcoinrpc[ticker].sendtoaddress(address, withdrawal_amount)
                     txid = result['result']
+                    tx = yield self.bitcoinrpc[ticker].gettransaction(txid)
+                    fee = 0
+                    for detail in tx['result']['details']:
+                        fee += long(round(detail['fee'] * contract.denominator))
+
                 except Exception as e:
                     log.err("Unable to send to address: %s" % str(e))
                     raise e
@@ -372,12 +404,14 @@ class Cashier():
                 result = yield wallet.sendCoins(address=address, amount=amount,
                         passphrase=passphrase)
                 txid = result['tx']
+                fee = result['fee']
             except Exception as e:
                 log.err("Unable to sendCoins")
                 log.err(e)
                 raise e
 
-        returnValue(txid)
+        returnValue({'txid': txid,
+                     'fee': fee})
 
     @inlineCallbacks
     def process_withdrawal(self, withdrawal_id, online=False, cancel=False, admin_username=None, multisig={}):
@@ -399,6 +433,7 @@ class Cashier():
         if cancel:
             txid = "cancel"
             to_user = withdrawal.username
+            fee = None
         else:
             if online:
                 # Actually process via the hot or warm wallet
@@ -408,22 +443,35 @@ class Cashier():
                     else:
                         to_user = "multisig"
 
-                    txid = yield self.send_to_address(withdrawal.contract.ticker, withdrawal.address, withdrawal.amount,
+                    result = yield self.send_to_address(withdrawal.contract.ticker, withdrawal.address, withdrawal.amount,
                                                       multisig=multisig)
-
+                    txid = result['txid']
+                    fee = result['fee']
                 else:
                     raise NO_AUTOMATIC_WITHDRAWAL
             else:
+                fee = None
                 txid = "offline"
                 to_user = "offlinecash"
 
         # Notify the accountant
         try:
-            uid = util.get_uid()
             if admin_username is not None:
                 note = "%s: %s (%s)" % (withdrawal.address, txid, admin_username)
             else:
                 note = "%s: %s" % (withdrawal.address, txid)
+
+            # If there was a fee
+            if fee is not None:
+                fee_uid = util.get_uid()
+                fee_d1 = self.accountant.transfer_position(to_user, withdrawal.contract.ticker, 'credit', fee,
+                                                           note, fee_uid)
+                fee_d2 = self.accountant.transfer_position('customer', withdrawal.contract.ticker, 'debit', fee,
+                                                           note, fee_uid)
+                yield defer.gatherResults([fee_d1, fee_d2], consumeErrors=True)
+
+            uid = util.get_uid()
+
 
             d1 = self.accountant.transfer_position('pendingwithdrawal', withdrawal.contract.ticker, 'debit',
                                               withdrawal.amount,
