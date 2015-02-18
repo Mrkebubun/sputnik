@@ -364,9 +364,7 @@ class Cashier():
                     result = yield self.bitcoinrpc[ticker].sendtoaddress(address, withdrawal_amount)
                     txid = result['result']
                     tx = yield self.bitcoinrpc[ticker].gettransaction(txid)
-                    fee = 0
-                    for detail in tx['result']['details']:
-                        fee += long(round(detail['fee'] * contract.denominator))
+                    fee = long(round(tx['result']['fee'] * contract.denominator))
 
                 except Exception as e:
                     log.err("Unable to send to address: %s" % str(e))

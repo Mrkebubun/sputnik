@@ -53,7 +53,7 @@ class FakeBitcoin(FakeComponent):
     def gettransaction(self, txid):
         self._log_call("gettransaction", txid)
         if txid == "TXSUCCESS":
-            return defer.succeed({'result': {'details': [ {'fee': 0.01}]}})
+            return defer.succeed({'result': {'fee': 0.01}})
 
     # Utility functions for tester
     def receive_at_address(self, address, amount):
