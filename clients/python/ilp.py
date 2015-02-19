@@ -117,11 +117,28 @@ class State():
 
         self.trader = None
 
+        self.load_transits()
+
+    def save_transits(self):
+        pickle.dump({'transit_to_source': self.transit_to_source,
+                     'transit_to_target': self.transit_to_target,
+                     'transit_from_source': self.transit_from_source,
+                     'transit_from_target': self.transit_from_target},
+                    open("transits.pickle", "wb"))
+
+    def load_transits(self):
+        try:
+            transits = pickle.load(open("transits.pickle", "rb"))
+            for key, value in transits.iteritems():
+                setattr(self, key, value)
+        except:
+            log.err("Unable to load transits.pickle")
+
 
     @inlineCallbacks
     def update(self):
         last_update = self.timestamp
-        now = datetime.utcnow()
+        self.timestamp = datetime.utcnow()
         fb_d = self.data.get_fiat_book().addErrback(log.err)
         sb_d = self.data.get_source_book().addErrback(log.err)
         tb_d = self.data.get_target_book().addErrback(log.err)
@@ -154,10 +171,10 @@ class State():
         if asks:
             self.offered_ask = min(asks)
 
-        if self.fiat_variance is None or (now - last_update) > timedelta(days=7):
+        if self.fiat_variance is None or (self.timestamp - last_update) > timedelta(days=7):
             self.fiat_variance = yield self.data.get_fiat_variance().addErrback(log.err)
 
-        if self.source_variance is None or (now - last_update) > timedelta(days=7):
+        if self.source_variance is None or (self.timestamp - last_update) > timedelta(days=7):
             self.source_variance = yield self.data.get_source_variance().addErrback(log.err)
 
         # Update transits - remove ones that have arrived
@@ -202,8 +219,8 @@ class State():
         self.transit_to_target = clear_transits(self.transit_to_target, target_deposits, field='to')
         self.transit_from_source = clear_transits(self.transit_from_source, source_withdrawals, field='from')
         self.transit_from_target = clear_transits(self.transit_from_target, target_withdrawals, field='from')
+        self.save_transits()
 
-        self.timestamp = datetime.utcnow()
         returnValue(None)
 
     def todict(self):
@@ -1002,18 +1019,21 @@ class Trader():
 
             try:
                 yield self.btc_transfer(self.rounded_params['btc_source_target'])
+                self.state.save_transits()
             except Exception as e:
                 log.err("Can't transfer BTC")
                 log.err(e)
 
             try:
                 yield self.source_target_fiat_transfer(self.rounded_params['fiat_source_target'])
+                self.state.save_transits()
             except Exception as e:
                 log.err("Can't transfer fiat")
                 log.err(e)
 
             try:
                 yield self.transfer_source_out(self.rounded_params['transfer_source_out'])
+                self.state.save_transits()
             except Exception as e:
                 log.err("Can't transfer fiat out of source")
                 log.err(e)
