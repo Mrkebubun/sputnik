@@ -6,10 +6,10 @@
 $ ->
     $("#initialize_multisig").click (event) ->
         event.preventDefault()
-        bitgo = new Bitcoin.BitGo()
+        bitgo = new Bitcoin.BitGo({{use_production}})
         keychain = bitgo.keychains().create()
-        $("#public_key").text(keychain.xpub)
-        $("#private_key").text(keychain.xprv)
+        $("#public_key").html(keychain.xpub)
+        $("#private_key").html(keychain.xprv)
         $("#public_key_form").val(keychain.xpub)
         $("#multisig_modal").modal()
 
@@ -28,11 +28,28 @@ $ ->
       </div>
       <div class="modal-body">
         <p>Your backup keys have been generated.</p>
-        <p>BE SURE TO SAVE THE FOLLOWING TO A SAFE AND SECURE LOCATION. Your backup private key is not stored
-            anywhere else.</p>
-        <p>Click 'OK' once you have saved these keys to initialize your wallet.</p>
-        <p>Private Key: <span id="private_key"></span></p>
-        <p>Public Key: <span id="public_key"></span></p>
+        <p><strong>BE SURE TO SAVE THE FOLLOWING TO A SAFE AND SECURE LOCATION</strong></p>
+
+          <table class="table">
+              <tr>
+                  <th>
+                      Private Key
+                  </th>
+                  <td><pre><span id="private_key"></span></pre></td>
+              </tr>
+              <tr>
+                  <th>
+                      Public Key
+                  </th>
+                  <td><pre><span id="public_key"></span></pre></td>
+              </tr>
+          </table>
+        <p>Your backup private key will not be stored
+            anywhere else. If you lose it, you will lose the ability to recover your wallet. If your backup private
+            key
+            is stolen,
+            then there is an increased risk that the contents of the wallet itself will be stolen.</p>
+        <p>Click 'OK' once you have saved these keys and your wallet will be initialized.</p>
         <form method="POST" action="/initialize_multisig" id="initialize_multisig_form">
             <input type="hidden" name="public_key" id="public_key_form">
             <input type="hidden" name="contract" value="BTC">

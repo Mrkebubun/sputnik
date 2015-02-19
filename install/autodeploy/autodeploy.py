@@ -616,6 +616,13 @@ class Instance:
             fabric.api.sudo("chown ubuntu wallet.dat")
             fabric.api.get("wallet.dat", join(backup_dir, "wallet.dat"))
             fabric.api.sudo("rm wallet.dat")
+
+            print "\tCopying bitgo.key..."
+            fabric.api.sudo("cp /srv/sputnik/server/keys/bitgo.key .")
+            fabric.api.sudo("chown ubuntu bitgo.key")
+            fabric.api.get("bitgo.key", join(backup_dir, "bitgo.key"))
+            fabric.api.sudo("rm bitgo.key")
+
             print "\tCopying config..."
             fabric.api.get("/srv/sputnik/server/config", backup_dir)
             sys.stdout.write("\tCopying logs (this may take a few minutes)... ")

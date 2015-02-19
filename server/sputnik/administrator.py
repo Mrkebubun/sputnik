@@ -107,7 +107,8 @@ class Administrator:
                  user_limit=500,
                  bitgo=None,
                  bitgo_private_key_file=None,
-                 bs_cache_update_period=86400):
+                 bs_cache_update_period=86400,
+                 testnet=True):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -134,6 +135,7 @@ class Administrator:
         self.bitgo = bitgo
         self.bitgo_private_key_file = bitgo_private_key_file
         self.bitgo_tokens = {}
+        self.testnet = testnet
 
         self.load_bs_cache()
         # Initialize the balance sheet cache
@@ -1755,7 +1757,8 @@ class AdminWebUI(Resource):
             request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
                             offlinecash_addresses=offlinecash_addresses, bitgo_auth=bitgo_auth,
                             debug=self.administrator.component.debug,
-                            multisigcash=multisigcash).encode('utf-8'))
+                            multisigcash=multisigcash,
+                            use_production="false" if self.administrator.component.testnet else "true").encode('utf-8'))
             request.finish()
 
         d = get_addresses()
@@ -2526,7 +2529,7 @@ if __name__ == "__main__":
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
-    bitgo_config = {'use_production': config.getboolean("bitgo", "use_production"),
+    bitgo_config = {'use_production': not config.getboolean("cashier", "testnet"),
                     'client_id': config.get("bitgo", "client_id"),
                     'client_secret': config.get("bitgo", "client_secret")}
 
@@ -2541,7 +2544,8 @@ if __name__ == "__main__":
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update,
                                   bitgo=bitgo,
-                                  bitgo_private_key_file=bitgo_private_key_file)
+                                  bitgo_private_key_file=bitgo_private_key_file,
+                                  testnet=config.getboolean("cashier", "testnet"))
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)

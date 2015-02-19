@@ -62,7 +62,7 @@ class Cashier():
 
     def __init__(self, session, accountant, bitcoinrpc, compropago, cold_wallet_period=None,
                  sendmail=None, template_dir="admin_templates", minimum_confirmations=6, alerts=None,
-                 bitgo=None, bitgo_private_key_file=None):
+                 bitgo=None, bitgo_private_key_file=None, testnet=True):
         """
         Initializes the cashier class by connecting to bitcoind and to the accountant
         also sets up the db session and some configuration variables
@@ -78,6 +78,7 @@ class Cashier():
         self.alerts = alerts
         self.bitgo = bitgo
         self.bitgo_private_key_file = bitgo_private_key_file
+        self.testnet = testnet
         if cold_wallet_period is not None:
             for ticker in self.bitcoinrpc.keys():
                 looping_call = LoopingCall(self.transfer_from_hot_wallet, ticker)
@@ -345,8 +346,12 @@ class Cashier():
 
     @inlineCallbacks
     def send_to_address(self, ticker, address, amount, multisig={}):
-        address_network = is_address_valid(address)
-        if address_network not in ["BTC", "XTN"]:
+        if self.testnet:
+            network = "XTN"
+        else:
+            network = "BTC"
+
+        if is_address_valid(address) != network:
             raise INVALID_ADDRESS
 
         contract = util.get_contract(self.session, ticker)
@@ -795,7 +800,7 @@ if __name__ == '__main__':
     sendmail=Sendmail(config.get("administrator", "email"))
     minimum_confirmations = config.getint("cashier", "minimum_confirmations")
     alerts_proxy = AlertsProxy(config.get("alerts", "export"))
-    bitgo_config = {'use_production': config.getboolean("bitgo", "use_production"),
+    bitgo_config = {'use_production': not config.getboolean("cashier", "testnet"),
                     'client_id': config.get("bitgo", "client_id"),
                     'client_secret': config.get("bitgo", "client_secret")}
     bitgo = BitGo(**bitgo_config)
@@ -807,7 +812,8 @@ if __name__ == '__main__':
                       minimum_confirmations=minimum_confirmations,
                       alerts=alerts_proxy,
                       bitgo=bitgo,
-                      bitgo_private_key_file=bitgo_private_key_file
+                      bitgo_private_key_file=bitgo_private_key_file,
+                      testnet=config.getboolean("cashier", "testnet"),
     )
 
     administrator_export = AdministratorExport(cashier)
