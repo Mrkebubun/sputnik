@@ -40,6 +40,8 @@ from sputnik import SputnikSession, Sputnik
 from yahoo import Yahoo
 from bitstamp import BitStamp
 
+from decimal import Decimal
+
 class MarketMakerBot(SputnikSession):
     external_markets = {}
     yahoo = Yahoo()
@@ -154,9 +156,9 @@ class MarketMakerBot(SputnikSession):
                         total_qty += order['quantity_left']
 
                 if self.markets[ticker]['contract_type'] == "futures":
-                    qty_to_add = 10
+                    qty_to_add = Decimal(10)
                 else:
-                    qty_to_add = 2.5
+                    qty_to_add = Decimal(2.5)
 
                 if qty_to_add > total_qty:
                     if side == 'BUY':
