@@ -34,7 +34,7 @@ from twisted.python import log
 from copy import deepcopy
 import sys
 from decimal import Decimal
-from scipy.optimize import minimize
+from scipy.optimize import minimize, minimize_scalar
 from dateutil import relativedelta
 import numpy as np
 from datetime import timedelta
@@ -289,7 +289,7 @@ class State():
         What are the results if we place a limit order on the target exchange
         and it is executed? Quantity must be greater than 0
         """
-        if self.convert_to_source(self.data.btc_ticker, quantity) > EPSILON:
+        if self.convert_to_source(self.data.btc_ticker, quantity) > EPSILON and price is not None:
             total_spent = quantity * price
             total_bought = quantity
             fee = abs(total_spent * self.data.target_fee[1]) + self.data.target_fee[0]
@@ -468,13 +468,17 @@ class State():
         """
         consequences = self.get_consequences(params, quote_size=quote_size)
 
-        offered_bid = params.get('offered_bid', 0)
-        offered_ask = params.get('offered_ask', 0)
+        offered_bid = params.get('offered_bid', None)
+        offered_ask = params.get('offered_ask', None)
         transfer_source_out = params.get('transfer_source_out', 0)
 
-        if offered_ask < 0 or offered_bid < 0:
+        if offered_ask is not None and offered_ask < 0:
             return False
-        if offered_ask <= offered_bid:
+
+        if offered_bid is not None and offered_bid < 0:
+            return False
+
+        if offered_bid is not None and offered_ask is not None and offered_ask <= offered_bid:
             return False
 
         if transfer_source_out < 0:
@@ -534,8 +538,8 @@ class State():
             raise NotImplementedError
 
     def get_consequences(self, params, quote_size):
-        offered_bid = params.get('offered_bid', 0)
-        offered_ask = params.get('offered_ask', 0)
+        offered_bid = params.get('offered_bid', None)
+        offered_ask = params.get('offered_ask', None)
         btc_source_target = params.get('btc_source_target', 0)
         fiat_source_target = params.get('fiat_source_target', 0)
         trade_source_qty = params.get('trade_source_qty', 0)
@@ -576,21 +580,20 @@ class Valuation():
         self.risk_aversion = risk_aversion
 
         self.optimized_params = {}
-        self.optimized = {}
-        self.base_params = {}
-        self.base = {}
+        self.optimized_bid = {}
+        self.optimized_ask = {}
+
 
     def todict(self):
         return todict(self, ['target_balance_source',
                                       'target_balance_target',
                                       'deviation_penalty',
                                       'risk_aversion',
-                                      'base_params', 'base',
-                                      'optimized_params', 'optimized'])
+                                      'optimized_params', 'optimized_bid', 'optimized_ask'])
 
     # [ offered_bid, offered_ask, BTC source<->target (+ means move to source), Fiat source<->target,
     #   trade_source_qty, transfer_source_out ]
-    def valuation(self, params={}):
+    def valuation(self, params={}, overrides={}):
         # Get current balances
 
         source_source_balance = float(self.state.total_balance_source[self.data.source_ticker]['position'])
@@ -628,8 +631,8 @@ class Valuation():
             if balance < 0:
                 return float('inf')
             critical_min = 0.25 * target
-            min_bal = 0.75 * target
-            max_bal = 1.25 * target
+            min_bal = 0.60 * target
+            max_bal = 1.40 * target
             critical_max = 5 * target
             penalty = max(0, critical_min - balance) * 10 + max(0, min_bal - balance) * 3 + max(0, balance - max_bal) * 1 + max(0, balance - critical_max) * 3
             return penalty
@@ -640,7 +643,10 @@ class Valuation():
             self.state.convert_to_source(self.data.target_ticker, get_penalty(target_target_balance, target_target_target)) + \
             self.state.convert_to_source(self.data.btc_ticker, get_penalty(target_btc_balance, target_btc_target))
 
-        deviation_penalty_in_source *= self.deviation_penalty
+        if 'deviation_penalty' in overrides:
+            deviation_penalty_in_source *= overrides['deviation_penalty']
+        else:
+            deviation_penalty_in_source *= self.deviation_penalty
 
         # Market Risk
         market_risk_in_source = self.risk_aversion * \
@@ -667,66 +673,100 @@ class Valuation():
     @inlineCallbacks
     def optimize(self):
             yield self.state.update()
-            self.base_params = {}
+            timestamp = util.dt_to_timestamp(datetime.utcnow())
 
-            base_bid = self.state.source_best_bid / self.state.fiat_best_ask
-            base_ask = self.state.source_best_ask / self.state.fiat_best_bid
-            if base_ask == float('inf'):
-                base_ask = sys.float_info.max
+            # Get optimal transfers
 
-            if self.state.offered_bid is not None:
-                self.base_params['offered_bid'] = float(self.state.offered_bid)
-            else:
-                self.base_params['offered_bid'] = base_bid
-
-            if self.state.offered_ask is not None:
-                self.base_params['offered_ask'] = float(self.state.offered_ask)
-            else:
-                self.base_params['offered_ask'] = base_ask
-
-            self.base = self.valuation(params=self.base_params)
             def negative_valuation(x):
-                params = {'offered_bid': x[0],
-                          'offered_ask': x[1],
-                          'btc_source_target': x[2],
-                          'fiat_source_target': x[3],
-                          'trade_source_qty': x[4],
-                          'transfer_source_out': x[5]}
+                params = {'btc_source_target': x[0],
+                          'fiat_source_target': x[1],
+                          'trade_source_qty': x[2],
+                          'transfer_source_out': x[3]}
                 ret = self.valuation(params=params)
                 return -ret['value']
 
 
             def constraint(x):
-                params = {'offered_bid': x[0],
-                          'offered_ask': x[1],
-                          'btc_source_target': x[2],
-                          'fiat_source_target': x[3],
-                          'trade_source_qty': x[4],
-                          'transfer_source_out': x[5]}
+                params = {'btc_source_target': x[0],
+                          'fiat_source_target': x[1],
+                          'trade_source_qty': x[2],
+                          'transfer_source_out': x[3]}
                 if self.state.constraint_fn(params, quote_size=float(self.trader.quote_size)):
                     return 1
                 else:
                     return -1
 
-            x0 = np.array([base_bid, base_ask, 0, 0, 0, 0])
-            log.msg("Optimizing...")
+            x0 = np.array([0, 0, 0, 0])
+            log.msg("Optimizing transfers")
             res = yield deferToThread(minimize, negative_valuation, x0, method='COBYLA',
-                           constraints={'type': 'ineq',
-                                         'fun': constraint},
-                           tol=1e-2,
-                           options={'disp': True,
-                                    'maxiter': 100,
-                                    })
+                            constraints={'type': 'ineq',
+                                          'fun': constraint},
+                            tol=1e-2,
+                            options={'disp': True,
+                                     'maxiter': 100,
+                                     })
             x = res.x
-            self.optimized_params =  {'offered_bid': x[0],
-                          'offered_ask': x[1],
-                          'btc_source_target': x[2],
-                          'fiat_source_target': x[3],
-                          'trade_source_qty': x[4],
-                          'transfer_source_out': x[5],
-                          'timestamp': util.dt_to_timestamp(datetime.utcnow())}
-            self.optimized = self.valuation(params=self.optimized_params)
+            #x = x0
 
+            self.optimized_params =  {
+                          'fair_price': self.optimized_params.get('fair_price', None),
+                          'btc_source_target': x[0],
+                          'fiat_source_target': x[1],
+                          'trade_source_qty': x[2],
+                          'transfer_source_out': x[3]}
+
+            base_bid = self.state.source_best_bid / self.state.fiat_best_ask
+            base_ask = self.state.source_best_ask / self.state.fiat_best_bid
+
+            # Get the fair_price
+            from copy import copy
+
+            def bid_params(x):
+                bp = copy(self.optimized_params)
+                bp['offered_bid'] = x
+                return bp
+
+            def ask_params(x):
+                ap = copy(self.optimized_params)
+                ap['offered_ask'] = x
+                return ap
+
+            def fair_price_valuation(x):
+                bid_value = self.valuation(bid_params(x))
+                ask_value = self.valuation(ask_params(x))
+                val = abs(bid_value['value'] - ask_value['value'])
+                return val
+
+            log.msg("Optimizing fair price")
+            bounds = [base_bid/2, base_ask*2]
+
+            def save_plots():
+                xrange = range(int(bounds[0]), int(bounds[1]), int((bounds[1]-bounds[0])/10))
+                bid_valuations = [self.valuation(bid_params(x)) for x in xrange]
+                ask_valuations = [self.valuation(ask_params(x)) for x in xrange]
+                import matplotlib.pyplot as plt
+
+                for key in ['deviation_penalty', 'cash_value_in_source', 'market_risk_in_source',
+                            'value', 'target_target_balance', 'target_btc_balance']:
+                    plt.plot(xrange, [v[key] for v in bid_valuations], 'r', label='bid')
+                    plt.plot(xrange, [v[key] for v in ask_valuations], 'b', label='ask')
+                    plt.ylabel(key)
+                    plt.savefig('ilp/%s_%d.png' % (key, timestamp), dpi=50)
+                    plt.clf()
+
+            yield deferToThread(save_plots)
+
+            res = yield deferToThread(minimize_scalar, fair_price_valuation, bounds=bounds, method='bounded',
+                                      tol=1e-2)
+            fair_price = res.x
+            if fair_price >= base_ask * 1.9 or fair_price <= base_bid / 1.9:
+                fair_price = None
+
+
+            self.optimized_params['timestamp'] = timestamp
+            self.optimized_params['fair_price'] = fair_price
+            self.optimized_bid = self.valuation(params=bid_params(fair_price))
+            self.optimized_ask = self.valuation(params=ask_params(fair_price))
 
 
 class Data():
@@ -883,7 +923,6 @@ class Trader():
         self.valuation.trader = self
         self.state.trader = self
         self.rounded_params = {}
-        self.rounded = {}
 
         self.looping_call = task.LoopingCall(self.loop)
 
@@ -901,7 +940,7 @@ class Trader():
         fsm.add_transition("disconnected", "STOPPING", None, "DISCONNECTED")
 
     def todict(self):
-        dict = todict(self, ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period', 'rounded', 'rounded_params'])
+        dict = todict(self, ['quote_size', 'out_address', 'edge_to_enter', 'edge_to_leave', 'period', 'rounded_params'])
         dict['fsm'] = { 'current_state': self.fsm.current_state }
         return dict
 
@@ -982,9 +1021,6 @@ class Trader():
             log.err(e)
             return
 
-        base_value = self.valuation.base['value']
-        base_params = self.valuation.base_params
-
         optimized_params = self.valuation.optimized_params
        #
        # 1) recalculate the exact quotes you would like to have
@@ -994,19 +1030,16 @@ class Trader():
        # 5) if your new quote is more conservative than the old quote, only replace the old quote if its edge is less than the edge_to_leave
 
         # Round optimized results
-        self.rounded_params = {'offered_bid': self.target_exchange.round_bid(self.data.target_exchange_ticker, optimized_params['offered_bid']),
-                          'offered_ask': self.target_exchange.round_ask(self.data.target_exchange_ticker, optimized_params['offered_ask']),
+        self.rounded_params = {'fair_price': self.target_exchange.round_price(self.data.target_exchange_ticker, optimized_params['fair_price']),
                           'btc_source_target': self.round_btc(optimized_params['btc_source_target']),
                           'fiat_source_target': self.round_source(optimized_params['fiat_source_target']),
                           'trade_source_qty': self.round_btc(optimized_params['trade_source_qty']),
                           'transfer_source_out': self.round_source(optimized_params['transfer_source_out'])}
-        rp_as_floats = {key: float(value) for key, value in self.rounded_params.iteritems()}
-        self.rounded = self.valuation.valuation(rp_as_floats)
 
 
         if self.fsm.current_state == "TRADING":
             try:
-                yield self.update_offers(optimized_params['offered_bid'], optimized_params['offered_ask'])
+                yield self.update_offers(optimized_params['fair_price'])
             except Exception as e:
                 log.err("Can't update offers")
                 log.err(e)
@@ -1184,13 +1217,19 @@ class Trader():
                                 'destination': 'OUT'})
 
     @inlineCallbacks
-    def update_offers(self, bid, ask):
-        edge_to_enter_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_enter)
-        edge_to_leave_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_leave)
-        bid_to_leave = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_leave_in_target)
-        bid_to_enter = self.target_exchange.round_bid(self.data.target_exchange_ticker, bid - edge_to_enter_in_target)
-        ask_to_leave = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_leave_in_target)
-        ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, ask + edge_to_enter_in_target)
+    def update_offers(self, fair_price):
+        if fair_price is None:
+            bid_to_leave = Decimal('0')
+            bid_to_enter = Decimal('0')
+            ask_to_leave = Decimal('Infinity')
+            ask_to_enter = Decimal('Infinity')
+        else:
+            edge_to_enter_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_enter)
+            edge_to_leave_in_target = self.state.convert_to_target(self.data.source_ticker, self.edge_to_leave)
+            bid_to_leave = self.target_exchange.round_bid(self.data.target_exchange_ticker, fair_price - edge_to_leave_in_target)
+            bid_to_enter = self.target_exchange.round_bid(self.data.target_exchange_ticker, fair_price - edge_to_enter_in_target)
+            ask_to_leave = self.target_exchange.round_ask(self.data.target_exchange_ticker, fair_price + edge_to_leave_in_target)
+            ask_to_enter = self.target_exchange.round_ask(self.data.target_exchange_ticker, fair_price + edge_to_enter_in_target)
 
         ticker = self.data.target_exchange_ticker
         my_orders = [order for order in self.state.target_orders.values() if order['contract'] == ticker]
