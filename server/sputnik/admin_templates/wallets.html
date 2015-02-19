@@ -1,10 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Wallets{% endblock %}
 {% block coffeescript %}
+<script src="https://m2.io/js/BitGoJS-min.js"></script>
+<script type="text/coffeescript">
+$ ->
+    $("#initialize_multisig").click (event) ->
+        event.preventDefault()
+        bitgo = new Bitcoin.BitGo()
+        keychain = bitgo.keychains().create()
+        $("#public_key").text(keychain.xpub)
+        $("#private_key").text(keychain.xprv)
+        $("#public_key_form").val(keychain.xpub)
+        $("#multisig_modal").modal()
 
+        $('#ok_btn').click (event) ->
+            $('#initialize_multisig_form').submit()
+</script>
 {% endblock %}
 {% block wallets_active %}class="active"{% endblock %}
 {% block body %}
+<div class="modal fade" id="multisig_modal" style="width: 100%">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title">Multisignature Wallet Initialization</h4>
+      </div>
+      <div class="modal-body">
+        <p>Your backup keys have been generated.</p>
+        <p>BE SURE TO SAVE THE FOLLOWING TO A SAFE AND SECURE LOCATION. Your backup private key is not stored
+            anywhere else.</p>
+        <p>Click 'OK' once you have saved these keys to initialize your wallet.</p>
+        <p>Private Key: <span id="private_key"></span></p>
+        <p>Public Key: <span id="public_key"></span></p>
+        <form method="POST" action="/initialize_multisig" id="initialize_multisig_form">
+            <input type="hidden" name="public_key" id="public_key_form">
+            <input type="hidden" name="contract" value="BTC">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button id="ok_btn" type="button" class="btn btn-primary">OK</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
 <div class="container">
 <div class="panel panel-primary table-responsive" style="overflow-x: auto;">
     <div class="panel-heading">Wallets</div>
@@ -90,11 +130,7 @@
                                 <br/>
                             {% endif %}
                         {% else %}
-                            <form method="POST" action="/initialize_multisig">
-                                <input type="text" name="public_key" size="111">
-                                <input type="hidden" name="contract" value="{{contract.ticker}}">
-                                <input type="submit" value="Initialize">
-                            </form>
+                            <a href="#" id="initialize_multisig">Initialize Multisig</a>
                         {% endif %}
                     {% endif %}
                 </td>
