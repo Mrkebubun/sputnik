@@ -1,15 +1,22 @@
 #!/usr/bin/env python
 
 import json
-import sys, os
+import sys
+import os
 from optparse import OptionParser
+from datetime import datetime
+import base64
 
-from twisted.web.resource import Resource, ErrorPage
+from twisted.web.resource import Resource
 from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import reactor, defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 from twisted.python import log
+from sqlalchemy.orm.exc import NoResultFound
+from Crypto.Random.random import getrandbits
+from jinja2 import Environment, FileSystemLoader
+import markdown
 
 import config
 from txbitcoinrpc import BitcoinRpc
@@ -19,17 +26,10 @@ from sendmail import Sendmail
 from accountant import AccountantProxy
 from alerts import AlertsProxy
 import util
-
 from zmq_util import router_share_async, pull_share_async, export, ComponentExport
 import models
 import database as db
-from sqlalchemy.orm.exc import NoResultFound
-from datetime import datetime
-import base64
-from Crypto.Random.random import getrandbits
-from jinja2 import Environment, FileSystemLoader
 from rpc_schema import schema
-import markdown
 from util import session_aware
 from exception import *
 from bitgo import BitGo
@@ -446,7 +446,7 @@ class Cashier():
                     if not multisig:
                         to_user = "onlinecash"
                     else:
-                        to_user = "multisig"
+                        to_user = "multisigcash"
 
                     result = yield self.send_to_address(withdrawal.contract.ticker, withdrawal.address, withdrawal.amount,
                                                       multisig=multisig)
