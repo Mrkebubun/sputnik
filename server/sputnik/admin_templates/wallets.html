@@ -6,7 +6,8 @@
 $ ->
     $("#initialize_multisig").click (event) ->
         event.preventDefault()
-        bitgo = new Bitcoin.BitGo({{use_production}})
+        bitgo = new Bitcoin.BitGo
+            useProduction: {{use_production}}
         keychain = bitgo.keychains().create()
         $("#public_key").html(keychain.xpub)
         $("#private_key").html(keychain.xprv)
