@@ -15,7 +15,7 @@ import sys
 from rpc_schema import schema
 
 from optparse import OptionParser
-
+from decimal import Decimal
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
                   help="config file")
@@ -505,7 +505,7 @@ class Accountant:
             denominated_contract = contract.denominated_contract
             payout_contract = contract
 
-            cash_spent_float = float(quantity * price * contract.lot_size) / contract.denominator
+            cash_spent_float = Decimal(quantity * price * contract.lot_size) / contract.denominator
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:
                 message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
@@ -518,7 +518,7 @@ class Accountant:
             denominated_contract = contract.denominated_contract
             payout_contract = contract.payout_contract
 
-            cash_spent_float = float(quantity * price) / \
+            cash_spent_float = Decimal(quantity * price) / \
                                (contract.denominator * payout_contract.denominator)
             cash_spent_int = int(cash_spent_float)
             if cash_spent_float != cash_spent_int:

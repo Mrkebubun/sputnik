@@ -147,10 +147,11 @@ class Contract(db.Base):
 
     @property
     def sanity_check(self):
+        from decimal import Decimal
         if self.contract_type == "cash_pair":
-            check = float(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
+            check = Decimal(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
         elif self.contract_type in ["prediction", "futures"]:
-            check = float(self.lot_size * self.tick_size) / self.denominator
+            check = Decimal(self.lot_size * self.tick_size) / self.denominator
         else:
             # No check for cash contracts
             check = 1

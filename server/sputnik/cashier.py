@@ -356,7 +356,7 @@ class Cashier():
 
         contract = util.get_contract(self.session, ticker)
         if not multisig:
-            withdrawal_amount = util.quantity_from_wire(contract, amount)
+            withdrawal_amount = float(util.quantity_from_wire(contract, amount))
             try:
                 result = yield self.bitcoinrpc[ticker].getbalance()
             except Exception as e:

@@ -14,6 +14,7 @@ from twisted.python import log
 from zmq_util import ComponentExport
 from sqlalchemy.orm.session import Session
 import hashlib
+from decimal import Decimal
 
 #
 # This doesn't work properly
@@ -88,17 +89,17 @@ def price_to_wire(contract, price):
 
 def price_from_wire(contract, price):
     if contract.contract_type == "prediction":
-        return float(price) / contract.denominator
+        return Decimal(price) / contract.denominator
     else:
-        return float(price) / (contract.denominated_contract.denominator * contract.denominator)
+        return Decimal(price) / (contract.denominated_contract.denominator * contract.denominator)
 
 def quantity_from_wire(contract, quantity):
     if contract.contract_type == "prediction":
         return quantity
     elif contract.contract_type == "cash":
-        return float(quantity) / contract.denominator
+        return Decimal(quantity) / contract.denominator
     else:
-        return float(quantity) / contract.payout_contract.denominator
+        return Decimal(quantity) / contract.payout_contract.denominator
 
 def quantity_to_wire(contract, quantity):
     if contract.contract_type == "prediction":
@@ -202,8 +203,8 @@ def get_deposit_fees(user, contract, deposit_amount, trial_period=False):
     if trial_period:
         return {}
 
-    base_fee = contract.deposit_base_fee + float(deposit_amount * contract.deposit_bps_fee) / 10000
-    user_factor = float(user.fees.deposit_factor) / 100
+    base_fee = contract.deposit_base_fee + Decimal(deposit_amount * contract.deposit_bps_fee) / 10000
+    user_factor = Decimal(user.fees.deposit_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
@@ -212,8 +213,8 @@ def get_withdraw_fees(user, contract, withdraw_amount, trial_period=False):
     if trial_period:
         return {}
 
-    base_fee = contract.withdraw_base_fee + float(withdraw_amount * contract.withdraw_bps_fee) / 10000
-    user_factor = float(user.fees.withdraw_factor) / 100
+    base_fee = contract.withdraw_base_fee + Decimal(withdraw_amount * contract.withdraw_bps_fee) / 10000
+    user_factor = Decimal(user.fees.withdraw_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
