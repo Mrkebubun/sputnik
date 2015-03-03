@@ -6,7 +6,7 @@ from sputnik import observatory
 debug, log, warn, error, critical = observatory.get_loggers("administrator")
 
 from sputnik.webserver.plugin import ReceiverPlugin
-from sputnik.zmq_util import export, pull_share_async, dealer_proxy_async
+from sputnik.zmq_util import export, router_share_async
 
 class AdministratorReceiver(ReceiverPlugin):
     def __init__(self):
@@ -18,5 +18,5 @@ class AdministratorReceiver(ReceiverPlugin):
 
     def init(self):
         self.market = self.require("sputnik.webserver.plugins.rpc.market.MarketService")
-        self.share = dealer_proxy_async(self,
+        self.share = router_share_async(self,
                 config.get("webserver", "administrator_export"))

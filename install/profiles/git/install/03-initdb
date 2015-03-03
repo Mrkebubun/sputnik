@@ -86,7 +86,8 @@ contracts set HUF lot_size 100
 contracts set HUF description Forint
 
 contracts set USD contract_type cash
-contracts set USD denominator 100
+contracts set USD denominator 10000
+contracts set USD lot_size 100
 contracts set USD deposit_instructions "Mail a check"
 contracts set USD description "Dollar"
 
@@ -147,6 +148,9 @@ accounts set onlinecash type Asset
 
 accounts add offlinecash
 accounts set offlinecash type Asset
+
+accounts add multisigcash
+accounts set multisigcash type Asset
 
 accounts add depositoverflow
 accounts set depositoverflow type Liability

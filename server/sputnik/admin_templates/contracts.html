@@ -56,6 +56,7 @@
                 <th>Lot Size</th>
                 <th>Denominator</th>
                 <th>Expiration</th>
+                <th>Multi-Sig Wallet Address</th>
                 <th>Cold Wallet Address</th>
                 <th>Hot Wallet Limit</th>
                 <th>Denominated</th>
@@ -97,6 +98,7 @@
                     <td>{{contract.denominator}}</td>
                     <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.expiration}}{% endif %}</td>
                     {% if contract.contract_type == "cash" %}
+                    <td>{% if contract.ticker == "BTC" %}{{contract.multisig_wallet_address}}{% endif %}</td>
                     <td>{% if contract.ticker == "BTC" %}{{contract.cold_wallet_address}}{% endif %}</td>
                     <td>{% if contract.ticker == "BTC" %}{{contract.hot_wallet_limit}}{% endif %}</td>
                     {% else %}
@@ -128,6 +130,12 @@
                                     <td>Cold Wallet Address</td>
                                     <td><input type="text" name="cold_wallet_address" value="{{contract.cold_wallet_address}}"></td>
                                 </tr>
+                                {% if debug %}
+                                <tr>
+                                    <td>MultiSig Wallet Address</td>
+                                    <td><input type="text" name="multisig_wallet_address" value="{{contract.multisig_wallet_address}}"></td>
+                                </tr>
+                                {% endif %}
                                 <tr>
                                     <td>Hot Wallet Limit</td>
                                     <td><input type="text" name="hot_wallet_limit" value="{{contract.hot_wallet_limit}}"></td>

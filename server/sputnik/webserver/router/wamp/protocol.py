@@ -261,7 +261,7 @@ class RouterSession(BaseSession):
 
          elif isinstance(msg, message.Authenticate):
 
-            d = self._as_future(self.onAuthenticate, msg.signature, {})
+            d = self._as_future(self.onAuthenticate, msg.signature, msg.extra)
 
             def success(res):
                msg = None

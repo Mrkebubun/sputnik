@@ -10,16 +10,17 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import sys
+import sys, os
 import collections
 from datetime import datetime
 import json
 import copy
 import string
 import pickle
-import Crypto.Random.random
+import time
 import Crypto.Random.random
 from dateutil import parser
+import cgi
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -29,6 +30,7 @@ from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
 from zope.interface import implements
 from twisted.internet import reactor, defer
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import ICredentialsChecker
@@ -41,7 +43,7 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
 from datetime import timedelta
-from autobahn.wamp.auth import derive_key
+from autobahn.wamp.auth import derive_key, compute_totp
 from twisted.web.static import File
 
 import config
@@ -62,9 +64,11 @@ from dateutil import relativedelta
 from zendesk import Zendesk
 from blockscore import BlockScore
 from ticketserver import TicketServer
+from bitgo import BitGo
 import base64
 from Crypto.Random.random import getrandbits
-
+import urllib
+from decimal import Decimal
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
 NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
@@ -83,6 +87,10 @@ NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_user
 INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
 CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
 MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
+TOTP_NOT_ENABLED = AdministratorException("exceptions/administrator/totp_not_enabled")
+TOTP_ALREADY_ENABLED = AdministratorException("exceptions/administrator/totp_already_enabled")
+BITGO_TOKEN_INVALID = AdministratorException("exceptions/administrator/bitgo_token_invalid")
+KEY_FILE_EXISTS = AdministratorException("exceptions/bitgo/key_file_exists")
 
 from util import session_aware
 
@@ -97,8 +105,11 @@ class Administrator:
                  debug=False, base_uri=None, sendmail=None,
                  template_dir='admin_templates',
                  user_limit=500,
+                 bitgo=None,
+                 bitgo_private_key_file=None,
                  bs_cache_update_period=86400,
-                 mtm_period=None):
+                 mtm_period=None,
+                 testnet=True):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -123,6 +134,10 @@ class Administrator:
         self.sendmail = sendmail
         self.user_limit = user_limit
         self.page_size = 10
+        self.bitgo = bitgo
+        self.bitgo_private_key_file = bitgo_private_key_file
+        self.bitgo_tokens = {}
+        self.testnet = testnet
 
         self.load_bs_cache()
         # Initialize the balance sheet cache
@@ -135,6 +150,23 @@ class Administrator:
         if mtm_period is not None:
             self.mtm_process = LoopingCall(self.mtm_futures)
             self.mtm_process.start(mtm_period, now=False)
+
+    def bitgo_oauth_clear(self, admin_user):
+        if admin_user in self.bitgo_tokens:
+            del self.bitgo_tokens[admin_user]
+
+    @inlineCallbacks
+    def bitgo_oauth_token(self, code, admin_user):
+        token_result = yield self.bitgo.authenticateWithAuthCode(code)
+        self.bitgo_tokens[admin_user] = (token_result['access_token'].encode('utf-8'),
+                                         datetime.utcfromtimestamp(token_result['expires_at']))
+
+    def get_bitgo_token(self, admin_user):
+        now = datetime.utcnow()
+        if admin_user in self.bitgo_tokens and self.bitgo_tokens[admin_user][1] > now:
+            return self.bitgo_tokens[admin_user][0]
+        else:
+            return None
 
     def make_account(self, username, password):
         """Makes a user account with the given password
@@ -397,6 +429,125 @@ class Administrator:
                                     subject='Reset password link enclosed')
 
         return True
+
+    def enable_totp(self, username):
+        """Initiates process to enable TOTP for account. Returns the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :returns: str
+        :raises: NO_SUCH_USER, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        secret = base64.b32encode("".join(
+            chr(getrandbits(8)) for i in range(16)))
+        user.totp_secret = secret
+        self.session.commit()
+        return secret
+
+    def verify_totp(self, username, otp):
+        """Verifies the user has saved the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if not user.totp_secret:
+            raise TOTP_NOT_ENABLED
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        if self._check_totp(user, otp):
+            user.totp_enabled = True
+            self.session.commit()
+            return True
+
+        return False
+
+    def disable_totp(self, username, otp):
+        """Disables TOTP for an account.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled:
+            raise TOTP_NOT_ENABLED
+        
+        if self._check_totp(user, otp):
+            user.totp_secret = None
+            user.totp_enabled = False
+            self.session.commit()
+            return True
+
+        return False
+
+    def check_totp(self, username, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled, returns True.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled or not user.totp_secret:
+            return True
+        
+        return self._check_totp(user, otp)
+
+    @session_aware
+    def _check_totp(self, user, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. This method is safe to use internally.
+
+        :param user: the User object
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        """
+        secret = bytes(user.totp_secret)
+        now = time.time() // 30
+        for i in range(-1, 2):
+            if user.totp_last >= now + i:
+                # token reuse is not allowed
+                continue
+            if compute_totp(secret, i) == otp:
+                user.totp_last = now + i
+                self.session.commit()
+                return True
+
+        return False
 
     def expire_all(self):
         """Use this to expire all objects in the session, because other processes may have updated things in the db
@@ -723,12 +874,15 @@ class Administrator:
         log.msg("Admin user %s has password force reset" % username)
         return True
 
-    def get_positions(self):
-        """Get all the positions that exist
+    def get_positions(self, username=None):
+        """Get all the positions that exist, if username is set, get positions for that user only
 
         :returns: list -- models.Position
         """
-        positions = self.session.query(models.Position)
+        if username is None:
+            positions = self.session.query(models.Position)
+        else:
+            positions = self.session.query(models.Position).filter_by(username=username)
         return positions
 
     def get_position(self, user, ticker):
@@ -834,6 +988,23 @@ class Administrator:
     def clear_first_error(self, failure):
         failure.trap(defer.FirstError)
         return failure.value.args[0]
+
+    def get_current_address(self, username, ticker):
+        return self.cashier.get_current_address(username, ticker)
+
+    @inlineCallbacks
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination="offlinecash", multisig={}):
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_multisig_wallet(ticker, quantity, multisig=multisig, destination=destination)
+        returnValue(result)
+
+    @inlineCallbacks
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination="offlinecash"):
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_hot_wallet(ticker, quantity, destination=destination)
+        returnValue(result)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -1200,15 +1371,47 @@ class Administrator:
             self.session.rollback()
             raise e
 
-    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig={}):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
     def liquidate_all(self, username):
         self.accountant_slow.liquidate_all(username)
-
+        
     def liquidate_position(self, username, ticker):
         self.accountant_slow.liquidate_position(username, ticker)
+        
+    @inlineCallbacks
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        # Create wallet with the given public_key
+        if os.path.exists(self.bitgo_private_key_file):
+            raise KEY_FILE_EXISTS
 
+        self.bitgo.token = multisig['token'].encode('utf-8')
+        # Generate a passphrase
+        passphrase = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
+        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=passphrase, label="sputnik", backup_xpub=public_key)
+
+        # Save the encrypted xpriv to the local storage
+
+        with open(self.bitgo_private_key_file, "wb") as f:
+            key_data = {'passphrase': passphrase,
+                        'encryptedXprv': result['userKeychain']['encryptedXprv']}
+            json.dump(key_data, f)
+
+        # Get deposit address
+        address = result['wallet'].id
+
+        # Save deposit address
+        try:
+            contract = util.get_contract(self.session, ticker)
+            contract.multisig_wallet_address = address
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            log.err("Unable to save new deposit address for multisig")
+            log.err(e)
+
+        returnValue(address)
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -1289,11 +1492,13 @@ class AdminAPI(Resource):
             else:
                 online = False
 
+        multisig = data.get('multisig', {})
+
         return self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
+                                              admin_username=self.avatarId, multisig=multisig)
 
     def manual_deposit(self, request, data):
-        return self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
+        return self.administrator.manual_deposit(data['address'], Decimal(data['quantity']), self.avatarId)
 
     def render(self, request):
         data = request.content.read()
@@ -1352,15 +1557,23 @@ class AdminWebUI(Resource):
         Resource.__init__(self)
 
     def check_referer(self, request):
-        if self.base_uri is not None:
-            referer = request.getHeader("referer")
-            if referer is None or not referer.startswith(self.base_uri):
-                log.err("Referer check failed: %s" % referer)
-                return False
+        # If we have a raw GET with no args, we don't need to check referer
+        if request.method == "GET" and not request.args:
+            return True
+
+        # for bitgo oauth:
+        if request.path == '/bitgo_oauth_redirect':
+            return True
+        else:
+            if self.base_uri:
+                referer = request.getHeader("referer")
+                if referer is None or not referer.startswith(self.base_uri):
+                    log.err("Referer check failed: %s" % referer)
+                    return False
+                else:
+                    return True
             else:
                 return True
-        else:
-            return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1407,9 +1620,9 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
-        if request.path != '/':
-            if not self.check_referer(request):
-                return redirectTo('/', request)
+        # Which paths don't require a referer check
+        if not self.check_referer(request):
+            return redirectTo('/', request)
 
         resources = [
                     # Level 0
@@ -1460,6 +1673,13 @@ class AdminWebUI(Resource):
                       '/adjust_position': self.adjust_position,
                       '/liquidate_all': self.liquidate_all,
                       '/liquidate_position': self.liquidate_position,
+                      '/wallets': self.wallets,
+                      '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
+                      '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
+                      '/bitgo_oauth_get': self.bitgo_oauth_get,
+                      '/bitgo_oauth_clear': self.bitgo_oauth_clear,
+                      '/bitgo_oauth_redirect': self.bitgo_oauth_redirect,
+                      '/initialize_multisig': self.initialize_multisig,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
@@ -1496,7 +1716,7 @@ class AdminWebUI(Resource):
         d.addCallback(show_margins)
         return NOT_DONE_YET
 
-    def error_callback(self, failure, request):
+    def sputnik_error_callback(self, failure, request):
         failure.trap(SputnikException)
         log.err("SputnikException in deferred for request: %s" % request)
         log.err(failure)
@@ -1504,10 +1724,66 @@ class AdminWebUI(Resource):
         request.write(msg)
         request.finish()
 
+    def generic_error_callback(self, failure, request):
+        log.err("UNHANDLED ERROR in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, ("exceptions/administrator/generic_error",))
+        request.write(msg)
+        request.finish()
+
     def error_request(self, request, error):
         log.err("Error %s received for request %s" % (error, request))
         t = self.jinja_env.get_template("error.html")
         return t.render(error=error).encode('utf-8')
+
+    def bitgo_oauth_get(self, request, wallet_id=None):
+        params = { 'client_id': self.administrator.component.bitgo.client_id,
+                   'redirect_uri': self.base_uri + '/bitgo_oauth_redirect'}
+        if 'wallet_id' in request.args:
+            wallet_id = request.args['wallet_id'][0]
+
+        if wallet_id is None:
+            params['scope'] = "wallet_create"
+        else:
+            params['scope'] = "wallet_spend:%s wallet_view:%s" % (wallet_id, wallet_id)
+
+        bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
+        params_encoded = urllib.urlencode(params)
+        return redirectTo(bitgo_uri + '?' + params_encoded, request)
+
+    def bitgo_oauth_clear(self, request):
+        self.administrator.bitgo_oauth_clear(self.avatarId)
+        return redirectTo('/wallets', request)
+
+    def bitgo_oauth_redirect(self, request):
+        code = request.args['code'][0]
+
+        def _cb(result):
+            request.write(redirectTo('/wallets', request))
+            request.finish()
+
+        d = self.administrator.bitgo_oauth_token(code, self.avatarId)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def initialize_multisig(self, request):
+        ticker = request.args['contract'][0]
+
+        public_key = request.args['public_key'][0]
+
+        token = self.administrator.get_bitgo_token(self.avatarId)
+        if token is None:
+            raise BITGO_TOKEN_INVALID
+
+        d = self.administrator.initialize_multisig(ticker, public_key, {'token': token})
+        def _cb(result):
+            # Reauth to get view and spend permissions on the wallet we just created
+            request.write(self.bitgo_oauth_get(request, wallet_id=result))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1520,13 +1796,22 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
+        if 'multisig' in request.args:
+            if self.administrator.get_bitgo_token(self.avatarId) is None:
+                raise BITGO_TOKEN_INVALID
+
+            multisig = {'otp': request.args['otp'][0],
+                        'token': self.administrator.get_bitgo_token(self.avatarId)}
+        else:
+            multisig = {}
+
         d = self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
-                                                  admin_username=self.avatarId)
+                                                  admin_username=self.avatarId, multisig=multisig)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def mail_statement(self, request):
@@ -1543,6 +1828,65 @@ class AdminWebUI(Resource):
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
         return t.render(permission_groups=permission_groups).encode('utf-8')
+
+    def wallets(self, request):
+        """Get the permission groups page
+
+        """
+        contracts = self.administrator.get_contracts()
+        onlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="onlinecash")}
+        offlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="offlinecash")}
+        multisigcash = {position.contract.ticker: position for position in self.administrator.get_positions(username="multisigcash")}
+        bitgo_auth = self.administrator.get_bitgo_token(self.avatarId) is not None
+
+        @inlineCallbacks
+        def get_addresses():
+            offlinecash_addresses = {}
+            for ticker in offlinecash.keys():
+                offlinecash_addresses[ticker] = yield self.administrator.get_current_address('offlinecash', ticker)
+            returnValue(offlinecash_addresses)
+
+        def _cb(offlinecash_addresses):
+            t = self.jinja_env.get_template('wallets.html')
+            request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
+                            offlinecash_addresses=offlinecash_addresses, bitgo_auth=bitgo_auth,
+                            debug=self.administrator.component.debug,
+                            multisigcash=multisigcash,
+                            use_production="false" if self.administrator.component.testnet else "true").encode('utf-8'))
+            request.finish()
+
+        d = get_addresses()
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def transfer_from_hot_wallet(self, request):
+        ticker = request.args['contract'][0]
+        destination = request.args['destination'][0]
+        quantity_ui = Decimal(request.args['quantity'][0])
+        d = self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+        def _cb(ignored):
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def transfer_from_multisig_wallet(self, request):
+        ticker = request.args['contract'][0]
+        destination = request.args['destination'][0]
+        quantity_ui = Decimal(request.args['quantity'][0])
+        if self.administrator.get_bitgo_token(self.avatarId) is None:
+            raise BITGO_TOKEN_INVALID
+
+        multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
+                    'otp': request.args['otp'][0]}
+        d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
+        def _cb(ignored):
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def new_permission_group(self, request):
         """Create a new permission group and then return the permission groups page
@@ -1567,7 +1911,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def fee_groups(self, request):
@@ -1584,7 +1928,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def modify_fee_group(self, request):
@@ -1609,12 +1953,13 @@ class AdminWebUI(Resource):
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
-        return t.render(contracts=contracts).encode('utf-8')
+        return t.render(contracts=contracts, debug=self.administrator.component.debug).encode('utf-8')
 
     def edit_contract(self, request):
         ticker = request.args['ticker'][0]
         args = {}
-        for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
+        for key in ["description", "full_description", "cold_wallet_address", "multisig_wallet_address",
+                    "deposit_instructions"]:
             if key in request.args:
                 args[key] = request.args[key][0].decode('utf-8')
 
@@ -1637,7 +1982,7 @@ class AdminWebUI(Resource):
 
     def clear_contract(self, request):
         if 'price' in request.args:
-            d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+            d = self.administrator.clear_contract(request.args['ticker'][0], Decimal(request.args['price'][0]))
         else:
             d = self.administrator.clear_contract(request.args['ticker'][0])
 
@@ -1676,7 +2021,7 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book).addErrback(self.error_callback, request)
+        d.addCallback(got_order_book).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
@@ -1688,7 +2033,7 @@ class AdminWebUI(Resource):
             request.write(redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def ledger(self, request):
@@ -1805,12 +2150,12 @@ class AdminWebUI(Resource):
 
         """
         d = self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           float(request.args['quantity'][0]), self.avatarId)
+                                           Decimal(request.args['quantity'][0]), self.avatarId)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def transfer_position(self, request):
@@ -1819,13 +2164,13 @@ class AdminWebUI(Resource):
         """
 
         d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], float(request.args['quantity'][0]),
+                                             request.args['to_user'][0], Decimal(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def rescan_address(self, request):
@@ -1839,12 +2184,12 @@ class AdminWebUI(Resource):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        d = self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
+        d = self.administrator.manual_deposit(request.args['address'][0], Decimal(request.args['quantity'][0]), self.avatarId)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
 
-        d.addCallback(_cb, request).addErrback(self.error_callback, request)
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def admin_list(self, request):
@@ -1890,6 +2235,14 @@ class AdminWebExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @session_aware
+    def bitgo_oauth_token(self, code, admin_user):
+        return self.administrator.bitgo_oauth_token(code, admin_user)
+
+    @session_aware
+    def bitgo_oauth_clear(self, admin_user):
+        return self.administrator.bitgo_oauth_clear(admin_user)
+
+    @session_aware
     def get_withdrawals(self):
         return self.administrator.get_withdrawals()
 
@@ -1902,8 +2255,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.cashier.rescan_address(address)
 
     @session_aware
-    def process_withdrawal(self, id, online, cancel, admin_username):
-        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online, cancel, admin_username, multisig):
+        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username, multisig=multisig)
 
     @session_aware
     def expire_all(self):
@@ -1979,6 +2332,22 @@ class AdminWebExport(ComponentExport):
         return self.administrator.get_user(username)
 
     @session_aware
+    def get_positions(self, username=None):
+        return self.administrator.get_positions(username=username)
+
+    @session_aware
+    def get_current_address(self, username, ticker):
+        return self.administrator.get_current_address(username, ticker)
+
+    @session_aware
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination):
+        return self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+
+    @session_aware
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination, multisig):
+        return self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig)
+
+    @session_aware
     def new_admin_user(self, username, password_hash, level):
         return self.administrator.new_admin_user(username, password_hash, level)
 
@@ -2030,7 +2399,13 @@ class AdminWebExport(ComponentExport):
     def get_postings(self, user, contract, page):
         return self.administrator.get_postings(user, contract, page)
 
+    @session_aware
+    def get_bitgo_token(self, admin_user):
+        return self.administrator.get_bitgo_token(admin_user)
 
+    @session_aware
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        return self.administrator.initialize_multisig(ticker, public_key, multisig)
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
@@ -2148,6 +2523,30 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#enable_totp")
+    def enable_totp(self, username):
+        return self.administrator.enable_totp(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#verify_totp")
+    def verify_totp(self, username, otp):
+        return self.administrator.verify_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#disable_totp")
+    def disable_totp(self, username, otp):
+        return self.administrator.disable_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_totp")
+    def check_totp(self, username, otp):
+        return self.administrator.check_totp(username, otp)
 
     @export
     @session_aware
@@ -2223,7 +2622,9 @@ if __name__ == "__main__":
                                  config.getint("accountant", "administrator_export_base_port"),
                                  timeout=60*20)
 
-    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"))
+    # Set the cashier timeout to 5 seconds because sending multisig cash may
+    # take a little bit
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"), timeout=5)
     watchdog(config.get("watchdog", "administrator"))
     webserver = dealer_proxy_async(config.get("webserver", "administrator_export"))
 
@@ -2248,6 +2649,13 @@ if __name__ == "__main__":
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
+    bitgo_config = {'use_production': not config.getboolean("cashier", "testnet"),
+                    'client_id': config.get("bitgo", "client_id"),
+                    'client_secret': config.get("bitgo", "client_secret")}
+
+    bitgo = BitGo(**bitgo_config)
+    bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
+
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
                                   accountant_slow, webserver,
@@ -2255,6 +2663,9 @@ if __name__ == "__main__":
                                   sendmail=Sendmail(from_email),
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update,
+                                  bitgo=bitgo,
+                                  bitgo_private_key_file=bitgo_private_key_file,
+                                  testnet=config.getboolean("cashier", "testnet"),
                                   mtm_period=mtm_period,
                                   )
 

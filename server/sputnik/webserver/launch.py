@@ -8,6 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 from sputnik import config
 from optparse import OptionParser
+from sputnik.watchdog import watchdog
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -58,7 +59,9 @@ class SputnikRouter(Router):
 class SputnikRouterSession(RouterSession):
     @inlineCallbacks
     def onHello(self, realm, details):
-        if details.authmethods == None:
+        if details.authid is None:
+            details.authid = u"anonymous"
+        if details.authmethods is None:
             details.authmethods = []
         for plugin, flag in self.factory.plugins:
             result = types.Deny(message=u"Server error.")
@@ -80,6 +83,7 @@ class SputnikRouterSession(RouterSession):
         required_failures = []
         optional_successes = []
         required_successes = []
+        # TODO: log overall success
         for plugin, flag in self.factory.plugins:
             result = types.Deny(message=u"Server error.")
             try:
@@ -183,11 +187,6 @@ def main(pm):
         session_factory.add(component_session,
                 plugin.plugin_path.decode("ascii"), u"trusted")
 
-    # IP address to listen on for all publicly visible services
-    interface = config.get("webserver", "interface")
-
-    base_uri = config.get("webserver", "base_uri")
-
     uri = "ws://"
     if config.getboolean("webserver", "ssl"):
         uri = "wss://"
@@ -200,10 +199,10 @@ def main(pm):
     transport_factory = WampWebSocketServerFactory(session_factory,
             uri, debug = False, debug_wamp = False)
     transport_factory.setProtocolOptions(failByDrop = False)
+    watchdog(config.get("watchdog", "webserver"))
 
     from twisted.web.server import Site
     from autobahn.twisted.resource import WebSocketResource
-    from rest import RESTProxy
 
     root = Root()
     ws_resource = WebSocketResource(transport_factory)

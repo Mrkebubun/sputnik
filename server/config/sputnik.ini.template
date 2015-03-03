@@ -10,6 +10,12 @@ webserver_export = tcp://127.0.0.1:4140
 compropago_key = ${compropago_key}
 cold_wallet_period = 3600
 minimum_confirmations = ${minimum_confirmations}
+bitgo_private_key_file = ${keys}/bitgo.key
+testnet = ${testnet}
+
+[bitgo]
+client_id = ${bitgo_client_id}
+client_secret = ${bitgo_client_secret}
 
 [engine]
 accountant_base_port = 4200

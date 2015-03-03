@@ -7,6 +7,7 @@ import StringIO
 import logging
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
+from datetime import datetime, timedelta
 import copy
 
 logging.basicConfig(level=1000)
@@ -62,6 +63,8 @@ contracts set USDBTC0W fees 200
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC lot_size 1000000
+contracts set BTC cold_wallet_address n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj
+contracts set BTC multisig_wallet_address myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000
@@ -120,6 +123,9 @@ accounts position randomtrader MXN
 
 accounts add onlinecash
 accounts set onlinecash type Asset
+
+accounts add multisigcash
+accounts set multisigcash type Asset
 
 accounts add offlinecash
 accounts set offlinecash type Asset
@@ -235,6 +241,46 @@ class FakeComponent:
 # TODO: Remove this once we've removed all FakeProxy
 class FakeProxy(FakeComponent):
     pass
+
+
+class FakeWallet(FakeComponent):
+    def __init__(self, id='WALLET_ID'):
+        self.id = id
+        self.balance = 10000
+        FakeComponent.__init__(self)
+
+    def sendCoins(self, *args, **kwargs):
+        self._log_call("sendCoins", *args, **kwargs)
+        return defer.succeed({'tx': 'TXSUCCESS',
+                              'fee': 1000000})
+
+class FakeWallets(FakeComponent):
+    def __init__(self):
+        self.wallets = {}
+        FakeComponent.__init__(self)
+
+    def createWalletWithKeychains(self, *args, **kwargs):
+        self._log_call("createWalletWithKeychains", *args, **kwargs)
+        return defer.succeed({'wallet': FakeWallet(),
+                              'userKeychain': {'encryptedXprv': 'ENCRYPTED'}})
+
+    def get(self, wallet_id):
+        self._log_call("get", wallet_id)
+        if wallet_id not in self.wallets:
+            self.wallets[wallet_id] = FakeWallet(wallet_id)
+
+        return defer.succeed(self.wallets[wallet_id])
+
+class FakeBitgo(FakeComponent):
+    endpoint = ''
+    wallets = FakeWallets()
+
+    def authenticateWithAuthCode(self, code):
+        self._log_call("authenticateWithAuthCode", code)
+        expiry = datetime.utcnow() + timedelta(days=1)
+        from sputnik import util
+        return defer.succeed({'access_token': 'TOKEN',
+                              'expires_at': util.dt_to_timestamp(expiry)/1e6})
 
 class FakeSendmail(FakeComponent):
     def __init__(self, from_address):

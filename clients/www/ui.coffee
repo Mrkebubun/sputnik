@@ -161,6 +161,11 @@ $ ->
 
         $.when( results )
 
+    expireCookie = (cookie_name) ->
+        cookie_date = new Date()
+        cookie_date.setTime(cookie_date.getTime() - 1)
+        document.cookie = cookie_name + "=; expires=" + cookie_date.toGMTString()
+
     simple_widget = getQueryKey('widget')
     if simple_widget?
         sputnik.log ["simple_widget", simple_widget]
@@ -591,7 +596,7 @@ $ ->
 
             logout: (event) ->
                 event.original.preventDefault()
-                document.cookie = ''
+                expireCookie('login')
                 sputnik.logout()
                 location.reload()
 
@@ -705,11 +710,12 @@ $ ->
 
                         if !name_uid[1]
                             sputnik.log "resetting cookie to null"
-                            document.cookie = ''
+                            expireCookie('login')
                         else
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
                             sputnik.restoreSession name_uid[0], name_uid[1]
 
+        sputnik.on "join", () ->
             if simple_widget?
                 if simple_widget == "trade"
                     ractive.set "current_ticker", widget_contract
@@ -744,7 +750,7 @@ $ ->
 
         sputnik.on "cookie_login_fail", (error) ->
             sputnik.log ["cookie login failed", error]
-            document.cookie = ''
+            expireCookie('login')
 
         sputnik.on "make_account_success", () ->
             ga('send', 'event', 'register', 'success')

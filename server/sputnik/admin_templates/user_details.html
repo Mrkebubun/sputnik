@@ -383,6 +383,16 @@ $ ->
                             <a href="/process_withdrawal?username={{user.username}}&online=true&id={{withdrawal.id}}">Online</a>
                             <a href="/process_withdrawal?username={{user.username}}&id={{withdrawal.id}}">Offline</a>
                             <a href="/process_withdrawal?username={{user.username}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
+                            {% if withdrawal.contract.multisig_wallet_address %}
+                            Multisig:
+                            <form method="POST" action="/process_withdrawal">
+                                <input type="hidden" name="username" value="{{withdrawal.username}}">
+                                <input type="hidden" name="online" value="true">
+                                <input type="hidden" name="id" value="{{withdrawal.id}}">
+                                <input type="text" name="otp" placeholder="OTP">
+                                <input type="hidden" name="multisig" value="true">
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endif %}

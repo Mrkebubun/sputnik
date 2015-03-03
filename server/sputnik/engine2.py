@@ -127,6 +127,7 @@ class Engine:
         self.ordermap = {}
         self.listeners = []
 
+    @util.timed
     def place_order(self, order):
 
         # Loop until the order or the opposite side is exhausted.
@@ -182,6 +183,7 @@ class Engine:
 
         return price, quantity
 
+    @util.timed
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
@@ -576,7 +578,6 @@ if __name__ == "__main__":
     try:
         for order in session.query(models.Order).filter_by(
                 is_cancelled=False).filter_by(
-                dispatched=True).filter_by(
                 contract_id=contract.id).filter(
                         models.Order.quantity_left > 0):
             log.msg("Cancelling order %d" % order.id)

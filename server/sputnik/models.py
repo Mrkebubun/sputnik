@@ -133,6 +133,7 @@ class Contract(db.Base):
     margin_low = Column(BigInteger)
 
     hot_wallet_limit = Column(BigInteger)
+    multisig_wallet_address = Column(String)
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
@@ -148,10 +149,11 @@ class Contract(db.Base):
 
     @property
     def sanity_check(self):
+        from decimal import Decimal
         if self.contract_type == "cash_pair":
-            check = float(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
+            check = Decimal(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
         elif self.contract_type in ["prediction", "futures"]:
-            check = float(self.lot_size * self.tick_size) / self.denominator
+            check = Decimal(self.lot_size * self.tick_size) / self.denominator
         else:
             # No check for cash contracts
             check = 1
@@ -386,7 +388,9 @@ class User(db.Base):
 
     username = Column(String, primary_key=True)
     password = Column(String, nullable=False)
-    totp = Column(String)
+    totp_secret = Column(String)
+    totp_enabled = Column(Boolean, server_default=sql.false())
+    totp_last = Column(Integer, server_default="0")
     nickname = Column(String)
     email = Column(String)
     active = Column(Boolean, server_default=sql.true())

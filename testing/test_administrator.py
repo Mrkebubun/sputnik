@@ -2,12 +2,13 @@ __author__ = 'sameer'
 
 import sys
 import os
-from test_sputnik import TestSputnik, FakeComponent, FakeSendmail
+import time
+from test_sputnik import TestSputnik, FakeComponent, FakeSendmail, FakeBitgo
 from pprint import pprint
 import re
 from twisted.web.test.test_web import DummyRequest
 from twisted.internet import defer
-from datetime import datetime
+from datetime import datetime, timedelta
 from sputnik.exception import AdministratorException
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -22,7 +23,6 @@ class FakeAccountant(FakeComponent):
     def get_balance_sheet(self):
         self._log_call("get_balance_sheet")
         return defer.succeed({})
-
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -66,19 +66,26 @@ class TestAdministrator(TestSputnik):
 
         accountant = accountant.AdministratorExport(FakeAccountant())
         cashier = cashier.AdministratorExport(FakeComponent())
+        bitgo = FakeBitgo()
         engines = {"BTC/MXN": FakeEngine(),
                    "NETS2014": FakeEngine()}
         zendesk_domain = 'testing'
 
+        from tempfile import mkstemp
+        keyfile = mkstemp(prefix='bitgo_key')
+        os.remove(keyfile[1])
         self.administrator = administrator.Administrator(self.session, accountant, cashier,
                                                          engines,
                                                          zendesk_domain,
                                                          accountant,
+                                                         webserver=FakeComponent("webserver"),
                                                          debug=True,
                                                          sendmail=FakeSendmail('test-email@m2.io'),
                                                          base_uri="https://localhost:8888",
                                                          template_dir="../server/sputnik/admin_templates",
                                                          user_limit=50,
+                                                         bitgo=bitgo,
+                                                         bitgo_private_key_file=keyfile[1],
                                                          bs_cache_update_period=None)
         self.webserver_export = administrator.WebserverExport(self.administrator)
         self.ticketserver_export = administrator.TicketServerExport(self.administrator)
@@ -294,9 +301,9 @@ class TestWebserverExport(TestAdministrator):
         password = WampCraProtocol.deriveKey('test', extra)
         new_password_hash = '%s:%s' % (salt, password)
 
-        self.assertTrue(self.webserver_export.reset_password_hash('test', old_password_hash, new_password_hash))
+        self.assertTrue(self.webserver_export.reset_password_hash('test', user.password, new_password_hash))
         user = self.session.query(models.User).filter_by(username='test').one()
-        self.assertEqual(user.password, "%s:%s" % (salt, new_password_hash))
+        self.assertEqual(user.password, "%s" % new_password_hash)
 
     def test_reset_password_hash_bad(self):
         self.create_account('test', password='null')
@@ -380,7 +387,7 @@ class TestWebserverExport(TestAdministrator):
 
         self.assertTrue(self.webserver_export.reset_password_hash('test', None, new_password_hash, token=token_str))
         user = self.session.query(models.User).filter_by(username='test').one()
-        self.assertEqual(user.password, "%s:%s" % (salt, new_password_hash))
+        self.assertEqual(user.password, "%s" % new_password_hash)
 
     def test_get_reset_token_no_user(self):
         # Should fail silently
@@ -417,6 +424,159 @@ class TestWebserverExport(TestAdministrator):
         self.assertEqual(ticket.type, 'Compliance')
         self.assertIsNone(ticket.foreign_key)
 
+class TestTOTP(TestAdministrator):
+    def test_new_user(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        self.assertEqual(user.totp_secret, None)
+        self.assertFalse(user.totp_enabled)
+    
+    def test_enable_totp(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        self.assertEqual(user.totp_secret, secret)
+        self.assertFalse(user.totp_enabled)
+
+    def test_enable_totp_already_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        with self.assertRaisesRegexp(AdministratorException, "totp_already_enabled"):
+            secret2 = self.webserver_export.enable_totp("test")
+        self.assertEqual(user.totp_secret, secret)
+        self.assertTrue(user.totp_enabled)
+
+    def test_verify_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertTrue(user.totp_enabled)
+
+    def test_verify_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", "")
+        self.assertFalse(result)
+        self.assertFalse(user.totp_enabled)
+
+    def test_verify_totp_not_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        with self.assertRaisesRegexp(AdministratorException, "totp_not_enabled"):
+            self.webserver_export.verify_totp("test", compute_totp(""))
+
+    def test_verify_totp_already_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        with self.assertRaisesRegexp(AdministratorException, "totp_already_enabled"):
+            self.webserver_export.verify_totp("test", compute_totp(secret))
+
+    def test_disable_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        result = self.webserver_export.disable_totp("test",
+                compute_totp(secret, 1))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_secret, None)
+        self.assertFalse(user.totp_enabled)
+
+    def test_disable_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        result = self.webserver_export.disable_totp("test", "")
+        self.assertFalse(result)
+        self.assertEqual(user.totp_secret, secret)
+        self.assertTrue(user.totp_enabled)
+
+    def test_disable_totp_not_enabled(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        with self.assertRaisesRegexp(AdministratorException, "totp_not_enabled"):
+            self.webserver_export.disable_totp("test", "")
+
+    def test_check_totp_success(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test",
+                compute_totp(secret, 1))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now + 1)
+
+    def test_check_totp_fail(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test", "")
+        self.assertFalse(result)
+        self.assertEqual(user.totp_last, now)
+
+    def test_check_totp_replay(self):
+        from autobahn.wamp.auth import compute_totp
+
+        self.create_account("test")
+        user = self.get_user("test")
+        secret = self.webserver_export.enable_totp("test")
+
+        now = time.time() // 30
+        result = self.webserver_export.verify_totp("test", compute_totp(secret))
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, now)
+        result = self.webserver_export.check_totp("test", compute_totp(secret))
+        self.assertFalse(result)
+        self.assertEqual(user.totp_last, now)
+
+    def test_check_totp_not_enabled(self):
+        self.create_account("test")
+        user = self.get_user("test")
+        last = user.totp_last
+        result = self.webserver_export.check_totp("test", "")
+        self.assertTrue(result)
+        self.assertEqual(user.totp_last, last)
+
 
 class TestTicketServerExport(TestAdministrator):
     def test_check_support_nonce(self):
@@ -450,7 +610,7 @@ class StupidRequest(DummyRequest):
     code = 123
     sentLength = None
 
-    def __init__(self, postpath, session=None, path=None, args=None):
+    def __init__(self, postpath, session=None, path=None, args={}):
         DummyRequest.__init__(self, postpath, session=session)
         self.path = path
         self.args = args
@@ -471,7 +631,7 @@ class TestAdministratorWebUI(TestAdministrator):
         from twisted.web.guard import DigestCredentialFactory
 
         digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, None)
+        self.web_ui_factory = lambda level: administrator.AdminWebUI(administrator.AdminWebExport(self.administrator), 'admin', level, digest_factory, '')
 
     def test_root_l0(self):
         request = StupidRequest([''], path='/')
@@ -492,6 +652,117 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
+
+    def test_bitgo_oauth_get(self):
+        request_w_wallet = StupidRequest([''], path='/bitgo_oauth_get',
+                                args={'wallet_id': ['WALLET']})
+        request_wo_wallet = StupidRequest([''], path='/bitgo_oauth_get')
+
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored, req):
+            self.assertRegexpMatches(req.redirect_url, '/oauth/authorize')
+
+        d1 = self.render_test_helper(admin_ui, request_w_wallet).addCallback(rendered, request_w_wallet)
+        d2 = self.render_test_helper(admin_ui, request_wo_wallet).addCallback(rendered, request_wo_wallet)
+        return defer.gatherResults([d1, d2])
+
+    def test_bitgo_oauth_clear(self):
+        request = StupidRequest([''], path='/bitgo_oauth_clear')
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_bitgo_oauth_redirect(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_initialize_multisig_no_token(self):
+        request = StupidRequest([''], path='/initialize_multisig',
+                                args={'contract': 'BTC',
+                                      'public_key': '2342',
+                                      'otp': '000000'})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), 'token_invalid')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_initialize_multisig(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+            request2 = StupidRequest([''], path='/initialize_multisig',
+                                    args={'contract': ['BTC'],
+                                          'public_key': ['2342'],
+                                          'otp': ['000000']})
+            admin_ui = self.web_ui_factory(5)
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, 'wallet_spend')
+                self.assertRegexpMatches(request2.redirect_url, 'WALLET_ID')
+                BTC = self.get_contract('BTC')
+                self.assertEqual(BTC.multisig_wallet_address, 'WALLET_ID')
+
+            return self.render_test_helper(admin_ui, request2).addCallback(rendered2)
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_wallets(self):
+        request = StupidRequest([''], path='/wallets')
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), '<title>Wallets</title>')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_transfer_from_hot_wallet(self):
+        request = StupidRequest([''], path='/transfer_from_hot_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_transfer_from_multisig_wallet_no_token(self):
+        request = StupidRequest([''], path='/transfer_from_multisig_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4'],
+                                      'otp': ['000000']})
+        admin_ui = self.web_ui_factory(5)
+        def rendered(ignored):
+            self.assertRegexpMatches(''.join(request.written), 'token_invalid')
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
+
+    def test_transfer_from_multisig_wallet(self):
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            self.assertRegexpMatches(request.redirect_url, '/wallets')
+            request2 = StupidRequest([''], path='/transfer_from_multisig_wallet',
+                                args={'contract': ['BTC'],
+                                      'destination': ['offlinecash'],
+                                      'quantity': ['4'],
+                                      'otp': ['000000']})
+            admin_ui = self.web_ui_factory(5)
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, '/wallets')
+
+            return self.render_test_helper(admin_ui, request2).addCallback(rendered2)
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
     def test_change_fee_group(self):
         self.create_account('test')
@@ -1045,6 +1316,31 @@ class TestAdministratorWebUI(TestAdministrator):
 
         d.addCallback(rendered)
         return d
+
+    def test_process_withdrawal_multisig(self):
+        self.create_account('test')
+        request = StupidRequest([''], path='/bitgo_oauth_redirect', args={'code': ['CODE']})
+        admin_ui = self.web_ui_factory(5)
+
+        def rendered(ignored):
+            request2 = StupidRequest([''],
+                                    path='/process_withdrawal',
+                                    args={'username': ['test'],
+                                          'id': ['5'],
+                                          'online': True,
+                                          'multisig': True,
+                                          'otp': ['000000']})
+            d = self.render_test_helper(self.web_ui_factory(4), request2)
+
+            def rendered2(ignored):
+                self.assertRegexpMatches(request2.redirect_url, 'user_details')
+                self.assertTrue(self.administrator.cashier.component.check_for_calls(
+                    [('process_withdrawal', (5,), {'cancel': False, 'online': True, 'multisig': {'otp': '000000', 'token': 'TOKEN'}})]))
+
+            d.addCallback(rendered2)
+            return d
+
+        return self.render_test_helper(admin_ui, request).addCallback(rendered)
 
     def test_balance_sheet(self):
         request = StupidRequest([''],
