@@ -20,6 +20,10 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 class FakeAccountant(FakeComponent):
     name = "accountant"
 
+    def clear_contract(self, ticker, price, uid):
+        self._log_call("clear_contract", ticker, price, uid)
+        return [defer.succeed(None)]
+
     def get_balance_sheet(self):
         self._log_call("get_balance_sheet")
         return defer.succeed({})
@@ -931,7 +935,7 @@ class TestAdministratorWebUI(TestAdministrator):
         def rendered(ignored):
             self.assertRegexpMatches(request.redirect_url, 'contracts')
             self.assertTrue(self.administrator.accountant.component.check_for_calls([('clear_contract',
-                                                                                      (None, 'NETS2015', 1000,
+                                                                                      ('NETS2015', 1000,
                                                                                        ),
                                                                                       {})]))
 

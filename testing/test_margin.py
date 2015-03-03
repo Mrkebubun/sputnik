@@ -16,6 +16,8 @@ from sputnik import models, margin
 class TestMargin(TestSputnik):
     def setUp(self):
         TestSputnik.setUp(self)
+        self.create_account("test")
+        self.user = self.get_user("test")
 
     def test_cash_pairs_only(self):
 
