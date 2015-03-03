@@ -108,7 +108,6 @@ class Administrator:
                  bitgo=None,
                  bitgo_private_key_file=None,
                  bs_cache_update_period=86400,
-                 mtm_period=None,
                  testnet=True):
         """Set up the administrator
 
@@ -146,10 +145,6 @@ class Administrator:
             self.bs_updater.start(bs_cache_update_period, now=True)
         else:
             self.update_bs_cache()
-
-        if mtm_period is not None:
-            self.mtm_process = LoopingCall(self.mtm_futures)
-            self.mtm_process.start(mtm_period, now=False)
 
     def bitgo_oauth_clear(self, admin_user):
         if admin_user in self.bitgo_tokens:
@@ -1036,8 +1031,7 @@ class Administrator:
         futures = self.session.query(models.Contract).filter_by(contract_type="futures",
                                                                 active=True,
                                                                 expired=False)
-        for contract in futures:
-            self.clear_contract(contract.ticker)
+        return defer.DeferredList([self.clear_contract(contract.ticker) for contract in futures])
 
     def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)
@@ -2583,6 +2577,12 @@ class CronExport(ComponentExport):
     def mail_statements(self, period):
         return self.administrator.mail_statements(period)
 
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#mtm_futures")
+    def mtm_futures(self):
+        return self.administrator.mtm_futures()
+
 
 class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer
@@ -2641,7 +2641,6 @@ if __name__ == "__main__":
 
     user_limit = config.getint("administrator", "user_limit")
     bs_cache_update = config.getint("administrator", "bs_cache_update")
-    mtm_period = config.getint("administrator", "mtm_period")
 
     engine_base_port = config.getint("engine", "administrator_base_port")
     engines = {}
@@ -2666,7 +2665,6 @@ if __name__ == "__main__":
                                   bitgo=bitgo,
                                   bitgo_private_key_file=bitgo_private_key_file,
                                   testnet=config.getboolean("cashier", "testnet"),
-                                  mtm_period=mtm_period,
                                   )
 
     webserver_export = WebserverExport(administrator)

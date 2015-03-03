@@ -18,6 +18,10 @@ class Cron:
     def mail_statements(self, period):
         return self.administrator.mail_statements(period)
 
+    def mtm_futures(self):
+        return self.administrator.mtm_futures()
+
+
 if __name__ == "__main__":
     log.startLogging(sys.stdout)
 
@@ -30,6 +34,7 @@ if __name__ == "__main__":
     parser_mail_statements = subparsers.add_parser("mail_statements", help="Mail statements to users")
     parser_mail_statements.add_argument("--period", dest="period", action="store", default="monthly",
                                         help="Statement period", choices=["monthly", "weekly", "daily"])
+    parser_mtm_futures = subparsers.add_parser("mtm_futures", help="mark futures contracts to market")
 
     kwargs = vars(parser.parse_args())
     command = kwargs["command"]
