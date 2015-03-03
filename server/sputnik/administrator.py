@@ -68,7 +68,7 @@ from bitgo import BitGo
 import base64
 from Crypto.Random.random import getrandbits
 import urllib
-
+from decimal import Decimal
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
 NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
@@ -1419,7 +1419,7 @@ class AdminAPI(Resource):
                                               admin_username=self.avatarId, multisig=multisig)
 
     def manual_deposit(self, request, data):
-        return self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
+        return self.administrator.manual_deposit(data['address'], Decimal(data['quantity']), self.avatarId)
 
     def render(self, request):
         data = request.content.read()
@@ -1768,7 +1768,7 @@ class AdminWebUI(Resource):
     def transfer_from_hot_wallet(self, request):
         ticker = request.args['contract'][0]
         destination = request.args['destination'][0]
-        quantity_ui = float(request.args['quantity'][0])
+        quantity_ui = Decimal(request.args['quantity'][0])
         d = self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
         def _cb(ignored):
             request.write(redirectTo("/wallets", request))
@@ -1780,7 +1780,7 @@ class AdminWebUI(Resource):
     def transfer_from_multisig_wallet(self, request):
         ticker = request.args['contract'][0]
         destination = request.args['destination'][0]
-        quantity_ui = float(request.args['quantity'][0])
+        quantity_ui = Decimal(request.args['quantity'][0])
         if self.administrator.get_bitgo_token(self.avatarId) is None:
             raise BITGO_TOKEN_INVALID
 
@@ -1881,7 +1881,7 @@ class AdminWebUI(Resource):
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        d = self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
+        d = self.administrator.clear_contract(request.args['ticker'][0], Decimal(request.args['price'][0]))
         def _cb(result, request):
             request.write(redirectTo("/contracts", request))
             request.finish()
@@ -2038,7 +2038,7 @@ class AdminWebUI(Resource):
 
         """
         d = self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           float(request.args['quantity'][0]), self.avatarId)
+                                           Decimal(request.args['quantity'][0]), self.avatarId)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
@@ -2052,7 +2052,7 @@ class AdminWebUI(Resource):
         """
 
         d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], float(request.args['quantity'][0]),
+                                             request.args['to_user'][0], Decimal(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
@@ -2072,7 +2072,7 @@ class AdminWebUI(Resource):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        d = self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
+        d = self.administrator.manual_deposit(request.args['address'][0], Decimal(request.args['quantity'][0]), self.avatarId)
         def _cb(result, request):
             request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
             request.finish()
