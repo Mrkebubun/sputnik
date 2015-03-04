@@ -422,14 +422,17 @@ class WebserverNotifier(EngineListener):
 
         self.publish_book()
 
-    def publish_book(self):
+    @property
+    def wire_book(self):
         wire_book = {"contract": self.contract.ticker,
                      "bids": [{"quantity": row[1],
                                "price": row[0]} for row in self.aggregated_book["bids"].iteritems()],
                      "asks": [{"quantity": row[1],
                                "price": row[0]} for row in self.aggregated_book["asks"].iteritems()]}
+        return wire_book
 
-        self.webserver.book(self.contract.ticker, wire_book)
+    def publish_book(self):
+        self.webserver.book(self.contract.ticker, self.wire_book)
 
 
 class SafePriceNotifier(EngineListener):
@@ -497,9 +500,10 @@ class SafePriceNotifier(EngineListener):
         self.forwarder.publish(json.dumps({self.contract.ticker: self.safe_price}), tag=b'')
 
 class AccountantExport(ComponentExport):
-    def __init__(self, engine, safe_price_notifier):
+    def __init__(self, engine, safe_price_notifier, webserver_notifier):
         self.engine = engine
         self.safe_price_notifier = safe_price_notifier
+        self.webserver_notifier = webserver_notifier
         ComponentExport.__init__(self, engine)
 
     @export
@@ -517,6 +521,10 @@ class AccountantExport(ComponentExport):
     def get_safe_price(self):
         return self.safe_price_notifier.safe_price
 
+    @export
+    @schema("rpc/engine.json#get_order_book")
+    def get_order_book(self):
+        return self.webserver_notifier.wire_book
 
 class AdministratorExport(ComponentExport):
     def __init__(self, engine):
@@ -566,7 +574,7 @@ if __name__ == "__main__":
     forwarder = connect_publisher(config.get("safe_price_forwarder", "zmq_frontend_address"))
 
     safe_price_notifier = SafePriceNotifier(session, engine, accountant, webserver, forwarder, contract)
-    accountant_export = AccountantExport(engine, safe_price_notifier)
+    accountant_export = AccountantExport(engine, safe_price_notifier, webserver_notifier)
     router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
 
     engine.add_listener(logger)

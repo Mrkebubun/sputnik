@@ -358,7 +358,7 @@ class Accountant:
         else:
             return True
 
-    def liquidation_value(self, position, quantity=1):
+    def liquidation_value(self, position, quantity, book):
         sign = 1 if position.position < 0 else -1
         quantity *= sign
 
@@ -366,9 +366,21 @@ class Accountant:
                                                     'reference_price': position.reference_price,
                                                     'contract': position.contract } }
 
-        # Cash change if traded
-        # TODO: estimated trade price should not be safe price it should be something based on the orderbook
-        trade_price = self.safe_prices[position.contract.ticker]
+
+        if len(book['asks']):
+            best_ask = book['asks'][0]['price']
+        else:
+            best_ask = sys.maxint
+
+        if len(book['bids']):
+            best_bid = book['bids'][0]['price']
+        else:
+            best_bid = 0
+
+        if sign == 1:
+            trade_price = best_ask
+        else:
+            trade_price = best_bid
 
         if position.contract.contract_type == "futures":
             cash_spent = util.get_cash_spent(position.contract, trade_price - position.reference_price, quantity)
@@ -382,9 +394,11 @@ class Accountant:
         margin_if = margin.calculate_margin(position.user, self.session, self.safe_prices,
                                                                       position_overrides=position_override,
                                                                       cash_overrides=cash_override)
-        return margin_current[0] - margin_if[0]
+        margin_change = margin_current[0] - margin_if[0]
+        cost = (best_ask - best_bid)/2.0
 
-
+        value = margin_change / cost
+        return value
 
     def liquidate_best(self, username):
         # Find the position that has the biggest margin impact and sell one of those
@@ -408,17 +422,31 @@ class Accountant:
                 quantity = 1
                 positions = self.session.query(models.Position).join(models.Contract).filter(models.Position.username==username).filter(
                     models.Contract.contract_type.in_(["futures", "prediction"])).filter(models.Position.position != 0)
-                liquidation_values = [(position, self.liquidation_value(position, quantity=quantity)) for position in positions]
-                liquidation_values.sort(lambda x, y: y[1] - x[1])
-                log.msg("liquidation values: %s" % liquidation_values)
+                order_books = {}
+                deferreds = []
+                for position in positions:
+                    if position.contract.ticker not in order_books:
+                        d = self.engines[position.contract.ticker].get_order_book()
+                        def got_book(book, ticker):
+                            order_books[ticker] = book
+                            return (ticker, book)
 
-                # Best value
-                # TODO: Compare with cost (half bid-ask)
-                if len(liquidation_values):
-                    return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
-                else:
-                    log.err("No positions to choose from!")
-                    return None
+                        d.addCallback(got_book, position.contract.ticker)
+                        deferreds.append(d)
+
+                def got_all_books(all_books):
+                    log.msg("Got all books: %s" % all_books)
+                    liquidation_values = [(position, self.liquidation_value(position, quantity=quantity, book=order_books[position.contract.ticker])) for position in positions]
+                    liquidation_values.sort(lambda x, y: y[1] > x[1])
+                    log.msg("liquidation values: %s" % liquidation_values)
+
+                    if len(liquidation_values):
+                        return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
+                    else:
+                        log.err("No positions to choose from!")
+                        return None
+
+                return defer.DeferredList(deferreds).addCallback(got_all_books)
 
         d.addCallback(after_cancellations)
         return d

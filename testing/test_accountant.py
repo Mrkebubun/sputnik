@@ -55,6 +55,18 @@ class FakeSafePriceNotifier():
     def safe_price(self):
         return defer.succeed(42)
 
+class FakeWebserverNotifier():
+    def __init__(self, ticker):
+        self.ticker = ticker
+
+    @property
+    def wire_book(self):
+        return defer.succeed({"contract": self.ticker,
+                 "bids": [{"quantity": 1,
+                           "price": 1}],
+                 "asks": [{"quantity": 1,
+                           "price": 2}]})
+
 
 class TestAccountantBase(TestSputnik):
     def setUp(self):
@@ -66,12 +78,12 @@ class TestAccountantBase(TestSputnik):
             from sputnik import cashier
             from sputnik import engine2
 
-            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
-                            "BTC/PLN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
-                            "BTC/HUF": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
-                            "NETS2014": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
-                            "NETS2015": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier()),
-                            'USDBTC0W': engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier())}
+            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/MXN')),
+                            "BTC/PLN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/PLN')),
+                            "BTC/HUF": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/HUF')),
+                            "NETS2014": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('NETS2014')),
+                            "NETS2015": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('NETS2015')),
+                            'USDBTC0W': engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('USDBTC0W'))}
             self.webserver = FakeComponent("webserver")
             self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
             self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
@@ -1368,7 +1380,8 @@ class TestRiskManagerExport(TestAccountant):
         def onLiquidated(id):
             from sputnik import models
             order = self.session.query(models.Order).filter_by(id=id).one()
-            pass
+            # Make sure we pick the NETS2015 contract
+            self.assertEqual(order.contract.ticker, 'NETS2015')
 
         d.addCallback(onLiquidated)
         return d
