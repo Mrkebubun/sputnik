@@ -89,7 +89,6 @@ class @Sputnik extends EventEmitter
         market_encoded = @encode_market market
         @subscribe "feeds.market.book.#{market_encoded}", @onBook
         @subscribe "feeds.market.trades.#{market_encoded}", @onTrade
-        @subscribe "feeds.market.safe_prices.#{market_encoded}", @onSafePrice
         @subscribe "feeds.market.ohlcv.#{market_encoded}", @onOHLCV
         @following = market
 
@@ -97,7 +96,6 @@ class @Sputnik extends EventEmitter
         market_encoded = @encode_market market
         @unsubscribe "feeds.market.book.#{market_encoded}"
         @unsubscribe "feeds.market.trades.#{market_encoded}"
-        @unsubscribe "feeds.market.safe_prices.#{market_encoded}"
         @unsubscribe "feeds.market.ohlcv.#{market_encoded}"
         @following = undefined
 
@@ -589,7 +587,6 @@ class @Sputnik extends EventEmitter
             @emit "request_withdrawal_fail", error
 
     # account/position information
-    getSafePrices: () =>
     getOpenOrders: () =>
         @call("rpc.trader.get_open_orders").then \
             (@orders) =>
@@ -705,7 +702,8 @@ class @Sputnik extends EventEmitter
 
     # logging
     log: (obj) =>
-        @emit "log", obj
+        if @log_flag
+            @emit "log", obj
     warn: (obj) ->
         @emit "warn", obj
     error: (obj) ->
@@ -724,9 +722,6 @@ class @Sputnik extends EventEmitter
         # Do initial stuff
         @processHash()
 
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
-
         @emit "open"
 
     onClose: (code, reason, details) =>
@@ -739,6 +734,9 @@ class @Sputnik extends EventEmitter
 
         # Clear subscriptions
         @subscriptions = {}
+
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         if @following?
             @follow @following
@@ -790,14 +788,33 @@ class @Sputnik extends EventEmitter
     # default RPC callbacks
 
     onMarkets: (@markets) =>
+        sp_tickers = []
         for ticker of markets
             @markets[ticker].trades = []
             @markets[ticker].bids = []
             @markets[ticker].asks = []
             @markets[ticker].ohlcv = {day: {}, hour: {}, minute: {}}
 
+            if @markets[ticker].contract_type == "futures"
+                encoded_ticker = @encode_market ticker
+                @subscribe "feeds.market.safe_prices.#{encoded_ticker}", @onSafePrice(ticker)
+                sp_tickers.push ticker
+
+        @getSafePrices sp_tickers
+
         @log ["Markets", @markets]
         @emit "markets", @markets
+
+    onSafePrice: (ticker) =>
+        (safe_price) =>
+            @safe_prices[ticker] = safe_price
+            @emit "safe_prices", @safePricesFromWire(@safe_prices)
+
+    onSafePrices: (@safe_prices) =>
+        @emit "safe_prices", @safePricesFromWire(@safe_prices)
+
+    getSafePrices: (tickers) =>
+        @call("rpc.market.get_safe_prices", tickers).then @onSafePrices, @wtf
 
     onExchangeInfo: (@exchange_info) =>
         @log ["Exchange Info", @exchange_info]
@@ -937,14 +954,26 @@ class @Sputnik extends EventEmitter
 
         @emit "transaction", @transactionFromWire(transaction)
 
-        positions = {}
-        for ticker, position of @positions
-            positions[ticker] = @positionFromWire(position)
+        complete_tx_handling = (transaction) =>
+            positions = {}
+            for ticker, position of @positions
+                positions[ticker] = @positionFromWire(position)
 
-        @emit "positions", positions
-        [low_margin, high_margin, max_cash_spent] = @calculateMargin()
-        @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
-        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
+            @emit "positions", positions
+            [low_margin, high_margin, max_cash_spent] = @calculateMargin()
+            @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+            @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
+
+
+        # If it's a futures transaction update the reference price
+        if @markets[transaction.contract].contract_type is "futures"
+            @call("rpc.trader.get_positions").then \
+                (positions) =>
+                    @positions[transaction.contract].reference_price = positions[transaction.contract].reference_price
+                    complete_tx_handling(transaction)
+        else
+            complete_tx_handling(transaction)
+
 
     availableToWithdraw: (ticker) =>
         margin = @calculateMargin()
@@ -956,7 +985,6 @@ class @Sputnik extends EventEmitter
     calculateMargin: (new_order) =>
         low_margin = 0
         high_margin = 0
-        #TODO: add futures here
 
         orders = (order for id, order of @orders)
         if new_order?
@@ -973,8 +1001,29 @@ class @Sputnik extends EventEmitter
             min_position = position.position - sell_quantities.reduce sum, 0
 
             if contract.contract_type is "futures"
-                # NOT IMPLEMENTED
-                @error "Futures not implemented"
+                SAFE_PRICE = @safe_prices[ticker]
+                if position.reference_price is null
+                    if position.position != 0
+                        @err "No reference price with non-zero position"
+                    reference_price = SAFE_PRICE
+                else
+                    reference_price = position.reference_price
+
+                # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
+                low_max = Math.abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                low_min = Math.abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_max = Math.abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_min = Math.abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+
+                @warn ["Margin:", ticker, max_position, min_position, low_max, low_min, high_max, high_min]
+
+                high_margin += Math.max(high_max, high_min)
+                low_margin += Math.max(low_max, low_min)
+
             else if contract.contract_type == "prediction"
                 payoff = contract.lot_size
                 spending = (order.quantity_left * order.price * @markets[order.contract].lot_size / @markets[order.contract].denominator for order in orders when order.contract == ticker and order.side == "BUY")
@@ -1027,7 +1076,6 @@ class @Sputnik extends EventEmitter
         @log ["Margin:", low_margin, high_margin]
         @log ["cash_spent", max_cash_spent]
         return [low_margin, high_margin, max_cash_spent]
-
 
 if module?
     module.exports =

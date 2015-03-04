@@ -110,6 +110,23 @@ class MarketMakerBot(SputnikSession):
 
                         new_bid = btcusd_bid * bid
                         new_ask = btcusd_ask * ask
+                elif market['contract_type'] == "futures":
+                    if ticker.startswith("USDBTC"):
+                        # Ignore BTC and USD interest rates
+                        new_bid_spot = 10000/btcusd_ask
+                        new_ask_spot = 10000/btcusd_bid
+                        from datetime import datetime
+                        import util
+                        timedelta_to_expiry = util.timestamp_to_dt(market['expiration']) - datetime.utcnow()
+                        time_to_expiry = timedelta_to_expiry.total_seconds() / (365.25*24*60*60)
+                        # Assume 10bps USD risk-free rate and 5% BTC rate
+                        usd_rate = 0.0010
+                        btc_rate = 0.0500
+                        import math
+                        forward_factor = Decimal(math.exp((usd_rate - btc_rate) * time_to_expiry))
+                        new_bid = new_bid_spot * forward_factor
+                        new_ask = new_ask_spot * forward_factor
+
 
                 if new_ask is not None and new_bid is not None:
                     logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))
