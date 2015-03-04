@@ -8,5 +8,5 @@
 30 2 * * * (cd ${root}/server/sputnik; ${root}/server/sputnik/cron.py${pycompiled} mail_statements --period daily)
 
 # Daily MTM
-${mtm_cron_freq} (cd ${root}/server/sputnik; ${root}/server/sputnik.cron.py${pycompiled} mtm_futures)
+${mtm_cron_freq} (cd ${root}/server/sputnik; ${root}/server/sputnik/cron.py${pycompiled} mtm_futures)
 

@@ -25,7 +25,7 @@ class Cron:
 if __name__ == "__main__":
     log.startLogging(sys.stdout)
 
-    administrator = dealer_proxy_async(config.get("administrator", "cron_export"))
+    administrator = dealer_proxy_async(config.get("administrator", "cron_export"), timeout=300)
     cron = Cron(administrator)
 
     # Parse arguments to figure out what to do

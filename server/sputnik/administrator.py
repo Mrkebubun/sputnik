@@ -1027,11 +1027,12 @@ class Administrator:
         return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(self.clear_first_error)
     
     def mtm_futures(self):
-        self.session.expire(self.session.query(models.Contract))
         futures = self.session.query(models.Contract).filter_by(contract_type="futures",
-                                                                active=True,
-                                                                expired=False)
-        return defer.DeferredList([self.clear_contract(contract.ticker) for contract in futures])
+                                                                active=True)
+        for contract in futures:
+            self.session.expire(contract)
+
+        return defer.DeferredList([self.clear_contract(contract.ticker) for contract in futures if not contract.expired])
 
     def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)

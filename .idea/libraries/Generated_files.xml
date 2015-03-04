@@ -3,10 +3,12 @@
     <properties>
       <sourceFilesUrls>
         <item url="file://$PROJECT_DIR$/github/clients/coffeescript/sputnik.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
       <root url="file://$PROJECT_DIR$/github/clients/coffeescript/sputnik.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
     </CLASSES>
     <SOURCES />
   </library>
