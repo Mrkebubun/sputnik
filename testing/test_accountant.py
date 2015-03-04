@@ -1369,7 +1369,7 @@ class TestRiskManagerExport(TestAccountant):
         self.create_account("test")
         self.user = self.get_user("test")
 
-    def test_liquidate_best(self):
+    def test_liquidate_best_prediction(self):
         self.create_position('BTC', 4000)
         self.create_position('USDBTC0W', 4, reference_price=4002)
         self.create_position('NETS2015', -4)
@@ -1382,7 +1382,28 @@ class TestRiskManagerExport(TestAccountant):
             order = self.session.query(models.Order).filter_by(id=id).one()
             # Make sure we pick the NETS2015 contract
             self.assertEqual(order.contract.ticker, 'NETS2015')
+            self.assertEqual(order.side, 'BUY')
 
         d.addCallback(onLiquidated)
         return d
+
+
+    def test_liquidate_best_futures(self):
+        self.create_position('BTC', 4000)
+        self.create_position('USDBTC0W', -4, reference_price=1000)
+        self.create_position('NETS2015', 1)
+        self.accountant.safe_prices['USDBTC0W'] = 1202
+        self.accountant.safe_prices['NETS2015'] = 500
+
+        d = self.riskmanager_export.liquidate_best('test')
+        def onLiquidated(id):
+            from sputnik import models
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            # Make sure we pick the USDBTC0W contract
+            self.assertEqual(order.contract.ticker, 'USDBTC0W')
+            self.assertEqual(order.side, 'BUY')
+
+        d.addCallback(onLiquidated)
+        return d
+
 

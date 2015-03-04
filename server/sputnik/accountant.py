@@ -68,6 +68,7 @@ ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
 NO_SUCH_USER = AccountantException("exceptions/accountant/no_such_user")
 INVALID_PRICE_QUANTITY = AccountantException("exceptions/accountant/invalid_price_quantity")
+INVALID_CONTRACT_TYPE = AccountantException("exceptions/accountant/invalid_contract_type")
 
 class Accountant:
     """The Accountant primary class
@@ -397,7 +398,7 @@ class Accountant:
         margin_change = margin_current[0] - margin_if[0]
         cost = (best_ask - best_bid)/2.0
 
-        value = margin_change / cost
+        value = int(margin_change / cost)
         return value
 
     def liquidate_best(self, username):
@@ -437,7 +438,7 @@ class Accountant:
                 def got_all_books(all_books):
                     log.msg("Got all books: %s" % all_books)
                     liquidation_values = [(position, self.liquidation_value(position, quantity=quantity, book=order_books[position.contract.ticker])) for position in positions]
-                    liquidation_values.sort(lambda x, y: y[1] > x[1])
+                    liquidation_values.sort(lambda x, y: y[1] - x[1])
                     log.msg("liquidation values: %s" % liquidation_values)
 
                     if len(liquidation_values):
@@ -486,11 +487,14 @@ class Accountant:
                 if quantity is None:
                     quantity = -position.position
 
+                # The maximum price
                 if position.contract.contract_type == "prediction":
                     price = position.contract.denominator
+                elif position.contract.contract_type == "futures":
+                    price = sys.maxint
                 else:
-                    # For futures just do reference price * 100
-                    price = position.reference_price * 100
+                    raise INVALID_CONTRACT_TYPE
+
             order = {
                 'price': price,
                 'quantity': quantity,
