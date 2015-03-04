@@ -65,7 +65,7 @@
         "description": "get the safe prices for all or a list of contracts",
         "properties": {
             "array_of_contracts": {
-                "type": "array",
+                "type": ["array", "null"],
                 "description": "array of contracts we want safe prices for"
             }
         },
