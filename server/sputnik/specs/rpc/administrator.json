@@ -235,6 +235,11 @@
         "description": "webserver -> administrator RPC call to get the balance sheet audit",
         "additionalProperties": false
     },
+    "mtm_futures": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to mark futures to market",
+        "additionalProperties": false
+    },
     "mail_statements": {
         "type": "object",
         "description": "cron -> administrator RPC call to mail out statements to users who want them",

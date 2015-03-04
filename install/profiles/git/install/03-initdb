@@ -49,44 +49,44 @@ contracts set BULLS2015 fees 200
 contracts add USDBTC0W
 contracts set USDBTC0W contract_type futures
 contracts set USDBTC0W denominator 1000
-contracts set USDBTC0W lot_size 100000000
+contracts set USDBTC0W lot_size 10000
 contracts set USDBTC0W tick_size 1
-contracts set USDBTC0W expiration 2015-06-28
+contracts set USDBTC0W expiration week
 contracts set USDBTC0W period week
 contracts set USDBTC0W denominated_contract_ticker BTC
 contracts set USDBTC0W payout_contract_ticker USDBTC0W
 contracts set USDBTC0W margin_low 25
 contracts set USDBTC0W margin_high 50
 contracts set USDBTC0W description "USDBTC Weekly Future"
-contracts set USDBTC0W full_description "Settles at 1000 / BTC/USD price at bitstamp"
+contracts set USDBTC0W full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
 
 contracts add USDBTC0D
 contracts set USDBTC0D contract_type futures
 contracts set USDBTC0D denominator 1000
-contracts set USDBTC0D lot_size 100000000
+contracts set USDBTC0D lot_size 10000
 contracts set USDBTC0D tick_size 1
-contracts set USDBTC0D expiration 2015-06-28
+contracts set USDBTC0D expiration day
 contracts set USDBTC0D period day
 contracts set USDBTC0D denominated_contract_ticker BTC
 contracts set USDBTC0D payout_contract_ticker USDBTC0D
 contracts set USDBTC0D margin_low 25
 contracts set USDBTC0D margin_high 50
 contracts set USDBTC0D description "USDBTC Daily Future"
-contracts set USDBTC0D full_description "Settles at 1000 / BTC/USD price at bitstamp"
+contracts set USDBTC0D full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
 
 contracts add USDBTC0M
 contracts set USDBTC0M contract_type futures
 contracts set USDBTC0M denominator 1000
-contracts set USDBTC0M lot_size 100000000
+contracts set USDBTC0M lot_size 10000
 contracts set USDBTC0M tick_size 1
-contracts set USDBTC0M expiration 2015-06-28
+contracts set USDBTC0M expiration month
 contracts set USDBTC0M period month
 contracts set USDBTC0M denominated_contract_ticker BTC
 contracts set USDBTC0M payout_contract_ticker USDBTC0M
 contracts set USDBTC0M margin_low 25
 contracts set USDBTC0M margin_high 50
 contracts set USDBTC0M description "USDBTC Monthly Future"
-contracts set USDBTC0M full_description "Settles at 1000 / BTC/USD price at bitstamp"
+contracts set USDBTC0M full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
 
 
 contracts set BTC contract_type cash

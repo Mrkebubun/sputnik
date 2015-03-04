@@ -1465,7 +1465,7 @@ class AdminAPI(Resource):
         if 'price' not in data:
             d = self.administrator.clear_contract(data['ticker'])
         else:
-            d = self.administrator.clear_contract(data['ticker'], float(data['price']))
+            d = self.administrator.clear_contract(data['ticker'], Decimal(data['price']))
 
         def process_done(result):
             request.write(json.dumps({'result': True}))
@@ -2237,6 +2237,10 @@ class AdminWebExport(ComponentExport):
         return self.administrator.bitgo_oauth_clear(admin_user)
 
     @session_aware
+    def get_margins(self):
+        return self.administrator.get_margins()
+
+    @session_aware
     def get_withdrawals(self):
         return self.administrator.get_withdrawals()
 
@@ -2293,8 +2297,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.edit_contract(ticker, args)
 
     @session_aware
-    def clear_contract(self, ticker, price):
-        return self.administrator.clear_contract(ticker, price)
+    def clear_contract(self, ticker, price_ui=None):
+        return self.administrator.clear_contract(ticker, price_ui=price_ui)
 
     @session_aware
     def get_order_book(self, ticker):

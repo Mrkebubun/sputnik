@@ -1494,16 +1494,21 @@ class Accountant:
                                    position.contract.denominated_contract_ticker, cash_spent, 'debit',
                                    note)
 
+            # We want a zero entry here to force a transaction for the contract
+            # to be sent to the user so it knows to update reference_price
+            zero = create_posting("Clearing", position.username,
+                                  position.contract.ticker, 0, 'credit', note)
+
             # This is a simple two posting journal entry
             small_uid = util.get_uid()
-            for posting in credit, clearing:
-                posting['count'] = 2
+            for posting in credit, clearing, zero:
+                posting['count'] = 3
                 posting['uid'] = small_uid
-            log.msg("credit: %s, debit: %s" % (credit, clearing))
+            log.msg("credit: %s, debit: %s, zero: %s" % (credit, clearing, zero))
 
 
             self.accountant_proxy.remote_post(clearing['username'], clearing)
-            d = self.post_or_fail(credit)
+            d = self.post_or_fail(credit, zero)
 
             def set_reference_price(result):
                 log.msg("Setting reference price for %s to %d" % (position, price))

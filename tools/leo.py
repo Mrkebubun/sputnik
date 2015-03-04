@@ -15,7 +15,7 @@ from sputnik import config
 from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
-from datetime import timedelta
+from datetime import timedelta, datetime
 import shlex
 
 class PermissionsManager:
@@ -287,15 +287,19 @@ class ContractManager:
             raise NotImplementedError
 
     def set(self, ticker_or_id, field, value):
+        timedelta_map = {"week": timedelta(days=7),
+                         "month": timedelta(days=30),
+                         "day": timedelta(days=1)}
         contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         if field == 'expiration':
-            value = parser.parse(value)
+            if value in timedelta_map:
+                value = datetime.utcnow() + timedelta_map[value]
+            else:
+                value = parser.parse(value)
         if field == 'period':
-            timedelta_map = {"week": timedelta(days=7),
-                             "month": timedelta(days=30),
-                             "day": timedelta(days=1)}
+
             if value in timedelta_map:
                 value = timedelta_map[value]
             else:
