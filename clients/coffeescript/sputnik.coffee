@@ -721,6 +721,8 @@ class @Sputnik extends EventEmitter
 
         # Do initial stuff
         @processHash()
+        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
+        @call("rpc.market.get_markets").then @onMarkets, @wtf
 
         @emit "open"
 
@@ -735,8 +737,8 @@ class @Sputnik extends EventEmitter
         # Clear subscriptions
         @subscriptions = {}
 
+        # Get markets again
         @call("rpc.market.get_markets").then @onMarkets, @wtf
-        @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         if @following?
             @follow @following
@@ -746,7 +748,6 @@ class @Sputnik extends EventEmitter
             @authenticated = true
 
             @getProfile()
-            @getSafePrices()
             @getOpenOrders()
             @getPositions()
             @getPermissions()
@@ -810,8 +811,17 @@ class @Sputnik extends EventEmitter
             @safe_prices[ticker] = safe_price
             @emit "safe_prices", @safePricesFromWire(@safe_prices)
 
+            [low_margin, high_margin, max_cash_spent] = @calculateMargin()
+            @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+            @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
+
     onSafePrices: (@safe_prices) =>
+        @log ["onSafePrices", @safe_prices]
         @emit "safe_prices", @safePricesFromWire(@safe_prices)
+
+        [low_margin, high_margin, max_cash_spent] = @calculateMargin()
+        @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
+        @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
     getSafePrices: (tickers) =>
         @call("rpc.market.get_safe_prices", tickers).then @onSafePrices, @wtf
