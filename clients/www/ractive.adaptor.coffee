@@ -116,7 +116,9 @@ class RactiveSputnikWrapper
 
             for ticker, market of markets
                 if market.expiration/1000 < now
-                    continue
+                    market.expired = true
+                else
+                    market.expired = false
 
                 if market.contract_type isnt "cash"
                     @markets[ticker] = market

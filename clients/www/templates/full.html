@@ -213,7 +213,7 @@
                                         {{/if}}
                                     </div>
                                 </div>
-                                {{#if sputnik.logged_in && sputnik.permissions.trade}}
+                                {{#if sputnik.logged_in && sputnik.permissions.trade && !sputnik.markets[current_ticker].expired}}
                                 <div class="buy-sell-orders" id="buy-sell-orders">
                                     <div class="row">
                                         <div class="col-xs-6 col-sm-4 buy-box">
