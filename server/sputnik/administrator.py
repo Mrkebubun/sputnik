@@ -1034,6 +1034,21 @@ class Administrator:
 
         return defer.DeferredList([self.clear_contract(contract.ticker) for contract in futures if not contract.expired])
 
+    def notify_expired(self):
+        contracts = self.session.query(models.Contract).filter(models.Contract.contract_type.in_(["futures", "prediction"])).filter_by(active=True)
+        for contract in contracts:
+            self.session.expire(contract)
+        expired_list = [contract for contract in contracts if contract.expired]
+        if len(expired_list):
+            # Send expiration message
+            t = self.jinja_env.get_template('expired_contracts.email')
+            content = t.render(expired_list=expired_list).encode('utf-8')
+
+            # Now email
+            log.msg("Sending mail: %s" % content)
+            self.sendmail.send_mail(content, to_address=self.sendmail.from_address,
+                                        subject='Expired contracts')
+
     def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)
 
@@ -2588,6 +2603,12 @@ class CronExport(ComponentExport):
     def mtm_futures(self):
         return self.administrator.mtm_futures()
 
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#notify_expired")
+    def notify_expired(self):
+        return self.administrator.notify_expired()
+
 
 class TicketServerExport(ComponentExport):
     """The administrator exposes these functions to the TicketServer
@@ -2641,7 +2662,7 @@ if __name__ == "__main__":
     base_uri = "%s://%s:%d" % (protocol,
                                config.get("webserver", "www_address"),
                                config.getint("webserver", "www_port"))
-    from_email = config.get("administrator", "email")
+    administrator_email = config.get("administrator", "email")
     zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
     user_limit = config.getint("administrator", "user_limit")
@@ -2664,7 +2685,7 @@ if __name__ == "__main__":
                                   zendesk_domain,
                                   accountant_slow, webserver,
                                   debug=debug, base_uri=base_uri,
-                                  sendmail=Sendmail(from_email),
+                                  sendmail=Sendmail(administrator_email),
                                   user_limit=user_limit,
                                   bs_cache_update_period=bs_cache_update,
                                   bitgo=bitgo,

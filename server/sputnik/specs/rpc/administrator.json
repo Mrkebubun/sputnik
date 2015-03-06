@@ -240,6 +240,11 @@
         "description": "cron -> administrator RPC call to mark futures to market",
         "additionalProperties": false
     },
+    "notify_expired": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to send a mail about expired contracts",
+        "additionalProperties": false
+    },
     "mail_statements": {
         "type": "object",
         "description": "cron -> administrator RPC call to mail out statements to users who want them",

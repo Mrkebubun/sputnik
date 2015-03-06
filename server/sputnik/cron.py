@@ -19,8 +19,8 @@ class Cron:
         return self.administrator.mail_statements(period)
 
     def mtm_futures(self):
+        self.administrator.notify_expired()
         return self.administrator.mtm_futures()
-
 
 if __name__ == "__main__":
     log.startLogging(sys.stdout)
