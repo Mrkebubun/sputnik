@@ -125,7 +125,7 @@ if __name__ == '__main__':
     config.read(args.config)
 
     params = dict(config.items("sputnik"))
-    params.update(dict(config.items("market_maker")))
+    params.update(dict(config.items("random_trader")))
 
     sputnik = Sputnik(debug=args.debug, bot=RandomBot, **params)
 
