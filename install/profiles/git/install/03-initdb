@@ -58,7 +58,7 @@ contracts set USDBTC0W payout_contract_ticker USDBTC0W
 contracts set USDBTC0W margin_low 25
 contracts set USDBTC0W margin_high 50
 contracts set USDBTC0W description "USDBTC Weekly Future"
-contracts set USDBTC0W full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
+contracts set USDBTC0W full_description "Index value = 10,000 / (Coindesk BTC/USD index price).\n1 index point = 0.1 mBTC\nI.e. One contract is equivalent to one dollar of BTC risk\n"
 
 contracts add USDBTC0D
 contracts set USDBTC0D contract_type futures
@@ -72,7 +72,7 @@ contracts set USDBTC0D payout_contract_ticker USDBTC0D
 contracts set USDBTC0D margin_low 25
 contracts set USDBTC0D margin_high 50
 contracts set USDBTC0D description "USDBTC Daily Future"
-contracts set USDBTC0D full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
+contracts set USDBTC0D full_description "Index value = 10,000 / (Coindesk BTC/USD index price).\n1 index point = 0.1 mBTC\nI.e. One contract is equivalent to one dollar of BTC risk\n"
 
 contracts add USDBTC0M
 contracts set USDBTC0M contract_type futures
@@ -86,7 +86,7 @@ contracts set USDBTC0M payout_contract_ticker USDBTC0M
 contracts set USDBTC0M margin_low 25
 contracts set USDBTC0M margin_high 50
 contracts set USDBTC0M description "USDBTC Monthly Future"
-contracts set USDBTC0M full_description "Settles at index = 10,000 / BTC/USD price at bitstamp. 1 index point = 0.1 mBTC"
+contracts set USDBTC0M full_description "Index value = 10,000 / (Coindesk BTC/USD index price).\n1 index point = 0.1 mBTC\nI.e. One contract is equivalent to one dollar of BTC risk\n"
 
 
 contracts set BTC contract_type cash
