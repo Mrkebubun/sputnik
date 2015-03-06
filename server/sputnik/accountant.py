@@ -968,23 +968,20 @@ class Accountant:
             # do not allow orders for internally used contracts
             if contract.contract_type == 'cash':
                 log.err("Webserver allowed a 'cash' contract!")
-                raise AccountantException(0, "Not a valid contract type.")
+                raise INVALID_CONTRACT_TYPE
 
         if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-            raise AccountantException(0, "invalid price or quantity")
+            raise INVALID_PRICE_QUANTITY
 
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
 
-            if contract.contract_type == "cash_pair":
-                if not order["quantity"] % contract.lot_size == 0:
-                    raise AccountantException(0, "invalid price or quantity")
         else:
             log.msg("Forcing order")
 
@@ -1569,7 +1566,7 @@ class Accountant:
             d.addCallback(set_reference_price).addErrback(log.err)
             return d
         else:
-            raise NotImplementedError
+            raise INVALID_CONTRACT_TYPE
 
 
 class WebserverExport(ComponentExport):

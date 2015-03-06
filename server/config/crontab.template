@@ -9,6 +9,5 @@
 
 # Daily MTM
 ${mtm_cron_freq} (cd ${root}/server/sputnik; ${root}/server/sputnik/cron.py${pycompiled} mtm_futures)
-${mtm_cron_freq} (cd ${root}/server/sputnik; ${root}/server/sputnik/cron.py${pycompiled} notify_expired)
 
 
