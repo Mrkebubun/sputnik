@@ -182,6 +182,9 @@ class @Sputnik extends EventEmitter
                     @cp_args = args
                     @emit args.function, args
 
+            if args.debug?
+                @log_flag = true
+
     authenticate: (@username, password) =>
         if not @session?
             @wtf "Not connected."
@@ -722,7 +725,6 @@ class @Sputnik extends EventEmitter
         # Do initial stuff
         @processHash()
         @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
-        @call("rpc.market.get_markets").then @onMarkets, @wtf
 
         @emit "open"
 
