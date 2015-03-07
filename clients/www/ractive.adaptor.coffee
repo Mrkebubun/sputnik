@@ -181,7 +181,7 @@ class RactiveSputnikWrapper
 
             @notify "trade_history"
 
-        sputnik.on "positions", (positions) =>
+        @sputnik.on "positions", (positions) =>
             @sputnik.log ["positions", positions]
             for ticker, position of positions
                 if @markets[ticker]?.contract_type isnt "cash_pair"
@@ -201,8 +201,8 @@ class RactiveSputnikWrapper
                             tmp_active_contracts.push ticker
 
                 else if market.contract_type isnt "cash"
-                    if ticker not in @active_contracts
-                        if @positions[ticker]? and @positions[ticker].position != 0
+                    if ticker not in tmp_active_contracts
+                        if @positions[ticker]?.position
                             tmp_active_contracts.push ticker
 
             # If there's nothing that results, don't change
@@ -211,19 +211,19 @@ class RactiveSputnikWrapper
                 @sputnik.log ["active_contracts", @active_contracts]
                 @notify "active_contracts"
         
-        sputnik.on "margin", (margin) =>
+        @sputnik.on "margin", (margin) =>
             @sputnik.log ["margin", margin]
             @margin = margin
 
             @notify "margin"
 
-        sputnik.on "orders", (orders) =>
+        @sputnik.on "orders", (orders) =>
             @sputnik.log ["orders", orders]
             @orders = orders
 
             @notify "orders"
 
-        sputnik.on "ohlcv_history", (ohlcv_history) =>
+        @sputnik.on "ohlcv_history", (ohlcv_history) =>
             @sputnik.log ["ohlcv_history", ohlcv_history]
             keys = Object.keys(ohlcv_history)
             if keys.length
@@ -240,15 +240,15 @@ class RactiveSputnikWrapper
 
             @notify "ohlcv"
 
-        sputnik.on "ohlcv", (ohlcv) =>
+        @sputnik.on "ohlcv", (ohlcv) =>
             @sputnik.log ["ohlcv", ohlcv]
             update_ohlcv(ohlcv)
 
-        sputnik.on "safe_prices", (@safe_prices) =>
+        @sputnik.on "safe_prices", (@safe_prices) =>
             @sputnik.log ["safe_prices", @safe_prices]
             @notify "safe_prices"
 
-        sputnik.on "api", (@api) =>
+        @sputnik.on "api", (@api) =>
             @notify "api"
 
     notify: (property) =>
