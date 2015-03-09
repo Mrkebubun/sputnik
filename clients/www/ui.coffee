@@ -193,7 +193,7 @@ $ ->
                 current_ticker: null
                 current_type: null
                 current_currency: null
-                current_page: "dashboard"
+                current_page: "trade"
                 dashboard_tab: "active-contracts"
                 account_tab: "profile"
                 fh_tab: "deposit"
@@ -697,6 +697,7 @@ $ ->
         sputnik.on "open", () ->
             sputnik.log "open"
             ractive.set("connected", true)
+            restore_session = false
 
             # Attempt a cookie login
             full_cookie = document.cookie
@@ -713,7 +714,11 @@ $ ->
                             expireCookie('login')
                         else
                             sputnik.log "attempting cookie login with: #{name_uid[1]}"
+                            restore_session = true
                             sputnik.restoreSession name_uid[0], name_uid[1]
+
+            if not restore_session
+                sputnik.onJoin()
 
         sputnik.on "join", () ->
             if simple_widget?
