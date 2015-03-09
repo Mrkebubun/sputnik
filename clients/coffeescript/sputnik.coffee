@@ -720,10 +720,13 @@ class @Sputnik extends EventEmitter
         @session.onjoin = @onJoin
         @session.onleave = @onLeave
         @connected = true
+
+        # Deal with commands on '#'
+        @processHash()
+
         @log "Connected to #{@uri}."
 
-        # Do initial stuff
-        @processHash()
+        # Get exchange info
         @call("rpc.info.get_exchange_info").then @onExchangeInfo, @wtf
 
         @emit "open"
@@ -736,10 +739,7 @@ class @Sputnik extends EventEmitter
     onJoin: =>
         @log ["onJoin", @username]
 
-        # Clear subscriptions
-        @subscriptions = {}
-
-        # Get markets again
+        # Get markets
         @call("rpc.market.get_markets").then @onMarkets, @wtf
 
         if @following?
@@ -770,6 +770,10 @@ class @Sputnik extends EventEmitter
 
     onLeave: (reason, message) =>
         @log ["leave reason", reason, message]
+
+        # Clear subscriptions
+        @subscriptions = {}
+
         if reason == "wamp.error.not_authorized"
             @username = null
             @log @rejoin
