@@ -440,9 +440,9 @@ class @Sputnik extends EventEmitter
     safePricesFromWire: (safe_prices_wire) =>
         safe_prices = @copy(safe_prices_wire)
         for ticker, price of safe_prices
-            @warn [ticker, price]
+            @log ["safe_price", ticker, price]
             safe_prices[ticker] = @priceFromWire(ticker, price)
-        @warn [safe_prices]
+        @log ["safe_prices", safe_prices]
         return safe_prices
 
     getPricePrecision: (ticker) =>
@@ -1035,7 +1035,7 @@ class @Sputnik extends EventEmitter
                 high_min = Math.abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
                     reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
 
-                @warn ["Margin:", ticker, max_position, min_position, low_max, low_min, high_max, high_min]
+                @log ["Margin:", ticker, max_position, min_position, low_max, low_min, high_max, high_min]
 
                 high_margin += Math.max(high_max, high_min)
                 low_margin += Math.max(low_max, low_min)
