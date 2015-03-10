@@ -162,7 +162,7 @@
             },
             "price":
             {
-                "type": "integer",
+                "type": ["integer", "null"],
                 "description": "the final clearing price for the contract"
             },
             "uid":
@@ -172,6 +172,56 @@
             }
         },
         "required": ["username", "ticker", "price", "uid"],
+        "additionalProperties": false
+    },
+    "get_margin":
+    {
+        "type":"object",
+        "description": "Query a user's margin values.",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    },
+    "liquidate_all":
+    {
+        "type":"object",
+        "description": "Liquidate every derivative position a user has",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    },
+    "liquidate_position":
+    {
+        "type":"object",
+        "description": "Liquidate a particular derivative position a user has",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username to query."
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "Contract to liquidate"
+            }
+        },
+        "required": ["username"],
         "additionalProperties": false
     },
     "change_fee_group":
@@ -212,6 +262,26 @@
             }
         },
         "required": ["username", "id"],
+        "additionalProperties": false
+    },
+    "reload_contract":
+    {
+        "type":"object",
+        "description": "Reload a contract because it got changed in the administrator",
+        "properties":
+        {
+            "username":
+            {
+                "type": "null",
+                "description": "This should be null/None because it is for all users on this accountant"
+            },
+            "ticker":
+            {
+                "type": "string",
+                "description": "The ticker of the contract we are reloading"
+            }
+        },
+        "required": ["username", "ticker"],
         "additionalProperties": false
     }
 }

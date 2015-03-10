@@ -5,7 +5,7 @@ import sys
 
 import string
 import textwrap
-import autobahn.wamp1.protocol
+import autobahn.wamp.auth
 import Crypto.Random.random
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -15,6 +15,7 @@ from sputnik import config
 from sputnik import database, models
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
+from datetime import timedelta, datetime
 import shlex
 
 class PermissionsManager:
@@ -163,11 +164,10 @@ class AccountManager:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt":salt, "keylen":32, "iterations":1000}
         encoded_secret = secret.encode("utf-8")
         if secret != encoded_secret:
             raise Exception("passwords with non-ascii characters not valid")
-        password = autobahn.wamp1.protocol.WampCraProtocol.deriveKey(encoded_secret, extra)
+        password = autobahn.wamp.auth.derive_key(encoded_secret, salt)
         self.set(username, "password", "%s:%s" % (salt, password))
 
 class ContractManager:
@@ -213,9 +213,11 @@ class ContractManager:
             print "\t\tmargin_high:\t%s" % contract.margin_high
             print "\t\tmargin_low:\t%s" % contract.margin_low
             print "\t\texpiration:\t%s" % contract.expiration
+            print "\t\tperiod:\t%s" % contract.period
         elif contract.contract_type == "prediction":
             print "\tPrediction details:"
             print "\t\texpiration:\t%s" % contract.expiration
+            print "\t\tperiod:\t%s" % contract.period
         if contract.contract_type != "cash":
             print "\tFee:\t%s" % contract.fees
         if contract.contract_type == "cash":
@@ -285,11 +287,23 @@ class ContractManager:
             raise NotImplementedError
 
     def set(self, ticker_or_id, field, value):
+        timedelta_map = {"week": timedelta(days=7),
+                         "month": timedelta(days=30),
+                         "day": timedelta(days=1)}
         contract = self.resolve(self.session, ticker_or_id)
         if contract == None:
             raise Exception("Contract '%s' not found." % ticker_or_id)
         if field == 'expiration':
-            value = parser.parse(value)
+            if value in timedelta_map:
+                value = datetime.utcnow() + timedelta_map[value]
+            else:
+                value = parser.parse(value)
+        if field == 'period':
+
+            if value in timedelta_map:
+                value = timedelta_map[value]
+            else:
+                raise Exception("%s not in timedelta_map" % value)
 
         setattr(contract, field, value)
         self.session.merge(contract)

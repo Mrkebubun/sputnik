@@ -1,0 +1,12 @@
+{
+    "get_exchange_info": {
+        "type": "object",
+        "description": "get a dict containing various configuration information about the exchange",
+        "additionalProperties": false
+    },
+    "get_audit": {
+        "type": "object",
+        "description": "get a public audit of the exchange",
+        "additionalProperties": false
+    }
+}

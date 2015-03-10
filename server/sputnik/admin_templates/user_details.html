@@ -214,6 +214,9 @@ $ ->
                 </form>
             </td>
         </tr>
+        <tr>
+            <td><A href="/mail_statement?username={{user.username}}">Mail Statement</A></td>
+        </tr>
     </tbody>
 </table>
     </div>
@@ -255,8 +258,9 @@ $ ->
             <th></th>
             <th></th>
             <th>Contract</th>
-            <th align="right">Position</th>
-            <th align="right">Reference Price</th>
+            <th style="text-align: right">Position</th>
+            <th style="text-align: right">Reference Price</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -266,7 +270,8 @@ $ ->
             <td></td>
             <td>{{position.contract.ticker}}</td>
             <td align="right">{{position.quantity_fmt}}</td>
-            <td align="right">{{position.reference_price}}</td>
+            <td align="right">{{position.reference_price_fmt}}</td>
+            <td>{% if position.contract.contract_type in ["prediction", "futures"] %}<a href="/liquidate_position?username={{user.username}}&ticker={{position.contract.ticker}}">Liquidate</a>{% endif %}</td>
         </tr>
         <tr name="transfer_{{position.id}}" style="display:none;">
             <td></td>
@@ -378,6 +383,16 @@ $ ->
                             <a href="/process_withdrawal?username={{user.username}}&online=true&id={{withdrawal.id}}">Online</a>
                             <a href="/process_withdrawal?username={{user.username}}&id={{withdrawal.id}}">Offline</a>
                             <a href="/process_withdrawal?username={{user.username}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
+                            {% if withdrawal.contract.multisig_wallet_address %}
+                            Multisig:
+                            <form method="POST" action="/process_withdrawal">
+                                <input type="hidden" name="username" value="{{withdrawal.username}}">
+                                <input type="hidden" name="online" value="true">
+                                <input type="hidden" name="id" value="{{withdrawal.id}}">
+                                <input type="text" name="otp" placeholder="OTP">
+                                <input type="hidden" name="multisig" value="true">
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endif %}

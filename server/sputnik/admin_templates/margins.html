@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Margins{% endblock %}
+{% block margins_active %}class="active"{% endblock %}
+{% block body %}
+<style>
+table.table.table-striped tr.call td {
+    background-color:#f2dede;
+}
+table.table.table-striped tr.low td {
+    background-color:#fcf8e3
+}
+</style>
+<div class="container">
+    <div class="panel panel-primary">
+    <div class="panel-heading">Margins</div>
+        <div class="panel-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Username</th>
+                        <th align="right">Low Margin</th>
+                        <th align="right">High Margin</th>
+                        <th align="right">Cash Position</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for margin in margins %}
+                    <tr {% if margin.cash_position < margin.high_margin %}{%if margin.cash_position < margin.low_margin %}class="call"{% else %}class="low"{% endif %}{% endif %}>
+                        <td>{%if margin.cash_position < margin.low_margin %}<a href="/liquidate_all?username={{margin.username}}">Liquidate</a>{% endif %}</td>
+                        <td><a href="/user_details?username={{margin.username}}">{{margin.username}}</a></td>
+                        <td align="right">{{margin.low_margin_fmt}}</td>
+                        <td align="right">{{margin.high_margin_fmt}}</td>
+                        <td align="right">{{margin.cash_position_fmt}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

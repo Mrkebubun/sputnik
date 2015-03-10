@@ -15,6 +15,38 @@
         "required": [ "username", "password" ],
         "additionalProperties": false
     },
+    "get_new_api_credentials": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to get a new REST api key and secret",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "expiration": {
+                "type": ["integer", "null"],
+                "description": "microseconds since epoch for when the token should stop working"
+            }
+        },
+        "required": [ "username", "expiration" ],
+        "additionalProperties": false
+    },
+    "check_and_update_api_nonce": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to check a nonce and update if ok",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the new username"
+            },
+            "nonce": {
+                "type": "integer",
+                "description": "single-use nonce to check"
+            }
+        },
+        "required": [ "username", "nonce" ],
+        "additionalProperties": false
+    },
     "get_profile": {
         "type": "object",
         "description": "webserver -> administrator RPC call to get someone's profile",
@@ -76,6 +108,66 @@
             }
         },
         "required": [ "username" ],
+        "additionalProperties": false
+    },
+    "enable_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to enable TOTP for an account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            }
+        },
+        "required": [ "username" ],
+        "additionalProperties": false
+    },
+    "verify_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to confirm user received TOTP secret",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
+        "additionalProperties": false
+    },
+    "disable_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to disable TOTP for an account",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
+        "additionalProperties": false
+    },
+    "check_totp": {
+        "type": "object",
+        "description": "webserver -> administrator RPC call to check a TOTP code",
+        "properties": {
+            "username": {
+                "type": "string",
+                "description": "the username"
+            },
+            "otp": {
+                "type": "string",
+                "description": "the otp"
+            }
+        },
+        "required": [ "username", "otp" ],
         "additionalProperties": false
     },
     "register_support_ticket": {
@@ -141,6 +233,27 @@
     "get_audit": {
         "type": "object",
         "description": "webserver -> administrator RPC call to get the balance sheet audit",
+        "additionalProperties": false
+    },
+    "mtm_futures": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to mark futures to market",
+        "additionalProperties": false
+    },
+    "notify_expired": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to send a mail about expired contracts",
+        "additionalProperties": false
+    },
+    "mail_statements": {
+        "type": "object",
+        "description": "cron -> administrator RPC call to mail out statements to users who want them",
+        "properties": {
+            "period": {
+                "enum": ["daily", "weekly", "monthly"]
+            }
+        },
+        "required": ["period"],
         "additionalProperties": false
     }
 }

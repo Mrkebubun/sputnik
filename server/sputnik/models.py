@@ -3,7 +3,7 @@ __author__ = 'satosushi'
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Enum, DateTime
+from sqlalchemy.types import Enum, DateTime, Interval
 import database as db
 from datetime import datetime, date, timedelta
 from sqlalchemy import Column, Integer, String, BigInteger, schema, Boolean, sql
@@ -133,9 +133,12 @@ class Contract(db.Base):
     margin_low = Column(BigInteger)
 
     hot_wallet_limit = Column(BigInteger)
+    multisig_wallet_address = Column(String)
     cold_wallet_address = Column(String)
 
     deposit_instructions = Column(String, server_default="Please send your crypto-currency to this address")
+
+    period = Column(Interval, nullable=True)
 
     @property
     def expired(self):
@@ -146,10 +149,11 @@ class Contract(db.Base):
 
     @property
     def sanity_check(self):
+        from decimal import Decimal
         if self.contract_type == "cash_pair":
-            check = float(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
+            check = Decimal(self.lot_size * self.tick_size) / (self.denominator * self.payout_contract.denominator)
         elif self.contract_type in ["prediction", "futures"]:
-            check = float(self.lot_size * self.tick_size) / self.denominator
+            check = Decimal(self.lot_size * self.tick_size) / self.denominator
         else:
             # No check for cash contracts
             check = 1
@@ -306,6 +310,7 @@ class PermissionGroup(db.Base):
     deposit = Column(Boolean, server_default=sql.false())
     withdraw = Column(Boolean, server_default=sql.false())
     login = Column(Boolean, server_default=sql.true())
+    full_ui = Column(Boolean, server_default=sql.false())
 
     def __init__(self, name, permissions):
         """
@@ -318,6 +323,7 @@ class PermissionGroup(db.Base):
         self.withdraw = 'withdraw' in permissions
         self.deposit = 'deposit' in permissions
         self.login = 'login' in permissions
+        self.full_ui = 'full_ui' in permissions
 
     @property
     def dict(self):
@@ -325,7 +331,8 @@ class PermissionGroup(db.Base):
                 'trade': self.trade,
                 'deposit': self.deposit,
                 'withdraw': self.withdraw,
-                'login': self.login
+                'login': self.login,
+                'full_ui': self.full_ui
         }
 
     def __repr__(self):
@@ -381,7 +388,9 @@ class User(db.Base):
 
     username = Column(String, primary_key=True)
     password = Column(String, nullable=False)
-    totp = Column(String)
+    totp_secret = Column(String)
+    totp_enabled = Column(Boolean, server_default=sql.false())
+    totp_last = Column(Integer, server_default="0")
     nickname = Column(String)
     email = Column(String, index=True)
     phone = Column(String, index=True)
@@ -395,6 +404,10 @@ class User(db.Base):
                                    default='Liability', server_default="Liability")
     audit_secret = Column(String)
     locale = Column(String, server_default="en")
+    api_key = Column(String)
+    api_secret = Column(String)
+    api_expiration = Column(DateTime)
+    api_nonce = Column(BigInteger, server_default="0")
 
     positions = relationship("Position", back_populates="user")
     orders = relationship("Order", back_populates="user")
@@ -636,7 +649,7 @@ class Position(db.Base, QuantityUI):
     position = Column(BigInteger)
     position_checkpoint = Column(BigInteger, server_default="0")
     position_cp_timestamp = Column(DateTime)
-    reference_price = Column(BigInteger, nullable=False, server_default="0")
+    reference_price = Column(BigInteger, nullable=True)
     pending_postings = Column(BigInteger, server_default="0", nullable="False")
 
     @property
@@ -647,6 +660,20 @@ class Position(db.Base, QuantityUI):
         :returns: int
         """
         return self.position
+
+    @property
+    def reference_price_fmt(self):
+        if self.reference_price is not None:
+            return util.price_fmt(self.contract, self.reference_price)
+        else:
+            return None
+
+    @property
+    def dict(self):
+        return {'user': self.user,
+                'contract': self.contract,
+                'position': self.position,
+                'reference_price': self.reference_price}
 
     def __init__(self, user, contract, position=0):
         """

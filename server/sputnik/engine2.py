@@ -12,8 +12,9 @@ if options.filename:
     config.reconfigure(options.filename)
 
 import sys
-import time
+import json
 import heapq
+import math
 
 import database
 import models
@@ -23,7 +24,7 @@ import util
 
 from twisted.internet import reactor
 from twisted.python import log
-from zmq_util import export, router_share_async, push_proxy_async, ComponentExport
+from zmq_util import export, router_share_async, push_proxy_async, ComponentExport, connect_publisher
 from rpc_schema import schema
 from collections import defaultdict
 from datetime import datetime
@@ -126,6 +127,7 @@ class Engine:
         self.ordermap = {}
         self.listeners = []
 
+    @util.timed
     def place_order(self, order):
 
         # Loop until the order or the opposite side is exhausted.
@@ -181,6 +183,7 @@ class Engine:
 
         return price, quantity
 
+    @util.timed
     def cancel_order(self, id):
         # Check to make sure order has not already been filled.
         if id not in self.ordermap:
@@ -376,13 +379,21 @@ class AccountantNotifier(EngineListener):
 
 
 class WebserverNotifier(EngineListener):
-    def __init__(self, engine, webserver, contract):
+    def __init__(self, engine, webserver, contract, reg_publish=True):
         self.engine = engine
         self.webserver = webserver
         self.contract = contract
         self.aggregated_book = {"bids": defaultdict(int), "asks": defaultdict(int)}
         self.side_map = { OrderSide.BUY: "bids",
                           OrderSide.SELL: "asks"}
+
+        # Publish every 10 min no matter what
+        if reg_publish:
+            def regular_publish():
+                self.publish_book()
+                reactor.callLater(600, regular_publish)
+
+            reactor.callLater(600, regular_publish)
 
     def on_init(self):
         self.publish_book()
@@ -411,56 +422,88 @@ class WebserverNotifier(EngineListener):
 
         self.publish_book()
 
-    def publish_book(self):
+    @property
+    def wire_book(self):
         wire_book = {"contract": self.contract.ticker,
                      "bids": [{"quantity": row[1],
                                "price": row[0]} for row in self.aggregated_book["bids"].iteritems()],
                      "asks": [{"quantity": row[1],
                                "price": row[0]} for row in self.aggregated_book["asks"].iteritems()]}
+        return wire_book
 
-        self.webserver.book(self.contract.ticker, wire_book)
+    def publish_book(self):
+        self.webserver.book(self.contract.ticker, self.wire_book)
 
 
 class SafePriceNotifier(EngineListener):
-    def __init__(self, engine, forwarder, accountant, webserver):
+    def __init__(self, session, engine, accountant, webserver, forwarder, contract):
+        self.session = session
         self.engine = engine
+        self.contract = contract
         self.forwarder = forwarder
         self.accountant = accountant
         self.webserver = webserver
 
         self.ema_price_volume = 0
         self.ema_volume = 0
-        self.decay = 0.9
+        self.ema_timestamp = None
+        self.decay = 0.999
+        self.safe_price = None
+        # Publish every 10 min no matter what
+        def regular_publish():
+            self.publish_safe_price()
+            reactor.callLater(600, regular_publish)
+
+        reactor.callLater(600, regular_publish)
 
     def on_init(self):
-        self.ticker = self.contract.ticker
-
-        # TODO: seriously, fix this hack
         try:
-            self.safe_price = self.engine.session.query(models.Trade).join(models.Contract).filter_by(ticker=self.ticker).all()[-1].price
-        except IndexError:
-            self.safe_price = 42
+            trades = self.session.query(models.Trade).filter_by(contract=contract).order_by(
+                models.Trade.timestamp)
+    
+            for trade in trades:
+                self.update_safe_price(trade.price, trade.quantity, publish=False, timestamp=trade.timestamp)
+            if self.safe_price is None:
+                self.safe_price = 42
+                log.msg(
+                        "warning, missing last trade for contract: %s. Using 42 as a stupid default" % self.contract.ticker)
         except Exception as e:
-            self.engine.session.rollback()
+            self.session.rollback()
             raise e
 
-        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        self.publish_safe_price()
 
     def on_trade_success(self, order, passive_order, price, quantity):
-        self.ema_volume = self.decay * self.ema_volume + (1 - self.decay) * order.quantity
-        self.ema_price_volume = self.decay * self.ema_price_volume + (1 - self.decay) * quantity * price
+        self.update_safe_price(price, quantity)
+
+    def update_safe_price(self, price, quantity, publish=True, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.utcnow()
+
+        if self.ema_timestamp is None:
+            decay = self.decay
+        else:
+            seconds = (timestamp - self.ema_timestamp).total_seconds()
+            decay = math.pow(self.decay, seconds)
+
+        self.ema_timestamp = timestamp
+        self.ema_volume = decay * self.ema_volume + (1 - decay) * quantity
+        self.ema_price_volume = decay * self.ema_price_volume + (1 - decay) * quantity * price
         self.safe_price = int(self.ema_price_volume / self.ema_volume)
 
-        self.forwarder.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.accountant.send_json({'safe_price': {engine.ticker: self.safe_price}})
-        self.webserver.send_json({'safe_price': {engine.ticker: self.safe_price}})
+        if publish:
+            self.publish_safe_price()
 
+    def publish_safe_price(self):
+        self.accountant.safe_prices(None, self.contract.ticker, self.safe_price)
+        self.webserver.safe_prices(self.contract.ticker, self.safe_price)
+        self.forwarder.publish(json.dumps({self.contract.ticker: self.safe_price}), tag=b'')
 
 class AccountantExport(ComponentExport):
-    def __init__(self, engine):
+    def __init__(self, engine, safe_price_notifier, webserver_notifier):
         self.engine = engine
+        self.safe_price_notifier = safe_price_notifier
+        self.webserver_notifier = webserver_notifier
         ComponentExport.__init__(self, engine)
 
     @export
@@ -472,6 +515,16 @@ class AccountantExport(ComponentExport):
     @schema("rpc/engine.json#cancel_order")
     def cancel_order(self, id):
         return self.engine.cancel_order(id)
+
+    @export
+    @schema("rpc/engine.json#get_safe_price")
+    def get_safe_price(self):
+        return self.safe_price_notifier.safe_price
+
+    @export
+    @schema("rpc/engine.json#get_order_book")
+    def get_order_book(self):
+        return self.webserver_notifier.wire_book
 
 class AdministratorExport(ComponentExport):
     def __init__(self, engine):
@@ -500,10 +553,8 @@ if __name__ == "__main__":
         raise e
 
     engine = Engine()
-    accountant_export = AccountantExport(engine)
     administrator_export = AdministratorExport(engine)
     accountant_port = config.getint("engine", "accountant_base_port") + contract.id
-    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
 
     administrator_port = config.getint("engine", "administrator_base_port") + contract.id
     router_share_async(administrator_export, "tcp://127.0.0.1:%d" % administrator_port)
@@ -519,17 +570,22 @@ if __name__ == "__main__":
 
     watchdog(config.get("watchdog", "engine") %
              (config.getint("watchdog", "engine_base_port") + contract.id))
-    #safe_price_notifier = SafePriceNotifier(engine)
+
+    forwarder = connect_publisher(config.get("safe_price_forwarder", "zmq_frontend_address"))
+
+    safe_price_notifier = SafePriceNotifier(session, engine, accountant, webserver, forwarder, contract)
+    accountant_export = AccountantExport(engine, safe_price_notifier, webserver_notifier)
+    router_share_async(accountant_export, "tcp://127.0.0.1:%d" % accountant_port)
+
     engine.add_listener(logger)
     engine.add_listener(accountant_notifier)
     engine.add_listener(webserver_notifier)
-    #engine.add_listener(safe_price_notifier)
+    engine.add_listener(safe_price_notifier)
 
     # Cancel all orders with some quantity_left that have been dispatched but not cancelled
     try:
         for order in session.query(models.Order).filter_by(
                 is_cancelled=False).filter_by(
-                dispatched=True).filter_by(
                 contract_id=contract.id).filter(
                         models.Order.quantity_left > 0):
             log.msg("Cancelling order %d" % order.id)

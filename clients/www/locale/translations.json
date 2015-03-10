@@ -32,7 +32,8 @@
             "enter_username": "Please enter a username to reset the password",
             "password_reset": "Password reset",
             "profile_changed": "Profile changed",
-            "invalid_email": "Invalid email address"
+            "invalid_email": "Invalid email address",
+            "full_ui_restricted": "Access to full user interface restricted. Please contact support for help"
         },
         "buttons": {
             "buy": "Buy",
@@ -157,14 +158,23 @@
                     "confirm_password": "Confirm Password",
                     "notifications": "Notifications",
                     "contact_preference": "Preference",
-                    "sms": "SMS"
+                    "sms": "SMS",
+                    "api_credentials": "REST API Credentials",
+                    "api_key": "API Key",
+                    "api_secret": "API Secret",
+                    "expiration": "Expiration",
+                    "api_docs": "API Documentation"
                 },
                 "notifications": {
-                    "fill": "Fill"
+                    "fill": "Fill",
+                    "daily": "Daily",
+                    "weekly": "Weekly",
+                    "monthly": "Monthly"
                 },
                 "buttons": {
                     "update": "Update Profile",
-                    "change_password": "Change Password"
+                    "change_password": "Change Password",
+                    "get_new_api_credentials": "New Credentials"
                 }
             },
             "audit": {

@@ -108,7 +108,9 @@ class Profile:
                     with open(os.path.join(profile, stage, dep_type)) \
                             as dep_list:
                         for line in dep_list:
-                            package = line.strip()
+                            package = line.split("#", 1)[0].strip()
+                            if not package:
+                                continue
                             deps[dep_type].append(package)
                 except IOError:
                     pass
@@ -272,6 +274,14 @@ class Installer():
         self.make_template("alembic.ini", out)
         out.close()
 
+        # make crontab
+        if self.dry_run:
+            out = cStringIO.StringIO()
+        else:
+            out = open(os.path.join("config", "crontab"), "w")
+        self.make_template("crontab", out)
+        out.close()
+
         # make config.status
         if self.dry_run:
             out = cStringIO.StringIO()
@@ -432,7 +442,7 @@ class Installer():
         def ignore(path, names):
             ignored = []
             for name in names:
-                if not fnmatch.fnmatch(name, "*.pyc"):
+                if not fnmatch.fnmatch(name, "*.pyc") and not os.path.isdir(os.path.join(path, name)):
                     ignored.append(name)
             return ignored
         shutil.copytree(server_source, build_server, ignore=ignore)

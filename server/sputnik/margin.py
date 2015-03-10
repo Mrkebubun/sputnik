@@ -6,7 +6,12 @@ import collections
 
 from twisted.python import log
 
-def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False):
+class MarginException(Exception):
+    pass
+
+
+def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=None, trial_period=False, position_overrides={},
+                     cash_overrides={}):
     """
     calculates the low and high margin for a given user
     :param order_id: order we're considering throwing in
@@ -21,8 +26,14 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     cash_position = collections.defaultdict(int)
 
     # let's start with positions
-    positions = {position.contract_id: position for position in
+    positions = {position.contract.ticker: { 'position': position.position,
+                                         'reference_price': position.reference_price,
+                                         'contract': position.contract }
+                 for position in
                  session.query(models.Position).filter_by(user=user)}
+
+    # Override some positions
+    positions.update(position_overrides)
 
     open_orders = session.query(models.Order).filter_by(user=user).filter(
         models.Order.quantity_left > 0).filter_by(is_cancelled=False, accepted=True).all()
@@ -30,39 +41,62 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
     if order_id:
         open_orders += session.query(models.Order).filter_by(id=order_id).all()
 
+    # Make a blank position for all contracts which have an open order but no position
+    for order in open_orders:
+        if order.contract.ticker not in positions:
+            positions[order.contract.ticker] = {
+                'position': 0,
+                'reference_price': None,
+                'contract': order.contract
+            }
+
     for position in positions.values():
-
-        max_position = position.position + sum(
+        max_position = position['position'] + sum(
             order.quantity_left for order in open_orders if
-            order.contract == position.contract and order.side == 'BUY')
-        min_position = position.position - sum(
+            order.contract == position['contract'] and order.side == 'BUY')
+        min_position = position['position'] - sum(
             order.quantity_left for order in open_orders if
-            order.contract == position.contract and order.side == 'SELL')
+            order.contract == position['contract'] and order.side == 'SELL')
 
-        contract = position.contract
+        contract = position['contract']
 
         if contract.contract_type == 'futures':
-            SAFE_PRICE = safe_prices[position.contract.ticker]
+            if contract.ticker not in safe_prices:
+                log.err("%s not in safe_prices, marking margin high" % contract.ticker)
+                high_margin += 2**48
+                low_margin += 2**48
+            else:
+                SAFE_PRICE = safe_prices[contract.ticker]
 
-            log.msg(low_margin)
-            print 'max position:', max_position
-            print 'contract.margin_low :', contract.margin_low
-            print 'SAFE_PRICE :', SAFE_PRICE
-            print 'position.reference_price :', position.reference_price
-            print position
-            low_max = abs(max_position) * contract.margin_low * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            low_min = abs(min_position) * contract.margin_low * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
-            high_max = abs(max_position) * contract.margin_high * SAFE_PRICE / 100 + max_position * (
-                position.reference_price - SAFE_PRICE)
-            high_min = abs(min_position) * contract.margin_high * SAFE_PRICE / 100 + min_position * (
-                position.reference_price - SAFE_PRICE)
-            log.msg(low_max)
-            log.msg(low_min)
+                #log.msg(low_margin)
+                # print 'max position:', max_position
+                # print 'contract.margin_low :', contract.margin_low
+                # print 'SAFE_PRICE :', SAFE_PRICE
+                # print 'position.reference_price :', position['reference_price']
+                # print position
+                if position['reference_price'] is None:
+                    if position['position'] != 0:
+                        raise MarginException("No reference price with non-zero position")
 
-            high_margin += max(high_max, high_min)
-            low_margin += max(low_max, low_min)
+                    reference_price = SAFE_PRICE
+                else:
+                    reference_price = position['reference_price']
+
+                # We divide by 100 because contract.margin_low and contract.margin_high are percentages from 0-100
+                low_max = abs(max_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                low_min = abs(min_position) * contract.margin_low * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_max = abs(max_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + max_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                high_min = abs(min_position) * contract.margin_high * SAFE_PRICE * contract.lot_size / contract.denominator / 100 + min_position * (
+                    reference_price - SAFE_PRICE) * contract.lot_size / contract.denominator
+                # log.msg(low_max)
+                # log.msg(low_min)
+                log.msg("%s" % ["Margin:", contract.ticker, max_position, min_position, low_max, low_min, high_max, high_min])
+
+                high_margin += max(high_max, high_min)
+                low_margin += max(low_max, low_min)
 
         if contract.contract_type == 'prediction':
             payoff = contract.lot_size
@@ -85,49 +119,31 @@ def calculate_margin(user, session, safe_prices={}, order_id=None, withdrawals=N
             high_margin += additional_margin
 
         if contract.contract_type == 'cash':
-            cash_position[contract.ticker] = position.position
+            cash_position[contract.ticker] = position['position']
+
+    # Override cash position
+    cash_position.update(cash_overrides)
 
     max_cash_spent = collections.defaultdict(int)
 
     # Deal with cash_pair orders separately because there are no cash_pair positions
     for order in open_orders:
+        fees = util.get_fees(user, order.contract, order.price, order.quantity, trial_period=trial_period)
+        
         if order.contract.contract_type == 'cash_pair':
-            denominated_contract = order.contract.denominated_contract
-            payout_contract = order.contract.payout_contract
-
-            transaction_size_float = order.quantity_left * order.price / (order.contract.denominator *
-                                                                          payout_contract.denominator)
-            transaction_size_int = int(transaction_size_float)
-            if transaction_size_float != transaction_size_int:
-                log.err("Position change is not an integer.")
-
-            fees = util.get_fees(user, order.contract, transaction_size_int, trial_period=trial_period)
-
+            transaction_size = util.get_cash_spent(order.contract, order.price, order.quantity)
+            
             if order.side == 'BUY':
-                max_cash_spent[denominated_contract.ticker] += transaction_size_int
-                if payout_contract.ticker in fees:
-                    fees[payout_contract.ticker] = max(0, fees[payout_contract.ticker] - order.quantity_left)
+                max_cash_spent[order.contract.denominated_contract.ticker] += transaction_size
+                if order.contract.payout_contract.ticker in fees:
+                    fees[order.contract.payout_contract.ticker] = max(0, fees[order.contract.payout_contract.ticker] - order.quantity_left)
             if order.side == 'SELL':
-                max_cash_spent[payout_contract.ticker] += order.quantity_left
-                if denominated_contract.ticker in fees:
-                    fees[denominated_contract.ticker] = max(0, fees[denominated_contract.ticker] - transaction_size_int)
-
-        elif order.contract.contract_type == 'prediction':
-            transaction_size_float = order.quantity_left * order.price * order.contract.lot_size / order.contract.denominator
-            transaction_size_int = int(transaction_size_float)
-            if transaction_size_int != transaction_size_float:
-                log.err("Position change is not an integer")
-            fees = util.get_fees(user, order.contract, transaction_size_int, trial_period=trial_period)
-
-        else:
-            pass
-            fees = {}
-            #raise NotImplementedError
+                max_cash_spent[order.contract.payout_contract.ticker] += order.quantity_left
+                if order.contract.denominated_contract.ticker in fees:
+                    fees[order.contract.denominated_contract.ticker] = max(0, fees[order.contract.denominated_contract.ticker] - transaction_size)
 
         for ticker, fee in fees.iteritems():
             max_cash_spent[ticker] += fee
-
-
 
     # Make sure max_cash_spent has something in it for every cash contract
     for ticker in cash_position.iterkeys():

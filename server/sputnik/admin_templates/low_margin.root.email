@@ -1,0 +1,5 @@
+Hello {{user.nickname}} ({{user.username}}),
+  Your balance ({{cash_position}}) has gone below your high margin ({{high_margin}}),
+Please deposit more funds to avoid a margin call.
+
+Thank you

@@ -1,0 +1,7 @@
+Hello! The following contracts are expired but still active. (I.e. They need a final settlement price)
+
+{% for contract in expired_list %}
+Contract: {{contract.ticker}}
+Expiration: {{contract.expiration}}
+--
+{% endfor %}

@@ -17,6 +17,8 @@ permissions add Trade trade login
 permissions add Withdraw withdraw login
 """
 
+from sputnik.exception import AccountantException
+
 
 class FakeEngine(FakeComponent):
     name = "engine"
@@ -48,36 +50,62 @@ class FakeAccountantProxy(accountant.AccountantExport):
         return 0
 
 
+class FakeSafePriceNotifier():
+    @property
+    def safe_price(self):
+        return defer.succeed(42)
+
+class FakeWebserverNotifier():
+    def __init__(self, ticker):
+        self.ticker = ticker
+
+    @property
+    def wire_book(self):
+        return defer.succeed({"contract": self.ticker,
+                 "bids": [{"quantity": 1,
+                           "price": 1}],
+                 "asks": [{"quantity": 1,
+                           "price": 2}]})
+
+
 class TestAccountantBase(TestSputnik):
     def setUp(self):
-        self.run_leo(accountant_init)
-        from sputnik import accountant
-        from sputnik import ledger
-        from sputnik import cashier
-        from sputnik import engine2
+        # This can't be run by itself because it needs TestSputnik.setUp
+        if self.__class__.__name__ != "TestAccountantBase":
+            self.run_leo(accountant_init)
+            from sputnik import accountant
+            from sputnik import ledger
+            from sputnik import cashier
+            from sputnik import engine2
 
-        self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine()),
-                        "NETS2015": engine2.AccountantExport(FakeEngine())}
-        self.webserver = FakeComponent("webserver")
-        self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
-        self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
-        self.alerts_proxy = FakeComponent("alerts")
-        # self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
-
-        self.accountant = accountant.Accountant(self.session, self.engines,
-                                                self.cashier,
-                                                self.ledger,
-                                                self.webserver,
-                                                None,
-                                                self.alerts_proxy,
-                                                debug=True,
-                                                trial_period=False,
-                                                messenger=FakeComponent("messenger"))
-        self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
-        self.cashier_export = accountant.CashierExport(self.accountant)
-        self.administrator_export = accountant.AdministratorExport(self.accountant)
-        self.webserver_export = accountant.WebserverExport(self.accountant)
-        self.engine_export = accountant.EngineExport(self.accountant)
+            self.engines = {"BTC/MXN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/MXN')),
+                            "BTC/PLN": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/PLN')),
+                            "BTC/HUF": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('BTC/HUF')),
+                            "NETS2014": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('NETS2014')),
+                            "NETS2015": engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('NETS2015')),
+                            'USDBTC0W': engine2.AccountantExport(FakeEngine(), FakeSafePriceNotifier(), FakeWebserverNotifier('USDBTC0W'))}
+            self.webserver = FakeComponent("webserver")
+            self.cashier = cashier.AccountantExport(FakeComponent("cashier"))
+            self.ledger = ledger.AccountantExport(ledger.Ledger(self.session.bind.engine, 5000))
+            self.alerts_proxy = FakeComponent("alerts")
+            # self.accountant_proxy = accountant.AccountantExport(FakeComponent("accountant"))
+                       
+            self.accountant = accountant.Accountant(self.session, self.engines,
+                                                    self.cashier,
+                                                    self.ledger,
+                                                    self.webserver,
+                                                    None,
+                                                    self.alerts_proxy,
+                                                    debug=True,
+                                                    trial_period=False,
+                                                    messenger=FakeComponent("messenger"),                                                    
+                                                    )
+            self.accountant.accountant_proxy = FakeAccountantProxy(self.accountant)
+            self.cashier_export = accountant.CashierExport(self.accountant)
+            self.administrator_export = accountant.AdministratorExport(self.accountant)
+            self.webserver_export = accountant.WebserverExport(self.accountant)
+            self.engine_export = accountant.EngineExport(self.accountant)
+            self.riskmanager_export = accountant.RiskManagerExport(self.accountant)
 
 
 class TestAccountantAudit(TestAccountantBase):
@@ -119,7 +147,7 @@ class TestAccountantAudit(TestAccountantBase):
             contract_id=BTC.id).one()
         self.assertEqual(position.pending_postings, 0)
         self.assertEqual(position.position, 50)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'disabled_user'):
+        with self.assertRaisesRegexp(AccountantException, 'disabled_user'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -128,7 +156,7 @@ class TestAccountantAudit(TestAccountantBase):
                                                        'timestamp': util.dt_to_timestamp(datetime.datetime.utcnow())})
         self.clock.advance(300)
         self.assertEqual(position.position, 0)
-        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
+        with self.assertRaisesRegexp(AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'messed_up_trader_a',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -151,7 +179,6 @@ class TestAccountant(TestAccountantBase):
         user.permissions = group
         self.session.merge(user)
         self.session.commit()
-
 
 class TestCashierExport(TestAccountant):
     def test_deposit_cash_permission_allowed(self):
@@ -392,7 +419,7 @@ class TestAdministratorExport(TestAccountant):
 
         # TODO: What can we assert here?
 
-    def test_clear_contract(self):
+    def test_clear_contract_prediction(self):
         self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
         self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
 
@@ -468,6 +495,110 @@ class TestAdministratorExport(TestAccountant):
 
         d.addCallback(on_setup_done)
         return d
+
+    def test_clear_contract_futures(self):
+        from sputnik import util
+        from sputnik import models
+        import datetime
+
+        self.create_account("short_account", '18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+        self.create_account("long_account", '28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv')
+
+        # Deposit cash
+        self.set_permissions_group('short_account', 'Deposit')
+        self.set_permissions_group('long_account', 'Deposit')
+
+        self.cashier_export.deposit_cash("short_account", "18cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5000000)
+        self.cashier_export.deposit_cash("long_account", "28cPi8tehBK7NYKfw3nNbPE4xTL8P8DJAv", 5000000)
+
+        self.set_permissions_group("short_account", 'Trade')
+        self.set_permissions_group("long_account", "Trade")
+
+        o1 = self.webserver_export.place_order('short_account', {'username': 'short_account',
+                                                                 'contract': 'USDBTC0W',
+                                                                 'price': 1100,
+                                                                 'quantity': 1,
+                                                                 'side': 'SELL',
+                                                                 'timestamp': util.dt_to_timestamp(
+                                                                     datetime.datetime.utcnow())})
+
+        o2 = self.webserver_export.place_order('long_account', {'username': 'long_account',
+                                                                'contract': 'USDBTC0W',
+                                                                'price': 900,
+                                                                'quantity': 1,
+                                                                'side': 'BUY',
+                                                                'timestamp': util.dt_to_timestamp(
+                                                                    datetime.datetime.utcnow())})
+
+        # Make like a trade happened
+        uid = util.get_uid()
+        long_transaction = {
+            'username': 'long_account',
+            'aggressive': True,
+            'contract': 'USDBTC0W',
+            'order': o1,
+            'other_order': o2,
+            'side': 'BUY',
+            'price': 1000,
+            'quantity': 1,
+            'timestamp': 234234,
+            'uid': uid
+        }
+
+        import copy
+
+        short_transaction = copy.copy(long_transaction)
+        short_transaction['aggressive'] = False
+        short_transaction['order'] = o2
+        short_transaction['other_order'] = o1
+        short_transaction['side'] = 'SELL'
+        short_transaction['username'] = 'short_account'
+
+        d1 = self.accountant.post_transaction('short_account', short_transaction)
+        d2 = self.accountant.post_transaction('long_account', long_transaction)
+
+        d = defer.DeferredList([d1, d2])
+
+        def on_setup_done(results):
+            uid = util.get_uid()
+
+            # Set the contract to have already expired in the past
+            USDBTC = self.session.query(models.Contract).filter_by(ticker='USDBTC0W').one()
+            USDBTC.expiration = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+            self.session.add(USDBTC)
+            self.session.commit()
+
+            # Clear at 50 more than it was traded for
+            d = self.administrator_export.clear_contract(None, 'USDBTC0W', 1050, uid)
+
+            def on_clear(results):
+                BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
+                short_positions = self.session.query(models.Position).filter_by(username='short_account')
+                long_positions = self.session.query(models.Position).filter_by(username='long_account')
+                clearing_positions = self.session.query(models.Position).filter_by(username='clearing_USDBTC0W')
+
+                # Clearing account should be totally empty
+                for position in clearing_positions:
+                    self.assertEqual(position.position, 0)
+
+                # short_account should have lost 50 x lotsize / denominator plus fees (200bps of transaction size)
+                for position in short_positions:
+                    if position.contract.ticker == 'BTC':
+                        self.assertEqual(position.position, 5000000 - 50 * 100000 / 1000 - 1000 * 100000 / 1000 * 0.02)
+                    if position.contract.ticker == 'USDBTC0W':
+                        self.assertEqual(position.position, 0)
+
+                # Long account should have gained 50 x lotsize / denominator - fees (200bps)
+                for position in long_positions:
+                    if position.contract.ticker == 'BTC':
+                        self.assertEqual(position.position, 5000000 + 50 * 100000 / 1000 - 1000 * 100000 / 1000 * 0.02)
+                    if position.contract.ticker == 'USDBTC0W':
+                        self.assertEqual(position.position, 0)
+
+            d.addCallback(on_clear)
+            return d
+
+        d.addCallback(on_setup_done)
 
     def test_transfer_position(self):
         from sputnik import models
@@ -835,7 +966,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'contract_expired'):
+        with self.assertRaisesRegexp(AccountantException, 'contract_expired'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'NETS2014',
                                                        'price': 500,
@@ -949,7 +1080,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'trade_not_permitted'):
+        with self.assertRaisesRegexp(AccountantException, 'trade_not_permitted'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -967,7 +1098,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -989,7 +1120,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             result = self.webserver_export.place_order('test', {'username': 'test',
                                                                 'contract': 'BTC/MXN',
                                                                 'price': 1000000,
@@ -1043,7 +1174,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import util
         import datetime
 
-        with self.assertRaisesRegexp(accountant.AccountantException, 'insufficient_margin'):
+        with self.assertRaisesRegexp(AccountantException, 'insufficient_margin'):
             self.webserver_export.place_order('test', {'username': 'test',
                                                        'contract': 'BTC/MXN',
                                                        'price': 1000000,
@@ -1110,7 +1241,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "user_order_mismatch"):
+        with self.assertRaisesRegexp(AccountantException, "user_order_mismatch"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1132,7 +1263,7 @@ class TestWebserverExport(TestAccountant):
         from sputnik import accountant
 
         id = 5
-        with self.assertRaisesRegexp(accountant.AccountantException, "no_order_found"):
+        with self.assertRaisesRegexp(AccountantException, "no_order_found"):
             d = self.webserver_export.cancel_order('wrong', id)
             d.addCallbacks(cancelSuccess, cancelFail)
             return d
@@ -1194,7 +1325,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "withdraw_not_permitted"):
+        with self.assertRaisesRegexp(AccountantException, "withdraw_not_permitted"):
             self.webserver_export.request_withdrawal('test', 'BTC', 3000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1207,7 +1338,7 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
+        with self.assertRaisesRegexp(AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'BTC', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
@@ -1220,9 +1351,53 @@ class TestWebserverExport(TestAccountant):
 
         from sputnik import accountant
 
-        with self.assertRaisesRegexp(accountant.AccountantException, "insufficient_margin"):
+        with self.assertRaisesRegexp(AccountantException, "insufficient_margin"):
             self.webserver_export.request_withdrawal('test', 'MXN', 8000000, 'bad_address')
 
         self.assertEqual(self.cashier.component.log, [])
+
+class TestRiskManagerExport(TestAccountant):
+    def setUp(self):
+        TestAccountant.setUp(self)
+
+        self.create_account("test")
+        self.user = self.get_user("test")
+
+    def test_liquidate_best_prediction(self):
+        self.create_position('BTC', 4000)
+        self.create_position('USDBTC0W', 4, reference_price=4002)
+        self.create_position('NETS2015', -4)
+        self.accountant.safe_prices['USDBTC0W'] = 1202
+        self.accountant.safe_prices['NETS2015'] = 500
+
+        d = self.riskmanager_export.liquidate_best('test')
+        def onLiquidated(id):
+            from sputnik import models
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            # Make sure we pick the NETS2015 contract
+            self.assertEqual(order.contract.ticker, 'NETS2015')
+            self.assertEqual(order.side, 'BUY')
+
+        d.addCallback(onLiquidated)
+        return d
+
+
+    def test_liquidate_best_futures(self):
+        self.create_position('BTC', 4000)
+        self.create_position('USDBTC0W', -4, reference_price=1000)
+        self.create_position('NETS2015', 1)
+        self.accountant.safe_prices['USDBTC0W'] = 1202
+        self.accountant.safe_prices['NETS2015'] = 500
+
+        d = self.riskmanager_export.liquidate_best('test')
+        def onLiquidated(id):
+            from sputnik import models
+            order = self.session.query(models.Order).filter_by(id=id).one()
+            # Make sure we pick the USDBTC0W contract
+            self.assertEqual(order.contract.ticker, 'USDBTC0W')
+            self.assertEqual(order.side, 'BUY')
+
+        d.addCallback(onLiquidated)
+        return d
 
 

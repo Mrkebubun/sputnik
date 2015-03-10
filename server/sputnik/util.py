@@ -11,8 +11,12 @@ import uuid
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from twisted.python import log
+import twisted.python.util
+import models
 from zmq_util import ComponentExport
 from sqlalchemy.orm.session import Session
+import hashlib
+from decimal import Decimal
 
 #
 # This doesn't work properly
@@ -62,11 +66,22 @@ def timed(f):
 def get_uid():
     return uuid.uuid4().get_hex()
 
+def malicious_looking(w):
+    """
+
+    :param w:
+    :returns: bool
+    """
+    return any(x in w for x in '<>&')
+
+def encode_username(username):
+    return hashlib.sha256(username).hexdigest()
+
 def price_to_wire(contract, price):
-    if contract.contract_type == "prediction":
-        price = price * contract.denominator
-    else:
+    if contract.contract_type == "cash_pair":
         price = price * contract.denominated_contract.denominator * contract.denominator
+    else:
+        price = price * contract.denominator
 
     p = price - price % contract.tick_size
     if p != int(p):
@@ -75,21 +90,21 @@ def price_to_wire(contract, price):
         return int(p)
 
 def price_from_wire(contract, price):
-    if contract.contract_type == "prediction":
-        return float(price) / contract.denominator
+    if contract.contract_type == "cash_pair":
+        return Decimal(price) / (contract.denominated_contract.denominator * contract.denominator)
     else:
-        return float(price) / (contract.denominated_contract.denominator * contract.denominator)
+        return Decimal(price) / contract.denominator
 
 def quantity_from_wire(contract, quantity):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         return quantity
     elif contract.contract_type == "cash":
-        return float(quantity) / contract.denominator
+        return Decimal(quantity) / contract.denominator
     else:
-        return float(quantity) / contract.payout_contract.denominator
+        return Decimal(quantity) / contract.payout_contract.denominator
 
 def quantity_to_wire(contract, quantity):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         q = quantity
     elif contract.contract_type == "cash":
         q = quantity * contract.denominator
@@ -109,13 +124,13 @@ def get_precision(numerator, denominator):
         return math.log10(numerator / denominator)
 
 def get_price_precision(contract):
-    if contract.contract_type == "prediction":
-        return get_precision(contract.denominator, contract.tick_size)
-    else:
+    if contract.contract_type == "cash_pair":
         return get_precision(contract.denominated_contract.denominator * contract.denominator, contract.tick_size)
+    else:
+        return get_precision(contract.denominator, contract.tick_size)
 
 def get_quantity_precision(contract):
-    if contract.contract_type == "prediction":
+    if contract.contract_type == "prediction" or contract.contract_type == "futures":
         return 0
     elif contract.contract_type == "cash":
         return get_precision(contract.denominator, contract.lot_size)
@@ -150,8 +165,22 @@ def timestamp_to_dt(timestamp):
     """
     return datetime.utcfromtimestamp(timestamp/1e6)
 
+def get_cash_spent(contract, price, quantity):
+    if contract.contract_type == "futures" or contract.contract_type == "prediction":
+        cash_float = Decimal(quantity * price * contract.lot_size) / contract.denominator
+    else:
+        payout_contract = contract.payout_contract
+        cash_float = Decimal(quantity * price) / (contract.denominator * payout_contract.denominator)
 
-def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
+    cash_int = int(cash_float)
+    if cash_float != cash_int:
+        message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
+                  (cash_float, quantity, price, contract.lot_size, contract.denominator)
+        log.err(message)
+
+    return cash_int
+
+def get_fees(user, contract, price, quantity, trial_period=False, ap=None):
     """
     Given a transaction, figure out how much fees need to be paid in what currencies
     :param username:
@@ -167,10 +196,8 @@ def get_fees(user, contract, transaction_size, trial_period=False, ap=None):
     if trial_period:
         return {}
 
-    # Right now fees are very simple, just 40bps of the total from_currency amount
-    # but only charged to the liquidity taker
     # TODO: Make fees based on transaction size
-
+    transaction_size = get_cash_spent(contract, price, quantity)
     base_fee = transaction_size * contract.fees
     # If we don't know the aggressive/passive -- probably because we're
     # checking what the fees might be before placing an order
@@ -190,8 +217,8 @@ def get_deposit_fees(user, contract, deposit_amount, trial_period=False):
     if trial_period:
         return {}
 
-    base_fee = contract.deposit_base_fee + float(deposit_amount * contract.deposit_bps_fee) / 10000
-    user_factor = float(user.fees.deposit_factor) / 100
+    base_fee = contract.deposit_base_fee + Decimal(deposit_amount * contract.deposit_bps_fee) / 10000
+    user_factor = Decimal(user.fees.deposit_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
@@ -200,8 +227,8 @@ def get_withdraw_fees(user, contract, withdraw_amount, trial_period=False):
     if trial_period:
         return {}
 
-    base_fee = contract.withdraw_base_fee + float(withdraw_amount * contract.withdraw_bps_fee) / 10000
-    user_factor = float(user.fees.withdraw_factor) / 100
+    base_fee = contract.withdraw_base_fee + Decimal(withdraw_amount * contract.withdraw_bps_fee) / 10000
+    user_factor = Decimal(user.fees.withdraw_factor) / 100
     final_fee = int(round(base_fee * user_factor))
 
     return {contract.ticker: final_fee}
@@ -259,10 +286,10 @@ def position_calculated(position, session, checkpoint=None, start=None, end=None
         last_posting_timestamp = grouped.last_timestamp
     except NoResultFound:
         calculated = 0
-        last_posting_timestamp = None
+        last_posting_timestamp = start
 
 
-    return checkpoint + calculated, last_posting_timestamp
+    return int(checkpoint + calculated), last_posting_timestamp
 
 class ChainedOpenSSLContextFactory(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateChainFileName,

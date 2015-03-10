@@ -55,19 +55,29 @@ contracts set MXN withdraw_base_fee 100
         for user in [marketmaker, randomtrader, m2, customer]:
             for contract in [BTCMXN, NETS2015, BTCHUF, NETS2014]:
                 for ap in [None, "aggressive", "passive"]:
-                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, 10000, ap=ap)
-        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 100},
-                                           (u'customer', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 50},
-                                           (u'customer', u'NETS2014', None): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 200},
-                                           (u'customer', u'NETS2015', None): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 350},
+                    cash_spent = 1000000000
+                    price = 1000000
+                    if contract.contract_type == "futures" or contract.contract_type == "prediction":
+                        quantity = cash_spent * contract.denominator / price / contract.lot_size
+                    else:
+                        payout_contract = contract.payout_contract
+                        quantity = cash_spent * contract.denominator * payout_contract.denominator / price
+
+                    fees_result[(user.username, contract.ticker, ap)] = util.get_fees(user, contract, price, quantity,
+                                                                                      ap=ap)
+
+        self.assertDictEqual(fees_result, {(u'customer', u'BTC/HUF', None): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/HUF', 'aggressive'): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/HUF', 'passive'): {u'HUF': 10000000},
+                                           (u'customer', u'BTC/MXN', None): {u'MXN': 5000000},
+                                           (u'customer', u'BTC/MXN', 'aggressive'): {u'MXN': 5000000},
+                                           (u'customer', u'BTC/MXN', 'passive'): {u'MXN': 5000000},
+                                           (u'customer', u'NETS2014', None): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2014', 'aggressive'): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2014', 'passive'): {u'BTC': 20000000},
+                                           (u'customer', u'NETS2015', None): {u'BTC': 35000000},
+                                           (u'customer', u'NETS2015', 'aggressive'): {u'BTC': 35000000},
+                                           (u'customer', u'NETS2015', 'passive'): {u'BTC': 35000000},
                                            (u'm2', u'BTC/HUF', None): {u'HUF': 0},
                                            (u'm2', u'BTC/HUF', 'aggressive'): {u'HUF': 0},
                                            (u'm2', u'BTC/HUF', 'passive'): {u'HUF': 0},
@@ -80,30 +90,30 @@ contracts set MXN withdraw_base_fee 100
                                            (u'm2', u'NETS2015', None): {u'BTC': 0},
                                            (u'm2', u'NETS2015', 'aggressive'): {u'BTC': 0},
                                            (u'm2', u'NETS2015', 'passive'): {u'BTC': 0},
-                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 100},
-                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -50},
-                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 50},
-                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -25},
-                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 200},
-                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -100},
-                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 350},
-                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -175},
-                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 200},
-                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 100},
-                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 100},
-                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 400},
-                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 700},
-                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 700}}
+                                           (u'marketmaker', u'BTC/HUF', None): {u'HUF': 10000000},
+                                           (u'marketmaker', u'BTC/HUF', 'aggressive'): {u'HUF': 10000000},
+                                           (u'marketmaker', u'BTC/HUF', 'passive'): {u'HUF': -5000000},
+                                           (u'marketmaker', u'BTC/MXN', None): {u'MXN': 5000000},
+                                           (u'marketmaker', u'BTC/MXN', 'aggressive'): {u'MXN': 5000000},
+                                           (u'marketmaker', u'BTC/MXN', 'passive'): {u'MXN': -2500000},
+                                           (u'marketmaker', u'NETS2014', None): {u'BTC': 20000000},
+                                           (u'marketmaker', u'NETS2014', 'aggressive'): {u'BTC': 20000000},
+                                           (u'marketmaker', u'NETS2014', 'passive'): {u'BTC': -10000000},
+                                           (u'marketmaker', u'NETS2015', None): {u'BTC': 35000000},
+                                           (u'marketmaker', u'NETS2015', 'aggressive'): {u'BTC': 35000000},
+                                           (u'marketmaker', u'NETS2015', 'passive'): {u'BTC': -17500000},
+                                           (u'randomtrader', u'BTC/HUF', None): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/HUF', 'aggressive'): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/HUF', 'passive'): {u'HUF': 20000000},
+                                           (u'randomtrader', u'BTC/MXN', None): {u'MXN': 10000000},
+                                           (u'randomtrader', u'BTC/MXN', 'aggressive'): {u'MXN': 10000000},
+                                           (u'randomtrader', u'BTC/MXN', 'passive'): {u'MXN': 10000000},
+                                           (u'randomtrader', u'NETS2014', None): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2014', 'aggressive'): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2014', 'passive'): {u'BTC': 40000000},
+                                           (u'randomtrader', u'NETS2015', None): {u'BTC': 70000000},
+                                           (u'randomtrader', u'NETS2015', 'aggressive'): {u'BTC': 70000000},
+                                           (u'randomtrader', u'NETS2015', 'passive'): {u'BTC': 70000000}}
         )
 
     def test_deposit_withdraw_fees(self):

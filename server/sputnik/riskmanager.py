@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import config
 
 from optparse import OptionParser
@@ -20,86 +21,127 @@ For now this just means pinging the accountant regularly to see if everyone's ma
 
 
 from sqlalchemy.orm.exc import NoResultFound
-import zmq
 import models
 import database
-import smtplib
 import margin
-from email.mime.text import MIMEText
+import util
+from sendmail import Sendmail
+from accountant import AccountantProxy
 
 from twisted.python import log
+from twisted.internet import reactor
+from zmq_util import connect_subscriber
+import json
+from jinja2 import Environment, FileSystemLoader
+import time
+import sys
 
-NAP_TIME_SECONDS = 10
+class RiskManager():
+    def __init__(self, session, sendmail, safe_price_subscriber, accountant, admin_templates='admin_templates', nap_time_seconds=60):
+        self.session = session
+        self.nap_time_seconds = nap_time_seconds
+        self.jinja_env = Environment(loader=FileSystemLoader(admin_templates))
+        self.sendmail = sendmail
+        self.safe_price_subscriber = safe_price_subscriber
+        self.accountant = accountant
+        self.last_call_time = 0
+        self.safe_price_subscriber.subscribe('')
+        self.safe_price_subscriber.gotMessage = self.on_safe_prices
+        self.cash_positions = {}
+        self.timestamps = {}
+        self.low_margin_users = {}
+        self.bad_margin_users = {}
 
-def email_user(user, cash_position, low_margin, high_margin, severe):
-    """
+        self.BTC = self.session.query(models.Contract).filter_by(ticker='BTC').one()
 
-    :param user:
-    :type user: User
-    :param cash_position:
-    :type cash_position: int
-    :param low_margin:
-    :type low_margin: int
-    :param high_margin:
-    :type high_margin: int
-    :param severe:
-    :type severe: bool
-    """
-    content = open("margin_call_email.txt" if severe else "low_margin_email.txt", "r").read()
+    def email_user(self, user, cash_position, low_margin, high_margin, severe):
+        """
 
-    content = re.sub("@NICKNAME", user.nickname, content)
-    content = re.sub("@CASH", "%.8f" % (cash_position / 1e8), content)
-    content = re.sub("@HIGH_MARGIN", "%.8f" % (high_margin / 1e8), content)
-    content = re.sub("@LOW_MARGIN", "%.8f" % (low_margin / 1e8), content)
+        :param user:
+        :type user: User
+        :param cash_position:
+        :type cash_position: int
+        :param low_margin:
+        :type low_margin: int
+        :param high_margin:
+        :type high_margin: int
+        :param severe:
+        :type severe: bool
+        """
+        template_file = "margin_call.{locale}.email" if severe else "low_margin.{locale}.email"
+        t = util.get_locale_template(user.locale, self.jinja_env, template_file)
+        content = t.render(cash_position=util.quantity_fmt(self.BTC, cash_position),
+                           low_margin=util.quantity_fmt(self.BTC, low_margin),
+                           high_margin=util.quantity_fmt(self.BTC, high_margin), user=user).encode('utf-8')
 
-    msg = MIMEText(content)
-    msg['Subject'] = 'Margin called' if severe else 'Low margin warning!'
-    msg['From'] = 'Sputnik market'
-    msg['To'] = user.nickname
-    s = smtplib.SMTP('localhost')
-    s.sendmail('sputnik@sputnikmkt.com', [user.email], msg.as_string())
+        # Now send the mail
+        log.msg("Sending mail: %s" % content)
+        self.sendmail.send_mail(content, to_address=user.email,
+                                    subject="Margin Call" if severe else "Margin Warning")
+
+    def on_safe_prices(self, *args):
+        this_call_time = time.time()
+        safe_prices = json.loads(args[0])
+        log.msg("Safe prices received: %s" % safe_prices)
+        # Don't run more than once per minute
+        if this_call_time - self.last_call_time > self.nap_time_seconds:
+            self.last_call_time = this_call_time
+
+
+            self.session.expire_all()
+            for user in self.session.query(models.User).filter_by(active=True).filter_by(type='Liability'):
+                low_margin, high_margin, cash_spent = margin.calculate_margin(user, self.session, safe_prices)
+                try:
+                    cash_position_db = self.session.query(models.Position).filter_by(contract=self.BTC, user=user).one()
+                except NoResultFound:
+                    self.cash_positions[user.username] = 0
+                else:
+                    # Use calculated position
+                    if user.username in self.timestamps:
+                        self.cash_positions[user.username], self.timestamps[user.username] = \
+                            util.position_calculated(cash_position_db, self.session, checkpoint=self.cash_positions[user.username],
+                                                     start=self.timestamps[user.username])
+                    else:
+                        self.cash_positions[user.username], self.timestamps[user.username] = \
+                            util.position_calculated(cash_position_db, self.session)
+
+
+                if self.cash_positions[user.username] < low_margin:
+                    if user.username not in self.bad_margin_users:
+                        self.bad_margin_users[user.username] = datetime.datetime.utcnow()
+                        self.email_user(user, self.cash_positions[user.username], low_margin, high_margin, severe=True)
+
+                    d = self.accountant.liquidate_best(user.username)
+                    d.addErrback(log.err)
+                    result = "CALL"
+                elif self.cash_positions[user.username] < high_margin:
+                    if user.username not in self.low_margin_users:
+                        self.low_margin_users[user.username] = datetime.datetime.utcnow()
+                        self.email_user(user, self.cash_positions[user.username], low_margin, high_margin, severe=False)
+                    result = "WARNING"
+                else:
+                    if user.username in self.low_margin_users:
+                        del self.low_margin_users[user.username] # resolved
+                    if user.username in self.bad_margin_users:
+                        del self.bad_margin_users[user.username] # resolved
+                    result = "OK"
+
+                log.msg("%s: %s / %d %d %d" % (result, user.username, low_margin, high_margin,
+                                                     self.cash_positions[user.username]))
+
 
 if __name__ == "__main__":
+    log.startLogging(sys.stdout)
 
     session = database.make_session()
 
-    context = zmq.Context()
-    safe_price_subscriber = context.socket(zmq.SUB)
-    safe_price_subscriber.connect(config.get("safe_price_forwarder", "zmq_backend_address"))
+    safe_price_subscriber = connect_subscriber(config.get("safe_price_forwarder", "zmq_backend_address"))
+    safe_price_subscriber.subscribe('')
+    sendmail = Sendmail(config.get("riskmanager", "from_email"))
+    accountant = AccountantProxy("dealer",
+                                 config.get("accountant", "riskmanager_export"),
+                                 config.getint("accountant", "riskmanager_export_base_port"))
 
+    riskmanager = RiskManager(session, sendmail, safe_price_subscriber, accountant)
 
-    btc = session.query(models.Contract).filter_by(ticker='BTC').one()
-
-
-    low_margin_users = {}
-    bad_margin_users = {}
-
-    # main loop
-    while True:
-
-        # todo we should loop on the union of of safe price and message from the accountant asking us to take action
-        safe_prices = safe_price_subscriber.recv_json()
-        for user in session.query(models.User).filter_by(active=True):
-
-            low_margin, high_margin = margin.calculate_margin(user.username, session, safe_prices)
-            cash_position = session.query(models.Position).filter_by(contract=btc, user=user).one()
-
-            if cash_position < low_margin:
-                if user.username not in bad_margin_users:
-                    bad_margin_users[user.username] = datetime.datetime.utcnow()
-                    email_user(user, cash_position, high_margin, severe=True)
-                    log.msg("user %s's margin is below the low limit, margin call" % user.username)
-
-            elif cash_position < high_margin:
-                if user.username not in low_margin_users:
-                    low_margin_users[user.username] = datetime.datetime.utcnow()
-                    email_user(user, cash_position, high_margin, severe=False)
-                    log.msg("user %s's margin is low, sending a warning" % user.username)
-
-            else:
-                del low_margin_users[user.username] # resolved
-                del bad_margin_users[user.username] # resolved
-                log.msg("user %s's margin is fine and dandy" % user.username)
-
-
-
+    reactor.run()

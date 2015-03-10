@@ -10,6 +10,12 @@ webserver_export = tcp://127.0.0.1:4140
 compropago_key = ${compropago_key}
 cold_wallet_period = 3600
 minimum_confirmations = ${minimum_confirmations}
+bitgo_private_key_file = ${keys}/bitgo.key
+testnet = ${testnet}
+
+[bitgo]
+client_id = ${bitgo_client_id}
+client_secret = ${bitgo_client_secret}
 
 [engine]
 accountant_base_port = 4200
@@ -18,6 +24,7 @@ administrator_base_port = 4250
 [webserver]
 engine_export = tcp://127.0.0.1:4720
 accountant_export = tcp://127.0.0.1:4740
+administrator_export = tcp://127.0.01:4760
 interface = ${webserver_interface}
 ws_address = ${webserver_address}
 ws_port = ${websockets_port}
@@ -42,6 +49,7 @@ corporate_name = ${corporate_name}
 exchange_rss_feed = ${exchange_rss_feed}
 exchange_name = ${exchange_name}
 support_email = ${support_email}
+restrict_full_ui = ${restrict_full_ui}
 
 [accountant]
 engine_export = tcp://127.0.0.1:%d
@@ -49,11 +57,13 @@ webserver_export = tcp://127.0.0.1:%d
 cashier_export = tcp://127.0.0.1:%d
 administrator_export = tcp://127.0.0.1:%d
 accountant_export = tcp://127.0.0.1:%d
+riskmanager_export = tcp://127.0.0.1:%d
 engine_export_base_port = 4420
 webserver_export_base_port = 4470
 cashier_export_base_port = 4410
 administrator_export_base_port = 4460
 accountant_export_base_port = 4440
+riskmanager_export_base_port = 4480
 num_procs = ${accountant_count}
 debug = ${debug}
 trial_period = ${trial_period}
@@ -63,6 +73,7 @@ mimetic_share = ${mimetic_share}
 webserver_export = tcp://127.0.0.1:4670
 accountant_export = tcp://127.0.0.1:4640
 ticketserver_export = tcp://127.0.0.1:4680
+cron_export = tcp://127.0.0.1:5000
 UI_port = ${administrator_port}
 interface = ${webserver_interface}
 address = ${webserver_address}
@@ -88,7 +99,7 @@ zmq_backend_address = tcp://127.0.0.1:4520
 
 [ledger]
 accountant_export = tcp://127.0.0.1:4340
-timeout = 3000
+timeout = 300
 
 [alerts]
 from = ${user}@${webserver_address}
@@ -113,3 +124,7 @@ administrator = tcp://127.0.0.1:4690
 ledger = tcp://127.0.0.1:4390
 engine = tcp://127.0.0.1:%d
 engine_base_port = 4290
+
+[riskmanager]
+from_email = ${administrator_email}
+

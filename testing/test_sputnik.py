@@ -7,6 +7,7 @@ import StringIO
 import logging
 from twisted.internet import defer
 from twisted.web.server import NOT_DONE_YET
+from datetime import datetime, timedelta
 import copy
 
 logging.basicConfig(level=1000)
@@ -35,6 +36,7 @@ contracts set NETS2014 tick_size 1
 contracts set NETS2014 expiration 2014-06-28
 contracts set NETS2014 denominated_contract_ticker BTC
 contracts set NETS2014 fees 200
+contracts set NETS2014 payout_contract_ticker NETS2014
 
 contracts add NETS2015
 contracts set NETS2015 contract_type prediction
@@ -43,11 +45,26 @@ contracts set NETS2015 lot_size 1000000
 contracts set NETS2015 tick_size 1
 contracts set NETS2015 expiration 2015-06-28
 contracts set NETS2015 denominated_contract_ticker BTC
+contracts set NETS2015 payout_contract_ticker NETS2015
 contracts set NETS2015 fees 200
+
+contracts add USDBTC0W
+contracts set USDBTC0W contract_type futures
+contracts set USDBTC0W denominator 1000
+contracts set USDBTC0W lot_size 100000
+contracts set USDBTC0W tick_size 1
+contracts set USDBTC0W expiration 2015-06-28
+contracts set USDBTC0W denominated_contract_ticker BTC
+contracts set USDBTC0W payout_contract_ticker USDBTC0W
+contracts set USDBTC0W margin_low 25
+contracts set USDBTC0W margin_high 50
+contracts set USDBTC0W fees 200
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
 contracts set BTC lot_size 1000000
+contracts set BTC cold_wallet_address n2JvYcXqkHAKUNj6X4iG3xFzX3moCpHujj
+contracts set BTC multisig_wallet_address myDu5UC7aCWXTmfJPQKC72gNCDStu9voeo
 
 contracts set MXN contract_type cash
 contracts set MXN denominator 10000
@@ -107,6 +124,9 @@ accounts position randomtrader MXN
 accounts add onlinecash
 accounts set onlinecash type Asset
 
+accounts add multisigcash
+accounts set multisigcash type Asset
+
 accounts add offlinecash
 accounts set offlinecash type Asset
 
@@ -118,6 +138,9 @@ accounts set pendingwithdrawal type Liability
 
 accounts add adjustments
 accounts set adjustments type Asset
+
+accounts add clearing_USDBTC0W
+accounts set clearing_USDBTC0W type Asset
 
 admin add admin
 """
@@ -219,6 +242,46 @@ class FakeComponent:
 class FakeProxy(FakeComponent):
     pass
 
+
+class FakeWallet(FakeComponent):
+    def __init__(self, id='WALLET_ID'):
+        self.id = id
+        self.balance = 10000
+        FakeComponent.__init__(self)
+
+    def sendCoins(self, *args, **kwargs):
+        self._log_call("sendCoins", *args, **kwargs)
+        return defer.succeed({'tx': 'TXSUCCESS',
+                              'fee': 1000000})
+
+class FakeWallets(FakeComponent):
+    def __init__(self):
+        self.wallets = {}
+        FakeComponent.__init__(self)
+
+    def createWalletWithKeychains(self, *args, **kwargs):
+        self._log_call("createWalletWithKeychains", *args, **kwargs)
+        return defer.succeed({'wallet': FakeWallet(),
+                              'userKeychain': {'encryptedXprv': 'ENCRYPTED'}})
+
+    def get(self, wallet_id):
+        self._log_call("get", wallet_id)
+        if wallet_id not in self.wallets:
+            self.wallets[wallet_id] = FakeWallet(wallet_id)
+
+        return defer.succeed(self.wallets[wallet_id])
+
+class FakeBitgo(FakeComponent):
+    endpoint = ''
+    wallets = FakeWallets()
+
+    def authenticateWithAuthCode(self, code):
+        self._log_call("authenticateWithAuthCode", code)
+        expiry = datetime.utcnow() + timedelta(days=1)
+        from sputnik import util
+        return defer.succeed({'access_token': 'TOKEN',
+                              'expires_at': util.dt_to_timestamp(expiry)/1e6})
+
 def fix_config():
     spec_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "sputnik", "specs"))
     test_config = "[database]\nuri = sqlite://\n[specs]\nschema_root=%s\n[accountant]\nnum_proces = 0\n" % \
@@ -243,6 +306,45 @@ class TestSputnik(unittest.TestCase):
 
         self.leo = leo.LowEarthOrbit(self.session)
         self.run_leo(db_init)
+
+    def get_position(self, ticker):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
+        return position
+
+    def create_position(self, ticker, quantity, reference_price=None):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        from sqlalchemy.orm.exc import NoResultFound
+        try:
+            position = self.session.query(models.Position).filter_by(user=self.user, contract=contract).one()
+            position.position = quantity
+            if reference_price is not None:
+                position.reference_price = reference_price
+            self.session.commit()
+        except NoResultFound:
+            position = models.Position(self.user, contract, quantity)
+            if reference_price is not None:
+                position.reference_price = reference_price
+            self.session.add(position)
+
+        self.session.commit()
+
+    def create_order(self, ticker, quantity, price, side, accepted=True):
+        from sputnik import models
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        order = models.Order(self.user, contract, quantity, price, side)
+        order.accepted = accepted
+        self.session.add(order)
+        self.session.commit()
+        return order.id
+
+    def cancel_order(self, id):
+        from sputnik import models
+        order = self.session.query(models.Order).filter_by(id=id).one()
+        order.is_cancelled = True
+        self.session.commit()
 
     def run_leo(self, init):
         for line in init.split("\n"):

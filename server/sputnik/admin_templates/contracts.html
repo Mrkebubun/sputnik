@@ -56,12 +56,14 @@
                 <th>Lot Size</th>
                 <th>Denominator</th>
                 <th>Expiration</th>
+                <th>Multi-Sig Wallet Address</th>
                 <th>Cold Wallet Address</th>
                 <th>Hot Wallet Limit</th>
                 <th>Denominated</th>
                 <th>Payout</th>
                 <th>Margin High</th>
                 <th>Margin Low</th>
+                <th>Period</th>
             </tr>
         </thead>
         <tbody>
@@ -82,6 +84,10 @@
                             <input type="hidden" name="ticker" value="{{contract.ticker}}">
                             <input type="text" name="price" placeholder="Price" size="5">
                         </form>
+                        {% else %}
+                        {% if contract.contract_type == "futures" %}
+                        <a href="/clear_contract?ticker={{contract.ticker}}">Clear</a>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td>{{contract.description}}</a></td>
@@ -92,6 +98,7 @@
                     <td>{{contract.denominator}}</td>
                     <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.expiration}}{% endif %}</td>
                     {% if contract.contract_type == "cash" %}
+                    <td>{% if contract.ticker == "BTC" %}{{contract.multisig_wallet_address}}{% endif %}</td>
                     <td>{% if contract.ticker == "BTC" %}{{contract.cold_wallet_address}}{% endif %}</td>
                     <td>{% if contract.ticker == "BTC" %}{{contract.hot_wallet_limit}}{% endif %}</td>
                     {% else %}
@@ -101,6 +108,7 @@
                     <td>{% if contract.contract_type != "cash" %}{{contract.payout_contract_ticker}}{% endif %}</td>
                     <td>{% if contract.contract_type == "futures" %}{{contract.margin_high}}{% endif %}</td>
                     <td>{% if contract.contract_type == "futures" %}{{contract.margin_low}}{% endif %}</td>
+                    <td>{% if contract.contract_type == "futures" or contract.contract_type == "prediction" %}{{contract.period.days}}{% endif %}</td>
                 </tr>
                 <tr name="edit_{{contract.id}}" style="display:none;">
                     <td colspan="100">
@@ -114,7 +122,7 @@
                             </tr>
                             <tr>
                                 <td>Full Description</td>
-                                <td><textarea rows="20" cols="80" name="full_description">{{contract.full_description}}</textarea></td>
+                                <td colspan="100"><textarea rows="20" cols="80" name="full_description">{{contract.full_description}}</textarea></td>
                             </tr>
                             {% if contract.contract_type == "cash" %}
                                 {% if contract.ticker == "BTC" %}
@@ -122,6 +130,12 @@
                                     <td>Cold Wallet Address</td>
                                     <td><input type="text" name="cold_wallet_address" value="{{contract.cold_wallet_address}}"></td>
                                 </tr>
+                                {% if debug %}
+                                <tr>
+                                    <td>MultiSig Wallet Address</td>
+                                    <td><input type="text" name="multisig_wallet_address" value="{{contract.multisig_wallet_address}}"></td>
+                                </tr>
+                                {% endif %}
                                 <tr>
                                     <td>Hot Wallet Limit</td>
                                     <td><input type="text" name="hot_wallet_limit" value="{{contract.hot_wallet_limit}}"></td>
@@ -154,6 +168,8 @@
                                 <tr>
                                     <td>Expiration</td>
                                     <td><input type="text" name="expiration" value="{{contract.expiration}}"></td>
+                                    <td>Period (Days)</td>
+                                    <td><input type="text" name="period" value="{{contract.period.days}}"></td>
                                 </tr>
                             {% endif %}
                             </table>

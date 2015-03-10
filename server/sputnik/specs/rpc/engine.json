@@ -30,5 +30,10 @@
         "type":"object",
         "description": "administrator -> engine get_order_book RPC call",
         "additionalProperties": false
+    },
+    "get_safe_price": {
+        "type":"object",
+        "description": "accountant -> engine get_safe_price RPC call",
+        "additionalProperties": false
     }
 }

@@ -10,13 +10,17 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import sys
+import sys, os
 import collections
 from datetime import datetime
 import json
 import copy
 import string
 import pickle
+import time
+import Crypto.Random.random
+from dateutil import parser
+import cgi
 
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
@@ -26,6 +30,7 @@ from twisted.web.util import redirectTo
 from twisted.internet.task import LoopingCall
 from zope.interface import implements
 from twisted.internet import reactor, defer
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.python import log
 from twisted.cred.portal import IRealm, Portal
 from twisted.cred.checkers import ICredentialsChecker
@@ -33,13 +38,13 @@ from twisted.cred.credentials import IUsernameDigestHash
 from twisted.cred import error as credError
 from twisted.cred._digest import calcHA1
 from jinja2 import Environment, FileSystemLoader
-import Crypto.Random.random
 import sqlalchemy.orm.exc
 from sqlalchemy import func
-import Crypto.Random.random
 from sqlalchemy.orm.exc import NoResultFound
-from autobahn.wamp1.protocol import WampCraProtocol
 from dateutil import parser
+from datetime import timedelta
+from autobahn.wamp.auth import derive_key, compute_totp
+from twisted.web.static import File
 
 import config
 import database
@@ -48,13 +53,22 @@ from util import ChainedOpenSSLContextFactory
 import util
 from messenger import Messenger, Sendmail, Nexmo
 from watchdog import watchdog
+
 from accountant import AccountantProxy
+
+from exception import *
+
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
-
-
-class AdministratorException(Exception): pass
-
+from dateutil import relativedelta
+from zendesk import Zendesk
+from blockscore import BlockScore
+from ticketserver import TicketServer
+from bitgo import BitGo
+import base64
+from Crypto.Random.random import getrandbits
+import urllib
+from decimal import Decimal
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
 NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
@@ -67,6 +81,16 @@ ADMIN_USERNAME_TAKEN = AdministratorException("exceptions/administrator/admin_us
 INVALID_SUPPORT_NONCE = AdministratorException("exceptions/administrator/invalid_support_nonce")
 SUPPORT_NONCE_USED = AdministratorException("exceptions/administrator/support_nonce_used")
 INVALID_CURRENCY_QUANTITY = AdministratorException("exceptions/administrator/invalid_currency_quantity")
+INVALID_REQUEST = AdministratorException("exceptions/administrator/invalid_request")
+INSUFFICIENT_PERMISSIONS = AdministratorException("exceptions/administrator/insufficient_permissions")
+NO_USERNAME_SPECIFIED = AdministratorException("exceptions/administrator/no_username_specified")
+INVALID_QUANTITY = AdministratorException("exceptions/administrator/invalid_quantity")
+CONTRACT_NOT_ACTIVE = AdministratorException("exceptions/administrator/contract_not_active")
+MALICIOUS_LOOKING_INPUT = AdministratorException("exceptions/administrator/malicious_looking_input")
+TOTP_NOT_ENABLED = AdministratorException("exceptions/administrator/totp_not_enabled")
+TOTP_ALREADY_ENABLED = AdministratorException("exceptions/administrator/totp_already_enabled")
+BITGO_TOKEN_INVALID = AdministratorException("exceptions/administrator/bitgo_token_invalid")
+KEY_FILE_EXISTS = AdministratorException("exceptions/bitgo/key_file_exists")
 
 from util import session_aware
 
@@ -77,11 +101,14 @@ class Administrator:
     """
 
     def __init__(self, session, accountant, cashier, engines,
-                 zendesk_domain,
+                 zendesk_domain, accountant_slow, webserver,
                  debug=False, base_uri=None, messenger=None,
                  template_dir='admin_templates',
                  user_limit=500,
-                 bs_cache_update_period=86400):
+                 bitgo=None,
+                 bitgo_private_key_file=None,
+                 bs_cache_update_period=86400,
+                 testnet=True):
         """Set up the administrator
 
         :param session: the sqlAlchemy session
@@ -94,6 +121,8 @@ class Administrator:
         """
         self.session = session
         self.accountant = accountant
+        self.accountant_slow = accountant_slow
+        self.webserver = webserver
         self.cashier = cashier
         self.engines = engines
         self.zendesk_domain = zendesk_domain
@@ -104,6 +133,10 @@ class Administrator:
         self.messenger = messenger
         self.user_limit = user_limit
         self.page_size = 10
+        self.bitgo = bitgo
+        self.bitgo_private_key_file = bitgo_private_key_file
+        self.bitgo_tokens = {}
+        self.testnet = testnet
 
         self.load_bs_cache()
         # Initialize the balance sheet cache
@@ -112,6 +145,23 @@ class Administrator:
             self.bs_updater.start(bs_cache_update_period, now=True)
         else:
             self.update_bs_cache()
+
+    def bitgo_oauth_clear(self, admin_user):
+        if admin_user in self.bitgo_tokens:
+            del self.bitgo_tokens[admin_user]
+
+    @inlineCallbacks
+    def bitgo_oauth_token(self, code, admin_user):
+        token_result = yield self.bitgo.authenticateWithAuthCode(code)
+        self.bitgo_tokens[admin_user] = (token_result['access_token'].encode('utf-8'),
+                                         datetime.utcfromtimestamp(token_result['expires_at']))
+
+    def get_bitgo_token(self, admin_user):
+        now = datetime.utcnow()
+        if admin_user in self.bitgo_tokens and self.bitgo_tokens[admin_user][1] > now:
+            return self.bitgo_tokens[admin_user][0]
+        else:
+            return None
 
     def make_account(self, username, password):
         """Makes a user account with the given password
@@ -123,6 +173,9 @@ class Administrator:
         :returns: bool
         :raises: USER_LIMIT_REACHED, USERNAME_TAKEN, OUT_OF_ADDRESSES
         """
+        if self.malicious_looking(username):
+            raise MALICIOUS_LOOKING_INPUT
+
         user_count = self.session.query(models.User).count()
         if user_count > self.user_limit:
             log.err("User limit reached")
@@ -139,7 +192,7 @@ class Administrator:
         self.session.add(user)
 
         contracts = self.session.query(models.Contract).filter_by(
-            contract_type='cash').all()
+            contract_type='cash')
         for contract in contracts:
             position = models.Position(user, contract)
             self.session.add(position)
@@ -151,6 +204,15 @@ class Administrator:
 
         log.msg("Account created for %s" % username)
         return True
+
+
+    def malicious_looking(self, w):
+        """
+
+        :param w:
+        :returns: bool
+        """
+        return any(x in w for x in '<>&')
 
     def change_profile(self, username, profile):
         """Changes the profile of a user
@@ -172,6 +234,9 @@ class Administrator:
         user.nickname = profile.get("nickname", user.nickname)
         user.locale = profile.get("locale", user.locale)
         user.phone = profile.get("phone", user.phone)
+
+        if self.malicious_looking(profile.get('email', '')) or self.malicious_looking(profile.get('nickname', '')):
+            raise MALICIOUS_LOOKING_INPUT
 
         # User notifications
         if 'notifications' in profile:
@@ -211,6 +276,30 @@ class Administrator:
                    'notifications': notifications
         }
         return profile
+
+    def get_new_api_credentials(self, username, expiration):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        user.api_key = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+        user.api_expiration = util.timestamp_to_dt(expiration)
+        user.api_secret = base64.b64encode(("%064X" % getrandbits(256)).decode("hex"))
+
+        self.session.commit()
+        return {'key': user.api_key, 'secret': user.api_secret, 'expiration': util.dt_to_timestamp(user.api_expiration)}
+
+    def check_and_update_api_nonce(self, username, nonce):
+        user = self.session.query(models.User).filter_by(username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if nonce <= user.api_nonce:
+            return False
+        else:
+            user.api_nonce = nonce
+            self.session.commit()
+            return True
 
     def check_token(self, username, input_token):
         """Check to see if a password reset token is valid
@@ -256,8 +345,8 @@ class Administrator:
         while num != 0:
             num, i = divmod(num, len(alphabet))
             salt = alphabet[i] + salt
-        extra = {"salt": salt, "keylen": 32, "iterations": 1000}
-        password = WampCraProtocol.deriveKey(new_password, extra)
+
+        password = derive_key(new_password, salt, iterations=1000, keylen=32)
         user.password = "%s:%s" % (salt, password)
         self.session.add(user)
         self.session.commit()
@@ -282,17 +371,15 @@ class Administrator:
         except sqlalchemy.orm.exc.NoResultFound:
             raise NO_SUCH_USER
 
-        [salt, hash] = user.password.split(':')
-
-        if hash != old_password_hash and token is None:
+        if user.password != old_password_hash and token is None:
             raise PASSWORD_MISMATCH
-        elif hash != old_password_hash:
+        elif user.password != old_password_hash:
             # Check token
             token = self.check_token(username, token)
             token.used = True
             self.session.add(token)
 
-        user.password = "%s:%s" % (salt, new_password_hash)
+        user.password = new_password_hash
 
         self.session.add(user)
         self.session.commit()
@@ -327,6 +414,125 @@ class Administrator:
 
         return True
 
+    def enable_totp(self, username):
+        """Initiates process to enable TOTP for account. Returns the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :returns: str
+        :raises: NO_SUCH_USER, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        secret = base64.b32encode("".join(
+            chr(getrandbits(8)) for i in range(16)))
+        user.totp_secret = secret
+        self.session.commit()
+        return secret
+
+    def verify_totp(self, username, otp):
+        """Verifies the user has saved the TOTP secret.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED, TOTP_ALREADY_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+
+        if not user.totp_secret:
+            raise TOTP_NOT_ENABLED
+
+        if user.totp_enabled:
+            raise TOTP_ALREADY_ENABLED
+
+        if self._check_totp(user, otp):
+            user.totp_enabled = True
+            self.session.commit()
+            return True
+
+        return False
+
+    def disable_totp(self, username, otp):
+        """Disables TOTP for an account.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER, TOTP_NOT_ENABLED
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled:
+            raise TOTP_NOT_ENABLED
+        
+        if self._check_totp(user, otp):
+            user.totp_secret = None
+            user.totp_enabled = False
+            self.session.commit()
+            return True
+
+        return False
+
+    def check_totp(self, username, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. If OTP is not enabled, returns True.
+
+        :param username: the account username
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        :raises: NO_SUCH_USER
+        """
+        user = self.session.query(models.User).filter_by(
+            username=username).one()
+        if not user:
+            raise NO_SUCH_USER
+        
+        if not user.totp_enabled or not user.totp_secret:
+            return True
+        
+        return self._check_totp(user, otp)
+
+    @session_aware
+    def _check_totp(self, user, otp):
+        """Checks to make sure the OTP is valid and updates database so the token cannot be reused. Returns verification success. This method is safe to use internally.
+
+        :param user: the User object
+        :type username: str
+        :param otp: an otp code
+        :type username: str
+        :returns: bool
+        """
+        secret = bytes(user.totp_secret)
+        now = time.time() // 30
+        for i in range(-1, 2):
+            if user.totp_last >= now + i:
+                # token reuse is not allowed
+                continue
+            if compute_totp(secret, i) == otp:
+                user.totp_last = now + i
+                self.session.commit()
+                return True
+
+        return False
+
     def expire_all(self):
         """Use this to expire all objects in the session, because other processes may have updated things in the db
 
@@ -338,7 +544,7 @@ class Administrator:
 
         :returns: list -- list of models.User
         """
-        users = self.session.query(models.User).all()
+        users = self.session.query(models.User)
         return users
 
     def get_admin_users(self):
@@ -346,10 +552,9 @@ class Administrator:
 
         :returns: list -- list of models.AdminUser
         """
-        admin_users = self.session.query(models.AdminUser).all()
+        admin_users = self.session.query(models.AdminUser)
         return admin_users
 
-    @util.timed
     def get_user(self, username):
         """Give us the details of a particular user
 
@@ -360,6 +565,153 @@ class Administrator:
         user = self.session.query(models.User).filter_by(username=username).one()
 
         return user
+
+    def mail_statements(self, period, now=None):
+        self.expire_all()
+
+        if now is None:
+            now = datetime.utcnow()
+
+        if period == "daily":
+            yesterday = now - timedelta(days=1)
+            yesterday_bod = datetime(yesterday.year, yesterday.month, yesterday.day)
+            today_bod = datetime(now.year, now.month, now.day)
+            yesterday_eod = today_bod - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(yesterday_bod)
+            to_timestamp = util.dt_to_timestamp(yesterday_eod)
+        elif period == "weekly":
+            recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-1))
+            second_recent_sunday = now + relativedelta.relativedelta(weekday=relativedelta.SU(-2))
+            last_week_start = datetime(second_recent_sunday.year, second_recent_sunday.month, second_recent_sunday.day)
+            this_week_start = datetime(recent_sunday.year, recent_sunday.month, recent_sunday.day)
+            last_week_end = this_week_start - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_week_start)
+            to_timestamp = util.dt_to_timestamp(last_week_end)
+        elif period == "monthly":
+            last_month = now + relativedelta.relativedelta(months=-1)
+            last_month_bom = datetime(last_month.year, last_month.month, 1)
+            this_month_bom = datetime(now.year, now.month, 1)
+            last_month_eom = this_month_bom - timedelta(microseconds=1)
+
+            from_timestamp = util.dt_to_timestamp(last_month_bom)
+            to_timestamp = util.dt_to_timestamp(last_month_eom)
+        else:
+            raise AdministratorException("Period not supported: %s" % period)
+
+        users = self.session.query(models.User)
+        user_list = []
+
+        for user in users:
+            if period in [notification.type for notification in user.notifications if notification.method == "email"]:
+                self.mail_statement(user.username, from_timestamp, to_timestamp)
+                user_list.append(user.username)
+
+        return user_list
+
+    @util.timed
+    def mail_statement(self, username, from_timestamp=None, to_timestamp=None):
+        now = datetime.utcnow()
+        user = self.get_user(username)
+
+        if to_timestamp is None:
+            end = now
+        else:
+            end = util.timestamp_to_dt(to_timestamp)
+
+        if from_timestamp is None:
+            start = end + relativedelta.relativedelta(months=-1)
+        else:
+            start = util.timestamp_to_dt(from_timestamp)
+
+        log.msg("mailing statement for %s from %s to %s" % (username, start, end))
+
+        # Get beginning balances
+        balances = self.session.query(func.sum(models.Posting.quantity).label("balance"),
+                                      func.max(models.Journal.timestamp).label("max_timestamp"),
+                                      models.Contract).filter(models.Posting.username == username).filter(
+                                        models.Journal.id==models.Posting.journal_id).filter(
+                                        models.Posting.contract_id==models.Contract.id).filter(
+                                        models.Journal.timestamp < start).group_by(models.Contract)
+
+
+        transaction_info = collections.defaultdict(list)
+        beginning_balance_info = collections.defaultdict(int)
+        totals_by_type = collections.defaultdict(lambda: collections.defaultdict(int))
+        totals_by_type_fmt = collections.defaultdict(dict)
+        details = {}
+
+        # get all positions
+        positions = self.session.query(models.Position).filter_by(username=username)
+        for position in positions:
+            contract = position.contract
+
+            # Find the balance in balances
+            running_balance = 0
+            for balance in balances:
+                if balance.Contract == contract:
+                    running_balance = balance.balance
+                    break
+
+            details[contract.ticker] = {
+                'transactions': [],
+                'totals_by_type': collections.defaultdict(int),
+                'totals_by_type_fmt': {},
+                'beginning_balance': running_balance,
+                'beginning_balance_fmt': util.quantity_fmt(contract, running_balance),
+                'ending_balance': running_balance,
+                'ending_balance_fmt': util.quantity_fmt(contract, running_balance)
+            }
+            # Get transactions during period
+            transactions = self.session.query(models.Posting, models.Journal).filter(
+                models.Journal.id==models.Posting.journal_id).filter(
+                models.Journal.timestamp >= start).filter(
+                models.Journal.timestamp <= end).filter(models.Posting.username==username).filter(
+                models.Posting.contract_id == contract.id).order_by(
+                models.Journal.timestamp)
+
+            for transaction in transactions:
+                running_balance += transaction.Posting.quantity
+                details[contract.ticker]['totals_by_type'][transaction.Journal.type] += transaction.Posting.quantity
+
+                if transaction.Posting.quantity < 0:
+                    if user.type == 'Asset':
+                        direction = 'credit'
+                    else:
+                        direction = 'debit'
+                else:
+                    if user.type == 'Asset':
+                        direction = 'debit'
+                    else:
+                        direction = 'credit'
+
+                details[contract.ticker]['transactions'].append({'contract': contract.ticker,
+                                                                         'timestamp': transaction.Journal.timestamp,
+                                                                         'quantity': abs(transaction.Posting.quantity),
+                                                                         'quantity_fmt': util.quantity_fmt(
+                                                                             contract,
+                                                                             abs(transaction.Posting.quantity)),
+                                                                         'direction': direction,
+                                                                         'balance': running_balance,
+                                                                         'balance_fmt': util.quantity_fmt(
+                                                                             contract, running_balance),
+                                                                         'note': transaction.Posting.note,
+                                                                         'type': transaction.Journal.type
+                })
+                details[contract.ticker]['ending_balance'] = running_balance
+                details[contract.ticker]['ending_balance_fmt'] = util.quantity_fmt(contract, running_balance)
+
+            for type, total in details[contract.ticker]['totals_by_type'].iteritems():
+                details[contract.ticker]['totals_by_type_fmt'][type] = util.quantity_fmt(contract, total)
+
+        t = self.jinja_env.get_template('transaction_statement.email')
+        content = t.render(user=user,
+                           start=start,
+                           end=end,
+                           details=details).encode('utf-8')
+        log.msg("Sending statement to user at %s" % user.email)
+        self.sendmail.send_mail(content, subject="Your statement", to_address=user.email)
 
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket
@@ -506,12 +858,15 @@ class Administrator:
         log.msg("Admin user %s has password force reset" % username)
         return True
 
-    def get_positions(self):
-        """Get all the positions that exist
+    def get_positions(self, username=None):
+        """Get all the positions that exist, if username is set, get positions for that user only
 
         :returns: list -- models.Position
         """
-        positions = self.session.query(models.Position).all()
+        if username is None:
+            positions = self.session.query(models.Position)
+        else:
+            positions = self.session.query(models.Position).filter_by(username=username)
         return positions
 
     def get_position(self, user, ticker):
@@ -556,8 +911,37 @@ class Administrator:
         d.addCallback(reconcile_with_db)
         return d
 
+    def get_margins(self):
+        users = self.get_users()
+        deferreds = []
+        BTC = self.get_contract('BTC')
+        for user in users.filter_by(type='Liability'):
+            def fmt(margin):
+                margin['low_margin_fmt'] = util.quantity_fmt(BTC, margin['low_margin'])
+                margin['high_margin_fmt'] = util.quantity_fmt(BTC, margin['high_margin'])
+                margin['cash_position_fmt'] = util.quantity_fmt(BTC, margin['cash_position'])
+                return margin
+
+            d = self.accountant_slow.get_margin(user.username)
+            d.addCallback(fmt)
+            deferreds.append(d)
+
+        def process_all(results):
+            all_margins = []
+            for result in results:
+                if result[0]:
+                    all_margins.append(result[1])
+                else:
+                    log.err("Trouble with get_margin: %s" % result[1])
+
+            return all_margins
+
+        dl = defer.DeferredList(deferreds)
+        dl.addCallback(process_all)
+        return dl
+
     def cancel_order(self, username, id):
-        self.accountant.cancel_order(username, id)
+        return self.accountant.cancel_order(username, id)
 
     def get_journal(self, journal_id):
         """Get a journal given its id
@@ -583,7 +967,28 @@ class Administrator:
         quantity = util.quantity_to_wire(contract, quantity_ui)
 
         log.msg("Calling adjust position for %s: %s/%d" % (username, ticker, quantity))
-        self.accountant.adjust_position(username, ticker, quantity, admin_username)
+        return self.accountant.adjust_position(username, ticker, quantity, admin_username)
+
+    def clear_first_error(self, failure):
+        failure.trap(defer.FirstError)
+        return failure.value.args[0]
+
+    def get_current_address(self, username, ticker):
+        return self.cashier.get_current_address(username, ticker)
+
+    @inlineCallbacks
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination="offlinecash", multisig={}):
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_multisig_wallet(ticker, quantity, multisig=multisig, destination=destination)
+        returnValue(result)
+
+    @inlineCallbacks
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination="offlinecash"):
+        contract = util.get_contract(self.session, ticker)
+        quantity = util.quantity_to_wire(contract, quantity_ui)
+        result = yield self.cashier.transfer_from_hot_wallet(ticker, quantity, destination=destination)
+        returnValue(result)
 
     def transfer_position(self, ticker, from_user, to_user, quantity_ui, note):
         """Transfer a position from one user to another
@@ -603,34 +1008,79 @@ class Administrator:
         log.msg("Transferring %d of %s from %s to %s" % (
             quantity, ticker, from_user, to_user))
         uid = util.get_uid()
-        self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
-        self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        if not from_user or not to_user:
+            raise NO_USERNAME_SPECIFIED
+        
+        d1 = self.accountant.transfer_position(from_user, ticker, 'debit', quantity, note, uid)
+        d2 = self.accountant.transfer_position(to_user, ticker, 'credit', quantity, note, uid)
+        return defer.gatherResults([d1, d2], consumeErrors=True).addErrback(self.clear_first_error)
+    
+    def mtm_futures(self):
+        futures = self.session.query(models.Contract).filter_by(contract_type="futures",
+                                                                active=True)
+        for contract in futures:
+            self.session.expire(contract)
 
-    def clear_contract(self, ticker, price_ui):
+        return defer.DeferredList([self.clear_contract(contract.ticker) for contract in futures if not contract.expired])
+
+    def notify_expired(self):
+        contracts = self.session.query(models.Contract).filter(models.Contract.contract_type.in_(["futures", "prediction"])).filter_by(active=True)
+        for contract in contracts:
+            self.session.expire(contract)
+        expired_list = [contract for contract in contracts if contract.expired]
+        if len(expired_list):
+            # Send expiration message
+            t = self.jinja_env.get_template('expired_contracts.email')
+            content = t.render(expired_list=expired_list).encode('utf-8')
+
+            # Now email
+            log.msg("Sending mail: %s" % content)
+            self.sendmail.send_mail(content, to_address=self.sendmail.from_address,
+                                        subject='Expired contracts')
+
+    def clear_contract(self, ticker, price_ui=None):
         contract = util.get_contract(self.session, ticker)
-        price = util.price_to_wire(contract, price_ui)
+
+        if price_ui is not None:
+            price = util.price_to_wire(contract, price_ui)
+        else:
+            price = None
+
         uid = util.get_uid()
 
         # Don't try to clear if the contract is not active
         if not contract.active:
-            return
+            raise CONTRACT_NOT_ACTIVE
 
-        # Mark contract inactive
-        try:
-            contract.active = False
-            self.session.add(contract)
-            self.session.commit()
-        except Exception as e:
-            log.err("Unable to mark contract inactive %s" % e)
-        else:
-            d = self.accountant.clear_contract(None, ticker, price, uid)
-            # TODO: if this is an early clearing, reactivate the contract after clear_contract is done
-            # We need to make sure that the timeout here is long, because clear_contract
-            # won't return for a while
-            #
-            # How do we ensure that the accountants know that it is reactivated?
-            # send a ZMQ message to them all?
+        d = defer.DeferredList(self.accountant_slow.clear_contract(None, ticker, price, uid))
 
+        # If the contract is expired, mark it inactive or reset it
+        if contract.expired:
+            if contract.period is None:
+                def mark_inactive(result):
+                    try:
+                        contract.active = False
+                        self.session.commit()
+                    except Exception as e:
+                        self.session.rollback()
+                        raise e
+
+                d.addCallback(mark_inactive)
+            else:
+                def adjust_expiration(result):
+                    try:
+                        contract.expiration += contract.period
+                        self.session.commit()
+                    except Exception as e:
+                        self.session.rollback()
+                        raise e
+
+                    self.accountant.reload_contract(None, ticker)
+                    self.webserver.reload_contract(ticker)
+
+                d.addCallback(adjust_expiration)
+
+        return d
 
     def manual_deposit(self, address, quantity_ui, admin_username):
         address_db = self.session.query(models.Addresses).filter_by(address=address).one()
@@ -640,7 +1090,7 @@ class Administrator:
             raise INVALID_CURRENCY_QUANTITY
 
         log.msg("Manual deposit of %d to %s" % (quantity, address))
-        self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
+        return self.accountant.deposit_cash(address_db.username, address, quantity, total=False, admin_username=admin_username)
 
     def get_balance_sheet(self):
         """Gets the balance sheet
@@ -756,13 +1206,12 @@ class Administrator:
 
         return balance_sheet
 
-    @util.timed
     def get_permission_groups(self):
         """Get all the permission groups
 
         :returns: list -- models.PermissionGroup
         """
-        permission_groups = self.session.query(models.PermissionGroup).all()
+        permission_groups = self.session.query(models.PermissionGroup)
         return permission_groups
 
     def get_fee_groups(self):
@@ -781,7 +1230,7 @@ class Administrator:
         return fee_problems
 
     def get_contracts(self):
-        contracts = self.session.query(models.Contract).filter_by(active=True).all()
+        contracts = self.session.query(models.Contract).filter_by(active=True)
         return contracts
 
     def get_contract(self, ticker):
@@ -794,15 +1243,15 @@ class Administrator:
             setattr(contract, key, value)
 
         self.session.commit()
+        self.webserver.reload_contract(ticker)
+        self.accountant.reload_contract(None, ticker)
 
-    @util.timed
     def get_withdrawals(self):
-        withdrawals = self.session.query(models.Withdrawal).all()
+        withdrawals = self.session.query(models.Withdrawal)
         return withdrawals
 
-    @util.timed
     def get_deposits(self):
-        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None).all()
+        addresses = self.session.query(models.Addresses).filter(models.Addresses.username != None)
         return addresses
 
     @util.timed
@@ -856,7 +1305,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing permission group for %s to %d" % (username, id))
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     def change_fee_group(self, username, id):
         """Change the permission group for a user
@@ -867,7 +1316,7 @@ class Administrator:
         :type id: int
         """
         log.msg("Changing fee group for %s to %d" % (username, id))
-        self.accountant.change_fee_group(username, id)
+        return self.accountant.change_fee_group(username, id)
 
     def modify_fee_group(self, id, name, aggressive_factor, passive_factor, withdraw_factor, deposit_factor):
         """Change the permission group for a user
@@ -902,6 +1351,7 @@ class Administrator:
         except Exception as e:
             self.session.rollback()
             log.err("Error: %s" % e)
+            raise e
 
     def new_permission_group(self, name, permissions):
         """Create a new permission group
@@ -918,10 +1368,49 @@ class Administrator:
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
 
-    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None):
-        self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online=False, cancel=False, admin_username=None, multisig={}):
+        return self.cashier.process_withdrawal(id, online=online, cancel=cancel, admin_username=admin_username, multisig=multisig)
 
+    def liquidate_all(self, username):
+        self.accountant_slow.liquidate_all(username)
+        
+    def liquidate_position(self, username, ticker):
+        self.accountant_slow.liquidate_position(username, ticker)
+        
+    @inlineCallbacks
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        # Create wallet with the given public_key
+        if os.path.exists(self.bitgo_private_key_file):
+            raise KEY_FILE_EXISTS
+
+        self.bitgo.token = multisig['token'].encode('utf-8')
+        # Generate a passphrase
+        passphrase = base64.b64encode(("%016X" % getrandbits(64)).decode("hex"))
+        result = yield self.bitgo.wallets.createWalletWithKeychains(passphrase=passphrase, label="sputnik", backup_xpub=public_key)
+
+        # Save the encrypted xpriv to the local storage
+
+        with open(self.bitgo_private_key_file, "wb") as f:
+            key_data = {'passphrase': passphrase,
+                        'encryptedXprv': result['userKeychain']['encryptedXprv']}
+            json.dump(key_data, f)
+
+        # Get deposit address
+        address = result['wallet'].id
+
+        # Save deposit address
+        try:
+            contract = util.get_contract(self.session, ticker)
+            contract.multisig_wallet_address = address
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            log.err("Unable to save new deposit address for multisig")
+            log.err(e)
+
+        returnValue(address)
 
 class AdminAPI(Resource):
     isLeaf = True
@@ -951,31 +1440,44 @@ class AdminAPI(Resource):
 
     def process_request(self, request, data=None):
         if self.avatarLevel < 4:
-            raise Exception("Insufficient privileges to run Admin API")
+            raise INSUFFICIENT_PERMISSIONS
 
         resources = {'/api/withdrawals': self.withdrawals,
                      '/api/deposits': self.deposits,
                      '/api/process_withdrawal': self.process_withdrawal,
                      '/api/manual_deposit': self.manual_deposit,
                      '/api/rescan_address': self.rescan_address,
+                     '/api/clear_contract': self.clear_contract,
         }
         if request.path in resources:
             return resources[request.path](request, data)
         else:
-            raise Exception("Invalid request")
-
+            raise INVALID_REQUEST
 
     def withdrawals(self, request, data):
         withdrawals = self.administrator.get_withdrawals()
-        return [w.dict for w in withdrawals if w.pending]
+        return defer.succeed([w.dict for w in withdrawals if w.pending])
 
     def deposits(self, request, data):
         deposits = self.administrator.get_deposits()
-        return [d.dict for d in deposits]
+        return defer.succeed([d.dict for d in deposits])
 
     def rescan_address(self, request, data):
         self.administrator.rescan_address(data['address'])
-        return {'result': True}
+        return defer.succeed(None)
+
+    def clear_contract(self, request, data):
+        if 'price' not in data:
+            d = self.administrator.clear_contract(data['ticker'])
+        else:
+            d = self.administrator.clear_contract(data['ticker'], Decimal(data['price']))
+
+        def process_done(result):
+            request.write(json.dumps({'result': True}))
+            request.finish()
+
+        d.addCallback(process_done)
+        return NOT_DONE_YET
 
     def process_withdrawal(self, request, data):
         if 'cancel' in data:
@@ -989,13 +1491,13 @@ class AdminAPI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
-        return {'result': True}
+        multisig = data.get('multisig', {})
+
+        return self.administrator.process_withdrawal(int(data['id']), online=online, cancel=cancel,
+                                              admin_username=self.avatarId, multisig=multisig)
 
     def manual_deposit(self, request, data):
-        self.administrator.manual_deposit(data['address'], float(data['quantity']), self.avatarId)
-        return {'result': True}
+        return self.administrator.manual_deposit(data['address'], Decimal(data['quantity']), self.avatarId)
 
     def render(self, request):
         data = request.content.read()
@@ -1003,20 +1505,36 @@ class AdminAPI(Resource):
         request.setHeader('content-type', 'application/json')
         try:
             if request.method == "GET":
-                result = self.process_request(request)
+                d = self.process_request(request)
             else:
                 parsed_data = json.loads(data)
-                result = self.process_request(request, data=parsed_data)
-        except Exception as e:
-            result = {"error": str(e)}
+                d = self.process_request(request, data=parsed_data)
 
-        return json.dumps(result, sort_keys=True,
-                          indent=4, separators=(',', ': '))
+            def process_result(result):
+                final_result = {'success': True, 'result': result}
+                return final_result
+
+            def process_error(failure):
+                failure.trap(SputnikException)
+                log.err(failure)
+                return {'success': False, 'error': failure.value.args}
+
+            def deliver_result(result):
+                request.write(json.dumps(result, sort_keys=True, indent=4, separators=(',', ': ')))
+                request.finish()
+
+            d.addCallback(process_result).addErrback(process_error).addCallback(deliver_result)
+            return NOT_DONE_YET
+        except AdministratorException as e:
+            log.err(e)
+            result = {'success': False, 'error': e.args}
+            return json.dumps(result, sort_keys=True,
+                              indent=4, separators=(',', ': '))
 
 class AdminWebUI(Resource):
     isLeaf = False
 
-    def __init__(self, administrator, avatarId, avatarLevel, digest_factory):
+    def __init__(self, administrator, avatarId, avatarLevel, digest_factory, base_uri):
         """The web Resource that front-ends the administrator
 
         :param administrator: the actual administrator
@@ -1034,7 +1552,27 @@ class AdminWebUI(Resource):
         self.jinja_env = Environment(loader=FileSystemLoader(self.administrator.component.template_dir),
                                      autoescape=True)
         self.digest_factory = digest_factory
+        self.base_uri = base_uri
         Resource.__init__(self)
+
+    def check_referer(self, request):
+        # If we have a raw GET with no args, we don't need to check referer
+        if request.method == "GET" and not request.args:
+            return True
+
+        # for bitgo oauth:
+        if request.path == '/bitgo_oauth_redirect':
+            return True
+        else:
+            if self.base_uri:
+                referer = request.getHeader("referer")
+                if referer is None or not referer.startswith(self.base_uri):
+                    log.err("Referer check failed: %s" % referer)
+                    return False
+                else:
+                    return True
+            else:
+                return True
 
 
     def calc_ha1(self, password, username=None):
@@ -1081,6 +1619,10 @@ class AdminWebUI(Resource):
 
         """
         self.log(request)
+        # Which paths don't require a referer check
+        if not self.check_referer(request):
+            return redirectTo('/', request)
+
         resources = [
                     # Level 0
                     { '/': self.admin,
@@ -1093,7 +1635,8 @@ class AdminWebUI(Resource):
                       '/user_postings': self.user_postings,
                       '/rescan_address': self.rescan_address,
                       '/admin': self.admin,
-                      '/contracts': self.contracts
+                      '/contracts': self.contracts,
+                      '/mail_statement': self.mail_statement,
                      },
                     # Level 2
                      {'/reset_password': self.reset_password,
@@ -1117,7 +1660,9 @@ class AdminWebUI(Resource):
                       '/deposits': self.deposits,
                       '/order_book': self.order_book,
                       '/manual_deposit': self.manual_deposit,
-                      '/cancel_order': self.cancel_order},
+                      '/cancel_order': self.cancel_order,
+                      '/margins': self.margins
+                     },
                     # Level 5
                      {'/admin_list': self.admin_list,
                       '/new_admin_user': self.new_admin_user,
@@ -1125,20 +1670,119 @@ class AdminWebUI(Resource):
                       '/force_reset_admin_password': self.force_reset_admin_password,
                       '/transfer_position': self.transfer_position,
                       '/adjust_position': self.adjust_position,
+                      '/liquidate_all': self.liquidate_all,
+                      '/liquidate_position': self.liquidate_position,
+                      '/wallets': self.wallets,
+                      '/transfer_from_hot_wallet': self.transfer_from_hot_wallet,
+                      '/transfer_from_multisig_wallet': self.transfer_from_multisig_wallet,
+                      '/bitgo_oauth_get': self.bitgo_oauth_get,
+                      '/bitgo_oauth_clear': self.bitgo_oauth_clear,
+                      '/bitgo_oauth_redirect': self.bitgo_oauth_redirect,
+                      '/initialize_multisig': self.initialize_multisig,
                       '/clear_contract': self.clear_contract}]
         
         resource_list = {}
         for level in range(0, self.avatarLevel + 1):
             resource_list.update(resources[level])
         try:
-            resource = resource_list[request.path]
-            return resource(request)
-        except KeyError:
-            return self.invalid_request(request)
+
+            try:
+                resource = resource_list[request.path]
+            except KeyError:
+                return self.invalid_request(request)
+
+            try:
+                return resource(request)
+            except ValueError:
+                raise INVALID_QUANTITY
+
+        except SputnikException as e:
+            return self.error_request(request, e.args)
 
     def invalid_request(self, request):
+        log.err("Invalid request received: %s" % request)
         t = self.jinja_env.get_template("invalid_request.html")
         return t.render().encode('utf-8')
+
+    def margins(self, request):
+        d = self.administrator.get_margins()
+        def show_margins(margins):
+            t = self.jinja_env.get_template('margins.html')
+            rendered = t.render(margins=margins)
+            request.write(rendered.encode('utf-8'))
+            request.finish()
+
+        d.addCallback(show_margins)
+        return NOT_DONE_YET
+
+    def sputnik_error_callback(self, failure, request):
+        failure.trap(SputnikException)
+        log.err("SputnikException in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, failure.value.args)
+        request.write(msg)
+        request.finish()
+
+    def generic_error_callback(self, failure, request):
+        log.err("UNHANDLED ERROR in deferred for request: %s" % request)
+        log.err(failure)
+        msg = self.error_request(request, ("exceptions/administrator/generic_error",))
+        request.write(msg)
+        request.finish()
+
+    def error_request(self, request, error):
+        log.err("Error %s received for request %s" % (error, request))
+        t = self.jinja_env.get_template("error.html")
+        return t.render(error=error).encode('utf-8')
+
+    def bitgo_oauth_get(self, request, wallet_id=None):
+        params = { 'client_id': self.administrator.component.bitgo.client_id,
+                   'redirect_uri': self.base_uri + '/bitgo_oauth_redirect'}
+        if 'wallet_id' in request.args:
+            wallet_id = request.args['wallet_id'][0]
+
+        if wallet_id is None:
+            params['scope'] = "wallet_create"
+        else:
+            params['scope'] = "wallet_spend:%s wallet_view:%s" % (wallet_id, wallet_id)
+
+        bitgo_uri = self.administrator.component.bitgo.endpoint + '/oauth/authorize'
+        params_encoded = urllib.urlencode(params)
+        return redirectTo(bitgo_uri + '?' + params_encoded, request)
+
+    def bitgo_oauth_clear(self, request):
+        self.administrator.bitgo_oauth_clear(self.avatarId)
+        return redirectTo('/wallets', request)
+
+    def bitgo_oauth_redirect(self, request):
+        code = request.args['code'][0]
+
+        def _cb(result):
+            request.write(redirectTo('/wallets', request))
+            request.finish()
+
+        d = self.administrator.bitgo_oauth_token(code, self.avatarId)
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def initialize_multisig(self, request):
+        ticker = request.args['contract'][0]
+
+        public_key = request.args['public_key'][0]
+
+        token = self.administrator.get_bitgo_token(self.avatarId)
+        if token is None:
+            raise BITGO_TOKEN_INVALID
+
+        d = self.administrator.initialize_multisig(ticker, public_key, {'token': token})
+        def _cb(result):
+            # Reauth to get view and spend permissions on the wallet we just created
+            request.write(self.bitgo_oauth_get(request, wallet_id=result))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
 
     def process_withdrawal(self, request):
         if 'cancel' in request.args:
@@ -1151,10 +1795,30 @@ class AdminWebUI(Resource):
             else:
                 online = False
 
-        self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
-                                              admin_username=self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        if 'multisig' in request.args:
+            if self.administrator.get_bitgo_token(self.avatarId) is None:
+                raise BITGO_TOKEN_INVALID
 
+            multisig = {'otp': request.args['otp'][0],
+                        'token': self.administrator.get_bitgo_token(self.avatarId)}
+        else:
+            multisig = {}
+
+        d = self.administrator.process_withdrawal(int(request.args['id'][0]), online=online, cancel=cancel,
+                                                  admin_username=self.avatarId, multisig=multisig)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def mail_statement(self, request):
+        self.administrator.expire_all()
+
+        self.administrator.mail_statement(request.args['username'][0])
+        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+    
     def permission_groups(self, request):
         """Get the permission groups page
 
@@ -1163,6 +1827,65 @@ class AdminWebUI(Resource):
         permission_groups = self.administrator.get_permission_groups()
         t = self.jinja_env.get_template('permission_groups.html')
         return t.render(permission_groups=permission_groups).encode('utf-8')
+
+    def wallets(self, request):
+        """Get the permission groups page
+
+        """
+        contracts = self.administrator.get_contracts()
+        onlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="onlinecash")}
+        offlinecash = {position.contract.ticker: position for position in self.administrator.get_positions(username="offlinecash")}
+        multisigcash = {position.contract.ticker: position for position in self.administrator.get_positions(username="multisigcash")}
+        bitgo_auth = self.administrator.get_bitgo_token(self.avatarId) is not None
+
+        @inlineCallbacks
+        def get_addresses():
+            offlinecash_addresses = {}
+            for ticker in offlinecash.keys():
+                offlinecash_addresses[ticker] = yield self.administrator.get_current_address('offlinecash', ticker)
+            returnValue(offlinecash_addresses)
+
+        def _cb(offlinecash_addresses):
+            t = self.jinja_env.get_template('wallets.html')
+            request.write(t.render(contracts=contracts, onlinecash=onlinecash, offlinecash=offlinecash,
+                            offlinecash_addresses=offlinecash_addresses, bitgo_auth=bitgo_auth,
+                            debug=self.administrator.component.debug,
+                            multisigcash=multisigcash,
+                            use_production="false" if self.administrator.component.testnet else "true").encode('utf-8'))
+            request.finish()
+
+        d = get_addresses()
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def transfer_from_hot_wallet(self, request):
+        ticker = request.args['contract'][0]
+        destination = request.args['destination'][0]
+        quantity_ui = Decimal(request.args['quantity'][0])
+        d = self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+        def _cb(ignored):
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
+
+    def transfer_from_multisig_wallet(self, request):
+        ticker = request.args['contract'][0]
+        destination = request.args['destination'][0]
+        quantity_ui = Decimal(request.args['quantity'][0])
+        if self.administrator.get_bitgo_token(self.avatarId) is None:
+            raise BITGO_TOKEN_INVALID
+
+        multisig = {'token': self.administrator.get_bitgo_token(self.avatarId),
+                    'otp': request.args['otp'][0]}
+        d = self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig=multisig)
+        def _cb(ignored):
+            request.write(redirectTo("/wallets", request))
+            request.finish()
+
+        d.addCallback(_cb).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def new_permission_group(self, request):
         """Create a new permission group and then return the permission groups page
@@ -1182,8 +1905,13 @@ class AdminWebUI(Resource):
         """
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_permission_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_permission_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def fee_groups(self, request):
         fee_groups = self.administrator.get_fee_groups()
@@ -1194,8 +1922,13 @@ class AdminWebUI(Resource):
     def change_fee_group(self, request):
         username = request.args['username'][0]
         id = int(request.args['id'][0])
-        self.administrator.change_fee_group(username, id)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.change_fee_group(username, id)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def modify_fee_group(self, request):
         id = int(request.args['id'][0])
@@ -1219,12 +1952,13 @@ class AdminWebUI(Resource):
     def contracts(self, request):
         contracts = self.administrator.get_contracts()
         t = self.jinja_env.get_template('contracts.html')
-        return t.render(contracts=contracts).encode('utf-8')
+        return t.render(contracts=contracts, debug=self.administrator.component.debug).encode('utf-8')
 
     def edit_contract(self, request):
         ticker = request.args['ticker'][0]
         args = {}
-        for key in ["description", "full_description", "cold_wallet_address", "deposit_instructions"]:
+        for key in ["description", "full_description", "cold_wallet_address", "multisig_wallet_address",
+                    "deposit_instructions"]:
             if key in request.args:
                 args[key] = request.args[key][0].decode('utf-8')
 
@@ -1236,12 +1970,35 @@ class AdminWebUI(Resource):
         if "expiration" in request.args:
             args['expiration'] = parser.parse(request.args['expiration'][0])
 
+        if "period" in request.args:
+            try:
+                args['period'] = timedelta(days=int(request.args['period'][0]))
+            except ValueError:
+                log.msg("%s not a valid period" % request.args['period'][0])
+
         self.administrator.edit_contract(ticker, args)
         return redirectTo('/contracts', request)
 
     def clear_contract(self, request):
-        self.administrator.clear_contract(request.args['ticker'][0], float(request.args['price'][0]))
-        return redirectTo("/contracts", request)
+        if 'price' in request.args:
+            d = self.administrator.clear_contract(request.args['ticker'][0], Decimal(request.args['price'][0]))
+        else:
+            d = self.administrator.clear_contract(request.args['ticker'][0])
+
+        def clearing_done(result):
+            request.write(redirectTo('/contracts', request).encode('utf-8'))
+            request.finish()
+
+        d.addCallback(clearing_done)
+        return NOT_DONE_YET
+
+    def liquidate_all(self, request):
+        self.administrator.liquidate_all(request.args['username'][0])
+        return redirectTo('/margins', request)
+
+    def liquidate_position(self, request):
+        self.administrator.liquidate_position(request.args['username'][0], request.args['ticker'][0])
+        return redirectTo('/user_details?username=%s' % request.args['username'][0], request)
 
     def withdrawals(self, request):
         withdrawals = self.administrator.get_withdrawals()
@@ -1263,15 +2020,20 @@ class AdminWebUI(Resource):
             request.write(rendered.encode('utf-8'))
             request.finish()
 
-        d.addCallback(got_order_book)
+        d.addCallback(got_order_book).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
         return NOT_DONE_YET
 
     def cancel_order(self, request):
         id = int(request.args['id'][0])
         username = request.args['username'][0]
-        self.administrator.cancel_order(username, id)
+        d = self.administrator.cancel_order(username, id)
 
-        return redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/order_book?ticker=%s" % request.args['ticker'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def ledger(self, request):
         """Show use the details of a single jounral entry
@@ -1386,19 +2148,29 @@ class AdminWebUI(Resource):
         """Adjust a user's position then go back to his detail page
 
         """
-        self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
-                                           float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.adjust_position(request.args['username'][0], request.args['contract'][0],
+                                           Decimal(request.args['quantity'][0]), self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def transfer_position(self, request):
         """Transfer a position from a user and go back to his details page
 
         """
 
-        self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
-                                             request.args['to_user'][0], float(request.args['quantity'][0]),
+        d = self.administrator.transfer_position(request.args['contract'][0], request.args['from_user'][0],
+                                             request.args['to_user'][0], Decimal(request.args['quantity'][0]),
                                              "%s (%s)" % (request.args['note'][0], self.avatarId))
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def rescan_address(self, request):
         """Send a message to the cashier to rescan an address
@@ -1411,8 +2183,13 @@ class AdminWebUI(Resource):
         """Tell the cashier that an address received a certain amount of money
 
         """
-        self.administrator.manual_deposit(request.args['address'][0], float(request.args['quantity'][0]), self.avatarId)
-        return redirectTo("/user_details?username=%s" % request.args['username'][0], request)
+        d = self.administrator.manual_deposit(request.args['address'][0], Decimal(request.args['quantity'][0]), self.avatarId)
+        def _cb(result, request):
+            request.write(redirectTo("/user_details?username=%s" % request.args['username'][0], request))
+            request.finish()
+
+        d.addCallback(_cb, request).addErrback(self.sputnik_error_callback, request).addErrback(self.generic_error_callback, request)
+        return NOT_DONE_YET
 
     def admin_list(self, request):
         """List all the admin users
@@ -1457,6 +2234,18 @@ class AdminWebExport(ComponentExport):
         ComponentExport.__init__(self, administrator)
 
     @session_aware
+    def bitgo_oauth_token(self, code, admin_user):
+        return self.administrator.bitgo_oauth_token(code, admin_user)
+
+    @session_aware
+    def bitgo_oauth_clear(self, admin_user):
+        return self.administrator.bitgo_oauth_clear(admin_user)
+
+    @session_aware
+    def get_margins(self):
+        return self.administrator.get_margins()
+
+    @session_aware
     def get_withdrawals(self):
         return self.administrator.get_withdrawals()
 
@@ -1469,8 +2258,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.cashier.rescan_address(address)
 
     @session_aware
-    def process_withdrawal(self, id, online, cancel, admin_username):
-        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username)
+    def process_withdrawal(self, id, online, cancel, admin_username, multisig):
+        return self.administrator.process_withdrawal(id, online, cancel, admin_username=admin_username, multisig=multisig)
 
     @session_aware
     def expire_all(self):
@@ -1513,8 +2302,8 @@ class AdminWebExport(ComponentExport):
         return self.administrator.edit_contract(ticker, args)
 
     @session_aware
-    def clear_contract(self, ticker, price):
-        return self.administrator.clear_contract(ticker, price)
+    def clear_contract(self, ticker, price_ui=None):
+        return self.administrator.clear_contract(ticker, price_ui=price_ui)
 
     @session_aware
     def get_order_book(self, ticker):
@@ -1544,6 +2333,22 @@ class AdminWebExport(ComponentExport):
     @session_aware
     def get_user(self, username):
         return self.administrator.get_user(username)
+
+    @session_aware
+    def get_positions(self, username=None):
+        return self.administrator.get_positions(username=username)
+
+    @session_aware
+    def get_current_address(self, username, ticker):
+        return self.administrator.get_current_address(username, ticker)
+
+    @session_aware
+    def transfer_from_hot_wallet(self, ticker, quantity_ui, destination):
+        return self.administrator.transfer_from_hot_wallet(ticker, quantity_ui, destination)
+
+    @session_aware
+    def transfer_from_multisig_wallet(self, ticker, quantity_ui, destination, multisig):
+        return self.administrator.transfer_from_multisig_wallet(ticker, quantity_ui, destination, multisig)
 
     @session_aware
     def new_admin_user(self, username, password_hash, level):
@@ -1597,7 +2402,13 @@ class AdminWebExport(ComponentExport):
     def get_postings(self, user, contract, page):
         return self.administrator.get_postings(user, contract, page)
 
+    @session_aware
+    def get_bitgo_token(self, admin_user):
+        return self.administrator.get_bitgo_token(admin_user)
 
+    @session_aware
+    def initialize_multisig(self, ticker, public_key, multisig={}):
+        return self.administrator.initialize_multisig(ticker, public_key, multisig)
 
 class PasswordChecker(object):
     """Checks admin users passwords against the hash stored in the db
@@ -1642,10 +2453,11 @@ class PasswordChecker(object):
 class SimpleRealm(object):
     implements(IRealm)
 
-    def __init__(self, administrator, session, digest_factory):
+    def __init__(self, administrator, session, digest_factory, admin_base_uri):
         self.administrator = administrator
         self.session = session
         self.digest_factory = digest_factory
+        self.admin_base_uri = admin_base_uri
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
@@ -1660,7 +2472,7 @@ class SimpleRealm(object):
                 self.session.rollback()
                 print "Exception: %s" % e
 
-            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory)
+            ui_resource = AdminWebUI(self.administrator, avatarId, avatarLevel, self.digest_factory, self.admin_base_uri)
             api_resource = AdminAPI(self.administrator, avatarId, avatarLevel)
             ui_resource.putChild('api', api_resource)
 
@@ -1678,6 +2490,18 @@ class WebserverExport(ComponentExport):
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#get_new_api_credentials")
+    def get_new_api_credentials(self, username, expiration):
+        return self.administrator.get_new_api_credentials(username, expiration)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_and_update_api_nonce")
+    def check_and_update_api_nonce(self, username, nonce):
+        return self.administrator.check_and_update_api_nonce(username, nonce)
 
     @export
     @session_aware
@@ -1702,6 +2526,30 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_reset_token")
     def get_reset_token(self, username):
         return self.administrator.get_reset_token(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#enable_totp")
+    def enable_totp(self, username):
+        return self.administrator.enable_totp(username)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#verify_totp")
+    def verify_totp(self, username, otp):
+        return self.administrator.verify_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#disable_totp")
+    def disable_totp(self, username, otp):
+        return self.administrator.disable_totp(username, otp)
+    
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#check_totp")
+    def check_totp(self, username, otp):
+        return self.administrator.check_totp(username, otp)
 
     @export
     @session_aware
@@ -1726,6 +2574,29 @@ class WebserverExport(ComponentExport):
     @schema("rpc/administrator.json#get_profile")
     def get_profile(self, username):
         return self.administrator.get_profile(username)
+
+class CronExport(ComponentExport):
+    def __init__(self, administrator):
+        self.administrator = administrator
+        ComponentExport.__init__(self, administrator)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#mail_statements")
+    def mail_statements(self, period):
+        return self.administrator.mail_statements(period)
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#mtm_futures")
+    def mtm_futures(self):
+        return self.administrator.mtm_futures()
+
+    @export
+    @session_aware
+    @schema("rpc/administrator.json#notify_expired")
+    def notify_expired(self):
+        return self.administrator.notify_expired()
 
 
 class TicketServerExport(ComponentExport):
@@ -1760,8 +2631,17 @@ if __name__ == "__main__":
                                  config.get("accountant", "administrator_export"),
                                  config.getint("accountant", "administrator_export_base_port"))
 
-    cashier = push_proxy_async(config.get("cashier", "administrator_export"))
+    # Slow accountant with 20 minute timeout
+    accountant_slow = AccountantProxy("dealer",
+                                 config.get("accountant", "administrator_export"),
+                                 config.getint("accountant", "administrator_export_base_port"),
+                                 timeout=60*20)
+
+    # Set the cashier timeout to 5 seconds because sending multisig cash may
+    # take a little bit
+    cashier = dealer_proxy_async(config.get("cashier", "administrator_export"), timeout=5)
     watchdog(config.get("watchdog", "administrator"))
+    webserver = dealer_proxy_async(config.get("webserver", "administrator_export"))
 
     if config.getboolean("webserver", "ssl"):
         protocol = 'https'
@@ -1771,18 +2651,26 @@ if __name__ == "__main__":
     base_uri = "%s://%s:%d" % (protocol,
                                config.get("webserver", "www_address"),
                                config.getint("webserver", "www_port"))
-    from_email = config.get("administrator", "email")
+    administrator_email = config.get("administrator", "email")
     zendesk_domain = config.get("ticketserver", "zendesk_domain")
 
     user_limit = config.getint("administrator", "user_limit")
     bs_cache_update = config.getint("administrator", "bs_cache_update")
+
     engine_base_port = config.getint("engine", "administrator_base_port")
     engines = {}
-    for contract in session.query(models.Contract).filter_by(active=True).all():
+    for contract in session.query(models.Contract).filter_by(active=True):
         engines[contract.ticker] = dealer_proxy_async("tcp://127.0.0.1:%d" %
                                                       (engine_base_port + int(contract.id)))
 
-    sendmail = Sendmail(from_email)
+    bitgo_config = {'use_production': not config.getboolean("cashier", "testnet"),
+                    'client_id': config.get("bitgo", "client_id"),
+                    'client_secret': config.get("bitgo", "client_secret")}
+
+    bitgo = BitGo(**bitgo_config)
+    bitgo_private_key_file = config.get("cashier", "bitgo_private_key_file")
+
+    sendmail = Sendmail(administrator_email)
     if config.getboolean("administrator", "nexmo_enable"):
         nexmo = Nexmo(config.get("administrator", "nexmo_api_key"),
                     config.get("administrator", "nexmo_api_secret"),
@@ -1793,22 +2681,35 @@ if __name__ == "__main__":
 
     administrator = Administrator(session, accountant, cashier, engines,
                                   zendesk_domain,
+                                  accountant_slow, webserver,
                                   debug=debug, base_uri=base_uri,
                                   messenger=messenger,
                                   user_limit=user_limit,
-                                  bs_cache_update_period=bs_cache_update)
+                                  bs_cache_update_period=bs_cache_update,
+                                  bitgo=bitgo,
+                                  bitgo_private_key_file=bitgo_private_key_file,
+                                  testnet=config.getboolean("cashier", "testnet"),
+                                  )
 
     webserver_export = WebserverExport(administrator)
     ticketserver_export = TicketServerExport(administrator)
+    cron_export = CronExport(administrator)
 
     router_share_async(webserver_export,
                        config.get("administrator", "webserver_export"))
     router_share_async(ticketserver_export,
                        config.get("administrator", "ticketserver_export"))
+    router_share_async(cron_export,
+                       config.get("administrator", "cron_export"))
 
     checkers = [PasswordChecker(session)]
     digest_factory = DigestCredentialFactory('md5', 'Sputnik Admin Interface')
-    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory),
+    admin_base_uri = "%s://%s:%d" % (protocol,
+                                     config.get("webserver", "www_address"),
+                                     config.getint("administrator", "UI_port"))
+
+    wrapper = HTTPAuthSessionWrapper(Portal(SimpleRealm(AdminWebExport(administrator), session, digest_factory,
+                                                        admin_base_uri),
                                             checkers),
                                      [digest_factory])
 
@@ -1824,6 +2725,37 @@ if __name__ == "__main__":
     else:
         reactor.listenTCP(config.getint("administrator", "UI_port"), Site(resource=wrapper),
                           interface=config.get("administrator", "interface"))
+
+    # Ticketserver
+
+    administrator_for_ticketserver =  dealer_proxy_async(config.get("administrator", "ticketserver_export"))
+    zendesk = Zendesk(config.get("ticketserver", "zendesk_domain"),
+                      config.get("ticketserver", "zendesk_token"),
+                      config.get("ticketserver", "zendesk_email"))
+
+    if config.getboolean("ticketserver", "enable_blockscore"):
+        blockscore = BlockScore(config.get("ticketserver", "blockscore_api_key"))
+    else:
+        blockscore = None
+
+    ticketserver =  TicketServer(administrator_for_ticketserver, zendesk, blockscore=blockscore)
+
+    interface = config.get("webserver", "interface")
+    if config.getboolean("webserver", "www"):
+        web_dir = File(config.get("webserver", "www_root"))
+        web_dir.putChild('ticket_server', ticketserver)
+        web = Site(web_dir)
+        port = config.getint("webserver", "www_port")
+        if config.getboolean("webserver", "ssl"):
+            reactor.listenSSL(port, web, contextFactory, interface=interface)
+        else:
+            reactor.listenTCP(port, web, interface=interface)
+    else:
+        base_resource = Resource()
+        base_resource.putChild('ticket_server', ticketserver)
+        reactor.listenTCP(config.getint("ticketserver", "ticketserver_port"), Site(base_resource),
+                                        interface="127.0.0.1")
+
 
     reactor.run()
 

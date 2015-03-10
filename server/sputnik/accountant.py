@@ -10,11 +10,14 @@ administrator. It is responsible for the following:
 
 """
 
-import config
 import sys
+from optparse import OptionParser
+
+import config
 from rpc_schema import schema
 
 from optparse import OptionParser
+from decimal import Decimal
 
 parser = OptionParser()
 parser.add_option("-c", "--config", dest="filename",
@@ -36,20 +39,18 @@ from ledger import create_posting
 from zmq_util import export, dealer_proxy_async, router_share_async, pull_share_async, \
     push_proxy_async, RemoteCallTimedOut, RemoteCallException, ComponentExport
 
-from twisted.internet import reactor
 from twisted.internet import reactor, defer, task
 from twisted.python import log
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
 from watchdog import watchdog
 from jinja2 import Environment, FileSystemLoader
 
 import time
 from datetime import datetime
 from util import session_aware
-
-class AccountantException(Exception):
-    pass
+from exception import *
 
 INSUFFICIENT_MARGIN = AccountantException("exceptions/accountant/insufficient_margin")
 TRADE_NOT_PERMITTED = AccountantException("exceptions/accountant/trade_not_permitted")
@@ -58,12 +59,16 @@ INVALID_CURRENCY_QUANTITY = AccountantException("exceptions/accountant/invalid_c
 DISABLED_USER = AccountantException("exceptions/accountant/disabled_user")
 CONTRACT_EXPIRED = AccountantException("exceptions/accountant/contract_expired")
 CONTRACT_NOT_EXPIRED = AccountantException("exceptions/accountant/contract_not_expired")
-NON_CLEARING_CONTRACT = AccountantException("exceptions/accountant/non_clearing_Contract")
+NON_CLEARING_CONTRACT = AccountantException("exceptions/accountant/non_clearing_contract")
+CONTRACT_CLEARING = AccountantException(9, "exceptions/accountant/contract_clearing")
 CONTRACT_NOT_ACTIVE = AccountantException("exceptions/accountant/contract_not_active")
 NO_ORDER_FOUND = AccountantException("exceptions/accountant/no_order_found")
 USER_ORDER_MISMATCH = AccountantException("exceptions/accountant/user_order_mismatch")
 ORDER_CANCELLED = AccountantException("exceptions/accountant/order_cancelled")
 WITHDRAWAL_TOO_SMALL = AccountantException("exceptions/accountant/withdrawal_too_small")
+NO_SUCH_USER = AccountantException("exceptions/accountant/no_such_user")
+INVALID_PRICE_QUANTITY = AccountantException("exceptions/accountant/invalid_price_quantity")
+INVALID_CONTRACT_TYPE = AccountantException("exceptions/accountant/invalid_contract_type")
 
 class Accountant:
     """The Accountant primary class
@@ -96,19 +101,19 @@ class Accountant:
         self.trial_period = trial_period
         self.alerts_proxy = alerts_proxy
         for contract in self.session.query(models.Contract).filter_by(
-                active=True).all():
-            try:
-                last_trade = self.session.query(models.Trade).filter_by(
-                    contract=contract).order_by(
-                    models.Trade.timestamp.desc()).first()
-                self.safe_prices[contract.ticker] = int(last_trade.price)
-            except:
-                log.msg(
-                    "warning, missing last trade for contract: %s. Using 42 as a stupid default" % contract.ticker)
-                self.safe_prices[contract.ticker] = 42
+                active=True).filter(models.Contract.contract_type != "cash"):
+            d = self.engines[contract.ticker].get_safe_price()
+            def get_cb(ticker):
+                def _cb(safe_price):
+                    self.safe_prices[ticker] = safe_price
+
+                return _cb
+
+            d.addCallback(get_cb(contract.ticker))
 
         self.webserver = webserver
         self.disabled_users = {}
+        self.clearing_contracts = {}
         self.accountant_number = accountant_number
         self.messenger = messenger
 
@@ -129,6 +134,7 @@ class Accountant:
         # Note: It is *important* that all invocations of post_or_fail attach
         #       an errback (even if it is just log.err) to catch the
         #       propogating error.
+        # We initialize positions here if they don't already exist
 
         def update_counters(increment=False):
             change = 1 if increment else -1
@@ -138,7 +144,7 @@ class Accountant:
                     position = self.get_position(
                             posting['username'], posting['contract'])
                     position.pending_postings += change
-                    # make sure the position exists
+                    # we might be initializing the position here, so make sure it is in db
                     self.session.add(position)
                 self.session.commit()
             except SQLAlchemyError, e:
@@ -237,7 +243,7 @@ class Accountant:
             return self.session.query(models.User).filter_by(
                 username=username).one()
         except NoResultFound:
-            raise AccountantException("No such user: '%s'." % username)
+            raise NO_SUCH_USER
 
     def get_contract(self, ticker):
         """
@@ -300,7 +306,18 @@ class Accountant:
         except NoResultFound:
             return 0
 
-    def get_position(self, username, ticker, reference_price=0):
+    def get_margin(self, username):
+        user = self.get_user(username)
+        low_margin, high_margin, cash_spent = margin.calculate_margin(user, self.session, safe_prices=self.safe_prices)
+        cash_position = self.get_position_value(username, 'BTC')
+        return {
+            'username': username,
+            'low_margin': low_margin,
+            'high_margin': high_margin,
+            'cash_position': cash_position,
+        }
+
+    def get_position(self, username, ticker, reference_price=None):
         """Return a user's position for a contact. If it does not exist, initialize it. WARNING: If a position is created, it will be added to the session.
 
         :param username: the username
@@ -316,8 +333,12 @@ class Accountant:
         contract = self.get_contract(ticker)
 
         try:
-            return self.session.query(models.Position).filter_by(
+            position = self.session.query(models.Position).filter_by(
                 user=user, contract=contract).one()
+            if position.reference_price is None and reference_price is not None:
+                position.reference_price = reference_price
+                self.session.add(position)
+            return position
         except NoResultFound:
             log.msg("Creating new position for %s on %s." %
                           (username, contract))
@@ -326,8 +347,8 @@ class Accountant:
             self.session.add(position)
             return position
 
-    def check_margin(self, username, low_margin, high_margin):
-        cash = self.get_position_value(username, "BTC")
+    def check_margin(self, user, low_margin, high_margin):
+        cash = self.get_position_value(user, "BTC")
 
         log.msg("high_margin = %d, low_margin = %d, cash_position = %d" %
                      (high_margin, low_margin, cash))
@@ -337,7 +358,190 @@ class Accountant:
         else:
             return True
 
-    def accept_order(self, order):
+    def liquidation_value(self, position, quantity, book):
+        sign = 1 if position.position < 0 else -1
+        quantity *= sign
+
+        position_override = {position.contract.ticker: { 'position': position.position + quantity,
+                                                    'reference_price': position.reference_price,
+                                                    'contract': position.contract } }
+
+
+        if len(book['asks']):
+            best_ask = book['asks'][0]['price']
+        else:
+            best_ask = sys.maxint
+
+        if len(book['bids']):
+            best_bid = book['bids'][0]['price']
+        else:
+            best_bid = 0
+
+        if sign == 1:
+            trade_price = best_ask
+        else:
+            trade_price = best_bid
+
+        if position.contract.contract_type == "futures":
+            cash_spent = util.get_cash_spent(position.contract, trade_price - position.reference_price, quantity)
+        else:
+            cash_spent = util.get_cash_spent(position.contract, trade_price, quantity)
+
+        cash_position = self.get_position_value(position.username, position.contract.denominated_contract)
+        cash_override = {position.contract.denominated_contract_ticker: cash_position - cash_spent}
+
+        margin_current = margin.calculate_margin(position.user, self.session, self.safe_prices)
+        margin_if = margin.calculate_margin(position.user, self.session, self.safe_prices,
+                                                                      position_overrides=position_override,
+                                                                      cash_overrides=cash_override)
+        margin_change = margin_current[0] - margin_if[0]
+        cost = (best_ask - best_bid)/2.0
+
+        value = int(margin_change / cost)
+        return value
+
+    def liquidate_best(self, username):
+        # Find the position that has the biggest margin impact and sell one of those
+        user = self.get_user(username)
+
+        # Cancel all open orders
+        d = self.cancel_user_orders(user)
+
+        def after_cancellations(results):
+            log.msg("Cancels done for %s" % username)
+            # Wait for pending postings
+            total_pending = self.session.query(func.sum(models.Position.pending_postings).label("total_pending")).join(
+                models.Contract).filter(
+                models.Position.username==username).filter(
+                models.Contract.contract_type.in_(["futures", "prediction"])).one().total_pending
+            if total_pending > 0:
+                d = task.deferLater(reactor, 300, after_cancellations, results)
+                return d
+            else:
+                # Now figure out what order to place
+                quantity = 1
+                positions = self.session.query(models.Position).join(models.Contract).filter(models.Position.username==username).filter(
+                    models.Contract.contract_type.in_(["futures", "prediction"])).filter(models.Position.position != 0)
+                order_books = {}
+                deferreds = []
+                for position in positions:
+                    if position.contract.ticker not in order_books:
+                        d = self.engines[position.contract.ticker].get_order_book()
+                        def got_book(book, ticker):
+                            order_books[ticker] = book
+                            return (ticker, book)
+
+                        d.addCallback(got_book, position.contract.ticker)
+                        deferreds.append(d)
+
+                def got_all_books(all_books):
+                    log.msg("Got all books: %s" % all_books)
+                    liquidation_values = [(position, self.liquidation_value(position, quantity=quantity, book=order_books[position.contract.ticker])) for position in positions]
+                    liquidation_values.sort(lambda x, y: y[1] - x[1])
+                    log.msg("liquidation values: %s" % liquidation_values)
+
+                    if len(liquidation_values):
+                        return self.place_liquidation_order(liquidation_values[0][0], quantity=quantity)
+                    else:
+                        log.err("No positions to choose from!")
+                        return None
+
+                return defer.DeferredList(deferreds).addCallback(got_all_books)
+
+        d.addCallback(after_cancellations)
+        return d
+
+    def liquidate_all(self, username):
+        # Liquidate all positions for a user
+
+        # Disable the user while this is happening
+        self.disable_user(username)
+
+        positions = self.session.query(models.Position).join(models.Contract).filter_by(username=username).filter(
+            models.Contract.contract_type.in_(["futures", "prediction"]))
+        deferreds = [self.liquidate_position(username, p.contract.ticker) for p in positions]
+        dl = defer.DeferredList(deferreds)
+
+        def reenable(results):
+            self.enable_user(username)
+            return results
+
+        # Reenable the user once we are done
+        dl.addCallback(reenable)
+        return dl
+
+    def place_liquidation_order(self, position, quantity=None):
+            if position.position == 0:
+                log.msg("Position is 0 not placing order")
+                return None
+
+            if position.position > 0:
+                side = 'SELL'
+                if quantity is None:
+                    quantity = position.position
+
+                price = 0
+            else:
+                side = 'BUY'
+                if quantity is None:
+                    quantity = -position.position
+
+                # The maximum price
+                if position.contract.contract_type == "prediction":
+                    price = position.contract.denominator
+                elif position.contract.contract_type == "futures":
+                    price = sys.maxint
+                else:
+                    raise INVALID_CONTRACT_TYPE
+
+            order = {
+                'price': price,
+                'quantity': quantity,
+                'contract': position.contract.ticker,
+                'side': side,
+                'username': position.username,
+                'timestamp': util.dt_to_timestamp(datetime.utcnow())
+            }
+            log.msg("Placing liquidation order: %s" % order)
+            id = self.place_order(position.username, order, force=True)
+            return id
+
+    def liquidate_position(self, username, ticker):
+        # Cancel all orders for a user, and liquidate his position with extreme prejudice
+
+        # Cancel orders
+        log.msg("liquidating %s for %s" % (ticker, username))
+        user = self.get_user(username)
+        contract = self.get_contract(ticker)
+        orders = self.session.query(models.Order).filter_by(
+            username=user.username).filter(
+            models.Order.quantity_left>0).filter_by(
+            is_cancelled=False).filter_by(
+            contract=contract
+        )
+        log.msg("Cancelling orders for %s/%s" % (username, ticker))
+        d = self.cancel_many_orders(orders)
+
+        def after_cancellations(results):
+            log.msg("Cancels for %s / %s done" % (username, ticker))
+            # Wait until all pending postings have gone through
+            try:
+                position = self.session.query(models.Position).filter_by(user=user, contract=contract).one()
+            except NoResultFound:
+                # There is no position, return None
+                return None
+
+            if position.pending_postings > 0:
+                d = task.deferLater(reactor, 300, after_cancellations, results)
+            else:
+                # Now place a closing out order
+                return self.place_liquidation_order(position)
+
+
+        d.addCallback(after_cancellations)
+        return d
+
+    def accept_order(self, order, force=False):
         """Accept the order if possible. Otherwise, delete the order
 
         :param order: Order object we wish to accept
@@ -348,70 +552,56 @@ class Accountant:
 
         user = order.user
 
-        # Audit the user
-        if not self.is_user_enabled(user):
-            log.msg("%s user is disabled" % user.username)
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise DISABLED_USER
+        if not force:
+            # Audit the user
+            if not self.is_user_enabled(user):
+                log.msg("%s user is disabled" % user.username)
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise DISABLED_USER
 
-        if not user.permissions.trade:
-            log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise TRADE_NOT_PERMITTED
+            if not user.permissions.trade:
+                log.msg("order %s not accepted because user %s not permitted to trade" % (order.id, user.username))
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise TRADE_NOT_PERMITTED
 
-        # Make sure there is a position in the contract, if it is not a cash_pair
-        # cash_pairs don't have positions
-        if order.contract.contract_type != "cash_pair":
-            try:
-                position = self.get_position(order.username, order.contract)
-                # this should be unnecessary, but just in case
-                self.session.add(position)
-                self.session.commit()
-            except Exception, e:
-                self.session.rollback()
-                log.err(e)
-                log.err("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
-                self.alerts_proxy.send_alert("Could not initialize position %s for %s." % (order.contract.ticker, user.username))
-                #TODO: DO NOT INITIALIZE POSITION HERE
+            low_margin, high_margin, max_cash_spent = margin.calculate_margin(
+                order.user, self.session, self.safe_prices, order.id,
+                trial_period=self.trial_period)
 
-        user = self.get_user(order.username)
-        low_margin, high_margin, max_cash_spent = margin.calculate_margin(
-            user, self.session, self.safe_prices, order.id,
-            trial_period=self.trial_period)
-
-        if self.check_margin(order.username, low_margin, high_margin):
-            log.msg("Order accepted.")
-            order.accepted = True
-            try:
-                # self.session.merge(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not merge order: %s" % order)
-            finally:
-                self.session.rollback()
+            if not self.check_margin(order.user, low_margin, high_margin):
+                log.msg("Order rejected due to margin.")
+                try:
+                    self.session.delete(order)
+                    self.session.commit()
+                except:
+                    self.alerts_proxy.send_alert("Could not remove order: %s" % order)
+                finally:
+                    self.session.rollback()
+                raise INSUFFICIENT_MARGIN
         else:
-            log.msg("Order rejected due to margin.")
-            try:
-                self.session.delete(order)
-                self.session.commit()
-            except:
-                self.alerts_proxy.send_alert("Could not remove order: %s" % order)
-            finally:
-                self.session.rollback()
-            raise INSUFFICIENT_MARGIN
+            log.msg("Forcing order")
 
+        log.msg("Order accepted.")
+        order.accepted = True
+        try:
+            # self.session.merge(order)
+            self.session.commit()
+        except:
+            self.alerts_proxy.send_alert("Could not merge order: %s" % order)
+        finally:
+            self.session.rollback()
 
     def charge_fees(self, fees, user, type="Trade"):
         """Credit fees to the people operating the exchange
@@ -469,71 +659,6 @@ class Accountant:
 
         return user_postings, vendor_postings, remainder_postings
 
-    def get_cash_spent(self, contract, price, quantity):
-        if contract.contract_type == "futures":
-            raise NotImplementedError
-
-            # log.msg("This is a futures trade.")
-            # aggressive_cash_position = self.get_position(aggressive_username, "BTC")
-            # aggressive_future_position = self.get_position(aggressive_username, ticker, price)
-            #
-            # # mark to current price as if everything had been entered at that
-            # #   price and profit had been realized
-            # aggressive_cash_position.position += \
-            #     (price - aggressive_future_position.reference_price) * \
-            #     aggressive_future_position.position
-            # aggressive_future_position.reference_price = price
-            # aggressive_cash_position.position += \
-            #     (price - aggressive_future_position.reference_price) * \
-            #     aggressive_future_position.position
-            # aggressive_future_position.reference_price = price
-            #
-            # # note that even though we're transferring money to the account,
-            # #   this money may not be withdrawable because the margin will
-            # #   raise depending on the distance of the price to the safe price
-            #
-            # # then change the quantity
-            # future_position.position += signed_quantity
-            #
-            # self.session.merge(cash_position)
-            # self.session.merge(future_position)
-            #
-            # # TODO: Implement fees
-            # fees = None
-
-        elif contract.contract_type == "prediction":
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract
-
-            cash_spent_float = float(quantity * price * contract.lot_size) / contract.denominator
-            cash_spent_int = int(cash_spent_float)
-            if cash_spent_float != cash_spent_int:
-                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.lot_size=%d contract.denominator=%d" % \
-                          (cash_spent_float, quantity, price, contract.lot_size, contract.denominator)
-                log.err(message)
-                self.alerts_proxy.send_alert(message, "Integer failure")
-                # TODO: abort?
-
-        elif contract.contract_type == "cash_pair":
-            denominated_contract = contract.denominated_contract
-            payout_contract = contract.payout_contract
-
-            cash_spent_float = float(quantity * price) / \
-                               (contract.denominator * payout_contract.denominator)
-            cash_spent_int = int(cash_spent_float)
-            if cash_spent_float != cash_spent_int:
-                message = "cash_spent (%f) is not an integer: (quantity=%d price=%d contract.denominator=%d payout_contract.denominator=%d)" % \
-                              (cash_spent_float, quantity, price, contract.denominator, payout_contract.denominator)
-                log.err(message)
-                self.alerts_proxy.send_alert(message, "Integer failure")
-                # TODO: abort?
-        else:
-            log.err("Unknown contract type '%s'." %
-                          contract.contract_type)
-            raise NotImplementedError
-
-        return denominated_contract, payout_contract, cash_spent_int
-
     def post_transaction(self, username, transaction):
         """Update the database to reflect that the given trade happened. Charge fees.
 
@@ -555,10 +680,13 @@ class Accountant:
         timestamp = transaction["timestamp"]
         uid = transaction["uid"]
 
+        if ticker in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         contract = self.get_contract(ticker)
+
         if not contract.active:
             raise CONTRACT_NOT_ACTIVE
-
 
         user = self.get_user(username)
 
@@ -566,8 +694,6 @@ class Accountant:
         elapsed = (next - last) * 1000
         last = next
         log.msg("post_transaction: part 1: %.3f ms." % elapsed)
-
-        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(contract, price, quantity)
 
         next = time.time()
         elapsed = (next - last) * 1000
@@ -588,15 +714,52 @@ class Accountant:
 
         note = "%s order: %s" % (ap, order)
 
+        postings = []
+        denominated_contract = contract.denominated_contract
+        payout_contract = contract.payout_contract
+
+        # Initialize the position here if it doesn't exist already
+        if contract.contract_type == "futures":
+            try:
+                # We're not marking to market, we're keeping the same reference price
+                # and making a cashflow based on the reference price
+                denominated_contract = contract.denominated_contract
+                payout_contract = contract
+                position = self.get_position(user, contract, price)
+                cash_spent = util.get_cash_spent(contract, price - position.reference_price, quantity)
+
+                # Make sure the position goes into the db with this reference price
+                self.session.add(position)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                log.err("Unable to add position %s to db" % position)
+        else:
+            cash_spent = util.get_cash_spent(contract, price, quantity)
+
+
         user_denominated = create_posting("Trade", username,
                 denominated_contract.ticker, cash_spent, denominated_direction,
                 note)
         user_payout = create_posting("Trade", username, payout_contract.ticker,
                 quantity, payout_direction, note)
+        postings.append(user_denominated)
+        postings.append(user_payout)
+
+        remote_postings = []
+        if contract.contract_type == "futures":
+            # Make the system posting for the cashflow because the other side might not have the same reference price
+            # so his cashflow might be different, so we can't post directly against the counterparty
+            system_posting = create_posting("Trade", "clearing_%s" % contract.ticker,
+                                            denominated_contract.ticker, cash_spent, payout_direction,
+                                            note)
+            remote_postings.append(system_posting)
 
         # calculate fees
+        fees = {}
         fees = util.get_fees(user, contract,
-                abs(cash_spent), trial_period=self.trial_period, ap="aggressive" if aggressive else "passive")
+                price, quantity, trial_period=self.trial_period, ap="aggressive" if aggressive else "passive")
+
 
         user_fees, vendor_fees, remainder_fees = self.charge_fees(fees, user)
 
@@ -604,25 +767,17 @@ class Accountant:
         elapsed = (next - last) * 1000
         log.msg("post_transaction: part 3: %.3f ms." % elapsed)
 
-        # Submit to ledger
-        # (user denominated, user payout) x 2 = 4
-        count = 4 + 2 * len(remainder_fees) + 2 * len(user_fees) + 2 * len(vendor_fees)
-        postings = [user_denominated, user_payout]
         postings.extend(user_fees)
-        #postings.extend(vendor_fees)
-        #postings.extend(remainder_fees)
+        remote_postings.extend(vendor_fees)
+        remote_postings.extend(remainder_fees)
 
-
-        for posting in postings + vendor_fees + remainder_fees:
+        count = 2 * len(postings) + 2 * len(remote_postings)
+        for posting in postings + remote_postings:
             posting["count"] = count
             posting["uid"] = uid
 
-
-        for fee in vendor_fees:
-            self.accountant_proxy.remote_post(fee["username"], fee)
-
-        if len(remainder_fees):
-            self.accountant_proxy.remote_post("remainder", *remainder_fees)
+        for posting in remote_postings:
+            self.accountant_proxy.remote_post(posting["username"], posting)
 
         if aggressive:
             try:
@@ -700,6 +855,7 @@ class Accountant:
             log.msg("to ws: " + str({"trade": [ticker, trade.to_webserver()]}))
             return result
 
+
         # TODO: add errbacks for these
         d.addBoth(update_order)
         d.addCallback(notify_fill)
@@ -769,6 +925,13 @@ class Accountant:
         if order.is_cancelled:
             raise ORDER_CANCELLED
 
+        # If the order has not been marked dispatched, it may have been in transit to the engine
+        # when the engine bounced, and it may arrive at the engine and end up in the book,
+        # after the engine told us to cancel it.
+        # So tell the engine to cancel it, just in case the engine picked it up after reboot
+        if not order.dispatched:
+            self.engines[order.contract.ticker].cancel_order(order.id)
+
         try:
             order.is_cancelled = True
             # self.session.add(order)
@@ -781,38 +944,45 @@ class Accountant:
         self.webserver.order(username, order.to_webserver())
 
 
-    def place_order(self, username, order):
+    def place_order(self, username, order, force=False):
         """Place an order
 
         :param order: dictionary representing the order to be placed
         :type order: dict
         :returns: tuple -- (True/False, Result/Error)
         """
+        if order["contract"] in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         user = self.get_user(order["username"])
         contract = self.get_contract(order["contract"])
 
-        if not contract.active:
-            raise CONTRACT_NOT_ACTIVE
+        if not force:
+            if not contract.active:
+                raise CONTRACT_NOT_ACTIVE
 
-        if contract.expired:
-            raise CONTRACT_EXPIRED
+            if contract.expired:
+                raise CONTRACT_EXPIRED
 
-        # do not allow orders for internally used contracts
-        if contract.contract_type == 'cash':
-            log.err("Webserver allowed a 'cash' contract!")
-            raise AccountantException(0, "Not a valid contract type.")
+            # do not allow orders for internally used contracts
+            if contract.contract_type == 'cash':
+                log.err("Webserver allowed a 'cash' contract!")
+                raise INVALID_CONTRACT_TYPE
 
         if order["price"] % contract.tick_size != 0 or order["price"] < 0 or order["quantity"] < 0:
-            raise AccountantException(0, "invalid price or quantity")
+            raise INVALID_PRICE_QUANTITY
 
         # case of predictions
         if contract.contract_type == 'prediction':
             if not 0 <= order["price"] <= contract.denominator:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
 
         if contract.contract_type == "cash_pair":
             if not order["quantity"] % contract.lot_size == 0:
-                raise AccountantException(0, "invalid price or quantity")
+                raise INVALID_PRICE_QUANTITY
+
+        else:
+            log.msg("Forcing order")
 
         o = models.Order(user, contract, order["quantity"], order["price"], order["side"].upper(),
                          timestamp=util.timestamp_to_dt(order['timestamp']))
@@ -824,7 +994,7 @@ class Accountant:
             self.session.rollback()
             raise e
 
-        self.accept_order(o)
+        self.accept_order(o, force=force)
         d = self.engines[o.contract.ticker].place_order(o.to_matching_engine_order())
 
         def mark_order_dispatched(result):
@@ -1108,9 +1278,11 @@ class Accountant:
             user.permission_group_id = id
             # self.session.add(user)
             self.session.commit()
+            return None
         except Exception as e:
             log.err("Error: %s" % e)
             self.session.rollback()
+            raise e
    
     def disable_user(self, user):
         user = self.get_user(user)
@@ -1223,83 +1395,173 @@ class Accountant:
             # Admin intervention required. ABORT!
             return
 
-    def clear_contract(self, username, ticker, price, uid):
+    def clear_contract(self, ticker, price, uid):
+        if ticker in self.clearing_contracts:
+            raise CONTRACT_CLEARING
+
         contract = self.get_contract(ticker)
+
+        if not contract.active:
+            raise CONTRACT_NOT_ACTIVE
 
         if contract.expiration is None:
             raise NON_CLEARING_CONTRACT
 
-        # TODO: If it's an early clearing, don't check for contract expiration
-        if contract.expiration >= datetime.utcnow():
+        # For early clearing we don't pass in a price, we use safe_price
+        if contract.expiration >= datetime.utcnow() and price is not None:
             raise CONTRACT_NOT_EXPIRED
 
-        if contract.active:
-            # Mark contract inactive
-            try:
-                contract.active = False
-                # self.session.add(contract)
-                self.session.commit()
-            except Exception as e:
-                self.session.rollback()
-                log.err("Unable to mark contract inactive %s" % e)
+        if contract.expiration < datetime.utcnow() and price is None:
+            raise CONTRACT_EXPIRED
+
+        # If there is no price, this is a mark-to-market
+        # Clear to the safe price, and don't zero-out
+        # the positions
+        if price is None:
+            price = self.safe_prices[ticker]
+            zero_out = False
+        else:
+            zero_out = True
+
+        # Mark contract as clearing
+        log.msg("Marking %s as clearing" % ticker)
+        self.clearing_contracts[ticker] = True
 
         my_users = [user.username for user in self.get_my_users()]
 
         # Cancel orders
+        log.msg("Cancelling orders for %s" % ticker)
         orders = self.session.query(models.Order).filter_by(contract=contract).filter_by(is_cancelled=False).filter(
             models.Order.quantity_left > 0).filter(
             models.Order.username.in_(my_users))
         d = self.cancel_many_orders(orders)
 
         def after_cancellations(results):
+            log.msg("Cancels done for %s" % ticker)
             # Wait until all pending postings have gone through
-            pending_postings = self.session.query(models.Position.pending_postings).filter_by(contract=contract).filter(
-                models.Position.username.in_(my_users))
-            if sum([row[0] for row in pending_postings]) > 0:
-                d = task.deferLater(reactor, 300, self.after_cancellations, results)
+            total_pending = self.session.query(func.sum(models.Position.pending_postings).label('total_pending')).filter_by(contract=contract).filter(
+                models.Position.username.in_(my_users)).one().total_pending
+            if total_pending > 0:
+                d = task.deferLater(reactor, 300, after_cancellations, results)
             else:
                 all_positions = self.session.query(models.Position).filter_by(contract=contract)
                 position_count = all_positions.count()
                 my_positions = all_positions.filter(models.Position.username.in_(my_users))
-                results = [self.clear_position(position, price, position_count, uid) for position in my_positions]
+                log.msg("clearing positions for %s" % ticker)
+                results = [self.clear_position(position, price, position_count, uid, zero_out=zero_out) for position in my_positions]
                 d = defer.DeferredList(results)
+                def reactivate_contract(result):
+                    log.msg("unmarking %s" % ticker)
+                    del self.clearing_contracts[ticker]
+
+                d.addCallback(reactivate_contract)
 
             return d
 
         d.addCallback(after_cancellations)
         return d
 
-    def clear_position(self, position, price, position_count, uid):
-        # We use position_calculated here to be sure we get the canonical position
-        position_calculated, timestamp = util.position_calculated(position, self.session)
-        denominated_contract, payout_contract, cash_spent = self.get_cash_spent(position.contract,
-                                                                                price, position_calculated)
-
-        note = "Clearing transaction for %s at %d" % (position.contract.ticker, price)
-        credit = create_posting("Clearing", position.username,
-                denominated_contract.ticker, cash_spent, 'credit',
-                note)
-        debit = create_posting("Clearing", position.username, payout_contract.ticker,
-                position_calculated, 'debit', note)
-        for posting in credit, debit:
-            posting['count'] = position_count * 2
-            posting['uid'] = uid
-
-        # TODO: Determine what the caller needs - do they want to know about errors?
-        return self.post_or_fail(credit, debit).addErrback(log.err)
-
     def reload_fee_group(self, id):
         group = self.session.query(models.FeeGroup).filter_by(id=id).one()
         self.session.expire(group)
+
+    def reload_contract(self, ticker):
+        contract = self.session.query(models.Contract).filter_by(ticker=ticker).one()
+        self.session.expire(contract)
 
     def change_fee_group(self, username, id):
         try:
             user = self.get_user(username)
             user.fee_group_id = id
             self.session.commit()
+            return None
         except Exception as e:
             self.session.rollback()
             raise e
+
+    def clear_position(self, position, price, position_count, uid, zero_out=True):
+        # We use position_calculated here to be sure we get the canonical position
+        position_calculated, timestamp = util.position_calculated(position, self.session)
+        log.msg("Clearing position %s at %d" % (position, price))
+        if position.contract.contract_type == "prediction":
+            cash_spent = util.get_cash_spent(position.contract, price, position_calculated)
+            note = "Clearing transaction for %s at price: %s" % (position.contract.ticker,
+                                                                 util.price_fmt(position.contract, price))
+            credit = create_posting("Clearing", position.username,
+                    position.contract.denominated_contract.ticker, cash_spent, 'credit',
+                    note)
+            debit = create_posting("Clearing", position.username, position.contract.ticker,
+                    position_calculated, 'debit', note)
+
+            for posting in credit, debit:
+                posting['count'] = position_count * 2
+                posting['uid'] = uid
+            log.msg("credit: %s, debit: %s" % (credit, debit))
+        
+            # TODO: Determine what the caller needs - do they want to know about errors?
+            return self.post_or_fail(credit, debit).addErrback(log.err)
+
+        elif position.contract.contract_type == "futures":
+            if position.reference_price is None:
+                log.err("Position %s has no reference price!")
+                return defer.succeed(None)
+
+            cash_spent = util.get_cash_spent(position.contract, price - position.reference_price, position_calculated)
+            note = "Clearing transaction for %s at price: %s / reference_price: %s" % (position.contract.ticker,
+                                                                                       util.price_fmt(position.contract, price),
+                                                                                       util.price_fmt(position.contract, position.reference_price))
+            credit = create_posting("Clearing", position.username,
+                                    position.contract.denominated_contract_ticker, cash_spent, 'credit',
+                                    note)
+            clearing = create_posting("Clearing", "clearing_%s" % position.contract.ticker,
+                                   position.contract.denominated_contract_ticker, cash_spent, 'debit',
+                                   note)
+
+            # We want a zero entry here to force a transaction for the contract
+            # to be sent to the user so it knows to update reference_price
+            zero = create_posting("Clearing", position.username,
+                                  position.contract.ticker, 0, 'credit', note)
+
+            # This is a simple two posting journal entry
+            small_uid = util.get_uid()
+            for posting in credit, clearing, zero:
+                posting['count'] = 3
+                posting['uid'] = small_uid
+            log.msg("credit: %s, debit: %s, zero: %s" % (credit, clearing, zero))
+
+
+            self.accountant_proxy.remote_post(clearing['username'], clearing)
+            d = self.post_or_fail(credit, zero)
+
+            def set_reference_price(result):
+                log.msg("Setting reference price for %s to %d" % (position, price))
+                try:
+                    position.reference_price = price
+                    self.session.commit()
+                except Exception as e:
+                    self.session.rollback()
+                    raise e
+
+                # Zero out positions
+                if zero_out:
+                    log.msg("Zeroing out position %s" % position)
+                    debit = create_posting("Clearing", position.username,
+                                           position.contract.payout_contract_ticker, position_calculated, 'debit',
+                                           note)
+
+                    # This one is big journal entry has to encompass everything
+                    debit['count'] = position_count
+                    debit['uid'] = uid
+                    d = self.post_or_fail(debit)
+                    return d
+                else:
+                    return result
+
+            d.addCallback(set_reference_price).addErrback(log.err)
+            return d
+        else:
+            raise INVALID_CONTRACT_TYPE
+
 
 class WebserverExport(ComponentExport):
     """Accountant functions that are exposed to the webserver
@@ -1327,6 +1589,11 @@ class WebserverExport(ComponentExport):
     def request_withdrawal(self, username, ticker, quantity, address):
         return self.accountant.request_withdrawal(username, ticker, quantity, address)
 
+    @export
+    @schema("rpc/accountant.webserver.json#get_margin")
+    def get_margin(self, username):
+        return self.accountant.get_margin(username)
+
 
 class EngineExport(ComponentExport):
     """Accountant functions exposed to the Engine
@@ -1338,7 +1605,7 @@ class EngineExport(ComponentExport):
 
     @export
     @session_aware
-    def safe_prices(self, ticker, price):
+    def safe_prices(self, username, ticker, price):
         self.accountant.safe_prices[ticker] = price
 
     @export
@@ -1396,6 +1663,15 @@ class AccountantExport(ComponentExport):
         # we do not want or need this to propagate back to the caller
         return None
 
+class RiskManagerExport(ComponentExport):
+    def __init__(self, accountant):
+        self.accountant = accountant
+        ComponentExport.__init__(self, accountant)
+
+    @export
+    @schema("rpc/accountant.riskmanager.json#liquidate_best")
+    def liquidate_best(self, username):
+        return self.accountant.liquidate_best(username)
 
 class AdministratorExport(ComponentExport):
     """Accountant functions exposed to the administrator
@@ -1421,7 +1697,7 @@ class AdministratorExport(ComponentExport):
     @session_aware
     @schema("rpc/accountant.administrator.json#change_permission_group")
     def change_permission_group(self, username, id):
-        self.accountant.change_permission_group(username, id)
+        return self.accountant.change_permission_group(username, id)
 
     @export
     @session_aware
@@ -1439,7 +1715,7 @@ class AdministratorExport(ComponentExport):
     @session_aware
     @schema("rpc/accountant.administrator.json#clear_contract")
     def clear_contract(self, username, ticker, price, uid):
-        return self.accountant.clear_contract(username, ticker, price, uid)
+        return self.accountant.clear_contract(ticker, price, uid)
 
     @export
     @session_aware
@@ -1453,14 +1729,34 @@ class AdministratorExport(ComponentExport):
     def reload_fee_group(self, username, id):
         return self.accountant.reload_fee_group(id)
 
+    @export
+    @session_aware
+    @schema("rpc/accountant.administrator.json#reload_contract")
+    def reload_contract(self, username, ticker):
+        return self.accountant.reload_contract(ticker)
+
+    @export
+    @schema("rpc/accountant.administrator.json#get_margin")
+    def get_margin(self, username):
+        return self.accountant.get_margin(username)
+
+    @export
+    @schema("rpc/accountant.administrator.json#liquidate_all")
+    def liquidate_all(self, username):
+        return self.accountant.liquidate_all(username)
+
+    @export
+    @schema("rpc/accountant.administrator.json#liquidate_position")
+    def liquidate_position(self, username, ticker):
+        return self.accountant.liquidate_position(username, ticker)
 
 class AccountantProxy:
-    def __init__(self, mode, uri, base_port):
+    def __init__(self, mode, uri, base_port, timeout=1):
         self.num_procs = config.getint("accountant", "num_procs")
         self.proxies = []
         for i in range(self.num_procs):
             if mode == "dealer":
-                proxy = dealer_proxy_async(uri % (base_port + i))
+                proxy = dealer_proxy_async(uri % (base_port + i), timeout=timeout)
             elif mode == "push":
                 proxy = push_proxy_async(uri % (base_port + i))
             else:
@@ -1526,6 +1822,7 @@ if __name__ == "__main__":
     cashier_export = CashierExport(accountant)
     administrator_export = AdministratorExport(accountant)
     accountant_export = AccountantExport(accountant)
+    riskmanager_export = RiskManagerExport(accountant)
 
     watchdog(config.get("watchdog", "accountant") %
              (config.getint("watchdog", "accountant_base_port") + accountant_number))
@@ -1533,6 +1830,9 @@ if __name__ == "__main__":
     router_share_async(webserver_export,
                        config.get("accountant", "webserver_export") %
                        (config.getint("accountant", "webserver_export_base_port") + accountant_number))
+    router_share_async(riskmanager_export,
+                       config.get("accountant", "riskmanager_export") %
+                       (config.getint("accountant", "riskmanager_export_base_port") + accountant_number))
     pull_share_async(engine_export,
                      config.get("accountant", "engine_export") %
                      (config.getint("accountant", "engine_export_base_port") + accountant_number))

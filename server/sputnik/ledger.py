@@ -23,9 +23,7 @@ from util import timed
 from rpc_schema import schema
 from watchdog import watchdog
 import time
-
-class LedgerException(Exception):
-    pass
+from exception import *
 
 ARGUMENT_ERROR = LedgerException("exceptions/ledger/argument_error")
 UID_MISMATCH = LedgerException("exceptions/ledger/uid_mismatch")

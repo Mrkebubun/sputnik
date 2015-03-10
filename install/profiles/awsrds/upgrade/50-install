@@ -29,6 +29,8 @@ chown -R $profile_user $profile_root/tools/alembic/versions
 # change permissions
 chown -R root:root $profile_root
 chmod -R ugo+rX $profile_root
+chown -R $profile_user $profile_keys
+chmod -R go-rwx $profile_keys
 chmod +x $profile_root/server/sputnik/*.py${profile_pycompiled}
 chmod +x $profile_root/tools/*.py${profile_pycompiled}
 

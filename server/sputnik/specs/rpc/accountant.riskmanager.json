@@ -1,0 +1,17 @@
+{
+    "liquidate_best":
+    {
+        "type": "object",
+        "description": "Liquidate the position that will have the most margin impact",
+        "properties":
+        {
+            "username":
+            {
+                "type": "string",
+                "description": "Username of affected user."
+            }
+        },
+        "required": ["username"],
+        "additionalProperties": false
+    }
+}

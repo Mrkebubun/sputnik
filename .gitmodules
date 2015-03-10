@@ -1,3 +1,13 @@
 [submodule "charting_library"]
 	path = charting_library
 	url = git@sputnikmkt.com:charting_library.git
+	branch = master
+	checkout = merge
+[submodule "github"]
+	path = github
+	url = https://github.com/MimeticMarkets/sputnik.git
+	branch = master
+	checkout = merge
+[submodule "bitgo"]
+	path = bitgo
+	url = https://github.com/MimeticMarkets/bitgo

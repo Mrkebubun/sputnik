@@ -7,15 +7,14 @@ from txzmq import ZmqFactory, ZmqEndpoint
 from txzmq import ZmqREQConnection, ZmqREPConnection
 from txzmq import ZmqPullConnection, ZmqPushConnection
 from txzmq import ZmqRequestTimeoutError
+from txzmq import ZmqSubConnection, ZmqPubConnection
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 
 import observatory
 
 debug, log, warn, error, critical = observatory.get_loggers("zmq")
-
-class RemoteCallException(Exception): pass
-class RemoteCallTimedOut(RemoteCallException): pass
+from exception import *
 
 class ComponentExport():
     def __init__(self, component):
@@ -309,6 +308,21 @@ class SyncRouterExport(SyncExport):
         except Exception, e:
             exception(e)
 
+def bind_publisher(address):
+    socket = ZmqPubConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return socket
+
+def bind_subscriber(address):
+    socket = ZmqSubConnection(ZmqFactory(), ZmqEndpoint("bind", address))
+    return socket
+
+def connect_publisher(address):
+    socket = ZmqPubConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return socket
+
+def connect_subscriber(address):
+    socket = ZmqSubConnection(ZmqFactory(), ZmqEndpoint("connect", address))
+    return socket
 
 def router_share_async(obj, address):
     """
@@ -391,18 +405,34 @@ class Proxy:
 
         # decode the exception
         exception = response.get("exception", None)
+        def get_class(path):
+            module_name, class_name = path.rsplit(".", 1)
+            mod = __import__(module_name)
+            for component in module_name.split(".")[1:]:
+                mod = getattr(mod, component)
+            klass = getattr(mod, class_name)
+            return klass
+
         if isinstance(exception, dict):
             cname = exception.get("class", None)
             mname = exception.get("module", None)
             if not cname or not mname:
                 klass = Exception
             else:
+                path = "%s.%s" % (mname, cname)
                 try:
-                    module = __import__(mname)
-                    klass = getattr(module, cname)
-                except:
-                    klass = Exception
+                    klass = get_class(path)
+                except Exception as e:
+                    try:
+                        new_path = 'sputnik.%s' % path
+                        debug("Unable to load exception class %s (%s) -- trying %s'" % (path, str(e.args), new_path))
+                        klass = get_class(new_path)
+                    except Exception as e:
+                        debug("Unable to load exception class %s from %s (%s) -- using 'Exception'" % (new_cname, new_mname, str(e.args)))
+                        klass = Exception
             args = exception.get("args", ())
+            if len(args) == 0:
+                args = ("exceptions/sputnik/undefined", klass.__name__)
             exception = klass(*args)
 
         debug("success=%s, exception=%s" % (success, exception))
@@ -472,7 +502,7 @@ class DealerProxyAsync(Proxy):
         
         def convertTimeout(failure):
             e = failure.trap(ZmqRequestTimeoutError)
-            raise RemoteCallTimedOut("Call timed out.")
+            raise RemoteCallTimedOut("exceptions/zmq/call-timed-out")
 
         return d.addErrback(convertTimeout)
 
@@ -503,7 +533,7 @@ class DealerProxySync(Proxy):
             data = self._connection.recv_multipart()
         except zmq.ZMQError, e:
             if str(e) == "Resource temporarily unavailable":
-                raise RemoteCallTimedOut()
+                raise RemoteCallTimedOut("exceptions/zmq/resource-unavailable")
             raise e
         if data[0] != self._id:
             raise RemoteCallException("Invalid return ID.")
