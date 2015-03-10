@@ -39,6 +39,7 @@ from twisted.internet.defer import inlineCallbacks
 from sputnik import SputnikSession, Sputnik
 from yahoo import Yahoo
 from bitstamp import BitStamp
+from kraken import Kraken
 
 from decimal import Decimal
 
@@ -46,6 +47,7 @@ class MarketMakerBot(SputnikSession):
     external_markets = {}
     yahoo = Yahoo()
     bitstamp = BitStamp()
+    kraken = Kraken()
 
     def startAutomationAfterMarkets(self):
         self.get_external_market = task.LoopingCall(self.getExternalMarket)
@@ -110,6 +112,36 @@ class MarketMakerBot(SputnikSession):
 
                         new_bid = btcusd_bid * bid
                         new_ask = btcusd_ask * ask
+                elif market['contract_type'] == "futures":
+                    got_spot = False
+                    if ticker.startswith("USDBTC"):
+                        # Ignore BTC and USD interest rates
+                        new_bid_spot = 10000/btcusd_ask
+                        new_ask_spot = 10000/btcusd_bid
+                        # Assume 10bps USD risk-free rate
+                        base_rate = 0.0010
+                        got_spot = True
+                    elif ticker.startswith("LTCBTC"):
+                        kraken_book = yield self.kraken.getOrderBook('BTC/LTC')
+                        btcltc_bid = kraken_book['bids'][0]['price']
+                        btcltc_ask = kraken_book['asks'][0]['price']
+                        new_bid_spot = 10000/btcltc_ask
+                        new_ask_spot = 10000/btcltc_bid
+                        # Assume 10% LTC risk-free rate
+                        base_rate = 0.10
+                        got_spot = True
+
+                    if got_spot:
+                        from datetime import datetime
+                        import util
+                        timedelta_to_expiry = util.timestamp_to_dt(market['expiration']) - datetime.utcnow()
+                        time_to_expiry = timedelta_to_expiry.total_seconds() / (365.25*24*60*60)
+                        # Assume 5% BTC risk-free rate
+                        btc_rate = 0.0500
+                        import math
+                        forward_factor = Decimal(math.exp((base_rate - btc_rate) * time_to_expiry))
+                        new_bid = new_bid_spot * forward_factor
+                        new_ask = new_ask_spot * forward_factor
 
                 if new_ask is not None and new_bid is not None:
                     logging.info("%s: %f/%f" % (ticker, new_bid, new_ask))

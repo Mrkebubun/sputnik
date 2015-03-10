@@ -92,7 +92,7 @@ class RandomBot(SputnikSession):
                 return
 
         # a qty somewhere between 0.5 and 2 BTC
-        if contract['contract_type'] == "prediction":
+        if contract['contract_type'] in ["prediction", "futures"]:
             quantity = random.randint(1, 4)
         else:
             quantity = float(random.randint(50, 200))/100
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     config.read(args.config)
 
     params = dict(config.items("sputnik"))
-    params.update(dict(config.items("market_maker")))
+    params.update(dict(config.items("random_trader")))
 
     sputnik = Sputnik(debug=args.debug, bot=RandomBot, **params)
 
