@@ -84,7 +84,6 @@ class TestCashier(TestSputnik):
         self.bitcoinrpc = {'BTC': FakeBitcoin()}
         self.compropago = FakeComponent()
         self.bitgo = FakeBitgo()
-        self.sendmail = FakeSendmail('test-email@m2.io')
         from tempfile import mkstemp
         import json
         keyfile = mkstemp(prefix="bitgo_key")[1]
