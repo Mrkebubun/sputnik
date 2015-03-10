@@ -28,10 +28,11 @@ class NexmoException(Exception):
     pass
 
 class Nexmo():
-    def __init__(self, api_key, api_secret, brand):
+    def __init__(self, api_key, api_secret, brand, from_code):
         self.api_key = api_key
         self.api_secret = api_secret
         self.brand = brand
+        self.from_code = from_code
 
     @property
     def params(self):
@@ -85,7 +86,7 @@ class Nexmo():
         return d
 
     def sms(self, number, message):
-        params = {'from': '12342492074',
+        params = {'from': self.from_code,
                   'to': number,
                   'type': 'unicode',
                   'text': message
@@ -154,7 +155,7 @@ if __name__ == "__main__":
     import sys
     log.startLogging(sys.stdout)
 
-    nexmo = Nexmo('66315463','cea39b06', 'Test')
+    nexmo = Nexmo('66315463','cea39b06', 'Test', '12342492074')
     d = nexmo.verify('13035694439')
     d.addCallback(pprint).addErrback(log.err)
 
