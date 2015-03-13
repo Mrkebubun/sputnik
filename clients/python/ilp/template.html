@@ -331,33 +331,45 @@
                             <thead>
                                 <tr>
                                     <th></th>
+                                    <th>Base</th>
                                     <th>Optimized</th>
                                     <th>Rounded</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <th>Fair Price</th>
-                                    <td>{{valuation.optimized_params.fair_price}}</td>
-                                    <td>{{trader.rounded_params.fair_price}}</td>
+                                    <th>Offered Bid</th>
+                                    <td>{{valuation.base_params.offered_bid}}</td>
+                                    <td>{{valuation.optimized_params.offered_bid}}</td>
+                                    <td>{{trader.rounded_params.offered_bid}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Offered Ask</th>
+                                    <td>{{valuation.base_params.offered_ask}}</td>
+                                    <td>{{valuation.optimized_params.offered_ask}}</td>
+                                    <td>{{trader.rounded_params.offered_ask}}</td>
                                 </tr>
                                 <tr>
                                     <th>BTC Source->Target</th>
+                                    <td>{{valuation.base_params.btc_source_target}}</td>
                                     <td>{{valuation.optimized_params.btc_source_target}}</td>
                                     <td>{{trader.rounded_params.btc_source_target}}</td>
                                 </tr>
                                 <tr>
                                     <th>Transfer Source OUT</th>
+                                    <td>{{valuation.base_params.transfer_source_out}}</td>
                                     <td>{{valuation.optimized_params.transfer_source_out}}</td>
                                     <td>{{trader.rounded_params.transfer_source_out}}</td>
                                 </tr>
                                 <tr>
                                     <th>Fiat Source->Target</th>
+                                    <td>{{valuation.base_params.fiat_source_target}}</td>
                                     <td>{{valuation.optimized_params.fiat_source_target}}</td>
                                     <td>{{trader.rounded_params.fiat_source_target}}</td>
                                 </tr>
                                 <tr>
                                     <th>Trade Source</th>
+                                    <td>{{valuation.base_params.trade_source_qty}}</td>
                                     <td>{{valuation.optimized_params.trade_source_qty}}</td>
                                     <td>{{trader.rounded_params.trade_source_qty}}</td>
                                 </tr>
@@ -367,18 +379,18 @@
                             <thead>
                                 <tr>
                                     <th></th>
-                                    <th>Optimized Bid</th>
-                                    <th>Optimized Ask</th>
-                                    <th>Fair Price Chart</th>
+                                    <th>Base</th>
+                                    <th>Optimized</th>
+                                    <th>Rounded</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {{#valuation.optimized_bid:result}}
+                                {{#valuation.base:result}}
                                 <tr>
                                     <th>{{result}}</th>
-                                    <td>{{valuation.optimized_bid[result]}}</td>
-                                    <td>{{valuation.optimized_ask[result]}}</td>
-                                    <td><img src="/{{result}}_{{valuation.optimized_params.timestamp}}.png"></td>
+                                    <td>{{valuation.base[result]}}</td>
+                                    <td>{{valuation.optimized[result]}}</td>
+                                    <td>{{trader.rounded[result]}}</td>
                                 </tr>
                                 {{/}}
                             </tbody>

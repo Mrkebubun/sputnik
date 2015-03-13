@@ -895,18 +895,6 @@ class Sputnik(EventEmitter):
 
         return rounded
 
-    def round_price(self, ticker, price):
-        if price is None:
-            return None
-
-        precision = self.session.get_price_precision(ticker)
-        try:
-            rounded = Decimal(price).quantize(Decimal('1E-%d' % precision))
-        except decimal.InvalidOperation:
-            rounded = Decimal('Infinity')
-
-        return rounded
-
 
 class SputnikRest(SputnikMixin, EventEmitter):
     def __init__(self, endpoint=None, id=None, secret=None):
