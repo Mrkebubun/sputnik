@@ -877,6 +877,9 @@ class Sputnik(EventEmitter):
     def getTransactionHistory(self, start_datetime, end_datetime):
         return self.session.getTransactionHistory(start_datetime, end_datetime)
 
+    def getOHLCVHistory(self, ticker, period, start_datetime, end_datetime):
+        return self.session.getOHLCVHistory(ticker, period, start_datetime, end_datetime)
+
     def round_bid(self, ticker, price):
         precision = self.session.get_price_precision(ticker)
         try:
