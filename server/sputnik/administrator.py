@@ -200,7 +200,7 @@ class Administrator:
         self.session.commit()
 
         # Send registration mail
-        self.messenger.send_message(user, "Welcome!", 'registration.{locale}', base_uri=self.base_uri)
+        self.messenger.send_message(user, "Welcome!", 'registration', 'misc', base_uri=self.base_uri)
 
         log.msg("Account created for %s" % username)
         return True
@@ -408,7 +408,7 @@ class Administrator:
         self.session.commit()
 
         log.msg("Created token: %s" % token)
-        self.messenger.send_message(user, 'Reset password link enclosed', 'reset_password',
+        self.messenger.send_message(user, 'Reset password link enclosed', 'reset_password', 'misc',
                                     token=token.token, expiration=token.expiration.strftime("%Y-%m-%d %H:%M:%S %Z"),
                                     base_uri=self.base_uri)
 
@@ -605,13 +605,13 @@ class Administrator:
 
         for user in users:
             if period in [notification.type for notification in user.notifications if notification.method == "email"]:
-                self.mail_statement(user.username, from_timestamp, to_timestamp)
+                self.mail_statement(user.username, from_timestamp, to_timestamp, period)
                 user_list.append(user.username)
 
         return user_list
 
     @util.timed
-    def mail_statement(self, username, from_timestamp=None, to_timestamp=None):
+    def mail_statement(self, username, from_timestamp=None, to_timestamp=None, period=None):
         now = datetime.utcnow()
         user = self.get_user(username)
 
@@ -624,6 +624,9 @@ class Administrator:
             start = end + relativedelta.relativedelta(months=-1)
         else:
             start = util.timestamp_to_dt(from_timestamp)
+
+        if period is None:
+            period = "monthly"
 
         log.msg("mailing statement for %s from %s to %s" % (username, start, end))
 
@@ -705,13 +708,12 @@ class Administrator:
             for type, total in details[contract.ticker]['totals_by_type'].iteritems():
                 details[contract.ticker]['totals_by_type_fmt'][type] = util.quantity_fmt(contract, total)
 
-        t = self.jinja_env.get_template('transaction_statement.email')
-        content = t.render(user=user,
+        self.messenger.send_message(user, 'Your statement', 'transaction_statement',
+                                              period,
                            start=start,
                            end=end,
-                           details=details).encode('utf-8')
-        log.msg("Sending statement to user at %s" % user.email)
-        self.sendmail.send_mail(content, subject="Your statement", to_address=user.email)
+                           details=details)
+
 
     def request_support_nonce(self, username, type):
         """Get a nonce so we can submit a support ticket

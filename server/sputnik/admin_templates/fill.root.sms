@@ -1,0 +1,1 @@
+FILL {{side}} {{quantity_fmt}} {{contract.ticker}} @ {{price_fmt}}

@@ -121,10 +121,12 @@ class Messenger(object):
         self.nexmo = nexmo
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
-    def send_message(self, user, subject, template, **kwargs):
+    def send_message(self, user, subject, template, type, **kwargs):
         deferreds = []
-        if user.contact_preference in ["email", "both"] and self.sendmail is not None:
-            if user.email is not None:
+        # Now email the notification
+        notifications = [n for n in user.notifications if n.type == type]
+        for notification in notifications:
+            if notification.method == 'email' and user.email is not None and self.sendmail is not None:
                 try:
                     t = util.get_locale_template(user.locale, self.jinja_env, "%s.{locale}.email" % template)
                     content = t.render(user=user, **kwargs).encode('utf-8')
@@ -132,11 +134,8 @@ class Messenger(object):
                     deferreds.append(self.sendmail.send_mail(content, subject=subject, to_address=user.email))
                 except TemplatesNotFound:
                     log.err("Can't find template %s/email" % template)
-            else:
-                log.err("No email address for user %s" % user)
 
-        if user.contact_preference in ["sms", "both"] and self.nexmo is not None:
-            if user.phone is not None:
+            if notification.method == 'sms' and user.phone is not None and self.nexmo is not None:
                 try:
                     t = util.get_locale_template(user.locale, self.jinja_env, "%s.{locale}.sms" % template)
                     content = t.render(user=user, **kwargs).encode('utf-8')
@@ -144,8 +143,6 @@ class Messenger(object):
                     deferreds.append(self.nexmo.sms(user.phone, content))
                 except TemplatesNotFound:
                     log.err("Can't find template %s/sms" % template)
-            else:
-                log.err("No phone for user %s" % user)
 
         return defer.DeferredList(deferreds)
 

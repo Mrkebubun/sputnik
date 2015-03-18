@@ -1249,17 +1249,6 @@
                                     </div>
                                     <div class="row form-row">
                                         <div class="col-sm-5 form-label">
-                                            <p>{{translate("account/profile/titles/contact_preference", sputnik.profile.locale)}}</p>
-                                        </div>
-                                        <div class="col-sm-7">
-                                            <select class="form-control" value="{{sputnik.profile.contact_preference}}">
-                                                <option value="sms">{{translate("account/profile/titles/sms", sputnik.profile.locale)}}</option>
-                                                <option value="email">{{translate("account/profile/titles/email", sputnik.profile.locale)}}</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row form-row">
-                                        <div class="col-sm-5 form-label">
                                             <p>{{translate("account/profile/titles/nickname", sputnik.profile.locale)}}</p>
                                         </div>
                                         <div class="col-sm-7 content-push2">
@@ -1288,11 +1277,19 @@
                                                     <th style="padding: 5px"></th>
                                                     <th style="padding: 5px">{{translate("account/profile/titles/email", sputnik.profile.locale)}}</th>
                                                     <th style="padding: 5px">{{translate("account/profile/titles/growl", sputnik.profile.locale)}}</th>
+                                                    <th style="padding: 5px">{{translate("account/profile/titles/sms", sputnik.profile.locale)}}</th>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 5px">{{translate("account/profile/notifications/misc", sputnik.profile.locale)}}</td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.misc}}" value="email"></td>
+                                                    <td style="padding: 5px"></td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.misc}}" value="sms"></td>
                                                 </tr>
                                                 <tr>
                                                     <td style="padding: 5px">{{translate("account/profile/notifications/fill", sputnik.profile.locale)}}</td>
                                                     <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.fill}}" value="email"></td>
                                                     <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.fill}}" value="growl"></td>
+                                                    <td style="padding: 5px"><input type="checkbox" name="{{sputnik.profile.notifications.fill}}" value="sms"></td>
                                                 </tr>
                                                 <tr>
                                                     <td style="padding: 5px">{{translate("account/profile/notifications/daily", sputnik.profile.locale)}}</td>
