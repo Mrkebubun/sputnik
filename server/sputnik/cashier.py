@@ -540,7 +540,7 @@ class Cashier():
 
         # Now email the notification
         self.messenger.send_message(withdrawal.user, 'Your withdrawal request is pending', 'pending_withdrawal',
-                                    'misc',
+                                    'transaction',
                                     withdrawal=withdrawal)
 
 

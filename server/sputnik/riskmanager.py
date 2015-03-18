@@ -25,7 +25,7 @@ import models
 import database
 import margin
 import util
-from sendmail import Sendmail
+from messenger import Messenger, Sendmail, Nexmo
 from accountant import AccountantProxy
 
 from twisted.python import log
@@ -37,11 +37,11 @@ import time
 import sys
 
 class RiskManager():
-    def __init__(self, session, sendmail, safe_price_subscriber, accountant, admin_templates='admin_templates', nap_time_seconds=60):
+    def __init__(self, session, messenger, safe_price_subscriber, accountant, admin_templates='admin_templates', nap_time_seconds=60):
         self.session = session
         self.nap_time_seconds = nap_time_seconds
         self.jinja_env = Environment(loader=FileSystemLoader(admin_templates))
-        self.sendmail = sendmail
+        self.messenger = messenger
         self.safe_price_subscriber = safe_price_subscriber
         self.accountant = accountant
         self.last_call_time = 0
@@ -68,16 +68,14 @@ class RiskManager():
         :param severe:
         :type severe: bool
         """
-        template_file = "margin_call.{locale}.email" if severe else "low_margin.{locale}.email"
-        t = util.get_locale_template(user.locale, self.jinja_env, template_file)
-        content = t.render(cash_position=util.quantity_fmt(self.BTC, cash_position),
-                           low_margin=util.quantity_fmt(self.BTC, low_margin),
-                           high_margin=util.quantity_fmt(self.BTC, high_margin), user=user).encode('utf-8')
+        template = "margin_call" if severe else "low_margin"
+        subject = "Margin Call" if severe else "Margin Warning"
 
-        # Now send the mail
-        log.msg("Sending mail: %s" % content)
-        self.sendmail.send_mail(content, to_address=user.email,
-                                    subject="Margin Call" if severe else "Margin Warning")
+        self.messenger.send_message(user, subject, template, 'margin',
+                           cash_position=util.quantity_fmt(self.BTC, cash_position),
+                           low_margin=util.quantity_fmt(self.BTC, low_margin),
+                           high_margin=util.quantity_fmt(self.BTC, high_margin))
+
 
     def on_safe_prices(self, *args):
         this_call_time = time.time()
@@ -138,10 +136,19 @@ if __name__ == "__main__":
     safe_price_subscriber = connect_subscriber(config.get("safe_price_forwarder", "zmq_backend_address"))
     safe_price_subscriber.subscribe('')
     sendmail = Sendmail(config.get("riskmanager", "from_email"))
+    if config.getboolean("administrator", "nexmo_enable"):
+        nexmo = Nexmo(config.get("administrator", "nexmo_api_key"),
+                    config.get("administrator", "nexmo_api_secret"),
+                    config.get("exchange_info", "exchange_name"),
+                    config.get("administrator", "nexmo_from_code"))
+        messenger = Messenger(sendmail, nexmo)
+    else:
+        messenger = Messenger(sendmail)
+
     accountant = AccountantProxy("dealer",
                                  config.get("accountant", "riskmanager_export"),
                                  config.getint("accountant", "riskmanager_export_base_port"))
 
-    riskmanager = RiskManager(session, sendmail, safe_price_subscriber, accountant)
+    riskmanager = RiskManager(session, messenger, safe_price_subscriber, accountant)
 
     reactor.run()

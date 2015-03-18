@@ -1,0 +1,2 @@
+Deposit: {{amount_fmt}} {{contract.ticker}} exceeded deposit limit.
+

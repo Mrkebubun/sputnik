@@ -1,0 +1,2 @@
+Withdrawal: {{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
+PENDING Reference ID: {{withdrawal.id}}

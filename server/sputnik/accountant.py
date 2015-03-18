@@ -1125,6 +1125,7 @@ class Accountant:
 
         # Now email the notification
         self.messenger.send_message(user, 'Your deposit was not fully processed', 'deposit_overflow',
+                                    'transaction',
                                     contract=contract, amount_fmt=util.quantity_fmt(contract, amount))
 
 
