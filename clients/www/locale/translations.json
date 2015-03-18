@@ -148,7 +148,7 @@
                     "details": "Profile Details",
                     "username": "Username",
                     "email": "Email",
-                    "phone": "Phone Number",
+                    "phone": "Phone Number (Include country code)",
                     "growl": "Growl",
                     "nickname": "Nickname",
                     "locale": "Locale",
@@ -169,7 +169,9 @@
                     "fill": "Fill",
                     "daily": "Daily",
                     "weekly": "Weekly",
-                    "monthly": "Monthly"
+                    "monthly": "Monthly",
+                    "transaction": "Transaction",
+                    "misc": "Misc"
                 },
                 "buttons": {
                     "update": "Update Profile",
