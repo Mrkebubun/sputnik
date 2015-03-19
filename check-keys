@@ -1,0 +1,12 @@
+#!/bin/bash
+REVS=`git rev-list HEAD`
+for rev in $REVS; do
+    git checkout $rev
+    git grep 'secret ='
+    git grep 'key ='
+    git grep 'sk_live'
+    git grep 'BlockScore('
+    git grep 'Compropago('
+    git grep 'BitGo('
+    git grep 'NexMo('
+done
