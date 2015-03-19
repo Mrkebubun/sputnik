@@ -88,6 +88,20 @@ contracts set USDBTC0M margin_high 50
 contracts set USDBTC0M description "USDBTC Monthly Future"
 contracts set USDBTC0M full_description "Index value = 10,000 / (Coindesk BTC/USD index price).\n1 index point = 0.1 mBTC\nI.e. One contract is equivalent to one dollar of BTC risk\n"
 
+contracts add LTCBTC0M
+contracts set LTCBTC0M contract_type futures
+contracts set LTCBTC0M denominator 1000
+contracts set LTCBTC0M lot_size 10000
+contracts set LTCBTC0M tick_size 1
+contracts set LTCBTC0M expiration month
+contracts set LTCBTC0M period month
+contracts set LTCBTC0M denominated_contract_ticker BTC
+contracts set LTCBTC0M payout_contract_ticker LTCBTC0M
+contracts set LTCBTC0M margin_low 25
+contracts set LTCBTC0M margin_high 50
+contracts set LTCBTC0M description "LTCBTC Monthly Future"
+contracts set LTCBTC0M full_description "Index value = 10,000 / (Kraken BTC/LTC price).\n1 index point = 0.1 mBTC\nI.e. One contract is equivalent to one LTC of BTC risk\n"
+
 
 contracts set BTC contract_type cash
 contracts set BTC denominator 100000000
@@ -223,5 +237,8 @@ accounts set clearing_USDBTC0D type Asset
 
 accounts add clearing_USDBTC0M
 accounts set clearing_USDBTC0M type Asset
+
+accounts add clearing_LTCBTC0M
+accounts set clearing_LTCBTC0M type Asset
 EOF
 
