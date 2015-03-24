@@ -13,13 +13,11 @@ in a single contract.
 ### Installation
 
 ```
+sudo apt-get install git
 git clone https://github.com/MimeticMarkets/sputnik
-sudo apt-get install python-pip
-sudo pip install Twisted
-sudo pip install autobahn
-sudo pip install treq
-sudo pip install pycrypto
-sudo pip install pyee
+sudo apt-get install python-pip python-scipy python-twisted python-dateutil python-bs4
+sudo pip install autobahn==0.9.3
+sudo pip install treq pycrypto pyee
 cd sputnik/clients/python
 ```
 

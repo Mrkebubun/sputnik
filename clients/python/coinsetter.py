@@ -220,7 +220,7 @@ if __name__ == "__main__":
     from ConfigParser import ConfigParser
     config = ConfigParser()
 
-    config_file = config_file
+    config_file = "client.ini"
     config.read(config_file)
 
     params = dict(config.items("coinsetter"))
