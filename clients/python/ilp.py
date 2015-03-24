@@ -626,7 +626,7 @@ class Valuation():
 
         def get_penalty(balance, target):
             if balance < 0:
-                return float('inf')
+                pass
             critical_min = 0.25 * target
             min_bal = 0.75 * target
             max_bal = 1.25 * target
@@ -693,7 +693,11 @@ class Valuation():
                           'trade_source_qty': x[4],
                           'transfer_source_out': x[5]}
                 ret = self.valuation(params=params)
-                return -ret['value']
+                log.msg("Valuation: %s -> %s" % (params, ret))
+                if ret['value'] == float('-inf'):
+                    return sys.float_info.max
+                else:
+                    return -ret['value']
 
 
             def constraint(x):
@@ -709,15 +713,28 @@ class Valuation():
                     return -1
 
             x0 = np.array([base_bid, base_ask, 0, 0, 0, 0])
-            log.msg("Optimizing...")
-            res = yield deferToThread(minimize, negative_valuation, x0, method='COBYLA',
-                           constraints={'type': 'ineq',
-                                         'fun': constraint},
-                           tol=1e-2,
-                           options={'disp': True,
-                                    'maxiter': 100,
-                                    })
-            x = res.x
+            
+            def optimize():
+                log.msg("Optimizing...")
+                min_d = deferToThread(minimize, negative_valuation, x0, method='COBYLA',
+                               constraints={'type': 'ineq',
+                                             'fun': constraint},
+                               tol=1e-2,
+                               options={'disp': True,
+                                        'maxiter': 100,
+                                        })
+                def cancel_d():
+                    min_d.cancel()
+                    
+                reactor.callLater(1, cancel_d)
+                return min_d
+            
+            try:
+                res = yield optimize()
+                x = res.x
+            except CancelledError:
+                x = x0
+                
             self.optimized_params =  {'offered_bid': x[0],
                           'offered_ask': x[1],
                           'btc_source_target': x[2],
