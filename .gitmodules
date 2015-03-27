@@ -1,6 +1,6 @@
 [submodule "charting_library"]
 	path = charting_library
-	url = git@sputnikmkt.com:charting_library.git
+	url = https://github.com/tradingview/charting_library
 	branch = master
 	checkout = merge
 [submodule "bitgo"]
