@@ -82,7 +82,7 @@ class TicketServer(Resource):
 
                 try:
                     data = {'blockscore_result': blockscore_result,
-                           'input_data': json.loads(fields['data'].value)}
+                            'input_data': json.loads(fields['data'].value)}
                 except ValueError:
                     data = {'error': "Invalid json data: %s" % fields['data'].value }
 
@@ -113,20 +113,23 @@ class TicketServer(Resource):
         if self.blockscore is not None:
             input_data = json.loads(fields['data'].value)
 
-            input_values = {'date_of_birth': input_data['date_of_birth'],
-                            'identification': {input_data['id_type']: input_data['id_number']},
-                            'name': {'first': input_data['first_name'],
-                                     'middle': input_data['middle_name'],
-                                     'last': input_data['last_name']},
-                            'address': {'street1': input_data['address1'],
-                                        'street2': input_data['address2'],
-                                        'city': input_data['city'],
-                                        'state': input_data['state'],
-                                        'postal_code': input_data['postal_code'],
-                                        'country_code': input_data['country_code']}
-            }
-            log.msg("Sending to blockscore: %s" % input_values)
-            d = self.blockscore.verify(input_values)
+            blockscore_input = {'name_first': input_data['first_name'],
+                            'name_middle': input_data['middle_name'],
+                            'name_last': input_data['last_name'],
+                            'address_street1': input_data['address1'],
+                            'address_street2': input_data['address2'],
+                            'address_city': input_data['city'],
+                            'address_subdivision': input_data['state'],
+                            'address_postal_code': input_data['postal_code'],
+                            'address_country_code': input_data['country_code'],
+                            'document_type': input_data['id_type'],
+                            'document_value': input_data['id_number'],
+                            'birth_day': input_data['birth_day'],
+                            'birth_month': input_data['birth_month'],
+                            'birth_year': input_data['birth_year']
+                            }
+            log.msg("Sending to blockscore: %s" % blockscore_input)
+            d = self.blockscore.verify(blockscore_input)
             d.addBoth(onBlockScore)
         else:
             d = onBlockScore({})
