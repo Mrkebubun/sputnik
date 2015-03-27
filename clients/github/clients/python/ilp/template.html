@@ -1,0 +1,479 @@
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-sm-4">
+                    {{format_timestamp(timestamp)}}
+                </div>
+                <div class="col-sm-4 text-center">
+                     <button type="button" class="btn btn-default" on-click="post">Update Parameters</button>
+                </div>
+                <div class="col-sm-4 text-right">
+                    {{trader.fsm.current_state}}
+                    {{#if trader.fsm.current_state == "READY"}}
+                    <a href="#trader" on-click="start">Start</a>
+                    {{/if}}
+                    {{#if trader.fsm.current_state == "TRADING"}}
+                    <a href="#trader" on-click="stop">Stop</a>
+                    {{/if}}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div role="tabpanel">
+        <ul class="nav nav-tabs" role="tablist" id="myTab">
+            <li role="presentation"><a href="#trader" aria-controls="trader" role="tab" data-toggle="tab">Trader</a></li>
+            <li role="presentation"><a href="#valuation" aria-controls="valuation" role="tab" data-toggle="tab">Valuation</a></li>
+            <li role="presentation"><a href="#market" aria-controls="market" role="tab" data-toggle="tab">Market</a></li>
+            <li role="presentation"><a href="#state" aria-controls="state" role="tab" data-toggle="tab">State</a></li>
+            <li role="presentation"><a href="#transits" aria-controls="transits" role="tab" data-toggle="tab">Transits</a></li>
+            <li role="presentation"><a href="#orders" aria-controls="orders" role="tab" data-toggle="tab">Orders</a></li>
+            <li role="presentation"><a href="#optimized" aria-controls="optimized" role="tab" data-toggle="tab">Optimized</a></li>
+            <li role="presentation"><a href="#transactions" aria-controls="transactions" role="tab" data-toggle="tab">Transactions</a></li>
+        </ul>
+        <div class="tab-content">
+            <div role="tabpanel" class="tab-pane" id="trader">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Trader</div>
+                    <div class="panel-body">
+                        <table id="trader-parameters" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Quote Size</th>
+                                    <td><input type="text" value="{{trader.quote_size}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Edge to Enter</th>
+                                    <td><input type="text" value="{{trader.edge_to_enter}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Edge to Leave</th>
+                                    <td><input type="text" value="{{trader.edge_to_leave}}" on-focus="pause"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="market">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Market Parameters</div>
+                    <div class="panel-body">
+                        <table id="market-parameters" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Source Exchange Fee</th>
+                                    <td>Fixed: <input type="text" value="{{data.source_fee[0]}}" on-focus="pause"></td>
+                                    <td>Variable: <input type="text" value="{{data.source_fee[1]}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Target Exchange Fee</th>
+                                    <td>Fixed: <input type="text" value="{{data.target_fee[0]}}" on-focus="pause"></td>
+                                    <td>Variable: <input type="text" value="{{data.target_fee[1]}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>BTC Fee</th>
+                                    <td>Fixed: <input type="text" value="{{data.btc_fee}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Fiat Exchange Cost</th>
+                                    <td>Fixed: <input type="text" value="{{data.fiat_exchange_cost[0]}}" on-focus="pause"></td>
+                                    <td>Variable: <input type="text" value="{{data.fiat_exchange_cost[1]}}" on-focus="pause"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="valuation">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Valuation Parameters</div>
+                    <div class="panel-body">
+                        <table id="valuation-params" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Deviation Penalty</th>
+                                    <td><input type="text" value="{{valuation.deviation_penalty}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Risk Aversion</th>
+                                    <td><input type="text" value="{{valuation.risk_aversion}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Target Balance Source</th>
+                                    <td>{{data.btc_ticker}}: <input type="text" value="{{valuation.target_balance_source[data.btc_ticker]}}" on-focus="pause"></td>
+                                    <td>{{data.source_ticker}}: <input type="text" value="{{valuation.target_balance_source[data.source_ticker]}}" on-focus="pause"></td>
+                                </tr>
+                                <tr>
+                                    <th>Target Balance Target</th>
+                                    <td>{{data.btc_ticker}}: <input type="text" value="{{valuation.target_balance_target[data.btc_ticker]}}" on-focus="pause"></td>
+                                    <td>{{data.target_ticker}}: <input type="text" value="{{valuation.target_balance_target[data.target_ticker]}}" on-focus="pause"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="state">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">State {{format_timestamp(state.timestamp)}}</div>
+                    <div class="panel-body">
+                        <table id="state_table" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Best Offered Bid/Ask</th>
+                                    <td>{{state.offered_bid}}</td>
+                                    <td>{{state.offered_ask}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Source Balances</th>
+                                    {{#state.balance_source:ticker}}
+                                    <td>{{ticker}}: {{position}}</td>
+                                    {{/}}
+                                </tr>
+                                <tr>
+                                    <th>Target Balances</th>
+                                    {{#state.balance_target:ticker}}
+                                    <td>{{ticker}}: {{position}}</td>
+                                    {{/}}
+                                </tr>
+                                <tr>
+                                    <th>Source Best Bid/Ask</th>
+                                    <td>{{state.source_best_bid}}</td>
+                                    <td>{{state.source_best_ask}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fiat Best Bid/Ask</th>
+                                    <td>{{state.fiat_best_bid}}</td>
+                                    <td>{{state.fiat_best_ask}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Variances</th>
+                                    <td>Source: {{state.source_variance}}</td>
+                                    <td>Fiat: {{state.fiat_variance}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="transits">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Transit To Source</div>
+                    <div class="panel-body">
+                        <table id="transit_to_source" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>From Ticker</th>
+                                    <th>To Ticker</th>
+                                    <th>From Quantity</th>
+                                    <th>To Quantity</th>
+                                    <th>Address</th>
+                                </tr>
+                                {{#state.transit_to_source}}
+                                <tr>
+                                    <td>{{from_ticker}}</td>
+                                    <td>{{to_ticker}}</td>
+                                    <td>{{from_quantity}}</td>
+                                    <td>{{to_quantity}}</td>
+                                    <td>{{address}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Transit From Source</div>
+                    <div class="panel-body">
+                        <table id="transit_from_source" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>From Ticker</th>
+                                    <th>To Ticker</th>
+                                    <th>From Quantity</th>
+                                    <th>To Quantity</th>
+                                    <th>Address</th>
+                                    <th>Destination</th>
+                                </tr>
+                                {{#state.transit_from_source}}
+                                <tr>
+                                    <td>{{from_ticker}}</td>
+                                    <td>{{to_ticker}}</td>
+                                    <td>{{from_quantity}}</td>
+                                    <td>{{to_quantity}}</td>
+                                    <td>{{address}}</td>
+                                    <td>{{destination}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Transit To Target</div>
+                    <div class="panel-body">
+                        <table id="transit_to_target" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>From Ticker</th>
+                                    <th>To Ticker</th>
+                                    <th>From Quantity</th>
+                                    <th>To Quantity</th>
+                                    <th>Address</th>
+                                </tr>
+                                {{#state.transit_to_target}}
+                                <tr>
+                                    <td>{{from_ticker}}</td>
+                                    <td>{{to_ticker}}</td>
+                                    <td>{{from_quantity}}</td>
+                                    <td>{{to_quantity}}</td>
+                                    <td>{{address}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Transit From Target</div>
+                    <div class="panel-body">
+                        <table id="transit_from_target" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>From Ticker</th>
+                                    <th>To Ticker</th>
+                                    <th>From Quantity</th>
+                                    <th>To Quantity</th>
+                                    <th>Address</th>
+                                    <th>Destination</th>
+                                </tr>
+                                {{#state.transit_from_target}}
+                                <tr>
+                                    <td>{{from_ticker}}</td>
+                                    <td>{{to_ticker}}</td>
+                                    <td>{{from_quantity}}</td>
+                                    <td>{{to_quantity}}</td>
+                                    <td>{{address}}</td>
+                                    <td>{{destination}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="orders">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Source Orders</div>
+                    <div class="panel-body">
+                        <table id="source_orders" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Id</th>
+                                    <th>Timestamp</th>
+                                    <th>Ticker</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Quantity Left</th>
+                                    <th>Side</th>
+                                </tr>
+                                {{#state.source_orders:id}}
+                                <tr>
+                                    <td>{{id}}</td>
+                                    <td>{{timestamp}}</td>
+                                    <td>{{contract}}</td>
+                                    <td>{{price}}</td>
+                                    <td>{{quantity}}</td>
+                                    <td>{{quantity_left}}</td>
+                                    <td>{{side}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Target Orders</div>
+                    <div class="panel-body">
+                        <table id="target_orders" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Id</th>
+                                    <th>Timestamp</th>
+                                    <th>Ticker</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Quantity Left</th>
+                                    <th>Side</th>
+                                </tr>
+                                {{#state.target_orders:id}}
+                                <tr>
+                                    <td>{{id}}</td>
+                                    <td>{{timestamp}}</td>
+                                    <td>{{contract}}</td>
+                                    <td>{{price}}</td>
+                                    <td>{{quantity}}</td>
+                                    <td>{{quantity_left}}</td>
+                                    <td>{{side}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="optimized">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Optimization {{format_timestamp(valuation.optimized_params.timestamp)}}</div>
+                    <div class="panel-body">
+                        <table id="optimized_table" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Base</th>
+                                    <th>Optimized</th>
+                                    <th>Rounded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>Offered Bid</th>
+                                    <td>{{valuation.base_params.offered_bid}}</td>
+                                    <td>{{valuation.optimized_params.offered_bid}}</td>
+                                    <td>{{trader.rounded_params.offered_bid}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Offered Ask</th>
+                                    <td>{{valuation.base_params.offered_ask}}</td>
+                                    <td>{{valuation.optimized_params.offered_ask}}</td>
+                                    <td>{{trader.rounded_params.offered_ask}}</td>
+                                </tr>
+                                <tr>
+                                    <th>BTC Source->Target</th>
+                                    <td>{{valuation.base_params.btc_source_target}}</td>
+                                    <td>{{valuation.optimized_params.btc_source_target}}</td>
+                                    <td>{{trader.rounded_params.btc_source_target}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Transfer Source OUT</th>
+                                    <td>{{valuation.base_params.transfer_source_out}}</td>
+                                    <td>{{valuation.optimized_params.transfer_source_out}}</td>
+                                    <td>{{trader.rounded_params.transfer_source_out}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fiat Source->Target</th>
+                                    <td>{{valuation.base_params.fiat_source_target}}</td>
+                                    <td>{{valuation.optimized_params.fiat_source_target}}</td>
+                                    <td>{{trader.rounded_params.fiat_source_target}}</td>
+                                </tr>
+                                <tr>
+                                    <th>Trade Source</th>
+                                    <td>{{valuation.base_params.trade_source_qty}}</td>
+                                    <td>{{valuation.optimized_params.trade_source_qty}}</td>
+                                    <td>{{trader.rounded_params.trade_source_qty}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table id="optimized_table_2" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Base</th>
+                                    <th>Optimized</th>
+                                    <th>Rounded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{#valuation.base:result}}
+                                <tr>
+                                    <th>{{result}}</th>
+                                    <td>{{valuation.base[result]}}</td>
+                                    <td>{{valuation.optimized[result]}}</td>
+                                    <td>{{trader.rounded[result]}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane" id="transactions">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Source Transactions</div>
+                    <div class="panel-body">
+                        <table id="source_transactions_table" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Contract</th>
+                                    <th>Type</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Balance</th>
+                                    <th>Note</th>
+                                </tr>
+                                {{#state.source_transactions}}
+                                <tr>
+                                    <td>{{timestamp}}</td>
+                                    <td>{{contract}}</td>
+                                    <td>{{type}}</td>
+                                    <td>{{#if direction == "debit"}}{{quantity}}{{/if}}</td>
+                                    <td>{{#if direction == "credit"}}{{quantity}}{{/if}}</td>
+                                    <td>{{balance}}</td>
+                                    <td>{{note}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">Target Transactions</div>
+                    <div class="panel-body">
+                        <table id="target_transactions_table" class="table table-striped table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Contract</th>
+                                    <th>Type</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Balance</th>
+                                    <th>Note</th>
+                                </tr>
+                                {{#state.target_transactions}}
+                                <tr>
+                                    <td>{{timestamp}}</td>
+                                    <td>{{contract}}</td>
+                                    <td>{{type}}</td>
+                                    <td>{{#if direction == "debit"}}{{quantity}}{{/if}}</td>
+                                    <td>{{#if direction == "credit"}}{{quantity}}{{/if}}</td>
+                                    <td>{{balance}}</td>
+                                    <td>{{note}}</td>
+                                </tr>
+                                {{/}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $('#myTab a').click(function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+    });
+
+    // store the currently selected tab in the hash value
+    $("ul.nav-tabs > li > a").on("shown.bs.tab", function (e) {
+        var id = $(e.target).attr("href").substr(1);
+        window.location.hash = id;
+    });
+
+    // on load of the page: switch to the currently selected tab
+    var hash = window.location.hash;
+    $('#myTab a[href="' + hash + '"]').tab('show');
+</script>
