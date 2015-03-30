@@ -185,7 +185,7 @@ class @Sputnik extends EventEmitter
             if args.debug?
                 @log_flag = true
 
-    authenticate: (@username, password) =>
+    authenticate: (@username, password, otp) =>
         if not @session?
             @wtf "Not connected."
 
@@ -197,7 +197,11 @@ class @Sputnik extends EventEmitter
             if method == "wampcra"
                 @authextra = extra
                 key = autobahn.auth_cra.derive_key password, extra.salt
-                autobahn.auth_cra.sign key, extra.challenge
+                signature = autobahn.auth_cra.sign key, extra.challenge
+		return
+		    signature: signature
+		    extra:
+		        otp: otp
 
         @session.leave "sputnik.internal.rejoin"
 
