@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 {% if postings_by_ticker[position.contract.ticker].page != 0 %}
 <a href="#{{position.contract.ticker}}" onclick="update_postings_page('{{position.contract.ticker}}', {{postings_by_ticker[position.contract.ticker].min_range}});">&lt;</a>
 {% endif %}
