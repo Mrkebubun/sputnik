@@ -46,6 +46,7 @@
         "fields": {
             "username": "Username",
             "password": "Password",
+            "otp": "One Time Password (optional)",
             "email": "Email",
             "nickname": "Nickname",
             "new_password": "New Password",

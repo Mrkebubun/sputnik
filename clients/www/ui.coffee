@@ -544,6 +544,7 @@ $ ->
 
                 username = $("#login_username").val()
                 password = $("#login_password").val()
+                otp = $("#login_otp").val()
 
                 if username is ''
                     $("#login_error").text(locale.translate("alerts/invalid_username", ractive.get("sputnik.profile.locale"))).show()
@@ -551,7 +552,7 @@ $ ->
                     $("#login_error").hide()
                     ladda = Ladda.create $("#login_button")[0]
                     ladda.start()
-                    sputnik.authenticate username, password
+                    sputnik.authenticate username, password, otp
                     $('#login_modal .alert:visible').hide()
 
             register: (event) ->
@@ -762,7 +763,7 @@ $ ->
             # do not clear the modal yet, do it in auth_success
             username = $("#register_email").val()
             password = $("#register_password").val()
-            sputnik.authenticate username, password
+            sputnik.authenticate username, password, null
 
         sputnik.on "make_account_fail", (error) ->
             ga('send', 'event', 'register', 'failure', error[0])
