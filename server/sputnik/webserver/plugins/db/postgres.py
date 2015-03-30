@@ -91,7 +91,7 @@ class PostgresDatabase(DatabasePlugin):
 
     @inlineCallbacks
     def get_contracts(self):
-        result = yield self.dbpool.runQuery("SELECT ticker FROM contracts")
+        result = yield self.dbpool.runQuery("SELECT ticker FROM contracts WHERE active IS TRUE")
         contracts = [r[0] for r in result]
         returnValue(contracts)
 
