@@ -49,6 +49,7 @@ class RactiveSputnikWrapper
         @safe_prices = {}
         @permissions = {}
         @api = {}
+        @totp_secret = ''
 
         @sputnik.on "cash_spent", (cash_spent) =>
             @cash_spent = cash_spent
@@ -251,6 +252,9 @@ class RactiveSputnikWrapper
         @sputnik.on "api", (@api) =>
             @notify "api"
 
+        @sputnik.on "totp_enable_success", (@totp_secret) =>
+            @notify "totp_secret"
+
     notify: (property) =>
         @setting = true
         @ractive.set @prefix property
@@ -279,6 +283,7 @@ class RactiveSputnikWrapper
         safe_prices: @safe_prices
         permissions: @permissions
         api: @api
+        totp_secret: @totp_secret
 
     set: (property, value) =>
         # this is called both, when we update, and when the user updates

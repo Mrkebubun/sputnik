@@ -3,12 +3,14 @@
     <properties>
       <sourceFilesUrls>
         <item url="file://$PROJECT_DIR$/clients/www/ui.js" />
+        <item url="file://$PROJECT_DIR$/clients/www/ractive.adaptor.js" />
         <item url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
         <item url="file://$PROJECT_DIR$/github/clients/coffeescript/sputnik.js" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
       <root url="file://$PROJECT_DIR$/clients/www/ui.js" />
+      <root url="file://$PROJECT_DIR$/clients/www/ractive.adaptor.js" />
       <root url="file://$PROJECT_DIR$/clients/www/sputnik.js" />
       <root url="file://$PROJECT_DIR$/github/clients/coffeescript/sputnik.js" />
     </CLASSES>

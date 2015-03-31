@@ -131,9 +131,6 @@ $ ->
 
     uri = ws_protocol + "//" + hostname + ":#{port}" + "/ws"
 
-    # FOR CLIENT DEV
-    uri = "wss://demo.m2.io:8443/ws"
-
     sputnik = new Sputnik uri
     window.sputnik = sputnik
     
@@ -256,6 +253,16 @@ $ ->
                     $('#qr_code').empty()
                     $('#qr_code').qrcode("bitcoin:" + address)
                     t.complete()
+                show_totp_secret: (t, secret, username, exchange_name) ->
+                    $('#totp_qr_code').empty()
+                    uri = "otpauth://totp/" +
+                        location.hostname + "/" +
+                        encodeURIComponent(username) + "?" +
+                        "issuer=" +
+                        encodeURIComponent(exchange_name) + "&" +
+                        "secret=" +
+                        encodeURIComponent(secret)
+                    $('#totp_qr_code').qr_code(uri)
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -619,10 +626,21 @@ $ ->
             sort_all_orders: (event, column) ->
                 ractive.set("all_orders_sort_column", column)
 
-
             get_new_api_credentials: (event) ->
                 event.original.preventDefault()
                 sputnik.getNewAPICredentials()
+
+            enable_totp: (event) ->
+                event.original.preventDefault()
+                sputnik.enableTotp()
+
+            disable_totp: (event, totp) ->
+                event.original.preventDefault()
+                sputnik.disableTotp(totp)
+
+            verify_totp: (event, totp) ->
+                event.original.preventDefault()
+                sputnik.verifyTotp(totp)
 
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
@@ -760,6 +778,22 @@ $ ->
             ladda = Ladda.create $("#login_button")[0]
             ladda.stop()
             $("#login_error").text(locale.translate("alerts/bad_username_pw", ractive.get("sputnik.profile.locale"))).show()
+
+        sputnik.on "verify_totp_success", (result) ->
+            $('#enable-totp-modal').hide()
+            sputnik.getProfile()
+
+        sputnik.on "disable_totp_success", (result) ->
+            sputnik.getProfile()
+
+        sputnik.on "verify_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+
+        sputnik.on "disable_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+
+        sputnik.on "enable_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
 
         sputnik.on "cookie_login_fail", (error) ->
             sputnik.log ["cookie login failed", error]

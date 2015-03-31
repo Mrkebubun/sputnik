@@ -544,6 +544,22 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="enable-totp-modal" aria-hidden="true" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">{{translate("account/profile/titles/enable_totp", sputnik.profile.locale)}}</h4>
+                </div>
+                <div class="modal-body">
+                    <div intro="show_totp_secret:{{sputnik.totp}},{{sputnik.username}}.{{sputnik.exchange_info.exchange_name}}" id="totp_qr_code"></div>
+                    <input class="form-control" id="totp" value="{{totp}}">
+                    <a href="#" class="button-link-box3" on-click="verify_totp:{{totp}}">{{translate("account/profile/buttons/verify_totp", sputnik.profile.locale)}}</a>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="page-account">
         <div class="row">
             <div class="col-xs-12">
@@ -1347,6 +1363,18 @@
                                     <div class="row form-row">
                                         <div class="col-sm-12 form-label">
                                             <a href="#" class="button-link-box3" data-toggle="modal" data-target="#api-credentials-modal" on-click="get_new_api_credentials">{{translate("account/profile/buttons/get_new_api_credentials", sputnik.profile.locale)}}</a>
+                                        </div>
+                                    </div>
+                                    <h4 class="heading-sub2">{{translate("account/profile/titles/totp", sputnik.profile.locale)}}</h4>
+                                    <div class="row form-row">
+                                        <div class="col-sm-12 form-label">
+                                            <input class="form-control" id="totp" value="{{totp}}">
+                                            {{#if sputnik.profile.totp_enabled}}
+                                                <a href="#" class="button-link-box3" on-click="disable_totp:{{totp}}">{{translate("account/profile/buttons/disable_totp", sputnik.profile.locale)}}</a>
+                                            {{else}}
+                                                <a href="#" class="button-link-box3" data-toggle="modal" data-target="#enable-totp-modal" on-click="enable_totp">{{translate("account/profile/buttons/enable_totp", sputnik.profile.locale)}}</a>
+                                                <a href="#" class="button-link-box3" on-click="verify_totp:{{totp}}">{{translate("account/profile/buttons/verify_totp", sputnik.profile.locale)}}</a>
+                                            {{/if}}
                                         </div>
                                     </div>
                                 </div>

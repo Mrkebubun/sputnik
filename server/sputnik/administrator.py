@@ -281,7 +281,8 @@ class Administrator:
                    'nickname': user.nickname,
                    'locale': user.locale,
                    'audit_secret': user.audit_secret,
-                   'notifications': notifications
+                   'notifications': notifications,
+                   'totp_enabled': user.totp_enabled
         }
         return profile
 
