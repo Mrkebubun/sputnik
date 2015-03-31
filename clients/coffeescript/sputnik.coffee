@@ -119,6 +119,27 @@ class @Sputnik extends EventEmitter
             , (error) =>
                 @emit "make_account_fail", error
 
+    enableTotp: () =>
+        @call("rpc.token.enable_totp").then \
+            (result) =>
+                @emit "enable_totp_success", result
+            , (error) =>
+                @emit "enable_totp_fail", error
+
+    verifyTotp: (otp) =>
+        @call("rpc.token.verify_totp", otp).then \
+            (result) =>
+                @emit "verify_totp_success", result
+            , (error) =>
+                @emit "verify_totp_fail", error
+
+    disableTotp: (otp) =>
+        @call("rpc.token.disable_totp", otp).then \
+            (result) =>
+                @emit "disable_totp_success", result
+            , (error) =>
+                @emit "disable_totp_fail", error
+
     getProfile: () =>
         @call("rpc.trader.get_profile").then (@profile) =>
             @emit "profile", @profile
