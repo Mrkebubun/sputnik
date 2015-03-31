@@ -131,6 +131,9 @@ $ ->
 
     uri = ws_protocol + "//" + hostname + ":#{port}" + "/ws"
 
+    # FOR CLIENT DEV
+    uri = "wss://demo.m2.io:8443/ws"
+
     sputnik = new Sputnik uri
     window.sputnik = sputnik
     
@@ -171,6 +174,10 @@ $ ->
         sputnik.log ["simple_widget", simple_widget]
         template_url = "templates/#{simple_widget}.html"
         widget_contract = getQueryKey('contract')
+        widget_background = getQueryKey('background')
+        if widget_background?
+            $(document.body).attr("style", "background-color: #" + widget_background)
+
         sputnik.log ["widget_contract", widget_contract]
     else
         template_url = 'templates/full.html'
