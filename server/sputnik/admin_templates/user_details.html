@@ -225,6 +225,30 @@ $ ->
 
 <div class="container">
     <div class="panel panel-primary">
+        <div class="panel-heading">30 Day Trade Volume</div>
+        <div class="panel-body">
+            <table id="trade-volume" class="table table-stripes table-hover">
+                <thead>
+                    <th>Contract</th>
+                    <th>Maker</th>
+                    <th>Taker</th>
+                </thead>
+                <tbody>
+                    {% for contract, volume in trade_volume.iteritems() %}
+                    <tr>
+                        <td>{{contract.ticker}}</td>
+                        <td>{{volume.passive}}</td>
+                        <td>{{volume.aggressive}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="panel panel-primary">
         <div class="panel-heading">Open support tickets for {{user.username}}</div>
         <div class="panel-body">
             <table id="support_tickets" class="table table-stripes table-hover">

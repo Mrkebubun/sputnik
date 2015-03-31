@@ -1238,6 +1238,39 @@ class Administrator:
 
         return postings, postings_pages
 
+
+    @util.timed
+    def get_trade_volume(self, user, start_datetime, end_datetime):
+
+        passive = self.session.execute("SELECT contracts.ticker, SUM(trades.quantity) AS quantity FROM trades "
+                                       "JOIN orders ON orders.id = trades.passive_order_id "
+                                       "JOIN contracts ON contracts.id = trades.contract_id "
+                                       "WHERE orders.username=:username AND trades.timestamp >= :start AND trades.timestamp <= :end "
+                                       "GROUP BY contracts.ticker",
+                                       {'username': user.username,
+                                        'start': start_datetime,
+                                        'end': end_datetime}).fetchall()
+
+        aggressive = self.session.execute("SELECT contracts.ticker, SUM(trades.quantity) AS quantity FROM trades "
+                                       "JOIN orders ON orders.id = trades.aggressive_order_id "
+                                       "JOIN contracts ON contracts.id = trades.contract_id "
+                                       "WHERE orders.username=:username AND trades.timestamp >= :start AND trades.timestamp <= :end "
+                                       "GROUP BY contracts.ticker",
+                                       {'username': user.username,
+                                        'start': start_datetime,
+                                        'end': end_datetime}).fetchall()
+        trade_volume = collections.defaultdict(dict)
+        for row in passive:
+            contract = util.get_contract(self.session, row['ticker'])
+            trade_volume[contract]['passive'] = util.quantity_fmt(contract, int(row['quantity']))
+
+        for row in aggressive:
+            contract = util.get_contract(self.session, row['ticker'])
+            trade_volume[contract]['aggressive'] = util.quantity_fmt(contract, int(row['quantity']))
+
+
+        return trade_volume
+
     def change_permission_group(self, username, id):
         """Change the permission group for a user
 
@@ -2023,6 +2056,9 @@ class AdminWebUI(Resource):
 
         orders, order_pages = self.administrator.get_orders(user, page=orders_page)
         fee_groups = self.administrator.get_fee_groups()
+        start_timestamp = datetime.utcnow() - timedelta(days=30)
+        end_timestamp = datetime.utcnow()
+        trade_volume = self.administrator.get_trade_volume(user, start_timestamp, end_timestamp)
 
         t = self.jinja_env.get_template('user_details.html')
         rendered = t.render(user=user,
@@ -2030,7 +2066,8 @@ class AdminWebUI(Resource):
                             fee_groups=fee_groups,
                             debug=self.administrator.component.debug, permission_groups=permission_groups,
                             orders=orders, order_pages=order_pages, orders_page=orders_page,
-                            min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10))
+                            min_range=max(orders_page - 10, 0), max_range=min(order_pages, orders_page + 10),
+                            trade_volume=trade_volume)
         return rendered.encode('utf-8')
 
     def adjust_position(self, request):
@@ -2121,6 +2158,10 @@ class AdminWebExport(ComponentExport):
     def __init__(self, administrator):
         self.administrator = administrator
         ComponentExport.__init__(self, administrator)
+
+    @session_aware
+    def get_trade_volume(self, user, start_datetime, end_datetime):
+        return self.administrator.get_trade_volume(user, start_datetime, end_datetime)
 
     @session_aware
     def bitgo_oauth_token(self, code, admin_user):
