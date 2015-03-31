@@ -198,10 +198,12 @@ class @Sputnik extends EventEmitter
                 @authextra = extra
                 key = autobahn.auth_cra.derive_key password, extra.salt
                 signature = autobahn.auth_cra.sign key, extra.challenge
-		return
-		    signature: signature
-		    extra:
-		        otp: otp
+                result =
+                    signature: signature
+                    extra:
+                        otp: otp
+            else
+                @wtf "unknown method #{method}"
 
         @session.leave "sputnik.internal.rejoin"
 
