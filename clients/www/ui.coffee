@@ -770,7 +770,7 @@ $ ->
             $("#login_error").text(locale.translate("alerts/bad_username_pw", ractive.get("sputnik.profile.locale"))).show()
 
         sputnik.on "verify_totp_success", (result) ->
-            $('#enable-totp-modal').hide()
+            $('#enable-totp-modal').modal('hide')
             sputnik.getProfile()
 
         sputnik.on "enable_totp_success", (secret) ->
@@ -781,9 +781,10 @@ $ ->
             $('#totp_qr_code').empty()
             username_encoded = encodeURIComponent(username)
             exchange_encoded = encodeURIComponent(exchange_name)
-            secret_encoded = encodeURIComponent(secret)
+            # Google Authenticator doesn't like '=' ?
+            secret_encoded = encodeURIComponent(secret.replace(/\=/g, ''))
 
-            uri = "otpauth://totp/#{username.encoded}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
+            uri = "otpauth://totp/#{username_encoded}@#{location.hostname}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
 
             $('#totp_qr_code').qrcode(uri)
 
@@ -798,6 +799,7 @@ $ ->
 
         sputnik.on "enable_totp_fail", (error) ->
             bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+            $('#enable-totp-modal').modal('hide')
 
         sputnik.on "cookie_login_fail", (error) ->
             sputnik.log ["cookie login failed", error]

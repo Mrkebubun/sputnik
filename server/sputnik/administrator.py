@@ -541,7 +541,8 @@ class Administrator:
             if user.totp_last >= now + i:
                 # token reuse is not allowed
                 continue
-            if compute_totp(secret, i) == otp:
+            computed = compute_totp(secret, i)
+            if computed == otp:
                 user.totp_last = now + i
                 self.session.commit()
                 return True
