@@ -783,7 +783,7 @@ $ ->
             exchange_encoded = encodeURIComponent(exchange_name)
             secret_encoded = encodeURIComponent(secret)
 
-            uri = "otpauth://totp/#{location.hostname}/#{username_encoded}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
+            uri = "otpauth://totp/#{username.encoded}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
 
             $('#totp_qr_code').qrcode(uri)
 
