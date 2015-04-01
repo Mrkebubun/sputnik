@@ -253,16 +253,6 @@ $ ->
                     $('#qr_code').empty()
                     $('#qr_code').qrcode("bitcoin:" + address)
                     t.complete()
-                show_totp_secret: (t, secret, username, exchange_name) ->
-                    $('#totp_qr_code').empty()
-                    uri = "otpauth://totp/" +
-                        location.hostname + "/" +
-                        encodeURIComponent(username) + "?" +
-                        "issuer=" +
-                        encodeURIComponent(exchange_name) + "&" +
-                        "secret=" +
-                        encodeURIComponent(secret)
-                    $('#totp_qr_code').qr_code(uri)
 
             adapt: [Ractive.adaptors.Sputnik]
             debug: true
@@ -782,6 +772,20 @@ $ ->
         sputnik.on "verify_totp_success", (result) ->
             $('#enable-totp-modal').hide()
             sputnik.getProfile()
+
+        sputnik.on "enable_totp_success", (secret) ->
+            sputnik.log ['totp_secret', secret]
+            username = ractive.get("sputnik.username")
+            exchange_name = ractive.get("sputnik.exchange_info.exchange_name")
+
+            $('#totp_qr_code').empty()
+            username_encoded = encodeURIComponent(username)
+            exchange_encoded = encodeURIComponent(exchange_name)
+            secret_encoded = encodeURIComponent(secret)
+
+            uri = "otpauth://totp/#{location.hostname}/#{username_encoded}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
+
+            $('#totp_qr_code').qrcode(uri)
 
         sputnik.on "disable_totp_success", (result) ->
             sputnik.getProfile()

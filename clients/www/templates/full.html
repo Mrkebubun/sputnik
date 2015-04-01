@@ -553,8 +553,8 @@
                     <h4 class="modal-title">{{translate("account/profile/titles/enable_totp", sputnik.profile.locale)}}</h4>
                 </div>
                 <div class="modal-body">
-                    <div intro="show_totp_secret:{{sputnik.totp}},{{sputnik.username}}.{{sputnik.exchange_info.exchange_name}}" id="totp_qr_code"></div>
-                    <input class="form-control" id="totp" value="{{totp}}">
+                    <div id="totp_qr_code"></div>
+                    <input class="form-control" value="{{totp}}" size="8">
                     <a href="#" class="button-link-box3" on-click="verify_totp:{{totp}}">{{translate("account/profile/buttons/verify_totp", sputnik.profile.locale)}}</a>
                 </div>
             </div>
@@ -1368,7 +1368,7 @@
                                     <h4 class="heading-sub2">{{translate("account/profile/titles/totp", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
                                         <div class="col-sm-12 form-label">
-                                            <input class="form-control" id="totp" value="{{totp}}">
+                                            <input class="form-control" value="{{totp}}" size="8">
                                             {{#if sputnik.profile.totp_enabled}}
                                                 <a href="#" class="button-link-box3" on-click="disable_totp:{{totp}}">{{translate("account/profile/buttons/disable_totp", sputnik.profile.locale)}}</a>
                                             {{else}}
