@@ -176,7 +176,7 @@
                     "get_new_api_credentials": "New Credentials",
                     "enable_totp": "Enable One-Time Password",
                     "verify_totp": "Verify One-Time Password",
-                    "disable_totp": "Disable One-Time Password",
+                    "disable_totp": "Disable One-Time Password"
                 }
             },
             "audit": {
