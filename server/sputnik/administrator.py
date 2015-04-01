@@ -49,7 +49,7 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
 from datetime import timedelta
-from autobahn.wamp.auth import derive_key, compute_totp
+from autobahn.wamp.auth import derive_key, compute_totp, generate_totp_secret
 from twisted.web.static import File
 import config
 import database
@@ -445,8 +445,7 @@ class Administrator:
         if user.totp_enabled:
             raise TOTP_ALREADY_ENABLED
 
-        secret = base64.b32encode("".join(
-            chr(getrandbits(8)) for i in range(16)))
+        secret = generate_totp_secret()
         user.totp_secret = secret
         self.session.commit()
         return secret
