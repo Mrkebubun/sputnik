@@ -139,7 +139,10 @@ class @Sputnik extends EventEmitter
     disableTotp: (otp) =>
         @call("rpc.token.disable_totp", otp).then \
             (result) =>
-                @emit "disable_totp_success", result
+                if result
+                    @emit "disable_totp_success", result
+                else
+                    @emit "disable_totp_fail", ['exceptions/invalid_otp']
             , (error) =>
                 @emit "disable_totp_fail", error
 
