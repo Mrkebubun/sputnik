@@ -3595,9 +3595,9 @@ var Session = function (socket, defer, onchallenge) {
                when_fn.call(self._onchallenge, self, method, extra).then(
                   function (result) {
                      if (result instanceof Object)
-                        var msg = [MSG_TYPE.AUTHENTICATE, signature, {}];
-                     else
                         var msg = [MSG_TYPE.AUTHENTICATE, result.signature, result.extra];
+                     else
+                        var msg = [MSG_TYPE.AUTHENTICATE, result, {}];
                      self._send_wamp(msg);
                   },
                   function (err) {
@@ -7883,7 +7883,7 @@ exports.http_post = http_post;
 	        var dataSigBytes = data.sigBytes;
 	        var blockSizeBytes = blockSize * 4;
 
-	        // Count padding bytes
+	  MSG_TYPE      // Count padding bytes
 	        var nPaddingBytes = blockSizeBytes - dataSigBytes % blockSizeBytes;
 
 	        // Compute last byte position
