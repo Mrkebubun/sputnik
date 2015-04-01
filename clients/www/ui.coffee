@@ -626,10 +626,12 @@ $ ->
 
             disable_totp: (event, totp) ->
                 event.original.preventDefault()
+                ractive.set("totp", '')
                 sputnik.disableTotp(totp)
 
             verify_totp: (event, totp) ->
                 event.original.preventDefault()
+                ractive.set('totp', '')
                 sputnik.verifyTotp(totp)
 
 
@@ -781,12 +783,11 @@ $ ->
             $('#totp_qr_code').empty()
             username_encoded = encodeURIComponent(username)
             exchange_encoded = encodeURIComponent(exchange_name)
-            # Google Authenticator doesn't like '=' ?
-            secret_encoded = encodeURIComponent(secret.replace(/\=/g, ''))
 
-            uri = "otpauth://totp/#{username_encoded}@#{location.hostname}?issuer=#{exchange_encoded}&secret=#{secret_encoded}"
+            uri = "otpauth://totp/#{username_encoded}?issuer=#{exchange_encoded}&secret=#{secret}"
 
             $('#totp_qr_code').qrcode(uri)
+            $('#totp_secret').text secret
 
         sputnik.on "disable_totp_success", (result) ->
             sputnik.getProfile()

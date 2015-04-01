@@ -554,8 +554,13 @@
                 </div>
                 <div class="modal-body">
                     <div id="totp_qr_code"></div>
-                    <input class="form-control" value="{{totp}}" size="8">
-                    <a href="#" class="button-link-box3" on-click="verify_totp:{{totp}}">{{translate("account/profile/buttons/verify_totp", sputnik.profile.locale)}}</a>
+
+                    <p>Using <a href="https://support.google.com/accounts/answer/1066447?hl=en">Google Authenticator</a>
+                        or another OATH TOTP application of your choice, add an account using the QR code above
+                        or configure a 'Time-based' account using this secret <code><span id="totp_secret"></span></code>.
+                        Then to verify that it worked and enable, enter the code the application gives you below,</p>
+
+                    <input class="form-control" value="{{totp}}" size="8" on-enter="verify_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/verify_totp', sputnik.profile.locale)}}">
                 </div>
             </div>
         </div>
@@ -1368,12 +1373,19 @@
                                     <h4 class="heading-sub2">{{translate("account/profile/titles/totp", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
                                         <div class="col-sm-12 form-label">
-                                            <input class="form-control" value="{{totp}}" size="8">
                                             {{#if sputnik.profile.totp_enabled}}
-                                                <a href="#" class="button-link-box3" on-click="disable_totp:{{totp}}">{{translate("account/profile/buttons/disable_totp", sputnik.profile.locale)}}</a>
+                                                <input class="form-control" value="{{totp}}" on-enter="disable_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/disable_totp', sputnik.profile.locale)}}">
                                             {{else}}
-                                                <a href="#" class="button-link-box3" data-toggle="modal" data-target="#enable-totp-modal" on-click="enable_totp">{{translate("account/profile/buttons/enable_totp", sputnik.profile.locale)}}</a>
-                                                <a href="#" class="button-link-box3" on-click="verify_totp:{{totp}}">{{translate("account/profile/buttons/verify_totp", sputnik.profile.locale)}}</a>
+                                                <div class="row form-row">
+                                                    <div class="col-sm-12 form-label">
+                                                        <a href="#" class="button-link-box3" data-toggle="modal" data-target="#enable-totp-modal" on-click="enable_totp">{{translate("account/profile/buttons/enable_totp", sputnik.profile.locale)}}</a>
+                                                    </div>
+                                                </div>
+                                                <div class="row form-row">
+                                                    <div class="col-sm-12 form-label">
+                                                        <input class="form-control" value="{{totp}}" on-enter="verify_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/verify_totp', sputnik.profile.locale)}}">
+                                                    </div>
+                                                </div>
                                             {{/if}}
                                         </div>
                                     </div>
