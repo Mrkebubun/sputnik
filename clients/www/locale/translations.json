@@ -160,7 +160,9 @@
                     "api_key": "API Key",
                     "api_secret": "API Secret",
                     "expiration": "Expiration",
-                    "api_docs": "API Documentation"
+                    "api_docs": "API Documentation",
+                    "enable_totp": "Enable One-Time Password",
+                    "totp": "One-Time Password"
                 },
                 "notifications": {
                     "fill": "Fill",
@@ -171,7 +173,10 @@
                 "buttons": {
                     "update": "Update Profile",
                     "change_password": "Change Password",
-                    "get_new_api_credentials": "New Credentials"
+                    "get_new_api_credentials": "New Credentials",
+                    "enable_totp": "Enable One-Time Password",
+                    "verify_totp": "Verify One-Time Password",
+                    "disable_totp": "Disable One-Time Password",
                 }
             },
             "audit": {
