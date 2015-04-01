@@ -129,7 +129,10 @@ class @Sputnik extends EventEmitter
     verifyTotp: (otp) =>
         @call("rpc.token.verify_totp", otp).then \
             (result) =>
-                @emit "verify_totp_success", result
+                if result
+                    @emit "verify_totp_success", result
+                else
+                    @emit "verify_totp_fail", ['exceptions/invalid_otp']
             , (error) =>
                 @emit "verify_totp_fail", error
 
