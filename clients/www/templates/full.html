@@ -733,6 +733,20 @@
                                     </div>
                                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > 0}}
                                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) <= sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
+                                    {{#if sputnik.profile.totp_enabled}}
+                                    <div class="row">
+                                        <div class="col-sm-5 deposit-content">
+                                            <div class="row form-row content-pull">
+                                                <div class="col-sm-5 form-label">
+                                                    <p>{{translate('account/profile/titles/totp', sputnik.profile.locale)}}</p>
+                                                </div>
+                                                <div class="col-sm-7">
+                                                    <input class="form-control" value="{{totp}}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {{/if}}
                                     {{#if current_currency == "BTC"}}
                                     <div class="row">
                                         <div class="col-sm-5 deposit-content">
@@ -1366,28 +1380,29 @@
                                 <div class="col-sm-5 deposit-content">
                                     <h4 class="heading-sub2">{{translate("account/profile/titles/api_credentials", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
-                                        <div class="col-sm-12 form-label">
+                                        <div class="col-sm-6 form-label">
+                                            {{#if sputnik.profile.totp_enabled}}
+                                            <input class="form-control" value="{{totp}}" placeholder="{{translate('account/profile/titles/totp', sputnik.profile.locale)}}">
+                                            {{/if}}
+                                        </div>
+                                        <div class="col-sm-6 form-label">
                                             <a href="#" class="button-link-box3" data-toggle="modal" data-target="#api-credentials-modal" on-click="get_new_api_credentials">{{translate("account/profile/buttons/get_new_api_credentials", sputnik.profile.locale)}}</a>
                                         </div>
                                     </div>
                                     <h4 class="heading-sub2">{{translate("account/profile/titles/totp", sputnik.profile.locale)}}</h4>
                                     <div class="row form-row">
-                                        <div class="col-sm-12 form-label">
-                                            {{#if sputnik.profile.totp_enabled}}
-                                                <input class="form-control" value="{{totp}}" on-enter="disable_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/disable_totp', sputnik.profile.locale)}}">
-                                            {{else}}
-                                                <div class="row form-row">
-                                                    <div class="col-sm-12 form-label">
-                                                        <a href="#" class="button-link-box3" data-toggle="modal" data-target="#enable-totp-modal" on-click="enable_totp">{{translate("account/profile/buttons/enable_totp", sputnik.profile.locale)}}</a>
-                                                    </div>
-                                                </div>
-                                                <div class="row form-row">
-                                                    <div class="col-sm-12 form-label">
-                                                        <input class="form-control" value="{{totp}}" on-enter="verify_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/verify_totp', sputnik.profile.locale)}}">
-                                                    </div>
-                                                </div>
-                                            {{/if}}
+                                        {{#if sputnik.profile.totp_enabled}}
+                                        <div class="col-sm-6 form-label">
+                                            <input class="form-control" value="{{totp}}" on-enter="disable_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/disable_totp', sputnik.profile.locale)}}">
                                         </div>
+                                        {{else}}
+                                        <div class="col-sm-6 form-label">
+                                            <a href="#" class="button-link-box3" data-toggle="modal" data-target="#enable-totp-modal" on-click="enable_totp">{{translate("account/profile/buttons/enable_totp", sputnik.profile.locale)}}</a>
+                                        </div>
+                                        <div class="col-sm-6 form-label">
+                                            <input class="form-control" value="{{totp}}" on-enter="verify_totp:{{totp}}" placeholder="{{translate('account/profile/buttons/verify_totp', sputnik.profile.locale)}}">
+                                        </div>
+                                        {{/if}}
                                     </div>
                                 </div>
                             </div>

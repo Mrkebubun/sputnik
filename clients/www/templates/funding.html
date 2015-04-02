@@ -117,6 +117,20 @@
                     </div>
                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > 0}}
                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) <= sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
+                    {{#if sputnik.profile.totp_enabled}}
+                    <div class="row">
+                        <div class="col-sm-5 deposit-content">
+                            <div class="row form-row content-pull">
+                                <div class="col-sm-5 form-label">
+                                    <p>{{translate('account/profile/titles/totp', sputnik.profile.locale)}}</p>
+                                </div>
+                                <div class="col-sm-7">
+                                    <input class="form-control" value="{{totp}}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
                     {{#if current_currency == "BTC"}}
                     <div class="row">
                         <div class="col-sm-5 deposit-content">

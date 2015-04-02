@@ -230,7 +230,7 @@ class TraderService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/trader.json#request_withdrawal")
-    def request_withdrawal(self, contract, amount, address, username=None):
+    def request_withdrawal(self, contract, amount, address, totp=None, username=None):
         """
         Makes a note in the database that a withdrawal needs to be processed
         :param contract: the currency to process the withdrawal in
@@ -241,8 +241,12 @@ class TraderService(ServicePlugin):
         if amount <= 0:
             raise WebserverException("exceptions/webserver/invalid-withdrawal-amount")
 
-        result = yield self.accountant.proxy.request_withdrawal(username, contract, amount, address)
-        returnValue(result)
+        totp_result = yield self.administrator.proxy.check_totp(username, totp)
+        if totp_result:
+            result = yield self.accountant.proxy.request_withdrawal(username, contract, amount, address)
+            returnValue(result)
+        else:
+            raise WebserverException("exceptions/webserver/invalid_otp")
 
     @wamp.register(u"rpc.trader.get_positions")
     @error_handler

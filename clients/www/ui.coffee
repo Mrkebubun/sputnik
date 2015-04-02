@@ -318,6 +318,8 @@ $ ->
                 event.original.preventDefault()
                 ticker = ractive.get("current_currency")
                 amount = locale.parseNumber($('#withdraw-amount').val(), ractive.get("sputnik.profile.locale"))
+                totp = ractive.get("totp")
+
                 if type == "crypto"
                     address = $('#crypto_address').val()
                     confirm_address = $('#crypto_confirm_address').val()
@@ -343,7 +345,7 @@ $ ->
                         country: $('#withdraw-country').val()
                     address = JSON.stringify(address_obj)
 
-                sputnik.requestWithdrawal(ticker, amount, address)
+                sputnik.requestWithdrawal(ticker, amount, address, totp)
 
             buykey: (event) ->
                 buy_price_str = ractive.get("buy_price")
@@ -618,7 +620,8 @@ $ ->
 
             get_new_api_credentials: (event) ->
                 event.original.preventDefault()
-                sputnik.getNewAPICredentials()
+                totp = ractive.get("totp")
+                sputnik.getNewAPICredentials(totp)
 
             enable_totp: (event) ->
                 event.original.preventDefault()
@@ -788,6 +791,10 @@ $ ->
 
             $('#totp_qr_code').qrcode(uri)
             $('#totp_secret').text secret
+
+        sputnik.on "api_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+            $('#api-credentials-modal').modal('hide')
 
         sputnik.on "disable_totp_success", (result) ->
             sputnik.getProfile()
