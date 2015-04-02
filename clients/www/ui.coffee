@@ -979,7 +979,7 @@ $ ->
 
             # Log me in
             @log "trying to reauth as #{username}"
-            sputnik.authenticate username, $('#new_password_token').val()
+            sputnik.authenticate username, $('#new_password_token').val(), $('#new_password_otp').val()
 
         sputnik.on "change_password_success", (message) ->
             ga('send', 'event', 'password', 'change_password_success')
