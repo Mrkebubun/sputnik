@@ -222,7 +222,7 @@ class RactiveSputnikWrapper
 
         sputnik.on "ohlcv_history", (ohlcv_history) =>
             @sputnik.log ["ohlcv_history", ohlcv_history]
-            keys = Object.keys(ohlcv_history)
+            keys = Object.keys(ohlcv_history).sort()
             if keys.length
                 last_key = keys[keys.length-1]
                 ohlcv = ohlcv_history[last_key]
