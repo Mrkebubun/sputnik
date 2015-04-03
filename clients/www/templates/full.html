@@ -165,7 +165,7 @@
                                                     <div class="row">
                                                         <div class="col-xs-12 col-sm-6 contract-overview-info2">
                                                                 <p class="grey-header" id="denominated_ticker">{{sputnik.markets[current_ticker].denominated_contract_ticker}}</p>
-                                                                <p class="first-line2" id="denominated_balance">{{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker]), sputnik.profile.locale)}}</p>
+                                                                <p class="first-line2" id="denominated_balance">{{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, max(0, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker])), sputnik.profile.locale)}}</p>
                                                         </div>
                                                         <div class="col-xs-12 col-sm-6 contract-overview-info2">
                                                                 <p class="grey-header" id="payout_ticker">{{sputnik.markets[current_ticker].payout_contract_ticker}}</p>
@@ -680,7 +680,7 @@
                                             <p class="text-balance"> <strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position, sputnik.profile.locale)}}</strong></p>
                                         </div>
                                         <div class="col-sm-4">
-                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance_available", sputnik.profile.locale)}}:</p> <p class="text-balance"><strong>{{format_quantity(current_currency, sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency]), sputnik.profile.locale)}}</strong></p>
+                                            <p class="text-balance">{{current_currency}} {{translate("account/funding_history/titles/balance_available", sputnik.profile.locale)}}:</p> <p class="text-balance"><strong>{{format_quantity(current_currency, max(sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])), sputnik.profile.locale)}}</strong></p>
                                         </div>
                                     </div>
                                    
