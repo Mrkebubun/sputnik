@@ -180,6 +180,10 @@ $ ->
         sputnik.log ["simple_widget", simple_widget]
         template_url = "templates/#{simple_widget}.html"
         widget_contract = getQueryKey('contract')
+        widget_background = getQueryKey('background')
+        if widget_background?
+            $(document.body).attr("style", "background-color: #" + widget_background)
+
         sputnik.log ["widget_contract", widget_contract]
     else
         template_url = 'templates/full.html'
@@ -323,6 +327,8 @@ $ ->
                 event.original.preventDefault()
                 ticker = ractive.get("current_currency")
                 amount = locale.parseNumber($('#withdraw-amount').val(), ractive.get("sputnik.profile.locale"))
+                totp = ractive.get("totp")
+
                 if type == "crypto"
                     address = $('#crypto_address').val()
                     confirm_address = $('#crypto_confirm_address').val()
@@ -348,7 +354,7 @@ $ ->
                         country: $('#withdraw-country').val()
                     address = JSON.stringify(address_obj)
 
-                sputnik.requestWithdrawal(ticker, amount, address)
+                sputnik.requestWithdrawal(ticker, amount, address, totp)
 
             buykey: (event) ->
                 buy_price_str = ractive.get("buy_price")
@@ -553,6 +559,7 @@ $ ->
 
                 username = $("#login_username").val()
                 password = $("#login_password").val()
+                otp = $("#login_otp").val()
 
                 if username is ''
                     $("#login_error").text(locale.translate("alerts/invalid_username", ractive.get("sputnik.profile.locale"))).show()
@@ -560,7 +567,7 @@ $ ->
                     $("#login_error").hide()
                     ladda = Ladda.create $("#login_button")[0]
                     ladda.start()
-                    sputnik.authenticate username, password
+                    sputnik.authenticate username, password, otp
                     $('#login_modal .alert:visible').hide()
 
             register: (event) ->
@@ -620,10 +627,24 @@ $ ->
             sort_all_orders: (event, column) ->
                 ractive.set("all_orders_sort_column", column)
 
-
             get_new_api_credentials: (event) ->
                 event.original.preventDefault()
-                sputnik.getNewAPICredentials()
+                totp = ractive.get("totp")
+                sputnik.getNewAPICredentials(totp)
+
+            enable_totp: (event) ->
+                event.original.preventDefault()
+                sputnik.enableTotp()
+
+            disable_totp: (event, totp) ->
+                event.original.preventDefault()
+                ractive.set("totp", '')
+                sputnik.disableTotp(totp)
+
+            verify_totp: (event, totp) ->
+                event.original.preventDefault()
+                ractive.set('totp', '')
+                sputnik.verifyTotp(totp)
 
 
         ractive.observe "current_ticker", (new_ticker, old_ticker, path) ->
@@ -762,6 +783,41 @@ $ ->
             ladda.stop()
             $("#login_error").text(locale.translate("alerts/bad_username_pw", ractive.get("sputnik.profile.locale"))).show()
 
+        sputnik.on "verify_totp_success", (result) ->
+            $('#enable-totp-modal').modal('hide')
+            sputnik.getProfile()
+
+        sputnik.on "enable_totp_success", (secret) ->
+            sputnik.log ['totp_secret', secret]
+            username = ractive.get("sputnik.username")
+            exchange_name = ractive.get("sputnik.exchange_info.exchange_name")
+
+            $('#totp_qr_code').empty()
+            username_encoded = encodeURIComponent(username)
+            exchange_encoded = encodeURIComponent(exchange_name)
+
+            uri = "otpauth://totp/#{username_encoded}?issuer=#{exchange_encoded}&secret=#{secret}"
+
+            $('#totp_qr_code').qrcode(uri)
+            $('#totp_secret').text secret
+
+        sputnik.on "api_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+            $('#api-credentials-modal').modal('hide')
+
+        sputnik.on "disable_totp_success", (result) ->
+            sputnik.getProfile()
+
+        sputnik.on "verify_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+
+        sputnik.on "disable_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+
+        sputnik.on "enable_totp_fail", (error) ->
+            bootbox.alert locale.translate(error[0], ractive.get("sputnik.profile.locale"))
+            $('#enable-totp-modal').modal('hide')
+
         sputnik.on "cookie_login_fail", (error) ->
             sputnik.log ["cookie login failed", error]
             expireCookie('login')
@@ -771,7 +827,7 @@ $ ->
             # do not clear the modal yet, do it in auth_success
             username = $("#register_email").val()
             password = $("#register_password").val()
-            sputnik.authenticate username, password
+            sputnik.authenticate username, password, null
 
         sputnik.on "make_account_fail", (error) ->
             ga('send', 'event', 'register', 'failure', error[0])
@@ -932,7 +988,7 @@ $ ->
 
             # Log me in
             @log "trying to reauth as #{username}"
-            sputnik.authenticate username, $('#new_password_token').val()
+            sputnik.authenticate username, $('#new_password_token').val(), $('#new_password_otp').val()
 
         sputnik.on "change_password_success", (message) ->
             ga('send', 'event', 'password', 'change_password_success')

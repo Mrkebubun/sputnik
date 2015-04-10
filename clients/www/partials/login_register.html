@@ -16,10 +16,9 @@
                 <div class="tab-content">
                     <div class="tab-pane active" id="login_tab" on-enter="login">
                         <form class="form-signin content-push4" role="form">
-                            <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required
-                                   autofocus><br>
-                            <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}"
-                            required><br>
+                            <input type="text" class="form-control" id="login_username" placeholder="{{translate('fields/email', sputnik.profile.locale)}}" required autofocus><br>
+                            <input type="password" class="form-control" id="login_password" placeholder="{{translate('fields/password', sputnik.profile.locale)}}" required><br>
+                            <input type="text" class="form-control" id="login_otp" placeholder="{{translate('fields/otp', sputnik.profile.locale)}}"><br>
                             <a href="#" id="get_reset_token" on-click="get_reset_token">{{translate("buttons/reset_password", sputnik.profile.locale)}}</a>
                         </form>
                         <div class="alert alert-warning" style="display:none" id="login_error">

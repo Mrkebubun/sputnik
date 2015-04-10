@@ -33,7 +33,8 @@
             "password_reset": "Password reset",
             "profile_changed": "Profile changed",
             "invalid_email": "Invalid email address",
-            "full_ui_restricted": "Access to full user interface restricted. Please contact support for help"
+            "full_ui_restricted": "Access to full user interface restricted. Please contact support for help",
+            "invalid_otp": "Invalid OTP"
         },
         "buttons": {
             "buy": "Buy",
@@ -46,6 +47,7 @@
         "fields": {
             "username": "Username",
             "password": "Password",
+            "otp": "One Time Password (optional)",
             "email": "Email",
             "nickname": "Nickname",
             "new_password": "New Password",
@@ -159,7 +161,9 @@
                     "api_key": "API Key",
                     "api_secret": "API Secret",
                     "expiration": "Expiration",
-                    "api_docs": "API Documentation"
+                    "api_docs": "API Documentation",
+                    "enable_totp": "Enable OTP",
+                    "totp": "One Time Password"
                 },
                 "notifications": {
                     "fill": "Fill",
@@ -170,7 +174,10 @@
                 "buttons": {
                     "update": "Update Profile",
                     "change_password": "Change Password",
-                    "get_new_api_credentials": "New Credentials"
+                    "get_new_api_credentials": "New Credentials",
+                    "enable_totp": "Enable OTP",
+                    "verify_totp": "Verify OTP",
+                    "disable_totp": "Disable OTP"
                 }
             },
             "audit": {
@@ -359,7 +366,8 @@
             },
             "webserver": {
                 "invalid_price_quantity": "Invalid Price/Quantity",
-                "get_profile_failed": "Get profile failed"
+                "get_profile_failed": "Get profile failed",
+                "invalid_otp": "Invalid One Time Password"
             },
             "zendesk": {
                 "zendesk_error": "Zendesk Error"
