@@ -1,1 +1,1 @@
-../../github/clients/coffeescript/sputnik.coffee
+../coffeescript/sputnik.coffee

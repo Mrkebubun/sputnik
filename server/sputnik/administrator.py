@@ -1,5 +1,11 @@
 #!/usr/bin/python
-
+#
+# Copyright 2014 Mimetic Markets, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
 """
 The administrator modifies database objects. It is allowed to access User
     objects. For other objects it delegates to appropriate services. This
@@ -10,7 +16,8 @@ The interface is exposed with ZMQ RPC running under Twisted. Many of the RPC
 
 """
 
-import sys, os
+import sys
+import os
 import collections
 from datetime import datetime
 import json
@@ -21,7 +28,6 @@ import time
 import Crypto.Random.random
 from dateutil import parser
 import cgi
-
 from twisted.web.resource import Resource, IResource
 from twisted.web.server import Site
 from twisted.web.guard import HTTPAuthSessionWrapper, DigestCredentialFactory
@@ -43,9 +49,8 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from dateutil import parser
 from datetime import timedelta
-from autobahn.wamp.auth import derive_key, compute_totp
+from autobahn.wamp.auth import derive_key, compute_totp, generate_totp_secret
 from twisted.web.static import File
-
 import config
 import database
 import models
@@ -53,11 +58,8 @@ from util import ChainedOpenSSLContextFactory
 import util
 from messenger import Messenger, Sendmail, Nexmo
 from watchdog import watchdog
-
 from accountant import AccountantProxy
-
 from exception import *
-
 from zmq_util import export, router_share_async, dealer_proxy_async, push_proxy_async, ComponentExport
 from rpc_schema import schema
 from dateutil import relativedelta
@@ -69,6 +71,7 @@ import base64
 from Crypto.Random.random import getrandbits
 import urllib
 from decimal import Decimal
+
 
 USERNAME_TAKEN = AdministratorException("exceptions/administrator/username_taken")
 NO_SUCH_USER = AdministratorException("exceptions/administrator/no_such_user")
@@ -273,7 +276,8 @@ class Administrator:
                    'nickname': user.nickname,
                    'locale': user.locale,
                    'audit_secret': user.audit_secret,
-                   'notifications': notifications
+                   'notifications': notifications,
+                   'totp_enabled': user.totp_enabled
         }
         return profile
 
@@ -430,8 +434,7 @@ class Administrator:
         if user.totp_enabled:
             raise TOTP_ALREADY_ENABLED
 
-        secret = base64.b32encode("".join(
-            chr(getrandbits(8)) for i in range(16)))
+        secret = generate_totp_secret()
         user.totp_secret = secret
         self.session.commit()
         return secret
@@ -526,7 +529,8 @@ class Administrator:
             if user.totp_last >= now + i:
                 # token reuse is not allowed
                 continue
-            if compute_totp(secret, i) == otp:
+            computed = compute_totp(secret, i)
+            if computed == otp:
                 user.totp_last = now + i
                 self.session.commit()
                 return True

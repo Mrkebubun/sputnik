@@ -1,3 +1,11 @@
+#
+# Copyright 2014 Mimetic Markets, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
 from sputnik import config
 from sputnik import observatory
 
@@ -12,7 +20,6 @@ from autobahn import wamp
 from autobahn.wamp.types import RegisterOptions
 from datetime import datetime, timedelta
 from sputnik import util
-
 
 class TokenService(ServicePlugin):
     def __init__(self):
@@ -37,13 +44,19 @@ class TokenService(ServicePlugin):
     @error_handler
     @authenticated
     @schema(u"public/token.json#get_new_api_credentials")
-    def get_new_api_credentials(self, expiration=None, username=None):
+    def get_new_api_credentials(self, expiration=None, totp=None, username=None):
         if expiration is None:
             now = datetime.utcnow()
             expiration = util.dt_to_timestamp(now + timedelta(days=7))
 
-        r = yield self.administrator.proxy.get_new_api_credentials(username, expiration)
-        returnValue(r)
+        # Check totp
+        totp_result = yield self.administrator.proxy.check_totp(username, totp)
+
+        if totp_result:
+            r = yield self.administrator.proxy.get_new_api_credentials(username, expiration)
+            returnValue(r)
+        else:
+            raise WebserverException("exceptions/webserver/invalid_otp")
 
     @wamp.register(u"rpc.token.logout")
     @error_handler

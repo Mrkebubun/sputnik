@@ -1,4 +1,16 @@
+<<<<<<< HEAD
 TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees test_messenger
+=======
+#
+# Copyright 2014 Mimetic Markets, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees
+>>>>>>> master
 TESTS_UI=test_ui
 ALL=$(TESTS) $(TESTS_UI)
 

@@ -1,3 +1,11 @@
+#
+# Copyright 2014 Mimetic Markets, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
 __author__ = 'sameer'
 
 
@@ -13,18 +21,10 @@ class BlockScore():
         self.api_key = api_key
 
     def verify(self, input_values):
-        toencode_values = {}
-        for outer_key, outer_value in input_values.iteritems():
-            if isinstance(outer_value, dict):
-                for inner_key, inner_value in outer_value.iteritems():
-                    toencode_values['%s[%s]' % (outer_key, inner_key)] = inner_value
-            else:
-                toencode_values[outer_key] = outer_value
-
-        data = urllib.urlencode(toencode_values)
-        d = treq.post('https://api.blockscore.com/verifications', auth=(self.api_key,''),
-                      headers = {"Accept": "application/vnd.blockscore+json;version=3",
-                                 "Content-Type": "application/x-www-form-urlencoded"},
+        data = urllib.urlencode(dict([k.encode('utf-8'),unicode(v).encode('utf-8')] for k,v in input_values.items()))
+        d = treq.post('https://api.blockscore.com/people', auth=(self.api_key,''),
+                      headers = {"Accept": "application/vnd.blockscore+json;version=4",
+                                 "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"},
                       data=data
                       )
 
@@ -42,28 +42,22 @@ class BlockScore():
 
 
 if __name__ == "__main__":
-  date_of_birth = '1980-08-23'
-  identification = {
-    'passport': '0000'
-  }
-  name = {
-    'first': 'John',
-    'middle': 'Pearce',
-    'last': 'Doe'
-  }
-  address = {
-    'street1': '1 Infinite Loop',
-    'street2': 'Apt 6',
-    'city': 'Cupertino',
-    'state': 'CA',
-    'postal_code': '95014',
-    'country_code': 'US'
-  }
-  values = { 'date_of_birth': date_of_birth,
-             'identification': identification,
-             'name': name,
-             'address': address
-  }
+
+  values = {'name_first': 'John',
+            'name_middle': 'Pearce',
+           'name_last': 'Doe',
+           'document_type': 'ssn',
+           'document_value': '0000',
+           'birth_day': '23',
+           'birth_month': '8',
+           'birth_year': '1980',
+           'address_street1': '1 Infinite Loop',
+           'address_street2': 'Apt 6',
+           'address_city': 'Cupertino',
+           'address_subdivision': 'CA',
+           'address_postal_code': '95014',
+           'address_country_code': 'US'}
+
 
   blockscore = BlockScore('sk_test_75a2d658d257e48b4d70f3b11a3afacc')
   d = blockscore.verify(values)

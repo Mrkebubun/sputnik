@@ -1,1 +1,4 @@
-*.js
+ractive.adaptor.js
+sputnik.js
+ui.js
+tradingview.js

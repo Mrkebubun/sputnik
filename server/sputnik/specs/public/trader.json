@@ -93,6 +93,10 @@
             "address": {
                 "type": "string",
                 "description": "the destination of the withdrawal"
+            },
+            "totp": {
+                "type": ["string", "null"],
+                "description": "one time password, if required"
             }
         },
         "required": ["contract", "amount", "address"],

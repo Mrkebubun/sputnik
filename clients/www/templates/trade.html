@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 {{>change_password_token}}
 {{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
@@ -10,27 +14,27 @@
         <div class="row">
             <div class="col-xs-12 text-center">
                 {{#if !sputnik.logged_in}}
-                <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a>
+                <div class="login-right"><a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                 {{else}}
-                <span id="login_name">{{sputnik.username}}</span><br/>
-                <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
+                <div class="login-left"><span id="login_name">{{sputnik.username}}</span></div>
+                <div class="login-right"><span><a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></span></div>
                 {{/if}}
             </div>
         </div>
         <div class="row">
-            <div class="col-xs-12 text-center simple_ticker">
+            <div class="col-xs-12 text-center simple_ticker greybg">
                 {{current_ticker}}
             </div>
         </div>
         <div class="row">
             <div class="col-xs-6 buy-box">
                 <div class="row">
-                    <div class="col-sm-12 header-box">
+                    <div class="col-sm-12 header-box header-box-center">
                         <h6 class="buy">{{translate("trade/titles/buy", sputnik.profile.locale)}}</h6>
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-sm-12 buy-box2">
+                    <div class="col-sm-12 buy-box2 buy-box5">
                         <div class="row">
                             <div class="col-sm-6">
                                 <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
@@ -50,7 +54,7 @@
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="buy_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="buyButton" on-click="buy">{{translate("trade/buttons/buy", sputnik.profile.locale)}}</a>
                         </div>
-                        <div class="row spacer-top">
+                        <div class="row spacer-top spacer-sides">
                             <b>{{sputnik.markets[current_ticker].denominated_contract_ticker}}</b>
                             {{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker]), sputnik.profile.locale)}}
                         </div>
@@ -60,12 +64,12 @@
             </div>
             <div class="col-xs-6 sell-box">
                 <div class="row">
-                    <div class="col-sm-12 header-box-sell">
+                    <div class="col-sm-12 header-box-sell header-box-center">
                         <h6 class="buy">{{translate("trade/titles/sell", sputnik.profile.locale)}}</h6>
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-sm-12 buy-box2">
+                    <div class="col-sm-12 buy-box2 buy-box6">
                         <div class="row">
                             <div class="col-sm-6">
                                 <p>{{translate("trade/titles/price", sputnik.profile.locale)}}</p>
@@ -86,7 +90,7 @@
                             <div class="alert alert-danger text-center alert-warning" style="display:none;" id="sell_alert"></div>
                             <a href="#" class="button-link-box3 button-place" id="sellButton" on-click="sell">{{translate("trade/buttons/sell", sputnik.profile.locale)}}</a>
                         </div>
-                        <div class="row spacer-top">
+                        <div class="row spacer-top spacer-sides">
                             <b>{{sputnik.markets[current_ticker].payout_contract_ticker}}</b>
                             {{format_quantity(sputnik.markets[current_ticker].payout_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].payout_contract_ticker].position - (sputnik.markets[current_ticker].payout_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].payout_contract_ticker]), sputnik.profile.locale)}}
                         </div>

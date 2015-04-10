@@ -200,6 +200,13 @@ a.news-title {
     z-index: 1;
 }
 
+.content2 {
+    background-color: #fff;
+    border: solid 1px #e6e6e6;
+    margin-top: -1px;
+    z-index: 1;
+}
+
 .contracts {
     border-bottom: 1px solid #e6e6e6;
     padding: 38px 35px;
@@ -1040,6 +1047,10 @@ td.notifications {
     margin: 10px 0 10px -17px;
 }
 
+.header-sub4 {
+    margin: 20px 0 -20px 21px;
+}
+
 .file::-webkit-file-upload-button {
   visibility: hidden;
   border: 1;
@@ -1239,6 +1250,51 @@ h4.bid {
 }
 
 
+/*-- Embeddable Module Extra CSS --*/
+
+.login-left {
+    text-align: left;
+    float: left;
+    margin-left: -15px;
+    margin-bottom: 10px;
+}
+
+.login-right {
+    text-align: right;
+    float: right;
+    margin-right: -15px;
+    margin-bottom: 10px;
+}
+
+.header-box-center {
+    text-align: center;
+    margin-left: 0px !important;
+    padding-left: 0px !important;
+}
+
+.greybg {
+    background-color: #474747 !important;
+    font-weight: 500;
+    padding: 10px 0 10px 0;
+    color: white;
+
+}
+
+.buy-box5 {
+    border-left: 1px solid #e6e6e6;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+.buy-box6 {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+.spacer-sides {
+    padding: 0 15px 0 15px;
+}
+
 
 /*-- Media Queries --*/
 
@@ -1254,12 +1310,14 @@ h4.bid {
 .navbar {
     margin-top: 2px;
 }
-.container-fluid {
+/*--
+ .container-fluid {
     border-right: solid 1px #c1c1c1;
     border-left: solid 1px #c1c1c1;
     border-bottom: solid 1px #c1c1c1;
     margin-top: 0px !important;
 }
+--*/
 
 .login-box {
     clear: both;
@@ -1523,6 +1581,11 @@ h4.bid {
 }
 
 .spacer-bottom {
+    margin-bottom: 20px;
+}
+
+.spacer-bottom2 {
+    padding-bottom: 20px;
     margin-bottom: 20px;
 }
 

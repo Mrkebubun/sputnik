@@ -1,3 +1,11 @@
+#
+# Copyright 2014 Mimetic Markets, Inc.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
 __author__ = 'sameer'
 
 import unittest
@@ -5,7 +13,9 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-import random, string
+import random
+import string
+
 
 class TestSputnikUI(unittest.TestCase):
     def setUp(self):

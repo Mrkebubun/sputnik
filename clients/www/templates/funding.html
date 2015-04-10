@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 {{>change_password_token}}
 {{#if !connected}}
 <div class="alert alert-warning" id="not_connected">
@@ -10,21 +14,22 @@
         <div class="row">
             <div class="col-xs-12 text-center">
                 {{#if !sputnik.logged_in}}
-                <a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a>
+                <div class="login-right"><a href="#" on-click="show_login_register">{{translate("top_menu/login_register", sputnik.profile.locale)}}</a></div>
                 {{else}}
-                <span id="login_name">{{sputnik.username}}</span><br/>
-                <a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a>
+                <div class="login-left"><span id="login_name">{{sputnik.username}}</span></div>
+                <div class="login-right"><span><a href="#" on-click="logout">{{translate("top_menu/logout", sputnik.profile.locale)}}</a></span></div>
                 {{/if}}
             </div>
         </div>
+
         <div class="row">
-            <div class="col-xs-12 text-center simple_ticker">
+            <div class="col-xs-12 text-center simple_ticker greybg">
                 {{current_currency}}
             </div>
         </div>
         {{#if sputnik.logged_in}}
         <div class="row">
-            <div class="col-sm-12 content">
+            <div class="col-sm-12 content2">
                 <div class="contracts">
                     <a href="#" class="{{fh_tab == 'deposit' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:deposit">{{translate("account/funding_history/pages/deposit", sputnik.profile.locale)}}</a>
                     <a href="#" class="{{fh_tab == 'withdraw' ? 'active-link-box' : 'inactive-link-box'}}" on-click="switch_fh_tab:withdraw">{{translate("account/funding_history/pages/withdraw", sputnik.profile.locale)}}</a>
@@ -51,7 +56,7 @@
                     </div>
                     <div class="row">
                         <div class="col-sm-12 deposit-heading">
-                            <h4 class="header-sub content-push-right">{{translate("account/funding_history/titles/deposit_instructions", sputnik.profile.locale)}}</h4>
+                            <h4 class="header-sub4 content-push-right">{{translate("account/funding_history/titles/deposit_instructions", sputnik.profile.locale)}}</h4>
                         </div>
                     </div>
                     <div class="row">
@@ -60,7 +65,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-sm-12 spacer-bottom">
+                        <div class="col-sm-12 spacer-bottom2">
                             {{#if current_currency == "BTC"}}
                             <div intro="show_qr:{{sputnik.currencies[current_currency].address}}" class="content-push-right" id="qr_code"></div>
                             <p class="content-push6"><a href="bitcoin:{{sputnik.currencies[current_currency].address}}">{{sputnik.currencies[current_currency].address}}</a></p>
@@ -116,6 +121,20 @@
                     </div>
                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) > 0}}
                     {{#if parse_number(withdrawal_amount, sputnik.profile.locale) <= sputnik.positions[current_currency].position - (current_currency == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[current_currency])}}
+                    {{#if sputnik.profile.totp_enabled}}
+                    <div class="row">
+                        <div class="col-sm-5 deposit-content">
+                            <div class="row form-row content-pull">
+                                <div class="col-sm-5 form-label">
+                                    <p>{{translate('account/profile/titles/totp', sputnik.profile.locale)}}</p>
+                                </div>
+                                <div class="col-sm-7">
+                                    <input class="form-control" value="{{totp}}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
                     {{#if current_currency == "BTC"}}
                     <div class="row">
                         <div class="col-sm-5 deposit-content">
