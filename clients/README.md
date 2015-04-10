@@ -431,9 +431,10 @@ Change the profile for the user, pass in a ```profile``` object
 
 Returns the nonce you need to submit a support request to the support ticket server. Type is the type of ticket. Only 'Compliance' is currently supported.
 
-### rpc.trader.request_withdrawal(contract, amount, address)
+### rpc.trader.request_withdrawal(contract, amount, address, totp)
 
-Send a request to withdraw a certain amount of a cash contract to a given address
+Send a request to withdraw a certain amount of a cash contract to a given address. If TOTP is enabled, totp must be
+passed.
 
 ### rpc.trader.get_new_address(contract)
 
@@ -455,11 +456,12 @@ Change the password, confirming that the old_hash matches the current password h
 
 Logout
 
-### rpc.token.get_new_api_credentials(expiration)
+### rpc.token.get_new_api_credentials(expiration, totp)
 
 Get a new set of API credentials and invalidate the old one. If expiration is passed in, then the token will expire at
 the expiration (microseconds since epoch). If no expiration is passed in the token will expire in 7 days. In the future
-this call will also require an OTP if that is enabled for the account.
+this call will also require an OTP if that is enabled for the account. If TOTP is enabled, totp must be
+passed.
 
 Returns
 

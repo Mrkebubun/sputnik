@@ -119,6 +119,33 @@ class @Sputnik extends EventEmitter
             , (error) =>
                 @emit "make_account_fail", error
 
+    enableTotp: () =>
+        @call("rpc.token.enable_totp").then \
+            (result) =>
+                @emit "enable_totp_success", result
+            , (error) =>
+                @emit "enable_totp_fail", error
+
+    verifyTotp: (otp) =>
+        @call("rpc.token.verify_totp", otp).then \
+            (result) =>
+                if result
+                    @emit "verify_totp_success", result
+                else
+                    @emit "verify_totp_fail", ['alerts/invalid_otp']
+            , (error) =>
+                @emit "verify_totp_fail", error
+
+    disableTotp: (otp) =>
+        @call("rpc.token.disable_totp", otp).then \
+            (result) =>
+                if result
+                    @emit "disable_totp_success", result
+                else
+                    @emit "disable_totp_fail", ['alerts/invalid_otp']
+            , (error) =>
+                @emit "disable_totp_fail", error
+
     getProfile: () =>
         @call("rpc.trader.get_profile").then (@profile) =>
             @emit "profile", @profile
@@ -185,7 +212,7 @@ class @Sputnik extends EventEmitter
             if args.debug?
                 @log_flag = true
 
-    authenticate: (@username, password) =>
+    authenticate: (@username, password, otp) =>
         if not @session?
             @wtf "Not connected."
 
@@ -197,7 +224,13 @@ class @Sputnik extends EventEmitter
             if method == "wampcra"
                 @authextra = extra
                 key = autobahn.auth_cra.derive_key password, extra.salt
-                autobahn.auth_cra.sign key, extra.challenge
+                signature = autobahn.auth_cra.sign key, extra.challenge
+                result =
+                    signature: signature
+                    extra:
+                        otp: otp
+            else
+                @wtf "unknown method #{method}"
 
         @session.leave "sputnik.internal.rejoin"
 
@@ -580,8 +613,8 @@ class @Sputnik extends EventEmitter
                 @log "Deposit instructions for #{contract}: #{instructions}"
                 @emit "deposit_instructions", [contract, instructions]
 
-    requestWithdrawal: (ticker, amount, address) =>
-        @call("rpc.trader.request_withdrawal", ticker, @quantityToWire(ticker, amount), address).then \
+    requestWithdrawal: (ticker, amount, address, totp) =>
+        @call("rpc.trader.request_withdrawal", ticker, @quantityToWire(ticker, amount), address, totp).then \
         (result) =>
             @log ["request_withdrawal succeeded", result]
             @emit "request_withdrawal_success", result
@@ -618,10 +651,12 @@ class @Sputnik extends EventEmitter
                 @emit "margin", [@quantityFromWire('BTC', low_margin), @quantityFromWire('BTC', high_margin)]
                 @emit "cash_spent", @cashSpentFromWire(max_cash_spent)
 
-    getNewAPICredentials: () =>
-        @call("rpc.token.get_new_api_credentials").then \
+    getNewAPICredentials: (totp) =>
+        @call("rpc.token.get_new_api_credentials", null, totp).then \
             (credentials) =>
                 @emit "api", credentials
+            , (error) =>
+                @emit "api_fail", error
 
     openMarket: (ticker) =>
         @log "Opening market: #{ticker}"

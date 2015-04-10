@@ -27,7 +27,7 @@
 __author__ = 'sameer'
 
 from datetime import datetime
-from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue, gatherResults, succeed, CancelledError
 from twisted.internet import reactor
 from twisted.internet.threads import deferToThread
 from twisted.python import log
@@ -1304,8 +1304,14 @@ class ILPServer(Resource):
                             value = Decimal(data[section][field])
                         else:
                             value = data[section][field]
-                            if isinstance(value, basestring):
+                            try:
                                 value = float(value)
+                            except TypeError:
+                                try:
+                                    value = [float(x) for x in value]
+                                except TypeError:
+                                    value = None
+                                    log.err("Unable to process %s.%s = %s" % (section, field, value))
                         setattr(object, field, value)
                     except Exception as e:
                         log.err(e)
