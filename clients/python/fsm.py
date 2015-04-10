@@ -246,7 +246,12 @@ class FSM:
 #    2003
 ##############################################################################
 
-import sys, os, traceback, optparse, time, string
+import sys
+import os
+import traceback
+import optparse
+import time
+import string
 
 #
 # These define the actions. 

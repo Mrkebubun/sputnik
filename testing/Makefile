@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees test_messenger
-=======
 #
 # Copyright 2014 Mimetic Markets, Inc.
 #
@@ -9,8 +6,7 @@ TESTS=test_accountant test_administrator test_cashier test_ledger test_engine te
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees
->>>>>>> master
+TESTS=test_accountant test_administrator test_cashier test_ledger test_engine test_sputnik test_zmq_util test_margin test_fees test_messenger
 TESTS_UI=test_ui
 ALL=$(TESTS) $(TESTS_UI)
 

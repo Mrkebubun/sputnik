@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-<<<<<<< HEAD
-
-from messenger import Sendmail
-=======
 #
 # Copyright 2014 Mimetic Markets, Inc.
 #
@@ -10,8 +6,8 @@ from messenger import Sendmail
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-from sendmail import Sendmail
->>>>>>> master
+from messenger import Sendmail
+
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.python import log
