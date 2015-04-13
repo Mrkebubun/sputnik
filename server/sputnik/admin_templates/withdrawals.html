@@ -56,15 +56,15 @@
             {% for withdrawal in withdrawals %}
             {% if withdrawal.pending %}
             <tr>
-                <td><a href="/user_details?username={{withdrawal.username}}">{{withdrawal.username}}</a></td>
+                <td><a href="/user_details?username={{withdrawal.username|urlencode}}">{{withdrawal.username}}</a></td>
                 <td>{{withdrawal.contract.ticker}}</td>
                 <td>{{withdrawal.address}}</td>
                 <td>{{withdrawal.quantity_fmt}}</td>
                 <td>{{withdrawal.entered}}</td>
                 <td>
-                    <a href="/process_withdrawal?username={{withdrawal.username}}&online=true&id={{withdrawal.id}}">Online</a>
-                    <a href="/process_withdrawal?username={{withdrawal.username}}&id={{withdrawal.id}}">Offline</a>
-                    <a href="/process_withdrawal?username={{withdrawal.username}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
+                    <a href="/process_withdrawal?username={{withdrawal.username|urlencode}}&online=true&id={{withdrawal.id}}">Online</a>
+                    <a href="/process_withdrawal?username={{withdrawal.username|urlencode}}&id={{withdrawal.id}}">Offline</a>
+                    <a href="/process_withdrawal?username={{withdrawal.username|urlencode}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
                     {% if withdrawal.contract.multisig_wallet_address %}
                     Multisig:
                     <form method="POST" action="/process_withdrawal">

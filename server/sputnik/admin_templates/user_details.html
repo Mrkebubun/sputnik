@@ -215,7 +215,7 @@ $ ->
             </td>
         </tr>
         <tr>
-            <td><A href="/mail_statement?username={{user.username}}">Mail Statement</A></td>
+            <td><A href="/mail_statement?username={{user.username|urlencode}}">Mail Statement</A></td>
         </tr>
     </tbody>
 </table>
@@ -363,7 +363,7 @@ $ ->
                         <td>{{address.address}}</td>
                         <td>{{address.active}}</td>
                         <td>{{address.quantity_fmt}}</td>
-                        <td><a href="/rescan_address?username={{user.username}}&address={{address.address}}">Rescan</a></td>
+                        <td><a href="/rescan_address?username={{user.username|urlencode}}&address={{address.address|urlencode}}">Rescan</a></td>
                         <td>
                             <form method="POST" action="/manual_deposit">
                                 <input type="text" name="quantity" placeholder="Quantity">
@@ -402,9 +402,9 @@ $ ->
                         <td>{{withdrawal.quantity_fmt}}</td>
                         <td>{{withdrawal.entered}}</td>
                         <td>
-                            <a href="/process_withdrawal?username={{user.username}}&online=true&id={{withdrawal.id}}">Online</a>
-                            <a href="/process_withdrawal?username={{user.username}}&id={{withdrawal.id}}">Offline</a>
-                            <a href="/process_withdrawal?username={{user.username}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
+                            <a href="/process_withdrawal?username={{user.username|urlencode}}&online=true&id={{withdrawal.id}}">Online</a>
+                            <a href="/process_withdrawal?username={{user.username|urlencode}}&id={{withdrawal.id}}">Offline</a>
+                            <a href="/process_withdrawal?username={{user.username|urlencode}}&cancel=true&id={{withdrawal.id}}">Cancel</a>
                             {% if withdrawal.contract.multisig_wallet_address %}
                             Multisig:
                             <form method="POST" action="/process_withdrawal">
