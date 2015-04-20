@@ -253,6 +253,10 @@ $ ->
                 sort: (array, column) ->
                     array = array.slice()
                     array.sort (a, b) -> a[column] < b[column] ? -1 : 1
+
+                max: (args...) ->
+                    Math.max(args...)
+
             transitions:
                 show_chart: (t, ticker) ->
                     showChart(ticker, t.node.id, transition=t)

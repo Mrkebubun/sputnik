@@ -35,10 +35,10 @@ $ ->
                 <td align="right">{{order.quantity_fmt}}</td>
                 <td align="right">{{order.quantity_left_fmt}}</td>
                 <td align="right">{{order.price_fmt}}</td>
-                <td><a href="/user_details?username={{order.username}}">{{order.username}}</a></td>
+                <td><a href="/user_details?username={{order.username|urlencode}}">{{order.username}}</a></td>
                 <td>{{order.timestamp}}</td>
                 <td name="display_all" style="display: table-cell;">{% if order.errors|length != 0 %}{{order.errors}}{% endif %}</td>
-                <td><a href="/cancel_order?username={{order.username}}&id={{order.id}}&ticker={{ticker}}">Cancel</a></td>
+                <td><a href="/cancel_order?username={{order.username|urlencode}}&id={{order.id}}&ticker={{ticker|urlencode}}">Cancel</a></td>
             </tr>
             {% endfor %}
         </tbody>

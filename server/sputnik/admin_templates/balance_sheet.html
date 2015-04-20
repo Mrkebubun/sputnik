@@ -40,7 +40,7 @@ $ ->
                         </tr>
                         {% for position in details.positions_raw %}
                         <tr>
-                            <td><a href="/user_details?username={{position.username}}">{{position.username}}</a></td>
+                            <td><a href="/user_details?username={{position.username|urlencode}}">{{position.username}}</a></td>
                             <td align="right">{{position.position_fmt}}</td>
                         </tr>
                         {% endfor %}

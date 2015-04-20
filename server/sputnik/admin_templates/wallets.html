@@ -101,7 +101,7 @@ $ ->
                         AUTHENTICATED WITH BITGO <a href="/bitgo_oauth_clear">CLEAR TOKEN</a>
                     {% else %}
                     {% if contract.multisig_wallet_address %}
-                        <a href="/bitgo_oauth_get?wallet_id={{contract.multisig_wallet_address}}">Authenticate with BitGo</a>
+                        <a href="/bitgo_oauth_get?wallet_id={{contract.multisig_wallet_address|urlencode}}">Authenticate with BitGo</a>
                     {% else %}
                         <a href="/bitgo_oauth_get">Authenticate with BitGo</a>
                     {% endif %}

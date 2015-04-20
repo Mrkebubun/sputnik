@@ -56,7 +56,7 @@
                         </div>
                         <div class="row spacer-top spacer-sides">
                             <b>{{sputnik.markets[current_ticker].denominated_contract_ticker}}</b>
-                            {{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker]), sputnik.profile.locale)}}
+                            {{format_quantity(sputnik.markets[current_ticker].denominated_contract_ticker, max(0, sputnik.positions[sputnik.markets[current_ticker].denominated_contract_ticker].position - (sputnik.markets[current_ticker].denominated_contract_ticker == "BTC" ? sputnik.margin[1] : sputnik.cash_spent[sputnik.markets[current_ticker].denominated_contract_ticker])), sputnik.profile.locale)}}
                         </div>
                         {{/if}}
                     </div>
