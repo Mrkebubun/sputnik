@@ -5,6 +5,7 @@ dist
 sputnik.tar.gz
 .bitcoin
 .idea/workspace.xml
+.idea/libraries/Generated_files.xml
 postgresql-9.2-1002.jdbc4.jar
 sqlitejdbc-v056.jar
 zentus-sqlite-license.txt
