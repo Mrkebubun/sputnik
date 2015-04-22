@@ -1,6 +1,14 @@
 Hello {{withdrawal.user.nickname}} ({{withdrawal.user.username}}),
 
-Your withdrawal request of {{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
-has been submitted for manual processing. It may take up to 24 hours to be processed.
-Please contact support with any questions, and reference: {{withdrawal.id}}
+Your withdrawal request of
+
+{{withdrawal.quantity_fmt}} {{withdrawal.contract.ticker}}
+
+to the destination
+
+{{withdrawal.address}}
+
+has been submitted for manual processing.
+
+Please respond to this email to confirm the withdrawal request, and reference: {{withdrawal.id}}
 
