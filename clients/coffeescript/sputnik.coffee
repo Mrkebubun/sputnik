@@ -890,12 +890,12 @@ class @Sputnik extends EventEmitter
         @log ["ui_book", ui_book]
         @emit "book", ui_book
 
-    # Make sure we only have the last hour of trades
+    # Make sure we only have the last 10 trades, or last hour, whichever is greater
     cleanTradeHistory: (ticker) =>
         now = new Date()
         an_hour_ago = new Date()
         an_hour_ago.setHours(now.getHours() - 1)
-        while @markets[ticker].trades.length and @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
+        while @markets[ticker].trades.length > 10 and @markets[ticker].trades[0].timestamp / 1000 < an_hour_ago.getTime()
             @markets[ticker].trades.shift()
 
     emitTradeHistory: (ticker) =>
