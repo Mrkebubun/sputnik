@@ -110,7 +110,7 @@ class PostgresDatabase(DatabasePlugin):
                     "description": r[1],
                     "denominator": r[2],
                     "contract_type": r[3],
-                    "full_description": markdown.markdown(r[4], extensions=["markdown.extensions.extra",
+                    "full_description": markdown.markdown(r[4].decode('utf-8'), extensions=["markdown.extensions.extra",
                                                                             "markdown.extensions.sane_lists",
                                                                             "markdown.extensions.nl2br"
                     ]),
