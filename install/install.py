@@ -37,7 +37,7 @@ class Profile:
 
         self.profile = os.path.abspath(profile)
         self.config = {}
-        self.deps = {"dpkg":[], "python":[], "node":[], "source":[]}
+        self.deps = {"dpkg":[], "python":[], "node":[], "source":[], "system":[]}
         self.build_deps = {"dpkg":[], "python":[], "node":[], "source":[]}
         self.pre_install = []
         self.install = []
@@ -130,6 +130,16 @@ class Profile:
                     package_path = os.path.join(
                             profile, stage, "source", package)
                     deps["source"].append((package_name, profile, package_path))
+            except OSError:
+                pass
+            try:
+                for line in sorted(os.listdir(os.path.join(
+                        profile, stage, "system"))):
+                    package = line.strip()
+                    package_name = package.lstrip("0123456789-")
+                    package_path = os.path.join(
+                            profile, stage, "system", package)
+                    deps["system"].append((package_name, profile, package_path))
             except OSError:
                 pass
 
@@ -317,6 +327,8 @@ class Installer():
         del self.env["base_profile"]
         return result == 0
 
+    check_system = check_source
+
     def check_python(self, name):
         # We can query packages using the pip module.
 
@@ -347,6 +359,8 @@ class Installer():
         del self.env["base_profile"]
         return result
 
+    install_system = install_source
+
     def install_python(self, name):
         return self.run(["/usr/bin/pip", "install", name])
 
@@ -361,6 +375,21 @@ class Installer():
             deps = self.profile.build_deps
 
         self.log("Installing %sdependencies...\n" % prefix)
+
+        # make system deps
+        self.log("Installing system %sdependencies...\n" % prefix)
+        for package in deps["system"]:
+            if not self.check_system(package):
+                self.log("%s not installed. Installing... " % package[0])
+                self.install_system(package)
+                if self.check_system(package):
+                    self.log("done.\n")
+                else:
+                    self.log("failed.\n")
+                    self.error("Error: unable to install %s.\n" % package[0])
+                    self.abort()
+            else:
+                self.log("%s installed.\n" % package[0])
 
         # make dpkg deps
         self.log("Installing dpkg %sdependencies...\n" % prefix)
