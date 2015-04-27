@@ -1,2 +1,3 @@
 clients/www/js/*.js linguist-vendored
 clients/python/ilp/js/*.js linguist-vendored
+clients/www/js/cldr/*.js linguist-vendored
