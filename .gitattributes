@@ -1,0 +1,2 @@
+clients/www/js/*.js linguist-vendored
+clients/python/ilp/js/*.js linguist-vendored
